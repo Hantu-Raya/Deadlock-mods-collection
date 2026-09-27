@@ -311,6 +311,10 @@
 
                 <Panel id="HPColorsSettingsOverviewHero" class="HPColorsSettingsPage HPColorsPresetWorkspace">
                   <Panel class="HPColorsPresetSurface">
+                    <Panel id="HPColorsPresetGuide" class="HPColorsPresetGuide">
+                      <Button id="HPColorsPresetGuideToggle" class="HPColorsSecondaryAction HPColorsPresetGuideToggle"><Label id="HPColorsPresetGuideToggleLabel" text="SHOW HOW PRESETS WORK" /></Button>
+                      <Label id="HPColorsPresetGuideText" text="" class="HPColorsPresetGuideText" />
+                    </Panel>
                     <Panel class="HPColorsPresetCreateBlock">
                       <Panel class="HPColorsPresetCreateHeader">
                         <Panel class="HPColorsPresetCreateHeading">
@@ -336,14 +340,14 @@
                         </Panel>
                         <Panel class="HPColorsPresetFormActions">
                           <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>
-                          <Button id="HPColorsPresetCancelEditButton" class="HPColorsSecondaryAction HPColorsPresetCancelEditButton"><Label text="CANCEL" /></Button>
+                          <Button id="HPColorsPresetCancelEditButton" class="HPColorsSecondaryAction HPColorsPresetCancelEditButton"><Label text="CLOSE" /></Button>
                         </Panel>
                       </Panel>
                     </Panel>
                     <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
                     <Panel class="HPColorsPresetLibraryHeader">
                       <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
-                      <Label text="APPLY loads a preset. Click a row to update it, or its name to rename it." class="HPColorsPresetLibraryHint" />
+                      <Label text="Click a preset to use it. EDIT loads it so you can change it and SAVE." class="HPColorsPresetLibraryHint" />
                       <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
                       <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY PRESETS" /></Button>
                       <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT PRESETS" /></Button>

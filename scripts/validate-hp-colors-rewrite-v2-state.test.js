@@ -1476,7 +1476,8 @@ test('preset apply updates layout and ally bar immediately', () => {
   );
   const selected = send(state, 'preset_select', { id: 'user_0002' });
   assert.equal(selected.view.repository.selectedId, 'user_0002');
-  assert.equal(selected.view.repository.activeId, null);
+  // Selection is not application: the untouched screen still matches the baked default.
+  assert.equal(selected.view.repository.activeId, 'baked_default');
   assert.equal(
     Object.prototype.hasOwnProperty.call(selected.view.repository, 'pendingId'),
     false,
