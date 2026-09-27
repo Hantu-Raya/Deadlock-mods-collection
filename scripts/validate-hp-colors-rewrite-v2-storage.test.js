@@ -224,7 +224,8 @@ function launch(profile, options = {}) {
     harness,
     bridge,
     identityTree,
-    status: () => panelById(harness, 'HPColorsLiveStatus').text,
+    status: () => panelById(harness, 'HPColorsLiveStatus').GetAttributeString('hp_colors_store_status', ''),
+    chip: () => panelById(harness, 'HPColorsLiveStatus').text,
     renderer: () => harness.root.HPV2GetNormalizedConfig(),
     attr: (name) => harness.root.GetAttributeString(name, ''),
     run(ms) {
@@ -1157,4 +1158,54 @@ test('REVERT and its UNDO both persist through local autosave', () => {
   assert.equal(saved.values.widthScale, 140, 'the preset itself never changed');
   assertOtherModsUntouched(profile);
   record(fixture);
+});
+
+// Tester round 5: the header chip names the preset the live settings belong
+// to (healthy local save is silent), so a player can tell a named preset
+// from Rewrite Default or settings that are in no preset.
+test('header chip names the preset the current settings belong to', () => {
+  const body = {
+    version: 1,
+    values: { widthScale: 140 },
+    conditions: {},
+    scopes: [],
+    userPresets: [
+      { id: 'user_0001', name: 'A Very Long Everyone Preset', mode: 'all', heroes: [], values: { widthScale: 140 } },
+    ],
+  };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }) });
+  const fixture = launch(profile, { label: 'chip seed' });
+  fixture.run(8000);
+  openEditor(fixture);
+  panelById(fixture.harness, 'HPColorsCategoryPresets').events.onactivate();
+  panelById(fixture.harness, 'HPColorsTab0').events.onactivate();
+  const row = () => panelById(fixture.harness, 'HPColorsPresetOptions').Children().find(
+    (option) => option.GetAttributeString('hp_colors_preset_id', '') === 'user_0001',
+  );
+  row().FindChildrenWithClassTraverse('HPColorsPresetOptionMain')[0].events.onactivate();
+  const chip = panelById(fixture.harness, 'HPColorsLiveStatus');
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE…');
+  assert.equal(chip.BHasClass('PresetChanged'), false);
+
+  setWidth(fixture, 150);
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE… · CHANGED', 'changes show before the save settles');
+  assert.equal(chip.BHasClass('PresetChanged'), true);
+  fixture.run(8000);
+  assert.equal(fixture.status(), 'SAVED ON THIS PC', 'the local save still runs underneath');
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE… · CHANGED');
+
+  panelById(fixture.harness, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE…');
+
+  // Rewrite Default, then an edit that belongs to no preset.
+  const fresh = launch(createProfile(), { label: 'chip fresh' });
+  fresh.run(8000);
+  assert.equal(fresh.chip(), 'PRESET: REWRITE DEFAULT');
+  openEditor(fresh);
+  setWidth(fresh, 175);
+  assert.equal(fresh.chip(), 'NOT SAVED TO A PRESET');
+  assert.equal(panelById(fresh.harness, 'HPColorsLiveStatus').BHasClass('PresetChanged'), true);
+  fresh.run(8000);
+  assert.equal(fresh.status(), 'SAVED ON THIS PC');
+  assert.equal(fresh.chip(), 'NOT SAVED TO A PRESET');
 });
