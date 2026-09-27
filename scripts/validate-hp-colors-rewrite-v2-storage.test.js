@@ -490,7 +490,7 @@ test('Forget clears only v2 keys, keeps live settings, and saves again after the
 
   const forget = panelById(fixture.harness, 'HPColorsStoreForgetButton');
   forget.events.onactivate();
-  assert.equal(panelById(fixture.harness, 'HPColorsStoreForgetLabel').text, 'CONFIRM FORGET');
+  assert.equal(panelById(fixture.harness, 'HPColorsStoreForgetLabel').text, 'CONFIRM CLEAR');
   forget.events.onactivate();
   fixture.run(2000);
   assert.equal(profile.disk.has(KEY_CURRENT), false);
@@ -550,7 +550,7 @@ test('an old builder pak01 layout still boots and tells the player to delete it'
     omitStorageScript: true,
   });
   fixture.run(4000);
-  assert.equal(fixture.status(), 'OLD PRESET VPK');
+  assert.equal(fixture.status(), 'UPDATE PRESET FILE');
   assert.equal(fixture.renderer().enabled, true);
   openEditor(fixture);
   assert.ok(fixture.harness.logs.some((line) => line.includes('delete pak01_dir.vpk')));

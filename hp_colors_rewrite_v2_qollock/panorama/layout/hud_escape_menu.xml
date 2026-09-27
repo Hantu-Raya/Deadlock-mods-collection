@@ -184,7 +184,7 @@
           </Panel>
           <Panel class="HPColorsHeaderRule" />
           <CitadelHTMLPanel id="HPColorsSupporterTicker" class="HPColorsSupporterTicker" hittest="false" acceptsfocus="false" />
-          <Label id="HPColorsLiveStatus" text="LIVE" class="HPColorsLiveStatus" />
+          <Label id="HPColorsLiveStatus" text="LOADING" class="HPColorsLiveStatus" />
           <Button id="HPColorsDonateButton" class="HPColorsDonateButton" onactivate="$.DispatchEvent( &apos;ExternalBrowserGoToURL&apos;, &apos;https://ko-fi.com/hantuaraya&apos; );"><Label text="DONATE" /></Button>
         </Panel>
 
@@ -231,7 +231,7 @@
               </Panel>
               <Panel class="HPColorsPageRule" />
               <Label id="HPColorsPageDescription" text="Turn HP Colors on or off, then set the shared low and high HP thresholds that every enemy, ally, and HP-text color rule uses." class="HPColorsPageDescription" />
-              <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
+              <Label id="HPColorsHeroIdentity" text="NO HERO DETECTED" class="HPColorsPresetHeroValue" />
               <Panel id="HPColorsSettingsList" class="HPColorsSettingsList">
                 <Panel id="HPColorsSettingsOverviewStatus" class="HPColorsSettingsPage Active">
                   <Panel class="HPColorsSettingRow">
@@ -319,7 +319,7 @@
                     <Panel class="HPColorsPresetCreateBlock">
                       <Panel class="HPColorsPresetCreateHeader">
                         <Panel class="HPColorsPresetCreateHeading">
-                          <Label id="HPColorsPresetSaveMode" text="NEW PRESET FROM CURRENT SETTINGS" class="HPColorsPresetSaveMode" />
+                          <Label id="HPColorsPresetSaveMode" text="NEW PRESET" class="HPColorsPresetSaveMode" />
                         </Panel>
                         <Button id="HPColorsPresetNewButton" class="HPColorsSecondaryAction HPColorsPresetNewButton"><Label text="NEW PRESET" /></Button>
                       </Panel>
@@ -329,7 +329,7 @@
                         </Panel>
                         <Panel class="HPColorsHeroScopeBlock">
                           <Panel class="HPColorsHeroScopeHeader">
-                            <Label text="APPLIES TO" class="HPColorsHeroFieldLabel" />
+                            <Label text="HEROES" class="HPColorsHeroFieldLabel" />
                             <Label id="HPColorsCurrentScopeSummary" text="ALL HEROES" class="HPColorsCurrentScopeSummary" />
                           </Panel>
                           <Panel class="HPColorsSegment HPColorsCurrentScopeSegment">
@@ -337,7 +337,7 @@
                             <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="ONLY THESE" /></Button>
                             <Button id="HPColorsCurrentScopeExcept" class="HPColorsSegmentButton"><Label text="ALL EXCEPT" /></Button>
                           </Panel>
-                          <Label id="HPColorsPresetScopeHelp" text="Hero switch order: 1. Top matching ONLY THESE  2. Your current hero settings, if APPLIES TO still includes the new hero  3. Top matching ALL EXCEPT  4. Top ALL HEROES  5. Rewrite Default." class="HPColorsPresetScopeHelp" />
+                          <Label id="HPColorsPresetScopeHelp" text="HEROES chooses when this preset loads automatically. See HOW PRESETS WORK for switching rules." class="HPColorsPresetScopeHelp" />
                         </Panel>
                         <Panel class="HPColorsPresetFormActions">
                           <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>
@@ -348,26 +348,26 @@
                     <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
                     <Panel class="HPColorsPresetLibraryHeader">
                       <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
-                      <Label text="Click a preset to use it. CHANGED marks the preset your current settings came from; SAVE updates it, REVERT reloads it. EDIT loads a preset so you can rename it or change APPLIES TO." class="HPColorsPresetLibraryHint" />
+                      <Label text="Click a preset to use it. EDIT changes its name or HEROES." class="HPColorsPresetLibraryHint" />
                       <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY PRESETS" /></Button>
                       <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT PRESETS" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetHiddenRow" class="HPColorsPresetHiddenRow">
-                      <Label text="REWRITE DEFAULT ROW HIDDEN" class="HPColorsPresetHiddenMessage" />
-                      <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="SHOW ROW" /></Button>
+                      <Label text="REWRITE DEFAULT IS HIDDEN" class="HPColorsPresetHiddenMessage" />
+                      <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="SHOW PRESET" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetSourceRow" class="HPColorsPresetHiddenRow HPColorsPresetSourceRow">
-                      <Label text="CURRENT SETTINGS ARE NOT SAVED TO A PRESET" class="HPColorsPresetHiddenMessage" />
+                      <Label text="YOUR SETTINGS ARE NOT SAVED TO A PRESET" class="HPColorsPresetHiddenMessage" />
                       <Button id="HPColorsPresetSaveAsNewButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction HPColorsPresetSaveAsNewButton"><Label text="SAVE AS NEW PRESET" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
                     <Panel id="HPColorsStoreRow" class="HPColorsStoreRow">
                       <Panel class="HPColorsStoreCopy">
                         <Label text="SAVED ON THIS PC" class="HPColorsStoreEyebrow" />
-                        <Label text="Settings and presets save automatically and return after a restart. Preset codes are the backup you can move to another PC." class="HPColorsStoreHelp" />
-                        <Label text="Forget clears the save on this PC. Your current settings stay until you change something." class="HPColorsStoreHelp" />
+                        <Label text="Settings and presets are saved on this PC automatically. COPY PRESETS makes a shareable backup." class="HPColorsStoreHelp" />
+                        <Label text="CLEAR PC SAVE removes the saved copy. Your settings stay in use. Changes save again." class="HPColorsStoreHelp" />
                       </Panel>
-                      <Button id="HPColorsStoreForgetButton" class="HPColorsSecondaryAction HPColorsStoreForgetButton"><Label id="HPColorsStoreForgetLabel" text="FORGET SAVED" /></Button>
+                      <Button id="HPColorsStoreForgetButton" class="HPColorsSecondaryAction HPColorsStoreForgetButton"><Label id="HPColorsStoreForgetLabel" text="CLEAR PC SAVE" /></Button>
                     </Panel>
                   </Panel>
                   <Panel class="HPColorsIdentityRuntime">
@@ -1132,7 +1132,7 @@
                   <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
                     <Label class="HPColorsTransferDialogEyebrow" text="PRESETS" />
                     <Label class="HPColorsTransferDialogTitle" text="IMPORT PRESETS" />
-                    <Label class="HPColorsTransferDialogMessage" text="Paste a preset code or bundle. Import adds presets to your library; it does not apply them." />
+                    <Label class="HPColorsTransferDialogMessage" text="Paste a preset code. Import adds presets without changing your settings." />
                     <TextEntry id="HPColorsPresetTransferInput" class="HPColorsTransferInput" multiline="false" maxchars="32768" placeholder="PASTE PRESET CODE" />
                     <Label id="HPColorsPresetTransferFeedback" class="HPColorsTransferFeedback" text="" />
                     <Panel class="HPColorsTransferDialogActions">
@@ -1168,9 +1168,9 @@
       <Panel id="HPColorsScopeDialog" class="HPColorsHeroDialog" hittest="false" hittestchildren="true">
         <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
         <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
-          <Label class="HPColorsTransferDialogEyebrow" text="PRESET TARGET" />
-          <Label id="HPColorsScopeDialogTitle" class="HPColorsTransferDialogTitle" text="PICK HEROES" />
-          <Label id="HPColorsScopeDialogMessage" class="HPColorsTransferDialogMessage" text="Auto-use this preset only for these heroes." />
+          <Label class="HPColorsTransferDialogEyebrow" text="HEROES" />
+          <Label id="HPColorsScopeDialogTitle" class="HPColorsTransferDialogTitle" text="ONLY THESE" />
+          <Label id="HPColorsScopeDialogMessage" class="HPColorsTransferDialogMessage" text="Choose HEROES to include." />
           <TextEntry id="HPColorsScopeSearch" class="HPColorsScopeSearch" placeholder="SEARCH HEROES" multiline="false" />
           <Panel id="HPColorsScopeOptions" class="HPColorsHeroOptions HPColorsScopeOptions" hittest="true" hittestchildren="true" />
           <Panel class="HPColorsTransferDialogActions">

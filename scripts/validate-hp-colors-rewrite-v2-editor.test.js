@@ -659,7 +659,7 @@ test('Current scope controls keep mode, summaries, and hero options synchronized
   assert.deepEqual(current.heroes, ['hero_haze']);
   assert.equal(all.BHasClass('Selected'), false);
   assert.equal(selected.BHasClass('Selected'), true);
-  assert.equal(summary.text, 'Haze');
+  assert.equal(summary.text, 'ONLY THESE — Haze');
   assert.equal(haze.BHasClass('Selected'), true);
   assert.equal(shiv.BHasClass('Selected'), false);
 
@@ -687,7 +687,7 @@ test('Current scope controls keep mode, summaries, and hero options synchronized
   );
   assert.equal(current.mode, 'selected');
   assert.deepEqual(current.heroes, ['hero_haze', 'hero_shiv']);
-  assert.equal(summary.text, 'Haze, Shiv');
+  assert.equal(summary.text, 'ONLY THESE — Haze, Shiv');
   assert.equal(haze.BHasClass('Selected'), true);
   assert.equal(shiv.BHasClass('Selected'), true);
 
@@ -697,7 +697,7 @@ test('Current scope controls keep mode, summaries, and hero options synchronized
   );
   assert.equal(current.mode, 'selected');
   assert.deepEqual(current.heroes, ['hero_shiv']);
-  assert.equal(summary.text, 'Shiv');
+  assert.equal(summary.text, 'ONLY THESE — Shiv');
   assert.equal(haze.BHasClass('Selected'), false);
   assert.equal(shiv.BHasClass('Selected'), true);
 
@@ -742,15 +742,15 @@ test('scope switch offers All Except with its own picker wording', () => {
   assert.equal(typeof except.events.onactivate, 'function');
   except.events.onactivate();
   assert.equal(dialog.BHasClass('Open'), true);
-  assert.equal(title.text, 'SKIP THESE HEROES');
-  assert.equal(message.text, "Auto-use this preset for every hero except these.");
+  assert.equal(title.text, 'ALL EXCEPT');
+  assert.equal(message.text, 'Choose HEROES to skip.');
 
   close.events.onactivate();
   assert.equal(dialog.BHasClass('Open'), false);
   selected.events.onactivate();
   assert.equal(dialog.BHasClass('Open'), true);
-  assert.equal(title.text, 'PICK HEROES');
-  assert.equal(message.text, 'Auto-use this preset only for these heroes.');
+  assert.equal(title.text, 'ONLY THESE');
+  assert.equal(message.text, 'Choose HEROES to include.');
 });
 
 test('All Except picker marks skipped heroes and summarizes the skip list', () => {
@@ -781,7 +781,7 @@ test('All Except picker marks skipped heroes and summarizes the skip list', () =
   assert.equal(except.BHasClass('Selected'), true);
   assert.equal(all.BHasClass('Selected'), false);
   assert.equal(selected.BHasClass('Selected'), false);
-  assert.equal(summary.text, 'ALL EXCEPT Haze, Shiv');
+  assert.equal(summary.text, 'ALL EXCEPT — Haze, Shiv');
 
   bebop.events.onactivate();
   kelvin.events.onactivate();
@@ -791,7 +791,7 @@ test('All Except picker marks skipped heroes and summarizes the skip list', () =
     current.heroes,
     ['hero_bebop', 'hero_haze', 'hero_kelvin', 'hero_shiv'],
   );
-  assert.equal(summary.text, 'ALL EXCEPT Bebop, Haze +2');
+  assert.equal(summary.text, 'ALL EXCEPT — Bebop, Haze +2');
 });
 
 test('emptied All Except list becomes all but the picker stays in except mode', () => {
@@ -847,7 +847,7 @@ test('closing the scope dialog returns focus to the button that opened it', () =
   assert.equal(except.focused, false);
 });
 
-test('library rows show AUTO scope text for All Except presets', () => {
+test('library rows show HEROES summaries for All Except presets', () => {
   const fixture = bootMenu({
     version: 1,
     values: {},
@@ -877,8 +877,8 @@ test('library rows show AUTO scope text for All Except presets', () => {
 
   const scopeText = (id) => presetOption(fixture, id)
     .FindChildrenWithClassTraverse('HPColorsPresetOptionScope')[0].text;
-  assert.equal(scopeText('user_0001'), 'AUTO  ·  ALL EXCEPT Haze, Shiv');
-  assert.equal(scopeText('user_0002'), 'AUTO  ·  ALL EXCEPT Bebop, Haze +2');
+  assert.equal(scopeText('user_0001'), 'ALL EXCEPT — Haze, Shiv');
+  assert.equal(scopeText('user_0002'), 'ALL EXCEPT — Bebop, Haze +2');
 });
 
 test('stale settings clipboard callbacks cannot import into a reopened dialog', () => {
@@ -918,7 +918,7 @@ test('stale preset clipboard callbacks cannot affect a reopened dialog', () => {
 
   assert.equal(
     panel(fixture, 'HPColorsPresetTransferFeedback').text,
-    'PASTE AN HPCRP1 PRESET CODE.',
+    'PASTE A PRESET CODE.',
   );
 });
 
@@ -945,7 +945,7 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
 
   assert.equal(
     panel(fixture, 'HPColorsPageDescription').text,
-    'Named snapshots of your settings that load by themselves when you switch heroes. The rules are under SHOW HOW PRESETS WORK below.',
+    'Save your settings as presets. Choose HEROES to load them automatically.',
   );
   assert.equal(
     presetOption(fixture, 'baked_default')
@@ -957,11 +957,11 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
   panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPresetSaveMode').text,
-    'NEW PRESET FROM CURRENT SETTINGS',
+    'NEW PRESET',
   );
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'CREATE PRESET STORES YOUR CURRENT SETTINGS AS A NEW PRESET.',
+    'Name your preset, then choose HEROES.',
   );
   panel(fixture, 'HPColorsPresetNameInput').text = 'Fresh Snapshot';
   panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
@@ -976,7 +976,7 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
   assert.equal(panel(fixture, 'HPColorsPresetHiddenRow').BHasClass('Visible'), false);
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'DEFAULT ROW SHOWN. SETTINGS UNCHANGED.',
+    'REWRITE DEFAULT SHOWN. YOUR SETTINGS DID NOT CHANGE.',
   );
 
   const editButton = presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit');
@@ -988,7 +988,7 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
   );
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDITING SHIV COLORS. SAVE REPLACES IT WITH THE CURRENT SETTINGS.',
+    'EDITING SHIV COLORS. SAVE updates this preset.',
   );
   panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
   assert.equal(
@@ -1086,7 +1086,7 @@ test('retired builder layout without the fifth rail button still shows its warni
     },
   );
 
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'OLD PRESET VPK');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'UPDATE PRESET FILE');
   openEditor(fixture);
   selectEnemyBar(fixture);
 });
@@ -1436,13 +1436,13 @@ test('entering the hideout shows HIDEOUT and drops the hero route to the all-her
 
   fixture.identityTree.hud.AddClass('connectedToHideout');
   settleHeroRoute(fixture, '#333333');
-  assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'HERO: UNKNOWN · HIDEOUT');
+  assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'NO HERO DETECTED · HIDEOUT');
 });
 
 const LAYERED_ALL_SCOPE_HELP =
-  'Hero switch order: 1. Top matching ONLY THESE  2. Your current hero settings, if APPLIES TO still includes the new hero  3. Top matching ALL EXCEPT  4. Top ALL HEROES  5. Rewrite Default.';
+  'HEROES chooses when this preset loads automatically. See HOW PRESETS WORK for switching rules.';
 const LAYERED_HERO_SCOPE_HELP =
-  'Saves only values that differ from the top ALL HEROES preset, or Rewrite Default if you have none. The rest follow that base.';
+  'HEROES chooses when this preset loads automatically. See HOW PRESETS WORK for switching rules.';
 
 function layeredMenuState(extraAll = {}, extraHero = {}) {
   return {
@@ -1517,12 +1517,12 @@ test('Layered presets EDIT on a hero preset loads it and explains the layered sa
   presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowEdit').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDITING SHIV ONLY. SAVE STORES ONLY WHAT DIFFERS FROM ALL HEROES.',
+    'EDITING SHIV ONLY. SAVE updates this preset.',
   );
   assert.equal(readConfig(fixture).values.enemyLow, '#222222');
   assert.equal(currentScope(fixture).mode, 'selected');
   assert.deepEqual(currentScope(fixture).heroes, ['hero_shiv']);
-  assert.equal(panel(fixture, 'HPColorsCurrentScopeSummary').text, 'Shiv');
+  assert.equal(panel(fixture, 'HPColorsCurrentScopeSummary').text, 'ONLY THESE — Shiv');
   assert.equal(panel(fixture, 'HPColorsPresetSaveButtonLabel').text, 'SAVE');
 });
 
@@ -1681,7 +1681,7 @@ test('ACTIVE badge leaves when a hero preset inherited value changes', () => {
   assert.deepEqual(rowStatus(fixture, 'user_0002'), { active: false, text: 'CHANGED' });
   // The stale badge used to contradict this prompt; both now agree.
   presetRowMain(fixture, 'user_0002').events.onactivate();
-  assert.equal(presetFeedback(fixture), 'DISCARD UNSAVED CHANGES? CONFIRM OR CANCEL.');
+  assert.equal(presetFeedback(fixture), 'DISCARD UNSAVED CHANGES?');
   presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowCancel').events.onactivate();
 
   panel(fixture, 'HPColorsUndoButton').events.onactivate();
@@ -1841,7 +1841,7 @@ test('an unsaved name in the form asks before another row replaces it', () => {
   assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
 });
 
-test('changing APPLIES TO while editing shows the old and new scope and a SAVE AS label', () => {
+test('changing HEROES while editing shows the old and new selection and a SAVE AS label', () => {
   const fixture = bootMenu(twoPresetState());
   openPresetsForm(fixture);
   presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
@@ -1852,7 +1852,7 @@ test('changing APPLIES TO while editing shows the old and new scope and a SAVE A
 
   panel(fixture, 'HPColorsCurrentScopeSelected').events.onactivate();
   scopeOption(fixture, 'hero_haze').events.onactivate();
-  assert.equal(summary.text, 'ALL HEROES → Haze');
+  assert.equal(summary.text, 'ALL HEROES → ONLY THESE — Haze');
   assert.equal(label.text, 'SAVE AS ONLY THESE');
   panel(fixture, 'HPColorsScopeCloseButton').events.onactivate();
 
@@ -1862,7 +1862,7 @@ test('changing APPLIES TO while editing shows the old and new scope and a SAVE A
 
   panel(fixture, 'HPColorsCurrentScopeExcept').events.onactivate();
   scopeOption(fixture, 'hero_haze').events.onactivate();
-  assert.equal(summary.text, 'ALL HEROES → ALL EXCEPT Haze');
+  assert.equal(summary.text, 'ALL HEROES → ALL EXCEPT — Haze');
   assert.equal(label.text, 'SAVE AS ALL EXCEPT');
   panel(fixture, 'HPColorsScopeCloseButton').events.onactivate();
 
@@ -1878,30 +1878,17 @@ test('preset guide and library hint describe the click-to-apply flow', () => {
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
   openPresetsForm(fixture);
   const guide = panel(fixture, 'HPColorsPresetGuideText').text.split('\n\n');
-  assert.equal(guide.length, 8);
-  assert.equal(
-    guide[0],
-    'Live settings apply immediately and are saved on this PC. A named preset changes only when you SAVE to it. The row marked CHANGED is the preset your current settings came from: SAVE stores your current settings into it, REVERT reloads it, and UNDO takes REVERT back. A hero switch can replace current settings you have not saved to a preset.',
-  );
-  assert.equal(
-    guide[7],
-    'ACTIVE marks the preset that matches your current settings and APPLIES TO. It does not predict the next hero switch. CHANGED means the preset you loaded no longer matches your current settings. EDITING takes its place while you edit that preset.',
-  );
-  assert.equal(
-    guide[2],
-    'ALL HEROES is the base for ONLY THESE and ALL EXCEPT presets. If you have several ALL HEROES presets, the highest one in the list is the base. If you have none, the base is Rewrite Default.',
-  );
-  assert.equal(
-    guide[5],
-    'When you switch heroes, the highest matching ONLY THESE preset wins. If it is already the source of your current settings, your live changes stay. Otherwise, if your current hero-specific APPLIES TO still includes the new hero, your current settings stay, even if they were changed without saving or came from a lower ALL EXCEPT preset. Otherwise the highest matching ALL EXCEPT preset wins, then the top ALL HEROES preset; an already-current winning source keeps its live changes. With no ALL HEROES preset, leaving hero-specific settings that no longer fit returns to Rewrite Default.',
-  );
-  assert.equal(
-    guide[6],
-    'One hero preset is used at a time; hero presets are never combined. ONLY THESE beats ALL EXCEPT regardless of list position. List order only breaks ties within the same type.',
-  );
+  assert.deepEqual(guide, [
+    "- Click a preset to use it. Use NEW PRESET to save your settings.",
+    "- ACTIVE: your settings match this preset. CHANGED: you edited it. SAVE keeps the changes. REVERT throws them away.",
+    "- HEROES picks when a preset loads by itself. ONLY THESE: just the heroes you pick. ALL EXCEPT: every hero except those.",
+    "- Hero presets only store what you changed. Everything else comes from your top ALL HEROES preset, or Rewrite Default if you have none. Ability conditions are saved in each preset.",
+    "- When you switch heroes, the mod picks:\n1. An ONLY THESE preset for that hero.\n2. Otherwise, keep your hero settings if they cover that hero.\n3. Otherwise, an ALL EXCEPT preset that doesn't skip that hero.\n4. Otherwise, your top ALL HEROES preset.\nKeeping the same preset or settings keeps your changes too.",
+    "- If two presets of the same type match, the higher one in the list wins. Switching heroes can replace changes you haven't saved. No ALL HEROES preset? Leaving hero settings with no match uses Rewrite Default.",
+  ]);
   assert.match(
     layoutSource,
-    /text="Click a preset to use it\. CHANGED marks the preset your current settings came from; SAVE updates it, REVERT reloads it\. EDIT loads a preset so you can rename it or change APPLIES TO\." class="HPColorsPresetLibraryHint"/,
+    /text="Click a preset to use it\. EDIT changes its name or HEROES\." class="HPColorsPresetLibraryHint"/,
   );
   assert.match(
     layoutSource,
@@ -1948,12 +1935,12 @@ test('hero identity sits under the page description, outside the scroll list, in
     );
     assert.match(
       source,
-      /<Label text="REWRITE DEFAULT ROW HIDDEN" class="HPColorsPresetHiddenMessage" \/>/,
+      /<Label text="REWRITE DEFAULT IS HIDDEN" class="HPColorsPresetHiddenMessage" \/>/,
       `${lane}: hidden-default message`,
     );
     assert.match(
       source,
-      /id="HPColorsPresetRestoreBakedButton"[^>]*><Label text="SHOW ROW" \/>/,
+      /id="HPColorsPresetRestoreBakedButton"[^>]*><Label text="SHOW PRESET" \/>/,
       `${lane}: show-row button`,
     );
     assert.match(
@@ -1963,7 +1950,7 @@ test('hero identity sits under the page description, outside the scroll list, in
     );
     assert.match(
       source,
-      /id="HPColorsPresetScopeHelp" text="Hero switch order: 1\. Top matching ONLY THESE  2\. Your current hero settings, if APPLIES TO still includes the new hero  3\. Top matching ALL EXCEPT  4\. Top ALL HEROES  5\. Rewrite Default\."/,
+      /id="HPColorsPresetScopeHelp" text="HEROES chooses when this preset loads automatically\. See HOW PRESETS WORK for switching rules\."/,
       `${lane}: default scope help`,
     );
   }
@@ -1980,7 +1967,7 @@ test('hero identity shows only on PRESETS and follows page changes without a her
   panel(fixture, 'HPColorsTab0').events.onactivate();
   assert.equal(identity.BHasClass('Active'), true);
   const identityText = identity.text;
-  assert.match(identityText, /^HERO: /);
+  assert.match(identityText, /^NO HERO DETECTED/);
   selectEnemyBar(fixture);
   assert.equal(identity.BHasClass('Active'), false);
   assert.equal(identity.text, identityText);
@@ -2008,7 +1995,7 @@ test('unsaved-change prompt names the discard question in feedback', () => {
   const fixture = bootMenu(twoPresetState({ enemyLow: '#999999' }));
   openPresetsForm(fixture);
   presetRowMain(fixture, 'user_0001').events.onactivate();
-  assert.equal(presetFeedback(fixture), 'DISCARD UNSAVED CHANGES? CONFIRM OR CANCEL.');
+  assert.equal(presetFeedback(fixture), 'DISCARD UNSAVED CHANGES?');
   assert.equal(
     presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
     'DISCARD UNSAVED CHANGES?',
@@ -2271,9 +2258,9 @@ test('inline SAVE confirms, keeps name and scope, and writes the current setting
   assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
   assert.equal(
     presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
-    'REPLACE SHIV COLORS WITH THE CURRENT SETTINGS?',
+    'SAVE YOUR SETTINGS TO SHIV COLORS?',
   );
-  assert.equal(presetFeedback(fixture), 'REPLACE SHIV COLORS WITH THE CURRENT SETTINGS? CONFIRM OR CANCEL.');
+  assert.equal(presetFeedback(fixture), 'SAVE YOUR SETTINGS TO SHIV COLORS?');
 
   presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowCancel').events.onactivate();
   assert.equal(presetFeedback(fixture), 'PRESET CHANGE CANCELED.');
@@ -2283,7 +2270,7 @@ test('inline SAVE confirms, keeps name and scope, and writes the current setting
 
   rowAction(fixture, 'user_0001', 'HPColorsPresetRowSave').events.onactivate();
   presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirm').events.onactivate();
-  assert.equal(presetFeedback(fixture), 'SAVED SHIV COLORS. IT NOW MATCHES YOUR CURRENT SETTINGS.');
+  assert.equal(presetFeedback(fixture), 'SAVED SHIV COLORS.');
   const saved = savedPreset(fixture, 'user_0001');
   assert.equal(saved.name, 'Shiv Colors');
   assert.equal(saved.mode, 'all');
@@ -2301,7 +2288,7 @@ test('inline SAVE on a hero preset keeps ONLY THESE and records the changed key 
   setWidthWithoutGesture(fixture, 170);
   rowAction(fixture, 'user_0002', 'HPColorsPresetRowSave').events.onactivate();
   presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowConfirm').events.onactivate();
-  assert.equal(presetFeedback(fixture), 'SAVED SHIV ONLY. IT NOW MATCHES YOUR CURRENT SETTINGS.');
+  assert.equal(presetFeedback(fixture), 'SAVED SHIV ONLY.');
   const saved = savedPreset(fixture, 'user_0002');
   assert.equal(saved.mode, 'selected');
   assert.deepEqual(saved.heroes, ['hero_shiv']);
@@ -2351,7 +2338,7 @@ test('REVERT reloads the saved snapshot, keeps the source, and UNDO restores the
   assertChangedRow(fixture, 'user_0001');
 });
 
-test('changing APPLIES TO drops the source: no CHANGED row, banner offers SAVE AS NEW PRESET', () => {
+test('changing HEROES drops the source: no CHANGED row, banner offers SAVE AS NEW PRESET', () => {
   const fixture = bootMenu(twoPresetState());
   openPresetsForm(fixture);
   presetRowMain(fixture, 'user_0001').events.onactivate();
@@ -2371,11 +2358,11 @@ test('changing APPLIES TO drops the source: no CHANGED row, banner offers SAVE A
 
   panel(fixture, 'HPColorsPresetSaveAsNewButton').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
-  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'NEW PRESET FROM CURRENT SETTINGS');
+  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'NEW PRESET');
   assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, '');
   assert.deepEqual(sourceBanner(fixture), { visible: false, button: HIDDEN });
   panel(fixture, 'HPColorsPresetSaveAsNewButton').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'NEW PRESET FROM CURRENT SETTINGS');
+  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'NEW PRESET');
 });
 
 test('no-source banner: zero presets and a Rewrite Default source show it; an ACTIVE row hides it', () => {
@@ -2423,9 +2410,9 @@ test('hero auto-switch moves the source: the old CHANGED row clears and the new 
 });
 
 const CASE_A_BODY =
-  'Your current settings stay in use and are saved on this PC either way. SHIV COLORS keeps its saved settings until you SAVE. A hero switch can replace current settings you have not saved to a preset. Undo history ends when you exit.';
+  "Your settings stay in use either way.\nSAVE updates SHIV COLORS.\nSwitching heroes can replace changes you haven't saved to a preset.\nUNDO ends when you exit.";
 const CASE_B_BODY =
-  'The preset form and the name typed here will not be saved. Your current settings stay in use and are saved on this PC. Undo history ends when you exit.';
+  'The name you typed will not be saved.\nYour settings stay in use.\nUNDO ends when you exit.';
 
 function changedFixture() {
   const fixture = bootMenu(twoPresetState());
@@ -2557,7 +2544,7 @@ test('exit prompt: REVIEW PRESETS lands on PRESETS with undo history, typed name
   panel(fixture, 'HPColorsDoneButton').events.onactivate();
   const both = exitDialog(fixture);
   assert.equal(both.title, 'SAVE CHANGES TO SHIV COLORS?');
-  assert.equal(both.message, `${CASE_A_BODY} The open preset form will not be saved.`);
+  assert.equal(both.message, `${CASE_A_BODY}\nThe name you typed will not be saved.`);
   assert.deepEqual(both.save, USABLE);
   panel(fixture, 'HPColorsExitReviewButton').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Draft Name');
@@ -2614,9 +2601,9 @@ test('layout parity: exit dialog, no-source banner, hint, and cancel hooks exist
     assert.equal(source.split('<Label text="REVIEW PRESETS" />').length - 1, 1, lane);
     assert.equal(source.split('<Label text="EXIT WITHOUT SAVING" />').length - 1, 1, lane);
     assert.equal(source.split('<Label text="SAVE AS NEW PRESET" />').length - 1, 1, lane);
-    assert.equal(source.split('CURRENT SETTINGS ARE NOT SAVED TO A PRESET').length - 1, 1, lane);
+    assert.equal(source.split('YOUR SETTINGS ARE NOT SAVED TO A PRESET').length - 1, 1, lane);
     assert.equal(
-      source.split('Click a preset to use it. CHANGED marks the preset your current settings came from; SAVE updates it, REVERT reloads it. EDIT loads a preset so you can rename it or change APPLIES TO.').length - 1,
+      source.split('Click a preset to use it. EDIT changes its name or HEROES.').length - 1,
       1,
       lane,
     );
