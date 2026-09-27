@@ -248,7 +248,7 @@
                             <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="ONLY THESE" /></Button>
                             <Button id="HPColorsCurrentScopeExcept" class="HPColorsSegmentButton"><Label text="ALL EXCEPT" /></Button>
                           </Panel>
-                          <Label text="Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes." class="HPColorsPresetScopeHelp" />
+                          <Label id="HPColorsPresetScopeHelp" text="Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes." class="HPColorsPresetScopeHelp" />
                         </Panel>
                         <Panel class="HPColorsPresetFormActions">
                           <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>

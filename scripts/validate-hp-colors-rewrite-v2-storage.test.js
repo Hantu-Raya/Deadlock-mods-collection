@@ -1068,3 +1068,42 @@ test('a schema 4 save is read-only and never overwritten', () => {
   assert.equal(profile.disk.get(KEY_CURRENT), future);
   record(fixture);
 });
+
+test('Layered presets: own survives a restart', () => {
+  const body = {
+    version: 1,
+    values: { widthScale: 140 },
+    conditions: {},
+    scopes: [],
+    userPresets: [
+      { id: 'user_0001', name: 'Everyone', mode: 'all', heroes: [], values: { widthScale: 140 } },
+      { id: 'user_0002', name: 'Haze Only', mode: 'selected', heroes: ['hero_haze'], values: { widthScale: 170 }, own: ['widthScale'] },
+    ],
+  };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }) });
+  const first = launch(profile, { label: 'own seed' });
+  first.run(8000);
+  assert.equal(first.attr('hp_colors_v2_store_status'), 'ok');
+  openEditor(first);
+  setWidth(first, 205);
+  closeEditor(first);
+  first.run(8000);
+  const saved = JSON.parse(storedRecord(profile).body).userPresets.find((row) => row.id === 'user_0002');
+  assert.ok(saved, 'the Only These preset is saved');
+  assert.deepEqual(saved.own, ['widthScale'], 'own is written to the save');
+  const savedAll = JSON.parse(storedRecord(profile).body).userPresets.find((row) => row.id === 'user_0001');
+  assert.equal(savedAll.own, undefined, 'All Heroes presets never carry own');
+  record(first);
+
+  const second = launch(profile, { label: 'own restart' });
+  second.run(8000);
+  assert.equal(second.attr('hp_colors_v2_store_status'), 'ok');
+  openEditor(second);
+  setWidth(second, 210);
+  closeEditor(second);
+  second.run(8000);
+  const restored = JSON.parse(storedRecord(profile).body).userPresets.find((row) => row.id === 'user_0002');
+  assert.equal(restored.mode, 'selected');
+  assert.deepEqual(restored.own, ['widthScale'], 'own survives the restart');
+  record(second);
+});

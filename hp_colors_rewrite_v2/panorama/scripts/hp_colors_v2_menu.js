@@ -849,7 +849,7 @@
     "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
     "pickerSaturationValue pickerLightnessValue storeForgetButton " +
     "storeForgetLabel presetHiddenRow currentScopeExcept scopeDialogTitle " +
-    "scopeDialogMessage"
+    "scopeDialogMessage presetScopeHelp"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -1102,6 +1102,7 @@
     artSources: ["", "", "", ""],
   };
   var conditionControls = {};
+  var ownTags = [];
   var conditionDraft = {
     key: "",
     slot: 1,
@@ -2406,7 +2407,9 @@
       presetFormOpen
         ? "EDITING " +
             presetDisplayName(preset).toUpperCase() +
-            ". UPDATE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS."
+            (scopeUsesHeroes(preset.mode)
+              ? ". ONLY SETTINGS YOU CHANGE HERE ARE SAVED. THE REST FOLLOW ALL HEROES."
+              : ". UPDATE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS.")
         : "SELECTED " +
             presetDisplayName(preset).toUpperCase() +
             ". APPLY LOADS THIS PRESET NOW. IT DOES NOT EDIT THE PRESET.",
@@ -3610,16 +3613,19 @@
     if (!confirmation) return;
     resetKeys = tab.keys.slice(0);
     setText(ui.resetDialogTitle, "RESET " + tab.name);
+    var currentRow = result.view.currentScope;
     setText(
       ui.resetDialogMessage,
-      "Reset " +
-        String(changedCount) +
-        (changedCount === 1 ? " setting" : " settings") +
-        " in " +
-        category.name +
-        " / " +
-        tab.name +
-        " to shipped defaults? This can be undone.",
+      currentRow && scopeUsesHeroes(currentRow.mode)
+        ? "This section goes back to your All Heroes settings."
+        : "Reset " +
+            String(changedCount) +
+            (changedCount === 1 ? " setting" : " settings") +
+            " in " +
+            category.name +
+            " / " +
+            tab.name +
+            " to shipped defaults? This can be undone.",
     );
     setClass(ui.resetDialog, "Open", true);
     focus(ui.resetCancelButton);
@@ -3662,13 +3668,7 @@
     });
   }
 
-  function registerConditionControl(panel, key, min, max, option, increment) {
-    if (
-      key === "precisePipsEnabled" ||
-      !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
-      !isValid(panel)
-    )
-      return;
+  function settingRow(panel) {
     var row = panel;
     while (isValid(row) && !panelHasClass(row, "HPColorsSettingRow")) {
       try {
@@ -3677,7 +3677,70 @@
         row = null;
       }
     }
-    if (!isValid(row)) return;
+    return isValid(row) ? row : null;
+  }
+
+  function registerOwnTag(panel, key) {
+    var row = settingRow(panel);
+    if (!row) return;
+    for (var index = 0; index < ownTags.length; index++) {
+      if (ownTags[index].row === row) {
+        if (ownTags[index].keys.indexOf(key) < 0) ownTags[index].keys.push(key);
+        return;
+      }
+    }
+    var copies = findChildrenWithClass(row, "HPColorsSettingCopy");
+    if (!copies.length) return;
+    var tag = $.CreatePanel("Label", copies[0], "");
+    if (!isValid(tag)) return;
+    tag.AddClass("HPColorsOwnTag");
+    tag.text = "CHANGED HERE";
+    var titles = findChildrenWithClass(copies[0], "HPColorsSettingTitle");
+    try {
+      if (titles.length && isCallable(copies[0].MoveChildAfter))
+        copies[0].MoveChildAfter(tag, titles[0]);
+    } catch {}
+    ownTags.push({ row: row, tag: tag, keys: [key] });
+  }
+
+  function sameSettingValue(left, right) {
+    if (left === right) return true;
+    if (!left || !right || typeof left !== "object" || typeof right !== "object")
+      return false;
+    try {
+      return JSON.stringify(left) === JSON.stringify(right);
+    } catch {
+      return false;
+    }
+  }
+
+  function syncOwnTags(values, base) {
+    for (var index = 0; index < ownTags.length; index++) {
+      var entry = ownTags[index];
+      var changed = false;
+      if (base)
+        for (var keyIndex = 0; keyIndex < entry.keys.length; keyIndex++) {
+          var key = entry.keys[keyIndex];
+          if (!sameSettingValue(values[key], base[key])) {
+            changed = true;
+            break;
+          }
+        }
+      setClass(entry.tag, "Visible", changed);
+    }
+  }
+
+  function registerConditionControl(panel, key, min, max, option, increment) {
+    if (isValid(panel) && Object.prototype.hasOwnProperty.call(DEFAULTS, key))
+      registerOwnTag(panel, key);
+    if (
+      key === "precisePipsEnabled" ||
+      !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
+      !isValid(panel)
+    )
+      return;
+    var row = settingRow(panel);
+    if (!row) return;
 
     var control = conditionControls[key];
     if (!control) {
@@ -4515,11 +4578,19 @@
       setEnabled(ui.undoButton, !!(view && view.undoAvailable));
       syncPicker();
       syncConditionIndicators();
+      syncOwnTags(values, view && view.layerBase ? view.layerBase : null);
     } finally {
       syncingControls = false;
     }
     renderIdentity();
     renderCurrentScope();
+    var scopeRow = view && view.currentScope ? view.currentScope : null;
+    setText(
+      ui.presetScopeHelp,
+      scopeRow && scopeUsesHeroes(scopeRow.mode)
+        ? "Only settings you change here are saved. Everything else follows All Heroes."
+        : "Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes.",
+    );
   }
 
 
@@ -4740,6 +4811,14 @@
     ui.absoluteRoot = absoluteRoot(ui.escapeRoot);
     resolveUiPanels(REQUIRED_UI_PANEL_KEYS);
     resolveUiPanels(OPTIONAL_UI_PANEL_KEYS);
+    if (!isValid(ui.presetScopeHelp)) {
+      var helpLabels = findChildrenWithClass(ui.presetForm, "HPColorsPresetScopeHelp");
+      if (!helpLabels.length)
+        helpLabels = findChildrenWithClass(ui.escapeRoot, "HPColorsPresetScopeHelp");
+      if (!helpLabels.length)
+        helpLabels = findChildrenWithClass(ui.absoluteRoot, "HPColorsPresetScopeHelp");
+      ui.presetScopeHelp = helpLabels.length ? helpLabels[0] : null;
+    }
 
     for (var conditionSlot = 1; conditionSlot <= 4; conditionSlot++) {
       var slotId = "HPColorsConditionSlot" + String(conditionSlot);
@@ -4876,6 +4955,7 @@
       bindMode(mode.id, mode.key, mode.value);
     }
     setPanelEvent(ui.precisePipsToggle, "onactivate", togglePrecisePips);
+    registerConditionControl(ui.precisePipsToggle, "precisePipsEnabled");
     for (index = 0; index < SLIDER_CONTROLS.length; index++) {
       var slider = SLIDER_CONTROLS[index];
       bindSlider(
