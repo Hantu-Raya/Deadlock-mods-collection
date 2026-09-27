@@ -316,7 +316,7 @@
           name: "LIBRARY",
           title: "PRESET LIBRARY",
           description:
-            "Named snapshots of your settings that load by themselves when you switch heroes. The rules are under SHOW HOW PRESETS WORK below.",
+            "Save your settings as presets. Choose HEROES to load them automatically.",
           pageId: "HPColorsSettingsOverviewHero",
           keys: [],
         },
@@ -1688,7 +1688,7 @@
     if (signature === identity.renderSignature) return;
     identity.renderSignature = signature;
 
-    var identityText = "HERO: UNKNOWN";
+    var identityText = "NO HERO DETECTED";
     var detailText =
       "No stable local hero is available. Hero-scoped state will not be selected.";
     if (identityView.mode === HERO_MODE_OFF) {
@@ -1714,7 +1714,7 @@
       detailText = "Stable ID: " + identityView.effectiveHeroKey;
     } else if (identityView.status === "settling") {
       identityText =
-        "HERO: SETTLING — " +
+        "DETECTING HERO: " +
         (heroDisplayName(identityView.candidateHeroKey, view.heroes) ||
           "UNKNOWN");
       detailText = "Waiting for a second matching local-HUD sample.";
@@ -2021,14 +2021,14 @@
     if (isValid(ui.scopeDialogTitle))
       setText(
         ui.scopeDialogTitle,
-        dialogExcept ? "SKIP THESE HEROES" : "PICK HEROES",
+        dialogExcept ? "ALL EXCEPT" : "ONLY THESE",
       );
     if (isValid(ui.scopeDialogMessage))
       setText(
         ui.scopeDialogMessage,
         dialogExcept
-          ? "Auto-use this preset for every hero except these."
-          : "Auto-use this preset only for these heroes.",
+          ? "Choose HEROES to skip."
+          : "Choose HEROES to include.",
       );
     var summary = row
       ? presetScopeSummary({ mode: mode, heroes: row.heroes }, view.heroes)
@@ -2142,8 +2142,8 @@
     var names = [];
     for (var index = 0; index < preset.heroes.length; index++)
       names.push(heroDisplayName(preset.heroes[index], heroes));
-    if (preset.mode === HERO_SCOPE_SELECTED) return names.join(", ");
-    return "ALL EXCEPT " + names.slice(0, 2).join(", ") +
+    if (preset.mode === HERO_SCOPE_SELECTED) return "ONLY THESE — " + names.join(", ");
+    return "ALL EXCEPT — " + names.slice(0, 2).join(", ") +
       (names.length > 2 ? " +" + String(names.length - 2) : "");
   }
 
@@ -2234,9 +2234,9 @@
             confirmMessage.AddClass("HPColorsPresetRowConfirmMessage");
             confirmMessage.text = replacing
               ? presetReplaceConfirm.action === "save"
-                ? "REPLACE " +
+                ? "SAVE YOUR SETTINGS TO " +
                   presetDisplayName(preset).toUpperCase() +
-                  " WITH THE CURRENT SETTINGS?"
+                  "?"
                 : "DISCARD UNSAVED CHANGES?"
               : (preset.kind === "baked" ? "HIDE " : "DELETE ") +
                 presetDisplayName(preset).toUpperCase() +
@@ -2295,9 +2295,7 @@
         name.text =
           presetDisplayName(preset) +
           (preset.kind === "baked" ? "  ·  BUILT-IN" : "");
-        scope.text =
-          (scopeUsesHeroes(preset.mode) ? "AUTO  ·  " : "") +
-          presetScopeSummary(preset, heroes);
+        scope.text = presetScopeSummary(preset, heroes);
         status.text = editingPreset ? "EDITING" : active ? "ACTIVE" : "";
         setPanelEvent(main, "onactivate", function () {
           requestPresetRowApply(preset.id);
@@ -2410,7 +2408,7 @@
       ui.presetSaveMode,
       editPreset
         ? "EDITING " + presetDisplayName(editPreset).toUpperCase()
-        : "NEW PRESET FROM CURRENT SETTINGS",
+        : "NEW PRESET",
     );
     var saveLabel = "CREATE PRESET";
     if (editPreset) {
@@ -2432,14 +2430,12 @@
   }
 
   var PRESET_GUIDE_TEXT = [
-    "Live settings apply immediately and are saved on this PC. A named preset changes only when you SAVE to it. The row marked CHANGED is the preset your current settings came from: SAVE stores your current settings into it, REVERT reloads it, and UNDO takes REVERT back. A hero switch can replace current settings you have not saved to a preset.",
-    "Presets are snapshots of your current settings. Name them, assign them to hero selections, and they load automatically when you switch heroes. Click a preset to use it now. NEW PRESET stores your current settings as a new preset.",
-    "ALL HEROES is the base for ONLY THESE and ALL EXCEPT presets. If you have several ALL HEROES presets, the highest one in the list is the base. If you have none, the base is Rewrite Default.",
-    "ONLY THESE affects only the heroes you choose. ALL EXCEPT affects every hero except the ones you choose; those heroes show SKIP.",
-    "ONLY THESE and ALL EXCEPT save only the values that differ from that base; the rest follow it. Ability conditions are saved with each preset, not inherited.",
-    "When you switch heroes, the highest matching ONLY THESE preset wins. If it is already the source of your current settings, your live changes stay. Otherwise, if your current hero-specific APPLIES TO still includes the new hero, your current settings stay, even if they were changed without saving or came from a lower ALL EXCEPT preset. Otherwise the highest matching ALL EXCEPT preset wins, then the top ALL HEROES preset; an already-current winning source keeps its live changes. With no ALL HEROES preset, leaving hero-specific settings that no longer fit returns to Rewrite Default.",
-    "One hero preset is used at a time; hero presets are never combined. ONLY THESE beats ALL EXCEPT regardless of list position. List order only breaks ties within the same type.",
-    "ACTIVE marks the preset that matches your current settings and APPLIES TO. It does not predict the next hero switch. CHANGED means the preset you loaded no longer matches your current settings. EDITING takes its place while you edit that preset.",
+    "- Click a preset to use it. Use NEW PRESET to save your settings.",
+    "- ACTIVE: your settings match this preset. CHANGED: you edited it. SAVE keeps the changes. REVERT throws them away.",
+    "- HEROES picks when a preset loads by itself. ONLY THESE: just the heroes you pick. ALL EXCEPT: every hero except those.",
+    "- Hero presets only store what you changed. Everything else comes from your top ALL HEROES preset, or Rewrite Default if you have none. Ability conditions are saved in each preset.",
+    "- When you switch heroes, the mod picks:\n1. An ONLY THESE preset for that hero.\n2. Otherwise, keep your hero settings if they cover that hero.\n3. Otherwise, an ALL EXCEPT preset that doesn't skip that hero.\n4. Otherwise, your top ALL HEROES preset.\nKeeping the same preset or settings keeps your changes too.",
+    "- If two presets of the same type match, the higher one in the list wins. Switching heroes can replace changes you haven't saved. No ALL HEROES preset? Leaving hero settings with no match uses Rewrite Default.",
   ].join("\n\n");
 
   var presetGuideOpen = false;
@@ -2471,7 +2467,7 @@
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      "CREATE PRESET STORES YOUR CURRENT SETTINGS AS A NEW PRESET.",
+      "Name your preset, then choose HEROES.",
       false,
     );
     focus(ui.presetNameInput);
@@ -2515,9 +2511,7 @@
     setPresetFeedback(
       "EDITING " +
         presetDisplayName(preset).toUpperCase() +
-        (scopeUsesHeroes(preset.mode)
-          ? ". SAVE STORES ONLY WHAT DIFFERS FROM ALL HEROES."
-          : ". SAVE REPLACES IT WITH THE CURRENT SETTINGS."),
+        ". SAVE updates this preset.",
       false,
     );
     focus(ui.presetNameInput);
@@ -2562,10 +2556,10 @@
     renderPresetOptions();
     setPresetFeedback(
       action === "save"
-        ? "REPLACE " +
+        ? "SAVE YOUR SETTINGS TO " +
             presetDisplayName(findPresetRecord(id)).toUpperCase() +
-            " WITH THE CURRENT SETTINGS? CONFIRM OR CANCEL."
-        : "DISCARD UNSAVED CHANGES? CONFIRM OR CANCEL.",
+            "?"
+        : "DISCARD UNSAVED CHANGES?",
       false,
     );
     focusSelectedPresetRow(id);
@@ -2635,9 +2629,7 @@
     renderPresetOptions();
     syncControls();
     setPresetFeedback(
-      "SAVED " +
-        name.toUpperCase() +
-        ". IT NOW MATCHES YOUR CURRENT SETTINGS.",
+      "SAVED " + name.toUpperCase() + ".",
       false,
     );
     focusSelectedPresetRow(preset.id);
@@ -2880,7 +2872,7 @@
     sendState({ type: "preset_restore_baked" });
     presetReplaceConfirm = null;
     renderPresetOptions();
-    setPresetFeedback("DEFAULT ROW SHOWN. SETTINGS UNCHANGED.", false);
+    setPresetFeedback("REWRITE DEFAULT SHOWN. YOUR SETTINGS DID NOT CHANGE.", false);
     // SHOW ROW collapses with its banner; move focus to the shown preset.
     focusSelectedPresetRow("baked_default");
   }
@@ -2962,7 +2954,7 @@
     closeScopeDialog();
     setText(ui.presetTransferInput, "");
     setClass(ui.presetTransferDialog, "Open", true);
-    setPresetTransferFeedback("PASTE AN HPCRP1 PRESET CODE.", false);
+    setPresetTransferFeedback("PASTE A PRESET CODE.", false);
     focus(ui.presetTransferInput);
   }
 
@@ -2986,9 +2978,7 @@
       !result || !result.outcome || result.outcome.status === "rejected";
     if (rejected) {
       setPresetTransferFeedback(
-        result && result.outcome && result.outcome.code
-          ? result.outcome.code
-          : "INVALID HPCRP1 CODE",
+        "COULD NOT IMPORT. CHECK THE PRESET CODE.",
         true,
       );
       return false;
@@ -3692,7 +3682,7 @@
   function resetForgetConfirm() {
     forgetConfirming = false;
     forgetConfirmGeneration += 1;
-    setText(ui.storeForgetLabel, "FORGET SAVED");
+    setText(ui.storeForgetLabel, "CLEAR PC SAVE");
     setClass(ui.storeForgetButton, "Confirming", false);
   }
 
@@ -3707,7 +3697,7 @@
       forgetConfirming = true;
       forgetConfirmGeneration += 1;
       var generation = forgetConfirmGeneration;
-      setText(ui.storeForgetLabel, "CONFIRM FORGET");
+      setText(ui.storeForgetLabel, "CONFIRM CLEAR");
       setClass(ui.storeForgetButton, "Confirming", true);
       try {
         $.Schedule(FORGET_CONFIRM_SEC, function () {
@@ -3733,13 +3723,13 @@
         showResetFeedback("SAVE CLEARED");
       } else {
         storeLog("forget failed: " + String(result && result.error));
-        showResetFeedback("FORGET FAILED");
+        showResetFeedback("COULD NOT CLEAR SAVE");
       }
     });
   }
 
   function storeStatusText() {
-    if (persist.legacyLayout) return "OLD PRESET VPK";
+    if (persist.legacyLayout) return "UPDATE PRESET FILE";
     if (hydration.phase === "pending" || persist.gate === "checking") return "LOADING";
     if (persist.gate !== "open") return "SAVE UNAVAILABLE";
     if (persist.lastError === "too_large") return "SAVE TOO LARGE";
@@ -3785,7 +3775,7 @@
   function renderStoreStatus() {
     var storeText = storeStatusText();
     var warning =
-      storeText === "OLD PRESET VPK" ||
+      storeText === "UPDATE PRESET FILE" ||
       storeText === "SAVE UNAVAILABLE" ||
       storeText === "SAVE RETRYING" ||
       storeText === "SAVE TOO LARGE";
@@ -4862,12 +4852,9 @@
     }
     renderIdentity();
     renderCurrentScope();
-    var scopeRow = view && view.currentScope ? view.currentScope : null;
     setText(
       ui.presetScopeHelp,
-      scopeRow && scopeUsesHeroes(scopeRow.mode)
-        ? "Saves only values that differ from the top ALL HEROES preset, or Rewrite Default if you have none. The rest follow that base."
-        : "Hero switch order: 1. Top matching ONLY THESE  2. Your current hero settings, if APPLIES TO still includes the new hero  3. Top matching ALL EXCEPT  4. Top ALL HEROES  5. Rewrite Default.",
+      "HEROES chooses when this preset loads automatically. See HOW PRESETS WORK for switching rules.",
     );
     refreshPresetActivity(view);
   }
@@ -5017,16 +5004,16 @@
       setText(ui.exitDialogTitle, "SAVE CHANGES TO " + name + "?");
       setText(
         ui.exitDialogMessage,
-        "Your current settings stay in use and are saved on this PC either way. " +
+        "Your settings stay in use either way.\nSAVE updates " +
           name +
-          " keeps its saved settings until you SAVE. A hero switch can replace current settings you have not saved to a preset. Undo history ends when you exit." +
-          (formName ? " The open preset form will not be saved." : ""),
+          ".\nSwitching heroes can replace changes you haven't saved to a preset.\nUNDO ends when you exit." +
+          (formName ? "\nThe name you typed will not be saved." : ""),
       );
     } else {
       setText(ui.exitDialogTitle, "LEAVE WITHOUT SAVING THE PRESET?");
       setText(
         ui.exitDialogMessage,
-        "The preset form and the name typed here will not be saved. Your current settings stay in use and are saved on this PC. Undo history ends when you exit.",
+        "The name you typed will not be saved.\nYour settings stay in use.\nUNDO ends when you exit.",
       );
     }
     setText(ui.exitFeedback, "");
