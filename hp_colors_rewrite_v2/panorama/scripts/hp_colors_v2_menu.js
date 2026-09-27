@@ -2434,8 +2434,8 @@
     "- ACTIVE: your settings match this preset. CHANGED: you edited it. SAVE keeps the changes. REVERT throws them away.",
     "- HEROES picks when a preset loads by itself. ONLY THESE: just the heroes you pick. ALL EXCEPT: every hero except those.",
     "- Hero presets only store what you changed. Everything else comes from your top ALL HEROES preset, or Rewrite Default if you have none. Ability conditions are saved in each preset.",
-    "- When you switch heroes, the mod picks:\n1. An ONLY THESE preset for that hero.\n2. Otherwise, keep your hero settings if they cover that hero.\n3. Otherwise, an ALL EXCEPT preset that doesn't skip that hero.\n4. Otherwise, your top ALL HEROES preset.\nKeeping the same preset or settings keeps your changes too.",
-    "- If two presets of the same type match, the higher one in the list wins. Switching heroes can replace changes you haven't saved. No ALL HEROES preset? Leaving hero settings with no match uses Rewrite Default.",
+    "- When you switch heroes, the mod picks the highest match:\n1. An ONLY THESE preset for that hero.\n2. Otherwise, an ALL EXCEPT preset that doesn't skip that hero.\n3. Otherwise, your top ALL HEROES preset.\nIf changing characters does not change your preset, your unsaved edits stay.",
+    "- Higher in the list wins. Switching heroes can replace changes you haven't saved. No ALL HEROES preset? Leaving an ONLY THESE or ALL EXCEPT preset with no match goes back to Rewrite Default.",
   ].join("\n\n");
 
   var presetGuideOpen = false;
