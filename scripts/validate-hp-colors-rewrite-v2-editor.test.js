@@ -723,14 +723,14 @@ test('scope switch offers All Except with its own picker wording', () => {
   except.events.onactivate();
   assert.equal(dialog.BHasClass('Open'), true);
   assert.equal(title.text, 'SKIP THESE HEROES');
-  assert.equal(message.text, "These heroes won't get this preset by itself.");
+  assert.equal(message.text, "Auto-use this preset for every hero except these.");
 
   close.events.onactivate();
   assert.equal(dialog.BHasClass('Open'), false);
   selected.events.onactivate();
   assert.equal(dialog.BHasClass('Open'), true);
   assert.equal(title.text, 'PICK HEROES');
-  assert.equal(message.text, 'These heroes get this preset by itself.');
+  assert.equal(message.text, 'Auto-use this preset only for these heroes.');
 });
 
 test('All Except picker marks skipped heroes and summarizes the skip list', () => {
@@ -971,7 +971,7 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
   panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDIT CANCELED. NOTHING CHANGED.',
+    'EDIT CANCELED. PRESET UNCHANGED.',
   );
 });
 
@@ -1419,9 +1419,9 @@ test('entering the hideout shows HIDEOUT and drops the hero route to the all-her
 });
 
 const LAYERED_ALL_SCOPE_HELP =
-  'Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes.';
+  'Auto-pick order for your hero: Only These, then All Except, then All Heroes, then Rewrite Default.';
 const LAYERED_HERO_SCOPE_HELP =
-  'Only settings you change here are saved. Everything else follows All Heroes.';
+  'Saves only settings that differ from All Heroes. The rest follow All Heroes.';
 
 function layeredMenuState(extraAll = {}, extraHero = {}) {
   return {
@@ -1496,7 +1496,7 @@ test('Layered presets selecting a hero preset explains the layered save', () => 
   presetOption(fixture, 'user_0002').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDITING SHIV ONLY. ONLY SETTINGS YOU CHANGE HERE ARE SAVED. THE REST FOLLOW ALL HEROES.',
+    'EDITING SHIV ONLY. UPDATE & APPLY SAVES ONLY WHAT DIFFERS FROM ALL HEROES.',
   );
 });
 

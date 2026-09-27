@@ -332,7 +332,7 @@
                             <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="ONLY THESE" /></Button>
                             <Button id="HPColorsCurrentScopeExcept" class="HPColorsSegmentButton"><Label text="ALL EXCEPT" /></Button>
                           </Panel>
-                          <Label id="HPColorsPresetScopeHelp" text="Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes." class="HPColorsPresetScopeHelp" />
+                          <Label id="HPColorsPresetScopeHelp" text="Auto-pick order for your hero: Only These, then All Except, then All Heroes, then Rewrite Default." class="HPColorsPresetScopeHelp" />
                         </Panel>
                         <Panel class="HPColorsPresetFormActions">
                           <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>
@@ -343,7 +343,7 @@
                     <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
                     <Panel class="HPColorsPresetLibraryHeader">
                       <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
-                      <Label text="Click a preset to rename or update it." class="HPColorsPresetLibraryHint" />
+                      <Label text="APPLY loads a preset. Click a row to update it, or its name to rename it." class="HPColorsPresetLibraryHint" />
                       <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
                       <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY PRESETS" /></Button>
                       <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT PRESETS" /></Button>
@@ -1148,7 +1148,7 @@
         <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
           <Label class="HPColorsTransferDialogEyebrow" text="PRESET TARGET" />
           <Label id="HPColorsScopeDialogTitle" class="HPColorsTransferDialogTitle" text="PICK HEROES" />
-          <Label id="HPColorsScopeDialogMessage" class="HPColorsTransferDialogMessage" text="These heroes get this preset by itself." />
+          <Label id="HPColorsScopeDialogMessage" class="HPColorsTransferDialogMessage" text="Auto-use this preset only for these heroes." />
           <TextEntry id="HPColorsScopeSearch" class="HPColorsScopeSearch" placeholder="SEARCH HEROES" multiline="false" />
           <Panel id="HPColorsScopeOptions" class="HPColorsHeroOptions HPColorsScopeOptions" hittest="true" hittestchildren="true" />
           <Panel class="HPColorsTransferDialogActions">

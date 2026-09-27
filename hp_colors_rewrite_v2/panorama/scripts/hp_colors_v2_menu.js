@@ -1983,8 +1983,8 @@
       setText(
         ui.scopeDialogMessage,
         dialogExcept
-          ? "These heroes won't get this preset by itself."
-          : "These heroes get this preset by itself.",
+          ? "Auto-use this preset for every hero except these."
+          : "Auto-use this preset only for these heroes.",
       );
     var summary = row
       ? presetScopeSummary({ mode: mode, heroes: row.heroes }, view.heroes)
@@ -2374,7 +2374,7 @@
     presetEditId = "";
     renderPresetOptions();
     syncPresetSaveForm(true);
-    setPresetFeedback("EDIT CANCELED. NOTHING CHANGED.", false);
+    setPresetFeedback("EDIT CANCELED. PRESET UNCHANGED.", false);
   }
 
   function selectPresetForRowAction(id) {
@@ -2407,7 +2407,7 @@
         ? "EDITING " +
             presetDisplayName(preset).toUpperCase() +
             (scopeUsesHeroes(preset.mode)
-              ? ". ONLY SETTINGS YOU CHANGE HERE ARE SAVED. THE REST FOLLOW ALL HEROES."
+              ? ". UPDATE & APPLY SAVES ONLY WHAT DIFFERS FROM ALL HEROES."
               : ". UPDATE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS.")
         : "SELECTED " +
             presetDisplayName(preset).toUpperCase() +
@@ -4534,8 +4534,8 @@
     setText(
       ui.presetScopeHelp,
       scopeRow && scopeUsesHeroes(scopeRow.mode)
-        ? "Only settings you change here are saved. Everything else follows All Heroes."
-        : "Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes.",
+        ? "Saves only settings that differ from All Heroes. The rest follow All Heroes."
+        : "Auto-pick order for your hero: Only These, then All Except, then All Heroes, then Rewrite Default.",
     );
   }
 
