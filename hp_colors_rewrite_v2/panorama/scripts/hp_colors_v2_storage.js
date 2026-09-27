@@ -24,9 +24,11 @@
   var TITLE_PREFIX = "HPV2S1:";
   var RECORD_TAG = "HPV2S1";
   var ENVELOPE_MAGIC = "HPV2STORE";
-  // Schema 1 held the body as a JSON string; schema 2 embeds it as an object,
-  // which avoids escaping every quote twice. Both are read; 2 is written.
-  var ENVELOPE_SCHEMA = 2;
+  // Schema 1 held the body as a JSON string; schemas 2 and 3 embed it as an
+  // object, which avoids escaping every quote twice. Schema 3 adds the
+  // "except" preset scope; older builds treat it as unsupported and never
+  // overwrite it. All three are read; 3 is written.
+  var ENVELOPE_SCHEMA = 3;
 
   // Measured live: 3000-character replies arrive intact, and each title
   // carries at most 4096 characters.
@@ -167,7 +169,11 @@
       return { kind: "unsupported", schema: envelope.s };
     var body = null;
     if (envelope.s === 1 && typeof envelope.b === "string") body = parseBody(envelope.b);
-    else if (envelope.s === 2 && envelope.b && typeof envelope.b === "object")
+    else if (
+      (envelope.s === 2 || envelope.s === 3) &&
+      envelope.b &&
+      typeof envelope.b === "object"
+    )
       body = parseBody(JSON.stringify(envelope.b));
     if (!body) return { kind: "corrupt" };
     return {

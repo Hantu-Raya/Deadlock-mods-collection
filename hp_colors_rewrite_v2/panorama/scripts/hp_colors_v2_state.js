@@ -4,6 +4,7 @@
   var HERO_SCOPE_OFF = "off";
   var HERO_SCOPE_ALL = "all";
   var HERO_SCOPE_SELECTED = "selected";
+  var HERO_SCOPE_EXCEPT = "except";
   var CURRENT_SCOPE_ID = "scope_current";
   var DEFAULT_PRESET_ID = "baked_default";
   var HERO_MODE_AUTO = "auto";
@@ -159,8 +160,12 @@
 
   function normalizeScopeMode(mode, heroes) {
     if (mode === HERO_SCOPE_ALL) return HERO_SCOPE_ALL;
-    if (mode === HERO_SCOPE_SELECTED && heroes.length) return HERO_SCOPE_SELECTED;
+    if (scopeUsesHeroes(mode) && heroes.length) return mode;
     return HERO_SCOPE_OFF;
+  }
+
+  function scopeUsesHeroes(mode) {
+    return mode === HERO_SCOPE_SELECTED || mode === HERO_SCOPE_EXCEPT;
   }
 
   function normalizeConditions(source) {
@@ -284,7 +289,7 @@
     var result = {
       id: id,
       mode: mode,
-      heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
+      heroes: scopeUsesHeroes(mode) ? heroes : [],
       values: normalizeValues(source.values),
       conditions: normalizeConditions(source.conditions),
     };
@@ -323,7 +328,7 @@
       name: name,
       values: normalizeValues(source.values),
       mode: mode,
-      heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
+      heroes: scopeUsesHeroes(mode) ? heroes : [],
       conditions: normalizePresetConditions(source.conditions),
     };
   }
@@ -774,8 +779,8 @@
           return { error: "INVALID BAKED PRESET" };
       } else if (
         !/^user_\d{4,}$/.test(id) ||
-        (mode !== HERO_SCOPE_ALL && mode !== HERO_SCOPE_SELECTED) ||
-        (mode === HERO_SCOPE_SELECTED && !heroes.length) ||
+        (mode !== HERO_SCOPE_ALL && !scopeUsesHeroes(mode)) ||
+        (scopeUsesHeroes(mode) && !heroes.length) ||
         (mode === HERO_SCOPE_ALL && heroes.length)
       )
         return { error: "INVALID USER PRESET SCOPE" };
@@ -1041,6 +1046,11 @@
         var selected = state.scopes[index];
         if (selected.mode !== HERO_SCOPE_SELECTED || !heroKey) continue;
         if (selected.heroes.indexOf(heroKey) >= 0) return selected;
+      }
+      for (index = 0; index < state.scopes.length; index++) {
+        var except = state.scopes[index];
+        if (except.mode !== HERO_SCOPE_EXCEPT || !heroKey) continue;
+        if (except.heroes.indexOf(heroKey) < 0) return except;
       }
       for (index = 0; index < state.scopes.length; index++) {
         if (state.scopes[index].mode === HERO_SCOPE_ALL) return state.scopes[index];
@@ -1579,10 +1589,22 @@
       }
       if (
         current &&
-        current.mode === HERO_SCOPE_SELECTED &&
-        current.heroes.indexOf(heroKey) >= 0
+        ((current.mode === HERO_SCOPE_SELECTED &&
+          current.heroes.indexOf(heroKey) >= 0) ||
+          (current.mode === HERO_SCOPE_EXCEPT &&
+            current.heroes.indexOf(heroKey) < 0))
       )
         return false;
+      for (index = 0; index < state.userPresets.length; index++) {
+        var exceptPreset = state.userPresets[index];
+        if (
+          exceptPreset.mode === HERO_SCOPE_EXCEPT &&
+          exceptPreset.heroes.indexOf(heroKey) < 0
+        ) {
+          if (current && current.sourcePresetId === exceptPreset.id) return false;
+          return applyPresetInternal(exceptPreset);
+        }
+      }
       return applyNoHeroRoute(current);
     }
 
@@ -1599,7 +1621,7 @@
         (!current || current.sourcePresetId !== allFallback.id)
       )
         return applyPresetInternal(allFallback);
-      if (current && current.mode === HERO_SCOPE_SELECTED)
+      if (current && scopeUsesHeroes(current.mode))
         return applyPresetInternal(findPreset(DEFAULT_PRESET_ID));
       return false;
     }
@@ -1647,7 +1669,8 @@
       if (
         intent.mode !== HERO_SCOPE_OFF &&
         intent.mode !== HERO_SCOPE_ALL &&
-        intent.mode !== HERO_SCOPE_SELECTED
+        intent.mode !== HERO_SCOPE_SELECTED &&
+        intent.mode !== HERO_SCOPE_EXCEPT
       )
         return false;
       if (intent.heroes !== undefined && !Array.isArray(intent.heroes)) return false;
@@ -1663,7 +1686,7 @@
           return false;
       }
       var heroes = normalizeHeroSelection(rawHeroes);
-      if (intent.mode === HERO_SCOPE_SELECTED && !heroes.length) return true;
+      if (scopeUsesHeroes(intent.mode) && !heroes.length) return true;
       if (intent.mode === HERO_SCOPE_OFF && heroes.length) return false;
       if (intent.mode === HERO_SCOPE_ALL && heroes.length) return false;
       return true;
@@ -2140,7 +2163,7 @@
       if (!validateScopeIntent(intent)) return reject("scope_set", "INVALID_SCOPE");
       var heroes = normalizeHeroSelection(intent.heroes || []);
       var mode =
-        intent.mode === HERO_SCOPE_SELECTED && !heroes.length
+        scopeUsesHeroes(intent.mode) && !heroes.length
           ? HERO_SCOPE_ALL
           : normalizeScopeMode(intent.mode, heroes);
       var current = currentScopeRow();
@@ -2148,7 +2171,7 @@
       if (
         current &&
         current.mode === mode &&
-        JSON.stringify(current.heroes) === JSON.stringify(mode === HERO_SCOPE_SELECTED ? heroes : [])
+        JSON.stringify(current.heroes) === JSON.stringify(scopeUsesHeroes(mode) ? heroes : [])
       )
         return noop("scope_set", "NO_CHANGE");
       return commit("scope_set", function () {
@@ -2157,7 +2180,7 @@
           rows.unshift({
             id: CURRENT_SCOPE_ID,
             mode: mode,
-            heroes: mode === HERO_SCOPE_SELECTED ? heroes : [],
+            heroes: scopeUsesHeroes(mode) ? heroes : [],
             values: current ? copyValues(current.values) : copyValues(state.values),
             conditions: current ? cloneConditions(current.conditions) : cloneConditions(state.conditions),
           });
@@ -2237,8 +2260,8 @@
       var name = String(intent.name || "").replace(/^\s+|\s+$/g, "");
       if (!name || name.length > 48) return reject("preset_save", "INVALID_PRESET_NAME");
       var current = currentScopeRow();
-      var mode = current && current.mode === HERO_SCOPE_SELECTED
-        ? HERO_SCOPE_SELECTED
+      var mode = current && scopeUsesHeroes(current.mode)
+        ? current.mode
         : HERO_SCOPE_ALL;
       var selected = findPreset(state.selectedPresetId);
       var updating = selected && selected.kind === "user";

@@ -29,7 +29,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 - Immediate application, confirmed section reset with guarded feedback, session Undo, Peek, native HSL picker, and HPCR2 live settings import/export.
 - One canonical global base and one resolved effective snapshot.
 - Auto, Manual Override, and Off hero identity with lifecycle settling and stale-callback rejection.
-- The Preset Library manages durable All Heroes and Selected Heroes snapshots, the hidden Rewrite Default fallback, and exact Selected → All Heroes → Rewrite Default routing.
+- The Preset Library manages durable All Heroes, Selected Heroes (Only These), and All Except snapshots, the hidden Rewrite Default fallback, and exact Selected → All Except → All Heroes → Rewrite Default routing.
 - Create stores Current without applying; Apply loads a preset; **Update & Apply** replaces the selected user preset with Current and applies it. Rename, reorder, copy, import, delete, hide, and restore remain available.
 - `HPCRP1` single-record and bundle copy/import use atomic validation and preserve fresh monotonic user IDs, canonical typed ability conditions, and repository-only effects.
 - Session-scoped ability signature-tier conditions for serializable settings, with row markers, ability-card tier cycling, typed override editors, base fallback, and changed-effective-only publication.
@@ -209,7 +209,7 @@ The **Presets → Library** page separates snapshot creation, application, and u
 
 Explicit **Apply** loads a preset into Current and publishes it immediately, even when hero identity is unknown or differs. Controls edit the Current working copy; the source record stays unchanged until **Update & Apply**. Legacy user Global records normalize to All Heroes without applying or publishing.
 
-Automatic routing chooses the first matching Selected Heroes preset, otherwise the first All Heroes preset, otherwise **Rewrite Default**. It preserves edited Current while the resolved preset's stable source ID remains the same, and publishes only when effective values change.
+Automatic routing, only when a hero is known, chooses the first Selected Heroes (Only These) preset listing the hero, otherwise the first **All Except** preset that does not skip the hero, otherwise the first All Heroes preset, otherwise **Rewrite Default**; "first" is library order. An All Except preset stores its skipped hero keys (catalogue-validated, deduplicated, catalogue order); an empty skip list becomes All Heroes, and skipping every hero is valid but never auto-picked. Unknown heroes never match Selected or All Except, and in Hideout an All Except Current falls back like a Selected Current. Routing preserves edited Current while the resolved preset's stable source ID remains the same (or while a Selected/All Except Current still covers the hero and no Selected preset matches), and publishes only when effective values change. Saved-state envelopes use schema 3 (same embedded object body as schema 2); schemas 1–3 are read, 3 is written, and older builds treat schema 3 as unsupported and never overwrite it.
 
 ## Milestone 14: preset repository management
 

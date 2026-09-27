@@ -245,9 +245,10 @@
                           </Panel>
                           <Panel class="HPColorsSegment HPColorsCurrentScopeSegment">
                             <Button id="HPColorsCurrentScopeAll" class="HPColorsSegmentButton"><Label text="ALL HEROES" /></Button>
-                            <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="SELECT HEROES" /></Button>
+                            <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="ONLY THESE" /></Button>
+                            <Button id="HPColorsCurrentScopeExcept" class="HPColorsSegmentButton"><Label text="ALL EXCEPT" /></Button>
                           </Panel>
-                          <Label text="Selected Heroes overrides All Heroes for the heroes you choose. All Heroes covers everyone else." class="HPColorsPresetScopeHelp" />
+                          <Label text="Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes." class="HPColorsPresetScopeHelp" />
                         </Panel>
                         <Panel class="HPColorsPresetFormActions">
                           <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>
@@ -1062,8 +1063,8 @@
         <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
         <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
           <Label class="HPColorsTransferDialogEyebrow" text="PRESET TARGET" />
-          <Label class="HPColorsTransferDialogTitle" text="SELECT HEROES" />
-          <Label class="HPColorsTransferDialogMessage" text="Choose which heroes use Selected Heroes presets. Removing the last hero returns the target to All Heroes." />
+          <Label id="HPColorsScopeDialogTitle" class="HPColorsTransferDialogTitle" text="PICK HEROES" />
+          <Label id="HPColorsScopeDialogMessage" class="HPColorsTransferDialogMessage" text="These heroes get this preset by itself." />
           <TextEntry id="HPColorsScopeSearch" class="HPColorsScopeSearch" placeholder="SEARCH HEROES" multiline="false" />
           <Panel id="HPColorsScopeOptions" class="HPColorsHeroOptions HPColorsScopeOptions" hittest="true" hittestchildren="true" />
           <Panel class="HPColorsTransferDialogActions">
