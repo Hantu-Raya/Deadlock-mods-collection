@@ -1687,14 +1687,8 @@
           return applyPresetInternal(preset);
         }
       }
-      if (
-        current &&
-        ((current.mode === HERO_SCOPE_SELECTED &&
-          current.heroes.indexOf(heroKey) >= 0) ||
-          (current.mode === HERO_SCOPE_EXCEPT &&
-            current.heroes.indexOf(heroKey) < 0))
-      )
-        return false;
+      // Every type follows list order: the highest match wins. Only the
+      // same-source guards keep unsaved edits when the winner is unchanged.
       for (index = 0; index < state.userPresets.length; index++) {
         var exceptPreset = state.userPresets[index];
         if (

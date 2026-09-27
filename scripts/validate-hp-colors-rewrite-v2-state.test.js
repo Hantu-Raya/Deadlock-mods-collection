@@ -2041,6 +2041,29 @@ function autoState(userPresets, overrides = {}) {
   return state;
 }
 
+// Tester round 7: ALL EXCEPT follows list order like the other types. A
+// hand-picked lower ALL EXCEPT is replaced by the highest match on a hero
+// switch; unsaved edits survive only when the winner is the same preset.
+test('hero switch picks the highest ALL EXCEPT even when a lower one is in use', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze A', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'Skip Haze B', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#333333' } }),
+  ]);
+  send(state, 'hero_mode', { mode: 'manual' });
+  send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  send(state, 'preset_apply', { id: 'user_0002' });
+  assert.equal(state.read().repository.activeId, 'user_0002');
+
+  const hornet = send(state, 'hero_manual', { heroKey: 'hero_hornet' });
+  assert.equal(hornet.view.repository.activeId, 'user_0001', 'lower ALL EXCEPT is replaced');
+  assert.equal(hornet.view.effectiveValues.enemyLow, '#222222');
+
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  const atlas = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(atlas.view.repository.sourceState.id, 'user_0001');
+  assert.equal(atlas.view.effectiveValues.enemyLow, '#ABCDEF', 'same winner keeps unsaved edits');
+});
+
 test('All Except routing order is Only These, All Except, All Heroes, then Rewrite Default', () => {
   const presets = [
     rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111' } }),
