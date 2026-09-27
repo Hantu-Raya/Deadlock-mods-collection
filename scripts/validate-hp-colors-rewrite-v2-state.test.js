@@ -2464,12 +2464,3 @@ test('Layered presets Reset Section on a hero Current resets to Base and Undo re
   assert.equal(currentScope(allReset.view).values.enemyLow, DEFAULTS.enemyLow);
   assert.equal(currentScope(allReset.view).values.enemyMid, DEFAULTS.enemyMid);
 });
-
-test('Layered presets read model exposes layerBase only for a hero-scoped Current', () => {
-  const state = layeredState();
-  assert.equal(state.read().layerBase, null);
-  const shiv = settleHero(state, 1, 'SHIV');
-  assert.deepEqual(plain(shiv.view.layerBase), plain(row(shiv.view, 'user_0001').values));
-  const all = send(state, 'preset_apply', { id: 'user_0001' });
-  assert.equal(all.view.layerBase, null);
-});

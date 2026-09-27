@@ -1373,7 +1373,6 @@
         if (state.confirmation.id) confirmation.id = state.confirmation.id;
       }
       var gesture = state.gesture ? { key: state.gesture.key, active: true } : null;
-      var viewLayerBase = currentLayerBase();
       var candidate = {
         transitionId: state.transitionId,
         schema: SCHEMA_VIEW,
@@ -1384,7 +1383,6 @@
         effectiveRevision: state.effectiveRevision,
         scopes: scopes,
         currentScope: currentScope,
-        layerBase: viewLayerBase ? copyValues(viewLayerBase) : null,
         identity: viewIdentity,
         ability: viewAbility,
         repository: repository,
@@ -1414,10 +1412,6 @@
           JSON.stringify(lastView.currentScope)
         )
           candidate.currentScope = lastView.currentScope;
-        if (
-          JSON.stringify(candidate.layerBase) === JSON.stringify(lastView.layerBase)
-        )
-          candidate.layerBase = lastView.layerBase;
         if (
           JSON.stringify(candidate.identity) === JSON.stringify(lastView.identity)
         )
