@@ -1323,11 +1323,23 @@
         if (!activeId && presetMatchesCurrent(record, current, currentBaseRaw))
           activeId = record.id;
       }
+      // Provenance plus equality for the menu's CHANGED row. Not derived from
+      // activeId: two identical presets share one ACTIVE (first match wins),
+      // so a matching source that is not first must still read "matches".
+      var sourceState = { id: "", matches: true };
+      if (current && current.sourcePresetId) {
+        var source = findPreset(current.sourcePresetId);
+        if (source && source.kind === "user") {
+          sourceState.id = source.id;
+          sourceState.matches = presetMatchesCurrent(source, current, "");
+        }
+      }
       return {
         rows: rows,
         allRows: allRows,
         selectedId: state.selectedPresetId,
         activeId: activeId || (current ? CURRENT_SCOPE_ID : null),
+        sourceState: sourceState,
         nextUserNumber: state.nextUserPresetNumber,
         hiddenBakedIds: state.hiddenBakedPresetIds.slice(0),
       };

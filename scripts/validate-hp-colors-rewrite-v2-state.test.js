@@ -2465,3 +2465,86 @@ test('Layered presets Reset Section on a hero Current resets to Base and Undo re
   assert.equal(currentScope(allReset.view).values.enemyLow, DEFAULTS.enemyLow);
   assert.equal(currentScope(allReset.view).values.enemyMid, DEFAULTS.enemyMid);
 });
+
+// Round 4: repository.sourceState is provenance plus equality for the menu's
+// CHANGED row. It is not derived from activeId.
+test('sourceState names the applied user preset and tracks value equality', () => {
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Blue', values: { enemyLow: '#222222' } }),
+    ],
+  }));
+  assert.deepEqual(state.read().repository.sourceState, { id: '', matches: true });
+
+  const applied = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.deepEqual(applied.view.repository.sourceState, { id: 'user_0001', matches: true });
+  assert.equal(applied.view.repository.activeId, 'user_0001');
+
+  const edited = send(state, 'setting_edit', { key: 'widthScale', value: 150 });
+  assert.deepEqual(edited.view.repository.sourceState, { id: 'user_0001', matches: false });
+  assert.equal(edited.view.repository.activeId, 'scope_current');
+
+  const undone = send(state, 'undo');
+  assert.deepEqual(undone.view.repository.sourceState, { id: 'user_0001', matches: true });
+
+  // Rewrite Default is never a source.
+  const baked = send(state, 'preset_apply', { id: 'baked_default' });
+  assert.deepEqual(baked.view.repository.sourceState, { id: '', matches: true });
+
+  // A deleted source is dropped rather than reported as CHANGED.
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'widthScale', value: 160 });
+  send(state, 'preset_select', { id: 'user_0001' });
+  const request = send(state, 'preset_remove_request', { id: 'user_0001' });
+  const removed = send(state, 'preset_remove_confirm', {
+    token: request.view.transactions.confirmation.token,
+  });
+  assert.deepEqual(removed.view.repository.sourceState, { id: '', matches: true });
+});
+
+test('sourceState: a condition rule edit is CHANGED, condition activation alone is not', () => {
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({
+        id: 'user_0001',
+        name: 'Rule',
+        values: { enemyLow: '#222222' },
+        conditions: { enemyVisible: { slot: 2, minTier: 2, value: false } },
+      }),
+    ],
+  }));
+  const applied = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.deepEqual(applied.view.repository.sourceState, { id: 'user_0001', matches: true });
+
+  const activated = send(state, 'ability_observe', {
+    epoch: applied.view.identity.epoch,
+    tiers: [1, 2, 0, 3],
+  });
+  assert.equal(activated.view.effectiveValues.enemyVisible, false);
+  assert.deepEqual(activated.view.repository.sourceState, { id: 'user_0001', matches: true });
+  assert.equal(activated.view.repository.activeId, 'user_0001');
+
+  const ruleEdit = send(state, 'condition_set', {
+    key: 'enemyVisible',
+    slot: 3,
+    minTier: 1,
+    value: false,
+  });
+  assert.deepEqual(ruleEdit.view.repository.sourceState, { id: 'user_0001', matches: false });
+  assert.equal(ruleEdit.view.repository.activeId, 'scope_current');
+});
+
+test('sourceState: two identical presets keep the second source matching although ACTIVE is the first', () => {
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Twin A', values: { enemyLow: '#222222' } }),
+      rawPreset({ id: 'user_0002', name: 'Twin B', values: { enemyLow: '#222222' } }),
+    ],
+  }));
+  const applied = send(state, 'preset_apply', { id: 'user_0002' });
+  assert.equal(applied.view.repository.activeId, 'user_0001');
+  assert.deepEqual(applied.view.repository.sourceState, { id: 'user_0002', matches: true });
+
+  const edited = send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  assert.deepEqual(edited.view.repository.sourceState, { id: 'user_0002', matches: false });
+});
