@@ -3134,6 +3134,7 @@
         repository.activeId === CURRENT_SCOPE_ID);
     setClass(ui.presetSourceRow, "Visible", noSource);
     setRowActionEnabled(ui.presetSaveAsNewButton, noSource);
+    renderStoreStatus();
   }
 
   function requestPresetApplication(id, savedFirst) {
@@ -3753,18 +3754,55 @@
     return persist.ackHash ? "SAVED ON THIS PC" : "LOCAL SAVE READY";
   }
 
+  // Healthy local save is silent; the chip names the preset the current
+  // settings belong to, so players see what SAVE would update. Save
+  // problems and loading still take the chip over.
+  var STORE_QUIET_STATUS = {
+    "SAVING ON THIS PC...": true,
+    "SAVED ON THIS PC": true,
+    "LOCAL SAVE READY": true,
+  };
+  var CHIP_NAME_LIMIT = 16;
+
+  function presetChipState() {
+    var view = currentView();
+    var repository = view && view.repository ? view.repository : null;
+    if (!repository) return { text: "", changed: false };
+    var source = repository.sourceState || null;
+    var preset = findPresetRecord(source && source.id ? source.id : "");
+    var changed = !!(preset && !source.matches);
+    if (!preset) preset = findPresetRecord(repository.activeId || "");
+    if (!preset) return { text: "NOT SAVED TO A PRESET", changed: true };
+    var name = presetDisplayName(preset).toUpperCase();
+    if (name.length > CHIP_NAME_LIMIT)
+      name = name.slice(0, CHIP_NAME_LIMIT - 1) + "…";
+    return {
+      text: "PRESET: " + name + (changed ? " · CHANGED" : ""),
+      changed: changed,
+    };
+  }
+
   function renderStoreStatus() {
-    var text = storeStatusText();
-    setClass(
-      ui.liveStatus,
-      "StoreWarning",
-      text === "OLD PRESET VPK" ||
-        text === "SAVE UNAVAILABLE" ||
-        text === "SAVE RETRYING" ||
-        text === "SAVE TOO LARGE",
-    );
+    var storeText = storeStatusText();
+    var warning =
+      storeText === "OLD PRESET VPK" ||
+      storeText === "SAVE UNAVAILABLE" ||
+      storeText === "SAVE RETRYING" ||
+      storeText === "SAVE TOO LARGE";
+    var chip =
+      !resetFeedbackText && STORE_QUIET_STATUS[storeText]
+        ? presetChipState()
+        : null;
+    setClass(ui.liveStatus, "StoreWarning", warning);
+    setClass(ui.liveStatus, "PresetChanged", !!(chip && chip.changed));
     setEnabled(ui.storeForgetButton, !!storage && persist.gate === "open");
-    setText(ui.liveStatus, resetFeedbackText || text);
+    if (
+      isValid(ui.liveStatus) &&
+      ui.liveStatus.GetAttributeString &&
+      ui.liveStatus.GetAttributeString("hp_colors_store_status", "") !== storeText
+    )
+      ui.liveStatus.SetAttributeString("hp_colors_store_status", storeText);
+    setText(ui.liveStatus, resetFeedbackText || (chip ? chip.text : storeText));
   }
 
   function writeMenuState(raw) {

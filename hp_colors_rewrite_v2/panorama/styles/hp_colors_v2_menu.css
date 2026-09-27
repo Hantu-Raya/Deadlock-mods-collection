@@ -95,19 +95,25 @@
   visibility: visible;
 }
 
-/* Content-sized (no fixed width) so the longest copy, "SAVING ON THIS PC...",
-   never clips: ~215px at 13px/2px tracking. Header budget: 1068px inner minus
-   title 300, rule min 48, ticker 274, donate 96 leaves ~350px for this chip. */
+/* Content-sized (no fixed width). Longest copy is "PRESET: " + a 16-char
+   name + " · CHANGED" (34 chars, ~330px at 13px/1px tracking); menu.js
+   truncates longer names. Header budget: 1068px inner minus title 300, rule
+   min 48, ticker 274, donate 96 leaves ~350px for this chip. */
 .HPColorsLiveStatus {
   vertical-align: center;
   font-family: oracle;
   font-size: 13px;
   font-weight: bold;
   color: #5fe69e;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   border-left: 2px solid #5fe69e;
   padding-left: 10px;
   white-space: nowrap;
+}
+
+.HPColorsLiveStatus.PresetChanged {
+  color: #e7c77d;
+  border-left: 2px solid #e7c77d;
 }
 
 .HPColorsLiveStatus.StoreWarning {
