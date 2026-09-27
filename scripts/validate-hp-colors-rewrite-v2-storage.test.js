@@ -768,7 +768,7 @@ test('saves from the first local-save build (schema 1) still restore and upgrade
   closeEditor(fixture);
   fixture.run(8000);
   const stored = profile.disk.get(KEY_CURRENT).split('.')[2];
-  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 2);
+  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 3);
   assert.equal(storedEditedWidth(profile), 200);
   record(fixture);
 });
@@ -912,5 +912,98 @@ test('audit 5: a lost first page title still gets the page injected', () => {
   fixture.run(20000);
   assert.equal(fixture.renderer().widthScale, 215);
   assert.equal(fixture.status(), 'SAVED');
+  record(fixture);
+});
+
+// -- All Except scope and envelope schema 3 --
+
+function storedSchema(profile, key = KEY_CURRENT) {
+  const payload = profile.disk.get(key).split('.')[2];
+  return JSON.parse(Buffer.from(payload, 'base64').toString('utf8')).s;
+}
+
+function exceptBody(values) {
+  return {
+    version: 1,
+    values,
+    conditions: {},
+    scopes: [],
+    userPresets: [
+      { id: 'user_0001', name: 'Not Haze', mode: 'except', heroes: ['hero_haze'], values: { widthScale: 170 } },
+    ],
+  };
+}
+
+test('an All Except preset keeps its mode and skipped heroes through a restart', () => {
+  const profile = createProfile({
+    [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: exceptBody({ widthScale: 140 }) }),
+  });
+  const first = launch(profile, { label: 'except restore' });
+  first.run(8000);
+  assert.equal(first.attr('hp_colors_v2_store_status'), 'ok');
+  const preset = menuState(first).userPresets.find((row) => row.id === 'user_0001');
+  assert.ok(preset, 'the All Except preset is restored');
+  assert.equal(preset.mode, 'except');
+  assert.deepEqual(preset.heroes, ['hero_haze']);
+  openEditor(first);
+  setWidth(first, 205);
+  closeEditor(first);
+  first.run(8000);
+  const saved = JSON.parse(storedRecord(profile).body).userPresets.find((row) => row.id === 'user_0001');
+  assert.equal(saved.mode, 'except');
+  assert.deepEqual(saved.heroes, ['hero_haze']);
+  record(first);
+
+  const second = launch(profile, { label: 'except restart' });
+  second.run(8000);
+  const restored = menuState(second).userPresets.find((row) => row.id === 'user_0001');
+  assert.equal(restored.mode, 'except');
+  assert.deepEqual(restored.heroes, ['hero_haze']);
+  record(second);
+});
+
+test('new saves are written with envelope schema 3', () => {
+  const profile = createProfile();
+  const fixture = launch(profile, { label: 'schema 3 write' });
+  fixture.run(2000);
+  openEditor(fixture);
+  setWidth(fixture, 175);
+  closeEditor(fixture);
+  fixture.run(4000);
+  assert.equal(storedRecord(profile).kind, 'valid');
+  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedEditedWidth(profile), 175);
+  record(fixture);
+});
+
+test('a schema 2 save still restores and the next save is schema 3', () => {
+  const profile = createProfile({
+    [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 2, t: 1, b: JSON.parse(savedBody({ widthScale: 165 })) }),
+  });
+  const fixture = launch(profile, { label: 'schema 2 restore' });
+  fixture.run(8000);
+  assert.equal(fixture.attr('hp_colors_v2_store_status'), 'ok');
+  assert.equal(fixture.renderer().widthScale, 165);
+  openEditor(fixture);
+  setWidth(fixture, 185);
+  closeEditor(fixture);
+  fixture.run(8000);
+  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedEditedWidth(profile), 185);
+  record(fixture);
+});
+
+test('a schema 4 save is read-only and never overwritten', () => {
+  const future = rawRecord({ m: 'HPV2STORE', s: 4, t: 1, b: exceptBody({ widthScale: 150 }) });
+  const profile = createProfile({ [KEY_CURRENT]: future });
+  const fixture = launch(profile, { label: 'schema 4 read-only' });
+  fixture.run(8000);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+  openEditor(fixture);
+  setWidth(fixture, 190);
+  closeEditor(fixture);
+  fixture.run(8000);
+  assert.equal(fixture.bridge.writes, 0);
+  assert.equal(profile.disk.get(KEY_CURRENT), future);
   record(fixture);
 });
