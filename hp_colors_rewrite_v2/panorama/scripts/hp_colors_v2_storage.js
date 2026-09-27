@@ -27,8 +27,10 @@
   // Schema 1 held the body as a JSON string; schemas 2 and 3 embed it as an
   // object, which avoids escaping every quote twice. Schema 3 adds the
   // "except" preset scope; older builds treat it as unsupported and never
-  // overwrite it. All three are read; 3 is written.
+  // overwrite it. All three are read; 3 is written only when an All Except
+  // scope exists, so older builds keep saving for everyone else.
   var ENVELOPE_SCHEMA = 3;
+  var ENVELOPE_SCHEMA_PLAIN = 2;
 
   // Measured live: 3000-character replies arrive intact, and each title
   // carries at most 4096 characters.
@@ -120,10 +122,25 @@
     return ("0000000" + hash.toString(16)).slice(-8);
   }
 
+  function hasExceptRow(rows) {
+    return Array.isArray(rows) && rows.some(function (row) {
+      return row && row.mode === "except";
+    });
+  }
+
   // `body` must be a JSON object text; it is embedded as an object.
   function encodeRecord(body, savedAt) {
+    var data = null;
+    try {
+      data = JSON.parse(body);
+    } catch {
+      data = null;
+    }
+    var schema = data && (hasExceptRow(data.userPresets) || hasExceptRow(data.scopes))
+      ? ENVELOPE_SCHEMA
+      : ENVELOPE_SCHEMA_PLAIN;
     var payload = base64UrlEncode(
-      '{"m":"' + ENVELOPE_MAGIC + '","s":' + ENVELOPE_SCHEMA +
+      '{"m":"' + ENVELOPE_MAGIC + '","s":' + schema +
         ',"t":' + Number(savedAt || 0) + ',"b":' + body + "}",
     );
     return RECORD_TAG + "." + checksum(payload) + "." + payload;
