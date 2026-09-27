@@ -147,6 +147,7 @@
               </Panel>
               <Panel class="HPColorsPageRule" />
               <Label id="HPColorsPageDescription" text="Turn HP Colors on or off, then set the shared low and high HP thresholds that every enemy, ally, and HP-text color rule uses." class="HPColorsPageDescription" />
+              <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
               <Panel id="HPColorsSettingsList" class="HPColorsSettingsList">
                 <Panel id="HPColorsSettingsOverviewStatus" class="HPColorsSettingsPage Active">
                   <Panel class="HPColorsSettingRow">
@@ -252,7 +253,7 @@
                             <Button id="HPColorsCurrentScopeSelected" class="HPColorsSegmentButton"><Label text="ONLY THESE" /></Button>
                             <Button id="HPColorsCurrentScopeExcept" class="HPColorsSegmentButton"><Label text="ALL EXCEPT" /></Button>
                           </Panel>
-                          <Label id="HPColorsPresetScopeHelp" text="Auto-pick order for your hero: Only These, then All Except, then All Heroes, then Rewrite Default." class="HPColorsPresetScopeHelp" />
+                          <Label id="HPColorsPresetScopeHelp" text="Hero switch order: 1. Top matching ONLY THESE  2. Your current hero settings, if APPLIES TO still includes the new hero  3. Top matching ALL EXCEPT  4. Top ALL HEROES  5. Rewrite Default." class="HPColorsPresetScopeHelp" />
                         </Panel>
                         <Panel class="HPColorsPresetFormActions">
                           <Button id="HPColorsPresetSaveButton" class="HPColorsPrimaryAction HPColorsPresetSaveButton"><Label id="HPColorsPresetSaveButtonLabel" text="CREATE PRESET" /></Button>
@@ -263,14 +264,17 @@
                     <Label id="HPColorsPresetFeedback" text="" class="HPColorsPresetFeedback" />
                     <Panel class="HPColorsPresetLibraryHeader">
                       <Label text="PRESETS" class="HPColorsHeroFieldLabel" />
-                      <Label text="Click a preset to use it. EDIT loads it so you can change it and SAVE." class="HPColorsPresetLibraryHint" />
-                      <Label id="HPColorsHeroIdentity" text="HERO: UNKNOWN" class="HPColorsPresetHeroValue" />
+                      <Label text="Click a preset to use it. CHANGED marks the preset your current settings came from; SAVE updates it, REVERT reloads it. EDIT loads a preset so you can rename it or change APPLIES TO." class="HPColorsPresetLibraryHint" />
                       <Button id="HPColorsPresetCopyAllButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="COPY PRESETS" /></Button>
                       <Button id="HPColorsPresetImportButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="IMPORT PRESETS" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetHiddenRow" class="HPColorsPresetHiddenRow">
-                      <Label text="REWRITE DEFAULT IS HIDDEN · IT REMAINS THE FALLBACK WHEN NO PRESET MATCHES" class="HPColorsPresetHiddenMessage" />
-                      <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="RESTORE" /></Button>
+                      <Label text="REWRITE DEFAULT ROW HIDDEN" class="HPColorsPresetHiddenMessage" />
+                      <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="SHOW ROW" /></Button>
+                    </Panel>
+                    <Panel id="HPColorsPresetSourceRow" class="HPColorsPresetHiddenRow HPColorsPresetSourceRow">
+                      <Label text="CURRENT SETTINGS ARE NOT SAVED TO A PRESET" class="HPColorsPresetHiddenMessage" />
+                      <Button id="HPColorsPresetSaveAsNewButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction HPColorsPresetSaveAsNewButton"><Label text="SAVE AS NEW PRESET" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
                     <Panel id="HPColorsStoreRow" class="HPColorsStoreRow">
@@ -908,7 +912,7 @@
               <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
               <Button id="HPColorsTransferButton" class="HPColorsSecondaryAction"><Label text="IMPORT / EXPORT" /></Button>
               <Panel class="HPColorsFooterSpacer" />
-              <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="DONE" /></Button>
+              <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="EXIT" /></Button>
             </Panel>
           </Panel>
         </Panel>
@@ -1007,6 +1011,20 @@
           <Panel class="HPColorsTransferDialogActions">
             <Button id="HPColorsResetConfirmButton" class="HPColorsPrimaryAction"><Label text="RESET SECTION" /></Button>
             <Button id="HPColorsResetCancelButton" class="HPColorsSecondaryAction"><Label text="CANCEL" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsExitDialog" class="HPColorsTransferDialog HPColorsExitDialog" hittest="false" hittestchildren="true">
+        <Button id="HPColorsExitBackdrop" class="HPColorsTransferDialogBackdrop" hittest="true" />
+        <Panel class="HPColorsTransferDialogPanel HPColorsExitDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="EXIT HP COLORS" />
+          <Label id="HPColorsExitDialogTitle" class="HPColorsTransferDialogTitle" text="" />
+          <Label id="HPColorsExitDialogMessage" class="HPColorsTransferDialogMessage" text="" />
+          <Label id="HPColorsExitFeedback" class="HPColorsTransferFeedback" text="" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsExitSaveButton" class="HPColorsPrimaryAction HPColorsExitSaveButton"><Label text="SAVE &amp; EXIT" /></Button>
+            <Button id="HPColorsExitReviewButton" class="HPColorsSecondaryAction"><Label text="REVIEW PRESETS" /></Button>
+            <Button id="HPColorsExitDiscardButton" class="HPColorsSecondaryAction HPColorsExitDiscardButton"><Label text="EXIT WITHOUT SAVING" /></Button>
           </Panel>
         </Panel>
       </Panel>

@@ -95,6 +95,9 @@
   visibility: visible;
 }
 
+/* Content-sized (no fixed width) so the longest copy, "SAVING ON THIS PC...",
+   never clips: ~215px at 13px/2px tracking. Header budget: 1068px inner minus
+   title 300, rule min 48, ticker 274, donate 96 leaves ~350px for this chip. */
 .HPColorsLiveStatus {
   vertical-align: center;
   font-family: oracle;
@@ -932,6 +935,24 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   width: 560px;
 }
 
+/* Exit prompt: SAVE & EXIT collapses in Case B (form name only, no
+   CHANGED source) so the dialog never offers a save without a target. */
+.HPColorsExitDialogPanel {
+  width: 640px;
+}
+
+.HPColorsExitDialog .HPColorsTransferFeedback {
+  color: #e16161;
+}
+
+.HPColorsExitSaveButton.Disabled {
+  visibility: collapse;
+}
+
+.HPColorsTransferDialogActions .HPColorsExitDiscardButton {
+  margin-left: 12px;
+}
+
 .HPColorsTransferDialogEyebrow {
   font-family: oracle;
   font-size: 12px;
@@ -1106,14 +1127,25 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 
 
+/* Hero identity line: sits under the page description, outside the scroll
+   list, and shows only on PRESETS (menu toggles .Active). Collapsed by
+   default so GENERAL never flashes it. It pulls itself up into the
+   description's 18px gap rather than adding margin to the list (see
+   .HPColorsPageDescription). */
 .HPColorsPresetHeroValue {
-  width: 142px;
-  vertical-align: center;
+  width: 100%;
+  margin-top: -8px;
+  margin-bottom: 14px;
+  visibility: collapse;
   font-family: oracle;
   font-size: 12px;
   color: #ffefd799;
   letter-spacing: 1px;
   text-overflow: shrink;
+}
+
+.HPColorsPresetHeroValue.Active {
+  visibility: visible;
 }
 
 
@@ -1182,17 +1214,19 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   flow-children: right;
 }
 
+/* APPLIES TO reads as one line: content-width label, then the summary
+   starting right after it and filling the rest of the row. */
 .HPColorsHeroScopeHeader .HPColorsHeroFieldLabel {
-  width: fill-parent-flow(1);
-  margin: 0px 0px 7px 0px;
+  width: fit-children;
+  margin: 0px 10px 7px 0px;
 }
 
 .HPColorsCurrentScopeSummary {
-  width: 260px;
+  width: fill-parent-flow(1);
   font-family: oracle;
   font-size: 11px;
   color: #5fe69e;
-  text-align: right;
+  text-align: left;
   text-overflow: shrink;
 }
 
@@ -1293,6 +1327,12 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetHiddenRow.Visible {
   visibility: visible;
+}
+
+/* No-source banner shares the hidden-row surface; Visible is toggled by
+   refreshPresetActivity, and its button follows the same enablement. */
+.HPColorsPresetSourceRow .HPColorsPresetSaveAsNewButton {
+  min-width: 150px;
 }
 
 .HPColorsPresetHiddenMessage {
@@ -1546,6 +1586,17 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #f2c46b;
 }
 
+/* CHANGED: the row the live settings came from no longer equals them.
+   Amber like the hidden-row banner; never shown together with EDITING. */
+.HPColorsPresetOption.Changed {
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(#e7c77d22), to(#e7c77d06));
+  border-left: 4px solid #e7c77d;
+}
+
+.HPColorsPresetOption.Changed .HPColorsPresetOptionStatus {
+  color: #e7c77d;
+}
+
 .HPColorsPresetOptionName {
   width: fill-parent-flow(1);
   height: 34px;
@@ -1625,9 +1676,16 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   padding: 0px;
 }
 
+/* Disabled reorder arrows stay in place, dimmed, and never brighten. */
 .HPColorsPresetRowUp.Disabled,
-.HPColorsPresetRowDown.Disabled {
-  visibility: collapse;
+.HPColorsPresetRowDown.Disabled,
+.HPColorsPresetRowUp.Disabled:hover,
+.HPColorsPresetRowDown.Disabled:hover,
+.HPColorsPresetRowUp.Disabled:focus,
+.HPColorsPresetRowDown.Disabled:focus {
+  opacity: 0.3;
+  brightness: 1;
+  border: 1px solid #ffefd726;
 }
 
 .HPColorsPresetRowCopy {
@@ -1638,6 +1696,34 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   min-width: 52px;
   background-color: #5fe69e24;
   border: 1px solid #5fe69e66;
+}
+
+/* SAVE/REVERT are pre-created on every user row and only shown on the
+   CHANGED row, where they replace EDIT. The JS also drops hittest/canfocus
+   on whichever side is hidden. */
+.HPColorsPresetRowSave,
+.HPColorsPresetRowRevert,
+.HPColorsPresetOption.RowChanged .HPColorsPresetRowEdit {
+  visibility: collapse;
+}
+
+.HPColorsPresetOption.RowChanged .HPColorsPresetRowSave,
+.HPColorsPresetOption.RowChanged .HPColorsPresetRowRevert {
+  visibility: visible;
+}
+
+.HPColorsPresetRowSave {
+  min-width: 52px;
+  background-color: #e7c77d24;
+  border: 1px solid #e7c77d88;
+}
+
+.HPColorsPresetRowSave Label {
+  color: #e7c77d;
+}
+
+.HPColorsPresetRowRevert {
+  min-width: 60px;
 }
 
 .HPColorsPresetRowDelete {

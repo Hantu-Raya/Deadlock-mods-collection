@@ -54,6 +54,7 @@
   var HERO_SCOPE_ALL = "all";
   var HERO_SCOPE_SELECTED = "selected";
   var HERO_SCOPE_EXCEPT = "except";
+  var CURRENT_SCOPE_ID = "scope_current";
   var HERO_PHASE_TRANSITIONING = "transitioning";
   var HERO_PHASE_LOBBY = "lobby";
   var HERO_PHASE_HIDEOUT = "hideout";
@@ -850,7 +851,9 @@
     "pickerSaturationValue pickerLightnessValue storeForgetButton " +
     "storeForgetLabel presetHiddenRow currentScopeExcept scopeDialogTitle " +
     "scopeDialogMessage presetScopeHelp presetGuide presetGuideToggleLabel " +
-    "presetGuideToggle presetGuideText"
+    "presetGuideToggle presetGuideText presetSourceRow presetSaveAsNewButton " +
+    "exitDialog exitDialogTitle exitDialogMessage exitFeedback " +
+    "exitBackdrop exitSaveButton exitReviewButton exitDiscardButton"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -929,7 +932,6 @@
   function undo() {
     sendState({ type: "undo" });
     syncControls();
-    refreshPresetActivity();
     syncPresetSaveForm(false);
   }
 
@@ -1050,6 +1052,16 @@
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
     presetHiddenRow: null,
+    presetSourceRow: null,
+    presetSaveAsNewButton: null,
+    exitDialog: null,
+    exitDialogTitle: null,
+    exitDialogMessage: null,
+    exitFeedback: null,
+    exitBackdrop: null,
+    exitSaveButton: null,
+    exitReviewButton: null,
+    exitDiscardButton: null,
     storeForgetButton: null,
     storeForgetLabel: null,
     resetDialog: null,
@@ -1120,6 +1132,9 @@
   var presetReplaceConfirm = null;
   var presetFormOpen = false;
   var presetEditId = "";
+  // Source preset id the exit prompt was opened for; SAVE & EXIT re-reads
+  // the view and refuses any other target.
+  var exitDialogSourceId = "";
   var presetTransferRequest = 0;
   var transferRequest = 0;
 
@@ -2132,6 +2147,19 @@
       (names.length > 2 ? " +" + String(names.length - 2) : "");
   }
 
+  // Disabled or hidden actions stay in the row but take no hit testing, no
+  // focus stop, and the activate guard never mutates state.
+  function setRowActionEnabled(button, enabled) {
+    if (!isValid(button)) return;
+    var next = !!enabled;
+    setClass(button, "Disabled", !next);
+    try {
+      if (button.enabled !== next) button.enabled = next;
+      if (button.hittest !== next) button.hittest = next;
+      if (button.canfocus !== next) button.canfocus = next;
+    } catch {}
+  }
+
   function createPresetRowAction(
     option,
     id,
@@ -2144,13 +2172,11 @@
     if (!isValid(button)) return null;
     button.AddClass("HPColorsPresetRowAction");
     if (className) button.AddClass(className);
-    setClass(button, "Disabled", !enabled);
-    button.enabled = !!enabled;
-    button.hittest = !!enabled;
+    setRowActionEnabled(button, enabled);
     var label = $.CreatePanel("Label", button, id + "Label");
     if (isValid(label)) label.text = text;
     setPanelEvent(button, "onactivate", function () {
-      if (enabled && isCallable(activate)) activate();
+      if (!panelHasClass(button, "Disabled") && isCallable(activate)) activate();
     });
     return button;
   }
@@ -2207,7 +2233,11 @@
           if (isValid(confirmMessage)) {
             confirmMessage.AddClass("HPColorsPresetRowConfirmMessage");
             confirmMessage.text = replacing
-              ? "REPLACE UNSAVED CHANGES?"
+              ? presetReplaceConfirm.action === "save"
+                ? "REPLACE " +
+                  presetDisplayName(preset).toUpperCase() +
+                  " WITH THE CURRENT SETTINGS?"
+                : "DISCARD UNSAVED CHANGES?"
               : (preset.kind === "baked" ? "HIDE " : "DELETE ") +
                 presetDisplayName(preset).toUpperCase() +
                 "?";
@@ -2319,6 +2349,29 @@
               requestPresetEdit(preset.id);
             },
           );
+          // SAVE/REVERT exist on every user row, collapsed until
+          // refreshPresetActivity marks the row CHANGED; rows are never
+          // rebuilt per live edit.
+          createPresetRowAction(
+            option,
+            "HPColorsPresetRowSave" + optionIndex,
+            "HPColorsPresetRowSave",
+            "SAVE",
+            false,
+            function () {
+              requestPresetRowSave(preset.id);
+            },
+          );
+          createPresetRowAction(
+            option,
+            "HPColorsPresetRowRevert" + optionIndex,
+            "HPColorsPresetRowRevert",
+            "REVERT",
+            false,
+            function () {
+              requestPresetRowRevert(preset.id);
+            },
+          );
         }
         createPresetRowAction(
           option,
@@ -2345,6 +2398,7 @@
           ui.presetRestoreBakedButton.enabled = hasHiddenBaked;
       } catch {}
     }
+    refreshPresetActivity(view);
   }
   function syncPresetSaveForm(resetName) {
     var editPreset = presetFormOpen ? findPresetRecord(presetEditId) : null;
@@ -2378,14 +2432,14 @@
   }
 
   var PRESET_GUIDE_TEXT = [
-    "Click a preset to use it now. EDIT loads it so you can change it, then SAVE.",
-    "ALL HEROES: your default. If you have several, the top one is used.",
-    "ONLY THESE: only the heroes you pick. ALL EXCEPT: every hero except the ones you pick (they show SKIP).",
-    "When you switch heroes, the first ONLY THESE for that hero wins. Otherwise what is on screen stays if it still fits, then the first ALL EXCEPT, then the top ALL HEROES, then Rewrite Default.",
-    "One hero preset is used at a time, on top of the top ALL HEROES preset.",
-    "ONLY THESE and ALL EXCEPT save only what differs from the top ALL HEROES preset (or Rewrite Default if you have none). The rest follows it.",
-    "ACTIVE marks the preset that matches what is on screen right now.",
-    "SAVE writes what is on screen, including APPLIES TO, into the preset you are editing. UNDO steps back one change at a time.",
+    "Live settings apply immediately and are saved on this PC. A named preset changes only when you SAVE to it. The row marked CHANGED is the preset your current settings came from: SAVE stores your current settings into it, REVERT reloads it, and UNDO takes REVERT back. A hero switch can replace current settings you have not saved to a preset.",
+    "Presets are snapshots of your current settings. Name them, assign them to hero selections, and they load automatically when you switch heroes. Click a preset to use it now. NEW PRESET stores your current settings as a new preset.",
+    "ALL HEROES is the base for ONLY THESE and ALL EXCEPT presets. If you have several ALL HEROES presets, the highest one in the list is the base. If you have none, the base is Rewrite Default.",
+    "ONLY THESE affects only the heroes you choose. ALL EXCEPT affects every hero except the ones you choose; those heroes show SKIP.",
+    "ONLY THESE and ALL EXCEPT save only the values that differ from that base; the rest follow it. Ability conditions are saved with each preset, not inherited.",
+    "When you switch heroes, the highest matching ONLY THESE preset wins. If it is already the source of your current settings, your live changes stay. Otherwise, if your current hero-specific APPLIES TO still includes the new hero, your current settings stay, even if they were changed without saving or came from a lower ALL EXCEPT preset. Otherwise the highest matching ALL EXCEPT preset wins, then the top ALL HEROES preset; an already-current winning source keeps its live changes. With no ALL HEROES preset, leaving hero-specific settings that no longer fit returns to Rewrite Default.",
+    "One hero preset is used at a time; hero presets are never combined. ONLY THESE beats ALL EXCEPT regardless of list position. List order only breaks ties within the same type.",
+    "ACTIVE marks the preset that matches your current settings and APPLIES TO. It does not predict the next hero switch. CHANGED means the preset you loaded no longer matches your current settings. EDITING takes its place while you edit that preset.",
   ].join("\n\n");
 
   var presetGuideOpen = false;
@@ -2434,7 +2488,7 @@
   function closePresetEdit() {
     sendState({ type: "preset_select", id: null });
     closePresetForm();
-    setPresetFeedback("CLOSED. YOUR CHANGES STAY ON SCREEN.", false);
+    setPresetFeedback("CLOSED.", false);
   }
 
   function selectPresetForRowAction(id) {
@@ -2463,19 +2517,16 @@
         presetDisplayName(preset).toUpperCase() +
         (scopeUsesHeroes(preset.mode)
           ? ". SAVE STORES ONLY WHAT DIFFERS FROM ALL HEROES."
-          : ". SAVE REPLACES IT WITH WHAT IS ON SCREEN."),
+          : ". SAVE REPLACES IT WITH THE CURRENT SETTINGS."),
       false,
     );
     focus(ui.presetNameInput);
     return true;
   }
 
-  // A row click or EDIT replaces what is on screen. Ask first when no saved
-  // preset matches the screen, or when the form holds an unsaved name.
-  function hasUnsavedPresetChanges() {
-    var view = currentView();
-    var repository = view && view.repository ? view.repository : null;
-    if (!findPresetRecord(repository ? repository.activeId : "")) return true;
+  // The open form holds a name that is not saved: any nonempty name on a new
+  // preset, or a name that differs from the edited preset's saved name.
+  function presetFormHasUnsavedName() {
     if (!presetFormOpen) return false;
     var name = String(
       (ui.presetNameInput && ui.presetNameInput.text) || "",
@@ -2485,20 +2536,51 @@
     return name !== "";
   }
 
+  // A row click or EDIT replaces what is on screen. Ask first when no saved
+  // preset matches the screen, or when the form holds an unsaved name.
+  function hasUnsavedPresetChanges() {
+    var view = currentView();
+    var repository = view && view.repository ? view.repository : null;
+    if (!findPresetRecord(repository ? repository.activeId : "")) return true;
+    return presetFormHasUnsavedName();
+  }
+
+  // The user preset the live settings came from, when it still exists and
+  // no longer equals them. Read fresh on every use; never cached.
+  function changedSourcePreset(view) {
+    if (!view) view = currentView();
+    var source =
+      view && view.repository ? view.repository.sourceState : null;
+    if (!source || !source.id || source.matches) return null;
+    var preset = findPresetRecord(source.id);
+    return preset && preset.kind === "user" ? preset : null;
+  }
+
   function beginPresetReplaceConfirm(id, action) {
     dismissDeleteConfirmation();
     presetReplaceConfirm = { id: id, action: action };
     renderPresetOptions();
-    setPresetFeedback("REPLACE UNSAVED CHANGES? CONFIRM OR CANCEL.", false);
+    setPresetFeedback(
+      action === "save"
+        ? "REPLACE " +
+            presetDisplayName(findPresetRecord(id)).toUpperCase() +
+            " WITH THE CURRENT SETTINGS? CONFIRM OR CANCEL."
+        : "DISCARD UNSAVED CHANGES? CONFIRM OR CANCEL.",
+      false,
+    );
     focusSelectedPresetRow(id);
   }
 
   function cancelPresetReplace() {
     if (!presetReplaceConfirm) return;
     var id = presetReplaceConfirm.id;
+    var action = presetReplaceConfirm.action;
     presetReplaceConfirm = null;
     renderPresetOptions();
-    setPresetFeedback("KEPT WHAT IS ON SCREEN.", false);
+    setPresetFeedback(
+      action === "save" ? "PRESET CHANGE CANCELED." : "KEPT YOUR CHANGES.",
+      false,
+    );
     focusSelectedPresetRow(id);
   }
 
@@ -2507,7 +2589,88 @@
     var request = presetReplaceConfirm;
     presetReplaceConfirm = null;
     if (request.action === "edit") performPresetEdit(request.id);
+    else if (request.action === "save") performPresetRowSave(request.id);
     else performPresetRowApply(request.id);
+  }
+
+  // Inline SAVE on the CHANGED row: preset_save is not undoable, so it goes
+  // through the row confirm like DELETE/HIDE.
+  function requestPresetRowSave(id) {
+    var preset = changedSourcePreset();
+    if (!preset || preset.id !== String(id || "")) {
+      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      renderPresetOptions();
+      return false;
+    }
+    if (presetFormOpen) return false;
+    beginPresetReplaceConfirm(preset.id, "save");
+    return true;
+  }
+
+  // Writes the current live settings into the source preset under its own
+  // name. The target is re-read here, never taken from the click.
+  function performPresetRowSave(id) {
+    var preset = changedSourcePreset();
+    if (!preset || preset.id !== String(id || "")) {
+      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      renderPresetOptions();
+      return false;
+    }
+    dismissDeleteConfirmation();
+    var name = presetDisplayName(preset);
+    if (!selectPresetForRowAction(preset.id)) {
+      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      renderPresetOptions();
+      return false;
+    }
+    var result = sendState({ type: "preset_save", name: name });
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
+      setPresetFeedback(
+        "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED.",
+        true,
+      );
+      renderPresetOptions();
+      return false;
+    }
+    renderPresetOptions();
+    syncControls();
+    setPresetFeedback(
+      "SAVED " +
+        name.toUpperCase() +
+        ". IT NOW MATCHES YOUR CURRENT SETTINGS.",
+      false,
+    );
+    focusSelectedPresetRow(preset.id);
+    return true;
+  }
+
+  // REVERT reloads the saved snapshot; preset_apply pushes history, so UNDO
+  // brings the live edits back.
+  function requestPresetRowRevert(id) {
+    var preset = changedSourcePreset();
+    if (!preset || preset.id !== String(id || "")) {
+      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      renderPresetOptions();
+      return false;
+    }
+    if (presetFormOpen) return false;
+    dismissDeleteConfirmation();
+    presetReplaceConfirm = null;
+    var result = sendState({ type: "preset_apply", id: preset.id });
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
+      setPresetFeedback("COULD NOT APPLY THAT PRESET. NOTHING CHANGED.", true);
+      renderPresetOptions();
+      return false;
+    }
+    syncControls();
+    setPresetFeedback(
+      "REVERTED TO " +
+        presetDisplayName(preset).toUpperCase() +
+        ". UNDO RESTORES YOUR CHANGES.",
+      false,
+    );
+    focusSelectedPresetRow(preset.id);
+    return true;
   }
 
   function requestPresetRowApply(id) {
@@ -2580,6 +2743,10 @@
     var view = currentView();
     var id = view && view.repository ? view.repository.selectedId : "";
     if (!id) return false;
+    var preset = findPresetRecord(id);
+    // Capture the display name before the move so feedback names the preset,
+    // never its slot id.
+    var name = preset ? presetDisplayName(preset).toUpperCase() : id.toUpperCase();
     presetReplaceConfirm = null;
     var result = sendState({ type: "preset_move", id: id, delta: delta });
     if (
@@ -2590,7 +2757,10 @@
     )
       return false;
     renderPresetOptions();
-    setPresetFeedback("MOVED " + id.toUpperCase() + ".", false);
+    setPresetFeedback(
+      "MOVED " + name + (delta < 0 ? " UP." : " DOWN."),
+      false,
+    );
     focusSelectedPresetRow();
     return true;
   }
@@ -2710,8 +2880,8 @@
     sendState({ type: "preset_restore_baked" });
     presetReplaceConfirm = null;
     renderPresetOptions();
-    setPresetFeedback("REWRITE DEFAULT RESTORED.", false);
-    // RESTORE collapses with its row; move focus to the restored preset.
+    setPresetFeedback("DEFAULT ROW SHOWN. SETTINGS UNCHANGED.", false);
+    // SHOW ROW collapses with its banner; move focus to the shown preset.
     focusSelectedPresetRow("baked_default");
   }
 
@@ -2907,25 +3077,63 @@
     setPresetFeedback("CREATED " + name.toUpperCase() + ".", false);
   }
 
-  function refreshPresetActivity() {
-    if (presetFormOpen || presetReplaceConfirm || presetDeleteConfirmId) {
-      renderPresetOptions();
-      return;
-    }
+  // Lightweight badge/class refresh for existing rows. Every live mutation
+  // path reaches syncControls(), which calls this, so the ACTIVE/CHANGED
+  // badges can never go stale after a value, slider, condition, reset,
+  // import, or navigation change. Rows are not rebuilt, so focus and typed
+  // names stay. Badge precedence per row: EDITING > CHANGED > ACTIVE.
+  function refreshPresetActivity(view) {
     if (!isValid(ui.presetOptions)) return;
-    var repository = currentView().repository;
+    if (!view) view = currentView();
+    var repository = view && view.repository ? view.repository : null;
+    if (!repository) return;
+    var source = repository.sourceState || null;
+    var changedId = source && source.id && !source.matches ? source.id : "";
+    var gestureActive = !!(view.transactions && view.transactions.gesture);
+    // One save surface at a time: inline SAVE/REVERT hide while a form is
+    // open or a slider drag is in progress.
+    var actionsAllowed = !presetFormOpen && !gestureActive;
     var rows = ui.presetOptions.Children();
     for (var index = 0; index < rows.length; index++) {
       var row = rows[index];
+      if (!isValid(row)) continue;
       var id = row.GetAttributeString("hp_colors_preset_id", "");
       var active = id === repository.activeId;
+      var editing = presetFormOpen && presetEditId === id;
+      var changed = !editing && id === changedId;
+      var showChangedActions = changed && actionsAllowed;
       setClass(row, "Selected", id === repository.selectedId);
       setClass(row, "Active", active);
+      setClass(row, "Changed", changed);
+      setClass(row, "RowChanged", showChangedActions);
+      // Confirming rows carry no status label or actions; the helpers
+      // ignore the nulls.
       setText(
         row.FindChildTraverse("HPColorsPresetOptionStatus" + index),
-        active ? "ACTIVE" : "",
+        editing ? "EDITING" : changed ? "CHANGED" : active ? "ACTIVE" : "",
+      );
+      setRowActionEnabled(
+        row.FindChildTraverse("HPColorsPresetRowEdit" + index),
+        !showChangedActions,
+      );
+      setRowActionEnabled(
+        row.FindChildTraverse("HPColorsPresetRowSave" + index),
+        showChangedActions,
+      );
+      setRowActionEnabled(
+        row.FindChildTraverse("HPColorsPresetRowRevert" + index),
+        showChangedActions,
       );
     }
+    // No source to SAVE into: Rewrite Default source, deleted source, changed
+    // APPLIES TO, or zero user presets. Never shown over an ACTIVE row.
+    var noSource =
+      !presetFormOpen &&
+      !(source && source.id) &&
+      (repository.activeId === null ||
+        repository.activeId === CURRENT_SCOPE_ID);
+    setClass(ui.presetSourceRow, "Visible", noSource);
+    setRowActionEnabled(ui.presetSaveAsNewButton, noSource);
   }
 
   function requestPresetApplication(id, savedFirst) {
@@ -2950,7 +3158,6 @@
       );
       return false;
     }
-    refreshPresetActivity();
     syncControls();
     setPresetFeedback(
       (savedFirst ? "SAVED " : "APPLIED ") +
@@ -3537,9 +3744,13 @@
     if (persist.lastError === "too_large") return "SAVE TOO LARGE";
     if (persist.failures >= PERSIST_FAILURE_LIMIT) return "SAVE UNAVAILABLE";
     if (persist.failures > 0) return "SAVE RETRYING";
-    if (persist.inFlight || persist.timer !== null || persist.forgetting) return "SAVING";
+    // This chip reports the local autosave of live settings on this PC, not a
+    // named-preset update; the copy says so, and only claims SAVED once a
+    // write or load has actually been acknowledged (ackHash is nonempty).
+    if (persist.inFlight || persist.timer !== null || persist.forgetting)
+      return "SAVING ON THIS PC...";
     if (persist.forgotten) return "SAVE CLEARED";
-    return "SAVED";
+    return persist.ackHash ? "SAVED ON THIS PC" : "LOCAL SAVE READY";
   }
 
   function renderStoreStatus() {
@@ -4617,9 +4828,10 @@
     setText(
       ui.presetScopeHelp,
       scopeRow && scopeUsesHeroes(scopeRow.mode)
-        ? "Saves only settings that differ from All Heroes. The rest follow All Heroes."
-        : "Auto-pick order for your hero: Only These, then All Except, then All Heroes, then Rewrite Default.",
+        ? "Saves only values that differ from the top ALL HEROES preset, or Rewrite Default if you have none. The rest follow that base."
+        : "Hero switch order: 1. Top matching ONLY THESE  2. Your current hero settings, if APPLIES TO still includes the new hero  3. Top matching ALL EXCEPT  4. Top ALL HEROES  5. Rewrite Default.",
     );
+    refreshPresetActivity(view);
   }
 
 
@@ -4654,6 +4866,10 @@
     var presetPageActive =
       activeTab.pageId === "HPColorsSettingsOverviewHero";
     setClass(ui.undoButton, "HPColorsFooterActionHidden", false);
+    // The hero identity line sits under the page description and only shows
+    // on PRESETS; toggle it on every navigation render, not in renderIdentity,
+    // whose unchanged-signature early return would leave it stale.
+    setClass(ui.heroIdentity, "Active", presetPageActive);
     setClass(
       ui.resetButton,
       "HPColorsFooterActionHidden",
@@ -4708,9 +4924,12 @@
     focus(ui.peekCapture);
   }
 
+  // The unconditional close used after an exit decision and by forced paths.
+  // It never reverts live settings and still flushes local persistence.
   function closeEditor() {
     closeSupporterTicker();
     if (!state.open) return;
+    closeExitDialog(false);
     closeResetDialog(false);
     closeConditionEditor();
     showResetFeedback("");
@@ -4731,6 +4950,107 @@
     focus(ui.menuButton);
   }
 
+  function exitDialogOpen() {
+    return isValid(ui.exitDialog) && ui.exitDialog.BHasClass("Open");
+  }
+
+  // Exit asks only when a named preset would be left behind: a CHANGED
+  // source row, or a form holding an unsaved name. Live-only edits are
+  // already saved on this PC, so they never prompt.
+  function exitPromptNeeded() {
+    return !!changedSourcePreset() || presetFormHasUnsavedName();
+  }
+
+  function closeExitDialog(restoreFocus) {
+    exitDialogSourceId = "";
+    if (!exitDialogOpen()) return;
+    setClass(ui.exitDialog, "Open", false);
+    setText(ui.exitFeedback, "");
+    if (restoreFocus !== false && state.open) focus(ui.doneButton);
+  }
+
+  function openExitDialog() {
+    if (!isValid(ui.exitDialog)) return false;
+    var source = changedSourcePreset();
+    var formName = presetFormHasUnsavedName();
+    var name = source ? presetDisplayName(source).toUpperCase() : "";
+    exitDialogSourceId = source ? source.id : "";
+    if (source) {
+      setText(ui.exitDialogTitle, "SAVE CHANGES TO " + name + "?");
+      setText(
+        ui.exitDialogMessage,
+        "Your current settings stay in use and are saved on this PC either way. " +
+          name +
+          " keeps its saved settings until you SAVE. A hero switch can replace current settings you have not saved to a preset. Undo history ends when you exit." +
+          (formName ? " The open preset form will not be saved." : ""),
+      );
+    } else {
+      setText(ui.exitDialogTitle, "LEAVE WITHOUT SAVING THE PRESET?");
+      setText(
+        ui.exitDialogMessage,
+        "The preset form and the name typed here will not be saved. Your current settings stay in use and are saved on this PC. Undo history ends when you exit.",
+      );
+    }
+    setText(ui.exitFeedback, "");
+    setClass(ui.exitDialog, "WithSave", !!source);
+    setRowActionEnabled(ui.exitSaveButton, !!source);
+    setClass(ui.exitDialog, "Open", true);
+    // The non-destructive choice takes focus.
+    focus(ui.exitReviewButton);
+    return true;
+  }
+
+  // Shared close entry for EXIT, root cancel, background, and owned Resume.
+  // Subdialogs are closed by cancel() before it reaches this. Returns true
+  // when the request was handled (closed or prompted).
+  function requestCloseEditor() {
+    if (!state.open) return false;
+    if (exitDialogOpen()) return true;
+    if (exitPromptNeeded() && openExitDialog()) return true;
+    closeEditor();
+    return true;
+  }
+
+  function exitSaveAndClose() {
+    if (!exitDialogOpen()) return;
+    var preset = changedSourcePreset();
+    if (!preset || preset.id !== exitDialogSourceId) {
+      setText(ui.exitFeedback, "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.");
+      renderPresetOptions();
+      return;
+    }
+    if (!performPresetRowSave(preset.id)) {
+      setText(ui.exitFeedback, readPanelText(ui.presetFeedback));
+      return;
+    }
+    closeEditor();
+  }
+
+  function exitReviewPresets() {
+    if (!exitDialogOpen()) return;
+    var source = changedSourcePreset();
+    closeExitDialog(false);
+    for (var index = 0; index < CATEGORY_DEFS.length; index++) {
+      if (CATEGORY_DEFS[index].name === "PRESETS") {
+        if (state.categoryIndex !== index || state.tabIndex !== 0) {
+          closePicker();
+          state.categoryIndex = index;
+          state.tabIndex = 0;
+        }
+        renderNavigation();
+        break;
+      }
+    }
+    if (presetFormOpen) focus(ui.presetNameInput);
+    else if (source) focusSelectedPresetRow(source.id);
+    else focus(ui.presetOptions);
+  }
+
+  function exitWithoutSaving() {
+    if (!exitDialogOpen()) return;
+    closeEditor();
+  }
+
   function openEditor() {
     if (!state.booted || state.open) return;
     sendState({ type: "session_open" });
@@ -4748,6 +5068,11 @@
   }
 
   function cancel() {
+    // Escape inside the exit prompt dismisses it; it never confirms.
+    if (exitDialogOpen()) {
+      closeExitDialog(true);
+      return true;
+    }
     if (picker.key) {
       closePicker();
       return true;
@@ -4792,10 +5117,7 @@
       closePrecisePipsDialog();
       return true;
     }
-    if (state.open) {
-      closeEditor();
-      return true;
-    }
+    if (state.open) return requestCloseEditor();
     return false;
   }
 
@@ -5001,7 +5323,16 @@
   function bindMenuControls() {
     setPanelEvent(ui.menuButton, "onactivate", requestOpen);
     setPanelEvent(ui.storeForgetButton, "onactivate", requestForget);
-    setPanelEvent(ui.doneButton, "onactivate", closeEditor);
+    setPanelEvent(ui.doneButton, "onactivate", requestCloseEditor);
+    setPanelEvent(ui.exitSaveButton, "onactivate", exitSaveAndClose);
+    setPanelEvent(ui.exitReviewButton, "onactivate", exitReviewPresets);
+    setPanelEvent(ui.exitDiscardButton, "onactivate", exitWithoutSaving);
+    setPanelEvent(ui.exitBackdrop, "onactivate", function () {
+      closeExitDialog(true);
+    });
+    setPanelEvent(ui.exitDialog, "oncancel", function () {
+      closeExitDialog(true);
+    });
     setPanelEvent(ui.undoButton, "onactivate", undo);
     setPanelEvent(ui.resetButton, "onactivate", requestSectionReset);
     setPanelEvent(ui.resetConfirmButton, "onactivate", confirmSectionReset);
@@ -5076,6 +5407,9 @@
       "onactivate",
       restoreHiddenBakedPresets,
     );
+    setPanelEvent(ui.presetSaveAsNewButton, "onactivate", function () {
+      if (!panelHasClass(ui.presetSaveAsNewButton, "Disabled")) beginNewPreset();
+    });
     setPanelEvent(ui.peekButton, "onmousedown", beginPeek);
     setPanelEvent(ui.peekButton, "onmouseup", endPeek);
     setPanelEvent(ui.peekCapture, "onactivate", endPeek);

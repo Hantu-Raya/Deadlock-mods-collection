@@ -211,7 +211,7 @@ function extractArrayDeclaration(source, name) {
   return vm.runInNewContext(declaration[1]);
 }
 
-function panelAncestryById(xml) {
+function panelAncestryById(xml, options = {}) {
   const ancestry = new Map();
   const stack = [];
   const tokens = xml.match(/<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>/g) || [];
@@ -227,7 +227,7 @@ function panelAncestryById(xml) {
     if (!opening) continue;
     const id = token.match(/\bid="([^"]+)"/)?.[1] || '';
     if (id) {
-      assert.ok(!ancestry.has(id), `duplicate XML id ${id}`);
+      if (!options.allowDuplicates) assert.ok(!ancestry.has(id), `duplicate XML id ${id}`);
       ancestry.set(id, stack.map((entry) => entry.id).filter(Boolean));
     }
     if (!token.endsWith('/>')) stack.push({ tag: opening[1], id });
@@ -976,7 +976,7 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
   assert.equal(panel(fixture, 'HPColorsPresetHiddenRow').BHasClass('Visible'), false);
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'REWRITE DEFAULT RESTORED.',
+    'DEFAULT ROW SHOWN. SETTINGS UNCHANGED.',
   );
 
   const editButton = presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit');
@@ -988,12 +988,12 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
   );
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDITING SHIV COLORS. SAVE REPLACES IT WITH WHAT IS ON SCREEN.',
+    'EDITING SHIV COLORS. SAVE REPLACES IT WITH THE CURRENT SETTINGS.',
   );
   panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'CLOSED. YOUR CHANGES STAY ON SCREEN.',
+    'CLOSED.',
   );
   assert.equal(readConfig(fixture).values.enemyLow, '#222222');
 });
@@ -1022,7 +1022,7 @@ test('editor close clears replace and delete confirmation transients', () => {
   assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
   assert.equal(
     presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
-    'REPLACE UNSAVED CHANGES?',
+    'DISCARD UNSAVED CHANGES?',
   );
 
   panel(fixture, 'HPColorsDoneButton').events.onactivate();
@@ -1440,9 +1440,9 @@ test('entering the hideout shows HIDEOUT and drops the hero route to the all-her
 });
 
 const LAYERED_ALL_SCOPE_HELP =
-  'Auto-pick order for your hero: Only These, then All Except, then All Heroes, then Rewrite Default.';
+  'Hero switch order: 1. Top matching ONLY THESE  2. Your current hero settings, if APPLIES TO still includes the new hero  3. Top matching ALL EXCEPT  4. Top ALL HEROES  5. Rewrite Default.';
 const LAYERED_HERO_SCOPE_HELP =
-  'Saves only settings that differ from All Heroes. The rest follow All Heroes.';
+  'Saves only values that differ from the top ALL HEROES preset, or Rewrite Default if you have none. The rest follow that base.';
 
 function layeredMenuState(extraAll = {}, extraHero = {}) {
   return {
@@ -1610,6 +1610,104 @@ test('preset row body applies while its buttons never do', () => {
   assert.equal(presetOption(fixture, 'user_0001').BHasClass('Active'), false);
 });
 
+function rowStatus(fixture, presetId) {
+  return {
+    active: presetOption(fixture, presetId).BHasClass('Active'),
+    text: presetRowControl(fixture, presetId, 'HPColorsPresetOptionStatus').text,
+  };
+}
+
+function setWidthWithoutGesture(fixture, value) {
+  const slider = panel(fixture, 'HPColorsWidthSlider');
+  slider.value = value;
+  slider.events.onvaluechanged();
+  assert.equal(readConfig(fixture).values.widthScale, value);
+}
+
+function dragWidth(fixture, value) {
+  const slider = panel(fixture, 'HPColorsWidthSlider');
+  slider.events.onmousedown();
+  slider.value = value;
+  slider.events.onvaluechanged();
+  slider.events.onmouseup();
+  assert.equal(readConfig(fixture).values.widthScale, value);
+}
+
+function leaveAndReturnToPresets(fixture) {
+  selectEnemyBar(fixture);
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+}
+
+// Round 4 / T4: the tester saw a row stay ACTIVE while changing settings.
+// The state already stopped matching; only the badge was stale because the
+// live-edit paths never refreshed it. Drive the real menu, not the state.
+test('ACTIVE badge leaves on a live edit without EDIT and returns on Undo', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: true, text: 'ACTIVE' });
+
+  setWidthWithoutGesture(fixture, 150);
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: false, text: 'CHANGED' });
+  assert.equal(readMenuState(fixture).scopes[0].sourcePresetId, 'user_0001');
+
+  leaveAndReturnToPresets(fixture);
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: false, text: 'CHANGED' });
+
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.widthScale, 100);
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: true, text: 'ACTIVE' });
+
+  // A completed slider drag is the other live-edit path.
+  dragWidth(fixture, 160);
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: false, text: 'CHANGED' });
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: true, text: 'ACTIVE' });
+});
+
+test('ACTIVE badge leaves when a hero preset inherited value changes', () => {
+  const fixture = bootLayeredMenu('SHIV');
+  openPresetsForm(fixture);
+  // Routing applied Shiv Only; widthScale is inherited from Everyone, not own.
+  assert.deepEqual(rowStatus(fixture, 'user_0002'), { active: true, text: 'ACTIVE' });
+  assert.equal(readConfig(fixture).values.widthScale, 100);
+
+  setWidthWithoutGesture(fixture, 170);
+  assert.deepEqual(rowStatus(fixture, 'user_0002'), { active: false, text: 'CHANGED' });
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: false, text: '' });
+
+  leaveAndReturnToPresets(fixture);
+  assert.deepEqual(rowStatus(fixture, 'user_0002'), { active: false, text: 'CHANGED' });
+  // The stale badge used to contradict this prompt; both now agree.
+  presetRowMain(fixture, 'user_0002').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'DISCARD UNSAVED CHANGES? CONFIRM OR CANCEL.');
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowCancel').events.onactivate();
+
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.widthScale, 100);
+  assert.deepEqual(rowStatus(fixture, 'user_0002'), { active: true, text: 'ACTIVE' });
+});
+
+test('badge refresh keeps the typed name and EDITING marker while the form is open', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: true, text: 'EDITING' });
+  const nameInput = panel(fixture, 'HPColorsPresetNameInput');
+  nameInput.text = 'Renamed Live';
+  const rowBefore = presetOption(fixture, 'user_0001');
+
+  setWidthWithoutGesture(fixture, 150);
+  assert.equal(nameInput.text, 'Renamed Live');
+  assert.equal(presetOption(fixture, 'user_0001'), rowBefore, 'rows are not rebuilt on a live edit');
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: false, text: 'EDITING' });
+
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: true, text: 'EDITING' });
+  assert.equal(nameInput.text, 'Renamed Live');
+});
+
 test('the row being edited ignores body clicks and hides EDIT', () => {
   const fixture = bootMenu(twoPresetState());
   openPresetsForm(fixture);
@@ -1676,7 +1774,7 @@ test('unsaved screen changes ask before a row click or EDIT replaces them', () =
   assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
   assert.equal(
     presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
-    'REPLACE UNSAVED CHANGES?',
+    'DISCARD UNSAVED CHANGES?',
   );
   assert.equal(readConfig(fixture).values.enemyLow, '#999999');
   assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
@@ -1685,7 +1783,7 @@ test('unsaved screen changes ask before a row click or EDIT replaces them', () =
   assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), false);
   assert.ok(presetRowMain(fixture, 'user_0001'));
   assert.equal(readConfig(fixture).values.enemyLow, '#999999');
-  assert.equal(presetFeedback(fixture), 'KEPT WHAT IS ON SCREEN.');
+  assert.equal(presetFeedback(fixture), 'KEPT YOUR CHANGES.');
 
   presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
   assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
@@ -1783,15 +1881,27 @@ test('preset guide and library hint describe the click-to-apply flow', () => {
   assert.equal(guide.length, 8);
   assert.equal(
     guide[0],
-    'Click a preset to use it now. EDIT loads it so you can change it, then SAVE.',
+    'Live settings apply immediately and are saved on this PC. A named preset changes only when you SAVE to it. The row marked CHANGED is the preset your current settings came from: SAVE stores your current settings into it, REVERT reloads it, and UNDO takes REVERT back. A hero switch can replace current settings you have not saved to a preset.',
   );
   assert.equal(
-    guide[3],
-    'When you switch heroes, the first ONLY THESE for that hero wins. Otherwise what is on screen stays if it still fits, then the first ALL EXCEPT, then the top ALL HEROES, then Rewrite Default.',
+    guide[7],
+    'ACTIVE marks the preset that matches your current settings and APPLIES TO. It does not predict the next hero switch. CHANGED means the preset you loaded no longer matches your current settings. EDITING takes its place while you edit that preset.',
+  );
+  assert.equal(
+    guide[2],
+    'ALL HEROES is the base for ONLY THESE and ALL EXCEPT presets. If you have several ALL HEROES presets, the highest one in the list is the base. If you have none, the base is Rewrite Default.',
+  );
+  assert.equal(
+    guide[5],
+    'When you switch heroes, the highest matching ONLY THESE preset wins. If it is already the source of your current settings, your live changes stay. Otherwise, if your current hero-specific APPLIES TO still includes the new hero, your current settings stay, even if they were changed without saving or came from a lower ALL EXCEPT preset. Otherwise the highest matching ALL EXCEPT preset wins, then the top ALL HEROES preset; an already-current winning source keeps its live changes. With no ALL HEROES preset, leaving hero-specific settings that no longer fit returns to Rewrite Default.',
+  );
+  assert.equal(
+    guide[6],
+    'One hero preset is used at a time; hero presets are never combined. ONLY THESE beats ALL EXCEPT regardless of list position. List order only breaks ties within the same type.',
   );
   assert.match(
     layoutSource,
-    /text="Click a preset to use it\. EDIT loads it so you can change it and SAVE\." class="HPColorsPresetLibraryHint"/,
+    /text="Click a preset to use it\. CHANGED marks the preset your current settings came from; SAVE updates it, REVERT reloads it\. EDIT loads a preset so you can rename it or change APPLIES TO\." class="HPColorsPresetLibraryHint"/,
   );
   assert.match(
     layoutSource,
@@ -1801,4 +1911,725 @@ test('preset guide and library hint describe the click-to-apply flow', () => {
   assert.doesNotMatch(menuStyleSource, /HPColorsPresetOptionName\.Editable|HPColorsPresetRowApply/);
   assert.match(menuStyleSource, /\.HPColorsPresetOption\.Active \{/);
   assert.match(menuStyleSource, /\.HPColorsPresetOption\.Editing \{/);
+});
+
+const LANE_LAYOUT_SOURCES = [
+  ['rewrite_v2', layoutSource],
+  ...['hp_colors_rewrite_v2_qollock', 'hp_colors_rewrite_v2_thirdeye'].map((lane) => [
+    lane,
+    fs.readFileSync(
+      path.resolve(__dirname, '..', lane, 'panorama/layout/hud_escape_menu.xml'),
+      'utf8',
+    ),
+  ]),
+];
+
+test('hero identity sits under the page description, outside the scroll list, in every layout', () => {
+  for (const [lane, source] of LANE_LAYOUT_SOURCES) {
+    // Lane layouts embed the stock escape menu, which repeats stock ids.
+    const ancestry = panelAncestryById(source, { allowDuplicates: true });
+    const identity = ancestry.get('HPColorsHeroIdentity');
+    assert.ok(identity, `${lane}: identity label present`);
+    assert.deepEqual(
+      identity,
+      ancestry.get('HPColorsSettingsList'),
+      `${lane}: identity is a sibling of the settings list`,
+    );
+    assert.deepEqual(identity, ancestry.get('HPColorsPageDescription'), `${lane}: sibling of description`);
+    assert.ok(!identity.includes('HPColorsSettingsList'), `${lane}: identity is not inside the scroller`);
+    const order = ['HPColorsPageDescription', 'HPColorsHeroIdentity', 'HPColorsSettingsList'].map(
+      (id) => source.indexOf(`id="${id}"`),
+    );
+    assert.ok(order[0] < order[1] && order[1] < order[2], `${lane}: description → identity → list`);
+    assert.equal(
+      (source.match(/id="HPColorsHeroIdentity"/g) || []).length,
+      1,
+      `${lane}: exactly one identity id`,
+    );
+    assert.match(
+      source,
+      /<Label text="REWRITE DEFAULT ROW HIDDEN" class="HPColorsPresetHiddenMessage" \/>/,
+      `${lane}: hidden-default message`,
+    );
+    assert.match(
+      source,
+      /id="HPColorsPresetRestoreBakedButton"[^>]*><Label text="SHOW ROW" \/>/,
+      `${lane}: show-row button`,
+    );
+    assert.match(
+      source,
+      /id="HPColorsDoneButton"[^>]*><Label text="EXIT" \/>/,
+      `${lane}: footer EXIT`,
+    );
+    assert.match(
+      source,
+      /id="HPColorsPresetScopeHelp" text="Hero switch order: 1\. Top matching ONLY THESE  2\. Your current hero settings, if APPLIES TO still includes the new hero  3\. Top matching ALL EXCEPT  4\. Top ALL HEROES  5\. Rewrite Default\."/,
+      `${lane}: default scope help`,
+    );
+  }
+  assert.match(menuStyleSource, /\.HPColorsPresetHeroValue \{[^}]*visibility: collapse;/);
+  assert.match(menuStyleSource, /\.HPColorsPresetHeroValue\.Active \{\s*visibility: visible;/);
+});
+
+test('hero identity shows only on PRESETS and follows page changes without a hero change', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(fixture);
+  const identity = panel(fixture, 'HPColorsHeroIdentity');
+  assert.equal(identity.BHasClass('Active'), false);
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  assert.equal(identity.BHasClass('Active'), true);
+  const identityText = identity.text;
+  assert.match(identityText, /^HERO: /);
+  selectEnemyBar(fixture);
+  assert.equal(identity.BHasClass('Active'), false);
+  assert.equal(identity.text, identityText);
+  panel(fixture, 'HPColorsCategoryOverview').events.onactivate();
+  assert.equal(identity.BHasClass('Active'), false);
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  assert.equal(identity.BHasClass('Active'), true);
+  assert.equal(identity.text, identityText);
+});
+
+function userOrder(fixture) {
+  return readMenuState(fixture).userPresets.map((preset) => preset.id);
+}
+
+function rowOrder(fixture) {
+  const options = panel(fixture, 'HPColorsPresetOptions');
+  const ids = [];
+  for (let index = 0; index < options.GetChildCount(); index += 1) {
+    ids.push(options.GetChild(index).GetAttributeString('hp_colors_preset_id', ''));
+  }
+  return ids;
+}
+
+test('unsaved-change prompt names the discard question in feedback', () => {
+  const fixture = bootMenu(twoPresetState({ enemyLow: '#999999' }));
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'DISCARD UNSAVED CHANGES? CONFIRM OR CANCEL.');
+  assert.equal(
+    presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
+    'DISCARD UNSAVED CHANGES?',
+  );
+});
+
+test('move feedback names the preset and direction, never its slot id', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  assert.deepEqual(userOrder(fixture), ['user_0001', 'user_0002']);
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowDown').events.onactivate();
+  assert.deepEqual(userOrder(fixture), ['user_0002', 'user_0001']);
+  assert.deepEqual(rowOrder(fixture), ['baked_default', 'user_0002', 'user_0001']);
+  assert.equal(presetFeedback(fixture), 'MOVED SHIV COLORS DOWN.');
+  assert.doesNotMatch(presetFeedback(fixture), /USER_0001/);
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowUp').events.onactivate();
+  assert.deepEqual(userOrder(fixture), ['user_0001', 'user_0002']);
+  assert.equal(presetFeedback(fixture), 'MOVED SHIV COLORS UP.');
+
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowUp').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'MOVED SECOND UP.');
+  assert.deepEqual(userOrder(fixture), ['user_0002', 'user_0001']);
+});
+
+test('boundary reorder arrows stay present, dimmed, unfocusable, and inert', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  const configBefore = JSON.stringify(readConfig(fixture));
+  const feedbackBefore = presetFeedback(fixture);
+
+  const firstUp = presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowUp');
+  const lastDown = presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowDown');
+  for (const control of [firstUp, lastDown]) {
+    assert.equal(control.BHasClass('Disabled'), true);
+    assert.equal(control.enabled, false);
+    assert.equal(control.hittest, false);
+    assert.equal(control.canfocus, false);
+  }
+  for (const control of [
+    presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowDown'),
+    presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowUp'),
+  ]) {
+    assert.equal(control.BHasClass('Disabled'), false);
+    assert.equal(control.enabled, true);
+    assert.equal(control.hittest, true);
+    assert.equal(control.canfocus, true);
+  }
+  assert.equal(presetRowHas(fixture, 'baked_default', 'HPColorsPresetRowUp'), false);
+
+  firstUp.events.onactivate();
+  lastDown.events.onactivate();
+  assert.deepEqual(userOrder(fixture), ['user_0001', 'user_0002']);
+  assert.deepEqual(rowOrder(fixture), ['baked_default', 'user_0001', 'user_0002']);
+  assert.equal(JSON.stringify(readConfig(fixture)), configBefore);
+  assert.equal(presetFeedback(fixture), feedbackBefore);
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Active'), false);
+  assert.equal(presetOption(fixture, 'user_0002').BHasClass('Active'), false);
+  assert.doesNotMatch(menuStyleSource, /\.HPColorsPresetRowDown\.Disabled \{\s*visibility: collapse/);
+  assert.match(menuStyleSource, /\.HPColorsPresetRowDown\.Disabled:focus \{[^}]*opacity: 0\.3;/);
+
+  // An enabled arrow moves only its own row and never applies it.
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowUp').events.onactivate();
+  assert.deepEqual(userOrder(fixture), ['user_0002', 'user_0001']);
+  assert.equal(JSON.stringify(readConfig(fixture)), configBefore);
+  assert.equal(presetOption(fixture, 'user_0002').BHasClass('Active'), false);
+});
+
+test('a single user preset shows both reorder arrows dimmed', () => {
+  const state = twoPresetState();
+  state.userPresets = state.userPresets.slice(0, 1);
+  const fixture = bootMenu(state);
+  openPresetsForm(fixture);
+  for (const className of ['HPColorsPresetRowUp', 'HPColorsPresetRowDown']) {
+    const control = presetRowControl(fixture, 'user_0001', className);
+    assert.equal(control.BHasClass('Disabled'), true);
+    assert.equal(control.enabled, false);
+    assert.equal(control.canfocus, false);
+    control.events.onactivate();
+  }
+  assert.deepEqual(userOrder(fixture), ['user_0001']);
+});
+
+// ---------------------------------------------------------------------------
+// Round 4: CHANGED row (T1) and exit prompt (T2). Driven through the real
+// menu VM; the state suite covers sourceState itself.
+
+function rowAction(fixture, presetId, className) {
+  return presetRowControl(fixture, presetId, className);
+}
+
+function actionUsable(button) {
+  return {
+    disabled: button.BHasClass('Disabled'),
+    enabled: button.enabled,
+    hittest: button.hittest,
+    canfocus: button.canfocus,
+  };
+}
+
+const USABLE = { disabled: false, enabled: true, hittest: true, canfocus: true };
+const HIDDEN = { disabled: true, enabled: false, hittest: false, canfocus: false };
+
+function assertChangedRow(fixture, presetId) {
+  const row = presetOption(fixture, presetId);
+  assert.equal(row.BHasClass('Changed'), true, `${presetId} has Changed`);
+  assert.equal(row.BHasClass('RowChanged'), true, `${presetId} has RowChanged`);
+  assert.equal(rowStatus(fixture, presetId).text, 'CHANGED');
+  assert.deepEqual(actionUsable(rowAction(fixture, presetId, 'HPColorsPresetRowEdit')), HIDDEN);
+  assert.deepEqual(actionUsable(rowAction(fixture, presetId, 'HPColorsPresetRowSave')), USABLE);
+  assert.deepEqual(actionUsable(rowAction(fixture, presetId, 'HPColorsPresetRowRevert')), USABLE);
+}
+
+function assertPlainUserRow(fixture, presetId, text) {
+  const row = presetOption(fixture, presetId);
+  assert.equal(row.BHasClass('Changed'), false, `${presetId} not Changed`);
+  assert.equal(row.BHasClass('RowChanged'), false, `${presetId} not RowChanged`);
+  assert.equal(rowStatus(fixture, presetId).text, text);
+  assert.deepEqual(actionUsable(rowAction(fixture, presetId, 'HPColorsPresetRowEdit')), USABLE);
+  assert.deepEqual(actionUsable(rowAction(fixture, presetId, 'HPColorsPresetRowSave')), HIDDEN);
+  assert.deepEqual(actionUsable(rowAction(fixture, presetId, 'HPColorsPresetRowRevert')), HIDDEN);
+}
+
+function sourceBanner(fixture) {
+  return {
+    visible: panel(fixture, 'HPColorsPresetSourceRow').BHasClass('Visible'),
+    button: actionUsable(panel(fixture, 'HPColorsPresetSaveAsNewButton')),
+  };
+}
+
+function exitDialog(fixture) {
+  return {
+    open: panel(fixture, 'HPColorsExitDialog').BHasClass('Open'),
+    title: panel(fixture, 'HPColorsExitDialogTitle').text,
+    message: panel(fixture, 'HPColorsExitDialogMessage').text,
+    save: actionUsable(panel(fixture, 'HPColorsExitSaveButton')),
+  };
+}
+
+function editorOpen(fixture) {
+  return panel(fixture, 'HPColorsEditorRoot').BHasClass('Open');
+}
+
+function savedPreset(fixture, id) {
+  return readMenuState(fixture).userPresets.find((preset) => preset.id === id);
+}
+
+function shivHazeState(extra = {}) {
+  return {
+    version: 1,
+    values: { enemyLow: '#111111' },
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001', kind: 'user', name: 'Shiv', mode: 'selected', heroes: ['hero_shiv'],
+        values: { enemyLow: '#222222' }, conditions: null,
+      },
+      {
+        id: 'user_0002', kind: 'user', name: 'Haze', mode: 'selected', heroes: ['hero_haze'],
+        values: { enemyLow: '#333333' }, conditions: null,
+      },
+    ],
+    ...extra,
+  };
+}
+
+test('CHANGED row: a live edit after applying a user preset swaps EDIT for SAVE/REVERT on that row only', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assertPlainUserRow(fixture, 'user_0001', 'ACTIVE');
+  assertPlainUserRow(fixture, 'user_0002', '');
+  const rowBefore = presetOption(fixture, 'user_0001');
+
+  setWidthWithoutGesture(fixture, 150);
+  assert.equal(presetOption(fixture, 'user_0001'), rowBefore, 'rows are toggled, not rebuilt');
+  assertChangedRow(fixture, 'user_0001');
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Active'), false);
+  assertPlainUserRow(fixture, 'user_0002', '');
+  assert.equal(readMenuState(fixture).scopes[0].sourcePresetId, 'user_0001');
+
+  // The hidden EDIT is inert even if something activates it.
+  rowAction(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), false);
+
+  // Navigating away and back keeps the CHANGED row.
+  leaveAndReturnToPresets(fixture);
+  assertChangedRow(fixture, 'user_0001');
+
+  // The dirty-row guard still protects the other row.
+  presetRowMain(fixture, 'user_0002').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0002').BHasClass('Confirming'), true);
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowCancel').events.onactivate();
+  assertChangedRow(fixture, 'user_0001');
+});
+
+test('CHANGED row: an inherited hero preset value marks the hero source row', () => {
+  const fixture = bootLayeredMenu('SHIV');
+  openPresetsForm(fixture);
+  assertPlainUserRow(fixture, 'user_0002', 'ACTIVE');
+  assertPlainUserRow(fixture, 'user_0001', '');
+
+  setWidthWithoutGesture(fixture, 170);
+  assertChangedRow(fixture, 'user_0002');
+  assertPlainUserRow(fixture, 'user_0001', '');
+  assert.equal(readMenuState(fixture).scopes[0].sourcePresetId, 'user_0002');
+
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assertPlainUserRow(fixture, 'user_0002', 'ACTIVE');
+});
+
+test('CHANGED row: EDITING outranks CHANGED and inline SAVE/REVERT hide while any form is open', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  setWidthWithoutGesture(fixture, 150);
+  assert.deepEqual(rowStatus(fixture, 'user_0001'), { active: false, text: 'EDITING' });
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Changed'), false);
+  assert.equal(presetRowHas(fixture, 'user_0001', 'HPColorsPresetRowSave'), false);
+  assert.equal(sourceBanner(fixture).visible, false);
+
+  // CLOSE returns the row to normal precedence: live width differs, so CHANGED.
+  panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
+  assertChangedRow(fixture, 'user_0001');
+
+  // NEW PRESET while a CHANGED source exists is allowed; the source keeps its
+  // badge but its actions hide until the form closes.
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  assert.equal(rowStatus(fixture, 'user_0001').text, 'CHANGED');
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('RowChanged'), false);
+  assert.deepEqual(actionUsable(rowAction(fixture, 'user_0001', 'HPColorsPresetRowSave')), HIDDEN);
+  panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
+  assertChangedRow(fixture, 'user_0001');
+});
+
+test('CHANGED row: two identical presets never mark the second source CHANGED while it still matches', () => {
+  const state = twoPresetState();
+  state.userPresets[1].values = { enemyLow: '#222222' };
+  const fixture = bootMenu(state);
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0002').events.onactivate();
+  assert.equal(readMenuState(fixture).scopes[0].sourcePresetId, 'user_0002');
+  assertPlainUserRow(fixture, 'user_0001', 'ACTIVE');
+  assertPlainUserRow(fixture, 'user_0002', '');
+
+  setWidthWithoutGesture(fixture, 150);
+  assertChangedRow(fixture, 'user_0002');
+  assertPlainUserRow(fixture, 'user_0001', '');
+});
+
+test('inline SAVE confirms, keeps name and scope, and writes the current settings into the source', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  setWidthWithoutGesture(fixture, 150);
+
+  rowAction(fixture, 'user_0001', 'HPColorsPresetRowSave').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
+  assert.equal(
+    presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
+    'REPLACE SHIV COLORS WITH THE CURRENT SETTINGS?',
+  );
+  assert.equal(presetFeedback(fixture), 'REPLACE SHIV COLORS WITH THE CURRENT SETTINGS? CONFIRM OR CANCEL.');
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowCancel').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'PRESET CHANGE CANCELED.');
+  assert.equal(savedPreset(fixture, 'user_0001').values.widthScale, 100);
+  assert.equal(readConfig(fixture).values.widthScale, 150);
+  assertChangedRow(fixture, 'user_0001');
+
+  rowAction(fixture, 'user_0001', 'HPColorsPresetRowSave').events.onactivate();
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirm').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'SAVED SHIV COLORS. IT NOW MATCHES YOUR CURRENT SETTINGS.');
+  const saved = savedPreset(fixture, 'user_0001');
+  assert.equal(saved.name, 'Shiv Colors');
+  assert.equal(saved.mode, 'all');
+  assert.equal(saved.values.widthScale, 150);
+  assert.equal(saved.values.enemyLow, '#222222');
+  assert.equal(readConfig(fixture).values.widthScale, 150, 'SAVE never reloads');
+  assertPlainUserRow(fixture, 'user_0001', 'ACTIVE');
+  assert.equal(presetOption(fixture, 'user_0001').focused, true);
+  assert.equal(savedPreset(fixture, 'user_0002').values.enemyLow, '#333333');
+});
+
+test('inline SAVE on a hero preset keeps ONLY THESE and records the changed key as own', () => {
+  const fixture = bootLayeredMenu('SHIV');
+  openPresetsForm(fixture);
+  setWidthWithoutGesture(fixture, 170);
+  rowAction(fixture, 'user_0002', 'HPColorsPresetRowSave').events.onactivate();
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowConfirm').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'SAVED SHIV ONLY. IT NOW MATCHES YOUR CURRENT SETTINGS.');
+  const saved = savedPreset(fixture, 'user_0002');
+  assert.equal(saved.mode, 'selected');
+  assert.deepEqual(saved.heroes, ['hero_shiv']);
+  assert.equal(saved.values.widthScale, 170);
+  assert.ok(saved.own.includes('widthScale'));
+  assert.equal(savedPreset(fixture, 'user_0001').values.widthScale, 100);
+  assertPlainUserRow(fixture, 'user_0002', 'ACTIVE');
+});
+
+test('inline SAVE re-validates its target: a source replaced before CONFIRM changes nothing', () => {
+  const fixture = bootMenu(shivHazeState());
+  settleHeroRoute(fixture, '#222222');
+  openPresetsForm(fixture);
+  setWidthWithoutGesture(fixture, 150);
+  assertChangedRow(fixture, 'user_0001');
+  rowAction(fixture, 'user_0001', 'HPColorsPresetRowSave').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
+
+  // A hero switch routes to Haze; Shiv is no longer the source.
+  fixture.identityTree.setHeroName('HAZE');
+  settleHeroRoute(fixture, '#333333');
+  const confirm = presetOption(fixture, 'user_0001').FindChildrenWithClassTraverse('HPColorsPresetRowConfirm')[0];
+  assert.ok(confirm, 'the stale confirm row is still on screen');
+  confirm.events.onactivate();
+  assert.equal(presetFeedback(fixture), 'THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.');
+  assert.equal(savedPreset(fixture, 'user_0001').values.widthScale, 100);
+  assert.equal(savedPreset(fixture, 'user_0002').values.widthScale, 100);
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), false);
+});
+
+test('REVERT reloads the saved snapshot, keeps the source, and UNDO restores the live edits', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  setWidthWithoutGesture(fixture, 150);
+
+  rowAction(fixture, 'user_0001', 'HPColorsPresetRowRevert').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'REVERTED TO SHIV COLORS. UNDO RESTORES YOUR CHANGES.');
+  assert.equal(readConfig(fixture).values.widthScale, 100);
+  assert.equal(readMenuState(fixture).scopes[0].sourcePresetId, 'user_0001');
+  assertPlainUserRow(fixture, 'user_0001', 'ACTIVE');
+  assert.equal(savedPreset(fixture, 'user_0001').values.widthScale, 100);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, true);
+
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.widthScale, 150);
+  assertChangedRow(fixture, 'user_0001');
+});
+
+test('changing APPLIES TO drops the source: no CHANGED row, banner offers SAVE AS NEW PRESET', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(sourceBanner(fixture).visible, false);
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  panel(fixture, 'HPColorsCurrentScopeSelected').events.onactivate();
+  scopeOption(fixture, 'hero_haze').events.onactivate();
+  panel(fixture, 'HPColorsScopeCloseButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
+
+  assert.equal(currentScope(fixture).mode, 'selected');
+  assert.equal(currentScope(fixture).sourcePresetId, undefined);
+  assertPlainUserRow(fixture, 'user_0001', '');
+  assertPlainUserRow(fixture, 'user_0002', '');
+  assert.deepEqual(sourceBanner(fixture), { visible: true, button: USABLE });
+
+  panel(fixture, 'HPColorsPresetSaveAsNewButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'NEW PRESET FROM CURRENT SETTINGS');
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, '');
+  assert.deepEqual(sourceBanner(fixture), { visible: false, button: HIDDEN });
+  panel(fixture, 'HPColorsPresetSaveAsNewButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'NEW PRESET FROM CURRENT SETTINGS');
+});
+
+test('no-source banner: zero presets and a Rewrite Default source show it; an ACTIVE row hides it', () => {
+  const none = bootMenu({ version: 1, values: {}, scopes: [] });
+  openPresetsForm(none);
+  assert.equal(rowStatus(none, 'baked_default').text, 'ACTIVE');
+  assert.equal(sourceBanner(none).visible, false);
+  setWidthWithoutGesture(none, 150);
+  assert.equal(rowStatus(none, 'baked_default').text, '');
+  assert.deepEqual(sourceBanner(none), { visible: true, button: USABLE });
+  panel(none, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(sourceBanner(none).visible, false);
+
+  const baked = bootMenu(twoPresetState());
+  openPresetsForm(baked);
+  presetRowMain(baked, 'baked_default').events.onactivate();
+  setWidthWithoutGesture(baked, 150);
+  assert.equal(sourceBanner(baked).visible, true);
+  assertPlainUserRow(baked, 'user_0001', '');
+  assertPlainUserRow(baked, 'user_0002', '');
+
+  presetRowMain(baked, 'user_0002').events.onactivate();
+  presetRowControl(baked, 'user_0002', 'HPColorsPresetRowConfirm').events.onactivate();
+  assert.equal(rowStatus(baked, 'user_0002').text, 'ACTIVE');
+  assert.equal(sourceBanner(baked).visible, false);
+});
+
+test('hero auto-switch moves the source: the old CHANGED row clears and the new source row takes over', () => {
+  const fixture = bootMenu(shivHazeState());
+  settleHeroRoute(fixture, '#222222');
+  openPresetsForm(fixture);
+  setWidthWithoutGesture(fixture, 150);
+  assertChangedRow(fixture, 'user_0001');
+
+  fixture.identityTree.setHeroName('HAZE');
+  settleHeroRoute(fixture, '#333333');
+  assert.equal(readConfig(fixture).values.widthScale, 100, 'routing replaced the unsaved live edit');
+  assertPlainUserRow(fixture, 'user_0001', '');
+  assertPlainUserRow(fixture, 'user_0002', 'ACTIVE');
+  assert.equal(readMenuState(fixture).scopes[0].sourcePresetId, 'user_0002');
+
+  setWidthWithoutGesture(fixture, 160);
+  assertChangedRow(fixture, 'user_0002');
+  assertPlainUserRow(fixture, 'user_0001', '');
+});
+
+const CASE_A_BODY =
+  'Your current settings stay in use and are saved on this PC either way. SHIV COLORS keeps its saved settings until you SAVE. A hero switch can replace current settings you have not saved to a preset. Undo history ends when you exit.';
+const CASE_B_BODY =
+  'The preset form and the name typed here will not be saved. Your current settings stay in use and are saved on this PC. Undo history ends when you exit.';
+
+function changedFixture() {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  setWidthWithoutGesture(fixture, 150);
+  assertChangedRow(fixture, 'user_0001');
+  return fixture;
+}
+
+test('exit prompt: EXIT and the owned cancel hook prompt for a CHANGED source, never for live-only edits', () => {
+  const changed = changedFixture();
+  panel(changed, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(editorOpen(changed), true);
+  assert.deepEqual(exitDialog(changed), {
+    open: true,
+    title: 'SAVE CHANGES TO SHIV COLORS?',
+    message: CASE_A_BODY,
+    save: USABLE,
+  });
+  assert.equal(panel(changed, 'HPColorsExitReviewButton').focused, true);
+  assert.equal(readConfig(changed).values.widthScale, 150);
+
+  // Escape inside the prompt dismisses it and keeps the editor open.
+  assert.equal(harnessCancel(changed), true);
+  assert.equal(exitDialog(changed).open, false);
+  assert.equal(editorOpen(changed), true);
+  // The backdrop does the same.
+  panel(changed, 'HPColorsDoneButton').events.onactivate();
+  panel(changed, 'HPColorsExitBackdrop').events.onactivate();
+  assert.equal(exitDialog(changed).open, false);
+  assert.equal(editorOpen(changed), true);
+
+  // The cancel hook (root oncancel, EscapeBackground, Resume/MenuBack) prompts too.
+  assert.equal(harnessCancel(changed), true);
+  assert.equal(exitDialog(changed).open, true);
+  assert.equal(editorOpen(changed), true);
+
+  // Live-only edits are already saved on this PC: no prompt.
+  const liveOnly = bootMenu(twoPresetState());
+  openEditor(liveOnly);
+  setWidthWithoutGesture(liveOnly, 150);
+  panel(liveOnly, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(exitDialog(liveOnly).open, false);
+  assert.equal(editorOpen(liveOnly), false);
+  assert.equal(readConfig(liveOnly).values.widthScale, 150);
+
+  const zeroPresets = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(zeroPresets);
+  setWidthWithoutGesture(zeroPresets, 150);
+  assert.equal(harnessCancel(zeroPresets), true);
+  assert.equal(exitDialog(zeroPresets).open, false);
+  assert.equal(editorOpen(zeroPresets), false);
+  assert.equal(harnessCancel(zeroPresets), false, 'the next cancel reaches native resume');
+});
+
+test('exit prompt: a nested subdialog closes first, then the next cancel prompts', () => {
+  const fixture = changedFixture();
+  selectEnemyBar(fixture);
+  requestReset(fixture);
+  assert.equal(panel(fixture, 'HPColorsResetDialog').BHasClass('Open'), true);
+  assert.equal(harnessCancel(fixture), true);
+  assert.equal(panel(fixture, 'HPColorsResetDialog').BHasClass('Open'), false);
+  assert.equal(exitDialog(fixture).open, false);
+  assert.equal(editorOpen(fixture), true);
+  assert.equal(harnessCancel(fixture), true);
+  assert.equal(exitDialog(fixture).open, true);
+  assert.equal(editorOpen(fixture), true);
+});
+
+test('exit prompt: SAVE & EXIT writes the source then closes; EXIT WITHOUT SAVING keeps live values and the preset', () => {
+  const save = changedFixture();
+  panel(save, 'HPColorsDoneButton').events.onactivate();
+  panel(save, 'HPColorsExitSaveButton').events.onactivate();
+  assert.equal(exitDialog(save).open, false);
+  assert.equal(editorOpen(save), false);
+  assert.equal(savedPreset(save, 'user_0001').values.widthScale, 150);
+  assert.equal(savedPreset(save, 'user_0001').name, 'Shiv Colors');
+  assert.equal(readConfig(save).values.widthScale, 150);
+
+  const discard = changedFixture();
+  panel(discard, 'HPColorsDoneButton').events.onactivate();
+  panel(discard, 'HPColorsExitDiscardButton').events.onactivate();
+  assert.equal(exitDialog(discard).open, false);
+  assert.equal(editorOpen(discard), false);
+  assert.equal(savedPreset(discard, 'user_0001').values.widthScale, 100);
+  assert.equal(readConfig(discard).values.widthScale, 150, 'nothing is reverted by exiting');
+  assert.equal(readMenuState(discard).scopes[0].sourcePresetId, 'user_0001');
+  openEditor(discard);
+  assert.equal(panel(discard, 'HPColorsUndoButton').enabled, false, 'undo history ends on exit');
+  assertChangedRow(discard, 'user_0001');
+});
+
+test('exit prompt: SAVE & EXIT refuses a target that changed under the dialog and stays open', () => {
+  const fixture = bootMenu(shivHazeState());
+  settleHeroRoute(fixture, '#222222');
+  openPresetsForm(fixture);
+  setWidthWithoutGesture(fixture, 150);
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(exitDialog(fixture).title, 'SAVE CHANGES TO SHIV?');
+
+  fixture.identityTree.setHeroName('HAZE');
+  settleHeroRoute(fixture, '#333333');
+  panel(fixture, 'HPColorsExitSaveButton').events.onactivate();
+  assert.equal(exitDialog(fixture).open, true);
+  assert.equal(editorOpen(fixture), true);
+  assert.equal(panel(fixture, 'HPColorsExitFeedback').text, 'THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.');
+  assert.equal(savedPreset(fixture, 'user_0001').values.widthScale, 100);
+  assert.equal(savedPreset(fixture, 'user_0002').values.widthScale, 100);
+});
+
+test('exit prompt: REVIEW PRESETS lands on PRESETS with undo history, typed name, and the CHANGED row kept', () => {
+  const fixture = changedFixture();
+  selectEnemyBar(fixture);
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(exitDialog(fixture).open, true);
+  panel(fixture, 'HPColorsExitReviewButton').events.onactivate();
+  assert.equal(exitDialog(fixture).open, false);
+  assert.equal(editorOpen(fixture), true);
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'PRESET LIBRARY');
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, true);
+  assertChangedRow(fixture, 'user_0001');
+  assert.equal(presetOption(fixture, 'user_0001').focused, true);
+
+  // With a form open, the typed name survives and takes focus.
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Draft Name';
+  selectEnemyBar(fixture);
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  const both = exitDialog(fixture);
+  assert.equal(both.title, 'SAVE CHANGES TO SHIV COLORS?');
+  assert.equal(both.message, `${CASE_A_BODY} The open preset form will not be saved.`);
+  assert.deepEqual(both.save, USABLE);
+  panel(fixture, 'HPColorsExitReviewButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Draft Name');
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').focused, true);
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, true);
+});
+
+test('exit prompt: an unsaved form name prompts Case B without a save button; an unchanged edit name does not prompt', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Draft';
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  assert.deepEqual(exitDialog(fixture), {
+    open: true,
+    title: 'LEAVE WITHOUT SAVING THE PRESET?',
+    message: CASE_B_BODY,
+    save: HIDDEN,
+  });
+  panel(fixture, 'HPColorsExitSaveButton').events.onactivate();
+  assert.equal(exitDialog(fixture).open, true, 'a hidden SAVE & EXIT is inert');
+  assert.equal(readMenuState(fixture).userPresets.length, 2);
+  panel(fixture, 'HPColorsExitDiscardButton').events.onactivate();
+  assert.equal(editorOpen(fixture), false);
+  assert.equal(readMenuState(fixture).userPresets.length, 2, 'no preset is created from the exit dialog');
+
+  openPresetsForm(fixture);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Shiv Colors');
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(exitDialog(fixture).open, false);
+  assert.equal(editorOpen(fixture), false);
+});
+
+test('layout parity: exit dialog, no-source banner, hint, and cancel hooks exist in every layout; row actions in the shared script and CSS', () => {
+  const ids = [
+    'HPColorsExitDialog', 'HPColorsExitBackdrop', 'HPColorsExitDialogTitle',
+    'HPColorsExitDialogMessage', 'HPColorsExitFeedback', 'HPColorsExitSaveButton',
+    'HPColorsExitReviewButton', 'HPColorsExitDiscardButton',
+    'HPColorsPresetSourceRow', 'HPColorsPresetSaveAsNewButton',
+  ];
+  const hookedControls = {
+    rewrite_v2: ['CitadelHudEscapeMenu', 'EscapeBackground', 'EscapeButton'],
+    hp_colors_rewrite_v2_qollock: ['CitadelHudEscapeMenu', 'EscapeBackground', 'EscapeButton', 'CloseBtn'],
+    hp_colors_rewrite_v2_thirdeye: ['CitadelHudEscapeMenu', 'EscapeBackground', 'EscapeButton'],
+  };
+  for (const [lane, source] of LANE_LAYOUT_SOURCES) {
+    const ancestry = panelAncestryById(source, { allowDuplicates: true });
+    for (const id of ids) assert.ok(ancestry.has(id), `${lane}: ${id}`);
+    assert.ok(ancestry.get('HPColorsPresetSaveAsNewButton').includes('HPColorsPresetSourceRow'), lane);
+    assert.ok(ancestry.get('HPColorsExitSaveButton').includes('HPColorsExitDialog'), lane);
+    assert.equal(source.split('<Label text="SAVE &amp; EXIT" />').length - 1, 1, lane);
+    assert.equal(source.split('<Label text="REVIEW PRESETS" />').length - 1, 1, lane);
+    assert.equal(source.split('<Label text="EXIT WITHOUT SAVING" />').length - 1, 1, lane);
+    assert.equal(source.split('<Label text="SAVE AS NEW PRESET" />').length - 1, 1, lane);
+    assert.equal(source.split('CURRENT SETTINGS ARE NOT SAVED TO A PRESET').length - 1, 1, lane);
+    assert.equal(
+      source.split('Click a preset to use it. CHANGED marks the preset your current settings came from; SAVE updates it, REVERT reloads it. EDIT loads a preset so you can rename it or change APPLIES TO.').length - 1,
+      1,
+      lane,
+    );
+    for (const control of hookedControls[lane]) {
+      const tag = source.match(new RegExp(`<${control === 'CitadelHudEscapeMenu' ? control : `[A-Za-z]+ id="${control}"`}[^>]*>`));
+      assert.ok(tag && tag[0].includes('$.HPColorsMenuCancel'), `${lane}: ${control} routes through the cancel hook`);
+    }
+  }
+  for (const className of ['HPColorsPresetRowSave', 'HPColorsPresetRowRevert']) {
+    assert.match(menuSource, new RegExp(`"${className}"`));
+    assert.match(menuStyleSource, new RegExp(`\\.${className}\\b`));
+  }
+  assert.match(menuStyleSource, /\.HPColorsPresetOption\.Changed \{/);
+  assert.match(menuStyleSource, /\.HPColorsPresetOption\.RowChanged \.HPColorsPresetRowEdit/);
+  assert.match(menuStyleSource, /\.HPColorsExitSaveButton\.Disabled \{/);
 });
