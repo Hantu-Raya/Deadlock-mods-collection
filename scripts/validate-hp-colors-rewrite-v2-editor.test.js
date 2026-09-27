@@ -1417,3 +1417,193 @@ test('entering the hideout shows HIDEOUT and drops the hero route to the all-her
   settleHeroRoute(fixture, '#333333');
   assert.equal(panel(fixture, 'HPColorsHeroIdentity').text, 'HERO: UNKNOWN · HIDEOUT');
 });
+
+const LAYERED_ALL_SCOPE_HELP =
+  'Picks a preset for your hero by itself: Only These first, then All Except, then All Heroes.';
+const LAYERED_HERO_SCOPE_HELP =
+  'Only settings you change here are saved. Everything else follows All Heroes.';
+
+function layeredMenuState(extraAll = {}, extraHero = {}) {
+  return {
+    version: 1,
+    values: Object.assign({ enemyLow: '#111111', enemyMid: '#444444' }, extraAll),
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001',
+        kind: 'user',
+        name: 'Everyone',
+        mode: 'all',
+        heroes: [],
+        values: Object.assign({ enemyLow: '#111111', enemyMid: '#444444' }, extraAll),
+        conditions: null,
+      },
+      {
+        id: 'user_0002',
+        kind: 'user',
+        name: 'Shiv Only',
+        mode: 'selected',
+        heroes: ['hero_shiv'],
+        values: Object.assign({ enemyLow: '#222222', enemyMid: '#444444' }, extraHero),
+        own: ['enemyLow'].concat(Object.keys(extraHero)),
+        conditions: null,
+      },
+    ],
+  };
+}
+
+// The layout harness installs id panels flat under the root; mirror the XML
+// row structure (HPColorsSettingRow > HPColorsSettingCopy > title + controls)
+// for the rows these tests inspect.
+function installSettingRow(harness, rowId, controlIds) {
+  const row = new MockPanel(rowId, { classes: ['HPColorsSettingRow'] });
+  const copy = new MockPanel(rowId + 'Copy', { classes: ['HPColorsSettingCopy'] });
+  const title = new MockPanel(rowId + 'Title', {
+    type: 'Label',
+    classes: ['HPColorsSettingTitle'],
+  });
+  title.SetParent(copy);
+  copy.SetParent(row);
+  row.SetParent(harness.root);
+  for (const id of controlIds) {
+    const control = harness.root.FindChildTraverse(id);
+    assert.ok(control, `expected ${id} control`);
+    control.SetParent(row);
+  }
+  return row;
+}
+
+function installLayeredLayout(harness) {
+  installSettingRow(harness, 'TestEnemyLowRow', ['HPColorsEnemyLowSwatch', 'HPColorsEnemyLowHex']);
+  installSettingRow(harness, 'TestEnemyMidRow', ['HPColorsEnemyMidSwatch', 'HPColorsEnemyMidHex']);
+  installSettingRow(harness, 'TestPrecisePipsRow', ['HPColorsPrecisePipsToggle']);
+  if (!harness.root.FindChildTraverse('HPColorsPresetScopeHelp')) {
+    const help = new MockPanel('', {
+      type: 'Label',
+      classes: ['HPColorsPresetScopeHelp'],
+      text: LAYERED_ALL_SCOPE_HELP,
+    });
+    help.SetParent(harness.root);
+  }
+}
+
+function bootLayeredMenu(heroName, menuState = layeredMenuState()) {
+  const fixture = bootMenu(menuState, {
+    heroName,
+    beforeBoot: (harness) => installLayeredLayout(harness),
+  });
+  settleHeroRoute(fixture, heroName === 'SHIV' ? '#222222' : '#111111');
+  return fixture;
+}
+
+function ownTag(fixture, rowId) {
+  const row = panel(fixture, rowId);
+  const tags = row.FindChildrenWithClassTraverse('HPColorsOwnTag');
+  assert.equal(tags.length, 1, `expected one own tag in ${rowId}`);
+  const copy = panel(fixture, rowId + 'Copy');
+  assert.ok(
+    copy.FindChildrenWithClassTraverse('HPColorsOwnTag').includes(tags[0]),
+    'own tag should live inside HPColorsSettingCopy',
+  );
+  return tags[0];
+}
+
+function ownTagVisible(fixture, rowId) {
+  return ownTag(fixture, rowId).BHasClass('Visible');
+}
+
+function scopeHelp(fixture) {
+  const byId = fixture.harness.root.FindChildTraverse('HPColorsPresetScopeHelp');
+  if (byId) return byId;
+  const found = fixture.harness.root.FindChildrenWithClassTraverse('HPColorsPresetScopeHelp');
+  assert.equal(found.length, 1, 'expected one scope help label');
+  return found[0];
+}
+
+test('Layered presets tag only the rows a hero preset changes from All Heroes', () => {
+  const hero = bootLayeredMenu('SHIV');
+  openEditor(hero);
+  selectEnemyBar(hero);
+  assert.equal(currentScope(hero).mode, 'selected');
+  assert.equal(ownTagVisible(hero, 'TestEnemyLowRow'), true);
+  assert.equal(ownTagVisible(hero, 'TestEnemyMidRow'), false);
+  assert.equal(ownTagVisible(hero, 'TestPrecisePipsRow'), false);
+
+  const all = bootLayeredMenu('HAZE');
+  // Base enemyLow already equals the All Heroes value, so the enemyLow settle
+  // is vacuous for HAZE; wait for the automatic route to apply All Heroes.
+  all.harness.scheduler.runUntil(
+    () => readMenuState(all).scopes.some((scope) => scope.id === 'scope_current'),
+    'expected HAZE to route to the All Heroes preset',
+  );
+  openEditor(all);
+  selectEnemyBar(all);
+  assert.equal(currentScope(all).mode, 'all');
+  assert.equal(ownTagVisible(all, 'TestEnemyLowRow'), false);
+  assert.equal(ownTagVisible(all, 'TestEnemyMidRow'), false);
+  assert.equal(ownTagVisible(all, 'TestPrecisePipsRow'), false);
+});
+
+test('Layered presets tag follows edits against the All Heroes value', () => {
+  const fixture = bootLayeredMenu('SHIV');
+  openEditor(fixture);
+  selectEnemyBar(fixture);
+  const mid = panel(fixture, 'HPColorsEnemyMidHex');
+  assert.equal(ownTagVisible(fixture, 'TestEnemyMidRow'), false);
+
+  mid.text = '#123456';
+  mid.events.ontextentrysubmit();
+  assert.equal(readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  ).values.enemyMid, '#123456');
+  assert.equal(ownTagVisible(fixture, 'TestEnemyMidRow'), true);
+
+  mid.text = '#444444';
+  mid.events.ontextentrysubmit();
+  assert.equal(ownTagVisible(fixture, 'TestEnemyMidRow'), false);
+  assert.equal(ownTagVisible(fixture, 'TestEnemyLowRow'), true);
+});
+
+test('Layered presets tag More Precise HP Text when the hero preset changes it', () => {
+  const fixture = bootLayeredMenu(
+    'SHIV',
+    layeredMenuState({ precisePipsEnabled: false }, { precisePipsEnabled: true }),
+  );
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPrecisePipsToggle').BHasClass('Checked'), true);
+  assert.equal(ownTagVisible(fixture, 'TestPrecisePipsRow'), true);
+});
+
+test('Layered presets scope help explains what a hero preset saves', () => {
+  const hero = bootLayeredMenu('SHIV');
+  openPresetsForm(hero);
+  assert.equal(scopeHelp(hero).text, LAYERED_HERO_SCOPE_HELP);
+
+  const all = bootLayeredMenu('HAZE');
+  openPresetsForm(all);
+  assert.equal(scopeHelp(all).text, LAYERED_ALL_SCOPE_HELP);
+});
+
+test('Layered presets selecting a hero preset explains the layered save', () => {
+  const fixture = bootLayeredMenu('HAZE');
+  openPresetsForm(fixture);
+  presetOption(fixture, 'user_0002').events.onactivate();
+  assert.equal(
+    panel(fixture, 'HPColorsPresetFeedback').text,
+    'EDITING SHIV ONLY. ONLY SETTINGS YOU CHANGE HERE ARE SAVED. THE REST FOLLOW ALL HEROES.',
+  );
+});
+
+test('Layered presets reset confirmation names the All Heroes settings', () => {
+  const fixture = bootLayeredMenu('SHIV');
+  openEditor(fixture);
+  selectEnemyBar(fixture);
+  requestReset(fixture);
+  assert.equal(panel(fixture, 'HPColorsResetDialog').BHasClass('Open'), true);
+  assert.equal(
+    panel(fixture, 'HPColorsResetDialogMessage').text,
+    'This section goes back to your All Heroes settings.',
+  );
+});

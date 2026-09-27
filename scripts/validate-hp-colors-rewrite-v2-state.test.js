@@ -2275,3 +2275,201 @@ test('All Except preset codes round-trip, including a preset that skips every he
   assert.deepEqual(rejected.effects, []);
   assert.equal(allRows(rejected.view).some((candidate) => candidate.kind === 'user'), false);
 });
+
+function storedPresets(result) {
+  return JSON.parse(effect(result, 'session_replace').raw).userPresets;
+}
+
+function storedPreset(result, id) {
+  return storedPresets(result).find((candidate) => candidate.id === id);
+}
+
+function keyOrder(keys) {
+  return DEFAULT_KEYS.filter((key) => keys.includes(key));
+}
+
+function removePreset(state, id) {
+  const request = send(state, 'preset_remove_request', { id });
+  return send(state, 'preset_remove_confirm', { token: request.view.transactions.confirmation.token });
+}
+
+function layeredState(extra = []) {
+  return autoState([
+    rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111', enemyMid: '#121212' } }),
+    ...extra,
+    { ...rawPreset({ id: 'user_0009', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
+  ], { nextUserPresetNumber: 10 });
+}
+
+test('Layered presets hero save stores changed keys as own with full values, and All Heroes stores no own', () => {
+  assert.ok(DEFAULT_KEYS.includes('enemyMid') && DEFAULT_KEYS.includes('enemyHigh'));
+  const state = createState(makeSession({
+    userPresets: [rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111' } })],
+    nextUserPresetNumber: 2,
+  }));
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'preset_select', { id: null });
+  send(state, 'scope_set', { mode: 'selected', heroes: ['hero_shiv'] });
+  send(state, 'setting_edit', { key: 'enemyHigh', value: '#343434' });
+  const created = send(state, 'preset_save', { name: 'Shiv' });
+  assert.equal(created.code, 'PRESET_SAVED');
+  const id = created.view.repository.selectedId;
+  const record = storedPreset(created, id);
+  assert.deepEqual(record.own, ['enemyHigh']);
+  assert.equal(record.values.enemyLow, '#111111');
+  assert.equal(record.values.enemyHigh, '#343434');
+  assert.equal(Object.keys(record.values).length, DEFAULT_KEYS.length);
+
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#AAAAAA' });
+  const updated = send(state, 'preset_save', { name: 'Shiv' });
+  assert.equal(updated.code, 'PRESET_UPDATED');
+  assert.deepEqual(storedPreset(updated, id).own, keyOrder(['enemyLow', 'enemyHigh']));
+
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#999999' });
+  send(state, 'preset_select', { id: 'user_0001' });
+  const allSaved = send(state, 'preset_save', { name: 'All' });
+  assert.equal(allSaved.code, 'PRESET_UPDATED');
+  assert.equal(Object.hasOwn(storedPreset(allSaved, 'user_0001'), 'own'), false);
+});
+
+test('Layered presets hero routing uses All Heroes values except for own keys', () => {
+  const state = layeredState();
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0009');
+  assert.equal(shiv.view.effectiveValues.enemyMid, '#222222');
+
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#999999' });
+  send(state, 'setting_edit', { key: 'enemyMid', value: '#989898' });
+  send(state, 'preset_select', { id: 'user_0001' });
+  assert.equal(send(state, 'preset_save', { name: 'All' }).code, 'PRESET_UPDATED');
+
+  send(state, 'hero_mode', { mode: 'manual' });
+  const routed = send(state, 'hero_manual', { heroKey: 'hero_shiv' });
+  assert.equal(routed.view.repository.activeId, 'user_0009');
+  assert.equal(routed.view.effectiveValues.enemyLow, '#999999');
+  assert.equal(routed.view.effectiveValues.enemyMid, '#222222');
+  assert.equal(currentScope(routed.view).values.enemyLow, '#999999');
+});
+
+test('Layered presets without an All Heroes preset layer on Rewrite Default', () => {
+  const state = autoState([
+    { ...rawPreset({ id: 'user_0001', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
+  ]);
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  assert.equal(shiv.view.effectiveValues.enemyMid, '#222222');
+  assert.equal(shiv.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+});
+
+test('Layered presets derive legacy own, drop unknown own keys, keep own through codes, and reject non-array own', () => {
+  const legacy = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111' } }),
+      rawPreset({ id: 'user_0002', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }),
+      { ...rawPreset({ id: 'user_0003', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyHigh: '#333333' } }), own: ['enemyHigh', 'bogusKey'] },
+    ],
+    nextUserPresetNumber: 4,
+  }));
+  const touched = send(legacy, 'preset_select', { id: 'user_0002' });
+  assert.equal(touched.status, 'committed');
+  assert.deepEqual(storedPreset(touched, 'user_0002').own, ['enemyMid']);
+  assert.deepEqual(storedPreset(touched, 'user_0003').own, ['enemyHigh']);
+  assert.equal(Object.hasOwn(storedPreset(touched, 'user_0001'), 'own'), false);
+
+  const source = createState(makeSession({
+    userPresets: [
+      { ...rawPreset({ id: 'user_0001', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
+    ],
+    selectedPresetId: 'user_0001',
+    nextUserPresetNumber: 2,
+  }));
+  const code = effect(send(source, 'preset_copy_selected'), 'clipboard_write').text;
+  const destination = createState();
+  const imported = send(destination, 'preset_import', { raw: code });
+  assert.equal(imported.status, 'committed', imported.code);
+  const importedId = imported.view.repository.selectedId;
+  assert.deepEqual(storedPreset(imported, importedId).own, ['enemyMid']);
+
+  const payload = JSON.parse(code.slice(6));
+  payload.records[0].own = 'enemyMid';
+  const target = createState();
+  const unchanged = target.read();
+  const rejected = send(target, 'preset_import', { raw: `HPCRP1${JSON.stringify(payload)}` });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.view, unchanged);
+  assert.deepEqual(rejected.effects, []);
+});
+
+test('Layered presets keep the hero preset ACTIVE after a Base change refresh', () => {
+  const state = layeredState([
+    rawPreset({ id: 'user_0002', name: 'All B', mode: 'all', values: { enemyLow: '#999999' } }),
+  ]);
+  assert.equal(settleHero(state, 1, 'SHIV').view.repository.activeId, 'user_0009');
+  const moved = send(state, 'preset_move', { id: 'user_0002', delta: -1 });
+  assert.equal(moved.status, 'committed');
+  assert.equal(moved.view.repository.activeId, 'user_0009');
+  assert.equal(moved.view.effectiveValues.enemyLow, '#999999');
+  const again = send(state, 'preset_apply', { id: 'user_0009' });
+  assert.equal(again.status, 'noop');
+  assert.equal(again.code, 'NO_CHANGE');
+});
+
+test('Layered presets refresh an unedited hero Current on Base changes without Undo, and leave an edited Current alone', () => {
+  const state = layeredState([
+    rawPreset({ id: 'user_0002', name: 'All B', mode: 'all', values: { enemyLow: '#999999' } }),
+    rawPreset({ id: 'user_0003', name: 'All C', mode: 'all', values: { enemyLow: '#555555' } }),
+  ]);
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.effectiveValues.enemyLow, '#111111');
+  const undoBefore = shiv.view.undoAvailable;
+
+  const moved = send(state, 'preset_move', { id: 'user_0002', delta: -1 });
+  assert.equal(moved.view.effectiveValues.enemyLow, '#999999');
+  assert.equal(currentScope(moved.view).values.enemyLow, '#999999');
+  assert.equal(effectsOf(moved, 'effective_publish').length, 1);
+  assert.equal(moved.view.undoAvailable, undoBefore);
+
+  const removed = removePreset(state, 'user_0002');
+  assert.equal(removed.view.effectiveValues.enemyLow, '#111111');
+  assert.equal(removed.view.effectiveValues.enemyMid, '#222222');
+  assert.equal(removed.view.undoAvailable, undoBefore);
+  assert.equal(removed.view.repository.activeId, 'user_0009');
+
+  send(state, 'setting_edit', { key: 'enemyHigh', value: '#454545' });
+  const edited = send(state, 'preset_move', { id: 'user_0003', delta: -1 });
+  assert.equal(edited.status, 'committed');
+  assert.equal(edited.view.effectiveValues.enemyLow, '#111111');
+  assert.equal(edited.view.effectiveValues.enemyHigh, '#454545');
+});
+
+test('Layered presets Reset Section on a hero Current resets to Base and Undo restores; All Current resets to defaults', () => {
+  const state = layeredState();
+  settleHero(state, 1, 'SHIV');
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  const request = send(state, 'reset_request', { keys: ['enemyLow', 'enemyMid'] });
+  assert.equal(request.status, 'committed');
+  const reset = send(state, 'reset_confirm', { token: request.view.transactions.confirmation.token });
+  assert.equal(currentScope(reset.view).values.enemyLow, '#111111');
+  assert.equal(currentScope(reset.view).values.enemyMid, '#121212');
+  assert.equal(currentScope(reset.view).mode, 'selected');
+  const undone = send(state, 'undo');
+  assert.equal(currentScope(undone.view).values.enemyLow, '#ABCDEF');
+  assert.equal(currentScope(undone.view).values.enemyMid, '#222222');
+
+  send(state, 'preset_apply', { id: 'user_0001' });
+  const allRequest = send(state, 'reset_request', { keys: ['enemyLow', 'enemyMid'] });
+  const allReset = send(state, 'reset_confirm', { token: allRequest.view.transactions.confirmation.token });
+  assert.equal(currentScope(allReset.view).values.enemyLow, DEFAULTS.enemyLow);
+  assert.equal(currentScope(allReset.view).values.enemyMid, DEFAULTS.enemyMid);
+});
+
+test('Layered presets read model exposes layerBase only for a hero-scoped Current', () => {
+  const state = layeredState();
+  assert.equal(state.read().layerBase, null);
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.deepEqual(plain(shiv.view.layerBase), plain(row(shiv.view, 'user_0001').values));
+  const all = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.equal(all.view.layerBase, null);
+});

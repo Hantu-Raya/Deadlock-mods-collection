@@ -322,7 +322,7 @@
     var heroes = normalizeHeroSelection(source.heroes);
     var mode = normalizeScopeMode(String(source.mode || ""), heroes);
     if (kind === "user" && mode === HERO_SCOPE_OFF) mode = HERO_SCOPE_ALL;
-    return {
+    var record = {
       id: id,
       kind: kind,
       name: name,
@@ -331,6 +331,63 @@
       heroes: scopeUsesHeroes(mode) ? heroes : [],
       conditions: normalizePresetConditions(source.conditions),
     };
+    if (scopeUsesHeroes(mode) && Array.isArray(source.own))
+      record.own = normalizeOwnKeys(source.own);
+    return record;
+  }
+
+  function normalizeOwnKeys(source) {
+    var wanted = {};
+    var result = [];
+    var index;
+    for (index = 0; index < source.length; index++) wanted[String(source[index])] = true;
+    for (index = 0; index < DEFAULT_KEYS.length; index++) {
+      if (wanted[DEFAULT_KEYS[index]]) result.push(DEFAULT_KEYS[index]);
+    }
+    return result;
+  }
+
+  function sameValue(left, right) {
+    return left === right || JSON.stringify(left) === JSON.stringify(right);
+  }
+
+  // Base = first All Heroes user preset, else Rewrite Default.
+  function layerBaseValues(presets) {
+    var index;
+    for (index = 0; index < presets.length; index++) {
+      if (presets[index].mode === HERO_SCOPE_ALL) return presets[index].values;
+    }
+    return DEFAULTS;
+  }
+
+  function changedOwnKeys(values, base) {
+    var result = [];
+    var index;
+    for (index = 0; index < DEFAULT_KEYS.length; index++) {
+      var key = DEFAULT_KEYS[index];
+      if (!sameValue(values[key], base[key])) result.push(key);
+    }
+    return result;
+  }
+
+  function resolvePresetValues(preset, base) {
+    if (!preset.own) return preset.values;
+    var result = copyValues(base);
+    var index;
+    for (index = 0; index < preset.own.length; index++)
+      result[preset.own[index]] = preset.values[preset.own[index]];
+    return result;
+  }
+
+  function deriveMissingOwn(presets) {
+    var base = layerBaseValues(presets);
+    var index;
+    for (index = 0; index < presets.length; index++) {
+      var preset = presets[index];
+      if (scopeUsesHeroes(preset.mode) && !preset.own)
+        preset.own = changedOwnKeys(preset.values, base);
+    }
+    return presets;
   }
 
   function normalizeUserPresets(source) {
@@ -698,6 +755,7 @@
         conditions: extensionConditions || {},
       };
     }
+    if (preset.own) record.own = preset.own.slice(0);
     return record;
   }
 
@@ -784,7 +842,15 @@
         (mode === HERO_SCOPE_ALL && heroes.length)
       )
         return { error: "INVALID USER PRESET SCOPE" };
+      if (source.own !== undefined) {
+        if (!Array.isArray(source.own)) return { error: "INVALID PRESET OWN" };
+        for (var ownIndex = 0; ownIndex < source.own.length; ownIndex++) {
+          if (typeof source.own[ownIndex] !== "string")
+            return { error: "INVALID PRESET OWN" };
+        }
+      }
       records.push({
+        own: source.own,
         id: id,
         kind: kind,
         name: name,
@@ -883,7 +949,9 @@
         data.bakedPresetNameOverrides !== undefined ||
         data.hiddenBakedPresetIds !== undefined)
     );
-    var users = isMenuState ? normalizeUserPresets(data.userPresets) : [];
+    var users = isMenuState
+      ? deriveMissingOwn(normalizeUserPresets(data.userPresets))
+      : [];
     var scopes = isMenuState ? normalizeScopes(data.scopes) : [];
     var conditions = isMenuState ? normalizeConditions(data.conditions) : {};
     var hidden = isMenuState
@@ -1003,6 +1071,28 @@
         if (state.userPresets[index].id === wanted) return state.userPresets[index];
       }
       return null;
+    }
+
+    function layerBase() {
+      return layerBaseValues(state.userPresets);
+    }
+
+    function currentLayerBase() {
+      var current = currentScopeRow();
+      return current && scopeUsesHeroes(current.mode) ? layerBase() : null;
+    }
+
+    // Keep an unedited hero Current in step with a changed Base (no Undo).
+    function refreshLayeredCurrent(oldBase) {
+      var current = currentScopeRow();
+      if (!current || !scopeUsesHeroes(current.mode) || !current.sourcePresetId)
+        return;
+      var preset = findPreset(current.sourcePresetId);
+      var newBase = layerBase();
+      if (!preset || !preset.own || sameValue(oldBase, newBase)) return;
+      if (!sameValue(current.values, resolvePresetValues(preset, oldBase))) return;
+      current.values = copyValues(resolvePresetValues(preset, newBase));
+      state.restoredEffectivePending = false;
     }
 
     function isBakedHidden(id) {
@@ -1204,7 +1294,8 @@
       if (!current || current.mode !== preset.mode) return false;
       return (
         JSON.stringify(current.heroes) === JSON.stringify(preset.heroes) &&
-        JSON.stringify(current.values) === JSON.stringify(preset.values) &&
+        JSON.stringify(current.values) ===
+          JSON.stringify(resolvePresetValues(preset, layerBase())) &&
         JSON.stringify(current.conditions) ===
           JSON.stringify(normalizeConditions(preset.conditions))
       );
@@ -1282,6 +1373,7 @@
         if (state.confirmation.id) confirmation.id = state.confirmation.id;
       }
       var gesture = state.gesture ? { key: state.gesture.key, active: true } : null;
+      var viewLayerBase = currentLayerBase();
       var candidate = {
         transitionId: state.transitionId,
         schema: SCHEMA_VIEW,
@@ -1292,6 +1384,7 @@
         effectiveRevision: state.effectiveRevision,
         scopes: scopes,
         currentScope: currentScope,
+        layerBase: viewLayerBase ? copyValues(viewLayerBase) : null,
         identity: viewIdentity,
         ability: viewAbility,
         repository: repository,
@@ -1321,6 +1414,10 @@
           JSON.stringify(lastView.currentScope)
         )
           candidate.currentScope = lastView.currentScope;
+        if (
+          JSON.stringify(candidate.layerBase) === JSON.stringify(lastView.layerBase)
+        )
+          candidate.layerBase = lastView.layerBase;
         if (
           JSON.stringify(candidate.identity) === JSON.stringify(lastView.identity)
         )
@@ -1519,7 +1616,7 @@
           id: CURRENT_SCOPE_ID,
           mode: preset.mode,
           heroes: preset.heroes.slice(0),
-          values: copyValues(preset.values),
+          values: copyValues(resolvePresetValues(preset, layerBase())),
           conditions: normalizeConditions(preset.conditions),
           sourcePresetId: preset.kind === "user" ? preset.id : "",
         });
@@ -1937,10 +2034,11 @@
       }
       var values = editableValues();
       var conditions = editableConditions();
+      var resetBase = currentLayerBase() || DEFAULTS;
       var changed = false;
       for (index = 0; index < keys.length; index++) {
         if (
-          values[keys[index]] !== DEFAULTS[keys[index]] ||
+          !sameValue(values[keys[index]], resetBase[keys[index]]) ||
           Object.prototype.hasOwnProperty.call(conditions, keys[index])
         ) {
           changed = true;
@@ -1961,9 +2059,10 @@
       return commit("reset_confirm", function () {
         var values = copyValues(editableValues());
         var conditions = normalizeConditions(editableConditions());
+        var resetBase = currentLayerBase() || DEFAULTS;
         var index;
         for (index = 0; index < keys.length; index++) {
-          values[keys[index]] = DEFAULTS[keys[index]];
+          values[keys[index]] = resetBase[keys[index]];
           delete conditions[keys[index]];
         }
         state.confirmation = null;
@@ -2273,9 +2372,13 @@
         conditions: editableConditions(),
         mode: mode,
         heroes: current ? current.heroes : [],
+        own: scopeUsesHeroes(mode)
+          ? changedOwnKeys(editableValues(), layerBase())
+          : undefined,
       }, "user");
       if (!preset) return reject("preset_save", "INVALID_PRESET");
       return commit("preset_save", function () {
+        var oldBase = layerBase();
         var index;
         if (updating) {
           for (index = 0; index < state.userPresets.length; index++) {
@@ -2293,6 +2396,7 @@
             );
         }
         state.selectedPresetId = preset.id;
+        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: updating ? "PRESET_UPDATED" : "PRESET_SAVED" });
     }
@@ -2352,9 +2456,11 @@
       if (target < 0 || target >= state.userPresets.length)
         return noop("preset_move", "MOVE_BOUNDARY");
       return commit("preset_move", function () {
+        var oldBase = layerBase();
         var moved = state.userPresets[index];
         state.userPresets[index] = state.userPresets[target];
         state.userPresets[target] = moved;
+        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: "PRESET_MOVED" });
     }
@@ -2382,6 +2488,7 @@
       }
       var visibleIndex = selectedVisibleIndex(id);
       return commit("preset_remove_confirm", function () {
+        var oldBase = layerBase();
         if (preset.kind === "baked") {
           state.hiddenBakedPresetIds = normalizeHiddenBakedPresetIds(
             state.hiddenBakedPresetIds.concat([id]),
@@ -2398,6 +2505,7 @@
         if (preset.kind === "user" && !state.userPresets.length)
           state.selectedPresetId = null;
         else repairSelection(visibleIndex);
+        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: "PRESET_REMOVED" });
     }
@@ -2514,18 +2622,21 @@
             mode: source.mode,
             heroes: source.heroes,
             conditions: source.conditions,
+            own: source.own,
           }, "user");
           if (!imported) return reject("preset_import", "INVALID_IMPORTED_PRESET");
           importedUsers.push(imported);
           importedIds[source.id] = importedId;
         }
       }
+      deriveMissingOwn(state.userPresets.concat(importedUsers));
       var selected = importedIds[parsed.selectedPresetId] || "";
       var selectedHidden = selected && nextHidden.indexOf(selected) >= 0;
       if (selectedHidden) selected = "";
       if (!selected && !selectedHidden && importedUsers.length === 1)
         selected = importedUsers[0].id;
       return commit("preset_import", function () {
+        var oldBase = layerBase();
         state.bakedPresetNameOverrides = nextOverrides;
         state.hiddenBakedPresetIds = nextHidden;
         state.userPresets = state.userPresets.concat(importedUsers);
@@ -2537,6 +2648,7 @@
         )
           state.selectedPresetId = null;
         state.confirmation = null;
+        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: "PRESETS_IMPORTED" });
     }
