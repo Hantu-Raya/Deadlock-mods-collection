@@ -1282,16 +1282,19 @@
     }
 
     function presetMatchesCurrent(preset, current, currentBaseRaw) {
-      if (preset.mode === HERO_SCOPE_OFF) {
+      // Without a Current row the screen shows the base itself, so Rewrite
+      // Default or an All Heroes preset equal to it is what is on screen.
+      if (!current) {
         return (
-          !current &&
+          (preset.mode === HERO_SCOPE_OFF || preset.mode === HERO_SCOPE_ALL) &&
           JSON.stringify({
             values: preset.values,
             conditions: normalizeConditions(preset.conditions),
           }) === currentBaseRaw
         );
       }
-      if (!current || current.mode !== preset.mode) return false;
+      if (preset.mode === HERO_SCOPE_OFF || current.mode !== preset.mode)
+        return false;
       return (
         JSON.stringify(current.heroes) === JSON.stringify(preset.heroes) &&
         JSON.stringify(current.values) ===
@@ -1314,16 +1317,10 @@
         allRows.push(projected);
         if (record.kind !== "baked" || !isBakedHidden(record.id))
           rows.push(projected);
-        if (
-          !activeId &&
-          !(
-            !current &&
-            state.selectedPresetId &&
-            state.selectedPresetId !== DEFAULT_PRESET_ID &&
-            record.id === DEFAULT_PRESET_ID
-          ) &&
-          presetMatchesCurrent(record, current, currentBaseRaw)
-        )
+        // ACTIVE is purely "matches what is on screen"; selection must not
+        // hide a matching Rewrite Default, or the menu's unsaved-changes
+        // guard would fire after COPY/DELETE/reorder in a fresh session.
+        if (!activeId && presetMatchesCurrent(record, current, currentBaseRaw))
           activeId = record.id;
       }
       return {

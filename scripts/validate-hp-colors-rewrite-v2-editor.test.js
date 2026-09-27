@@ -172,6 +172,26 @@ function presetOption(fixture, presetId) {
   assert.fail(`expected preset option ${presetId}`);
 }
 
+function presetRowControl(fixture, presetId, className) {
+  const control = presetOption(fixture, presetId)
+    .FindChildrenWithClassTraverse(className)[0];
+  assert.ok(control, `expected ${className} in preset row ${presetId}`);
+  return control;
+}
+
+function presetRowMain(fixture, presetId) {
+  return presetRowControl(fixture, presetId, 'HPColorsPresetOptionMain');
+}
+
+function presetRowHas(fixture, presetId, className) {
+  return presetOption(fixture, presetId)
+    .FindChildrenWithClassTraverse(className).length > 0;
+}
+
+function presetFeedback(fixture) {
+  return panel(fixture, 'HPColorsPresetFeedback').text;
+}
+
 function scopeOption(fixture, heroKey) {
   const options = panel(fixture, 'HPColorsScopeOptions');
   for (let index = 0; index < options.GetChildCount(); index += 1) {
@@ -925,7 +945,7 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
 
   assert.equal(
     panel(fixture, 'HPColorsPageDescription').text,
-    'Presets are named snapshots of your settings: a Selected Heroes preset wins for its heroes, otherwise the first All Heroes preset, otherwise Rewrite Default.',
+    'Named snapshots of your settings that load by themselves when you switch heroes. The rules are under SHOW HOW PRESETS WORK below.',
   );
   assert.equal(
     presetOption(fixture, 'baked_default')
@@ -959,26 +979,29 @@ test('Preset Library keeps create separate and exposes the new restore flow', ()
     'REWRITE DEFAULT RESTORED.',
   );
 
-  presetOption(fixture, 'user_0001').events.onactivate();
+  const editButton = presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit');
+  editButton.events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
   assert.equal(
     panel(fixture, 'HPColorsPresetSaveButtonLabel').text,
-    'UPDATE & APPLY',
+    'SAVE',
   );
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDITING SHIV COLORS. UPDATE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS.',
+    'EDITING SHIV COLORS. SAVE REPLACES IT WITH WHAT IS ON SCREEN.',
   );
   panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDIT CANCELED. PRESET UNCHANGED.',
+    'CLOSED. YOUR CHANGES STAY ON SCREEN.',
   );
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
 });
 
-test('editor close clears inline rename and delete confirmation transients', () => {
+test('editor close clears replace and delete confirmation transients', () => {
   const fixture = bootMenu({
     version: 1,
-    values: {},
+    values: { enemyLow: '#654321' },
     scopes: [],
     userPresets: [
       {
@@ -994,22 +1017,20 @@ test('editor close clears inline rename and delete confirmation transients', () 
   });
   openEditor(fixture);
 
-  let option = presetOption(fixture, 'user_0001');
-  option.FindChildrenWithClassTraverse('HPColorsPresetOptionName')[0]
-    .events.onactivate();
+  // Nothing saved matches the screen, so a row click asks first.
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
   assert.equal(
-    presetOption(fixture, 'user_0001')
-      .FindChildrenWithClassTraverse('HPColorsPresetOptionName')[0].type,
-    'TextEntry',
+    presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
+    'REPLACE UNSAVED CHANGES?',
   );
 
   panel(fixture, 'HPColorsDoneButton').events.onactivate();
   openEditor(fixture);
-  option = presetOption(fixture, 'user_0001');
-  assert.notEqual(
-    option.FindChildrenWithClassTraverse('HPColorsPresetOptionName')[0].type,
-    'TextEntry',
-  );
+  let option = presetOption(fixture, 'user_0001');
+  assert.equal(option.BHasClass('Confirming'), false);
+  assert.equal(readConfig(fixture).values.enemyLow, '#654321');
+  assert.ok(option.FindChildrenWithClassTraverse('HPColorsPresetOptionMain')[0]);
 
   option.FindChildrenWithClassTraverse('HPColorsPresetRowDelete')[0]
     .events.onactivate();
@@ -1296,7 +1317,7 @@ test('every setting key has one tab owner and its controls live in that XML page
 });
 
 
-test('Presets page hides Reset Section and Undo', () => {
+test('Presets page hides Reset Section but keeps Undo reachable', () => {
   const fixture = bootMenu({
     version: 1,
     values: changedEnemyValues(),
@@ -1312,7 +1333,7 @@ test('Presets page hides Reset Section and Undo', () => {
   assert.equal(reset.enabled, false);
   assert.equal(reset.BHasClass('Disabled'), true);
   assert.equal(reset.BHasClass('HPColorsFooterActionHidden'), true);
-  assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), true);
+  assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), false);
   assert.equal(panel(fixture, 'HPColorsResetDialog').BHasClass('Open'), false);
 
   panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
@@ -1490,14 +1511,19 @@ test('Layered presets scope help explains what a hero preset saves', () => {
   assert.equal(scopeHelp(all).text, LAYERED_ALL_SCOPE_HELP);
 });
 
-test('Layered presets selecting a hero preset explains the layered save', () => {
+test('Layered presets EDIT on a hero preset loads it and explains the layered save', () => {
   const fixture = bootLayeredMenu('HAZE');
   openPresetsForm(fixture);
-  presetOption(fixture, 'user_0002').events.onactivate();
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowEdit').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPresetFeedback').text,
-    'EDITING SHIV ONLY. UPDATE & APPLY SAVES ONLY WHAT DIFFERS FROM ALL HEROES.',
+    'EDITING SHIV ONLY. SAVE STORES ONLY WHAT DIFFERS FROM ALL HEROES.',
   );
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
+  assert.equal(currentScope(fixture).mode, 'selected');
+  assert.deepEqual(currentScope(fixture).heroes, ['hero_shiv']);
+  assert.equal(panel(fixture, 'HPColorsCurrentScopeSummary').text, 'Shiv');
+  assert.equal(panel(fixture, 'HPColorsPresetSaveButtonLabel').text, 'SAVE');
 });
 
 test('Layered presets reset confirmation names the All Heroes settings', () => {
@@ -1510,4 +1536,269 @@ test('Layered presets reset confirmation names the All Heroes settings', () => {
     panel(fixture, 'HPColorsResetDialogMessage').text,
     'This section goes back to your All Heroes settings.',
   );
+});
+
+function twoPresetState(values = {}) {
+  return {
+    version: 1,
+    values,
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001',
+        kind: 'user',
+        name: 'Shiv Colors',
+        mode: 'all',
+        heroes: [],
+        values: { enemyLow: '#222222' },
+        conditions: null,
+      },
+      {
+        id: 'user_0002',
+        kind: 'user',
+        name: 'Second',
+        mode: 'all',
+        heroes: [],
+        values: { enemyLow: '#333333' },
+        conditions: null,
+      },
+    ],
+  };
+}
+
+test('preset row body applies while its buttons never do', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  const before = readConfig(fixture).values.enemyLow;
+
+  // No whole-row handler and no APPLY button remain.
+  assert.equal(presetOption(fixture, 'user_0001').events.onactivate, undefined);
+  assert.equal(presetRowHas(fixture, 'user_0001', 'HPColorsPresetRowApply'), false);
+  assert.equal(presetRowHas(fixture, 'user_0001', 'HPColorsPresetRowEdit'), true);
+  assert.equal(presetRowHas(fixture, 'baked_default', 'HPColorsPresetRowEdit'), false);
+  assert.equal(
+    presetRowControl(fixture, 'baked_default', 'HPColorsPresetRowDelete').Children()[0].text,
+    'HIDE',
+  );
+  assert.equal(presetOption(fixture, 'baked_default').BHasClass('Active'), true);
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowCopy').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, before);
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Active'), false);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowDelete').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
+  assert.equal(readConfig(fixture).values.enemyLow, before);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowCancel').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), false);
+
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
+  assert.equal(presetFeedback(fixture), 'APPLIED SHIV COLORS.');
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Active'), true);
+  assert.equal(
+    presetRowControl(fixture, 'user_0001', 'HPColorsPresetOptionStatus').text,
+    'ACTIVE',
+  );
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+
+  // UNDO is reachable on this page and reverts the apply.
+  const undo = panel(fixture, 'HPColorsUndoButton');
+  assert.equal(undo.BHasClass('HPColorsFooterActionHidden'), false);
+  assert.equal(undo.enabled, true);
+  undo.events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, before);
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Active'), false);
+});
+
+test('the row being edited ignores body clicks and hides EDIT', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
+  const row = presetOption(fixture, 'user_0001');
+  assert.equal(row.BHasClass('Editing'), true);
+  assert.equal(row.BHasClass('Active'), true);
+  assert.equal(
+    presetRowControl(fixture, 'user_0001', 'HPColorsPresetOptionStatus').text,
+    'EDITING',
+  );
+  assert.equal(presetRowHas(fixture, 'user_0001', 'HPColorsPresetRowEdit'), false);
+  assert.equal(presetRowHas(fixture, 'user_0001', 'HPColorsPresetRowUp'), true);
+
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Renamed';
+  const dispatchesBefore = configDispatches(fixture).length;
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Renamed');
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), false);
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Editing'), true);
+  assert.equal(configDispatches(fixture).length, dispatchesBefore);
+
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'SAVED RENAMED.');
+  assert.equal(
+    readMenuState(fixture).userPresets.find((preset) => preset.id === 'user_0001').name,
+    'Renamed',
+  );
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+});
+
+test('EDIT loads the target scope so saving an All Heroes preset keeps it All Heroes', () => {
+  const fixture = bootLayeredMenu('SHIV');
+  openPresetsForm(fixture);
+  assert.equal(currentScope(fixture).mode, 'selected');
+  assert.equal(presetOption(fixture, 'user_0002').BHasClass('Active'), true);
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.equal(currentScope(fixture).mode, 'all');
+  assert.deepEqual(currentScope(fixture).heroes, []);
+  assert.equal(readConfig(fixture).values.enemyLow, '#111111');
+  assert.equal(panel(fixture, 'HPColorsCurrentScopeSummary').text, 'ALL HEROES');
+  assert.equal(panel(fixture, 'HPColorsPresetSaveButtonLabel').text, 'SAVE');
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Everyone');
+
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'SAVED EVERYONE.');
+  const saved = readMenuState(fixture).userPresets.find((preset) => preset.id === 'user_0001');
+  assert.equal(saved.mode, 'all');
+  assert.deepEqual(saved.heroes, []);
+});
+
+test('unsaved screen changes ask before a row click or EDIT replaces them', () => {
+  const fixture = bootMenu(twoPresetState({ enemyLow: '#999999' }));
+  openPresetsForm(fixture);
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Active'), false);
+  assert.equal(presetOption(fixture, 'baked_default').BHasClass('Active'), false);
+
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
+  assert.equal(
+    presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirmMessage').text,
+    'REPLACE UNSAVED CHANGES?',
+  );
+  assert.equal(readConfig(fixture).values.enemyLow, '#999999');
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowCancel').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), false);
+  assert.ok(presetRowMain(fixture, 'user_0001'));
+  assert.equal(readConfig(fixture).values.enemyLow, '#999999');
+  assert.equal(presetFeedback(fixture), 'KEPT WHAT IS ON SCREEN.');
+
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowConfirm').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'EDITING SHIV COLORS');
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Editing'), true);
+
+  // The confirmed row now matches the screen, so a second row click applies at once.
+  presetRowMain(fixture, 'user_0002').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, '#333333');
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+});
+
+test('an unsaved name in the form asks before another row replaces it', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Shiv Colors v2';
+
+  presetRowMain(fixture, 'user_0002').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0002').BHasClass('Confirming'), true);
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Shiv Colors v2');
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowCancel').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Shiv Colors v2');
+
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0002').BHasClass('Confirming'), true);
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowConfirm').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, '#333333');
+  assert.equal(panel(fixture, 'HPColorsPresetSaveMode').text, 'EDITING SECOND');
+  assert.equal(panel(fixture, 'HPColorsPresetNameInput').text, 'Second');
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Editing'), false);
+  assert.equal(presetOption(fixture, 'user_0002').BHasClass('Editing'), true);
+
+  // SAVE now targets the retargeted row, never the previous one.
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+  const presets = readMenuState(fixture).userPresets;
+  assert.equal(presets.find((preset) => preset.id === 'user_0001').name, 'Shiv Colors');
+  assert.equal(presets.find((preset) => preset.id === 'user_0002').values.enemyLow, '#333333');
+
+  // A typed name on a new preset is protected the same way.
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = 'Draft';
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(presetOption(fixture, 'user_0001').BHasClass('Confirming'), true);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowCancel').events.onactivate();
+  panel(fixture, 'HPColorsPresetNameInput').text = '';
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, '#222222');
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+});
+
+test('changing APPLIES TO while editing shows the old and new scope and a SAVE AS label', () => {
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  const summary = panel(fixture, 'HPColorsCurrentScopeSummary');
+  const label = panel(fixture, 'HPColorsPresetSaveButtonLabel');
+  assert.equal(summary.text, 'ALL HEROES');
+  assert.equal(label.text, 'SAVE');
+
+  panel(fixture, 'HPColorsCurrentScopeSelected').events.onactivate();
+  scopeOption(fixture, 'hero_haze').events.onactivate();
+  assert.equal(summary.text, 'ALL HEROES → Haze');
+  assert.equal(label.text, 'SAVE AS ONLY THESE');
+  panel(fixture, 'HPColorsScopeCloseButton').events.onactivate();
+
+  panel(fixture, 'HPColorsCurrentScopeAll').events.onactivate();
+  assert.equal(summary.text, 'ALL HEROES');
+  assert.equal(label.text, 'SAVE');
+
+  panel(fixture, 'HPColorsCurrentScopeExcept').events.onactivate();
+  scopeOption(fixture, 'hero_haze').events.onactivate();
+  assert.equal(summary.text, 'ALL HEROES → ALL EXCEPT Haze');
+  assert.equal(label.text, 'SAVE AS ALL EXCEPT');
+  panel(fixture, 'HPColorsScopeCloseButton').events.onactivate();
+
+  panel(fixture, 'HPColorsPresetSaveButton').events.onactivate();
+  assert.equal(presetFeedback(fixture), 'SAVED SHIV COLORS.');
+  const saved = readMenuState(fixture).userPresets.find((preset) => preset.id === 'user_0001');
+  assert.equal(saved.mode, 'except');
+  assert.deepEqual(saved.heroes, ['hero_haze']);
+  assert.equal(panel(fixture, 'HPColorsPresetForm').BHasClass('Active'), false);
+});
+
+test('preset guide and library hint describe the click-to-apply flow', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openPresetsForm(fixture);
+  const guide = panel(fixture, 'HPColorsPresetGuideText').text.split('\n\n');
+  assert.equal(guide.length, 8);
+  assert.equal(
+    guide[0],
+    'Click a preset to use it now. EDIT loads it so you can change it, then SAVE.',
+  );
+  assert.equal(
+    guide[3],
+    'When you switch heroes, the first ONLY THESE for that hero wins. Otherwise what is on screen stays if it still fits, then the first ALL EXCEPT, then the top ALL HEROES, then Rewrite Default.',
+  );
+  assert.match(
+    layoutSource,
+    /text="Click a preset to use it\. EDIT loads it so you can change it and SAVE\." class="HPColorsPresetLibraryHint"/,
+  );
+  assert.match(
+    layoutSource,
+    /id="HPColorsPresetCancelEditButton"[^>]*><Label text="CLOSE" \/>/,
+  );
+  assert.doesNotMatch(menuSource, /InlinePresetRename|presetInlineRename/);
+  assert.doesNotMatch(menuStyleSource, /HPColorsPresetOptionName\.Editable|HPColorsPresetRowApply/);
+  assert.match(menuStyleSource, /\.HPColorsPresetOption\.Active \{/);
+  assert.match(menuStyleSource, /\.HPColorsPresetOption\.Editing \{/);
 });
