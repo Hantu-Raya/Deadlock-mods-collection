@@ -1102,7 +1102,6 @@
     artSources: ["", "", "", ""],
   };
   var conditionControls = {};
-  var ownTags = [];
   var conditionDraft = {
     key: "",
     slot: 1,
@@ -3680,59 +3679,7 @@
     return isValid(row) ? row : null;
   }
 
-  function registerOwnTag(panel, key) {
-    var row = settingRow(panel);
-    if (!row) return;
-    for (var index = 0; index < ownTags.length; index++) {
-      if (ownTags[index].row === row) {
-        if (ownTags[index].keys.indexOf(key) < 0) ownTags[index].keys.push(key);
-        return;
-      }
-    }
-    var copies = findChildrenWithClass(row, "HPColorsSettingCopy");
-    if (!copies.length) return;
-    var tag = $.CreatePanel("Label", copies[0], "");
-    if (!isValid(tag)) return;
-    tag.AddClass("HPColorsOwnTag");
-    tag.text = "CHANGED HERE";
-    var titles = findChildrenWithClass(copies[0], "HPColorsSettingTitle");
-    try {
-      if (titles.length && isCallable(copies[0].MoveChildAfter))
-        copies[0].MoveChildAfter(tag, titles[0]);
-    } catch {}
-    ownTags.push({ row: row, tag: tag, keys: [key] });
-  }
-
-  function sameSettingValue(left, right) {
-    if (left === right) return true;
-    if (!left || !right || typeof left !== "object" || typeof right !== "object")
-      return false;
-    try {
-      return JSON.stringify(left) === JSON.stringify(right);
-    } catch {
-      return false;
-    }
-  }
-
-  function syncOwnTags(values, base) {
-    for (var index = 0; index < ownTags.length; index++) {
-      var entry = ownTags[index];
-      var changed = false;
-      if (base)
-        for (var keyIndex = 0; keyIndex < entry.keys.length; keyIndex++) {
-          var key = entry.keys[keyIndex];
-          if (!sameSettingValue(values[key], base[key])) {
-            changed = true;
-            break;
-          }
-        }
-      setClass(entry.tag, "Visible", changed);
-    }
-  }
-
   function registerConditionControl(panel, key, min, max, option, increment) {
-    if (isValid(panel) && Object.prototype.hasOwnProperty.call(DEFAULTS, key))
-      registerOwnTag(panel, key);
     if (
       key === "precisePipsEnabled" ||
       !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
@@ -4578,7 +4525,6 @@
       setEnabled(ui.undoButton, !!(view && view.undoAvailable));
       syncPicker();
       syncConditionIndicators();
-      syncOwnTags(values, view && view.layerBase ? view.layerBase : null);
     } finally {
       syncingControls = false;
     }
@@ -4955,7 +4901,6 @@
       bindMode(mode.id, mode.key, mode.value);
     }
     setPanelEvent(ui.precisePipsToggle, "onactivate", togglePrecisePips);
-    registerConditionControl(ui.precisePipsToggle, "precisePipsEnabled");
     for (index = 0; index < SLIDER_CONTROLS.length; index++) {
       var slider = SLIDER_CONTROLS[index];
       bindSlider(
