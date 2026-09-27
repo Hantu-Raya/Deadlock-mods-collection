@@ -768,7 +768,7 @@ test('saves from the first local-save build (schema 1) still restore and upgrade
   closeEditor(fixture);
   fixture.run(8000);
   const stored = profile.disk.get(KEY_CURRENT).split('.')[2];
-  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 3);
+  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 2);
   assert.equal(storedEditedWidth(profile), 200);
   record(fixture);
 });
@@ -962,21 +962,21 @@ test('an All Except preset keeps its mode and skipped heroes through a restart',
   record(second);
 });
 
-test('new saves are written with envelope schema 3', () => {
+test('a save without any All Except preset or scope is written with envelope schema 2', () => {
   const profile = createProfile();
-  const fixture = launch(profile, { label: 'schema 3 write' });
+  const fixture = launch(profile, { label: 'schema 2 write' });
   fixture.run(2000);
   openEditor(fixture);
   setWidth(fixture, 175);
   closeEditor(fixture);
   fixture.run(4000);
   assert.equal(storedRecord(profile).kind, 'valid');
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 2);
   assert.equal(storedEditedWidth(profile), 175);
   record(fixture);
 });
 
-test('a schema 2 save still restores and the next save is schema 3', () => {
+test('a schema 2 save still restores and the next save stays schema 2', () => {
   const profile = createProfile({
     [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 2, t: 1, b: JSON.parse(savedBody({ widthScale: 165 })) }),
   });
@@ -988,8 +988,69 @@ test('a schema 2 save still restores and the next save is schema 3', () => {
   setWidth(fixture, 185);
   closeEditor(fixture);
   fixture.run(8000);
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 2);
   assert.equal(storedEditedWidth(profile), 185);
+  record(fixture);
+});
+
+test('an All Except Current scope saves as schema 3, and returning to All Heroes saves schema 2', () => {
+  const profile = createProfile();
+  const fixture = launch(profile, { label: 'except scope schema' });
+  fixture.run(2000);
+  openEditor(fixture);
+  setWidth(fixture, 175);
+  panelById(fixture.harness, 'HPColorsCurrentScopeExcept').events.onactivate();
+  panelById(fixture.harness, 'HPColorsScopeHeroOption0').events.onactivate();
+  panelById(fixture.harness, 'HPColorsScopeCloseButton').events.onactivate();
+  closeEditor(fixture);
+  fixture.run(4000);
+  const current = JSON.parse(storedRecord(profile).body).scopes.find((scope) => scope.id === 'scope_current');
+  assert.equal(current.mode, 'except');
+  assert.equal(storedSchema(profile), 3);
+
+  openEditor(fixture);
+  panelById(fixture.harness, 'HPColorsCurrentScopeAll').events.onactivate();
+  closeEditor(fixture);
+  fixture.run(4000);
+  const body = JSON.parse(storedRecord(profile).body);
+  assert.ok(!(body.scopes || []).some((scope) => scope.mode === 'except'));
+  assert.equal(storedSchema(profile), 2);
+  record(fixture);
+});
+
+test('deleting the All Except preset keeps schema 3 until Current returns to All Heroes', () => {
+  const profile = createProfile({
+    [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: exceptBody({ widthScale: 140 }) }),
+  });
+  const fixture = launch(profile, { label: 'except delete schema' });
+  fixture.run(8000);
+  openEditor(fixture);
+  setWidth(fixture, 150);
+  closeEditor(fixture);
+  fixture.run(8000);
+  assert.equal(storedSchema(profile), 3);
+
+  openEditor(fixture);
+  const rowIndex = Array.from({ length: 64 }, (_, index) => index).find((index) => {
+    const button = fixture.harness.root.FindChildTraverse(`HPColorsPresetRowDelete${index}`);
+    return button && button.GetParent().GetAttributeString('hp_colors_preset_id', '') === 'user_0001';
+  });
+  assert.notEqual(rowIndex, undefined, 'the All Except preset row has a delete button');
+  panelById(fixture.harness, `HPColorsPresetRowDelete${rowIndex}`).events.onactivate();
+  panelById(fixture.harness, `HPColorsPresetRowConfirm${rowIndex}`).events.onactivate();
+  closeEditor(fixture);
+  fixture.run(8000);
+  assert.equal(JSON.parse(storedRecord(profile).body).userPresets.some((row) => row.mode === 'except'), false);
+  assert.equal(storedSchema(profile), 3);
+
+  openEditor(fixture);
+  panelById(fixture.harness, 'HPColorsCurrentScopeAll').events.onactivate();
+  closeEditor(fixture);
+  fixture.run(8000);
+  const body = JSON.parse(storedRecord(profile).body);
+  assert.equal((body.userPresets || []).some((row) => row.mode === 'except'), false);
+  assert.equal((body.scopes || []).some((scope) => scope.mode === 'except'), false);
+  assert.equal(storedSchema(profile), 2);
   record(fixture);
 });
 
