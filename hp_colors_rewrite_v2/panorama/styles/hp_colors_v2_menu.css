@@ -875,9 +875,9 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #10130d;
 }
 
-/* Six footer actions share about 844px, so the footer uses compact fixed
-   widths and its labels shrink to fit instead of running past the edge. The
-   spacer keeps the rest; EXIT stays last. */
+/* Seven footer actions share about 844px (822px used with ▼ shown), so the
+   footer uses compact fixed widths and its labels shrink to fit instead of
+   running past the edge. The spacer keeps the rest; EXIT stays last. */
 .HPColorsEditorFooter .HPColorsSecondaryAction,
 .HPColorsEditorFooter .HPColorsPrimaryAction {
   min-width: 0px;
@@ -905,11 +905,17 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 }
 
 #HPColorsTransferButton {
-  width: 176px;
+  width: 164px;
 }
 
 #HPColorsSaveToPresetButton {
   width: 166px;
+}
+
+/* ▼ opens the SAVE TO PRESET list while the main button names its target. */
+#HPColorsSaveToMoreButton {
+  width: 34px;
+  padding: 0px 4px;
 }
 
 #HPColorsDoneButton {
@@ -1407,12 +1413,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetHiddenRow.Visible {
   visibility: visible;
-}
-
-/* No-source banner shares the hidden-row surface; Visible is toggled by
-   refreshPresetActivity, and its button follows the same enablement. */
-.HPColorsPresetSourceRow .HPColorsPresetSaveAsNewButton {
-  min-width: 150px;
 }
 
 .HPColorsPresetHiddenMessage {

@@ -272,10 +272,6 @@
                       <Label text="REWRITE DEFAULT IS HIDDEN" class="HPColorsPresetHiddenMessage" />
                       <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="SHOW PRESET" /></Button>
                     </Panel>
-                    <Panel id="HPColorsPresetSourceRow" class="HPColorsPresetHiddenRow HPColorsPresetSourceRow">
-                      <Label text="YOUR SETTINGS ARE NOT SAVED TO A PRESET" class="HPColorsPresetHiddenMessage" />
-                      <Button id="HPColorsPresetSaveAsNewButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction HPColorsPresetSaveAsNewButton"><Label text="SAVE AS NEW PRESET" /></Button>
-                    </Panel>
                     <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
                     <Panel id="HPColorsStoreRow" class="HPColorsStoreRow">
                       <Panel class="HPColorsStoreCopy">
@@ -894,7 +890,8 @@
               <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
               <Button id="HPColorsTransferButton" class="HPColorsSecondaryAction"><Label text="IMPORT / EXPORT" /></Button>
               <Panel class="HPColorsFooterSpacer" />
-              <Button id="HPColorsSaveToPresetButton" class="HPColorsSecondaryAction"><Label text="SAVE TO PRESET" /></Button>
+              <Button id="HPColorsSaveToPresetButton" class="HPColorsSecondaryAction"><Label id="HPColorsSaveToPresetLabel" text="SAVE TO PRESET" /></Button>
+              <Button id="HPColorsSaveToMoreButton" class="HPColorsSecondaryAction HPColorsFooterActionHidden"><Label text="▼" /></Button>
               <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="EXIT" /></Button>
             </Panel>
           </Panel>
@@ -1007,7 +1004,7 @@
           <Panel class="HPColorsTransferDialogActions">
             <Button id="HPColorsExitSaveButton" class="HPColorsPrimaryAction HPColorsExitSaveButton"><Label text="SAVE &amp; EXIT" /></Button>
             <Button id="HPColorsExitReviewButton" class="HPColorsSecondaryAction"><Label text="REVIEW PRESETS" /></Button>
-            <Button id="HPColorsExitDiscardButton" class="HPColorsSecondaryAction HPColorsExitDiscardButton"><Label text="EXIT WITHOUT SAVING" /></Button>
+            <Button id="HPColorsExitDiscardButton" class="HPColorsSecondaryAction HPColorsExitDiscardButton"><Label text="EXIT" /></Button>
           </Panel>
         </Panel>
       </Panel>

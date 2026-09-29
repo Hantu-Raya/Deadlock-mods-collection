@@ -589,32 +589,94 @@
     }
   }
 
-  function alignedAccessoryMarginTop(
-    bar,
-    panel,
-    panelKey,
-    centerKey,
-    baseMargin,
-    targetCenter,
-  ) {
+  // Height of the stock frame the indicators are measured in. Pregame
+  // collapses #InfoHealthContainer, so a save applied at game boot can reach
+  // the bar before this layout exists.
+  function anchorFrame(bar) {
     try {
-      var panelHeight = Number(panel.actuallayoutheight);
-      var panelTop = Number(panel.actualyoffset);
-      if (
-        targetCenter === null ||
-        !Number.isFinite(panelHeight) ||
-        !Number.isFinite(panelTop) ||
-        panelHeight <= 0
-      )
-        return baseMargin;
-      if (bar[panelKey] !== panel) {
-        bar[panelKey] = panel;
-        bar[centerKey] = panelTop + panelHeight / 2;
-      }
-      return baseMargin + (targetCenter - bar[centerKey]) * 2;
+      var height = Number(bar.parts.infoHealth.actuallayoutheight);
+      return Number.isFinite(height) && height > 0 ? height : 0;
     } catch {
-      return baseMargin;
+      return 0;
     }
+  }
+
+  // [part, cached panel, cached stock center, stock margin-top, margin cache key]
+  var ANCHORED_INDICATORS = [
+    ["levelContainer", "levelAnchorPanel", "levelAnchorCenterY", LEVEL_BASE_MARGIN_TOP, "levelAnchorMarginTop"],
+    ["unitInfo", "unitInfoAnchorPanel", "unitInfoAnchorCenterY", 0, "unitInfoAnchorMarginTop"],
+  ];
+  var ANCHOR_TOLERANCE_PX = 1;
+  var ANCHOR_REMEASURE_LIMIT = 3;
+
+  // Where the indicator would sit without our margin: its laid-out center
+  // minus the shift of the margin on it (a centered panel moves by half its
+  // top margin). Null while it has no layout.
+  function stockIndicatorCenter(bar, indicator) {
+    var panel = bar.parts[indicator[0]];
+    try {
+      var height = Number(panel.actuallayoutheight);
+      var top = Number(panel.actualyoffset);
+      if (!(height > 0) || !Number.isFinite(top)) return null;
+      var margin = parseFloat(bar.applied[indicator[4]]);
+      if (!Number.isFinite(margin)) margin = parseFloat(panel.style.marginTop);
+      var shift = Number.isFinite(margin) ? (margin - indicator[3]) / 2 : 0;
+      return top + height / 2 - shift;
+    } catch {
+      return null;
+    }
+  }
+
+  // Layout the anchored indicators follow; a change re-applies geometry.
+  function anchorLayoutKey(bar) {
+    return anchorFrame(bar) + "|" + visibleBarCenterY(bar);
+  }
+
+  // Scan-time check. The stock centers are cached so rapid setting changes
+  // never read a layout that has not caught up yet; they are re-measured
+  // here, a scan later, and dropped when the layout disagrees. A collapsed
+  // indicator can report a stale position that nothing else would reveal.
+  function anchorLayoutChanged(bar) {
+    if (!bar.anchorLayoutKey || !config.enabled || !config.accessoryAnchorEnabled)
+      return false;
+    var key = anchorLayoutKey(bar);
+    var changed = key !== bar.anchorLayoutKey;
+    // Aligning needs the frame and the bar center (the key's null otherwise).
+    var alignable = anchorFrame(bar) > 0 && visibleBarCenterY(bar) !== null;
+    var remeasure = false;
+    for (var index = 0; index < ANCHORED_INDICATORS.length; index++) {
+      var indicator = ANCHORED_INDICATORS[index];
+      var center = stockIndicatorCenter(bar, indicator);
+      if (center === null || !alignable) continue;
+      if (
+        bar[indicator[1]] !== bar.parts[indicator[0]] ||
+        Math.abs(center - bar[indicator[2]]) > ANCHOR_TOLERANCE_PX
+      )
+        remeasure = true;
+    }
+    // A settled layout agrees with the cache after one re-measure. If it keeps
+    // disagreeing, the half-margin model does not hold here; stop rather than
+    // move the indicators every scan.
+    bar.anchorRemeasures = remeasure ? (bar.anchorRemeasures || 0) + 1 : 0;
+    if (remeasure && bar.anchorRemeasures <= ANCHOR_REMEASURE_LIMIT) {
+      for (var drop = 0; drop < ANCHORED_INDICATORS.length; drop++)
+        bar[ANCHORED_INDICATORS[drop][1]] = null;
+      changed = true;
+    }
+    return changed;
+  }
+
+  function alignedAccessoryMarginTop(bar, indicator, targetCenter) {
+    var baseMargin = indicator[3];
+    if (targetCenter === null || !anchorFrame(bar)) return baseMargin;
+    var panel = bar.parts[indicator[0]];
+    if (bar[indicator[1]] !== panel) {
+      var center = stockIndicatorCenter(bar, indicator);
+      if (center === null) return baseMargin;
+      bar[indicator[1]] = panel;
+      bar[indicator[2]] = center;
+    }
+    return baseMargin + (targetCenter - bar[indicator[2]]) * 2;
   }
 
   function pixels(value) {
@@ -1852,21 +1914,16 @@
     var visibleCenter = config.accessoryAnchorEnabled
       ? visibleBarCenterY(bar)
       : null;
+    bar.anchorLayoutKey = config.accessoryAnchorEnabled ? anchorLayoutKey(bar) : "";
     if (config.accessoryAnchorEnabled) {
       levelBaseMarginTop = alignedAccessoryMarginTop(
         bar,
-        bar.parts.levelContainer,
-        "levelAnchorPanel",
-        "levelAnchorCenterY",
-        LEVEL_BASE_MARGIN_TOP,
+        ANCHORED_INDICATORS[0],
         visibleCenter,
       );
       unitInfoBaseMarginTop = alignedAccessoryMarginTop(
         bar,
-        bar.parts.unitInfo,
-        "unitInfoAnchorPanel",
-        "unitInfoAnchorCenterY",
-        0,
+        ANCHORED_INDICATORS[1],
         visibleCenter,
       );
     }
@@ -1966,6 +2023,7 @@
   ];
 
   function restoreBarGeometry(bar, parts, panelBaseline, onlyPart) {
+    bar.anchorLayoutKey = "";
     for (var index = 0; index < GEOMETRY_STYLES.length; index++) {
       var entry = GEOMETRY_STYLES[index];
       if (onlyPart && entry[0] !== onlyPart) continue;
@@ -2358,7 +2416,8 @@
     var pipText = readPipText(bar.parts.pipLabel);
     updatePipMaximum(bar, pipText);
     updateLevel(bar, readPipText(bar.parts.levelLabel));
-    if (!bar.dirty && layoutStyleDrift(bar)) bar.dirty = true;
+    if (!bar.dirty && (layoutStyleDrift(bar) || anchorLayoutChanged(bar)))
+      bar.dirty = true;
     if (bar.dirty) applyCustomization(bar);
   }
   // Per-panel samples; cleared on creation and whenever the part set changes.
