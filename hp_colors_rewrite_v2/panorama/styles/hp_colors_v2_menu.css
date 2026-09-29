@@ -875,6 +875,80 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #10130d;
 }
 
+/* Six footer actions share about 844px, so the footer uses compact fixed
+   widths and its labels shrink to fit instead of running past the edge. The
+   spacer keeps the rest; EXIT stays last. */
+.HPColorsEditorFooter .HPColorsSecondaryAction,
+.HPColorsEditorFooter .HPColorsPrimaryAction {
+  min-width: 0px;
+  padding: 0px 8px;
+}
+
+.HPColorsEditorFooter .HPColorsSecondaryAction Label,
+.HPColorsEditorFooter .HPColorsPrimaryAction Label {
+  width: 100%;
+  font-size: 13px;
+  text-align: center;
+  text-overflow: shrink;
+}
+
+#HPColorsPeekButton {
+  width: 140px;
+}
+
+#HPColorsUndoButton {
+  width: 80px;
+}
+
+#HPColorsResetSectionButton {
+  width: 150px;
+}
+
+#HPColorsTransferButton {
+  width: 176px;
+}
+
+#HPColorsSaveToPresetButton {
+  width: 166px;
+}
+
+#HPColorsDoneButton {
+  width: 76px;
+}
+
+/* SAVE TO PRESET glows amber while the preset the settings came from has
+   unsaved changes, like its CHANGED row. The pulse animates opacity only. */
+#HPColorsSaveToPresetButton.Unsaved {
+  border: 1px solid #e7c77d;
+  background-color: #e7c77d1a;
+  animation-name: HPColorsSaveToPresetPulse;
+  animation-duration: 1.6s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+
+#HPColorsSaveToPresetButton.Unsaved Label {
+  color: #e7c77d;
+}
+
+/* Disabled while the name form is open: dim and still, never glowing. */
+#HPColorsSaveToPresetButton.Unsaved.Disabled {
+  animation: none;
+  border: 1px solid #ffefd726;
+  background-color: #ffefd70a;
+}
+
+#HPColorsSaveToPresetButton.Unsaved.Disabled Label {
+  color: #ffefd7;
+}
+
+@keyframes 'HPColorsSaveToPresetPulse'
+{
+  0% { opacity: 1; }
+  100% { opacity: 0.55; }
+}
+
 
 .HPColorsPeekCapture {
   width: 100%;
@@ -1493,6 +1567,99 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   font-weight: bold;
   color: #ffefd7dd;
   letter-spacing: 1px;
+}
+
+/* SAVE TO PRESET dialog. Rows reuse the hero option surface, but the row body
+   is inert: only its own SAVE button acts. Amber marks CHANGED and the armed
+   REPLACE? state, like the preset library. */
+.HPColorsSaveToOption {
+  height: 50px;
+  padding: 0px 8px 0px 14px;
+  transition-property: opacity;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsSaveToOption:hover,
+.HPColorsSaveToOption:focus {
+  brightness: 1;
+  border-left: 2px solid #ffefd714;
+}
+
+.HPColorsSaveToOption.Changed {
+  border-left: 2px solid #e7c77d;
+}
+
+.HPColorsSaveToOption.Confirming {
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(#e7c77d26), to(#e7c77d08));
+  border-left: 2px solid #e7c77d;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionName {
+  width: fill-parent-flow(1);
+  text-overflow: shrink;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionScope {
+  width: 210px;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #5fe69e;
+  text-align: right;
+  text-overflow: shrink;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionTag {
+  width: 76px;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #e7c77d;
+  text-align: right;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionMessage {
+  width: fill-parent-flow(1);
+  font-size: 12px;
+  color: #e7c77d;
+  text-overflow: shrink;
+  visibility: collapse;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionName,
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionScope,
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionTag {
+  visibility: collapse;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionMessage {
+  visibility: visible;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToRowSave {
+  min-width: 88px;
+  margin-left: 8px;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToRowSave Label {
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToRowSave {
+  background-color: #e7c77d24;
+  border: 1px solid #e7c77d;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToRowSave Label {
+  color: #e7c77d;
+}
+
+.HPColorsSaveToDialog .HPColorsTransferFeedback {
+  color: #e7c77d;
+}
+
+.HPColorsSaveToDialog.Error .HPColorsTransferFeedback {
+  color: #e16161;
 }
 
 .HPColorsPresetSaveControls {

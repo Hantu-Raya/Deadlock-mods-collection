@@ -33,6 +33,12 @@
     ability_observe: true,
   };
   var FORGET_CONFIRM_SEC = 4;
+  var SAVE_TO_CONFIRM_SEC = 4;
+  // Header notes stay 1.25 s; the save notes carry an instruction to read, so
+  // they stay a little longer.
+  var RESET_FEEDBACK_SEC = 1.25;
+  var SAVE_TO_FEEDBACK_SEC = 3;
+  var SAVE_TO_EMPTY_TEXT = "No presets yet. NEW PRESET saves your settings as one.";
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
@@ -90,7 +96,7 @@
           name: "BAR",
           title: "ENEMY BAR",
           description:
-            "Turn enemy bar colors on, show or hide enemy bars, pick fixed or gradient low/mid/high colors, and set ghoul bar opacity.",
+            "Turn enemy bar colors on, show or hide enemy bars, and pick fixed or gradient low/mid/high colors.",
           pageId: "HPColorsSettingsEnemyBar",
           keys: [
             "enemyEnabled",
@@ -100,8 +106,6 @@
             "enemyMid",
             "enemyHigh",
             "enemyTeamHigh",
-            "ghoulOpacityEnabled",
-            "ghoulOpacity",
           ],
         },
         {
@@ -371,7 +375,6 @@
     { id: "HPColorsAllyVisibleToggle", key: "allyVisible" },
     { id: "HPColorsEnemyTeamHighToggle", key: "enemyTeamHigh" },
     { id: "HPColorsAllyTeamHighToggle", key: "allyTeamHigh" },
-    { id: "HPColorsGhoulOpacityToggle", key: "ghoulOpacityEnabled" },
     { id: "HPColorsReadoutToggle", key: "readoutVisible" },
     {
       id: "HPColorsReadoutMaxTeamColorToggle",
@@ -633,7 +636,6 @@
       min: -200,
       max: 200,
     },
-    { base: "HPColorsGhoulOpacity", key: "ghoulOpacity", min: 0, max: 100 },
     { base: "HPColorsReadoutSize", key: "readoutSize", min: 72, max: 320 },
     {
       base: "HPColorsReadoutOffsetX",
@@ -853,7 +855,9 @@
     "scopeDialogMessage presetScopeHelp presetGuide presetGuideToggleLabel " +
     "presetGuideToggle presetGuideText presetSourceRow presetSaveAsNewButton " +
     "exitDialog exitDialogTitle exitDialogMessage exitFeedback " +
-    "exitBackdrop exitSaveButton exitReviewButton exitDiscardButton"
+    "exitBackdrop exitSaveButton exitReviewButton exitDiscardButton " +
+    "saveToPresetButton saveToDialog saveToBackdrop saveToOptions " +
+    "saveToFeedback saveToNewButton saveToCloseButton"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -1062,6 +1066,13 @@
     exitSaveButton: null,
     exitReviewButton: null,
     exitDiscardButton: null,
+    saveToPresetButton: null,
+    saveToDialog: null,
+    saveToBackdrop: null,
+    saveToOptions: null,
+    saveToFeedback: null,
+    saveToNewButton: null,
+    saveToCloseButton: null,
     storeForgetButton: null,
     storeForgetLabel: null,
     resetDialog: null,
@@ -1137,6 +1148,11 @@
   var exitDialogSourceId = "";
   var presetTransferRequest = 0;
   var transferRequest = 0;
+  // SAVE TO PRESET: the row armed for replacement, and a generation that turns
+  // every older auto-disarm timer into a no-op.
+  var saveToArmedId = "";
+  var saveToGeneration = 0;
+  var saveToRows = [];
 
   function isValid(panel) {
     try {
@@ -3073,8 +3089,12 @@
   // import, or navigation change. Rows are not rebuilt, so focus and typed
   // names stay. Badge precedence per row: EDITING > CHANGED > ACTIVE.
   function refreshPresetActivity(view) {
-    if (!isValid(ui.presetOptions)) return;
     if (!view) view = currentView();
+    // SAVE TO PRESET steps aside while the name form is open (two save
+    // surfaces at once), and an open dialog follows the current source.
+    setEnabled(ui.saveToPresetButton, !presetFormOpen);
+    refreshSaveToRows(view);
+    if (!isValid(ui.presetOptions)) return;
     var repository = view && view.repository ? view.repository : null;
     if (!repository) return;
     var source = repository.sourceState || null;
@@ -3155,6 +3175,268 @@
         presetDisplayName(preset).toUpperCase() +
         ".",
       false,
+    );
+    return true;
+  }
+
+  // SAVE TO PRESET (footer): pick a saved preset to replace with the settings
+  // on screen, or save them as a new All Heroes preset. Saving never changes
+  // a preset's HEROES, and the saved preset is applied so it owns the screen.
+
+  function saveToDialogOpen() {
+    return isValid(ui.saveToDialog) && ui.saveToDialog.BHasClass("Open");
+  }
+
+  function setSaveToFeedback(text, isError) {
+    setText(ui.saveToFeedback, text || "");
+    setClass(ui.saveToDialog, "Error", !!isError);
+  }
+
+  function userPresetRows(view) {
+    var rows =
+      view && view.repository && view.repository.allRows
+        ? view.repository.allRows
+        : [];
+    var result = [];
+    for (var index = 0; index < rows.length; index++)
+      if (rows[index].kind === "user") result.push(rows[index]);
+    return result;
+  }
+
+  // The first All Heroes preset is the one hero presets inherit from, so
+  // replacing it changes every hero preset too.
+  function saveToConfirmText(preset, presets) {
+    var baseId = "";
+    var hasHeroPreset = false;
+    for (var index = 0; index < presets.length; index++) {
+      if (!baseId && presets[index].mode === HERO_SCOPE_ALL)
+        baseId = presets[index].id;
+      if (scopeUsesHeroes(presets[index].mode)) hasHeroPreset = true;
+    }
+    return (
+      "CLICK AGAIN TO REPLACE " +
+      presetDisplayName(preset).toUpperCase() +
+      (hasHeroPreset && baseId === preset.id
+        ? " · ALSO CHANGES HERO PRESETS"
+        : "")
+    );
+  }
+
+  function applySaveToRows(view) {
+    var presets = userPresetRows(view);
+    var source = changedSourcePreset(view);
+    var changedId = source ? source.id : "";
+    for (var index = 0; index < saveToRows.length; index++) {
+      var entry = saveToRows[index];
+      var preset = null;
+      for (var found = 0; found < presets.length; found++) {
+        if (presets[found].id === entry.id) {
+          preset = presets[found];
+          break;
+        }
+      }
+      var armed = !!preset && entry.id === saveToArmedId;
+      var changed = !!preset && entry.id === changedId;
+      setClass(entry.row, "Confirming", armed);
+      setClass(entry.row, "Changed", changed);
+      setText(entry.tag, changed ? "CHANGED" : "");
+      setText(entry.message, armed ? saveToConfirmText(preset, presets) : "");
+      setText(entry.saveLabel, armed ? "REPLACE?" : "SAVE");
+    }
+  }
+
+  function refreshSaveToRows(view) {
+    if (!saveToRows.length || !saveToDialogOpen()) return;
+    applySaveToRows(view || currentView());
+  }
+
+  function createSaveToRow(preset, index, heroes) {
+    var row = $.CreatePanel(
+      "Panel",
+      ui.saveToOptions,
+      "HPColorsSaveToOption" + index,
+    );
+    if (!isValid(row)) return;
+    row.AddClass("HPColorsHeroOption");
+    row.AddClass("HPColorsSaveToOption");
+    row.SetAttributeString("hp_colors_save_to_id", preset.id);
+    var name = $.CreatePanel("Label", row, "HPColorsSaveToOptionName" + index);
+    var scope = $.CreatePanel("Label", row, "HPColorsSaveToOptionScope" + index);
+    var tag = $.CreatePanel("Label", row, "HPColorsSaveToOptionTag" + index);
+    var message = $.CreatePanel(
+      "Label",
+      row,
+      "HPColorsSaveToOptionMessage" + index,
+    );
+    if (!isValid(name) || !isValid(scope) || !isValid(tag) || !isValid(message))
+      return;
+    name.AddClass("HPColorsSaveToOptionName");
+    scope.AddClass("HPColorsSaveToOptionScope");
+    tag.AddClass("HPColorsSaveToOptionTag");
+    message.AddClass("HPColorsSaveToOptionMessage");
+    name.text = presetDisplayName(preset);
+    scope.text = presetScopeSummary(preset, heroes);
+    // Only the row's own SAVE button acts; the row body is inert.
+    var saveId = "HPColorsSaveToRowSave" + index;
+    var save = createPresetRowAction(
+      row,
+      saveId,
+      "HPColorsSaveToRowSave",
+      "SAVE",
+      true,
+      function () {
+        requestSaveToPreset(preset.id);
+      },
+    );
+    var saveLabel = findChild(save, saveId + "Label");
+    if (!isValid(save) || !isValid(saveLabel)) return;
+    saveToRows.push({
+      id: preset.id,
+      row: row,
+      tag: tag,
+      message: message,
+      saveLabel: saveLabel,
+    });
+  }
+
+  // Rebuilt on every open, so a reopened dialog is always unarmed.
+  function renderSaveToOptions() {
+    saveToRows = [];
+    if (!isValid(ui.saveToOptions)) return;
+    try {
+      ui.saveToOptions.RemoveAndDeleteChildren();
+    } catch {}
+    var view = currentView();
+    var heroes = view && view.heroes ? view.heroes : [];
+    var presets = userPresetRows(view);
+    for (var index = 0; index < presets.length; index++)
+      createSaveToRow(presets[index], index, heroes);
+    setSaveToFeedback(presets.length ? "" : SAVE_TO_EMPTY_TEXT, false);
+    applySaveToRows(view);
+  }
+
+  function disarmSaveTo() {
+    saveToGeneration += 1;
+    if (!saveToArmedId) return;
+    saveToArmedId = "";
+    refreshSaveToRows();
+  }
+
+  // Arming waits SAVE_TO_CONFIRM_SEC for the second click. The timer only
+  // disarms, and only the arm that scheduled it: it can never save.
+  function armSaveTo(id) {
+    saveToArmedId = id;
+    saveToGeneration += 1;
+    var generation = saveToGeneration;
+    refreshSaveToRows();
+    try {
+      $.Schedule(SAVE_TO_CONFIRM_SEC, function () {
+        if (generation === saveToGeneration) disarmSaveTo();
+      });
+    } catch {}
+  }
+
+  function openSaveToDialog() {
+    if (!isValid(ui.saveToDialog)) return;
+    if (panelHasClass(ui.saveToPresetButton, "Disabled")) return;
+    closeTransferDialog();
+    closePresetTransferDialog();
+    closeHeroDialog();
+    closeScopeDialog();
+    closePrecisePipsDialog();
+    closePicker();
+    disarmSaveTo();
+    renderSaveToOptions();
+    setClass(ui.saveToDialog, "Open", true);
+    focus(ui.saveToDialog);
+  }
+
+  function closeSaveToDialog(restoreFocus) {
+    disarmSaveTo();
+    if (!saveToDialogOpen()) return;
+    setClass(ui.saveToDialog, "Open", false);
+    setSaveToFeedback("", false);
+    if (restoreFocus !== false && state.open) focus(ui.saveToPresetButton);
+  }
+
+  function saveToTargetGone() {
+    disarmSaveTo();
+    renderSaveToOptions();
+    setSaveToFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+    return false;
+  }
+
+  // The saved preset becomes the one on screen: apply it, then tell the
+  // player with a short header note. Saving itself is not undoable; the
+  // apply is.
+  function finishSaveTo(id, note) {
+    closeSaveToDialog(true);
+    dismissDeleteConfirmation();
+    presetReplaceConfirm = null;
+    renderPresetOptions();
+    requestPresetApplication(id, true);
+    showResetFeedback(note, SAVE_TO_FEEDBACK_SEC);
+  }
+
+  // First SAVE click arms the row; a second click on the same row saves. The
+  // target is re-read every time, never trusted from the earlier click.
+  function requestSaveToPreset(id) {
+    var preset = findPresetRecord(String(id || ""));
+    if (!preset || preset.kind !== "user") return saveToTargetGone();
+    if (saveToArmedId !== preset.id) {
+      setSaveToFeedback("", false);
+      armSaveTo(preset.id);
+      return true;
+    }
+    var result = sendState({ type: "preset_save_to", id: preset.id });
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
+      disarmSaveTo();
+      setSaveToFeedback(
+        "COULD NOT SAVE " +
+          presetDisplayName(preset).toUpperCase() +
+          ". NOTHING CHANGED.",
+        true,
+      );
+      return false;
+    }
+    finishSaveTo(preset.id, "SAVED TO " + chipPresetName(preset) + ".");
+    return true;
+  }
+
+  // The auto name is PRESET N from the state's next number, skipping any
+  // preset already named that (case does not matter).
+  function nextAutoPresetName(view) {
+    var repository = view && view.repository ? view.repository : null;
+    var rows = repository && repository.allRows ? repository.allRows : [];
+    var taken = [];
+    for (var index = 0; index < rows.length; index++)
+      taken.push(presetDisplayName(rows[index]).toUpperCase());
+    var number = Math.max(
+      1,
+      Math.floor(Number(repository && repository.nextUserNumber) || 1),
+    );
+    while (taken.indexOf("PRESET " + String(number)) >= 0) number += 1;
+    return "PRESET " + String(number);
+  }
+
+  // + NEW PRESET (ALL HEROES): the settings on screen become a new preset for
+  // all heroes. HEROES are set later on the PRESETS page.
+  function saveToNewPreset() {
+    var name = nextAutoPresetName(currentView());
+    var deselected = sendState({ type: "preset_select", id: null });
+    var result =
+      deselected && deselected.outcome && deselected.outcome.status !== "rejected"
+        ? sendState({ type: "preset_save", name: name, allHeroes: true })
+        : null;
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
+      setSaveToFeedback("COULD NOT CREATE " + name + ". NOTHING CHANGED.", true);
+      return false;
+    }
+    var savedId =
+      result.view && result.view.repository ? result.view.repository.selectedId : "";
+    finishSaveTo(
+      savedId,
+      "SAVED AS " + name + ". SET ITS HEROES ON PRESETS.",
     );
     return true;
   }
@@ -3763,6 +4045,13 @@
   };
   var CHIP_NAME_LIMIT = 16;
 
+  function chipPresetName(preset) {
+    var name = presetDisplayName(preset).toUpperCase();
+    if (name.length > CHIP_NAME_LIMIT)
+      name = name.slice(0, CHIP_NAME_LIMIT - 1) + "…";
+    return name;
+  }
+
   function presetChipState() {
     var view = currentView();
     var repository = view && view.repository ? view.repository : null;
@@ -3772,9 +4061,7 @@
     var changed = !!(preset && !source.matches);
     if (!preset) preset = findPresetRecord(repository.activeId || "");
     if (!preset) return { text: "NOT SAVED TO A PRESET", changed: true };
-    var name = presetDisplayName(preset).toUpperCase();
-    if (name.length > CHIP_NAME_LIMIT)
-      name = name.slice(0, CHIP_NAME_LIMIT - 1) + "…";
+    var name = chipPresetName(preset);
     return {
       text: "PRESET: " + name + (changed ? " · CHANGED" : ""),
       changed: changed,
@@ -3794,6 +4081,9 @@
         : null;
     setClass(ui.liveStatus, "StoreWarning", warning);
     setClass(ui.liveStatus, "PresetChanged", !!(chip && chip.changed));
+    // The footer SAVE TO PRESET glows while the preset these settings came
+    // from has unsaved changes. Rewrite Default and unsaved settings do not.
+    setClass(ui.saveToPresetButton, "Unsaved", !!changedSourcePreset());
     setEnabled(ui.storeForgetButton, canForget());
     if (
       isValid(ui.liveStatus) &&
@@ -3889,13 +4179,13 @@
     scheduleSnapshotReplay(replayGeneration);
   }
 
-  function showResetFeedback(text) {
+  function showResetFeedback(text, seconds) {
     resetFeedbackGeneration += 1;
     var generation = resetFeedbackGeneration;
     resetFeedbackText = text || "";
     renderStoreStatus();
     try {
-      $.Schedule(1.25, function () {
+      $.Schedule(seconds || RESET_FEEDBACK_SEC, function () {
         if (generation !== resetFeedbackGeneration) return;
         resetFeedbackText = "";
         renderStoreStatus();
@@ -4716,14 +5006,6 @@
   }
 
   function syncControlDependencies(values) {
-    var ghoulOpacityActive = values.ghoulOpacityEnabled;
-    syncDependentRow(
-      "HPColorsGhoulOpacityRow",
-      ghoulOpacityActive,
-      "HPColorsGhoulOpacitySlider",
-      "HPColorsGhoulOpacityEntry",
-    );
-
     var enemyStaminaColorActive = values.enemyStaminaColorEnabled;
     syncDependentRow(
       "HPColorsEnemyStaminaColorRow",
@@ -4953,6 +5235,7 @@
     closePicker();
     closeHeroDialog();
     closeScopeDialog();
+    closeSaveToDialog(false);
     state.peeking = true;
     setClass(ui.editorRoot, "Peeking", true);
     focus(ui.peekCapture);
@@ -4964,6 +5247,7 @@
     closeSupporterTicker();
     if (!state.open) return;
     closeExitDialog(false);
+    closeSaveToDialog(false);
     closeResetDialog(false);
     closeConditionEditor();
     showResetFeedback("");
@@ -5105,6 +5389,10 @@
     // Escape inside the exit prompt dismisses it; it never confirms.
     if (exitDialogOpen()) {
       closeExitDialog(true);
+      return true;
+    }
+    if (saveToDialogOpen()) {
+      closeSaveToDialog(true);
       return true;
     }
     if (picker.key) {
@@ -5358,6 +5646,17 @@
     setPanelEvent(ui.menuButton, "onactivate", requestOpen);
     setPanelEvent(ui.storeForgetButton, "onactivate", requestForget);
     setPanelEvent(ui.doneButton, "onactivate", requestCloseEditor);
+    setPanelEvent(ui.saveToPresetButton, "onactivate", openSaveToDialog);
+    setPanelEvent(ui.saveToNewButton, "onactivate", saveToNewPreset);
+    setPanelEvent(ui.saveToCloseButton, "onactivate", function () {
+      closeSaveToDialog(true);
+    });
+    setPanelEvent(ui.saveToBackdrop, "onactivate", function () {
+      closeSaveToDialog(true);
+    });
+    setPanelEvent(ui.saveToDialog, "oncancel", function () {
+      closeSaveToDialog(true);
+    });
     setPanelEvent(ui.exitSaveButton, "onactivate", exitSaveAndClose);
     setPanelEvent(ui.exitReviewButton, "onactivate", exitReviewPresets);
     setPanelEvent(ui.exitDiscardButton, "onactivate", exitWithoutSaving);

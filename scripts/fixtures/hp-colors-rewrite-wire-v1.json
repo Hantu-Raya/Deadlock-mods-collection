@@ -794,8 +794,8 @@
       "type": "boolean",
       "bounds": null,
       "enum": null,
-      "retired": false,
-      "conditionEligible": true
+      "retired": true,
+      "conditionEligible": false
     },
     {
       "slot": 69,
@@ -807,8 +807,8 @@
         100
       ],
       "enum": null,
-      "retired": false,
-      "conditionEligible": true
+      "retired": true,
+      "conditionEligible": false
     },
     {
       "slot": 70,

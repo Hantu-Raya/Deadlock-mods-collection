@@ -202,6 +202,7 @@ function makeStatusFixture(
   isPlayer = false,
   staminaStockStyles = null,
   barStockStyles = null,
+  extraClasses = [],
 ) {
   values = { ...values };
   if (values.enemyColor) {
@@ -230,6 +231,7 @@ function makeStatusFixture(
             ? ['team_neutral']
             : [];
   if (isPlayer) classes.push('player');
+  classes.push(...extraClasses);
   const root = harness.root;
   let siblingCounter = null;
   let siblingFill = null;
@@ -1642,6 +1644,44 @@ test('v2 clears ultimate background opacity when customization turns off', () =>
   assert.equal(fixture.healthbar.style.maxWidth, '');
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
   assert.equal(fixture.healthbar.style.transformOrigin, '');
+});
+
+test('v2 ignores retired ghoul opacity: a creature bar follows the normal bar settings', () => {
+  const retired = { ghoulOpacityEnabled: true, ghoulOpacity: 35 };
+  const fixture = makeStatusFixture(
+    'enemy',
+    { enabled: true, enemyColor: '#123456', ...retired },
+    1,
+    "|'",
+    false,
+    false,
+    false,
+    false,
+    null,
+    null,
+    ['creature'],
+  );
+  assert.equal(fixture.healthbar.style.opacity, '1');
+  assert.equal(fixture.infoBg.style.opacity, '1');
+
+  dispatchColorSnapshot(fixture, 2, {
+    enabled: true,
+    enemyColor: '#123456',
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: 0,
+  });
+  assert.equal(fixture.healthbar.style.opacity, '1');
+  assert.equal(fixture.infoBg.style.opacity, '1');
+
+  // Hiding enemy bars is still the only thing that dims a creature bar.
+  dispatchColorSnapshot(fixture, 3, {
+    enabled: true,
+    enemyColor: '#123456',
+    enemyVisible: false,
+    ...retired,
+  });
+  assert.equal(fixture.healthbar.style.opacity, '0.01');
+  assert.equal(fixture.infoBg.style.opacity, '0.01');
 });
 
 test('v2 color pulse still dims the live healthbar fill', () => {

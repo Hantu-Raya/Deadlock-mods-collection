@@ -97,6 +97,7 @@
   var isStringValue = settingsContract.isStringValue;
   var isBooleanValue = settingsContract.isBooleanValue;
   var validateSettingValue = settingsContract.validateSettingValue;
+  var RETIRED_CONDITION_KEYS = settingsContract.retiredConditionKeys || {};
 
   function isObjectValue(value) {
     var tag;
@@ -278,6 +279,31 @@
   function presetConditionsAreValid(source, normalized) {
     if (source === undefined || source === null) return normalized === null;
     return conditionsAreValid(source, normalized, false);
+  }
+
+  // Ability rules for retired settings come from older saves and share codes.
+  // Drop them quietly; any other unknown key still fails validation.
+  function dropRetiredConditions(source) {
+    if (!source || !isObjectValue(source) || Array.isArray(source)) return source;
+    var kept = {};
+    var dropped = false;
+    var key;
+    for (key in source) {
+      if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+      if (RETIRED_CONDITION_KEYS[key] === true) dropped = true;
+      else kept[key] = source[key];
+    }
+    return dropped ? kept : source;
+  }
+
+  // A preset whose only rules were retired ones has no rules left at all.
+  function dropRetiredPresetConditions(source) {
+    var kept = dropRetiredConditions(source);
+    if (kept === source) return source;
+    for (var key in kept) {
+      if (Object.prototype.hasOwnProperty.call(kept, key)) return kept;
+    }
+    return null;
   }
 
   function normalizeScopeRecord(source) {
@@ -671,8 +697,9 @@
         if (extension.error) return extension;
       }
       pairs = payload.v;
-      conditions = filterConditions(payload.c, false);
-      if (!conditionsAreValid(payload.c, conditions, true))
+      var payloadConditions = dropRetiredConditions(payload.c);
+      conditions = filterConditions(payloadConditions, false);
+      if (!conditionsAreValid(payloadConditions, conditions, true))
         return { error: "INVALID HPCR2 CONDITIONS" };
       hasConditions = true;
     }
@@ -822,8 +849,9 @@
           return { error: "INVALID PRESET HEROES" };
       }
       var mode = String(source.mode || "");
-      var conditions = nullableConditions(source.conditions, false);
-      if (!presetConditionsAreValid(source.conditions, conditions))
+      var sourceConditions = dropRetiredPresetConditions(source.conditions);
+      var conditions = nullableConditions(sourceConditions, false);
+      if (!presetConditionsAreValid(sourceConditions, conditions))
         return { error: "INVALID PRESET CONDITIONS" };
       conditions = mergeConditions(conditions, extension.conditions);
       if (kind === "baked") {
@@ -2355,12 +2383,15 @@
     function handlePresetSave(intent) {
       var name = String(intent.name || "").replace(/^\s+|\s+$/g, "");
       if (!name || name.length > 48) return reject("preset_save", "INVALID_PRESET_NAME");
+      // allHeroes always makes a new All Heroes preset, whatever Current or the
+      // selection say, so it can never rewrite an existing preset's HEROES.
+      var allHeroes = intent.allHeroes === true;
       var current = currentScopeRow();
-      var mode = current && scopeUsesHeroes(current.mode)
+      var mode = !allHeroes && current && scopeUsesHeroes(current.mode)
         ? current.mode
         : HERO_SCOPE_ALL;
       var selected = findPreset(state.selectedPresetId);
-      var updating = selected && selected.kind === "user";
+      var updating = !allHeroes && selected && selected.kind === "user";
       var id = updating ? selected.id : formatUserPresetId(state.nextUserPresetNumber);
       var preset = normalizePresetRecord({
         id: id,
@@ -2368,7 +2399,7 @@
         values: editableValues(),
         conditions: editableConditions(),
         mode: mode,
-        heroes: current ? current.heroes : [],
+        heroes: !allHeroes && current ? current.heroes : [],
         own: scopeUsesHeroes(mode)
           ? changedOwnKeys(editableValues(), layerBase())
           : undefined,
@@ -2396,6 +2427,40 @@
         refreshLayeredCurrent(oldBase);
         return true;
       }, { code: updating ? "PRESET_UPDATED" : "PRESET_SAVED" });
+    }
+
+    // SAVE TO PRESET: writes the live settings into an existing user preset and
+    // keeps that preset's id, name, and HEROES. preset_save takes mode and
+    // HEROES from Current, so it cannot be used for this.
+    function handlePresetSaveTo(intent) {
+      var target = typeof intent.id === "string" ? findPreset(intent.id) : null;
+      if (!target || target.kind !== "user")
+        return reject("preset_save_to", "PRESET_NOT_FOUND");
+      var preset = normalizePresetRecord({
+        id: target.id,
+        name: target.name,
+        values: editableValues(),
+        conditions: editableConditions(),
+        mode: target.mode,
+        heroes: target.heroes,
+        own: scopeUsesHeroes(target.mode)
+          ? changedOwnKeys(editableValues(), layerBase())
+          : undefined,
+      }, "user");
+      if (!preset) return reject("preset_save_to", "INVALID_PRESET");
+      return commit("preset_save_to", function () {
+        var oldBase = layerBase();
+        var index;
+        for (index = 0; index < state.userPresets.length; index++) {
+          if (state.userPresets[index].id === preset.id) {
+            state.userPresets[index] = preset;
+            break;
+          }
+        }
+        state.selectedPresetId = preset.id;
+        refreshLayeredCurrent(oldBase);
+        return true;
+      }, { code: "PRESET_UPDATED" });
     }
 
     function handlePresetApply(intent) {
@@ -2684,6 +2749,7 @@
           case "condition_remove": return handleConditionRemove(intent);
           case "preset_select": return handlePresetSelect(intent);
           case "preset_save": return handlePresetSave(intent);
+          case "preset_save_to": return handlePresetSaveTo(intent);
           case "preset_apply": return handlePresetApply(intent);
           case "preset_rename": return handlePresetRename(intent);
           case "preset_move": return handlePresetMove(intent);
