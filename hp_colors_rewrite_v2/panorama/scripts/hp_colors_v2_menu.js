@@ -3688,8 +3688,15 @@
 
   // Forget removes only this mod's two keys. Live settings stay; the next
   // deliberate edit saves again because the kept body is recorded as acked.
+  // It also works while saving is blocked, so a save this build cannot read
+  // (say, from a newer version) can still be removed on purpose.
+  function canForget() {
+    return !!storage && !persist.forgetting &&
+      (persist.gate === "open" || persist.gate === "blocked");
+  }
+
   function requestForget() {
-    if (!storage || persist.gate !== "open" || persist.forgetting) {
+    if (!canForget()) {
       renderStoreStatus();
       return;
     }
@@ -3720,6 +3727,8 @@
         persist.failures = 0;
         persist.lastError = "";
         markSaved(keptHash, "forgotten");
+        // The store is empty now, so nothing unreadable is left to protect.
+        if (persist.gate === "blocked") setGate("open");
         showResetFeedback("SAVE CLEARED");
       } else {
         storeLog("forget failed: " + String(result && result.error));
@@ -3785,7 +3794,7 @@
         : null;
     setClass(ui.liveStatus, "StoreWarning", warning);
     setClass(ui.liveStatus, "PresetChanged", !!(chip && chip.changed));
-    setEnabled(ui.storeForgetButton, !!storage && persist.gate === "open");
+    setEnabled(ui.storeForgetButton, canForget());
     if (
       isValid(ui.liveStatus) &&
       ui.liveStatus.GetAttributeString &&
