@@ -53,6 +53,7 @@
   var HERO_MODE_OFF = "off";
   var HERO_SCOPE_ALL = "all";
   var HERO_SCOPE_SELECTED = "selected";
+  var HERO_SCOPE_EXCEPT = "except";
   var HERO_PHASE_TRANSITIONING = "transitioning";
   var HERO_PHASE_LOBBY = "lobby";
   var HERO_PHASE_HIDEOUT = "hideout";
@@ -847,7 +848,8 @@
   var OPTIONAL_UI_PANEL_KEYS = (
     "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
     "pickerSaturationValue pickerLightnessValue storeForgetButton " +
-    "storeForgetLabel presetHiddenRow"
+    "storeForgetLabel presetHiddenRow currentScopeExcept scopeDialogTitle " +
+    "scopeDialogMessage"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -1019,6 +1021,9 @@
     heroCloseButton: null,
     currentScopeAll: null,
     currentScopeSelected: null,
+    currentScopeExcept: null,
+    scopeDialogTitle: null,
+    scopeDialogMessage: null,
     currentScopeSummary: null,
     scopeDialog: null,
     scopeSearch: null,
@@ -1105,6 +1110,8 @@
     returnPanel: null,
   };
   var scopeOptionPanels = [];
+  var scopeDialogMode = HERO_SCOPE_SELECTED;
+  var scopeDialogOpener = null;
   var syncingControls = false;
   var presetDeleteConfirmId = "";
   var presetInlineRenameId = "";
@@ -1883,13 +1890,19 @@
     return view && view.currentScope ? view.currentScope : null;
   }
 
+  function scopeUsesHeroes(mode) {
+    return mode === HERO_SCOPE_SELECTED || mode === HERO_SCOPE_EXCEPT;
+  }
+
   function setCurrentScopeMode(mode) {
-    if (mode !== HERO_SCOPE_ALL && mode !== HERO_SCOPE_SELECTED) return;
+    if (mode !== HERO_SCOPE_ALL && !scopeUsesHeroes(mode)) return;
     var row = currentScopeRow();
     sendState({
       type: "scope_set",
       mode: mode,
-      heroes: mode === HERO_SCOPE_SELECTED && row ? row.heroes : [],
+      heroes: scopeUsesHeroes(mode) && row && row.mode === mode
+        ? row.heroes
+        : [],
     });
     renderPresetOptions();
     syncControls();
@@ -1908,7 +1921,10 @@
     }
     if (!known) return;
     var row = currentScopeRow();
-    var selected = row && row.mode === HERO_SCOPE_SELECTED
+    var mode = scopeUsesHeroes(scopeDialogMode)
+      ? scopeDialogMode
+      : HERO_SCOPE_SELECTED;
+    var selected = row && row.mode === mode
       ? row.heroes.slice(0)
       : [];
     var found = selected.indexOf(heroKey) >= 0;
@@ -1918,7 +1934,7 @@
     if (!found) next.push(heroKey);
     sendState({
       type: "scope_set",
-      mode: next.length ? HERO_SCOPE_SELECTED : HERO_SCOPE_ALL,
+      mode: next.length ? mode : HERO_SCOPE_ALL,
       heroes: next,
     });
     renderPresetOptions();
@@ -1946,8 +1962,8 @@
     var view = currentView();
     var row = view && view.currentScope ? view.currentScope : null;
     var mode =
-      row && row.mode === HERO_SCOPE_SELECTED
-        ? HERO_SCOPE_SELECTED
+      row && scopeUsesHeroes(row.mode)
+        ? row.mode
         : HERO_SCOPE_ALL;
     setClass(ui.currentScopeAll, "Selected", mode === HERO_SCOPE_ALL);
     setClass(
@@ -1955,13 +1971,24 @@
       "Selected",
       mode === HERO_SCOPE_SELECTED,
     );
-    var summary = "ALL HEROES";
-    if (mode === HERO_SCOPE_SELECTED && row) {
-      var names = [];
-      for (var index = 0; index < row.heroes.length; index++)
-        names.push(heroDisplayName(row.heroes[index], view.heroes));
-      summary = names.join(", ");
-    }
+    if (isValid(ui.currentScopeExcept))
+      setClass(ui.currentScopeExcept, "Selected", mode === HERO_SCOPE_EXCEPT);
+    var dialogExcept = scopeDialogMode === HERO_SCOPE_EXCEPT;
+    if (isValid(ui.scopeDialogTitle))
+      setText(
+        ui.scopeDialogTitle,
+        dialogExcept ? "SKIP THESE HEROES" : "PICK HEROES",
+      );
+    if (isValid(ui.scopeDialogMessage))
+      setText(
+        ui.scopeDialogMessage,
+        dialogExcept
+          ? "These heroes won't get this preset by itself."
+          : "These heroes get this preset by itself.",
+      );
+    var summary = row
+      ? presetScopeSummary({ mode: mode, heroes: row.heroes }, view.heroes)
+      : "ALL HEROES";
     setText(ui.currentScopeSummary, summary);
     for (var optionIndex = 0; optionIndex < scopeOptionPanels.length; optionIndex++) {
       var option = scopeOptionPanels[optionIndex];
@@ -1972,12 +1999,18 @@
           "",
         );
       } catch {}
+      var listed =
+        !!row && row.mode === scopeDialogMode &&
+        row.heroes.indexOf(heroKey) >= 0;
       setClass(
         option,
         "Selected",
-        mode === HERO_SCOPE_SELECTED &&
-          row &&
-          row.heroes.indexOf(heroKey) >= 0,
+        listed && scopeDialogMode === HERO_SCOPE_SELECTED,
+      );
+      setClass(
+        option,
+        "Skipped",
+        listed && scopeDialogMode === HERO_SCOPE_EXCEPT,
       );
     }
   }
@@ -1985,10 +2018,14 @@
   function closeScopeDialog() {
     if (!isValid(ui.scopeDialog) || !ui.scopeDialog.BHasClass("Open")) return;
     setClass(ui.scopeDialog, "Open", false);
-    focus(ui.currentScopeSelected);
+    focus(isValid(scopeDialogOpener) ? scopeDialogOpener : ui.currentScopeSelected);
   }
 
-  function openScopeDialog() {
+  function openScopeDialog(mode) {
+    scopeDialogMode = mode === HERO_SCOPE_EXCEPT ? HERO_SCOPE_EXCEPT : HERO_SCOPE_SELECTED;
+    scopeDialogOpener = scopeDialogMode === HERO_SCOPE_EXCEPT
+      ? ui.currentScopeExcept
+      : ui.currentScopeSelected;
     closeTransferDialog();
     closeHeroDialog();
     closePicker();
@@ -2030,6 +2067,15 @@
           (heroName + " " + heroKey).toUpperCase(),
         );
         label.text = heroName;
+        var skipTag = $.CreatePanel(
+          "Label",
+          option,
+          "HPColorsScopeHeroOptionSkip" + optionIndex,
+        );
+        if (isValid(skipTag)) {
+          skipTag.AddClass("HPColorsScopeSkipTag");
+          skipTag.text = "SKIP";
+        }
         setPanelEvent(option, "onactivate", function () {
           toggleCurrentScopeHero(heroKey);
         });
@@ -2045,11 +2091,13 @@
 
   function presetScopeSummary(preset, heroes) {
     if (preset.mode === HERO_SCOPE_ALL) return "ALL HEROES";
-    if (preset.mode !== HERO_SCOPE_SELECTED) return "REWRITE DEFAULT";
+    if (!scopeUsesHeroes(preset.mode)) return "REWRITE DEFAULT";
     var names = [];
     for (var index = 0; index < preset.heroes.length; index++)
       names.push(heroDisplayName(preset.heroes[index], heroes));
-    return names.join(", ");
+    if (preset.mode === HERO_SCOPE_SELECTED) return names.join(", ");
+    return "ALL EXCEPT " + names.slice(0, 2).join(", ") +
+      (names.length > 2 ? " +" + String(names.length - 2) : "");
   }
 
   function createPresetRowAction(
@@ -2193,7 +2241,7 @@
           });
         }
         scope.text =
-          (preset.mode === HERO_SCOPE_SELECTED ? "AUTO  ·  " : "") +
+          (scopeUsesHeroes(preset.mode) ? "AUTO  ·  " : "") +
           presetScopeSummary(preset, heroes);
         status.text = editingPreset ? "EDITING" : active ? "ACTIVE" : "";
 
@@ -4879,7 +4927,13 @@
     setPanelEvent(ui.currentScopeAll, "onactivate", function () {
       setCurrentScopeMode(HERO_SCOPE_ALL);
     });
-    setPanelEvent(ui.currentScopeSelected, "onactivate", openScopeDialog);
+    setPanelEvent(ui.currentScopeSelected, "onactivate", function () {
+      openScopeDialog(HERO_SCOPE_SELECTED);
+    });
+    if (isValid(ui.currentScopeExcept))
+      setPanelEvent(ui.currentScopeExcept, "onactivate", function () {
+        openScopeDialog(HERO_SCOPE_EXCEPT);
+      });
     setPanelEvent(ui.scopeSearch, "ontextentrychange", filterScopeHeroOptions);
     setPanelEvent(ui.scopeCloseButton, "onactivate", closeScopeDialog);
     setPanelEvent(ui.scopeDialog, "oncancel", closeScopeDialog);
