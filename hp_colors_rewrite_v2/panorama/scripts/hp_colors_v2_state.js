@@ -73,10 +73,10 @@
   var settingsContract = $.HPColorsV2ContractFactory.create();
   delete $.HPColorsV2ContractFactory;
   var DEFAULTS = settingsContract.defaults;
-  var CODEC_DEFAULTS = settingsContract.codecDefaults || DEFAULTS;
+  var CODEC_DEFAULTS = settingsContract.codecDefaults;
   var DEFAULT_KEYS = settingsContract.keys;
-  var CODEC_KEYS = settingsContract.codecKeys || DEFAULT_KEYS;
-  var EXTENSION_KEYS = settingsContract.extensionKeys || [];
+  var CODEC_KEYS = settingsContract.codecKeys;
+  var EXTENSION_KEYS = settingsContract.extensionKeys;
   var EXTENSION_KEY_SET = {};
   var extensionKeyIndex;
   for (
@@ -97,7 +97,7 @@
   var isStringValue = settingsContract.isStringValue;
   var isBooleanValue = settingsContract.isBooleanValue;
   var validateSettingValue = settingsContract.validateSettingValue;
-  var RETIRED_CONDITION_KEYS = settingsContract.retiredConditionKeys || {};
+  var RETIRED_CONDITION_KEYS = settingsContract.retiredConditionKeys;
 
   function isObjectValue(value) {
     var tag;
@@ -373,8 +373,26 @@
     return result;
   }
 
-  function sameValue(left, right) {
-    return left === right || JSON.stringify(left) === JSON.stringify(right);
+  function valuesEqual(left, right) {
+    for (var i = 0; i < DEFAULT_KEYS.length; i++) {
+      if (left[DEFAULT_KEYS[i]] !== right[DEFAULT_KEYS[i]]) return false;
+    }
+    return true;
+  }
+
+  function conditionsEqual(left, right) {
+    for (var i = 0; i < DEFAULT_KEYS.length; i++) {
+      var a = left[DEFAULT_KEYS[i]];
+      var b = right[DEFAULT_KEYS[i]];
+      if (a === b) continue;
+      if (!a || !b || a.slot !== b.slot || a.minTier !== b.minTier || a.value !== b.value)
+        return false;
+    }
+    return true;
+  }
+
+  function isValidEpoch(epoch) {
+    return Number.isFinite(epoch) && Math.floor(epoch) === epoch && epoch >= 0;
   }
 
   // Base = first All Heroes user preset, else Rewrite Default.
@@ -391,7 +409,7 @@
     var index;
     for (index = 0; index < DEFAULT_KEYS.length; index++) {
       var key = DEFAULT_KEYS[index];
-      if (!sameValue(values[key], base[key])) result.push(key);
+      if (values[key] !== base[key]) result.push(key);
     }
     return result;
   }
@@ -940,6 +958,7 @@
   }
   freezeDeep(HERO_VIEW);
   var EMPTY_EFFECTS = Object.freeze([]);
+  var EMPTY_CONDITIONS = Object.freeze({});
 
   function parseRawState(raw) {
     var data = raw;
@@ -1091,14 +1110,19 @@
       return current ? current.values : state.values;
     }
 
+    function userPresetIndex(id) {
+      var index;
+      for (index = 0; index < state.userPresets.length; index++) {
+        if (state.userPresets[index].id === id) return index;
+      }
+      return -1;
+    }
+
     function findPreset(id) {
       var wanted = String(id || "");
       if (wanted === DEFAULT_PRESET_ID) return BAKED_PRESET;
-      var index;
-      for (index = 0; index < state.userPresets.length; index++) {
-        if (state.userPresets[index].id === wanted) return state.userPresets[index];
-      }
-      return null;
+      var index = userPresetIndex(wanted);
+      return index >= 0 ? state.userPresets[index] : null;
     }
 
     function layerBase() {
@@ -1117,14 +1141,35 @@
         return;
       var preset = findPreset(current.sourcePresetId);
       var newBase = layerBase();
-      if (!preset || !preset.own || sameValue(oldBase, newBase)) return;
-      if (!sameValue(current.values, resolvePresetValues(preset, oldBase))) return;
+      if (!preset || !preset.own || valuesEqual(oldBase, newBase)) return;
+      if (!valuesEqual(current.values, resolvePresetValues(preset, oldBase))) return;
       current.values = copyValues(resolvePresetValues(preset, newBase));
       state.restoredEffectivePending = false;
     }
 
     function isBakedHidden(id) {
       return state.hiddenBakedPresetIds.indexOf(id) >= 0;
+    }
+
+    function findVisiblePreset(id) {
+      var preset = findPreset(id);
+      return preset && (preset.kind !== "baked" || !isBakedHidden(preset.id))
+        ? preset
+        : null;
+    }
+
+    function buildUserPreset(id, name, mode, heroes) {
+      return normalizePresetRecord({
+        id: id,
+        name: name,
+        values: editableValues(),
+        conditions: editableConditions(),
+        mode: mode,
+        heroes: heroes,
+        own: scopeUsesHeroes(mode)
+          ? changedOwnKeys(editableValues(), layerBase())
+          : undefined,
+      }, "user");
     }
 
     function displayPresetName(preset) {
@@ -1195,10 +1240,7 @@
     }
 
     function refreshRequiredSlots() {
-      var next = computeRequiredSlots();
-      var changed = JSON.stringify(next) !== JSON.stringify(state.ability.requiredSlots);
-      state.ability.requiredSlots = next;
-      return changed;
+      state.ability.requiredSlots = computeRequiredSlots();
     }
 
     function materializeEffective() {
@@ -1219,9 +1261,7 @@
     function refreshEffective() {
       if (state.restoredEffectivePending) return false;
       var next = materializeEffective();
-      var before = JSON.stringify(state.effectiveValues);
-      var after = JSON.stringify(next);
-      if (before === after) return false;
+      if (valuesEqual(state.effectiveValues, next)) return false;
       state.effectiveValues = next;
       state.effectiveRevision += 1;
       return true;
@@ -1305,30 +1345,32 @@
       viewCache = null;
     }
 
-    function projectPreset(preset) {
-      return clonePreset(preset, displayPresetName(preset));
+    var rowCache = [];
+    function projectRow(record, index) {
+      var name = displayPresetName(record);
+      var cached = rowCache[index];
+      if (cached && cached.src === record && cached.name === name) return cached.row;
+      var row = freezeDeep(clonePreset(record, name));
+      rowCache[index] = { src: record, name: name, row: row };
+      return row;
     }
 
-    function presetMatchesCurrent(preset, current, currentBaseRaw) {
+    function presetMatchesCurrent(preset, current, base) {
       // Without a Current row the screen shows the base itself, so Rewrite
       // Default or an All Heroes preset equal to it is what is on screen.
       if (!current) {
         return (
           (preset.mode === HERO_SCOPE_OFF || preset.mode === HERO_SCOPE_ALL) &&
-          JSON.stringify({
-            values: preset.values,
-            conditions: normalizeConditions(preset.conditions),
-          }) === currentBaseRaw
+          valuesEqual(preset.values, state.values) &&
+          conditionsEqual(preset.conditions || EMPTY_CONDITIONS, state.conditions)
         );
       }
       if (preset.mode === HERO_SCOPE_OFF || current.mode !== preset.mode)
         return false;
       return (
         JSON.stringify(current.heroes) === JSON.stringify(preset.heroes) &&
-        JSON.stringify(current.values) ===
-          JSON.stringify(resolvePresetValues(preset, layerBase())) &&
-        JSON.stringify(current.conditions) ===
-          JSON.stringify(normalizeConditions(preset.conditions))
+        valuesEqual(current.values, resolvePresetValues(preset, base || layerBase())) &&
+        conditionsEqual(current.conditions, preset.conditions || EMPTY_CONDITIONS)
       );
     }
 
@@ -1337,18 +1379,18 @@
       var rows = [];
       var allRows = [];
       var activeId = null;
-      var currentBaseRaw = current ? "" : baseRaw();
+      var base = current ? layerBase() : null;
       var index;
       for (index = 0; index < records.length; index++) {
         var record = records[index];
-        var projected = projectPreset(record);
+        var projected = projectRow(record, index);
         allRows.push(projected);
         if (record.kind !== "baked" || !isBakedHidden(record.id))
           rows.push(projected);
         // ACTIVE is purely "matches what is on screen"; selection must not
         // hide a matching Rewrite Default, or the menu's unsaved-changes
         // guard would fire after COPY/DELETE/reorder in a fresh session.
-        if (!activeId && presetMatchesCurrent(record, current, currentBaseRaw))
+        if (!activeId && presetMatchesCurrent(record, current, base))
           activeId = record.id;
       }
       // Provenance plus equality for the menu's CHANGED row. Not derived from
@@ -1359,7 +1401,7 @@
         var source = findPreset(current.sourcePresetId);
         if (source && source.kind === "user") {
           sourceState.id = source.id;
-          sourceState.matches = presetMatchesCurrent(source, current, "");
+          sourceState.matches = presetMatchesCurrent(source, current, base);
         }
       }
       return {
@@ -1373,6 +1415,28 @@
       };
     }
 
+    function sameRows(a, b) {
+      if (a.length !== b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (a[i] !== b[i] && JSON.stringify(a[i]) !== JSON.stringify(b[i])) return false;
+      }
+      return true;
+    }
+    function sameRepository(a, b) {
+      var i;
+      if (
+        a.selectedId !== b.selectedId ||
+        a.activeId !== b.activeId ||
+        a.nextUserNumber !== b.nextUserNumber ||
+        a.sourceState.id !== b.sourceState.id ||
+        a.sourceState.matches !== b.sourceState.matches ||
+        a.hiddenBakedIds.length !== b.hiddenBakedIds.length
+      )
+        return false;
+      for (i = 0; i < a.hiddenBakedIds.length; i++)
+        if (a.hiddenBakedIds[i] !== b.hiddenBakedIds[i]) return false;
+      return sameRows(a.rows, b.rows) && sameRows(a.allRows, b.allRows);
+    }
     function makeView() {
       if (viewCache) return viewCache;
       var scopes = [];
@@ -1430,43 +1494,29 @@
         },
       };
       if (lastView) {
-        if (JSON.stringify(candidate.values) === JSON.stringify(lastView.values))
-          candidate.values = lastView.values;
-        if (
-          JSON.stringify(candidate.conditions) ===
-          JSON.stringify(lastView.conditions)
-        )
-          candidate.conditions = lastView.conditions;
-        if (
-          JSON.stringify(candidate.effectiveValues) ===
-          JSON.stringify(lastView.effectiveValues)
-        )
-          candidate.effectiveValues = lastView.effectiveValues;
-        if (JSON.stringify(candidate.scopes) === JSON.stringify(lastView.scopes))
-          candidate.scopes = lastView.scopes;
-        if (
-          JSON.stringify(candidate.currentScope) ===
-          JSON.stringify(lastView.currentScope)
-        )
-          candidate.currentScope = lastView.currentScope;
-        if (
-          JSON.stringify(candidate.identity) === JSON.stringify(lastView.identity)
-        )
-          candidate.identity = lastView.identity;
-        if (
-          JSON.stringify(candidate.ability) === JSON.stringify(lastView.ability)
-        )
-          candidate.ability = lastView.ability;
-        if (
-          JSON.stringify(candidate.repository) ===
-          JSON.stringify(lastView.repository)
-        )
-          candidate.repository = lastView.repository;
-        if (
-          JSON.stringify(candidate.transactions) ===
-          JSON.stringify(lastView.transactions)
-        )
-          candidate.transactions = lastView.transactions;
+        var fields = [
+          "values",
+          "conditions",
+          "effectiveValues",
+          "scopes",
+          "currentScope",
+          "identity",
+          "ability",
+          "repository",
+          "transactions",
+        ];
+        for (index = 0; index < fields.length; index++) {
+          var field = fields[index];
+          var fresh = candidate[field];
+          var previous = lastView[field];
+          var unchanged =
+            field === "values" || field === "effectiveValues"
+              ? valuesEqual(fresh, previous)
+              : field === "repository"
+                ? sameRepository(fresh, previous)
+                : JSON.stringify(fresh) === JSON.stringify(previous);
+          if (unchanged) candidate[field] = previous;
+        }
       }
       viewCache = freezeDeep(candidate);
       lastView = viewCache;
@@ -1520,14 +1570,15 @@
       };
     }
 
+    var sessionMemo = null;
     function commit(action, mutate, options) {
       var opts = options || {};
       var forceEffective = opts.forceEffective;
-      var beforeSession = sessionRaw();
+      var beforeSession = sessionMemo !== null ? sessionMemo : sessionRaw();
+      sessionMemo = null;
       var beforeIdentity = identitySignature();
       var beforeAbility = abilitySignature();
       var beforeTransactions = transactionSignature();
-      var beforeRevision = state.effectiveRevision;
       var extraEffects = [];
       var mutationResult = mutate() !== false;
       if (typeof forceEffective === "function")
@@ -1539,6 +1590,7 @@
         effectiveChanged = true;
       }
       var afterSession = sessionRaw();
+      sessionMemo = afterSession;
       var afterIdentity = identitySignature();
       var afterAbility = abilitySignature();
       var afterTransactions = transactionSignature();
@@ -1547,14 +1599,13 @@
         beforeSession !== afterSession ||
         beforeIdentity !== afterIdentity ||
         beforeAbility !== afterAbility ||
-        beforeTransactions !== afterTransactions ||
-        beforeRevision !== state.effectiveRevision;
+        beforeTransactions !== afterTransactions;
       if (opts.clipboard) {
         extraEffects.push(opts.clipboard);
         stateChanged = true;
       }
       if (opts.forceSession || forceEffective) stateChanged = true;
-      if (!stateChanged) return noop(action, opts.noopCode || "NO_CHANGE");
+      if (!stateChanged) return noop(action, "NO_CHANGE");
       state.transitionId += 1;
       invalidateView();
       var effects = [];
@@ -1573,6 +1624,18 @@
       var output = result("committed", action, opts.code, effects);
       output.outcome.transitionId = state.transitionId;
       return output;
+    }
+
+    // Preset mutations that can move the layer base keep an unedited hero
+    // Current in step with it; the refresh runs inside mutate, before the
+    // session signatures are taken.
+    function commitPresets(action, mutate, options) {
+      return commit(action, function () {
+        var oldBase = layerBase();
+        var mutated = mutate();
+        refreshLayeredCurrent(oldBase);
+        return mutated;
+      }, options);
     }
 
     function pushHistory(raw) {
@@ -1606,8 +1669,8 @@
       var currentValues = current ? current.values : state.values;
       var currentConditions = current ? current.conditions : state.conditions;
       if (
-        JSON.stringify(normalizedValues) === JSON.stringify(currentValues) &&
-        JSON.stringify(normalizedConditions) === JSON.stringify(currentConditions)
+        valuesEqual(normalizedValues, currentValues) &&
+        conditionsEqual(normalizedConditions, currentConditions)
       )
         return false;
       if (recordHistory !== false)
@@ -1621,6 +1684,12 @@
       }
       state.restoredEffectivePending = false;
       return true;
+    }
+
+    function setEditableValue(key, next, recordHistory) {
+      var changedValues = copyValues(editableValues());
+      changedValues[key] = next;
+      return replaceEditor(changedValues, editableConditions(), recordHistory);
     }
 
 
@@ -1808,7 +1877,6 @@
           return false;
       }
       var heroes = normalizeHeroSelection(rawHeroes);
-      if (scopeUsesHeroes(intent.mode) && !heroes.length) return true;
       if (intent.mode === HERO_SCOPE_OFF && heroes.length) return false;
       if (intent.mode === HERO_SCOPE_ALL && heroes.length) return false;
       return true;
@@ -1921,13 +1989,7 @@
       var next = normalizeValue(key, intent.value, values);
       if (values[key] === next) return noop("setting_edit", "NO_CHANGE");
       return commit("setting_edit", function () {
-        var changedValues = copyValues(editableValues());
-        changedValues[key] = next;
-        return replaceEditor(
-          changedValues,
-          editableConditions(),
-          true,
-        );
+        return setEditableValue(key, next, true);
       }, { settingId: key });
     }
 
@@ -1947,13 +2009,7 @@
         var before = currentScopeRow() ? historyRaw() : baseRaw();
         var values = editableValues();
         if (hasValue && values[key] !== next) {
-          var changedValues = copyValues(values);
-          changedValues[key] = next;
-          replaceEditor(
-            changedValues,
-            editableConditions(),
-            false,
-          );
+          setEditableValue(key, next, false);
         }
         state.gesture = {
           key: key,
@@ -1971,9 +2027,7 @@
       var next = normalizeValue(key, intent.value, values);
       if (values[key] === next) return noop("gesture_update", "NO_CHANGE");
       return commit("gesture_update", function () {
-        var changedValues = copyValues(editableValues());
-        changedValues[key] = next;
-        replaceEditor(changedValues, editableConditions(), false);
+        setEditableValue(key, next, false);
         return true;
       }, { settingId: key });
     }
@@ -1987,9 +2041,7 @@
       return commit("gesture_end", function () {
         var values = editableValues();
         if (values[key] !== next) {
-          var changedValues = copyValues(values);
-          changedValues[key] = next;
-          replaceEditor(changedValues, editableConditions(), false);
+          setEditableValue(key, next, false);
         }
         var after = currentScopeRow() ? historyRaw() : baseRaw();
         if (after !== gesture.before) pushHistory(gesture.before);
@@ -2063,7 +2115,7 @@
       var changed = false;
       for (index = 0; index < keys.length; index++) {
         if (
-          !sameValue(values[keys[index]], resetBase[keys[index]]) ||
+          values[keys[index]] !== resetBase[keys[index]] ||
           Object.prototype.hasOwnProperty.call(conditions, keys[index])
         ) {
           changed = true;
@@ -2140,11 +2192,7 @@
 
     function handleLifecycleObserve(intent) {
       var epoch = intent.epoch;
-      if (
-        !Number.isFinite(epoch) ||
-        Math.floor(epoch) !== epoch ||
-        epoch < 0
-      )
+      if (!isValidEpoch(epoch))
         return reject("lifecycle_observe", "INVALID_EPOCH");
       if (
         intent.phase !== HERO_PHASE_TRANSITIONING &&
@@ -2187,11 +2235,7 @@
 
     function handleHeroObserve(intent) {
       var epoch = intent.epoch;
-      if (
-        !Number.isFinite(epoch) ||
-        Math.floor(epoch) !== epoch ||
-        epoch < 0
-      )
+      if (!isValidEpoch(epoch))
         return reject("hero_observe", "INVALID_EPOCH");
       if (epoch !== state.identity.epoch) return reject("hero_observe", "STALE_EPOCH");
       if (state.identity.mode !== HERO_MODE_AUTO || state.identity.phase !== HERO_PHASE_ACTIVE)
@@ -2251,16 +2295,11 @@
 
     function handleAbilityObserve(intent) {
       var epoch = intent.epoch;
-      if (
-        !Number.isFinite(epoch) ||
-        Math.floor(epoch) !== epoch ||
-        epoch < 0
-      )
+      if (!isValidEpoch(epoch))
         return reject("ability_observe", "INVALID_EPOCH");
       if (epoch !== state.identity.epoch) return reject("ability_observe", "STALE_EPOCH");
       if (!Array.isArray(intent.tiers) || intent.tiers.length !== 4)
         return reject("ability_observe", "INVALID_TIERS");
-      var required = computeRequiredSlots();
       var next = [-1, -1, -1, -1];
       var index;
       for (index = 0; index < 4; index++) {
@@ -2277,7 +2316,6 @@
       if (JSON.stringify(next) === JSON.stringify(state.ability.tiers))
         return noop("ability_observe", "NO_CHANGE");
       return commit("ability_observe", function () {
-        state.ability.requiredSlots = required;
         state.ability.tiers = next;
         return true;
       });
@@ -2369,8 +2407,7 @@
           return true;
         });
       }
-      var preset = findPreset(id);
-      if (!preset || (preset.kind === "baked" && isBakedHidden(id)))
+      if (!findVisiblePreset(id))
         return reject("preset_select", "PRESET_NOT_FOUND");
       if (state.selectedPresetId === id) return noop("preset_select", "NO_CHANGE");
       return commit("preset_select", function () {
@@ -2393,28 +2430,18 @@
       var selected = findPreset(state.selectedPresetId);
       var updating = !allHeroes && selected && selected.kind === "user";
       var id = updating ? selected.id : formatUserPresetId(state.nextUserPresetNumber);
-      var preset = normalizePresetRecord({
-        id: id,
-        name: name,
-        values: editableValues(),
-        conditions: editableConditions(),
-        mode: mode,
-        heroes: !allHeroes && current ? current.heroes : [],
-        own: scopeUsesHeroes(mode)
-          ? changedOwnKeys(editableValues(), layerBase())
-          : undefined,
-      }, "user");
+      var preset = buildUserPreset(
+        id,
+        name,
+        mode,
+        !allHeroes && current ? current.heroes : [],
+      );
       if (!preset) return reject("preset_save", "INVALID_PRESET");
-      return commit("preset_save", function () {
-        var oldBase = layerBase();
+      return commitPresets("preset_save", function () {
         var index;
         if (updating) {
-          for (index = 0; index < state.userPresets.length; index++) {
-            if (state.userPresets[index].id === preset.id) {
-              state.userPresets[index] = preset;
-              break;
-            }
-          }
+          index = userPresetIndex(preset.id);
+          if (index >= 0) state.userPresets[index] = preset;
         } else {
           state.userPresets.push(preset);
           state.nextUserPresetNumber += 1;
@@ -2424,7 +2451,6 @@
             );
         }
         state.selectedPresetId = preset.id;
-        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: updating ? "PRESET_UPDATED" : "PRESET_SAVED" });
     }
@@ -2436,41 +2462,24 @@
       var target = typeof intent.id === "string" ? findPreset(intent.id) : null;
       if (!target || target.kind !== "user")
         return reject("preset_save_to", "PRESET_NOT_FOUND");
-      var preset = normalizePresetRecord({
-        id: target.id,
-        name: target.name,
-        values: editableValues(),
-        conditions: editableConditions(),
-        mode: target.mode,
-        heroes: target.heroes,
-        own: scopeUsesHeroes(target.mode)
-          ? changedOwnKeys(editableValues(), layerBase())
-          : undefined,
-      }, "user");
+      var preset = buildUserPreset(target.id, target.name, target.mode, target.heroes);
       if (!preset) return reject("preset_save_to", "INVALID_PRESET");
-      return commit("preset_save_to", function () {
-        var oldBase = layerBase();
-        var index;
-        for (index = 0; index < state.userPresets.length; index++) {
-          if (state.userPresets[index].id === preset.id) {
-            state.userPresets[index] = preset;
-            break;
-          }
-        }
+      return commitPresets("preset_save_to", function () {
+        var index = userPresetIndex(preset.id);
+        if (index >= 0) state.userPresets[index] = preset;
         state.selectedPresetId = preset.id;
-        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: "PRESET_UPDATED" });
     }
 
     function handlePresetApply(intent) {
       var id = String(intent.id || "");
-      var preset = findPreset(id);
-      if (!preset || (preset.kind === "baked" && isBakedHidden(id)))
+      var preset = findVisiblePreset(id);
+      if (!preset)
         return reject("preset_apply", "PRESET_NOT_FOUND");
       var current = currentScopeRow();
       if (
-        presetMatchesCurrent(preset, current, current ? "" : baseRaw()) &&
+        presetMatchesCurrent(preset, current) &&
         (preset.kind !== "user" ||
           (current && current.sourcePresetId === preset.id))
       )
@@ -2485,8 +2494,8 @@
       var id = String(intent.id || "");
       var name = String(intent.name || "").replace(/^\s+|\s+$/g, "");
       if (!name || name.length > 48) return reject("preset_rename", "INVALID_PRESET_NAME");
-      var preset = findPreset(id);
-      if (!preset || (preset.kind === "baked" && isBakedHidden(id)))
+      var preset = findVisiblePreset(id);
+      if (!preset)
         return reject("preset_rename", "PRESET_NOT_FOUND");
       if (displayPresetName(preset) === name) return noop("preset_rename", "NO_CHANGE");
       return commit("preset_rename", function () {
@@ -2505,32 +2514,22 @@
       var delta = intent.delta;
       if (!Number.isFinite(delta) || Math.floor(delta) !== delta || (delta !== -1 && delta !== 1))
         return reject("preset_move", "INVALID_MOVE");
-      var index = -1;
-      var i;
-      for (i = 0; i < state.userPresets.length; i++) {
-        if (state.userPresets[i].id === id) {
-          index = i;
-          break;
-        }
-      }
+      var index = userPresetIndex(id);
       if (index < 0) return reject("preset_move", "PRESET_NOT_FOUND");
       var target = index + delta;
       if (target < 0 || target >= state.userPresets.length)
         return noop("preset_move", "MOVE_BOUNDARY");
-      return commit("preset_move", function () {
-        var oldBase = layerBase();
+      return commitPresets("preset_move", function () {
         var moved = state.userPresets[index];
         state.userPresets[index] = state.userPresets[target];
         state.userPresets[target] = moved;
-        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: "PRESET_MOVED" });
     }
 
     function handlePresetRemoveRequest(intent) {
       var id = String(intent.id || "");
-      var preset = findPreset(id);
-      if (!preset || (preset.kind === "baked" && isBakedHidden(id)))
+      if (!findVisiblePreset(id))
         return reject("preset_remove_request", "PRESET_NOT_FOUND");
       return commit("preset_remove_request", function () {
         state.selectedPresetId = id;
@@ -2549,8 +2548,7 @@
         return reject("preset_remove_confirm", "PRESET_NOT_FOUND");
       }
       var visibleIndex = selectedVisibleIndex(id);
-      return commit("preset_remove_confirm", function () {
-        var oldBase = layerBase();
+      return commitPresets("preset_remove_confirm", function () {
         if (preset.kind === "baked") {
           state.hiddenBakedPresetIds = normalizeHiddenBakedPresetIds(
             state.hiddenBakedPresetIds.concat([id]),
@@ -2567,7 +2565,6 @@
         if (preset.kind === "user" && !state.userPresets.length)
           state.selectedPresetId = null;
         else repairSelection(visibleIndex);
-        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: "PRESET_REMOVED" });
     }
@@ -2632,8 +2629,8 @@
     }
 
     function handlePresetCopySelected() {
-      var preset = findPreset(state.selectedPresetId);
-      if (!preset || (preset.kind === "baked" && isBakedHidden(preset.id)))
+      var preset = findVisiblePreset(state.selectedPresetId);
+      if (!preset)
         return reject("preset_copy_selected", "PRESET_NOT_FOUND");
       var payload = {
         records: [serializePresetRecord(preset, displayPresetName(preset))],
@@ -2691,14 +2688,13 @@
           importedIds[source.id] = importedId;
         }
       }
-      deriveMissingOwn(state.userPresets.concat(importedUsers));
       var selected = importedIds[parsed.selectedPresetId] || "";
       var selectedHidden = selected && nextHidden.indexOf(selected) >= 0;
       if (selectedHidden) selected = "";
       if (!selected && !selectedHidden && importedUsers.length === 1)
         selected = importedUsers[0].id;
-      return commit("preset_import", function () {
-        var oldBase = layerBase();
+      return commitPresets("preset_import", function () {
+        deriveMissingOwn(state.userPresets.concat(importedUsers));
         state.bakedPresetNameOverrides = nextOverrides;
         state.hiddenBakedPresetIds = nextHidden;
         state.userPresets = state.userPresets.concat(importedUsers);
@@ -2710,7 +2706,6 @@
         )
           state.selectedPresetId = null;
         state.confirmation = null;
-        refreshLayeredCurrent(oldBase);
         return true;
       }, { code: "PRESETS_IMPORTED" });
     }

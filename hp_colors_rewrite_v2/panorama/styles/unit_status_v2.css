@@ -388,26 +388,6 @@
 	background-color: rgb(64, 8, 8);
 }
 
-#UnitHealthbarContainer.last_nonempty_bar
-{
-	background-color: rgb(67, 12, 12);
-}
-
-.team1 #UnitHealthbarContainer.last_nonempty_bar
-{
-	background-color: team1ColorDark;
-}
-
-.team2 #UnitHealthbarContainer.last_nonempty_bar
-{
-	background-color: team2ColorDark;
-}
-
-.friend #UnitHealthbarContainer.last_nonempty_bar
-{
-	background-color: offBlack;
-}
-
 .enemy #UnitHealthbarContainer.last_nonempty_bar
 {
 	background-color: rgb(67, 12, 12);
@@ -449,12 +429,6 @@
 .enemy #UnitHealthbarContainer.healthbar_empty
 {
 	opacity: 0.4;
-}
-
-.verticalHealthbars #UnitHealthbarContainer
-{
-	margin-right: 0px;
-	opacity-mask: none;
 }
 
 
@@ -504,63 +478,6 @@
 	visibility: collapse;
 }
 
-#unit_healthbar_lagging .healthbar_border
-{
-	opacity: 1;
-	border: 0px solid #00000000;
-	background-size: 100% 150px;
-}
-
-.friend .healthbar_border
-{
-	wash-color: offBlack;
-}
-
-.enemy .healthbar_border
-{
-	wash-color: rgb(80, 2, 2);
-}
-
-.spectating.friend.team1 .healthbar_border,.spectating.enemy.team1 .healthbar_border
-{
-	wash-color: team1ColorDarker;
-}
-
-.spectating.friend.team2 .healthbar_border,.spectating.enemy.team2 .healthbar_border
-{
-	wash-color: team2ColorDarker;
-}
-
-
-.friend .healthbar_empty .healthbar_border
-{
-	wash-color: #383838;
-	animation-name: allyHealthFlash;
-	animation-iteration-count: infinite;
-	animation-duration: 2s;
-}
-
-
-@keyframes 'allyHealthFlash'
-{
-	0%
-	{
-		wash-color: #383838;
-	}
-	
-	50%
-	{
-		wash-color: #b82323;
-	}
-	
-	100%
-	{
-		wash-color: #383838;
-	}
-	
-}
-
-
 #unit_healthbar_missing
 {
 	width: 100%;
@@ -591,11 +508,6 @@
 }
 
 .healthbar_empty #unit_healthbar_active_parent
-{
-	background-color: offBlack;
-}
-
-.friend .healthbar_empty #unit_healthbar_active_parent
 {
 	background-color: offBlack;
 }
@@ -1120,11 +1032,6 @@
 }
 
 
-.verticalHealthbars #InfoHealthContainer
-{
-	opacity-mask: none;
-}
-
 
 
 
@@ -1208,11 +1115,6 @@
 	transform: translateX(-102px);
 }
 
-.team1.enemy .NP_playerlevel_container
-{
-	border-color: Team1Color;
-}
-
 .team2.enemy .NP_playerlevel_container
 {
 	border-color: Team2Color;
@@ -1236,26 +1138,6 @@
 .GameStatePreGame .NP_playerlevel_container
 {
 	visibility: collapse;
-}
-
-.enemy.level_tier2 .NP_playerlevel_container
-{
-	border-color: #f0d000;
-}
-
-.enemy.level_tier3 .NP_playerlevel_container
-{
-	border-color: #ff8c00;
-}
-
-.enemy.level_tier4 .NP_playerlevel_container
-{
-	border-color: #e53935;
-}
-
-.enemy.level_tier5 .NP_playerlevel_container
-{
-	border-color: #8b0000;
 }
 
 #hp_colors_pulse_overlay
@@ -1331,9 +1213,7 @@
 
 /* HPV2 timer overlay: scoped to the accessory nodes owned by Rewrite v2. */
 .HPV2UltimateArtwork,
-#HPV2UltimateOverlay,
-#HPV2UltimateDark,
-#HPV2UltimateFill
+#HPV2UltimateOverlay
 {
 	width: 100%;
 	height: 100%;
@@ -1362,7 +1242,6 @@
 
 #HPV2UltimateFill
 {
-	visibility: visible;
 	clip: radial(50% 50%, 0deg, 0deg);
 }
 

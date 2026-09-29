@@ -264,10 +264,7 @@
     var defaultKey = DEFAULT_KEYS[defaultIndex];
     DEFAULTS[defaultKey] = CODEC_DEFAULTS[defaultKey];
   }
-  DEFAULTS.enemyMode = "gradient";
   DEFAULTS.enemyLow = "#FD4949";
-  DEFAULTS.enemyMid = "#FF7B00";
-  DEFAULTS.enemyHigh = "#00FF00";
   DEFAULTS.allyLow = "#FFEFD7";
   DEFAULTS.allyMid = "#FFEFD7";
   DEFAULTS.allyHigh = "#FFEFD7";
@@ -395,29 +392,11 @@
   };
 
   var NUMBER_STEPS = {
-    pickupBackgroundDarkness: 1,
-    pickupSize: 1,
-    pickupSpacing: 1,
-    pickupOffsetX: 1,
-    pickupOffsetY: 1,
     ultimateTimerSize: 5,
-    ultimateTimerDarkness: 1,
   };
 
-  function isObjectValue(value) {
-    var tag;
-    if (value === null || Object(value) !== value) return false;
-    tag = Object.prototype.toString.call(value);
-    return (
-      tag !== "[object Function]" &&
-      tag !== "[object AsyncFunction]" &&
-      tag !== "[object GeneratorFunction]" &&
-      tag !== "[object AsyncGeneratorFunction]"
-    );
-  }
-
   function freezeDeep(value) {
-    if (!value || !isObjectValue(value) || Object.isFrozen(value)) return value;
+    if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
     var keys = Object.keys(value);
     var index;
     for (index = 0; index < keys.length; index++) freezeDeep(value[keys[index]]);
@@ -425,7 +404,7 @@
   }
 
   function isStringValue(value) {
-    return Object(value) !== value && value === String(value);
+    return typeof value === "string";
   }
 
   function isBooleanValue(value) {
@@ -497,9 +476,9 @@
         100,
         fallback[key],
       );
-    if (key === "staminaHeight")
-      return clampDecimalNumber(value, 16, 90, fallback[key], 1);
     var bounds = NUMBER_BOUNDS[key];
+    if (key === "staminaHeight")
+      return clampDecimalNumber(value, bounds[0], bounds[1], fallback[key], 1);
     if (bounds)
       return clampNumber(
         value,

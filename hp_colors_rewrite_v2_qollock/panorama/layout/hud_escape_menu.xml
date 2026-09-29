@@ -410,7 +410,7 @@
                       <Button id="HPColorsEnemyModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
                     </Panel>
                   </Panel>
-                  <Panel id="HPColorsEnemyGradientRows" class="HPColorsGradientRows Active">
+                  <Panel id="HPColorsEnemyGradientRows" class="HPColorsGradientRows">
                     <Panel class="HPColorsSettingRow HPColorsColorRow">
                       <Panel class="HPColorsSettingCopy"><Label text="LOW COLOR" class="HPColorsSettingTitle" /><Label text="Use this color at or below the low-health threshold." class="HPColorsSettingHelp" /></Panel>
                       <Button id="HPColorsEnemyLowSwatch" class="HPColorsColorSwatch" />
@@ -471,7 +471,7 @@
                       <Button id="HPColorsAllyModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
                     </Panel>
                   </Panel>
-                  <Panel id="HPColorsAllyGradientRows" class="HPColorsGradientRows Active">
+                  <Panel id="HPColorsAllyGradientRows" class="HPColorsGradientRows">
                     <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="LOW COLOR" class="HPColorsSettingTitle" /><Label text="Use this color at or below the shared low-health threshold." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyLowSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyLowHex" class="HPColorsHexEntry" text="#FFEFD7" maxchars="7" /></Panel>
                     <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="MID COLOR" class="HPColorsSettingTitle" /><Label text="Use this color between the shared low and high thresholds." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyMidSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyMidHex" class="HPColorsHexEntry" text="#FFEFD7" maxchars="7" /></Panel>
                     <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="HIGH COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the shared high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyHighSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyHighHex" class="HPColorsHexEntry" text="#FFEFD7" maxchars="7" /></Panel>

@@ -39,6 +39,7 @@
   var RESET_FEEDBACK_SEC = 1.25;
   var SAVE_TO_FEEDBACK_SEC = 3;
   var SAVE_TO_EMPTY_TEXT = "No presets yet. NEW PRESET saves your settings as one.";
+  var PRESET_GONE_TEXT = "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.";
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
@@ -60,7 +61,6 @@
   var HERO_SCOPE_ALL = "all";
   var HERO_SCOPE_SELECTED = "selected";
   var HERO_SCOPE_EXCEPT = "except";
-  var CURRENT_SCOPE_ID = "scope_current";
   var HERO_PHASE_TRANSITIONING = "transitioning";
   var HERO_PHASE_LOBBY = "lobby";
   var HERO_PHASE_HIDEOUT = "hideout";
@@ -952,7 +952,7 @@
         schedulePersist(effect.raw, deliberate);
       } else if (effect.type === "effective_publish") {
         var payload = serializeChange(effect.revision, effect.values);
-        writeRootSnapshot(payload);
+        writeRootAttribute(CONFIG_ATTR, payload);
         serializedReplayPayload = payload;
         dispatchChange(payload);
         refreshSnapshotReplay();
@@ -961,12 +961,15 @@
       }
     }
   }
+  function dispatchCopy(text) {
+    try {
+      return $.DispatchEvent("CopyStringToClipboard", text) !== false;
+    } catch {}
+    return false;
+  }
   function executeClipboardEffect(effect) {
     var text = String(effect.text || "");
-    var copied = false;
-    try {
-      copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
-    } catch {}
+    var copied = dispatchCopy(text);
     if (!copied) {
       var input =
         effect.purpose === "settings"
@@ -984,6 +987,10 @@
       } catch {}
     }
     return copied;
+  }
+
+  function stateAccepted(result) {
+    return !!(result && result.outcome && result.outcome.status !== "rejected");
   }
 
   function sendState(intent) {
@@ -1004,6 +1011,7 @@
     condition: false,
   };
   var pickerGestureActive = false;
+  var pickerPartCache = {};
   var ui = {
     categoryButtons: [],
     tabButtons: [],
@@ -1097,7 +1105,6 @@
     conditionEnumRow: null,
     conditionEnumOptions: null,
     conditionNumberRow: null,
-    conditionNumberSliderHost: null,
     conditionNumberSlider: null,
     conditionNumberEntry: null,
     conditionColorRow: null,
@@ -1137,6 +1144,8 @@
     returnPanel: null,
   };
   var scopeOptionPanels = [];
+  var scopeOptionKeys = [];
+  var scopeOptionSearch = [];
   var scopeDialogMode = HERO_SCOPE_SELECTED;
   var scopeDialogOpener = null;
   var syncingControls = false;
@@ -1154,6 +1163,7 @@
   var saveToArmedId = "";
   var saveToGeneration = 0;
   var saveToRows = [];
+  var presetRowRefs = [];
 
   function isValid(panel) {
     try {
@@ -1514,14 +1524,9 @@
       }
     } catch {}
 
-    var missingReferencedSlot = false;
     for (var index = 0; index < ability.slots.length; index++) {
-      if (!isValid(ability.slots[index]) && referenced[index]) {
-        missingReferencedSlot = true;
-        break;
-      }
+      if (referenced[index] && !isValid(ability.slots[index])) return false;
     }
-    if (missingReferencedSlot) return false;
 
     return true;
   }
@@ -1656,11 +1661,20 @@
     return readPanelText(resolveHeroNameLabel());
   }
 
-  function heroDisplayName(heroKey, heroes) {
+  function viewHeroes(view) {
+    return view && view.heroes ? view.heroes : [];
+  }
+
+  function findHero(heroKey, heroes) {
     for (var index = 0; index < heroes.length; index++) {
-      if (heroes[index].key === heroKey) return heroes[index].name;
+      if (heroes[index].key === heroKey) return heroes[index];
     }
-    return "";
+    return null;
+  }
+
+  function heroDisplayName(heroKey, heroes) {
+    var hero = findHero(heroKey, heroes);
+    return hero ? hero.name : "";
   }
 
   function phaseDisplayName(phase) {
@@ -1860,15 +1874,7 @@
 
   function selectManualHero(heroKey) {
     var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
-    var known = false;
-    for (var index = 0; index < heroes.length; index++) {
-      if (heroes[index].key === heroKey) {
-        known = true;
-        break;
-      }
-    }
-    if (!known) return;
+    if (!findHero(heroKey, viewHeroes(view))) return;
     sendState({ type: "hero_manual", heroKey: heroKey });
     renderIdentity();
     closeHeroDialog();
@@ -1893,7 +1899,7 @@
     } catch {}
     identity.optionPanels = [];
     var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
+    var heroes = viewHeroes(view);
     for (var index = 0; index < heroes.length; index++) {
       (function (heroKey, heroName, optionIndex) {
         var option = $.CreatePanel(
@@ -1970,16 +1976,8 @@
 
   function toggleCurrentScopeHero(heroKey) {
     var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
-    var known = false;
+    if (!findHero(heroKey, viewHeroes(view))) return;
     var index;
-    for (index = 0; index < heroes.length; index++) {
-      if (heroes[index].key === heroKey) {
-        known = true;
-        break;
-      }
-    }
-    if (!known) return;
     var row = currentScopeRow();
     var mode = scopeUsesHeroes(scopeDialogMode)
       ? scopeDialogMode
@@ -2008,13 +2006,7 @@
       .toUpperCase();
     for (var index = 0; index < scopeOptionPanels.length; index++) {
       var option = scopeOptionPanels[index];
-      var searchText = "";
-      try {
-        searchText = option.GetAttributeString(
-          "hp_colors_scope_search",
-          "",
-        );
-      } catch {}
+      var searchText = scopeOptionSearch[index];
       setClass(option, "FilteredOut", !!query && searchText.indexOf(query) < 0);
     }
   }
@@ -2056,13 +2048,7 @@
     setText(ui.currentScopeSummary, summary);
     for (var optionIndex = 0; optionIndex < scopeOptionPanels.length; optionIndex++) {
       var option = scopeOptionPanels[optionIndex];
-      var heroKey = "";
-      try {
-        heroKey = option.GetAttributeString(
-          "hp_colors_scope_hero_key",
-          "",
-        );
-      } catch {}
+      var heroKey = scopeOptionKeys[optionIndex];
       var listed =
         !!row && row.mode === scopeDialogMode &&
         row.heroes.indexOf(heroKey) >= 0;
@@ -2107,8 +2093,10 @@
       ui.scopeOptions.RemoveAndDeleteChildren();
     } catch {}
     scopeOptionPanels = [];
+    scopeOptionKeys = [];
+    scopeOptionSearch = [];
     var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
+    var heroes = viewHeroes(view);
     for (var index = 0; index < heroes.length; index++) {
       (function (heroKey, heroName, optionIndex) {
         var option = $.CreatePanel(
@@ -2126,10 +2114,8 @@
         option.AddClass("HPColorsHeroOption");
         option.AddClass("HPColorsScopeHeroOption");
         option.SetAttributeString("hp_colors_scope_hero_key", heroKey);
-        option.SetAttributeString(
-          "hp_colors_scope_search",
-          (heroName + " " + heroKey).toUpperCase(),
-        );
+        var searchText = (heroName + " " + heroKey).toUpperCase();
+        option.SetAttributeString("hp_colors_scope_search", searchText);
         label.text = heroName;
         var skipTag = $.CreatePanel(
           "Label",
@@ -2144,6 +2130,8 @@
           toggleCurrentScopeHero(heroKey);
         });
         scopeOptionPanels.push(option);
+        scopeOptionKeys.push(heroKey);
+        scopeOptionSearch.push(searchText);
       })(heroes[index].key, heroes[index].name, index);
     }
     return scopeOptionPanels.length === heroes.length;
@@ -2203,12 +2191,12 @@
     try {
       ui.presetOptions.RemoveAndDeleteChildren();
     } catch {}
+    presetRowRefs = [];
     var view = currentView();
     var repository = view && view.repository ? view.repository : null;
     var records = repository && repository.rows ? repository.rows : [];
-    var selectedId = repository ? repository.selectedId : "";
     var activeId = repository ? repository.activeId : "";
-    var heroes = view && view.heroes ? view.heroes : [];
+    var heroes = viewHeroes(view);
     var allRows = repository && repository.allRows ? repository.allRows : [];
     var userCount = Math.max(0, allRows.length - 1);
     var nextUserIndex = 0;
@@ -2222,7 +2210,15 @@
           "HPColorsPresetOption" + optionIndex,
         );
         if (!isValid(option)) return;
-        var selected = preset.id === selectedId;
+        var rowRef = {
+          id: preset.id,
+          row: option,
+          status: null,
+          edit: null,
+          save: null,
+          revert: null,
+        };
+        presetRowRefs.push(rowRef);
         var editingPreset =
           presetFormOpen &&
           presetEditId === preset.id &&
@@ -2236,7 +2232,6 @@
         var deleting = presetDeleteConfirmId === preset.id;
         var replacing =
           !!presetReplaceConfirm && presetReplaceConfirm.id === preset.id;
-        setClass(option, "Selected", selected);
         setClass(option, "Active", active);
         setClass(option, "Confirming", deleting || replacing);
         setClass(option, "Editing", editingPreset);
@@ -2305,6 +2300,7 @@
           main,
           "HPColorsPresetOptionStatus" + optionIndex,
         );
+        rowRef.status = status;
         if (!isValid(name) || !isValid(scope) || !isValid(status)) return;
         name.AddClass("HPColorsPresetOptionName");
         scope.AddClass("HPColorsPresetOptionScope");
@@ -2354,7 +2350,7 @@
           },
         );
         if (preset.kind === "user" && !editingPreset) {
-          createPresetRowAction(
+          rowRef.edit = createPresetRowAction(
             option,
             "HPColorsPresetRowEdit" + optionIndex,
             "HPColorsPresetRowEdit",
@@ -2367,7 +2363,7 @@
           // SAVE/REVERT exist on every user row, collapsed until
           // refreshPresetActivity marks the row CHANGED; rows are never
           // rebuilt per live edit.
-          createPresetRowAction(
+          rowRef.save = createPresetRowAction(
             option,
             "HPColorsPresetRowSave" + optionIndex,
             "HPColorsPresetRowSave",
@@ -2377,7 +2373,7 @@
               requestPresetRowSave(preset.id);
             },
           );
-          createPresetRowAction(
+          rowRef.revert = createPresetRowAction(
             option,
             "HPColorsPresetRowRevert" + optionIndex,
             "HPColorsPresetRowRevert",
@@ -2473,7 +2469,7 @@
 
   function beginNewPreset() {
     var result = sendState({ type: "preset_select", id: null });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback("COULD NOT START A NEW PRESET.", true);
       return;
     }
@@ -2508,11 +2504,7 @@
     if (!id) return false;
     if (currentView().repository.selectedId === id) return true;
     var result = sendState({ type: "preset_select", id: id });
-    return !!(
-      result &&
-      result.outcome &&
-      result.outcome.status !== "rejected"
-    );
+    return stateAccepted(result);
   }
 
   function openPresetForm(preset) {
@@ -2567,6 +2559,16 @@
     return preset && preset.kind === "user" ? preset : null;
   }
 
+  // The CHANGED source preset when it is the row `id`; otherwise reports the
+  // vanished preset and rebuilds the rows.
+  function changedPresetFor(id) {
+    var preset = changedSourcePreset();
+    if (preset && preset.id === String(id || "")) return preset;
+    setPresetFeedback(PRESET_GONE_TEXT, true);
+    renderPresetOptions();
+    return null;
+  }
+
   function beginPresetReplaceConfirm(id, action) {
     dismissDeleteConfirmation();
     presetReplaceConfirm = { id: id, action: action };
@@ -2607,12 +2609,8 @@
   // Inline SAVE on the CHANGED row: preset_save is not undoable, so it goes
   // through the row confirm like DELETE/HIDE.
   function requestPresetRowSave(id) {
-    var preset = changedSourcePreset();
-    if (!preset || preset.id !== String(id || "")) {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
-      renderPresetOptions();
-      return false;
-    }
+    var preset = changedPresetFor(id);
+    if (!preset) return false;
     if (presetFormOpen) return false;
     beginPresetReplaceConfirm(preset.id, "save");
     return true;
@@ -2621,21 +2619,17 @@
   // Writes the current live settings into the source preset under its own
   // name. The target is re-read here, never taken from the click.
   function performPresetRowSave(id) {
-    var preset = changedSourcePreset();
-    if (!preset || preset.id !== String(id || "")) {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
-      renderPresetOptions();
-      return false;
-    }
+    var preset = changedPresetFor(id);
+    if (!preset) return false;
     dismissDeleteConfirmation();
     var name = presetDisplayName(preset);
     if (!selectPresetForRowAction(preset.id)) {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      setPresetFeedback(PRESET_GONE_TEXT, true);
       renderPresetOptions();
       return false;
     }
     var result = sendState({ type: "preset_save", name: name });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback(
         "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED.",
         true,
@@ -2656,17 +2650,13 @@
   // REVERT reloads the saved snapshot; preset_apply pushes history, so UNDO
   // brings the live edits back.
   function requestPresetRowRevert(id) {
-    var preset = changedSourcePreset();
-    if (!preset || preset.id !== String(id || "")) {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
-      renderPresetOptions();
-      return false;
-    }
+    var preset = changedPresetFor(id);
+    if (!preset) return false;
     if (presetFormOpen) return false;
     dismissDeleteConfirmation();
     presetReplaceConfirm = null;
     var result = sendState({ type: "preset_apply", id: preset.id });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback("COULD NOT APPLY THAT PRESET. NOTHING CHANGED.", true);
       renderPresetOptions();
       return false;
@@ -2685,7 +2675,7 @@
   function requestPresetRowApply(id) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset) {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      setPresetFeedback(PRESET_GONE_TEXT, true);
       return false;
     }
     // The row being edited is inert: never reload over live edits.
@@ -2706,7 +2696,7 @@
   function requestPresetEdit(id) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset || preset.kind !== "user") {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      setPresetFeedback(PRESET_GONE_TEXT, true);
       return false;
     }
     if (presetFormOpen && presetEditId === preset.id) {
@@ -2725,7 +2715,7 @@
   function performPresetEdit(id) {
     var preset = findPresetRecord(String(id || ""));
     if (!preset || preset.kind !== "user") {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      setPresetFeedback(PRESET_GONE_TEXT, true);
       renderPresetOptions();
       return false;
     }
@@ -2733,7 +2723,7 @@
     var repository = currentView().repository;
     if (!repository || repository.activeId !== preset.id) {
       var result = sendState({ type: "preset_apply", id: preset.id });
-      if (!result || !result.outcome || result.outcome.status === "rejected") {
+      if (!stateAccepted(result)) {
         setPresetFeedback(
           "COULD NOT LOAD " +
             presetDisplayName(preset).toUpperCase() +
@@ -2758,12 +2748,7 @@
     var name = preset ? presetDisplayName(preset).toUpperCase() : id.toUpperCase();
     presetReplaceConfirm = null;
     var result = sendState({ type: "preset_move", id: id, delta: delta });
-    if (
-      !result ||
-      !result.outcome ||
-      result.outcome.status === "rejected" ||
-      result.outcome.code === "MOVE_BOUNDARY"
-    )
+    if (!stateAccepted(result) || result.outcome.code === "MOVE_BOUNDARY")
       return false;
     renderPresetOptions();
     setPresetFeedback(
@@ -2890,7 +2875,7 @@
     presetReplaceConfirm = null;
     renderPresetOptions();
     setPresetFeedback("REWRITE DEFAULT SHOWN. YOUR SETTINGS DID NOT CHANGE.", false);
-    // SHOW ROW collapses with its banner; move focus to the shown preset.
+    // SHOW ROW collapses once nothing is hidden; move focus to the shown preset.
     focusSelectedPresetRow("baked_default");
   }
 
@@ -2924,12 +2909,7 @@
   }
 
   function clipboardEffectSucceeded(result) {
-    return !!(
-      result &&
-      result.outcome &&
-      result.outcome.status !== "rejected" &&
-      lastClipboardCopied === true
-    );
+    return !!(stateAccepted(result) && lastClipboardCopied === true);
   }
 
   function pasteTextEntry(input, isCurrent, accept, reject) {
@@ -2985,27 +2965,19 @@
   }
 
   function importPresetTransfer(raw) {
-    var before = currentView();
-    var beforeRows = before && before.repository ? before.repository.allRows : [];
-    var beforeUserCount = 0;
-    for (var index = 0; index < beforeRows.length; index++)
-      if (beforeRows[index].kind === "user") beforeUserCount += 1;
+    var beforeUserCount = userPresetRows(currentView()).length;
     var result = sendState({ type: "preset_import", raw: String(raw || "") });
-    var rejected =
-      !result || !result.outcome || result.outcome.status === "rejected";
-    if (rejected) {
+    if (!stateAccepted(result)) {
       setPresetTransferFeedback(
         "COULD NOT IMPORT. CHECK THE PRESET CODE.",
         true,
       );
       return false;
     }
-    var after = currentView();
-    var afterRows = after && after.repository ? after.repository.allRows : [];
-    var afterUserCount = 0;
-    for (index = 0; index < afterRows.length; index++)
-      if (afterRows[index].kind === "user") afterUserCount += 1;
-    var importedCount = Math.max(0, afterUserCount - beforeUserCount);
+    var importedCount = Math.max(
+      0,
+      userPresetRows(currentView()).length - beforeUserCount,
+    );
     setText(ui.presetTransferInput, "");
     setPresetTransferFeedback(
       "IMPORTED " + String(importedCount) +
@@ -3056,11 +3028,11 @@
       sendState({ type: "preset_select", id: null });
       presetEditId = "";
     } else if (!selectPresetForRowAction(editing.id)) {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      setPresetFeedback(PRESET_GONE_TEXT, true);
       return;
     }
     var result = sendState({ type: "preset_save", name: name });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback(
         editing
           ? "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED."
@@ -3091,50 +3063,42 @@
   // names stay. Badge precedence per row: EDITING > CHANGED > ACTIVE.
   function refreshPresetActivity(view) {
     if (!view) view = currentView();
-    // SAVE TO PRESET steps aside while the name form is open (two save
-    // surfaces at once), and an open dialog follows the current source.
-    renderSaveToButton(view);
+    // The name form suppresses SAVE TO PRESET (two save surfaces at once) and
+    // an open dialog follows the current source; renderStoreStatus below
+    // refreshes the footer button.
     refreshSaveToRows(view);
-    if (!isValid(ui.presetOptions)) return;
-    var repository = view && view.repository ? view.repository : null;
-    if (!repository) return;
-    var source = repository.sourceState || null;
-    var changedId = source && source.id && !source.matches ? source.id : "";
-    var gestureActive = !!(view.transactions && view.transactions.gesture);
-    // One save surface at a time: inline SAVE/REVERT hide while a form is
-    // open or a slider drag is in progress.
-    var actionsAllowed = !presetFormOpen && !gestureActive;
-    var rows = ui.presetOptions.Children();
-    for (var index = 0; index < rows.length; index++) {
-      var row = rows[index];
-      if (!isValid(row)) continue;
-      var id = row.GetAttributeString("hp_colors_preset_id", "");
-      var active = id === repository.activeId;
-      var editing = presetFormOpen && presetEditId === id;
-      var changed = !editing && id === changedId;
-      var showChangedActions = changed && actionsAllowed;
-      setClass(row, "Selected", id === repository.selectedId);
-      setClass(row, "Active", active);
-      setClass(row, "Changed", changed);
-      setClass(row, "RowChanged", showChangedActions);
-      // Confirming rows carry no status label or actions; the helpers
-      // ignore the nulls.
-      setText(
-        row.FindChildTraverse("HPColorsPresetOptionStatus" + index),
-        editing ? "EDITING" : changed ? "CHANGED" : active ? "ACTIVE" : "",
-      );
-      setRowActionEnabled(
-        row.FindChildTraverse("HPColorsPresetRowEdit" + index),
-        !showChangedActions,
-      );
-      setRowActionEnabled(
-        row.FindChildTraverse("HPColorsPresetRowSave" + index),
-        showChangedActions,
-      );
-      setRowActionEnabled(
-        row.FindChildTraverse("HPColorsPresetRowRevert" + index),
-        showChangedActions,
-      );
+    var repository =
+      isValid(ui.presetOptions) && view && view.repository
+        ? view.repository
+        : null;
+    if (repository) {
+      var source = repository.sourceState || null;
+      var changedId = source && source.id && !source.matches ? source.id : "";
+      var gestureActive = !!(view.transactions && view.transactions.gesture);
+      // One save surface at a time: inline SAVE/REVERT hide while a form is
+      // open or a slider drag is in progress.
+      var actionsAllowed = !presetFormOpen && !gestureActive;
+      for (var index = 0; index < presetRowRefs.length; index++) {
+        var ref = presetRowRefs[index];
+        var row = ref.row;
+        if (!isValid(row)) continue;
+        var active = ref.id === repository.activeId;
+        var editing = presetFormOpen && presetEditId === ref.id;
+        var changed = !editing && ref.id === changedId;
+        var showChangedActions = changed && actionsAllowed;
+        setClass(row, "Active", active);
+        setClass(row, "Changed", changed);
+        setClass(row, "RowChanged", showChangedActions);
+        // Confirming rows carry no status label or actions; the helpers
+        // ignore the nulls.
+        setText(
+          ref.status,
+          editing ? "EDITING" : changed ? "CHANGED" : active ? "ACTIVE" : "",
+        );
+        setRowActionEnabled(ref.edit, !showChangedActions);
+        setRowActionEnabled(ref.save, showChangedActions);
+        setRowActionEnabled(ref.revert, showChangedActions);
+      }
     }
     renderStoreStatus();
   }
@@ -3145,14 +3109,13 @@
       setPresetFeedback(
         savedFirst
           ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
-          : "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.",
+          : PRESET_GONE_TEXT,
         true,
       );
       return false;
     }
     var result = sendState({ type: "preset_apply", id: preset.id });
-    var outcome = result && result.outcome ? result.outcome : null;
-    if (!outcome || outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback(
         savedFirst
           ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
@@ -3299,7 +3262,7 @@
       ui.saveToOptions.RemoveAndDeleteChildren();
     } catch {}
     var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
+    var heroes = viewHeroes(view);
     var presets = userPresetRows(view);
     for (var index = 0; index < presets.length; index++)
       createSaveToRow(presets[index], index, heroes);
@@ -3363,7 +3326,7 @@
       return;
     }
     var result = sendState({ type: "preset_save_to", id: preset.id });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       showResetFeedback(
         "COULD NOT SAVE " + chipPresetName(preset) + ". NOTHING CHANGED.",
         SAVE_TO_FEEDBACK_SEC,
@@ -3400,7 +3363,7 @@
   function saveToTargetGone() {
     disarmSaveTo();
     renderSaveToOptions();
-    setSaveToFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+    setSaveToFeedback(PRESET_GONE_TEXT, true);
     return false;
   }
 
@@ -3427,7 +3390,7 @@
       return true;
     }
     var result = sendState({ type: "preset_save_to", id: preset.id });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       disarmSaveTo();
       setSaveToFeedback(
         "COULD NOT SAVE " +
@@ -3463,10 +3426,10 @@
     var name = nextAutoPresetName(currentView());
     var deselected = sendState({ type: "preset_select", id: null });
     var result =
-      deselected && deselected.outcome && deselected.outcome.status !== "rejected"
+      stateAccepted(deselected)
         ? sendState({ type: "preset_save", name: name, allHeroes: true })
         : null;
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setSaveToFeedback("COULD NOT CREATE " + name + ". NOTHING CHANGED.", true);
       return false;
     }
@@ -3512,10 +3475,7 @@
       state.values.precisePipsEnabled
         ? PRECISE_PIPS_ENABLE_TEXT
         : PRECISE_PIPS_RESET_TEXT;
-    var copied = false;
-    try {
-      copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
-    } catch {}
+    var copied = dispatchCopy(text);
     setText(ui.precisePipsCopyLabel, copied ? "COPIED" : "COPY FAILED");
   }
 
@@ -3833,11 +3793,14 @@
     return JSON.stringify(data);
   }
 
+  function detectLegacyLayout(storePanel) {
+    return isValid(find(LEGACY_PRESET_STORE_ID)) || !isValid(storePanel);
+  }
+
   function ensureStorage() {
     if (storage) return storage;
-    var legacyPanel = find(LEGACY_PRESET_STORE_ID);
     var storePanel = find(STORE_PANEL_ID);
-    persist.legacyLayout = isValid(legacyPanel) || !isValid(storePanel);
+    persist.legacyLayout = detectLegacyLayout(storePanel);
     if (persist.legacyLayout)
       storeLog("old preset VPK layout detected: delete pak01_dir.vpk from citadel/addons");
     var factory = $.HPColorsV2StorageFactory;
@@ -4133,32 +4096,7 @@
   }
 
   function writeMenuState(raw) {
-    if (!raw || !isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString)
-      return false;
-    try {
-      if (
-        !ui.absoluteRoot.GetAttributeString ||
-        ui.absoluteRoot.GetAttributeString(MENU_STATE_ATTR, "") !== raw
-      )
-        ui.absoluteRoot.SetAttributeString(MENU_STATE_ATTR, raw);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  function writeRootSnapshot(raw) {
-    if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString) return false;
-    try {
-      if (
-        !ui.absoluteRoot.GetAttributeString ||
-        ui.absoluteRoot.GetAttributeString(CONFIG_ATTR, "") !== raw
-      )
-        ui.absoluteRoot.SetAttributeString(CONFIG_ATTR, raw);
-      return true;
-    } catch {
-      return false;
-    }
+    return !!raw && writeRootAttribute(MENU_STATE_ATTR, raw);
   }
 
   function dispatchChange(serializedPayload) {
@@ -4308,7 +4246,7 @@
     closeResetDialog(true);
     syncControls();
     showResetFeedback(
-      result && result.outcome && result.outcome.status !== "rejected"
+      stateAccepted(result)
         ? "SECTION RESET · UNDO AVAILABLE"
         : "SECTION ALREADY DEFAULT",
     );
@@ -4374,6 +4312,7 @@
         increment: increment || 1,
         options: option === undefined ? [] : [option],
         indicators: [],
+        indicatorState: -1,
       };
       conditionControls[key] = control;
     } else if (option !== undefined && control.options.indexOf(option) < 0) {
@@ -4397,6 +4336,7 @@
     button.AddClass("HPColorsConditionIndicator");
     label.text = "\u25c7";
     control.indicators.push({ row: row, button: button, label: label });
+    control.indicatorState = -1;
     setPanelEvent(button, "onactivate", function () {
       openConditionEditor(key, button);
     });
@@ -4407,7 +4347,7 @@
     registerConditionControl(panel, key);
     setPanelEvent(panel, "onactivate", function () {
       if (syncingControls) return;
-      commitValue(key, !state.values[key], true);
+      commitValue(key, !state.values[key]);
     });
   }
 
@@ -4416,8 +4356,21 @@
     registerConditionControl(panel, key, undefined, undefined, mode);
     setPanelEvent(panel, "onactivate", function () {
       if (syncingControls) return;
-      commitValue(key, mode, true);
+      commitValue(key, mode);
     });
+  }
+
+  function bindEntryCommit(entry, key) {
+    function commitEntry() {
+      if (syncingControls) return;
+      commitValue(key, entry.text);
+      try {
+        $.DispatchEvent("DropInputFocus", entry);
+      } catch {}
+    }
+    setPanelEvent(entry, "ontextentrysubmit", commitEntry);
+    setPanelEvent(entry, "onblur", commitEntry);
+    setPanelEvent(entry, "oncancel", syncControls);
   }
 
   function bindSlider(sliderId, entryId, key, min, max, increment) {
@@ -4450,16 +4403,7 @@
       syncControls();
     });
 
-    function commitEntry() {
-      if (syncingControls) return;
-      commitValue(key, entry.text, true);
-      try {
-        $.DispatchEvent("DropInputFocus", entry);
-      } catch {}
-    }
-    setPanelEvent(entry, "ontextentrysubmit", commitEntry);
-    setPanelEvent(entry, "onblur", commitEntry);
-    setPanelEvent(entry, "oncancel", syncControls);
+    bindEntryCommit(entry, key);
   }
 
   function bindColor(swatchId, entryId, key) {
@@ -4470,16 +4414,7 @@
     setPanelEvent(swatch, "onactivate", function () {
       openPicker(key, swatch);
     });
-    function commitEntry() {
-      if (syncingControls) return;
-      commitValue(key, entry.text, true);
-      try {
-        $.DispatchEvent("DropInputFocus", entry);
-      } catch {}
-    }
-    setPanelEvent(entry, "ontextentrysubmit", commitEntry);
-    setPanelEvent(entry, "onblur", commitEntry);
-    setPanelEvent(entry, "oncancel", syncControls);
+    bindEntryCommit(entry, key);
   }
 
   function conditionValueMatchesSetting(key, value) {
@@ -4632,6 +4567,12 @@
         ? ability.observedTiers[activeRule.slot - 1]
         : -1;
       var matched = meaningful && tier >= activeRule.minTier;
+      var indicatorState =
+        (meaningful ? 1 : 0) |
+        (matched ? 2 : 0) |
+        (meaningful && tier < 0 ? 4 : 0);
+      if (control.indicatorState === indicatorState) continue;
+      control.indicatorState = indicatorState;
       var indicators = control.indicators;
       for (var indicatorIndex = 0; indicatorIndex < indicators.length; indicatorIndex++) {
         var indicator = indicators[indicatorIndex];
@@ -4705,16 +4646,12 @@
     var control = conditionControls[conditionDraft.key];
     if (!control || control.type !== "color") return;
     closeHeroDialog();
-    picker.key = conditionDraft.key;
-    picker.returnPanel = ui.conditionColorSwatch;
-    picker.condition = true;
-    var hsl = hexToHsl(conditionDraft.value);
-    picker.hue = hsl.hue;
-    picker.saturation = hsl.saturation;
-    picker.lightness = hsl.lightness;
-    setClass(ui.pickerRoot, "Open", true);
-    syncPicker();
-    focus(ui.pickerHueSlider);
+    showPicker(
+      conditionDraft.key,
+      ui.conditionColorSwatch,
+      true,
+      conditionDraft.value,
+    );
   }
 
   function applyConditionDraft() {
@@ -4733,7 +4670,7 @@
       minTier: conditionDraft.minTier,
       value: conditionDraft.value,
     });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       renderConditionEditor();
       return;
     }
@@ -4845,19 +4782,72 @@
     setText(controlPanel(control.base + "Hex"), value);
   }
 
-  function setPickerTrack(slider, gradient) {
+  var PICKER_HUE_TRACK =
+    "gradient(linear, 0% 0%, 100% 0%, from(#FF0000), color-stop(0.1667, #FFFF00), color-stop(0.3333, #00FF00), color-stop(0.5, #00FFFF), color-stop(0.6667, #0000FF), color-stop(0.8333, #FF00FF), to(#FF0000))";
+
+  function pickerColor() {
+    return hslToHex(picker.hue, picker.saturation, picker.lightness);
+  }
+
+  function pickerHueGradient() {
+    return PICKER_HUE_TRACK;
+  }
+
+  function pickerSaturationGradient() {
+    return (
+      "gradient(linear, 0% 0%, 100% 0%, from(" +
+      hslToHex(picker.hue, 0, picker.lightness) +
+      "), to(" +
+      hslToHex(picker.hue, 100, picker.lightness) +
+      "))"
+    );
+  }
+
+  function pickerLumenGradient() {
+    return (
+      "gradient(linear, 0% 0%, 100% 0%, from(#000000), color-stop(0.5, " +
+      hslToHex(picker.hue, picker.saturation, 50) +
+      "), to(#FFFFFF))"
+    );
+  }
+
+  // Thumb and track panels per slider; a slider that is re-resolved or a
+  // child that went invalid starts a fresh lookup.
+  function pickerParts(component, slider) {
+    var parts = pickerPartCache[component];
+    if (!parts || parts.slider !== slider) {
+      parts = { slider: slider, thumb: null, track: null, trackKey: "" };
+      pickerPartCache[component] = parts;
+    }
+    return parts;
+  }
+
+  // trackKey names the inputs of the gradient last written to the track, so
+  // an unchanged track is neither rebuilt nor compared again.
+  function setPickerTrack(component, slider, trackKey, gradientFor) {
     if (!isValid(slider) || !slider.FindChildTraverse) return;
     try {
-      var track = slider.FindChildTraverse("SliderTrack");
-      if (isValid(track) && track.style.backgroundColor !== gradient)
+      var parts = pickerParts(component, slider);
+      if (!isValid(parts.track)) {
+        parts.track = slider.FindChildTraverse("SliderTrack");
+        parts.trackKey = "";
+      }
+      var track = parts.track;
+      if (!isValid(track) || parts.trackKey === trackKey) return;
+      var gradient = gradientFor();
+      if (track.style.backgroundColor !== gradient)
         track.style.backgroundColor = gradient;
+      parts.trackKey = trackKey;
     } catch {}
   }
 
-  function setPickerThumb(slider, color, lightness) {
+  function setPickerThumb(component, slider, color, lightness) {
     if (!isValid(slider) || !slider.FindChildTraverse) return;
     try {
-      var thumb = slider.FindChildTraverse("SliderThumb");
+      var parts = pickerParts(component, slider);
+      if (!isValid(parts.thumb))
+        parts.thumb = slider.FindChildTraverse("SliderThumb");
+      var thumb = parts.thumb;
       if (!isValid(thumb) || !thumb.style) return;
       if (thumb.style.backgroundColor !== color)
         thumb.style.backgroundColor = color;
@@ -4869,11 +4859,7 @@
 
   function syncPicker() {
     if (!picker.key || !isValid(ui.pickerRoot)) return;
-    var color = hslToHex(
-      picker.hue,
-      picker.saturation,
-      picker.lightness,
-    );
+    var color = pickerColor();
     setText(ui.pickerTitle, COLOR_TITLES[picker.key] || "COLOR");
     setText(ui.pickerHex, color);
     setText(ui.pickerHueValue, picker.hue + "°");
@@ -4884,39 +4870,27 @@
     setSliderValue(ui.pickerSaturationSlider, picker.saturation);
     setSliderValue(ui.pickerLumenSlider, picker.lightness);
 
-    setPickerThumb(ui.pickerHueSlider, color, picker.lightness);
-    setPickerThumb(ui.pickerSaturationSlider, color, picker.lightness);
-    setPickerThumb(ui.pickerLumenSlider, color, picker.lightness);
+    setPickerThumb("hue", ui.pickerHueSlider, color, picker.lightness);
+    setPickerThumb("saturation", ui.pickerSaturationSlider, color, picker.lightness);
+    setPickerThumb("lightness", ui.pickerLumenSlider, color, picker.lightness);
 
+    setPickerTrack("hue", ui.pickerHueSlider, "", pickerHueGradient);
     setPickerTrack(
-      ui.pickerHueSlider,
-      "gradient(linear, 0% 0%, 100% 0%, from(#FF0000), color-stop(0.1667, #FFFF00), color-stop(0.3333, #00FF00), color-stop(0.5, #00FFFF), color-stop(0.6667, #0000FF), color-stop(0.8333, #FF00FF), to(#FF0000))",
-    );
-    setPickerTrack(
+      "saturation",
       ui.pickerSaturationSlider,
-      "gradient(linear, 0% 0%, 100% 0%, from(" +
-        hslToHex(picker.hue, 0, picker.lightness) +
-        "), to(" +
-        hslToHex(picker.hue, 100, picker.lightness) +
-        "))",
+      picker.hue + "|" + picker.lightness,
+      pickerSaturationGradient,
     );
     setPickerTrack(
+      "lightness",
       ui.pickerLumenSlider,
-      "gradient(linear, 0% 0%, 100% 0%, from(#000000), color-stop(0.5, " +
-        hslToHex(picker.hue, picker.saturation, 50) +
-        "), to(#FFFFFF))",
+      picker.hue + "|" + picker.saturation,
+      pickerLumenGradient,
     );
   }
 
   function bindPickerSlider(slider, component) {
     if (!isValid(slider)) return;
-    function pickerColor() {
-      return hslToHex(
-        picker.hue,
-        picker.saturation,
-        picker.lightness,
-      );
-    }
     try {
       slider.increment = 1;
     } catch {}
@@ -4929,10 +4903,7 @@
         key: picker.key,
         value: pickerColor(),
       });
-      pickerGestureActive =
-        !!result &&
-        !!result.outcome &&
-        result.outcome.status !== "rejected";
+      pickerGestureActive = stateAccepted(result);
     });
     setPanelEvent(slider, "onvaluechanged", function () {
       if (syncingControls || !picker.key) return;
@@ -4988,19 +4959,23 @@
     picker.returnPanel = null;
   }
 
-  function openPicker(key, returnPanel) {
-    if (!COLOR_KEYS[key]) return;
-    closeHeroDialog();
+  function showPicker(key, returnPanel, condition, hex) {
     picker.key = key;
-    picker.condition = false;
     picker.returnPanel = returnPanel;
-    var hsl = hexToHsl(state.values[key]);
+    picker.condition = condition;
+    var hsl = hexToHsl(hex);
     picker.hue = hsl.hue;
     picker.saturation = hsl.saturation;
     picker.lightness = hsl.lightness;
     setClass(ui.pickerRoot, "Open", true);
     syncPicker();
     focus(ui.pickerHueSlider);
+  }
+
+  function openPicker(key, returnPanel) {
+    if (!COLOR_KEYS[key]) return;
+    closeHeroDialog();
+    showPicker(key, returnPanel, false, state.values[key]);
   }
 
   function syncToggleControls(values) {
@@ -5141,11 +5116,6 @@
       "Active",
       ultimateTimerProgressColors,
     );
-
-    setEnabled(controlPanel("HPColorsSharedLowThresholdSlider"), true);
-    setEnabled(controlPanel("HPColorsSharedLowThresholdEntry"), true);
-    setEnabled(controlPanel("HPColorsSharedHighThresholdSlider"), true);
-    setEnabled(controlPanel("HPColorsSharedHighThresholdEntry"), true);
   }
 
   function syncReadoutColorRows(base, colorMode) {
@@ -5161,11 +5131,7 @@
 
   function syncControls() {
     var view = currentView();
-    var values = view
-      ? view.currentScope
-        ? view.currentScope.values
-        : view.values
-      : {};
+    var values = state.values;
     syncingControls = true;
     try {
       syncToggleControls(values);
@@ -5181,10 +5147,6 @@
     }
     renderIdentity();
     renderCurrentScope();
-    setText(
-      ui.presetScopeHelp,
-      "HEROES chooses when this preset loads automatically. See HOW PRESETS WORK for switching rules.",
-    );
     refreshPresetActivity(view);
   }
 
@@ -5348,7 +5310,6 @@
       );
     }
     setText(ui.exitFeedback, "");
-    setClass(ui.exitDialog, "WithSave", !!source);
     setRowActionEnabled(ui.exitSaveButton, !!source);
     setClass(ui.exitDialog, "Open", true);
     // The non-destructive choice takes focus.
@@ -5371,7 +5332,7 @@
     if (!exitDialogOpen()) return;
     var preset = changedSourcePreset();
     if (!preset || preset.id !== exitDialogSourceId) {
-      setText(ui.exitFeedback, "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.");
+      setText(ui.exitFeedback, PRESET_GONE_TEXT);
       renderPresetOptions();
       return;
     }
@@ -5547,8 +5508,7 @@
     var requiredPanels = [ui.escapeRoot, ui.absoluteRoot];
     for (var keyIndex = 0; keyIndex < REQUIRED_UI_PANEL_KEYS.length; keyIndex++)
       requiredPanels.push(ui[REQUIRED_UI_PANEL_KEYS[keyIndex]]);
-    var legacyLayout =
-      isValid(find(LEGACY_PRESET_STORE_ID)) || !isValid(find(STORE_PANEL_ID));
+    var legacyLayout = detectLegacyLayout(find(STORE_PANEL_ID));
     // Retired builder layouts have only the original four rail buttons; keep
     // them bootable so the header can explain that the old pak01 must be removed.
     var categoryButtons = legacyLayout
@@ -5681,7 +5641,6 @@
   }
 
   function bindMenuControls() {
-    setPanelEvent(ui.menuButton, "onactivate", requestOpen);
     setPanelEvent(ui.storeForgetButton, "onactivate", requestForget);
     setPanelEvent(ui.doneButton, "onactivate", requestCloseEditor);
     setPanelEvent(ui.saveToPresetButton, "onactivate", activateSaveToPreset);
@@ -5689,33 +5648,19 @@
       if (!panelHasClass(ui.saveToMoreButton, "Disabled")) openSaveToDialog();
     });
     setPanelEvent(ui.saveToNewButton, "onactivate", saveToNewPreset);
-    setPanelEvent(ui.saveToCloseButton, "onactivate", function () {
-      closeSaveToDialog(true);
-    });
-    setPanelEvent(ui.saveToBackdrop, "onactivate", function () {
-      closeSaveToDialog(true);
-    });
-    setPanelEvent(ui.saveToDialog, "oncancel", function () {
-      closeSaveToDialog(true);
-    });
+    setPanelEvent(ui.saveToCloseButton, "onactivate", closeSaveToDialog);
+    setPanelEvent(ui.saveToBackdrop, "onactivate", closeSaveToDialog);
+    setPanelEvent(ui.saveToDialog, "oncancel", closeSaveToDialog);
     setPanelEvent(ui.exitSaveButton, "onactivate", exitSaveAndClose);
     setPanelEvent(ui.exitReviewButton, "onactivate", exitReviewPresets);
     setPanelEvent(ui.exitDiscardButton, "onactivate", exitWithoutSaving);
-    setPanelEvent(ui.exitBackdrop, "onactivate", function () {
-      closeExitDialog(true);
-    });
-    setPanelEvent(ui.exitDialog, "oncancel", function () {
-      closeExitDialog(true);
-    });
+    setPanelEvent(ui.exitBackdrop, "onactivate", closeExitDialog);
+    setPanelEvent(ui.exitDialog, "oncancel", closeExitDialog);
     setPanelEvent(ui.undoButton, "onactivate", undo);
     setPanelEvent(ui.resetButton, "onactivate", requestSectionReset);
     setPanelEvent(ui.resetConfirmButton, "onactivate", confirmSectionReset);
-    setPanelEvent(ui.resetCancelButton, "onactivate", function () {
-      closeResetDialog(true);
-    });
-    setPanelEvent(ui.resetDialog, "oncancel", function () {
-      closeResetDialog(true);
-    });
+    setPanelEvent(ui.resetCancelButton, "onactivate", closeResetDialog);
+    setPanelEvent(ui.resetDialog, "oncancel", closeResetDialog);
     setPanelEvent(ui.transferButton, "onactivate", openTransferDialog);
     setPanelEvent(ui.transferExportButton, "onactivate", copyCurrentSettings);
     setPanelEvent(ui.transferImportButton, "onactivate", importLiveSettings);
@@ -5739,10 +5684,9 @@
     setPanelEvent(ui.currentScopeSelected, "onactivate", function () {
       openScopeDialog(HERO_SCOPE_SELECTED);
     });
-    if (isValid(ui.currentScopeExcept))
-      setPanelEvent(ui.currentScopeExcept, "onactivate", function () {
-        openScopeDialog(HERO_SCOPE_EXCEPT);
-      });
+    setPanelEvent(ui.currentScopeExcept, "onactivate", function () {
+      openScopeDialog(HERO_SCOPE_EXCEPT);
+    });
     setPanelEvent(ui.scopeSearch, "ontextentrychange", filterScopeHeroOptions);
     setPanelEvent(ui.scopeCloseButton, "onactivate", closeScopeDialog);
     setPanelEvent(ui.scopeDialog, "oncancel", closeScopeDialog);
@@ -5750,6 +5694,10 @@
     setPanelEvent(ui.presetNewButton, "onactivate", beginNewPreset);
     setPanelEvent(ui.presetGuideToggle, "onactivate", togglePresetGuide);
     renderPresetGuide();
+    setText(
+      ui.presetScopeHelp,
+      "HEROES chooses when this preset loads automatically. See HOW PRESETS WORK for switching rules.",
+    );
     setPanelEvent(
       ui.presetCancelEditButton,
       "onactivate",
@@ -5805,6 +5753,11 @@
     setClass(ui.menuButton, "Loading", true);
   }
 
+  function setHydrationDone(raw) {
+    hydration = { phase: "done", raw: raw };
+    writeRootAttribute(HYDRATION_ATTR, "done");
+  }
+
   // Cold boot: nothing in this process has written the session attribute, so
   // saved settings come from the store. Warm boot (layout reload) keeps the
   // session attribute, which is always newer than the store.
@@ -5812,14 +5765,12 @@
     ensureStorage();
     var sessionRaw = readRootAttribute(MENU_STATE_ATTR);
     if (sessionRaw) {
-      hydration = { phase: "done", raw: sessionRaw };
-      writeRootAttribute(HYDRATION_ATTR, "done");
+      setHydrationDone(sessionRaw);
       restoreProcessGate(sessionRaw);
       return;
     }
     if (!storage) {
-      hydration = { phase: "done", raw: null };
-      writeRootAttribute(HYDRATION_ATTR, "done");
+      setHydrationDone(null);
       setGate("blocked");
       return;
     }
@@ -5828,8 +5779,7 @@
     renderStoreStatus();
     storage.load(function (outcome) {
       if (!isValid(context) || hydration.phase !== "pending") return;
-      hydration = { phase: "done", raw: applyLoadOutcome(outcome) };
-      writeRootAttribute(HYDRATION_ATTR, "done");
+      setHydrationDone(applyLoadOutcome(outcome));
       boot();
     });
   }

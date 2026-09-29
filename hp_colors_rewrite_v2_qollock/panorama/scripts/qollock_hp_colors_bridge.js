@@ -15,11 +15,15 @@
         }
     }
 
+    function describe(error) {
+        return String(error && error.message ? error.message : error);
+    }
+
     function closeHpColors() {
         try {
             if (typeof $.HPColorsMenuCancel === "function") $.HPColorsMenuCancel();
         } catch (error) {
-            logError("failed to close HP COLORS V2: " + String(error && error.message ? error.message : error));
+            logError("failed to close HP COLORS V2: " + describe(error));
         }
     }
 
@@ -29,18 +33,16 @@
             if (settingsWindow && typeof settingsWindow.BHasClass === "function" && !settingsWindow.BHasClass("Visible")) return;
             if (toggleQolLock) toggleQolLock();
         } catch (error) {
-            logError("failed to close QOL LOCK: " + String(error && error.message ? error.message : error));
+            logError("failed to close QOL LOCK: " + describe(error));
         }
     }
 
     /* QOL LOCK -> HP COLORS V2: close the editor before opening QOL LOCK. */
-    if (typeof $.ToggleSettingsWindow === "function") {
-        (function (toggleSettingsWindow) {
-            $.ToggleSettingsWindow = function () {
-                closeHpColors();
-                return toggleSettingsWindow.apply(this, arguments);
-            };
-        }($.ToggleSettingsWindow));
+    if (toggleQolLock) {
+        $.ToggleSettingsWindow = function () {
+            closeHpColors();
+            return toggleQolLock.apply(this, arguments);
+        };
     }
 
     /* HP COLORS V2 -> QOL LOCK: wrap the handler installed during menu boot. */
@@ -65,7 +67,7 @@
                     }
                     return hpColorsMenuBoot.apply(this, arguments);
                 } catch (error) {
-                    logError("failed to boot exclusive HP COLORS V2 handler: " + String(error && error.message ? error.message : error));
+                    logError("failed to boot exclusive HP COLORS V2 handler: " + describe(error));
                     return hpColorsMenuBoot.apply(this, arguments);
                 } finally {
                     if (button && typeof button.SetPanelEvent === "function" && typeof originalSetPanelEvent === "function") {
