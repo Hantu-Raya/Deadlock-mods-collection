@@ -364,16 +364,6 @@
                       <Button id="HPColorsStoreForgetButton" class="HPColorsSecondaryAction HPColorsStoreForgetButton"><Label id="HPColorsStoreForgetLabel" text="CLEAR PC SAVE" /></Button>
                     </Panel>
                   </Panel>
-                  <Panel class="HPColorsIdentityRuntime">
-                    <Label id="HPColorsHeroPhase" text="TRANSITIONING" />
-                    <Label id="HPColorsHeroDetail" text="" />
-                    <Button id="HPColorsHeroModeAuto" />
-                    <Button id="HPColorsHeroModeManual" />
-                    <Button id="HPColorsHeroModeOff" />
-                    <Panel id="HPColorsHeroManualRow">
-                      <Button id="HPColorsHeroManualButton"><Label id="HPColorsHeroManualValue" text="" /></Button>
-                    </Panel>
-                  </Panel>
                 </Panel>
 
                 <Panel id="HPColorsSettingsEnemyBar" class="HPColorsSettingsPage">
@@ -1128,18 +1118,6 @@
           <Panel class="HPColorsPrecisePipsDialogActions">
             <Button id="HPColorsPrecisePipsCopyButton" class="HPColorsPrimaryAction"><Label id="HPColorsPrecisePipsCopyLabel" text="COPY" /></Button>
             <Button id="HPColorsPrecisePipsCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
-          </Panel>
-        </Panel>
-      </Panel>
-      <Panel id="HPColorsHeroDialog" class="HPColorsHeroDialog" hittest="false" hittestchildren="true">
-        <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
-        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
-          <Label class="HPColorsTransferDialogEyebrow" text="HERO DETECTION" />
-          <Label class="HPColorsTransferDialogTitle" text="SELECT HERO" />
-          <Label class="HPColorsTransferDialogMessage" text="Choose the hero used for manual preset selection." />
-          <Panel id="HPColorsHeroOptions" class="HPColorsHeroOptions" hittest="true" hittestchildren="true" />
-          <Panel class="HPColorsTransferDialogActions">
-            <Button id="HPColorsHeroCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
           </Panel>
         </Panel>
       </Panel>

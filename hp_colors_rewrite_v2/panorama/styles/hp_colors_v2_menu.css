@@ -1106,6 +1106,11 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   margin-left: 0px;
 }
 
+/* EXIT keeps a 12px gap after REVIEW PRESETS in the exit prompt. */
+.HPColorsTransferDialogActions .HPColorsSecondaryAction.HPColorsExitDiscardButton {
+  margin-left: 12px;
+}
+
 .HPColorsPrecisePipsDialog {
   width: 100%;
   height: 100%;
@@ -1370,10 +1375,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   text-overflow: shrink;
 }
 
-
-.HPColorsIdentityRuntime {
-  visibility: collapse;
-}
 
 .HPColorsPresetLibraryAction {
   min-width: 100px;
