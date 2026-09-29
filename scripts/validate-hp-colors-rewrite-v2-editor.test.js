@@ -985,6 +985,28 @@ test('color picker closes from its backdrop and condition swatches accept clicks
   );
 });
 
+test('More Precise HP Text toggle shows its state after clicks and Undo', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  const toggle = panel(fixture, 'HPColorsPrecisePipsToggle');
+  const dialog = panel(fixture, 'HPColorsPrecisePipsDialog');
+  assert.equal(toggle.BHasClass('Checked'), false);
+
+  toggle.events.onactivate();
+  assert.equal(toggle.BHasClass('Checked'), true);
+  assert.equal(dialog.BHasClass('Open'), true);
+  panel(fixture, 'HPColorsPrecisePipsCloseButton').events.onactivate();
+
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(toggle.BHasClass('Checked'), false);
+
+  toggle.events.onactivate();
+  toggle.events.onactivate();
+  assert.equal(toggle.BHasClass('Checked'), false);
+});
+
 test('sync contains panel API failures and keeps control events enabled', () => {
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
   const undoButton = panel(fixture, 'HPColorsUndoButton');

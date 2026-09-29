@@ -241,7 +241,7 @@
           name: "PIPS & LEVEL",
           title: "HEALTH PIPS & PLAYER LEVEL",
           description:
-            "Show or hide health pips and enemy level badges, move the level badge, and count 10 HP per small pip.",
+            "Show or hide health pips and enemy level badges, move the level badge, and make HP numbers more precise.",
           pageId: "HPColorsSettingsReadoutLevels",
           keys: [
             "pipsVisible",
@@ -2839,13 +2839,13 @@
     closeHeroDialog();
     setText(
       ui.precisePipsDialogTitle,
-      enabled ? "ENABLE PRECISE PIPS" : "REMOVE PRECISE PIP CONFIG",
+      enabled ? "TURN ON MORE PRECISE HP TEXT" : "UNDO THE GAME FILE CHANGE",
     );
     setText(
       ui.precisePipsDialogMessage,
       enabled
-        ? "Copy these lines into the ConVars block in gameinfo.gi. HP Colors cannot apply or verify this game configuration."
-        : "If you do not plan to use precise pips, copy these default lines into the ConVars block in gameinfo.gi, or delete the custom precise-pip entries.",
+        ? "One more step: open Deadlock\\game\\citadel\\gameinfo.gi, find the ConVars block, paste these 3 lines inside it, then fully restart Deadlock. HP Colors cannot edit that file for you. Without these lines, HP numbers will be wrong."
+        : "If you added the 3 lines to gameinfo.gi, delete them or paste these normal values over them, then fully restart Deadlock.",
     );
     setText(
       ui.precisePipsDialogCommands,
@@ -4291,6 +4291,8 @@
       var control = TOGGLE_CONTROLS[index];
       setToggle(control, values[control.key]);
     }
+    // Own click handler (opens the gameinfo.gi pop-up), so not in TOGGLE_CONTROLS.
+    setClass(ui.precisePipsToggle, "Checked", !!values.precisePipsEnabled);
   }
 
   function syncModeControls(values) {
