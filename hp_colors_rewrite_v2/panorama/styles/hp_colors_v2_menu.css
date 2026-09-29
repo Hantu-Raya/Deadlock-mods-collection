@@ -95,16 +95,25 @@
   visibility: visible;
 }
 
+/* Content-sized (no fixed width). Longest copy is "PRESET: " + a 16-char
+   name + " · CHANGED" (34 chars, ~330px at 13px/1px tracking); menu.js
+   truncates longer names. Header budget: 1068px inner minus title 300, rule
+   min 48, ticker 274, donate 96 leaves ~350px for this chip. */
 .HPColorsLiveStatus {
   vertical-align: center;
   font-family: oracle;
   font-size: 13px;
   font-weight: bold;
   color: #5fe69e;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   border-left: 2px solid #5fe69e;
   padding-left: 10px;
   white-space: nowrap;
+}
+
+.HPColorsLiveStatus.PresetChanged {
+  color: #e7c77d;
+  border-left: 2px solid #e7c77d;
 }
 
 .HPColorsLiveStatus.StoreWarning {
@@ -600,12 +609,7 @@ Slider.HPColorsSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsGradientRows {
   width: 100%;
-  visibility: collapse;
   flow-children: down;
-}
-
-.HPColorsGradientRows.Active {
-  visibility: visible;
 }
 
 .HPColorsConditionalRow {
@@ -866,6 +870,86 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   color: #10130d;
 }
 
+/* Seven footer actions share about 844px (822px used with ▼ shown), so the
+   footer uses compact fixed widths and its labels shrink to fit instead of
+   running past the edge. The spacer keeps the rest; EXIT stays last. */
+.HPColorsEditorFooter .HPColorsSecondaryAction,
+.HPColorsEditorFooter .HPColorsPrimaryAction {
+  min-width: 0px;
+  padding: 0px 8px;
+}
+
+.HPColorsEditorFooter .HPColorsSecondaryAction Label,
+.HPColorsEditorFooter .HPColorsPrimaryAction Label {
+  width: 100%;
+  font-size: 13px;
+  text-align: center;
+  text-overflow: shrink;
+}
+
+#HPColorsPeekButton {
+  width: 140px;
+}
+
+#HPColorsUndoButton {
+  width: 80px;
+}
+
+#HPColorsResetSectionButton {
+  width: 150px;
+}
+
+#HPColorsTransferButton {
+  width: 164px;
+}
+
+#HPColorsSaveToPresetButton {
+  width: 166px;
+}
+
+/* ▼ opens the SAVE TO PRESET list while the main button names its target. */
+#HPColorsSaveToMoreButton {
+  width: 34px;
+  padding: 0px 4px;
+}
+
+#HPColorsDoneButton {
+  width: 76px;
+}
+
+/* SAVE TO PRESET glows amber while the preset the settings came from has
+   unsaved changes, like its CHANGED row. The pulse animates opacity only. */
+#HPColorsSaveToPresetButton.Unsaved {
+  border: 1px solid #e7c77d;
+  background-color: #e7c77d1a;
+  animation-name: HPColorsSaveToPresetPulse;
+  animation-duration: 1.6s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+
+#HPColorsSaveToPresetButton.Unsaved Label {
+  color: #e7c77d;
+}
+
+/* Disabled while the name form is open: dim and still, never glowing. */
+#HPColorsSaveToPresetButton.Unsaved.Disabled {
+  animation: none;
+  border: 1px solid #ffefd726;
+  background-color: #ffefd70a;
+}
+
+#HPColorsSaveToPresetButton.Unsaved.Disabled Label {
+  color: #ffefd7;
+}
+
+@keyframes 'HPColorsSaveToPresetPulse'
+{
+  0% { opacity: 1; }
+  100% { opacity: 0.55; }
+}
+
 
 .HPColorsPeekCapture {
   width: 100%;
@@ -930,6 +1014,20 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsResetDialogPanel {
   width: 560px;
+}
+
+/* Exit prompt: SAVE & EXIT collapses in Case B (form name only, no
+   CHANGED source) so the dialog never offers a save without a target. */
+.HPColorsExitDialogPanel {
+  width: 640px;
+}
+
+.HPColorsExitDialog .HPColorsTransferFeedback {
+  color: #e16161;
+}
+
+.HPColorsExitSaveButton.Disabled {
+  visibility: collapse;
 }
 
 .HPColorsTransferDialogEyebrow {
@@ -1006,6 +1104,11 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsTransferDialogActions .HPColorsSecondaryAction {
   margin-left: 0px;
+}
+
+/* EXIT keeps a 12px gap after REVIEW PRESETS in the exit prompt. */
+.HPColorsTransferDialogActions .HPColorsSecondaryAction.HPColorsExitDiscardButton {
+  margin-left: 12px;
 }
 
 .HPColorsPrecisePipsDialog {
@@ -1106,14 +1209,25 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 
 
+/* Hero identity line: sits under the page description, outside the scroll
+   list, and shows only on PRESETS (menu toggles .Active). Collapsed by
+   default so GENERAL never flashes it. It pulls itself up into the
+   description's 18px gap rather than adding margin to the list (see
+   .HPColorsPageDescription). */
 .HPColorsPresetHeroValue {
-  width: 142px;
-  vertical-align: center;
+  width: 100%;
+  margin-top: -8px;
+  margin-bottom: 14px;
+  visibility: collapse;
   font-family: oracle;
   font-size: 12px;
   color: #ffefd799;
   letter-spacing: 1px;
   text-overflow: shrink;
+}
+
+.HPColorsPresetHeroValue.Active {
+  visibility: visible;
 }
 
 
@@ -1182,17 +1296,19 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   flow-children: right;
 }
 
+/* APPLIES TO reads as one line: content-width label, then the summary
+   starting right after it and filling the rest of the row. */
 .HPColorsHeroScopeHeader .HPColorsHeroFieldLabel {
-  width: fill-parent-flow(1);
-  margin: 0px 0px 7px 0px;
+  width: fit-children;
+  margin: 0px 10px 7px 0px;
 }
 
 .HPColorsCurrentScopeSummary {
-  width: 260px;
+  width: fill-parent-flow(1);
   font-family: oracle;
   font-size: 11px;
   color: #5fe69e;
-  text-align: right;
+  text-align: left;
   text-overflow: shrink;
 }
 
@@ -1212,6 +1328,31 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   font-size: 12px;
   color: #ffefd766;
   white-space: normal;
+}
+
+.HPColorsPresetGuide {
+  width: 100%;
+  margin-bottom: 14px;
+  flow-children: down;
+}
+
+.HPColorsPresetGuideToggle {
+  horizontal-align: left;
+}
+
+.HPColorsPresetGuideText {
+  visibility: collapse;
+  width: 100%;
+  margin-top: 10px;
+  font-family: sans;
+  font-size: 14px;
+  line-height: 20px;
+  color: #ffefd7b3;
+  white-space: normal;
+}
+
+.HPColorsPresetGuide.Open .HPColorsPresetGuideText {
+  visibility: visible;
 }
 
 .HPColorsPresetLibraryHeader {
@@ -1234,10 +1375,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   text-overflow: shrink;
 }
 
-
-.HPColorsIdentityRuntime {
-  visibility: collapse;
-}
 
 .HPColorsPresetLibraryAction {
   min-width: 100px;
@@ -1424,6 +1561,99 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   letter-spacing: 1px;
 }
 
+/* SAVE TO PRESET dialog. Rows reuse the hero option surface, but the row body
+   is inert: only its own SAVE button acts. Amber marks CHANGED and the armed
+   REPLACE? state, like the preset library. */
+.HPColorsSaveToOption {
+  height: 50px;
+  padding: 0px 8px 0px 14px;
+  transition-property: opacity;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-out;
+}
+
+.HPColorsSaveToOption:hover,
+.HPColorsSaveToOption:focus {
+  brightness: 1;
+  border-left: 2px solid #ffefd714;
+}
+
+.HPColorsSaveToOption.Changed {
+  border-left: 2px solid #e7c77d;
+}
+
+.HPColorsSaveToOption.Confirming {
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(#e7c77d26), to(#e7c77d08));
+  border-left: 2px solid #e7c77d;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionName {
+  width: fill-parent-flow(1);
+  text-overflow: shrink;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionScope {
+  width: 210px;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #5fe69e;
+  text-align: right;
+  text-overflow: shrink;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionTag {
+  width: 76px;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #e7c77d;
+  text-align: right;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToOptionMessage {
+  width: fill-parent-flow(1);
+  font-size: 12px;
+  color: #e7c77d;
+  text-overflow: shrink;
+  visibility: collapse;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionName,
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionScope,
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionTag {
+  visibility: collapse;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToOptionMessage {
+  visibility: visible;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToRowSave {
+  min-width: 88px;
+  margin-left: 8px;
+}
+
+.HPColorsSaveToOption .HPColorsSaveToRowSave Label {
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToRowSave {
+  background-color: #e7c77d24;
+  border: 1px solid #e7c77d;
+}
+
+.HPColorsSaveToOption.Confirming .HPColorsSaveToRowSave Label {
+  color: #e7c77d;
+}
+
+.HPColorsSaveToDialog .HPColorsTransferFeedback {
+  color: #e7c77d;
+}
+
+.HPColorsSaveToDialog.Error .HPColorsTransferFeedback {
+  color: #e16161;
+}
+
 .HPColorsPresetSaveControls {
   width: 100%;
   margin-top: 12px;
@@ -1495,8 +1725,9 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   padding: 0px 6px 0px 10px;
   flow-children: right;
   background-color: gradient(linear, 0% 0%, 100% 0%, from(#ffefd708), to(#ffefd702));
-  border-left: 2px solid #ffefd714;
-  transition-property: brightness, border, background-color;
+  /* Every row reserves the 4px bar so Active/Editing never shift content. */
+  border-left: 4px solid #ffefd700;
+  transition-property: opacity;
   transition-duration: 0.1s;
   transition-timing-function: ease-out;
 }
@@ -1504,12 +1735,31 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 .HPColorsPresetOption:hover,
 .HPColorsPresetOption:focus {
   brightness: 1.2;
-  border-left: 2px solid #5fe69e;
+  border-left: 4px solid #5fe69e66;
 }
 
-.HPColorsPresetOption.Selected {
-  background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e20), to(#5fe69e04));
-  border-left: 2px solid #5fe69e;
+.HPColorsPresetOption.Active {
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(#5fe69e34), to(#5fe69e08));
+  border-left: 4px solid #5fe69e;
+}
+
+.HPColorsPresetOption.Editing {
+  border-left: 4px solid #f2c46b;
+}
+
+.HPColorsPresetOption.Editing .HPColorsPresetOptionStatus {
+  color: #f2c46b;
+}
+
+/* CHANGED: the row the live settings came from no longer equals them.
+   Amber like the hidden-row banner; never shown together with EDITING. */
+.HPColorsPresetOption.Changed {
+  background-color: gradient(linear, 0% 0%, 100% 0%, from(#e7c77d22), to(#e7c77d06));
+  border-left: 4px solid #e7c77d;
+}
+
+.HPColorsPresetOption.Changed .HPColorsPresetOptionStatus {
+  color: #e7c77d;
 }
 
 .HPColorsPresetOptionName {
@@ -1526,14 +1776,14 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   border: 1px solid #ffffff00;
 }
 
-.HPColorsPresetOptionName.Editable:hover {
-  color: #5fe69e;
-  border: 1px solid #ffffff;
+.HPColorsPresetOptionMain {
+  width: fill-parent-flow(1);
+  height: 100%;
+  flow-children: right;
 }
 
-.HPColorsPresetOptionName.Editing {
-  background-color: #050705;
-  border: 1px solid #5fe69e;
+.HPColorsPresetOptionMain:hover .HPColorsPresetOptionName {
+  color: #ffefd7;
 }
 
 .HPColorsPresetOptionScope {
@@ -1548,11 +1798,12 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsPresetOptionStatus {
-  width: 58px;
+  width: 64px;
   margin-left: 6px;
   vertical-align: center;
   font-family: oracle;
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: bold;
   color: #5fe69e;
   letter-spacing: 1px;
   text-align: right;
@@ -1590,23 +1841,54 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   padding: 0px;
 }
 
+/* Disabled reorder arrows stay in place, dimmed, and never brighten. */
 .HPColorsPresetRowUp.Disabled,
-.HPColorsPresetRowDown.Disabled {
-  visibility: collapse;
+.HPColorsPresetRowDown.Disabled,
+.HPColorsPresetRowUp.Disabled:hover,
+.HPColorsPresetRowDown.Disabled:hover,
+.HPColorsPresetRowUp.Disabled:focus,
+.HPColorsPresetRowDown.Disabled:focus {
+  opacity: 0.3;
+  brightness: 1;
+  border: 1px solid #ffefd726;
 }
 
 .HPColorsPresetRowCopy {
   min-width: 52px;
 }
 
-.HPColorsPresetRowApply {
-  min-width: 60px;
+.HPColorsPresetRowEdit {
+  min-width: 52px;
   background-color: #5fe69e24;
   border: 1px solid #5fe69e66;
 }
 
-.HPColorsPresetRowApply.SaveAndApply {
-  min-width: 112px;
+/* SAVE/REVERT are pre-created on every user row and only shown on the
+   CHANGED row, where they replace EDIT. The JS also drops hittest/canfocus
+   on whichever side is hidden. */
+.HPColorsPresetRowSave,
+.HPColorsPresetRowRevert,
+.HPColorsPresetOption.RowChanged .HPColorsPresetRowEdit {
+  visibility: collapse;
+}
+
+.HPColorsPresetOption.RowChanged .HPColorsPresetRowSave,
+.HPColorsPresetOption.RowChanged .HPColorsPresetRowRevert {
+  visibility: visible;
+}
+
+.HPColorsPresetRowSave {
+  min-width: 52px;
+  background-color: #e7c77d24;
+  border: 1px solid #e7c77d88;
+}
+
+.HPColorsPresetRowSave Label {
+  color: #e7c77d;
+}
+
+.HPColorsPresetRowRevert {
+  min-width: 60px;
 }
 
 .HPColorsPresetRowDelete {
@@ -1662,7 +1944,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 /* Same box as a condition button, never shown: keeps toggles lined up on
    rows whose setting can't have conditions. */
-.HPColorsConditionIndicator.HPColorsConditionSpacer,
 .HPColorsSettingRow:hover .HPColorsConditionIndicator.HPColorsConditionSpacer {
   opacity: 0;
 }

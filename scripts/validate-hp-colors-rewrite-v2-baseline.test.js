@@ -191,6 +191,18 @@ function translation(transform) {
   return [Number(match[1]), Number(match[2])];
 }
 
+function centeredMarginLayout(panel, stockMarginTop) {
+  let stockTop = panel.actualyoffset;
+  Object.defineProperty(panel, 'actualyoffset', {
+    configurable: true,
+    get() {
+      const margin = Number.parseFloat(panel.style.marginTop);
+      return stockTop + (Number.isFinite(margin) ? (margin - stockMarginTop) / 2 : 0);
+    },
+    set(value) { stockTop = value; },
+  });
+}
+
 function makeStatusFixture(
   role,
   values,
@@ -202,6 +214,8 @@ function makeStatusFixture(
   isPlayer = false,
   staminaStockStyles = null,
   barStockStyles = null,
+  extraClasses = [],
+  beforeBoot = null,
 ) {
   values = { ...values };
   if (values.enemyColor) {
@@ -230,6 +244,7 @@ function makeStatusFixture(
             ? ['team_neutral']
             : [];
   if (isPlayer) classes.push('player');
+  classes.push(...extraClasses);
   const root = harness.root;
   let siblingCounter = null;
   let siblingFill = null;
@@ -338,6 +353,10 @@ function makeStatusFixture(
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
+  // Both indicators are vertically centered: Panorama moves them by half the
+  // top margin beyond their stock one. Assigning actualyoffset sets the stock top.
+  centeredMarginLayout(levelContainer, 24);
+  centeredMarginLayout(unitInfo, 0);
   const unitInfoPanel = unitInfo.add(new MockPanel('unit_info_panel', {
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
@@ -415,6 +434,7 @@ function makeStatusFixture(
     'hp_colors_v2_config',
     makeSnapshot(revision, values),
   );
+  if (beforeBoot) beforeBoot({ infoHealth, levelContainer, unitInfo, healthbars, healthbar: liveBar.healthbar });
   harness.contextPanel = unitStatus;
   const context = createVmContext(harness, { includeGameUI: false });
   runInVm(read(contractPath), context, contractPath);
@@ -1388,6 +1408,124 @@ test('indicator geometry stays aligned at maximum scale and offset', () => {
   assert.equal(fixture.unitInfo.style.marginTop, '-510.25px');
 });
 
+// A save applied at game boot reaches the bars during pregame, when stock CSS
+// collapses #InfoHealthContainer, so the indicators are measured in a layout
+// that changes once the match starts.
+const ANCHORED_BOOT_VALUES = {
+  enabled: true,
+  enemyColor: '#123456',
+  widthScale: 150,
+  heightScale: 160,
+  positionX: 120,
+  positionY: 200,
+  levelOffsetY: 12,
+  ultOffsetY: -8,
+};
+
+function bootAnchoredFixture(beforeBoot) {
+  return makeStatusFixture(
+    'enemy', ANCHORED_BOOT_VALUES, 1, "|'", false, false, false, false, null, null, [], beforeBoot,
+  );
+}
+
+function indicatorMargins(fixture) {
+  return {
+    level: [fixture.levelContainer.style.marginLeft, fixture.levelContainer.style.marginTop],
+    ult: [fixture.unitInfo.style.marginLeft, fixture.unitInfo.style.marginTop],
+  };
+}
+
+// Stock match layout.
+function showMatchLayout(fixture) {
+  fixture.infoHealth.actuallayoutheight = 2030;
+  fixture.healthbars.actuallayoutheight = 320;
+  fixture.healthbars.actualyoffset = 955;
+  fixture.healthbar.actuallayoutheight = 120;
+  fixture.levelContainer.actuallayoutheight = 210;
+  fixture.levelContainer.actualyoffset = 910;
+  fixture.unitInfo.actuallayoutheight = 300;
+  fixture.unitInfo.actualyoffset = 850;
+}
+
+test('a save applied while pregame collapses the HUD anchors the level and ultimate once the match shows it', () => {
+  const expected = indicatorMargins(bootAnchoredFixture((parts) => {
+    parts.infoHealth.actuallayoutheight = 2030;
+  }));
+  const fixture = bootAnchoredFixture((parts) => {
+    for (const panel of Object.values(parts)) panel.actuallayoutheight = 0;
+  });
+  showMatchLayout(fixture);
+  fixture.harness.scheduler.runFor(3000);
+  assert.deepEqual(indicatorMargins(fixture), expected);
+});
+
+test('indicators measured in a pregame layout re-anchor when the match layout replaces it', () => {
+  const expected = indicatorMargins(bootAnchoredFixture((parts) => {
+    parts.infoHealth.actuallayoutheight = 2030;
+  }));
+  // Pregame lays the centered panels out inside a small frame.
+  const fixture = bootAnchoredFixture((parts) => {
+    parts.infoHealth.actuallayoutheight = 40;
+    parts.healthbars.actualyoffset = -140;
+    parts.levelContainer.actualyoffset = -85;
+    parts.unitInfo.actualyoffset = -130;
+  });
+  assert.notDeepEqual(indicatorMargins(fixture), expected);
+  showMatchLayout(fixture);
+  fixture.harness.scheduler.runFor(3000);
+  assert.deepEqual(indicatorMargins(fixture), expected);
+
+  // Settled: further scans keep the same anchor.
+  fixture.harness.scheduler.runFor(3000);
+  assert.deepEqual(indicatorMargins(fixture), expected);
+});
+
+// The level badge and UnitInfo stay collapsed until their classes appear; a
+// collapsed panel can report its size with a stale position while the frame
+// around it never changes.
+test('indicators measured while collapsed at a stale position re-anchor when shown', () => {
+  const expected = indicatorMargins(bootAnchoredFixture());
+  const fixture = bootAnchoredFixture((parts) => {
+    parts.levelContainer.actualyoffset = 0;
+    parts.unitInfo.actualyoffset = 0;
+  });
+  assert.notDeepEqual(indicatorMargins(fixture), expected);
+  fixture.levelContainer.actualyoffset = 910;
+  fixture.unitInfo.actualyoffset = 850;
+  fixture.harness.scheduler.runFor(3000);
+  assert.deepEqual(indicatorMargins(fixture), expected);
+  fixture.harness.scheduler.runFor(5000);
+  assert.deepEqual(indicatorMargins(fixture), expected, 'settled anchors stay put');
+});
+
+test('the bar moving inside its frame re-anchors both indicators', () => {
+  const fixture = bootAnchoredFixture();
+  const before = indicatorMargins(fixture);
+  fixture.healthbars.actualyoffset = 855;
+  fixture.harness.scheduler.runFor(3000);
+  const after = indicatorMargins(fixture);
+  assert.equal(parseFloat(before.level[1]) - parseFloat(after.level[1]), 200);
+  assert.equal(parseFloat(before.ult[1]) - parseFloat(after.ult[1]), 200);
+});
+
+test('indicators stop re-anchoring when the layout keeps disagreeing', () => {
+  const fixture = bootAnchoredFixture((parts) => {
+    parts.levelContainer.actualyoffset = 0;
+  });
+  // A layout that moves the badge by its whole margin never settles.
+  const panel = fixture.levelContainer;
+  Object.defineProperty(panel, 'actualyoffset', {
+    configurable: true,
+    get: () => 910 + (Number.parseFloat(panel.style.marginTop) - 24),
+  });
+  fixture.harness.scheduler.runFor(10000);
+  const settled = indicatorMargins(fixture);
+  for (let scan = 0; scan < 3; scan += 1) {
+    fixture.harness.scheduler.runFor(1000);
+    assert.deepEqual(indicatorMargins(fixture), settled);
+  }
+});
+
 test('v2 repairs custom segment geometry without owning parent clipping styles', () => {
   const fixture = makeStatusFixture('enemy', {
     enabled: true,
@@ -1642,6 +1780,44 @@ test('v2 clears ultimate background opacity when customization turns off', () =>
   assert.equal(fixture.healthbar.style.maxWidth, '');
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
   assert.equal(fixture.healthbar.style.transformOrigin, '');
+});
+
+test('v2 ignores retired ghoul opacity: a creature bar follows the normal bar settings', () => {
+  const retired = { ghoulOpacityEnabled: true, ghoulOpacity: 35 };
+  const fixture = makeStatusFixture(
+    'enemy',
+    { enabled: true, enemyColor: '#123456', ...retired },
+    1,
+    "|'",
+    false,
+    false,
+    false,
+    false,
+    null,
+    null,
+    ['creature'],
+  );
+  assert.equal(fixture.healthbar.style.opacity, '1');
+  assert.equal(fixture.infoBg.style.opacity, '1');
+
+  dispatchColorSnapshot(fixture, 2, {
+    enabled: true,
+    enemyColor: '#123456',
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: 0,
+  });
+  assert.equal(fixture.healthbar.style.opacity, '1');
+  assert.equal(fixture.infoBg.style.opacity, '1');
+
+  // Hiding enemy bars is still the only thing that dims a creature bar.
+  dispatchColorSnapshot(fixture, 3, {
+    enabled: true,
+    enemyColor: '#123456',
+    enemyVisible: false,
+    ...retired,
+  });
+  assert.equal(fixture.healthbar.style.opacity, '0.01');
+  assert.equal(fixture.infoBg.style.opacity, '0.01');
 });
 
 test('v2 color pulse still dims the live healthbar fill', () => {

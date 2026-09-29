@@ -33,6 +33,13 @@
     ability_observe: true,
   };
   var FORGET_CONFIRM_SEC = 4;
+  var SAVE_TO_CONFIRM_SEC = 4;
+  // Header notes stay 1.25 s; the save notes carry an instruction to read, so
+  // they stay a little longer.
+  var RESET_FEEDBACK_SEC = 1.25;
+  var SAVE_TO_FEEDBACK_SEC = 3;
+  var SAVE_TO_EMPTY_TEXT = "No presets yet. NEW PRESET saves your settings as one.";
+  var PRESET_GONE_TEXT = "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.";
   var PRECISE_PIPS_ENABLE_TEXT =
     '"citadel_unit_status_health_per_minor_pip" "10"\n' +
     '"citadel_unit_status_health_per_pip" "10"\n' +
@@ -89,7 +96,7 @@
           name: "BAR",
           title: "ENEMY BAR",
           description:
-            "Turn enemy bar colors on, show or hide enemy bars, pick fixed or gradient low/mid/high colors, and set ghoul bar opacity.",
+            "Turn enemy bar colors on, show or hide enemy bars, and pick fixed or gradient low/mid/high colors.",
           pageId: "HPColorsSettingsEnemyBar",
           keys: [
             "enemyEnabled",
@@ -99,8 +106,6 @@
             "enemyMid",
             "enemyHigh",
             "enemyTeamHigh",
-            "ghoulOpacityEnabled",
-            "ghoulOpacity",
           ],
         },
         {
@@ -315,7 +320,7 @@
           name: "LIBRARY",
           title: "PRESET LIBRARY",
           description:
-            "Presets are named snapshots of your settings: a Selected Heroes preset wins for its heroes, otherwise the first All Heroes preset, otherwise Rewrite Default.",
+            "Save your settings as presets. Choose HEROES to load them automatically.",
           pageId: "HPColorsSettingsOverviewHero",
           keys: [],
         },
@@ -370,7 +375,6 @@
     { id: "HPColorsAllyVisibleToggle", key: "allyVisible" },
     { id: "HPColorsEnemyTeamHighToggle", key: "enemyTeamHigh" },
     { id: "HPColorsAllyTeamHighToggle", key: "allyTeamHigh" },
-    { id: "HPColorsGhoulOpacityToggle", key: "ghoulOpacityEnabled" },
     { id: "HPColorsReadoutToggle", key: "readoutVisible" },
     {
       id: "HPColorsReadoutMaxTeamColorToggle",
@@ -632,7 +636,6 @@
       min: -200,
       max: 200,
     },
-    { base: "HPColorsGhoulOpacity", key: "ghoulOpacity", min: 0, max: 100 },
     { base: "HPColorsReadoutSize", key: "readoutSize", min: 72, max: 320 },
     {
       base: "HPColorsReadoutOffsetX",
@@ -826,9 +829,7 @@
     "conditionRemoveButton conditionCancelButton conditionApplyButton " +
     "transferButton transferDialog transferInput transferFeedback " +
     "transferExportButton transferImportButton transferCloseButton " +
-    "heroModeAuto heroModeManual heroModeOff heroPhase heroIdentity " +
-    "heroDetail heroManualRow heroManualButton heroManualValue heroDialog " +
-    "heroOptions heroCloseButton currentScopeAll currentScopeSelected " +
+    "heroIdentity currentScopeAll currentScopeSelected " +
     "currentScopeSummary scopeDialog scopeSearch scopeOptions " +
     "scopeCloseButton presetNameInput presetSaveButton " +
     "presetSaveButtonLabel presetSaveMode presetNewButton presetForm " +
@@ -849,7 +850,13 @@
     "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
     "pickerSaturationValue pickerLightnessValue storeForgetButton " +
     "storeForgetLabel presetHiddenRow currentScopeExcept scopeDialogTitle " +
-    "scopeDialogMessage"
+    "scopeDialogMessage presetScopeHelp presetGuide presetGuideToggleLabel " +
+    "presetGuideToggle presetGuideText " +
+    "exitDialog exitDialogTitle exitDialogMessage exitFeedback " +
+    "exitBackdrop exitSaveButton exitReviewButton exitDiscardButton " +
+    "saveToPresetButton saveToPresetLabel saveToMoreButton saveToDialog " +
+    "saveToBackdrop saveToOptions " +
+    "saveToFeedback saveToNewButton saveToCloseButton"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
@@ -928,6 +935,7 @@
   function undo() {
     sendState({ type: "undo" });
     syncControls();
+    syncPresetSaveForm(false);
   }
 
 
@@ -942,7 +950,7 @@
         schedulePersist(effect.raw, deliberate);
       } else if (effect.type === "effective_publish") {
         var payload = serializeChange(effect.revision, effect.values);
-        writeRootSnapshot(payload);
+        writeRootAttribute(CONFIG_ATTR, payload);
         serializedReplayPayload = payload;
         dispatchChange(payload);
         refreshSnapshotReplay();
@@ -951,12 +959,15 @@
       }
     }
   }
+  function dispatchCopy(text) {
+    try {
+      return $.DispatchEvent("CopyStringToClipboard", text) !== false;
+    } catch {}
+    return false;
+  }
   function executeClipboardEffect(effect) {
     var text = String(effect.text || "");
-    var copied = false;
-    try {
-      copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
-    } catch {}
+    var copied = dispatchCopy(text);
     if (!copied) {
       var input =
         effect.purpose === "settings"
@@ -974,6 +985,10 @@
       } catch {}
     }
     return copied;
+  }
+
+  function stateAccepted(result) {
+    return !!(result && result.outcome && result.outcome.status !== "rejected");
   }
 
   function sendState(intent) {
@@ -994,6 +1009,7 @@
     condition: false,
   };
   var pickerGestureActive = false;
+  var pickerPartCache = {};
   var ui = {
     categoryButtons: [],
     tabButtons: [],
@@ -1007,18 +1023,7 @@
     precisePipsCopyLabel: null,
     precisePipsCopyButton: null,
     precisePipsCloseButton: null,
-    heroModeAuto: null,
-    heroModeManual: null,
-    heroModeOff: null,
-    heroPhase: null,
     heroIdentity: null,
-    heroDetail: null,
-    heroManualRow: null,
-    heroManualButton: null,
-    heroManualValue: null,
-    heroDialog: null,
-    heroOptions: null,
-    heroCloseButton: null,
     currentScopeAll: null,
     currentScopeSelected: null,
     currentScopeExcept: null,
@@ -1047,6 +1052,23 @@
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
     presetHiddenRow: null,
+    exitDialog: null,
+    exitDialogTitle: null,
+    exitDialogMessage: null,
+    exitFeedback: null,
+    exitBackdrop: null,
+    exitSaveButton: null,
+    exitReviewButton: null,
+    exitDiscardButton: null,
+    saveToPresetButton: null,
+    saveToPresetLabel: null,
+    saveToMoreButton: null,
+    saveToDialog: null,
+    saveToBackdrop: null,
+    saveToOptions: null,
+    saveToFeedback: null,
+    saveToNewButton: null,
+    saveToCloseButton: null,
     storeForgetButton: null,
     storeForgetLabel: null,
     resetDialog: null,
@@ -1070,7 +1092,6 @@
     conditionEnumRow: null,
     conditionEnumOptions: null,
     conditionNumberRow: null,
-    conditionNumberSliderHost: null,
     conditionNumberSlider: null,
     conditionNumberEntry: null,
     conditionColorRow: null,
@@ -1091,7 +1112,6 @@
     gameTime: null,
     watchGeneration: 0,
     renderSignature: "",
-    optionPanels: [],
   };
   var ability = {
     slotParent: null,
@@ -1110,16 +1130,26 @@
     returnPanel: null,
   };
   var scopeOptionPanels = [];
+  var scopeOptionKeys = [];
+  var scopeOptionSearch = [];
   var scopeDialogMode = HERO_SCOPE_SELECTED;
   var scopeDialogOpener = null;
   var syncingControls = false;
   var presetDeleteConfirmId = "";
-  var presetInlineRenameId = "";
-  var presetInlineRenameInput = null;
+  var presetReplaceConfirm = null;
   var presetFormOpen = false;
   var presetEditId = "";
+  // Source preset id the exit prompt was opened for; SAVE & EXIT re-reads
+  // the view and refuses any other target.
+  var exitDialogSourceId = "";
   var presetTransferRequest = 0;
   var transferRequest = 0;
+  // SAVE TO PRESET: the row armed for replacement, and a generation that turns
+  // every older auto-disarm timer into a no-op.
+  var saveToArmedId = "";
+  var saveToGeneration = 0;
+  var saveToRows = [];
+  var presetRowRefs = [];
 
   function isValid(panel) {
     try {
@@ -1480,14 +1510,9 @@
       }
     } catch {}
 
-    var missingReferencedSlot = false;
     for (var index = 0; index < ability.slots.length; index++) {
-      if (!isValid(ability.slots[index]) && referenced[index]) {
-        missingReferencedSlot = true;
-        break;
-      }
+      if (referenced[index] && !isValid(ability.slots[index])) return false;
     }
-    if (missingReferencedSlot) return false;
 
     return true;
   }
@@ -1622,11 +1647,20 @@
     return readPanelText(resolveHeroNameLabel());
   }
 
-  function heroDisplayName(heroKey, heroes) {
+  function viewHeroes(view) {
+    return view && view.heroes ? view.heroes : [];
+  }
+
+  function findHero(heroKey, heroes) {
     for (var index = 0; index < heroes.length; index++) {
-      if (heroes[index].key === heroKey) return heroes[index].name;
+      if (heroes[index].key === heroKey) return heroes[index];
     }
-    return "";
+    return null;
+  }
+
+  function heroDisplayName(heroKey, heroes) {
+    var hero = findHero(heroKey, heroes);
+    return hero ? hero.name : "";
   }
 
   function phaseDisplayName(phase) {
@@ -1635,19 +1669,6 @@
     if (phase === HERO_PHASE_ACTIVE) return "ACTIVE";
     if (phase === HERO_PHASE_POST_MATCH) return "POST MATCH";
     return "TRANSITIONING";
-  }
-
-  function syncHeroOptionSelection() {
-    var view = currentView();
-    var manualHeroKey = view && view.identity ? view.identity.manualHeroKey : "";
-    for (var index = 0; index < identity.optionPanels.length; index++) {
-      var option = identity.optionPanels[index];
-      var key = "";
-      try {
-        key = option.GetAttributeString("hp_colors_hero_key", "");
-      } catch {}
-      setClass(option, "Selected", key === manualHeroKey);
-    }
   }
 
   function renderIdentity() {
@@ -1671,64 +1692,31 @@
     if (signature === identity.renderSignature) return;
     identity.renderSignature = signature;
 
-    var identityText = "HERO: UNKNOWN";
-    var detailText =
-      "No stable local hero is available. Hero-scoped state will not be selected.";
+    var identityText = "NO HERO DETECTED";
     if (identityView.mode === HERO_MODE_OFF) {
       identityText = "HERO DETECTION OFF";
-      detailText = "Hero identity is disabled.";
     } else if (identityView.mode === HERO_MODE_MANUAL) {
       var manualName = heroDisplayName(
         identityView.effectiveHeroKey,
         view.heroes,
       );
-      if (manualName) {
-        identityText = "HERO: " + manualName + " (MANUAL)";
-        detailText = "Stable ID: " + identityView.effectiveHeroKey;
-      } else {
-        detailText = "Choose a hero for Manual Override.";
-      }
+      if (manualName) identityText = "HERO: " + manualName + " (MANUAL)";
     } else if (identityView.status === "settled") {
       var detectedName = heroDisplayName(
         identityView.effectiveHeroKey,
         view.heroes,
       );
       identityText = "HERO: " + detectedName;
-      detailText = "Stable ID: " + identityView.effectiveHeroKey;
     } else if (identityView.status === "settling") {
       identityText =
-        "HERO: SETTLING — " +
+        "DETECTING HERO: " +
         (heroDisplayName(identityView.candidateHeroKey, view.heroes) ||
           "UNKNOWN");
-      detailText = "Waiting for a second matching local-HUD sample.";
     } else if (identityView.phase !== HERO_PHASE_ACTIVE) {
       // The runtime phase label is collapsed; surface the phase here.
       identityText += " · " + phaseDisplayName(identityView.phase);
-      detailText = "Auto detection waits for an active match.";
     }
-    setClass(
-      ui.heroModeAuto,
-      "Selected",
-      identityView.mode === HERO_MODE_AUTO,
-    );
-    setClass(
-      ui.heroModeManual,
-      "Selected",
-      identityView.mode === HERO_MODE_MANUAL,
-    );
-    setClass(ui.heroModeOff, "Selected", identityView.mode === HERO_MODE_OFF);
-    setClass(
-      ui.heroManualRow,
-      "Active",
-      identityView.mode === HERO_MODE_MANUAL,
-    );
-    setText(ui.heroPhase, "MATCH: " + phaseDisplayName(identityView.phase));
     setText(ui.heroIdentity, identityText);
-    setText(ui.heroDetail, detailText);
-    setText(
-      ui.heroManualValue,
-      heroDisplayName(identityView.manualHeroKey, view.heroes) || "SELECT HERO",
-    );
   }
 
   function refreshEditorAfterIdentityChange(result) {
@@ -1805,86 +1793,7 @@
     identity.watchGeneration += 1;
     scheduleIdentityTick(identity.watchGeneration, 0);
   }
-  function closeHeroDialog() {
-    if (!isValid(ui.heroDialog) || !ui.heroDialog.BHasClass("Open")) return;
-    setClass(ui.heroDialog, "Open", false);
-    focus(ui.heroManualButton);
-  }
 
-  function openHeroDialog() {
-    var view = currentView();
-    if (!view || !view.identity || view.identity.mode !== HERO_MODE_MANUAL)
-      return;
-    closeTransferDialog();
-    closeScopeDialog();
-    closePicker();
-    closePrecisePipsDialog();
-    syncHeroOptionSelection();
-    setClass(ui.heroDialog, "Open", true);
-    focus(ui.heroDialog);
-  }
-
-  function selectManualHero(heroKey) {
-    var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
-    var known = false;
-    for (var index = 0; index < heroes.length; index++) {
-      if (heroes[index].key === heroKey) {
-        known = true;
-        break;
-      }
-    }
-    if (!known) return;
-    sendState({ type: "hero_manual", heroKey: heroKey });
-    renderIdentity();
-    closeHeroDialog();
-  }
-
-  function setHeroMode(mode) {
-    if (
-      mode !== HERO_MODE_AUTO &&
-      mode !== HERO_MODE_MANUAL &&
-      mode !== HERO_MODE_OFF
-    )
-      return;
-    sendState({ type: "hero_mode", mode: mode });
-    closeHeroDialog();
-    renderIdentity();
-  }
-
-  function createHeroOptions() {
-    if (!isValid(ui.heroOptions)) return false;
-    try {
-      ui.heroOptions.RemoveAndDeleteChildren();
-    } catch {}
-    identity.optionPanels = [];
-    var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
-    for (var index = 0; index < heroes.length; index++) {
-      (function (heroKey, heroName, optionIndex) {
-        var option = $.CreatePanel(
-          "Button",
-          ui.heroOptions,
-          "HPColorsHeroOption" + optionIndex,
-        );
-        if (!isValid(option)) return;
-        var label = $.CreatePanel(
-          "Label",
-          option,
-          "HPColorsHeroOptionLabel" + optionIndex,
-        );
-        if (!isValid(label)) return;
-        option.AddClass("HPColorsHeroOption");
-        option.SetAttributeString("hp_colors_hero_key", heroKey);
-        label.text = heroName;
-        setPanelEvent(option, "onactivate", function () {
-          selectManualHero(heroKey);
-        });
-        identity.optionPanels.push(option);
-      })(heroes[index].key, heroes[index].name, index);
-    }
-    return identity.optionPanels.length === heroes.length;
-  }
   function currentScopeRow() {
     var view = currentView();
     return view && view.currentScope ? view.currentScope : null;
@@ -1892,6 +1801,31 @@
 
   function scopeUsesHeroes(mode) {
     return mode === HERO_SCOPE_SELECTED || mode === HERO_SCOPE_EXCEPT;
+  }
+
+  function scopeModeLabel(mode) {
+    if (mode === HERO_SCOPE_SELECTED) return "ONLY THESE";
+    if (mode === HERO_SCOPE_EXCEPT) return "ALL EXCEPT";
+    return "ALL HEROES";
+  }
+
+  function presetEditRecord() {
+    if (!presetFormOpen || !presetEditId) return null;
+    var preset = findPresetRecord(presetEditId);
+    return preset && preset.kind === "user" ? preset : null;
+  }
+
+  // True when Current's APPLIES TO (mode + heroes) no longer matches the
+  // saved scope of the preset being edited, so SAVE would convert it.
+  function presetScopeChanged(preset, row) {
+    if (!preset) return false;
+    var mode = row && scopeUsesHeroes(row.mode) ? row.mode : HERO_SCOPE_ALL;
+    var presetMode = scopeUsesHeroes(preset.mode) ? preset.mode : HERO_SCOPE_ALL;
+    if (mode !== presetMode) return true;
+    if (!scopeUsesHeroes(mode)) return false;
+    var current = (row && row.heroes ? row.heroes : []).slice(0).sort();
+    var saved = (preset.heroes || []).slice(0).sort();
+    return JSON.stringify(current) !== JSON.stringify(saved);
   }
 
   function setCurrentScopeMode(mode) {
@@ -1906,20 +1840,13 @@
     });
     renderPresetOptions();
     syncControls();
+    syncPresetSaveForm(false);
   }
 
   function toggleCurrentScopeHero(heroKey) {
     var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
-    var known = false;
+    if (!findHero(heroKey, viewHeroes(view))) return;
     var index;
-    for (index = 0; index < heroes.length; index++) {
-      if (heroes[index].key === heroKey) {
-        known = true;
-        break;
-      }
-    }
-    if (!known) return;
     var row = currentScopeRow();
     var mode = scopeUsesHeroes(scopeDialogMode)
       ? scopeDialogMode
@@ -1939,6 +1866,7 @@
     });
     renderPresetOptions();
     syncControls();
+    syncPresetSaveForm(false);
   }
 
   function filterScopeHeroOptions() {
@@ -1947,13 +1875,7 @@
       .toUpperCase();
     for (var index = 0; index < scopeOptionPanels.length; index++) {
       var option = scopeOptionPanels[index];
-      var searchText = "";
-      try {
-        searchText = option.GetAttributeString(
-          "hp_colors_scope_search",
-          "",
-        );
-      } catch {}
+      var searchText = scopeOptionSearch[index];
       setClass(option, "FilteredOut", !!query && searchText.indexOf(query) < 0);
     }
   }
@@ -1977,28 +1899,25 @@
     if (isValid(ui.scopeDialogTitle))
       setText(
         ui.scopeDialogTitle,
-        dialogExcept ? "SKIP THESE HEROES" : "PICK HEROES",
+        dialogExcept ? "ALL EXCEPT" : "ONLY THESE",
       );
     if (isValid(ui.scopeDialogMessage))
       setText(
         ui.scopeDialogMessage,
         dialogExcept
-          ? "These heroes won't get this preset by itself."
-          : "These heroes get this preset by itself.",
+          ? "Choose HEROES to skip."
+          : "Choose HEROES to include.",
       );
     var summary = row
       ? presetScopeSummary({ mode: mode, heroes: row.heroes }, view.heroes)
       : "ALL HEROES";
+    var editPreset = presetEditRecord();
+    if (editPreset && presetScopeChanged(editPreset, row))
+      summary = presetScopeSummary(editPreset, view.heroes) + " → " + summary;
     setText(ui.currentScopeSummary, summary);
     for (var optionIndex = 0; optionIndex < scopeOptionPanels.length; optionIndex++) {
       var option = scopeOptionPanels[optionIndex];
-      var heroKey = "";
-      try {
-        heroKey = option.GetAttributeString(
-          "hp_colors_scope_hero_key",
-          "",
-        );
-      } catch {}
+      var heroKey = scopeOptionKeys[optionIndex];
       var listed =
         !!row && row.mode === scopeDialogMode &&
         row.heroes.indexOf(heroKey) >= 0;
@@ -2027,7 +1946,6 @@
       ? ui.currentScopeExcept
       : ui.currentScopeSelected;
     closeTransferDialog();
-    closeHeroDialog();
     closePicker();
     closePrecisePipsDialog();
     if (isValid(ui.scopeSearch)) ui.scopeSearch.text = "";
@@ -2043,8 +1961,10 @@
       ui.scopeOptions.RemoveAndDeleteChildren();
     } catch {}
     scopeOptionPanels = [];
+    scopeOptionKeys = [];
+    scopeOptionSearch = [];
     var view = currentView();
-    var heroes = view && view.heroes ? view.heroes : [];
+    var heroes = viewHeroes(view);
     for (var index = 0; index < heroes.length; index++) {
       (function (heroKey, heroName, optionIndex) {
         var option = $.CreatePanel(
@@ -2062,10 +1982,8 @@
         option.AddClass("HPColorsHeroOption");
         option.AddClass("HPColorsScopeHeroOption");
         option.SetAttributeString("hp_colors_scope_hero_key", heroKey);
-        option.SetAttributeString(
-          "hp_colors_scope_search",
-          (heroName + " " + heroKey).toUpperCase(),
-        );
+        var searchText = (heroName + " " + heroKey).toUpperCase();
+        option.SetAttributeString("hp_colors_scope_search", searchText);
         label.text = heroName;
         var skipTag = $.CreatePanel(
           "Label",
@@ -2080,6 +1998,8 @@
           toggleCurrentScopeHero(heroKey);
         });
         scopeOptionPanels.push(option);
+        scopeOptionKeys.push(heroKey);
+        scopeOptionSearch.push(searchText);
       })(heroes[index].key, heroes[index].name, index);
     }
     return scopeOptionPanels.length === heroes.length;
@@ -2095,9 +2015,22 @@
     var names = [];
     for (var index = 0; index < preset.heroes.length; index++)
       names.push(heroDisplayName(preset.heroes[index], heroes));
-    if (preset.mode === HERO_SCOPE_SELECTED) return names.join(", ");
-    return "ALL EXCEPT " + names.slice(0, 2).join(", ") +
+    if (preset.mode === HERO_SCOPE_SELECTED) return "ONLY THESE — " + names.join(", ");
+    return "ALL EXCEPT — " + names.slice(0, 2).join(", ") +
       (names.length > 2 ? " +" + String(names.length - 2) : "");
+  }
+
+  // Disabled or hidden actions stay in the row but take no hit testing, no
+  // focus stop, and the activate guard never mutates state.
+  function setRowActionEnabled(button, enabled) {
+    if (!isValid(button)) return;
+    var next = !!enabled;
+    setClass(button, "Disabled", !next);
+    try {
+      if (button.enabled !== next) button.enabled = next;
+      if (button.hittest !== next) button.hittest = next;
+      if (button.canfocus !== next) button.canfocus = next;
+    } catch {}
   }
 
   function createPresetRowAction(
@@ -2112,13 +2045,11 @@
     if (!isValid(button)) return null;
     button.AddClass("HPColorsPresetRowAction");
     if (className) button.AddClass(className);
-    setClass(button, "Disabled", !enabled);
-    button.enabled = !!enabled;
-    button.hittest = !!enabled;
+    setRowActionEnabled(button, enabled);
     var label = $.CreatePanel("Label", button, id + "Label");
     if (isValid(label)) label.text = text;
     setPanelEvent(button, "onactivate", function () {
-      if (enabled && isCallable(activate)) activate();
+      if (!panelHasClass(button, "Disabled") && isCallable(activate)) activate();
     });
     return button;
   }
@@ -2128,13 +2059,12 @@
     try {
       ui.presetOptions.RemoveAndDeleteChildren();
     } catch {}
-    presetInlineRenameInput = null;
+    presetRowRefs = [];
     var view = currentView();
     var repository = view && view.repository ? view.repository : null;
     var records = repository && repository.rows ? repository.rows : [];
-    var selectedId = repository ? repository.selectedId : "";
     var activeId = repository ? repository.activeId : "";
-    var heroes = view && view.heroes ? view.heroes : [];
+    var heroes = viewHeroes(view);
     var allRows = repository && repository.allRows ? repository.allRows : [];
     var userCount = Math.max(0, allRows.length - 1);
     var nextUserIndex = 0;
@@ -2148,7 +2078,15 @@
           "HPColorsPresetOption" + optionIndex,
         );
         if (!isValid(option)) return;
-        var selected = preset.id === selectedId;
+        var rowRef = {
+          id: preset.id,
+          row: option,
+          status: null,
+          edit: null,
+          save: null,
+          revert: null,
+        };
+        presetRowRefs.push(rowRef);
         var editingPreset =
           presetFormOpen &&
           presetEditId === preset.id &&
@@ -2159,13 +2097,14 @@
         option.canfocus = true;
         option.SetAttributeString("hp_colors_preset_id", preset.id);
         var active = preset.id === activeId;
-        var confirming = presetDeleteConfirmId === preset.id;
-        setClass(option, "Selected", selected);
+        var deleting = presetDeleteConfirmId === preset.id;
+        var replacing =
+          !!presetReplaceConfirm && presetReplaceConfirm.id === preset.id;
         setClass(option, "Active", active);
-        setClass(option, "Confirming", confirming);
+        setClass(option, "Confirming", deleting || replacing);
         setClass(option, "Editing", editingPreset);
 
-        if (confirming) {
+        if (deleting || replacing) {
           var confirmMessage = $.CreatePanel(
             "Label",
             option,
@@ -2173,10 +2112,15 @@
           );
           if (isValid(confirmMessage)) {
             confirmMessage.AddClass("HPColorsPresetRowConfirmMessage");
-            confirmMessage.text =
-              (preset.kind === "baked" ? "HIDE " : "DELETE ") +
-              presetDisplayName(preset).toUpperCase() +
-              "?";
+            confirmMessage.text = replacing
+              ? presetReplaceConfirm.action === "save"
+                ? "SAVE YOUR SETTINGS TO " +
+                  presetDisplayName(preset).toUpperCase() +
+                  "?"
+                : "DISCARD UNSAVED CHANGES?"
+              : (preset.kind === "baked" ? "HIDE " : "DELETE ") +
+                presetDisplayName(preset).toUpperCase() +
+                "?";
           }
           createPresetRowAction(
             option,
@@ -2184,7 +2128,7 @@
             "HPColorsPresetRowConfirm",
             "CONFIRM",
             true,
-            confirmDeleteSelectedPreset,
+            replacing ? confirmPresetReplace : confirmDeleteSelectedPreset,
           );
           createPresetRowAction(
             option,
@@ -2192,58 +2136,51 @@
             "HPColorsPresetRowCancel",
             "CANCEL",
             true,
-            cancelDeleteSelectedPreset,
+            replacing ? cancelPresetReplace : cancelDeleteSelectedPreset,
           );
           return;
         }
 
-        var editing = presetInlineRenameId === preset.id;
-        var name = $.CreatePanel(
-          editing ? "TextEntry" : "Label",
+        // The click-to-apply surface is a child panel so the sibling
+        // buttons can never also trigger an apply.
+        var main = $.CreatePanel(
+          "Panel",
           option,
+          "HPColorsPresetOptionMain" + optionIndex,
+        );
+        if (!isValid(main)) return;
+        main.AddClass("HPColorsPresetOptionMain");
+        main.hittest = true;
+        main.hittestchildren = false;
+        main.canfocus = true;
+        var name = $.CreatePanel(
+          "Label",
+          main,
           "HPColorsPresetOptionName" + optionIndex,
         );
         var scope = $.CreatePanel(
           "Label",
-          option,
+          main,
           "HPColorsPresetOptionScope" + optionIndex,
         );
         var status = $.CreatePanel(
           "Label",
-          option,
+          main,
           "HPColorsPresetOptionStatus" + optionIndex,
         );
+        rowRef.status = status;
         if (!isValid(name) || !isValid(scope) || !isValid(status)) return;
         name.AddClass("HPColorsPresetOptionName");
         scope.AddClass("HPColorsPresetOptionScope");
         status.AddClass("HPColorsPresetOptionStatus");
-        if (editing) {
-          name.AddClass("Editing");
-          name.text = presetDisplayName(preset);
-          name.maxchars = 48;
-          name.canfocus = true;
-          presetInlineRenameInput = name;
-          setPanelEvent(name, "ontextentrysubmit", function () {
-            commitInlinePresetRename(preset.id);
-          });
-          setPanelEvent(name, "onblur", function () {
-            commitInlinePresetRename(preset.id);
-          });
-          setPanelEvent(name, "oncancel", cancelInlinePresetRename);
-        } else {
-          name.AddClass("Editable");
-          name.text =
-            presetDisplayName(preset) +
-            (preset.kind === "baked" ? "  ·  BUILT-IN" : "");
-          name.hittest = true;
-          setPanelEvent(name, "onactivate", function () {
-            beginInlinePresetRename(preset.id);
-          });
-        }
-        scope.text =
-          (scopeUsesHeroes(preset.mode) ? "AUTO  ·  " : "") +
-          presetScopeSummary(preset, heroes);
+        name.text =
+          presetDisplayName(preset) +
+          (preset.kind === "baked" ? "  ·  BUILT-IN" : "");
+        scope.text = presetScopeSummary(preset, heroes);
         status.text = editingPreset ? "EDITING" : active ? "ACTIVE" : "";
+        setPanelEvent(main, "onactivate", function () {
+          requestPresetRowApply(preset.id);
+        });
 
         if (userIndex >= 0) {
           createPresetRowAction(
@@ -2280,21 +2217,41 @@
             copySelectedPreset();
           },
         );
-        var primaryAction = createPresetRowAction(
-          option,
-          "HPColorsPresetRowApply" + optionIndex,
-          "HPColorsPresetRowApply",
-          editingPreset ? "UPDATE & APPLY" : "APPLY",
-          true,
-          function () {
-            if (editingPreset) {
-              saveCurrentPreset();
-            } else {
-              requestPresetApplication(preset.id, false);
-            }
-          },
-        );
-        if (editingPreset) setClass(primaryAction, "SaveAndApply", true);
+        if (preset.kind === "user" && !editingPreset) {
+          rowRef.edit = createPresetRowAction(
+            option,
+            "HPColorsPresetRowEdit" + optionIndex,
+            "HPColorsPresetRowEdit",
+            "EDIT",
+            true,
+            function () {
+              requestPresetEdit(preset.id);
+            },
+          );
+          // SAVE/REVERT exist on every user row, collapsed until
+          // refreshPresetActivity marks the row CHANGED; rows are never
+          // rebuilt per live edit.
+          rowRef.save = createPresetRowAction(
+            option,
+            "HPColorsPresetRowSave" + optionIndex,
+            "HPColorsPresetRowSave",
+            "SAVE",
+            false,
+            function () {
+              requestPresetRowSave(preset.id);
+            },
+          );
+          rowRef.revert = createPresetRowAction(
+            option,
+            "HPColorsPresetRowRevert" + optionIndex,
+            "HPColorsPresetRowRevert",
+            "REVERT",
+            false,
+            function () {
+              requestPresetRowRevert(preset.id);
+            },
+          );
+        }
         createPresetRowAction(
           option,
           "HPColorsPresetRowDelete" + optionIndex,
@@ -2306,9 +2263,6 @@
             beginDeleteSelectedPreset();
           },
         );
-        setPanelEvent(option, "onactivate", function () {
-          selectPresetRecord(preset.id);
-        });
       })(preset, index, userIndex);
     }
     var hasHiddenBaked = !!(
@@ -2323,6 +2277,7 @@
           ui.presetRestoreBakedButton.enabled = hasHiddenBaked;
       } catch {}
     }
+    refreshPresetActivity(view);
   }
   function syncPresetSaveForm(resetName) {
     var editPreset = presetFormOpen ? findPresetRecord(presetEditId) : null;
@@ -2334,12 +2289,19 @@
       ui.presetSaveMode,
       editPreset
         ? "EDITING " + presetDisplayName(editPreset).toUpperCase()
-        : "NEW PRESET FROM CURRENT SETTINGS",
+        : "NEW PRESET",
     );
-    setText(
-      ui.presetSaveButtonLabel,
-      editPreset ? "UPDATE & APPLY" : "CREATE PRESET",
-    );
+    var saveLabel = "CREATE PRESET";
+    if (editPreset) {
+      var row = currentScopeRow();
+      saveLabel = presetScopeChanged(editPreset, row)
+        ? "SAVE AS " +
+          scopeModeLabel(
+            row && scopeUsesHeroes(row.mode) ? row.mode : HERO_SCOPE_ALL,
+          )
+        : "SAVE";
+    }
+    setText(ui.presetSaveButtonLabel, saveLabel);
     setClass(ui.presetForm, "Active", presetFormOpen);
     setClass(ui.presetNewButton, "FormOpen", presetFormOpen);
     if (isValid(ui.presetNewButton))
@@ -2348,168 +2310,319 @@
       ui.presetNameInput.text = editPreset ? editPreset.name : "";
   }
 
+  var PRESET_GUIDE_TEXT = [
+    "- Click a preset to use it. To update it, change any setting, then press SAVE on its row. NEW PRESET saves your settings as a new preset.",
+    "- ACTIVE: your settings match this preset. CHANGED: you edited it. SAVE keeps the changes. REVERT throws them away.",
+    "- HEROES picks when a preset loads by itself. ONLY THESE: just the heroes you pick. ALL EXCEPT: every hero except those.",
+    "- Hero presets only store what you changed. Everything else comes from your top ALL HEROES preset, or Rewrite Default if you have none. Ability conditions are saved in each preset.",
+    "- When you switch heroes, the mod picks the highest match:\n1. An ONLY THESE preset for that hero.\n2. Otherwise, an ALL EXCEPT preset that doesn't skip that hero.\n3. Otherwise, your top ALL HEROES preset.\nIf changing characters does not change your preset, your unsaved edits stay.",
+    "- Higher in the list wins. Switching heroes can replace changes you haven't saved. No ALL HEROES preset? Leaving an ONLY THESE or ALL EXCEPT preset with no match goes back to Rewrite Default.",
+  ].join("\n\n");
+
+  var presetGuideOpen = false;
+
+  function renderPresetGuide() {
+    setClass(ui.presetGuide, "Open", presetGuideOpen);
+    setText(
+      ui.presetGuideToggleLabel,
+      presetGuideOpen ? "HIDE HOW PRESETS WORK" : "SHOW HOW PRESETS WORK",
+    );
+    setText(ui.presetGuideText, PRESET_GUIDE_TEXT);
+  }
+
+  function togglePresetGuide() {
+    presetGuideOpen = !presetGuideOpen;
+    renderPresetGuide();
+  }
+
   function beginNewPreset() {
     var result = sendState({ type: "preset_select", id: null });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback("COULD NOT START A NEW PRESET.", true);
       return;
     }
     presetDeleteConfirmId = "";
-    presetInlineRenameId = "";
-    presetInlineRenameInput = null;
+    presetReplaceConfirm = null;
     presetFormOpen = true;
     presetEditId = "";
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      "CREATE PRESET STORES YOUR CURRENT SETTINGS AS A NEW PRESET.",
+      "Name your preset, then choose HEROES.",
       false,
     );
     focus(ui.presetNameInput);
   }
 
-  function cancelPresetEdit() {
-    sendState({ type: "preset_select", id: null });
+  // Closes the form without touching the saved record or the screen.
+  function closePresetForm() {
     presetFormOpen = false;
     presetEditId = "";
     renderPresetOptions();
     syncPresetSaveForm(true);
-    setPresetFeedback("EDIT CANCELED. NOTHING CHANGED.", false);
+  }
+
+  function closePresetEdit() {
+    sendState({ type: "preset_select", id: null });
+    closePresetForm();
+    setPresetFeedback("CLOSED.", false);
   }
 
   function selectPresetForRowAction(id) {
     if (!id) return false;
     if (currentView().repository.selectedId === id) return true;
     var result = sendState({ type: "preset_select", id: id });
-    return !!(
-      result &&
-      result.outcome &&
-      result.outcome.status !== "rejected"
-    );
+    return stateAccepted(result);
   }
 
-  function selectPresetRecord(id) {
-    var preset = findPresetRecord(String(id || ""));
-    if (!preset) return false;
+  function openPresetForm(preset) {
     var result = sendState({ type: "preset_select", id: preset.id });
-    presetDeleteConfirmId = "";
-    presetInlineRenameId = "";
     if (result && result.outcome && result.outcome.status === "rejected") {
       setPresetFeedback("THAT PRESET NO LONGER EXISTS.", true);
       return false;
     }
-    presetFormOpen = preset.kind === "user";
-    presetEditId = presetFormOpen ? preset.id : "";
+    presetFormOpen = true;
+    presetEditId = preset.id;
     renderPresetOptions();
     syncPresetSaveForm(true);
     setPresetFeedback(
-      presetFormOpen
-        ? "EDITING " +
-            presetDisplayName(preset).toUpperCase() +
-            ". UPDATE & APPLY REPLACES IT WITH YOUR CURRENT SETTINGS."
-        : "SELECTED " +
-            presetDisplayName(preset).toUpperCase() +
-            ". APPLY LOADS THIS PRESET NOW. IT DOES NOT EDIT THE PRESET.",
+      "EDITING " +
+        presetDisplayName(preset).toUpperCase() +
+        ". SAVE updates this preset.",
       false,
     );
-    if (presetFormOpen) focus(ui.presetNameInput);
+    focus(ui.presetNameInput);
     return true;
   }
 
-  function renamePresetRecord(preset, name) {
-    if (!preset || !name) return false;
-    var result = sendState({
-      type: "preset_rename",
-      id: preset.id,
-      name: name,
-    });
-    if (result && result.outcome && result.outcome.status === "rejected") {
-      setPresetFeedback("PRESET NOT FOUND.", true);
+  // The open form holds a name that is not saved: any nonempty name on a new
+  // preset, or a name that differs from the edited preset's saved name.
+  function presetFormHasUnsavedName() {
+    if (!presetFormOpen) return false;
+    var name = String(
+      (ui.presetNameInput && ui.presetNameInput.text) || "",
+    ).trim();
+    var editPreset = presetEditRecord();
+    if (editPreset) return name !== String(editPreset.name || "").trim();
+    return name !== "";
+  }
+
+  // A row click or EDIT replaces what is on screen. Ask first when no saved
+  // preset matches the screen, or when the form holds an unsaved name.
+  function hasUnsavedPresetChanges() {
+    var view = currentView();
+    var repository = view && view.repository ? view.repository : null;
+    if (!findPresetRecord(repository ? repository.activeId : "")) return true;
+    return presetFormHasUnsavedName();
+  }
+
+  // The user preset the live settings came from, when it still exists and
+  // no longer equals them. Read fresh on every use; never cached.
+  function changedSourcePreset(view) {
+    if (!view) view = currentView();
+    var source =
+      view && view.repository ? view.repository.sourceState : null;
+    if (!source || !source.id || source.matches) return null;
+    var preset = findPresetRecord(source.id);
+    return preset && preset.kind === "user" ? preset : null;
+  }
+
+  // The CHANGED source preset when it is the row `id`; otherwise reports the
+  // vanished preset and rebuilds the rows.
+  function changedPresetFor(id) {
+    var preset = changedSourcePreset();
+    if (preset && preset.id === String(id || "")) return preset;
+    setPresetFeedback(PRESET_GONE_TEXT, true);
+    renderPresetOptions();
+    return null;
+  }
+
+  function beginPresetReplaceConfirm(id, action) {
+    dismissDeleteConfirmation();
+    presetReplaceConfirm = { id: id, action: action };
+    renderPresetOptions();
+    setPresetFeedback(
+      action === "save"
+        ? "SAVE YOUR SETTINGS TO " +
+            presetDisplayName(findPresetRecord(id)).toUpperCase() +
+            "?"
+        : "DISCARD UNSAVED CHANGES?",
+      false,
+    );
+    focusSelectedPresetRow(id);
+  }
+
+  function cancelPresetReplace() {
+    if (!presetReplaceConfirm) return;
+    var id = presetReplaceConfirm.id;
+    var action = presetReplaceConfirm.action;
+    presetReplaceConfirm = null;
+    renderPresetOptions();
+    setPresetFeedback(
+      action === "save" ? "PRESET CHANGE CANCELED." : "KEPT YOUR CHANGES.",
+      false,
+    );
+    focusSelectedPresetRow(id);
+  }
+
+  function confirmPresetReplace() {
+    if (!presetReplaceConfirm) return;
+    var request = presetReplaceConfirm;
+    presetReplaceConfirm = null;
+    if (request.action === "edit") performPresetEdit(request.id);
+    else if (request.action === "save") performPresetRowSave(request.id);
+    else performPresetRowApply(request.id);
+  }
+
+  // Inline SAVE on the CHANGED row: preset_save is not undoable, so it goes
+  // through the row confirm like DELETE/HIDE.
+  function requestPresetRowSave(id) {
+    var preset = changedPresetFor(id);
+    if (!preset) return false;
+    if (presetFormOpen) return false;
+    beginPresetReplaceConfirm(preset.id, "save");
+    return true;
+  }
+
+  // Writes the current live settings into the source preset under its own
+  // name. The target is re-read here, never taken from the click.
+  function performPresetRowSave(id) {
+    var preset = changedPresetFor(id);
+    if (!preset) return false;
+    dismissDeleteConfirmation();
+    var name = presetDisplayName(preset);
+    if (!selectPresetForRowAction(preset.id)) {
+      setPresetFeedback(PRESET_GONE_TEXT, true);
+      renderPresetOptions();
       return false;
     }
-    presetInlineRenameId = "";
-    presetInlineRenameInput = null;
+    var result = sendState({ type: "preset_save", name: name });
+    if (!stateAccepted(result)) {
+      setPresetFeedback(
+        "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED.",
+        true,
+      );
+      renderPresetOptions();
+      return false;
+    }
     renderPresetOptions();
-    syncPresetSaveForm(true);
-    setPresetFeedback("RENAMED TO " + name.toUpperCase() + ".", false);
-    focusSelectedPresetRow();
+    syncControls();
+    setPresetFeedback(
+      "SAVED " + name.toUpperCase() + ".",
+      false,
+    );
+    focusSelectedPresetRow(preset.id);
     return true;
   }
 
-  function beginInlinePresetRename(id) {
-    var preset = findPresetRecord(String(id || ""));
-    if (!preset) return;
-    selectPresetForRowAction(preset.id);
-    presetDeleteConfirmId = "";
-    presetInlineRenameId = preset.id;
-    renderPresetOptions();
-    syncPresetSaveForm(true);
-    var renameId = preset.id;
-    var renameInput = presetInlineRenameInput;
+  // REVERT reloads the saved snapshot; preset_apply pushes history, so UNDO
+  // brings the live edits back.
+  function requestPresetRowRevert(id) {
+    var preset = changedPresetFor(id);
+    if (!preset) return false;
+    if (presetFormOpen) return false;
+    dismissDeleteConfirmation();
+    presetReplaceConfirm = null;
+    var result = sendState({ type: "preset_apply", id: preset.id });
+    if (!stateAccepted(result)) {
+      setPresetFeedback("COULD NOT APPLY THAT PRESET. NOTHING CHANGED.", true);
+      renderPresetOptions();
+      return false;
+    }
+    syncControls();
     setPresetFeedback(
-      "EDITING " + presetDisplayName(preset).toUpperCase() + ".",
+      "REVERTED TO " +
+        presetDisplayName(preset).toUpperCase() +
+        ". UNDO RESTORES YOUR CHANGES.",
       false,
     );
-    try {
-      $.Schedule(0.01, function () {
-        if (
-          !state.open ||
-          presetInlineRenameId !== renameId ||
-          presetInlineRenameInput !== renameInput ||
-          !isValid(renameInput)
-        )
-          return;
-        focus(renameInput);
-        if (isCallable(renameInput.SelectAll)) renameInput.SelectAll();
-      });
-    } catch {
-      if (
-        state.open &&
-        presetInlineRenameId === renameId &&
-        presetInlineRenameInput === renameInput
-      )
-        focus(renameInput);
-    }
+    focusSelectedPresetRow(preset.id);
+    return true;
   }
 
-  function commitInlinePresetRename(id) {
-    if (presetInlineRenameId !== String(id || "")) return;
-    var preset = findPresetRecord(presetInlineRenameId);
-    var name = String(
-      (presetInlineRenameInput && presetInlineRenameInput.text) || "",
-    ).trim();
-    if (!name) {
-      setPresetFeedback("ENTER A PRESET NAME.", true);
-      focus(presetInlineRenameInput);
-      return;
+  function requestPresetRowApply(id) {
+    var preset = findPresetRecord(String(id || ""));
+    if (!preset) {
+      setPresetFeedback(PRESET_GONE_TEXT, true);
+      return false;
     }
-    renamePresetRecord(preset, name);
+    // The row being edited is inert: never reload over live edits.
+    if (presetFormOpen && presetEditId === preset.id) return false;
+    if (hasUnsavedPresetChanges()) {
+      beginPresetReplaceConfirm(preset.id, "apply");
+      return false;
+    }
+    return performPresetRowApply(preset.id);
   }
 
-  function cancelInlinePresetRename() {
-    if (!presetInlineRenameId) return;
-    presetInlineRenameId = "";
-    presetInlineRenameInput = null;
-    renderPresetOptions();
-    setPresetFeedback("PRESET RENAME CANCELED.", false);
-    focusSelectedPresetRow();
+  function performPresetRowApply(id) {
+    dismissDeleteConfirmation();
+    closePresetForm();
+    return requestPresetApplication(id, false);
+  }
+
+  function requestPresetEdit(id) {
+    var preset = findPresetRecord(String(id || ""));
+    if (!preset || preset.kind !== "user") {
+      setPresetFeedback(PRESET_GONE_TEXT, true);
+      return false;
+    }
+    if (presetFormOpen && presetEditId === preset.id) {
+      focus(ui.presetNameInput);
+      return true;
+    }
+    if (hasUnsavedPresetChanges()) {
+      beginPresetReplaceConfirm(preset.id, "edit");
+      return false;
+    }
+    return performPresetEdit(preset.id);
+  }
+
+  // EDIT loads the preset first so Current carries its values and APPLIES
+  // TO scope, then opens the form for it.
+  function performPresetEdit(id) {
+    var preset = findPresetRecord(String(id || ""));
+    if (!preset || preset.kind !== "user") {
+      setPresetFeedback(PRESET_GONE_TEXT, true);
+      renderPresetOptions();
+      return false;
+    }
+    dismissDeleteConfirmation();
+    var repository = currentView().repository;
+    if (!repository || repository.activeId !== preset.id) {
+      var result = sendState({ type: "preset_apply", id: preset.id });
+      if (!stateAccepted(result)) {
+        setPresetFeedback(
+          "COULD NOT LOAD " +
+            presetDisplayName(preset).toUpperCase() +
+            ". NOTHING CHANGED.",
+          true,
+        );
+        renderPresetOptions();
+        return false;
+      }
+      syncControls();
+    }
+    return openPresetForm(preset);
   }
 
   function moveSelectedPreset(delta) {
     var view = currentView();
     var id = view && view.repository ? view.repository.selectedId : "";
     if (!id) return false;
-    presetInlineRenameId = "";
+    var preset = findPresetRecord(id);
+    // Capture the display name before the move so feedback names the preset,
+    // never its slot id.
+    var name = preset ? presetDisplayName(preset).toUpperCase() : id.toUpperCase();
+    presetReplaceConfirm = null;
     var result = sendState({ type: "preset_move", id: id, delta: delta });
-    if (
-      !result ||
-      !result.outcome ||
-      result.outcome.status === "rejected" ||
-      result.outcome.code === "MOVE_BOUNDARY"
-    )
+    if (!stateAccepted(result) || result.outcome.code === "MOVE_BOUNDARY")
       return false;
     renderPresetOptions();
-    setPresetFeedback("MOVED " + id.toUpperCase() + ".", false);
+    setPresetFeedback(
+      "MOVED " + name + (delta < 0 ? " UP." : " DOWN."),
+      false,
+    );
     focusSelectedPresetRow();
     return true;
   }
@@ -2528,7 +2641,7 @@
       return;
     }
     presetDeleteConfirmId = preset.id;
-    presetInlineRenameId = "";
+    presetReplaceConfirm = null;
     renderPresetOptions();
     setPresetFeedback(
       "CONFIRM " +
@@ -2539,7 +2652,7 @@
     );
   }
 
-  function cancelDeleteSelectedPreset() {
+  function dismissDeleteConfirmation() {
     var view = currentView();
     var confirmation = view && view.transactions
       ? view.transactions.confirmation
@@ -2550,6 +2663,10 @@
         token: confirmation.token,
       });
     presetDeleteConfirmId = "";
+  }
+
+  function cancelDeleteSelectedPreset() {
+    dismissDeleteConfirmation();
     renderPresetOptions();
     setPresetFeedback("PRESET CHANGE CANCELED.", false);
     focusSelectedPresetRow();
@@ -2596,7 +2713,7 @@
     });
     if (result && result.outcome && result.outcome.status === "committed") {
       presetDeleteConfirmId = "";
-      presetInlineRenameId = "";
+      presetReplaceConfirm = null;
       if (presetEditId === preset.id) {
         presetEditId = "";
         presetFormOpen = false;
@@ -2623,10 +2740,10 @@
     )
       return;
     sendState({ type: "preset_restore_baked" });
-    presetInlineRenameId = "";
+    presetReplaceConfirm = null;
     renderPresetOptions();
-    setPresetFeedback("REWRITE DEFAULT RESTORED.", false);
-    // RESTORE collapses with its row; move focus to the restored preset.
+    setPresetFeedback("REWRITE DEFAULT SHOWN. YOUR SETTINGS DID NOT CHANGE.", false);
+    // SHOW ROW collapses once nothing is hidden; move focus to the shown preset.
     focusSelectedPresetRow("baked_default");
   }
 
@@ -2660,12 +2777,7 @@
   }
 
   function clipboardEffectSucceeded(result) {
-    return !!(
-      result &&
-      result.outcome &&
-      result.outcome.status !== "rejected" &&
-      lastClipboardCopied === true
-    );
+    return !!(stateAccepted(result) && lastClipboardCopied === true);
   }
 
   function pasteTextEntry(input, isCurrent, accept, reject) {
@@ -2703,11 +2815,10 @@
   function openPresetTransferDialog() {
     presetTransferRequest += 1;
     closePicker();
-    closeHeroDialog();
     closeScopeDialog();
     setText(ui.presetTransferInput, "");
     setClass(ui.presetTransferDialog, "Open", true);
-    setPresetTransferFeedback("PASTE AN HPCRP1 PRESET CODE.", false);
+    setPresetTransferFeedback("PASTE A PRESET CODE.", false);
     focus(ui.presetTransferInput);
   }
 
@@ -2721,29 +2832,19 @@
   }
 
   function importPresetTransfer(raw) {
-    var before = currentView();
-    var beforeRows = before && before.repository ? before.repository.allRows : [];
-    var beforeUserCount = 0;
-    for (var index = 0; index < beforeRows.length; index++)
-      if (beforeRows[index].kind === "user") beforeUserCount += 1;
+    var beforeUserCount = userPresetRows(currentView()).length;
     var result = sendState({ type: "preset_import", raw: String(raw || "") });
-    var rejected =
-      !result || !result.outcome || result.outcome.status === "rejected";
-    if (rejected) {
+    if (!stateAccepted(result)) {
       setPresetTransferFeedback(
-        result && result.outcome && result.outcome.code
-          ? result.outcome.code
-          : "INVALID HPCRP1 CODE",
+        "COULD NOT IMPORT. CHECK THE PRESET CODE.",
         true,
       );
       return false;
     }
-    var after = currentView();
-    var afterRows = after && after.repository ? after.repository.allRows : [];
-    var afterUserCount = 0;
-    for (index = 0; index < afterRows.length; index++)
-      if (afterRows[index].kind === "user") afterUserCount += 1;
-    var importedCount = Math.max(0, afterUserCount - beforeUserCount);
+    var importedCount = Math.max(
+      0,
+      userPresetRows(currentView()).length - beforeUserCount,
+    );
     setText(ui.presetTransferInput, "");
     setPresetTransferFeedback(
       "IMPORTED " + String(importedCount) +
@@ -2794,14 +2895,14 @@
       sendState({ type: "preset_select", id: null });
       presetEditId = "";
     } else if (!selectPresetForRowAction(editing.id)) {
-      setPresetFeedback("THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.", true);
+      setPresetFeedback(PRESET_GONE_TEXT, true);
       return;
     }
     var result = sendState({ type: "preset_save", name: name });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback(
         editing
-          ? "COULD NOT UPDATE " + name.toUpperCase() + ". NOTHING CHANGED."
+          ? "COULD NOT SAVE " + name.toUpperCase() + ". NOTHING CHANGED."
           : "COULD NOT CREATE " + name.toUpperCase() + ". NOTHING CHANGED.",
         true,
       );
@@ -2822,25 +2923,51 @@
     setPresetFeedback("CREATED " + name.toUpperCase() + ".", false);
   }
 
-  function refreshPresetActivity() {
-    if (presetFormOpen || presetInlineRenameId || presetDeleteConfirmId) {
-      renderPresetOptions();
-      return;
+  // Lightweight badge/class refresh for existing rows. Every live mutation
+  // path reaches syncControls(), which calls this, so the ACTIVE/CHANGED
+  // badges can never go stale after a value, slider, condition, reset,
+  // import, or navigation change. Rows are not rebuilt, so focus and typed
+  // names stay. Badge precedence per row: EDITING > CHANGED > ACTIVE.
+  function refreshPresetActivity(view) {
+    if (!view) view = currentView();
+    // The name form suppresses SAVE TO PRESET (two save surfaces at once) and
+    // an open dialog follows the current source; renderStoreStatus below
+    // refreshes the footer button.
+    refreshSaveToRows(view);
+    var repository =
+      isValid(ui.presetOptions) && view && view.repository
+        ? view.repository
+        : null;
+    if (repository) {
+      var source = repository.sourceState || null;
+      var changedId = source && source.id && !source.matches ? source.id : "";
+      var gestureActive = !!(view.transactions && view.transactions.gesture);
+      // One save surface at a time: inline SAVE/REVERT hide while a form is
+      // open or a slider drag is in progress.
+      var actionsAllowed = !presetFormOpen && !gestureActive;
+      for (var index = 0; index < presetRowRefs.length; index++) {
+        var ref = presetRowRefs[index];
+        var row = ref.row;
+        if (!isValid(row)) continue;
+        var active = ref.id === repository.activeId;
+        var editing = presetFormOpen && presetEditId === ref.id;
+        var changed = !editing && ref.id === changedId;
+        var showChangedActions = changed && actionsAllowed;
+        setClass(row, "Active", active);
+        setClass(row, "Changed", changed);
+        setClass(row, "RowChanged", showChangedActions);
+        // Confirming rows carry no status label or actions; the helpers
+        // ignore the nulls.
+        setText(
+          ref.status,
+          editing ? "EDITING" : changed ? "CHANGED" : active ? "ACTIVE" : "",
+        );
+        setRowActionEnabled(ref.edit, !showChangedActions);
+        setRowActionEnabled(ref.save, showChangedActions);
+        setRowActionEnabled(ref.revert, showChangedActions);
+      }
     }
-    if (!isValid(ui.presetOptions)) return;
-    var repository = currentView().repository;
-    var rows = ui.presetOptions.Children();
-    for (var index = 0; index < rows.length; index++) {
-      var row = rows[index];
-      var id = row.GetAttributeString("hp_colors_preset_id", "");
-      var active = id === repository.activeId;
-      setClass(row, "Selected", id === repository.selectedId);
-      setClass(row, "Active", active);
-      setText(
-        row.FindChildTraverse("HPColorsPresetOptionStatus" + index),
-        active ? "ACTIVE" : "",
-      );
-    }
+    renderStoreStatus();
   }
 
   function requestPresetApplication(id, savedFirst) {
@@ -2848,30 +2975,341 @@
     if (!preset) {
       setPresetFeedback(
         savedFirst
-          ? "PRESET UPDATED, BUT IT COULD NOT BE APPLIED."
-          : "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.",
+          ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
+          : PRESET_GONE_TEXT,
         true,
       );
       return false;
     }
     var result = sendState({ type: "preset_apply", id: preset.id });
-    var outcome = result && result.outcome ? result.outcome : null;
-    if (!outcome || outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       setPresetFeedback(
         savedFirst
-          ? "PRESET UPDATED, BUT IT COULD NOT BE APPLIED."
+          ? "PRESET SAVED, BUT IT COULD NOT BE APPLIED."
           : "COULD NOT APPLY THAT PRESET. NOTHING CHANGED.",
         true,
       );
       return false;
     }
-    refreshPresetActivity();
     syncControls();
     setPresetFeedback(
-      (savedFirst ? "UPDATED & APPLIED " : "APPLIED ") +
+      (savedFirst ? "SAVED " : "APPLIED ") +
         presetDisplayName(preset).toUpperCase() +
         ".",
       false,
+    );
+    return true;
+  }
+
+  // SAVE TO PRESET (footer): pick a saved preset to replace with the settings
+  // on screen, or save them as a new All Heroes preset. Saving never changes
+  // a preset's HEROES, and the saved preset is applied so it owns the screen.
+
+  function saveToDialogOpen() {
+    return isValid(ui.saveToDialog) && ui.saveToDialog.BHasClass("Open");
+  }
+
+  function setSaveToFeedback(text, isError) {
+    setText(ui.saveToFeedback, text || "");
+    setClass(ui.saveToDialog, "Error", !!isError);
+  }
+
+  function userPresetRows(view) {
+    var rows =
+      view && view.repository && view.repository.allRows
+        ? view.repository.allRows
+        : [];
+    var result = [];
+    for (var index = 0; index < rows.length; index++)
+      if (rows[index].kind === "user") result.push(rows[index]);
+    return result;
+  }
+
+  // The first All Heroes preset is the one hero presets inherit from, so
+  // replacing it changes every hero preset too.
+  function saveToConfirmText(preset, presets) {
+    var baseId = "";
+    var hasHeroPreset = false;
+    for (var index = 0; index < presets.length; index++) {
+      if (!baseId && presets[index].mode === HERO_SCOPE_ALL)
+        baseId = presets[index].id;
+      if (scopeUsesHeroes(presets[index].mode)) hasHeroPreset = true;
+    }
+    return (
+      "CLICK AGAIN TO REPLACE " +
+      presetDisplayName(preset).toUpperCase() +
+      (hasHeroPreset && baseId === preset.id
+        ? " · ALSO CHANGES HERO PRESETS"
+        : "")
+    );
+  }
+
+  function applySaveToRows(view) {
+    var presets = userPresetRows(view);
+    var source = changedSourcePreset(view);
+    var changedId = source ? source.id : "";
+    for (var index = 0; index < saveToRows.length; index++) {
+      var entry = saveToRows[index];
+      var preset = null;
+      for (var found = 0; found < presets.length; found++) {
+        if (presets[found].id === entry.id) {
+          preset = presets[found];
+          break;
+        }
+      }
+      var armed = !!preset && entry.id === saveToArmedId;
+      var changed = !!preset && entry.id === changedId;
+      setClass(entry.row, "Confirming", armed);
+      setClass(entry.row, "Changed", changed);
+      setText(entry.tag, changed ? "CHANGED" : "");
+      setText(entry.message, armed ? saveToConfirmText(preset, presets) : "");
+      setText(entry.saveLabel, armed ? "REPLACE?" : "SAVE");
+    }
+  }
+
+  function refreshSaveToRows(view) {
+    if (!saveToRows.length || !saveToDialogOpen()) return;
+    applySaveToRows(view || currentView());
+  }
+
+  function createSaveToRow(preset, index, heroes) {
+    var row = $.CreatePanel(
+      "Panel",
+      ui.saveToOptions,
+      "HPColorsSaveToOption" + index,
+    );
+    if (!isValid(row)) return;
+    row.AddClass("HPColorsHeroOption");
+    row.AddClass("HPColorsSaveToOption");
+    row.SetAttributeString("hp_colors_save_to_id", preset.id);
+    var name = $.CreatePanel("Label", row, "HPColorsSaveToOptionName" + index);
+    var scope = $.CreatePanel("Label", row, "HPColorsSaveToOptionScope" + index);
+    var tag = $.CreatePanel("Label", row, "HPColorsSaveToOptionTag" + index);
+    var message = $.CreatePanel(
+      "Label",
+      row,
+      "HPColorsSaveToOptionMessage" + index,
+    );
+    if (!isValid(name) || !isValid(scope) || !isValid(tag) || !isValid(message))
+      return;
+    name.AddClass("HPColorsSaveToOptionName");
+    scope.AddClass("HPColorsSaveToOptionScope");
+    tag.AddClass("HPColorsSaveToOptionTag");
+    message.AddClass("HPColorsSaveToOptionMessage");
+    name.text = presetDisplayName(preset);
+    scope.text = presetScopeSummary(preset, heroes);
+    // Only the row's own SAVE button acts; the row body is inert.
+    var saveId = "HPColorsSaveToRowSave" + index;
+    var save = createPresetRowAction(
+      row,
+      saveId,
+      "HPColorsSaveToRowSave",
+      "SAVE",
+      true,
+      function () {
+        requestSaveToPreset(preset.id);
+      },
+    );
+    var saveLabel = findChild(save, saveId + "Label");
+    if (!isValid(save) || !isValid(saveLabel)) return;
+    saveToRows.push({
+      id: preset.id,
+      row: row,
+      tag: tag,
+      message: message,
+      saveLabel: saveLabel,
+    });
+  }
+
+  // Rebuilt on every open, so a reopened dialog is always unarmed.
+  function renderSaveToOptions() {
+    saveToRows = [];
+    if (!isValid(ui.saveToOptions)) return;
+    try {
+      ui.saveToOptions.RemoveAndDeleteChildren();
+    } catch {}
+    var view = currentView();
+    var heroes = viewHeroes(view);
+    var presets = userPresetRows(view);
+    for (var index = 0; index < presets.length; index++)
+      createSaveToRow(presets[index], index, heroes);
+    setSaveToFeedback(presets.length ? "" : SAVE_TO_EMPTY_TEXT, false);
+    applySaveToRows(view);
+  }
+
+  function disarmSaveTo() {
+    saveToGeneration += 1;
+    if (!saveToArmedId) return;
+    saveToArmedId = "";
+    refreshSaveToRows();
+  }
+
+  // Arming waits SAVE_TO_CONFIRM_SEC for the second click. The timer only
+  // disarms, and only the arm that scheduled it: it can never save.
+  function armSaveTo(id) {
+    saveToArmedId = id;
+    saveToGeneration += 1;
+    var generation = saveToGeneration;
+    refreshSaveToRows();
+    try {
+      $.Schedule(SAVE_TO_CONFIRM_SEC, function () {
+        if (generation === saveToGeneration) disarmSaveTo();
+      });
+    } catch {}
+  }
+
+  // While the preset the settings came from is CHANGED, the footer button
+  // names it and saves into it in one click; ▼ then opens the list. The
+  // name is cut to fit the button.
+  var SAVE_TO_NAME_LIMIT = 10;
+  var saveToNamedId = "";
+
+  function renderSaveToButton(view) {
+    var source = changedSourcePreset(view);
+    // A layout without the label cannot name the target, so it keeps the list.
+    var named = source && isValid(ui.saveToPresetLabel) ? source : null;
+    var name = named ? presetDisplayName(named).toUpperCase() : "";
+    if (name.length > SAVE_TO_NAME_LIMIT)
+      name = name.slice(0, SAVE_TO_NAME_LIMIT - 1).replace(/\s+$/, "") + "…";
+    saveToNamedId = named ? named.id : "";
+    setText(ui.saveToPresetLabel, named ? "SAVE TO " + name : "SAVE TO PRESET");
+    // Glows as a save reminder while the settings on screen are not saved in
+    // a preset: a CHANGED source, an edited Rewrite Default, or no preset.
+    setClass(
+      ui.saveToPresetButton,
+      "Unsaved",
+      !!source || presetChipState().changed,
+    );
+    setEnabled(ui.saveToPresetButton, !presetFormOpen);
+    setClass(ui.saveToMoreButton, "HPColorsFooterActionHidden", !named);
+    setRowActionEnabled(ui.saveToMoreButton, !!named && !presetFormOpen);
+  }
+
+  // One click saves into the named source. The target is re-read now; if it
+  // is gone or no longer CHANGED, nothing is saved and the button refreshes.
+  function activateSaveToPreset() {
+    if (panelHasClass(ui.saveToPresetButton, "Disabled")) return;
+    if (!saveToNamedId) {
+      openSaveToDialog();
+      return;
+    }
+    var preset = changedSourcePreset();
+    if (!preset || preset.id !== saveToNamedId) {
+      renderSaveToButton();
+      return;
+    }
+    var result = sendState({ type: "preset_save_to", id: preset.id });
+    if (!stateAccepted(result)) {
+      showResetFeedback(
+        "COULD NOT SAVE " + chipPresetName(preset) + ". NOTHING CHANGED.",
+        SAVE_TO_FEEDBACK_SEC,
+      );
+      return;
+    }
+    finishSaveTo(preset.id, "SAVED TO " + chipPresetName(preset) + ".");
+    focus(ui.saveToPresetButton);
+  }
+
+  function openSaveToDialog() {
+    if (!isValid(ui.saveToDialog)) return;
+    if (panelHasClass(ui.saveToPresetButton, "Disabled")) return;
+    closeTransferDialog();
+    closePresetTransferDialog();
+    closeScopeDialog();
+    closePrecisePipsDialog();
+    closePicker();
+    disarmSaveTo();
+    renderSaveToOptions();
+    setClass(ui.saveToDialog, "Open", true);
+    focus(ui.saveToDialog);
+  }
+
+  function closeSaveToDialog(restoreFocus) {
+    disarmSaveTo();
+    if (!saveToDialogOpen()) return;
+    setClass(ui.saveToDialog, "Open", false);
+    setSaveToFeedback("", false);
+    if (restoreFocus !== false && state.open) focus(ui.saveToPresetButton);
+  }
+
+  function saveToTargetGone() {
+    disarmSaveTo();
+    renderSaveToOptions();
+    setSaveToFeedback(PRESET_GONE_TEXT, true);
+    return false;
+  }
+
+  // The saved preset becomes the one on screen: apply it, then tell the
+  // player with a short header note. Saving itself is not undoable; the
+  // apply is.
+  function finishSaveTo(id, note) {
+    closeSaveToDialog(true);
+    dismissDeleteConfirmation();
+    presetReplaceConfirm = null;
+    renderPresetOptions();
+    requestPresetApplication(id, true);
+    showResetFeedback(note, SAVE_TO_FEEDBACK_SEC);
+  }
+
+  // First SAVE click arms the row; a second click on the same row saves. The
+  // target is re-read every time, never trusted from the earlier click.
+  function requestSaveToPreset(id) {
+    var preset = findPresetRecord(String(id || ""));
+    if (!preset || preset.kind !== "user") return saveToTargetGone();
+    if (saveToArmedId !== preset.id) {
+      setSaveToFeedback("", false);
+      armSaveTo(preset.id);
+      return true;
+    }
+    var result = sendState({ type: "preset_save_to", id: preset.id });
+    if (!stateAccepted(result)) {
+      disarmSaveTo();
+      setSaveToFeedback(
+        "COULD NOT SAVE " +
+          presetDisplayName(preset).toUpperCase() +
+          ". NOTHING CHANGED.",
+        true,
+      );
+      return false;
+    }
+    finishSaveTo(preset.id, "SAVED TO " + chipPresetName(preset) + ".");
+    return true;
+  }
+
+  // The auto name is PRESET N from the state's next number, skipping any
+  // preset already named that (case does not matter).
+  function nextAutoPresetName(view) {
+    var repository = view && view.repository ? view.repository : null;
+    var rows = repository && repository.allRows ? repository.allRows : [];
+    var taken = [];
+    for (var index = 0; index < rows.length; index++)
+      taken.push(presetDisplayName(rows[index]).toUpperCase());
+    var number = Math.max(
+      1,
+      Math.floor(Number(repository && repository.nextUserNumber) || 1),
+    );
+    while (taken.indexOf("PRESET " + String(number)) >= 0) number += 1;
+    return "PRESET " + String(number);
+  }
+
+  // + NEW PRESET (ALL HEROES): the settings on screen become a new preset for
+  // all heroes. HEROES are set later on the PRESETS page.
+  function saveToNewPreset() {
+    var name = nextAutoPresetName(currentView());
+    var deselected = sendState({ type: "preset_select", id: null });
+    var result =
+      stateAccepted(deselected)
+        ? sendState({ type: "preset_save", name: name, allHeroes: true })
+        : null;
+    if (!stateAccepted(result)) {
+      setSaveToFeedback("COULD NOT CREATE " + name + ". NOTHING CHANGED.", true);
+      return false;
+    }
+    var savedId =
+      result.view && result.view.repository ? result.view.repository.selectedId : "";
+    finishSaveTo(
+      savedId,
+      "SAVED AS " + name + ". SET ITS HEROES ON PRESETS.",
     );
     return true;
   }
@@ -2884,7 +3322,6 @@
   }
 
   function openPrecisePipsDialog(enabled) {
-    closeHeroDialog();
     setText(
       ui.precisePipsDialogTitle,
       enabled ? "TURN ON MORE PRECISE HP TEXT" : "UNDO THE GAME FILE CHANGE",
@@ -2909,10 +3346,7 @@
       state.values.precisePipsEnabled
         ? PRECISE_PIPS_ENABLE_TEXT
         : PRECISE_PIPS_RESET_TEXT;
-    var copied = false;
-    try {
-      copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
-    } catch {}
+    var copied = dispatchCopy(text);
     setText(ui.precisePipsCopyLabel, copied ? "COPIED" : "COPY FAILED");
   }
 
@@ -2954,7 +3388,6 @@
     transferRequest += 1;
     closePicker();
     closePrecisePipsDialog();
-    closeHeroDialog();
     setText(ui.transferInput, "");
     setClass(ui.transferDialog, "Open", true);
     setTransferFeedback(
@@ -3230,11 +3663,14 @@
     return JSON.stringify(data);
   }
 
+  function detectLegacyLayout(storePanel) {
+    return isValid(find(LEGACY_PRESET_STORE_ID)) || !isValid(storePanel);
+  }
+
   function ensureStorage() {
     if (storage) return storage;
-    var legacyPanel = find(LEGACY_PRESET_STORE_ID);
     var storePanel = find(STORE_PANEL_ID);
-    persist.legacyLayout = isValid(legacyPanel) || !isValid(storePanel);
+    persist.legacyLayout = detectLegacyLayout(storePanel);
     if (persist.legacyLayout)
       storeLog("old preset VPK layout detected: delete pak01_dir.vpk from citadel/addons");
     var factory = $.HPColorsV2StorageFactory;
@@ -3399,14 +3835,21 @@
   function resetForgetConfirm() {
     forgetConfirming = false;
     forgetConfirmGeneration += 1;
-    setText(ui.storeForgetLabel, "FORGET SAVED");
+    setText(ui.storeForgetLabel, "CLEAR PC SAVE");
     setClass(ui.storeForgetButton, "Confirming", false);
   }
 
   // Forget removes only this mod's two keys. Live settings stay; the next
   // deliberate edit saves again because the kept body is recorded as acked.
+  // It also works while saving is blocked, so a save this build cannot read
+  // (say, from a newer version) can still be removed on purpose.
+  function canForget() {
+    return !!storage && !persist.forgetting &&
+      (persist.gate === "open" || persist.gate === "blocked");
+  }
+
   function requestForget() {
-    if (!storage || persist.gate !== "open" || persist.forgetting) {
+    if (!canForget()) {
       renderStoreStatus();
       return;
     }
@@ -3414,7 +3857,7 @@
       forgetConfirming = true;
       forgetConfirmGeneration += 1;
       var generation = forgetConfirmGeneration;
-      setText(ui.storeForgetLabel, "CONFIRM FORGET");
+      setText(ui.storeForgetLabel, "CONFIRM CLEAR");
       setClass(ui.storeForgetButton, "Confirming", true);
       try {
         $.Schedule(FORGET_CONFIRM_SEC, function () {
@@ -3437,67 +3880,93 @@
         persist.failures = 0;
         persist.lastError = "";
         markSaved(keptHash, "forgotten");
+        // The store is empty now, so nothing unreadable is left to protect.
+        if (persist.gate === "blocked") setGate("open");
         showResetFeedback("SAVE CLEARED");
       } else {
         storeLog("forget failed: " + String(result && result.error));
-        showResetFeedback("FORGET FAILED");
+        showResetFeedback("COULD NOT CLEAR SAVE");
       }
     });
   }
 
   function storeStatusText() {
-    if (persist.legacyLayout) return "OLD PRESET VPK";
+    if (persist.legacyLayout) return "UPDATE PRESET FILE";
     if (hydration.phase === "pending" || persist.gate === "checking") return "LOADING";
     if (persist.gate !== "open") return "SAVE UNAVAILABLE";
     if (persist.lastError === "too_large") return "SAVE TOO LARGE";
     if (persist.failures >= PERSIST_FAILURE_LIMIT) return "SAVE UNAVAILABLE";
     if (persist.failures > 0) return "SAVE RETRYING";
-    if (persist.inFlight || persist.timer !== null || persist.forgetting) return "SAVING";
+    // This chip reports the local autosave of live settings on this PC, not a
+    // named-preset update; the copy says so, and only claims SAVED once a
+    // write or load has actually been acknowledged (ackHash is nonempty).
+    if (persist.inFlight || persist.timer !== null || persist.forgetting)
+      return "SAVING ON THIS PC...";
     if (persist.forgotten) return "SAVE CLEARED";
-    return "SAVED";
+    return persist.ackHash ? "SAVED ON THIS PC" : "LOCAL SAVE READY";
+  }
+
+  // Healthy local save is silent; the chip names the preset the current
+  // settings belong to, so players see what SAVE would update. Save
+  // problems and loading still take the chip over.
+  var STORE_QUIET_STATUS = {
+    "SAVING ON THIS PC...": true,
+    "SAVED ON THIS PC": true,
+    "LOCAL SAVE READY": true,
+  };
+  var CHIP_NAME_LIMIT = 16;
+
+  function chipPresetName(preset) {
+    var name = presetDisplayName(preset).toUpperCase();
+    if (name.length > CHIP_NAME_LIMIT)
+      name = name.slice(0, CHIP_NAME_LIMIT - 1) + "…";
+    return name;
+  }
+
+  function presetChipState() {
+    var view = currentView();
+    var repository = view && view.repository ? view.repository : null;
+    if (!repository) return { text: "", changed: false };
+    var source = repository.sourceState || null;
+    var preset = findPresetRecord(source && source.id ? source.id : "");
+    var changed = !!(preset && !source.matches);
+    if (!preset) preset = findPresetRecord(repository.activeId || "");
+    if (!preset) return { text: "NOT SAVED TO A PRESET", changed: true };
+    var name = chipPresetName(preset);
+    return {
+      text: "PRESET: " + name + (changed ? " · CHANGED" : ""),
+      changed: changed,
+    };
   }
 
   function renderStoreStatus() {
-    var text = storeStatusText();
-    setClass(
-      ui.liveStatus,
-      "StoreWarning",
-      text === "OLD PRESET VPK" ||
-        text === "SAVE UNAVAILABLE" ||
-        text === "SAVE RETRYING" ||
-        text === "SAVE TOO LARGE",
-    );
-    setEnabled(ui.storeForgetButton, !!storage && persist.gate === "open");
-    setText(ui.liveStatus, resetFeedbackText || text);
+    var storeText = storeStatusText();
+    var warning =
+      storeText === "UPDATE PRESET FILE" ||
+      storeText === "SAVE UNAVAILABLE" ||
+      storeText === "SAVE RETRYING" ||
+      storeText === "SAVE TOO LARGE";
+    var chip =
+      !resetFeedbackText && STORE_QUIET_STATUS[storeText]
+        ? presetChipState()
+        : null;
+    setClass(ui.liveStatus, "StoreWarning", warning);
+    setClass(ui.liveStatus, "PresetChanged", !!(chip && chip.changed));
+    // The footer SAVE TO PRESET glows while the settings are not saved in a
+    // preset, and names its target while a saved source preset is CHANGED.
+    renderSaveToButton();
+    setEnabled(ui.storeForgetButton, canForget());
+    if (
+      isValid(ui.liveStatus) &&
+      ui.liveStatus.GetAttributeString &&
+      ui.liveStatus.GetAttributeString("hp_colors_store_status", "") !== storeText
+    )
+      ui.liveStatus.SetAttributeString("hp_colors_store_status", storeText);
+    setText(ui.liveStatus, resetFeedbackText || (chip ? chip.text : storeText));
   }
 
   function writeMenuState(raw) {
-    if (!raw || !isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString)
-      return false;
-    try {
-      if (
-        !ui.absoluteRoot.GetAttributeString ||
-        ui.absoluteRoot.GetAttributeString(MENU_STATE_ATTR, "") !== raw
-      )
-        ui.absoluteRoot.SetAttributeString(MENU_STATE_ATTR, raw);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  function writeRootSnapshot(raw) {
-    if (!isValid(ui.absoluteRoot) || !ui.absoluteRoot.SetAttributeString) return false;
-    try {
-      if (
-        !ui.absoluteRoot.GetAttributeString ||
-        ui.absoluteRoot.GetAttributeString(CONFIG_ATTR, "") !== raw
-      )
-        ui.absoluteRoot.SetAttributeString(CONFIG_ATTR, raw);
-      return true;
-    } catch {
-      return false;
-    }
+    return !!raw && writeRootAttribute(MENU_STATE_ATTR, raw);
   }
 
   function dispatchChange(serializedPayload) {
@@ -3556,13 +4025,13 @@
     scheduleSnapshotReplay(replayGeneration);
   }
 
-  function showResetFeedback(text) {
+  function showResetFeedback(text, seconds) {
     resetFeedbackGeneration += 1;
     var generation = resetFeedbackGeneration;
     resetFeedbackText = text || "";
     renderStoreStatus();
     try {
-      $.Schedule(1.25, function () {
+      $.Schedule(seconds || RESET_FEEDBACK_SEC, function () {
         if (generation !== resetFeedbackGeneration) return;
         resetFeedbackText = "";
         renderStoreStatus();
@@ -3610,16 +4079,19 @@
     if (!confirmation) return;
     resetKeys = tab.keys.slice(0);
     setText(ui.resetDialogTitle, "RESET " + tab.name);
+    var currentRow = result.view.currentScope;
     setText(
       ui.resetDialogMessage,
-      "Reset " +
-        String(changedCount) +
-        (changedCount === 1 ? " setting" : " settings") +
-        " in " +
-        category.name +
-        " / " +
-        tab.name +
-        " to shipped defaults? This can be undone.",
+      currentRow && scopeUsesHeroes(currentRow.mode)
+        ? "This section goes back to your All Heroes settings."
+        : "Reset " +
+            String(changedCount) +
+            (changedCount === 1 ? " setting" : " settings") +
+            " in " +
+            category.name +
+            " / " +
+            tab.name +
+            " to shipped defaults? This can be undone.",
     );
     setClass(ui.resetDialog, "Open", true);
     focus(ui.resetCancelButton);
@@ -3644,7 +4116,7 @@
     closeResetDialog(true);
     syncControls();
     showResetFeedback(
-      result && result.outcome && result.outcome.status !== "rejected"
+      stateAccepted(result)
         ? "SECTION RESET · UNDO AVAILABLE"
         : "SECTION ALREADY DEFAULT",
     );
@@ -3662,13 +4134,7 @@
     });
   }
 
-  function registerConditionControl(panel, key, min, max, option, increment) {
-    if (
-      key === "precisePipsEnabled" ||
-      !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
-      !isValid(panel)
-    )
-      return;
+  function settingRow(panel) {
     var row = panel;
     while (isValid(row) && !panelHasClass(row, "HPColorsSettingRow")) {
       try {
@@ -3677,7 +4143,18 @@
         row = null;
       }
     }
-    if (!isValid(row)) return;
+    return isValid(row) ? row : null;
+  }
+
+  function registerConditionControl(panel, key, min, max, option, increment) {
+    if (
+      key === "precisePipsEnabled" ||
+      !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
+      !isValid(panel)
+    )
+      return;
+    var row = settingRow(panel);
+    if (!row) return;
 
     var control = conditionControls[key];
     if (!control) {
@@ -3705,6 +4182,7 @@
         increment: increment || 1,
         options: option === undefined ? [] : [option],
         indicators: [],
+        indicatorState: -1,
       };
       conditionControls[key] = control;
     } else if (option !== undefined && control.options.indexOf(option) < 0) {
@@ -3728,6 +4206,7 @@
     button.AddClass("HPColorsConditionIndicator");
     label.text = "\u25c7";
     control.indicators.push({ row: row, button: button, label: label });
+    control.indicatorState = -1;
     setPanelEvent(button, "onactivate", function () {
       openConditionEditor(key, button);
     });
@@ -3738,7 +4217,7 @@
     registerConditionControl(panel, key);
     setPanelEvent(panel, "onactivate", function () {
       if (syncingControls) return;
-      commitValue(key, !state.values[key], true);
+      commitValue(key, !state.values[key]);
     });
   }
 
@@ -3747,8 +4226,21 @@
     registerConditionControl(panel, key, undefined, undefined, mode);
     setPanelEvent(panel, "onactivate", function () {
       if (syncingControls) return;
-      commitValue(key, mode, true);
+      commitValue(key, mode);
     });
+  }
+
+  function bindEntryCommit(entry, key) {
+    function commitEntry() {
+      if (syncingControls) return;
+      commitValue(key, entry.text);
+      try {
+        $.DispatchEvent("DropInputFocus", entry);
+      } catch {}
+    }
+    setPanelEvent(entry, "ontextentrysubmit", commitEntry);
+    setPanelEvent(entry, "onblur", commitEntry);
+    setPanelEvent(entry, "oncancel", syncControls);
   }
 
   function bindSlider(sliderId, entryId, key, min, max, increment) {
@@ -3781,16 +4273,7 @@
       syncControls();
     });
 
-    function commitEntry() {
-      if (syncingControls) return;
-      commitValue(key, entry.text, true);
-      try {
-        $.DispatchEvent("DropInputFocus", entry);
-      } catch {}
-    }
-    setPanelEvent(entry, "ontextentrysubmit", commitEntry);
-    setPanelEvent(entry, "onblur", commitEntry);
-    setPanelEvent(entry, "oncancel", syncControls);
+    bindEntryCommit(entry, key);
   }
 
   function bindColor(swatchId, entryId, key) {
@@ -3801,16 +4284,7 @@
     setPanelEvent(swatch, "onactivate", function () {
       openPicker(key, swatch);
     });
-    function commitEntry() {
-      if (syncingControls) return;
-      commitValue(key, entry.text, true);
-      try {
-        $.DispatchEvent("DropInputFocus", entry);
-      } catch {}
-    }
-    setPanelEvent(entry, "ontextentrysubmit", commitEntry);
-    setPanelEvent(entry, "onblur", commitEntry);
-    setPanelEvent(entry, "oncancel", syncControls);
+    bindEntryCommit(entry, key);
   }
 
   function conditionValueMatchesSetting(key, value) {
@@ -3963,6 +4437,12 @@
         ? ability.observedTiers[activeRule.slot - 1]
         : -1;
       var matched = meaningful && tier >= activeRule.minTier;
+      var indicatorState =
+        (meaningful ? 1 : 0) |
+        (matched ? 2 : 0) |
+        (meaningful && tier < 0 ? 4 : 0);
+      if (control.indicatorState === indicatorState) continue;
+      control.indicatorState = indicatorState;
       var indicators = control.indicators;
       for (var indicatorIndex = 0; indicatorIndex < indicators.length; indicatorIndex++) {
         var indicator = indicators[indicatorIndex];
@@ -4003,7 +4483,6 @@
     closeResetDialog(false);
     closePresetTransferDialog();
     closeTransferDialog();
-    closeHeroDialog();
     closeScopeDialog();
     closePicker();
     var rule = state.conditions[key];
@@ -4035,17 +4514,12 @@
   function pickConditionColor() {
     var control = conditionControls[conditionDraft.key];
     if (!control || control.type !== "color") return;
-    closeHeroDialog();
-    picker.key = conditionDraft.key;
-    picker.returnPanel = ui.conditionColorSwatch;
-    picker.condition = true;
-    var hsl = hexToHsl(conditionDraft.value);
-    picker.hue = hsl.hue;
-    picker.saturation = hsl.saturation;
-    picker.lightness = hsl.lightness;
-    setClass(ui.pickerRoot, "Open", true);
-    syncPicker();
-    focus(ui.pickerHueSlider);
+    showPicker(
+      conditionDraft.key,
+      ui.conditionColorSwatch,
+      true,
+      conditionDraft.value,
+    );
   }
 
   function applyConditionDraft() {
@@ -4064,7 +4538,7 @@
       minTier: conditionDraft.minTier,
       value: conditionDraft.value,
     });
-    if (!result || !result.outcome || result.outcome.status === "rejected") {
+    if (!stateAccepted(result)) {
       renderConditionEditor();
       return;
     }
@@ -4176,19 +4650,72 @@
     setText(controlPanel(control.base + "Hex"), value);
   }
 
-  function setPickerTrack(slider, gradient) {
+  var PICKER_HUE_TRACK =
+    "gradient(linear, 0% 0%, 100% 0%, from(#FF0000), color-stop(0.1667, #FFFF00), color-stop(0.3333, #00FF00), color-stop(0.5, #00FFFF), color-stop(0.6667, #0000FF), color-stop(0.8333, #FF00FF), to(#FF0000))";
+
+  function pickerColor() {
+    return hslToHex(picker.hue, picker.saturation, picker.lightness);
+  }
+
+  function pickerHueGradient() {
+    return PICKER_HUE_TRACK;
+  }
+
+  function pickerSaturationGradient() {
+    return (
+      "gradient(linear, 0% 0%, 100% 0%, from(" +
+      hslToHex(picker.hue, 0, picker.lightness) +
+      "), to(" +
+      hslToHex(picker.hue, 100, picker.lightness) +
+      "))"
+    );
+  }
+
+  function pickerLumenGradient() {
+    return (
+      "gradient(linear, 0% 0%, 100% 0%, from(#000000), color-stop(0.5, " +
+      hslToHex(picker.hue, picker.saturation, 50) +
+      "), to(#FFFFFF))"
+    );
+  }
+
+  // Thumb and track panels per slider; a slider that is re-resolved or a
+  // child that went invalid starts a fresh lookup.
+  function pickerParts(component, slider) {
+    var parts = pickerPartCache[component];
+    if (!parts || parts.slider !== slider) {
+      parts = { slider: slider, thumb: null, track: null, trackKey: "" };
+      pickerPartCache[component] = parts;
+    }
+    return parts;
+  }
+
+  // trackKey names the inputs of the gradient last written to the track, so
+  // an unchanged track is neither rebuilt nor compared again.
+  function setPickerTrack(component, slider, trackKey, gradientFor) {
     if (!isValid(slider) || !slider.FindChildTraverse) return;
     try {
-      var track = slider.FindChildTraverse("SliderTrack");
-      if (isValid(track) && track.style.backgroundColor !== gradient)
+      var parts = pickerParts(component, slider);
+      if (!isValid(parts.track)) {
+        parts.track = slider.FindChildTraverse("SliderTrack");
+        parts.trackKey = "";
+      }
+      var track = parts.track;
+      if (!isValid(track) || parts.trackKey === trackKey) return;
+      var gradient = gradientFor();
+      if (track.style.backgroundColor !== gradient)
         track.style.backgroundColor = gradient;
+      parts.trackKey = trackKey;
     } catch {}
   }
 
-  function setPickerThumb(slider, color, lightness) {
+  function setPickerThumb(component, slider, color, lightness) {
     if (!isValid(slider) || !slider.FindChildTraverse) return;
     try {
-      var thumb = slider.FindChildTraverse("SliderThumb");
+      var parts = pickerParts(component, slider);
+      if (!isValid(parts.thumb))
+        parts.thumb = slider.FindChildTraverse("SliderThumb");
+      var thumb = parts.thumb;
       if (!isValid(thumb) || !thumb.style) return;
       if (thumb.style.backgroundColor !== color)
         thumb.style.backgroundColor = color;
@@ -4200,11 +4727,7 @@
 
   function syncPicker() {
     if (!picker.key || !isValid(ui.pickerRoot)) return;
-    var color = hslToHex(
-      picker.hue,
-      picker.saturation,
-      picker.lightness,
-    );
+    var color = pickerColor();
     setText(ui.pickerTitle, COLOR_TITLES[picker.key] || "COLOR");
     setText(ui.pickerHex, color);
     setText(ui.pickerHueValue, picker.hue + "°");
@@ -4215,39 +4738,27 @@
     setSliderValue(ui.pickerSaturationSlider, picker.saturation);
     setSliderValue(ui.pickerLumenSlider, picker.lightness);
 
-    setPickerThumb(ui.pickerHueSlider, color, picker.lightness);
-    setPickerThumb(ui.pickerSaturationSlider, color, picker.lightness);
-    setPickerThumb(ui.pickerLumenSlider, color, picker.lightness);
+    setPickerThumb("hue", ui.pickerHueSlider, color, picker.lightness);
+    setPickerThumb("saturation", ui.pickerSaturationSlider, color, picker.lightness);
+    setPickerThumb("lightness", ui.pickerLumenSlider, color, picker.lightness);
 
+    setPickerTrack("hue", ui.pickerHueSlider, "", pickerHueGradient);
     setPickerTrack(
-      ui.pickerHueSlider,
-      "gradient(linear, 0% 0%, 100% 0%, from(#FF0000), color-stop(0.1667, #FFFF00), color-stop(0.3333, #00FF00), color-stop(0.5, #00FFFF), color-stop(0.6667, #0000FF), color-stop(0.8333, #FF00FF), to(#FF0000))",
-    );
-    setPickerTrack(
+      "saturation",
       ui.pickerSaturationSlider,
-      "gradient(linear, 0% 0%, 100% 0%, from(" +
-        hslToHex(picker.hue, 0, picker.lightness) +
-        "), to(" +
-        hslToHex(picker.hue, 100, picker.lightness) +
-        "))",
+      picker.hue + "|" + picker.lightness,
+      pickerSaturationGradient,
     );
     setPickerTrack(
+      "lightness",
       ui.pickerLumenSlider,
-      "gradient(linear, 0% 0%, 100% 0%, from(#000000), color-stop(0.5, " +
-        hslToHex(picker.hue, picker.saturation, 50) +
-        "), to(#FFFFFF))",
+      picker.hue + "|" + picker.saturation,
+      pickerLumenGradient,
     );
   }
 
   function bindPickerSlider(slider, component) {
     if (!isValid(slider)) return;
-    function pickerColor() {
-      return hslToHex(
-        picker.hue,
-        picker.saturation,
-        picker.lightness,
-      );
-    }
     try {
       slider.increment = 1;
     } catch {}
@@ -4260,10 +4771,7 @@
         key: picker.key,
         value: pickerColor(),
       });
-      pickerGestureActive =
-        !!result &&
-        !!result.outcome &&
-        result.outcome.status !== "rejected";
+      pickerGestureActive = stateAccepted(result);
     });
     setPanelEvent(slider, "onvaluechanged", function () {
       if (syncingControls || !picker.key) return;
@@ -4319,19 +4827,22 @@
     picker.returnPanel = null;
   }
 
-  function openPicker(key, returnPanel) {
-    if (!COLOR_KEYS[key]) return;
-    closeHeroDialog();
+  function showPicker(key, returnPanel, condition, hex) {
     picker.key = key;
-    picker.condition = false;
     picker.returnPanel = returnPanel;
-    var hsl = hexToHsl(state.values[key]);
+    picker.condition = condition;
+    var hsl = hexToHsl(hex);
     picker.hue = hsl.hue;
     picker.saturation = hsl.saturation;
     picker.lightness = hsl.lightness;
     setClass(ui.pickerRoot, "Open", true);
     syncPicker();
     focus(ui.pickerHueSlider);
+  }
+
+  function openPicker(key, returnPanel) {
+    if (!COLOR_KEYS[key]) return;
+    showPicker(key, returnPanel, false, state.values[key]);
   }
 
   function syncToggleControls(values) {
@@ -4375,14 +4886,6 @@
   }
 
   function syncControlDependencies(values) {
-    var ghoulOpacityActive = values.ghoulOpacityEnabled;
-    syncDependentRow(
-      "HPColorsGhoulOpacityRow",
-      ghoulOpacityActive,
-      "HPColorsGhoulOpacitySlider",
-      "HPColorsGhoulOpacityEntry",
-    );
-
     var enemyStaminaColorActive = values.enemyStaminaColorEnabled;
     syncDependentRow(
       "HPColorsEnemyStaminaColorRow",
@@ -4480,11 +4983,6 @@
       "Active",
       ultimateTimerProgressColors,
     );
-
-    setEnabled(controlPanel("HPColorsSharedLowThresholdSlider"), true);
-    setEnabled(controlPanel("HPColorsSharedLowThresholdEntry"), true);
-    setEnabled(controlPanel("HPColorsSharedHighThresholdSlider"), true);
-    setEnabled(controlPanel("HPColorsSharedHighThresholdEntry"), true);
   }
 
   function syncReadoutColorRows(base, colorMode) {
@@ -4500,11 +4998,7 @@
 
   function syncControls() {
     var view = currentView();
-    var values = view
-      ? view.currentScope
-        ? view.currentScope.values
-        : view.values
-      : {};
+    var values = state.values;
     syncingControls = true;
     try {
       syncToggleControls(values);
@@ -4520,6 +5014,7 @@
     }
     renderIdentity();
     renderCurrentScope();
+    refreshPresetActivity(view);
   }
 
 
@@ -4549,18 +5044,19 @@
 
     var activeTab = category.tabs[state.tabIndex];
     if (!activeTab) return;
+    // UNDO stays reachable on the preset page because row clicks and EDIT
+    // replace what is on screen; only RESET SECTION hides there.
     var presetPageActive =
       activeTab.pageId === "HPColorsSettingsOverviewHero";
-    var hideHistoryActions = presetPageActive;
-    setClass(
-      ui.undoButton,
-      "HPColorsFooterActionHidden",
-      hideHistoryActions,
-    );
+    setClass(ui.undoButton, "HPColorsFooterActionHidden", false);
+    // The hero identity line sits under the page description and only shows
+    // on PRESETS; toggle it on every navigation render, not in renderIdentity,
+    // whose unchanged-signature early return would leave it stale.
+    setClass(ui.heroIdentity, "Active", presetPageActive);
     setClass(
       ui.resetButton,
       "HPColorsFooterActionHidden",
-      hideHistoryActions,
+      presetPageActive,
     );
     setEnabled(ui.resetButton, activeTab.keys.length > 0);
     setText(ui.pageEyebrow, category.name + " / " + activeTab.name);
@@ -4604,27 +5100,29 @@
   function beginPeek() {
     if (!state.open || state.peeking) return;
     closePicker();
-    closeHeroDialog();
     closeScopeDialog();
+    closeSaveToDialog(false);
     state.peeking = true;
     setClass(ui.editorRoot, "Peeking", true);
     focus(ui.peekCapture);
   }
 
+  // The unconditional close used after an exit decision and by forced paths.
+  // It never reverts live settings and still flushes local persistence.
   function closeEditor() {
     closeSupporterTicker();
     if (!state.open) return;
+    closeExitDialog(false);
+    closeSaveToDialog(false);
     closeResetDialog(false);
     closeConditionEditor();
     showResetFeedback("");
     closeTransferDialog();
-    closeHeroDialog();
     closeScopeDialog();
     closePicker();
     presetFormOpen = false;
     presetEditId = "";
-    presetInlineRenameId = "";
-    presetInlineRenameInput = null;
+    presetReplaceConfirm = null;
     presetDeleteConfirmId = "";
     sendState({ type: "editor_close" });
     flushPersist();
@@ -4633,6 +5131,106 @@
     setClass(ui.editorRoot, "Open", false);
     setClass(ui.escapeRoot, "EditorOpen", false);
     focus(ui.menuButton);
+  }
+
+  function exitDialogOpen() {
+    return isValid(ui.exitDialog) && ui.exitDialog.BHasClass("Open");
+  }
+
+  // Exit asks only when a named preset would be left behind: a CHANGED
+  // source row, or a form holding an unsaved name. Live-only edits are
+  // already saved on this PC, so they never prompt.
+  function exitPromptNeeded() {
+    return !!changedSourcePreset() || presetFormHasUnsavedName();
+  }
+
+  function closeExitDialog(restoreFocus) {
+    exitDialogSourceId = "";
+    if (!exitDialogOpen()) return;
+    setClass(ui.exitDialog, "Open", false);
+    setText(ui.exitFeedback, "");
+    if (restoreFocus !== false && state.open) focus(ui.doneButton);
+  }
+
+  function openExitDialog() {
+    if (!isValid(ui.exitDialog)) return false;
+    var source = changedSourcePreset();
+    var formName = presetFormHasUnsavedName();
+    var name = source ? presetDisplayName(source).toUpperCase() : "";
+    exitDialogSourceId = source ? source.id : "";
+    if (source) {
+      setText(ui.exitDialogTitle, "SAVE CHANGES TO " + name + "?");
+      setText(
+        ui.exitDialogMessage,
+        "Your settings stay in use either way.\nSAVE updates " +
+          name +
+          ".\nSwitching heroes can replace changes you haven't saved to a preset.\nUNDO ends when you exit." +
+          (formName ? "\nThe name you typed will not be saved." : ""),
+      );
+    } else {
+      setText(ui.exitDialogTitle, "LEAVE WITHOUT SAVING THE PRESET?");
+      setText(
+        ui.exitDialogMessage,
+        "The name you typed will not be saved.\nYour settings stay in use.\nUNDO ends when you exit.",
+      );
+    }
+    setText(ui.exitFeedback, "");
+    setRowActionEnabled(ui.exitSaveButton, !!source);
+    setClass(ui.exitDialog, "Open", true);
+    // The non-destructive choice takes focus.
+    focus(ui.exitReviewButton);
+    return true;
+  }
+
+  // Shared close entry for EXIT, root cancel, background, and owned Resume.
+  // Subdialogs are closed by cancel() before it reaches this. Returns true
+  // when the request was handled (closed or prompted).
+  function requestCloseEditor() {
+    if (!state.open) return false;
+    if (exitDialogOpen()) return true;
+    if (exitPromptNeeded() && openExitDialog()) return true;
+    closeEditor();
+    return true;
+  }
+
+  function exitSaveAndClose() {
+    if (!exitDialogOpen()) return;
+    var preset = changedSourcePreset();
+    if (!preset || preset.id !== exitDialogSourceId) {
+      setText(ui.exitFeedback, PRESET_GONE_TEXT);
+      renderPresetOptions();
+      return;
+    }
+    if (!performPresetRowSave(preset.id)) {
+      setText(ui.exitFeedback, readPanelText(ui.presetFeedback));
+      return;
+    }
+    closeEditor();
+  }
+
+  function exitReviewPresets() {
+    if (!exitDialogOpen()) return;
+    var source = changedSourcePreset();
+    closeExitDialog(false);
+    for (var index = 0; index < CATEGORY_DEFS.length; index++) {
+      if (CATEGORY_DEFS[index].name === "PRESETS") {
+        if (state.categoryIndex !== index || state.tabIndex !== 0) {
+          closePicker();
+          state.categoryIndex = index;
+          state.tabIndex = 0;
+        }
+        renderNavigation();
+        break;
+      }
+    }
+    if (presetFormOpen) focus(ui.presetNameInput);
+    else if (source) focusSelectedPresetRow(source.id);
+    else focus(ui.presetOptions);
+  }
+
+  function exitWithoutSaving() {
+    if (!exitDialogOpen()) return;
+    closeEditor();
   }
 
   function openEditor() {
@@ -4652,6 +5250,15 @@
   }
 
   function cancel() {
+    // Escape inside the exit prompt dismisses it; it never confirms.
+    if (exitDialogOpen()) {
+      closeExitDialog(true);
+      return true;
+    }
+    if (saveToDialogOpen()) {
+      closeSaveToDialog(true);
+      return true;
+    }
     if (picker.key) {
       closePicker();
       return true;
@@ -4678,10 +5285,6 @@
       closeScopeDialog();
       return true;
     }
-    if (isValid(ui.heroDialog) && ui.heroDialog.BHasClass("Open")) {
-      closeHeroDialog();
-      return true;
-    }
     if (
       isValid(ui.transferDialog) &&
       ui.transferDialog.BHasClass("Open")
@@ -4696,10 +5299,7 @@
       closePrecisePipsDialog();
       return true;
     }
-    if (state.open) {
-      closeEditor();
-      return true;
-    }
+    if (state.open) return requestCloseEditor();
     return false;
   }
 
@@ -4740,6 +5340,14 @@
     ui.absoluteRoot = absoluteRoot(ui.escapeRoot);
     resolveUiPanels(REQUIRED_UI_PANEL_KEYS);
     resolveUiPanels(OPTIONAL_UI_PANEL_KEYS);
+    if (!isValid(ui.presetScopeHelp)) {
+      var helpLabels = findChildrenWithClass(ui.presetForm, "HPColorsPresetScopeHelp");
+      if (!helpLabels.length)
+        helpLabels = findChildrenWithClass(ui.escapeRoot, "HPColorsPresetScopeHelp");
+      if (!helpLabels.length)
+        helpLabels = findChildrenWithClass(ui.absoluteRoot, "HPColorsPresetScopeHelp");
+      ui.presetScopeHelp = helpLabels.length ? helpLabels[0] : null;
+    }
 
     for (var conditionSlot = 1; conditionSlot <= 4; conditionSlot++) {
       var slotId = "HPColorsConditionSlot" + String(conditionSlot);
@@ -4761,8 +5369,7 @@
     var requiredPanels = [ui.escapeRoot, ui.absoluteRoot];
     for (var keyIndex = 0; keyIndex < REQUIRED_UI_PANEL_KEYS.length; keyIndex++)
       requiredPanels.push(ui[REQUIRED_UI_PANEL_KEYS[keyIndex]]);
-    var legacyLayout =
-      isValid(find(LEGACY_PRESET_STORE_ID)) || !isValid(find(STORE_PANEL_ID));
+    var legacyLayout = detectLegacyLayout(find(STORE_PANEL_ID));
     // Retired builder layouts have only the original four rail buttons; keep
     // them bootable so the header can explain that the old pak01 must be removed.
     var categoryButtons = legacyLayout
@@ -4895,54 +5502,55 @@
   }
 
   function bindMenuControls() {
-    setPanelEvent(ui.menuButton, "onactivate", requestOpen);
     setPanelEvent(ui.storeForgetButton, "onactivate", requestForget);
-    setPanelEvent(ui.doneButton, "onactivate", closeEditor);
+    setPanelEvent(ui.doneButton, "onactivate", requestCloseEditor);
+    setPanelEvent(ui.saveToPresetButton, "onactivate", activateSaveToPreset);
+    setPanelEvent(ui.saveToMoreButton, "onactivate", function () {
+      if (!panelHasClass(ui.saveToMoreButton, "Disabled")) openSaveToDialog();
+    });
+    setPanelEvent(ui.saveToNewButton, "onactivate", saveToNewPreset);
+    setPanelEvent(ui.saveToCloseButton, "onactivate", closeSaveToDialog);
+    setPanelEvent(ui.saveToBackdrop, "onactivate", closeSaveToDialog);
+    setPanelEvent(ui.saveToDialog, "oncancel", closeSaveToDialog);
+    setPanelEvent(ui.exitSaveButton, "onactivate", exitSaveAndClose);
+    setPanelEvent(ui.exitReviewButton, "onactivate", exitReviewPresets);
+    setPanelEvent(ui.exitDiscardButton, "onactivate", exitWithoutSaving);
+    setPanelEvent(ui.exitBackdrop, "onactivate", closeExitDialog);
+    setPanelEvent(ui.exitDialog, "oncancel", closeExitDialog);
     setPanelEvent(ui.undoButton, "onactivate", undo);
     setPanelEvent(ui.resetButton, "onactivate", requestSectionReset);
     setPanelEvent(ui.resetConfirmButton, "onactivate", confirmSectionReset);
-    setPanelEvent(ui.resetCancelButton, "onactivate", function () {
-      closeResetDialog(true);
-    });
-    setPanelEvent(ui.resetDialog, "oncancel", function () {
-      closeResetDialog(true);
-    });
+    setPanelEvent(ui.resetCancelButton, "onactivate", closeResetDialog);
+    setPanelEvent(ui.resetDialog, "oncancel", closeResetDialog);
     setPanelEvent(ui.transferButton, "onactivate", openTransferDialog);
     setPanelEvent(ui.transferExportButton, "onactivate", copyCurrentSettings);
     setPanelEvent(ui.transferImportButton, "onactivate", importLiveSettings);
     setPanelEvent(ui.transferCloseButton, "onactivate", closeTransferDialog);
     setPanelEvent(ui.transferDialog, "oncancel", closeTransferDialog);
-    setPanelEvent(ui.heroModeAuto, "onactivate", function () {
-      setHeroMode(HERO_MODE_AUTO);
-    });
-    setPanelEvent(ui.heroModeManual, "onactivate", function () {
-      setHeroMode(HERO_MODE_MANUAL);
-    });
-    setPanelEvent(ui.heroModeOff, "onactivate", function () {
-      setHeroMode(HERO_MODE_OFF);
-    });
-    setPanelEvent(ui.heroManualButton, "onactivate", openHeroDialog);
-    setPanelEvent(ui.heroCloseButton, "onactivate", closeHeroDialog);
-    setPanelEvent(ui.heroDialog, "oncancel", closeHeroDialog);
     setPanelEvent(ui.currentScopeAll, "onactivate", function () {
       setCurrentScopeMode(HERO_SCOPE_ALL);
     });
     setPanelEvent(ui.currentScopeSelected, "onactivate", function () {
       openScopeDialog(HERO_SCOPE_SELECTED);
     });
-    if (isValid(ui.currentScopeExcept))
-      setPanelEvent(ui.currentScopeExcept, "onactivate", function () {
-        openScopeDialog(HERO_SCOPE_EXCEPT);
-      });
+    setPanelEvent(ui.currentScopeExcept, "onactivate", function () {
+      openScopeDialog(HERO_SCOPE_EXCEPT);
+    });
     setPanelEvent(ui.scopeSearch, "ontextentrychange", filterScopeHeroOptions);
     setPanelEvent(ui.scopeCloseButton, "onactivate", closeScopeDialog);
     setPanelEvent(ui.scopeDialog, "oncancel", closeScopeDialog);
     setPanelEvent(ui.presetSaveButton, "onactivate", saveCurrentPreset);
     setPanelEvent(ui.presetNewButton, "onactivate", beginNewPreset);
+    setPanelEvent(ui.presetGuideToggle, "onactivate", togglePresetGuide);
+    renderPresetGuide();
+    setText(
+      ui.presetScopeHelp,
+      "HEROES chooses when this preset loads automatically. See HOW PRESETS WORK for switching rules.",
+    );
     setPanelEvent(
       ui.presetCancelEditButton,
       "onactivate",
-      cancelPresetEdit,
+      closePresetEdit,
     );
     setPanelEvent(ui.presetCopyAllButton, "onactivate", copyAllPresets);
     setPanelEvent(
@@ -4994,6 +5602,11 @@
     setClass(ui.menuButton, "Loading", true);
   }
 
+  function setHydrationDone(raw) {
+    hydration = { phase: "done", raw: raw };
+    writeRootAttribute(HYDRATION_ATTR, "done");
+  }
+
   // Cold boot: nothing in this process has written the session attribute, so
   // saved settings come from the store. Warm boot (layout reload) keeps the
   // session attribute, which is always newer than the store.
@@ -5001,14 +5614,12 @@
     ensureStorage();
     var sessionRaw = readRootAttribute(MENU_STATE_ATTR);
     if (sessionRaw) {
-      hydration = { phase: "done", raw: sessionRaw };
-      writeRootAttribute(HYDRATION_ATTR, "done");
+      setHydrationDone(sessionRaw);
       restoreProcessGate(sessionRaw);
       return;
     }
     if (!storage) {
-      hydration = { phase: "done", raw: null };
-      writeRootAttribute(HYDRATION_ATTR, "done");
+      setHydrationDone(null);
       setGate("blocked");
       return;
     }
@@ -5017,8 +5628,7 @@
     renderStoreStatus();
     storage.load(function (outcome) {
       if (!isValid(context) || hydration.phase !== "pending") return;
-      hydration = { phase: "done", raw: applyLoadOutcome(outcome) };
-      writeRootAttribute(HYDRATION_ATTR, "done");
+      setHydrationDone(applyLoadOutcome(outcome));
       boot();
     });
   }
@@ -5063,7 +5673,7 @@
     }
     state.view = stateInstance.read();
     try {
-      if (!createSliders() || !createHeroOptions() || !createScopeHeroOptions()) {
+      if (!createSliders() || !createScopeHeroOptions()) {
         $.Msg("[HP Colors Rewrite] menu boot failed: control creation incomplete");
         return;
       }

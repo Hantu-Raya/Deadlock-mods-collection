@@ -184,6 +184,22 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     'QOLLOCK settings row',
   );
   if (isV2) {
+    // QOLLOCK's close and resume buttons also close an open editor subdialog
+    // (or prompt to save) before leaving the menu.
+    for (const [pattern, label] of [
+      [/<Button id="CloseBtn"[^>]*>/, 'QOLLOCK close button'],
+      [/<Button id="EscapeButton"[^>]*>/, 'Escape resume button'],
+      [/<CitadelBindingButton id="EscapeButton"[^>]*>/, 'Escape resume binding'],
+    ]) {
+      xml = replaceOnce(xml, pattern, (tag) => prefixHandler(
+        tag,
+        'onactivate',
+        'if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else ',
+        label,
+      ), label);
+    }
+  }
+  if (isV2) {
     // Stock #SubOptions is bottom-anchored and grows upward 32px per row; the
     // QOLLOCK and HP rows push it into the primaries, so lift them 64px from
     // QOLLOCK's hud_escape_menu.css (490/420/350 in 4.0.0) and stock #changehero (280).
