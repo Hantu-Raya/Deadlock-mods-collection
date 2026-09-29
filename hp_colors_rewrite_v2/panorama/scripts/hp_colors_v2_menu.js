@@ -853,10 +853,11 @@
     "pickerSaturationValue pickerLightnessValue storeForgetButton " +
     "storeForgetLabel presetHiddenRow currentScopeExcept scopeDialogTitle " +
     "scopeDialogMessage presetScopeHelp presetGuide presetGuideToggleLabel " +
-    "presetGuideToggle presetGuideText presetSourceRow presetSaveAsNewButton " +
+    "presetGuideToggle presetGuideText " +
     "exitDialog exitDialogTitle exitDialogMessage exitFeedback " +
     "exitBackdrop exitSaveButton exitReviewButton exitDiscardButton " +
-    "saveToPresetButton saveToDialog saveToBackdrop saveToOptions " +
+    "saveToPresetButton saveToPresetLabel saveToMoreButton saveToDialog " +
+    "saveToBackdrop saveToOptions " +
     "saveToFeedback saveToNewButton saveToCloseButton"
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
@@ -1056,8 +1057,6 @@
     presetTransferCloseButton: null,
     presetRestoreBakedButton: null,
     presetHiddenRow: null,
-    presetSourceRow: null,
-    presetSaveAsNewButton: null,
     exitDialog: null,
     exitDialogTitle: null,
     exitDialogMessage: null,
@@ -1067,6 +1066,8 @@
     exitReviewButton: null,
     exitDiscardButton: null,
     saveToPresetButton: null,
+    saveToPresetLabel: null,
+    saveToMoreButton: null,
     saveToDialog: null,
     saveToBackdrop: null,
     saveToOptions: null,
@@ -3092,7 +3093,7 @@
     if (!view) view = currentView();
     // SAVE TO PRESET steps aside while the name form is open (two save
     // surfaces at once), and an open dialog follows the current source.
-    setEnabled(ui.saveToPresetButton, !presetFormOpen);
+    renderSaveToButton(view);
     refreshSaveToRows(view);
     if (!isValid(ui.presetOptions)) return;
     var repository = view && view.repository ? view.repository : null;
@@ -3135,15 +3136,6 @@
         showChangedActions,
       );
     }
-    // No source to SAVE into: Rewrite Default source, deleted source, changed
-    // APPLIES TO, or zero user presets. Never shown over an ACTIVE row.
-    var noSource =
-      !presetFormOpen &&
-      !(source && source.id) &&
-      (repository.activeId === null ||
-        repository.activeId === CURRENT_SCOPE_ID);
-    setClass(ui.presetSourceRow, "Visible", noSource);
-    setRowActionEnabled(ui.presetSaveAsNewButton, noSource);
     renderStoreStatus();
   }
 
@@ -3334,6 +3326,52 @@
         if (generation === saveToGeneration) disarmSaveTo();
       });
     } catch {}
+  }
+
+  // While the preset the settings came from is CHANGED, the footer button
+  // names it and saves into it in one click; ▼ then opens the list. The
+  // name is cut to fit the button.
+  var SAVE_TO_NAME_LIMIT = 10;
+  var saveToNamedId = "";
+
+  function renderSaveToButton(view) {
+    var source = changedSourcePreset(view);
+    // A layout without the label cannot name the target, so it keeps the list.
+    var named = source && isValid(ui.saveToPresetLabel) ? source : null;
+    var name = named ? presetDisplayName(named).toUpperCase() : "";
+    if (name.length > SAVE_TO_NAME_LIMIT)
+      name = name.slice(0, SAVE_TO_NAME_LIMIT - 1).replace(/\s+$/, "") + "…";
+    saveToNamedId = named ? named.id : "";
+    setText(ui.saveToPresetLabel, named ? "SAVE TO " + name : "SAVE TO PRESET");
+    setClass(ui.saveToPresetButton, "Unsaved", !!source);
+    setEnabled(ui.saveToPresetButton, !presetFormOpen);
+    setClass(ui.saveToMoreButton, "HPColorsFooterActionHidden", !named);
+    setRowActionEnabled(ui.saveToMoreButton, !!named && !presetFormOpen);
+  }
+
+  // One click saves into the named source. The target is re-read now; if it
+  // is gone or no longer CHANGED, nothing is saved and the button refreshes.
+  function activateSaveToPreset() {
+    if (panelHasClass(ui.saveToPresetButton, "Disabled")) return;
+    if (!saveToNamedId) {
+      openSaveToDialog();
+      return;
+    }
+    var preset = changedSourcePreset();
+    if (!preset || preset.id !== saveToNamedId) {
+      renderSaveToButton();
+      return;
+    }
+    var result = sendState({ type: "preset_save_to", id: preset.id });
+    if (!result || !result.outcome || result.outcome.status === "rejected") {
+      showResetFeedback(
+        "COULD NOT SAVE " + chipPresetName(preset) + ". NOTHING CHANGED.",
+        SAVE_TO_FEEDBACK_SEC,
+      );
+      return;
+    }
+    finishSaveTo(preset.id, "SAVED TO " + chipPresetName(preset) + ".");
+    focus(ui.saveToPresetButton);
   }
 
   function openSaveToDialog() {
@@ -4081,9 +4119,9 @@
         : null;
     setClass(ui.liveStatus, "StoreWarning", warning);
     setClass(ui.liveStatus, "PresetChanged", !!(chip && chip.changed));
-    // The footer SAVE TO PRESET glows while the preset these settings came
-    // from has unsaved changes. Rewrite Default and unsaved settings do not.
-    setClass(ui.saveToPresetButton, "Unsaved", !!changedSourcePreset());
+    // The footer SAVE TO PRESET glows and names its target while the preset
+    // these settings came from has unsaved changes.
+    renderSaveToButton();
     setEnabled(ui.storeForgetButton, canForget());
     if (
       isValid(ui.liveStatus) &&
@@ -5646,7 +5684,10 @@
     setPanelEvent(ui.menuButton, "onactivate", requestOpen);
     setPanelEvent(ui.storeForgetButton, "onactivate", requestForget);
     setPanelEvent(ui.doneButton, "onactivate", requestCloseEditor);
-    setPanelEvent(ui.saveToPresetButton, "onactivate", openSaveToDialog);
+    setPanelEvent(ui.saveToPresetButton, "onactivate", activateSaveToPreset);
+    setPanelEvent(ui.saveToMoreButton, "onactivate", function () {
+      if (!panelHasClass(ui.saveToMoreButton, "Disabled")) openSaveToDialog();
+    });
     setPanelEvent(ui.saveToNewButton, "onactivate", saveToNewPreset);
     setPanelEvent(ui.saveToCloseButton, "onactivate", function () {
       closeSaveToDialog(true);
@@ -5740,9 +5781,6 @@
       "onactivate",
       restoreHiddenBakedPresets,
     );
-    setPanelEvent(ui.presetSaveAsNewButton, "onactivate", function () {
-      if (!panelHasClass(ui.presetSaveAsNewButton, "Disabled")) beginNewPreset();
-    });
     setPanelEvent(ui.peekButton, "onmousedown", beginPeek);
     setPanelEvent(ui.peekButton, "onmouseup", endPeek);
     setPanelEvent(ui.peekCapture, "onactivate", endPeek);

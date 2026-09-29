@@ -1,4 +1,4 @@
-<!-- Generated from pak47 SHA-256 02087730f0f89951a05fcd7c0861628b50bd9ed4fa10d02829ef8f797be38f6a by refresh-hp-colors-rewrite-qollock.js -->
+<!-- Generated from pak47 SHA-256 781d047935c32fb6c1a2fe0b0bef288a48a7a9af691a8af66a3865a1b2eb62d4 by refresh-hp-colors-rewrite-qollock.js -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -152,8 +152,8 @@
 			</Panel>
 		</Panel>
 		<CitadelPrivilegedFeatures id="PrivilegedFeatures" />
-		<Button id="EscapeButton" onactivate="if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else { CitadelResumePlaying(); }">
-			<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else { CitadelResumePlaying(); }" text="#menu_resume" />
+		<Button id="EscapeButton" onactivate="if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else CitadelResumePlaying()">
+			<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else CitadelResumePlaying()" text="#menu_resume" />
 		</Button>
 		<Panel id="RightSideBlur" hittest="false" />
 		<Panel id="RightSide" hittest="false">
@@ -355,10 +355,6 @@
                     <Panel id="HPColorsPresetHiddenRow" class="HPColorsPresetHiddenRow">
                       <Label text="REWRITE DEFAULT IS HIDDEN" class="HPColorsPresetHiddenMessage" />
                       <Button id="HPColorsPresetRestoreBakedButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction"><Label text="SHOW PRESET" /></Button>
-                    </Panel>
-                    <Panel id="HPColorsPresetSourceRow" class="HPColorsPresetHiddenRow HPColorsPresetSourceRow">
-                      <Label text="YOUR SETTINGS ARE NOT SAVED TO A PRESET" class="HPColorsPresetHiddenMessage" />
-                      <Button id="HPColorsPresetSaveAsNewButton" class="HPColorsSecondaryAction HPColorsPresetLibraryAction HPColorsPresetSaveAsNewButton"><Label text="SAVE AS NEW PRESET" /></Button>
                     </Panel>
                     <Panel id="HPColorsPresetOptions" class="HPColorsPresetOptions" hittest="true" hittestchildren="true" />
                     <Panel id="HPColorsStoreRow" class="HPColorsStoreRow">
@@ -978,7 +974,8 @@
               <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
               <Button id="HPColorsTransferButton" class="HPColorsSecondaryAction"><Label text="IMPORT / EXPORT" /></Button>
               <Panel class="HPColorsFooterSpacer" />
-              <Button id="HPColorsSaveToPresetButton" class="HPColorsSecondaryAction"><Label text="SAVE TO PRESET" /></Button>
+              <Button id="HPColorsSaveToPresetButton" class="HPColorsSecondaryAction"><Label id="HPColorsSaveToPresetLabel" text="SAVE TO PRESET" /></Button>
+              <Button id="HPColorsSaveToMoreButton" class="HPColorsSecondaryAction HPColorsFooterActionHidden"><Label text="▼" /></Button>
               <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="EXIT" /></Button>
             </Panel>
           </Panel>
@@ -1091,7 +1088,7 @@
           <Panel class="HPColorsTransferDialogActions">
             <Button id="HPColorsExitSaveButton" class="HPColorsPrimaryAction HPColorsExitSaveButton"><Label text="SAVE &amp; EXIT" /></Button>
             <Button id="HPColorsExitReviewButton" class="HPColorsSecondaryAction"><Label text="REVIEW PRESETS" /></Button>
-            <Button id="HPColorsExitDiscardButton" class="HPColorsSecondaryAction HPColorsExitDiscardButton"><Label text="EXIT WITHOUT SAVING" /></Button>
+            <Button id="HPColorsExitDiscardButton" class="HPColorsSecondaryAction HPColorsExitDiscardButton"><Label text="EXIT" /></Button>
           </Panel>
         </Panel>
       </Panel>

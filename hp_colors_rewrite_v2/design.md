@@ -30,6 +30,8 @@ scaleX = 1.1 × widthScale / 100
 
 The renderer measures the live bar center and each indicator's original center. It also applies vertical scale compensation, so both indicators visibly move as bar height changes. When anchoring is enabled, it converts the center difference into Panorama's centered-margin coordinates, then adds `positionY × 2` and the indicator's own Y offset. When anchoring is disabled, it ignores bar translation but still follows bar scale.
 
+Pregame CSS collapses `#InfoHealthContainer`, and the level badge and UnitInfo panel stay collapsed until their classes appear. A save applied at game boot can therefore reach the bar before its layout exists, and a collapsed indicator can report its size at a stale position. The stock centers are cached so rapid setting changes never read a layout that has not caught up. The 1-second scan re-measures each center, taking the laid-out center minus half of the margin already on the panel. It re-applies geometry when a center disagrees with the cache, or when the frame height or bar center moves. If the layout still disagrees after three consecutive scans, re-measuring stops, so the indicators never flip every scan.
+
 At the default `750px` live width, the scaled bar begins at local X `587.5`. The `300px` UnitInfo panel begins at `422.5`, placing its center at `572.5`, or `15px` left of the bar. This gap keeps the ultimate icon off the bar and leaves low-percentage kill markers visible.
 
 With anchoring disabled, bar X/Y offsets do not move the indicators. Width scaling still preserves their bar-edge relationship and scales each indicator's X offset by `widthScale / 100`. Their Y offsets remain independent. Reset enables anchoring and restores every accessory offset to zero.
