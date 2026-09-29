@@ -3173,7 +3173,13 @@
       name = name.slice(0, SAVE_TO_NAME_LIMIT - 1).replace(/\s+$/, "") + "…";
     saveToNamedId = named ? named.id : "";
     setText(ui.saveToPresetLabel, named ? "SAVE TO " + name : "SAVE TO PRESET");
-    setClass(ui.saveToPresetButton, "Unsaved", !!source);
+    // Glows as a save reminder while the settings on screen are not saved in
+    // a preset: a CHANGED source, an edited Rewrite Default, or no preset.
+    setClass(
+      ui.saveToPresetButton,
+      "Unsaved",
+      !!source || presetChipState().changed,
+    );
     setEnabled(ui.saveToPresetButton, !presetFormOpen);
     setClass(ui.saveToMoreButton, "HPColorsFooterActionHidden", !named);
     setRowActionEnabled(ui.saveToMoreButton, !!named && !presetFormOpen);
@@ -3946,8 +3952,8 @@
         : null;
     setClass(ui.liveStatus, "StoreWarning", warning);
     setClass(ui.liveStatus, "PresetChanged", !!(chip && chip.changed));
-    // The footer SAVE TO PRESET glows and names its target while the preset
-    // these settings came from has unsaved changes.
+    // The footer SAVE TO PRESET glows while the settings are not saved in a
+    // preset, and names its target while a saved source preset is CHANGED.
     renderSaveToButton();
     setEnabled(ui.storeForgetButton, canForget());
     if (

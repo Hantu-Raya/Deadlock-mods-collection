@@ -3198,23 +3198,39 @@ test('the footer SAVE TO PRESET button is disabled and inert while the preset na
   openSaveTo(fixture);
 });
 
-test('the SAVE TO PRESET button glows only while the preset the settings came from is CHANGED', () => {
+test('the SAVE TO PRESET button glows while the settings on screen are not saved in a preset', () => {
   // The harness has no store, so the header chip is not showing the preset
   // name; the glow follows the saved-preset state on its own.
   const glows = (fixture) => saveToButton(fixture).BHasClass('Unsaved');
 
-  // Nothing saved in a preset yet: no glow, with or without a live edit.
+  // Untouched defaults match Rewrite Default: no glow. Any edit glows as a
+  // reminder, UNDO back to defaults clears it, and NEW PRESET saves it away.
   const none = bootMenu({ version: 1, values: {}, scopes: [] });
   openEditor(none);
   assert.equal(glows(none), false);
   setWidthWithoutGesture(none, 150);
+  assert.equal(glows(none), true);
+  assert.equal(saveToLabel(none), 'SAVE TO PRESET', 'no preset to name');
+  assert.equal(saveToMoreShown(none), false);
+  panel(none, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(glows(none), false);
+  setWidthWithoutGesture(none, 140);
+  assert.equal(glows(none), true);
+  openSaveTo(none);
+  panel(none, 'HPColorsSaveToNewButton').events.onactivate();
   assert.equal(glows(none), false);
 
-  // Rewrite Default is never a source, so editing it does not glow.
+  // Editing Rewrite Default glows too; the plain button opens the list.
   const baked = bootMenu(twoPresetState());
   openPresetsForm(baked);
   presetRowMain(baked, 'baked_default').events.onactivate();
+  assert.equal(glows(baked), false);
   setWidthWithoutGesture(baked, 150);
+  assert.equal(glows(baked), true);
+  assert.equal(saveToLabel(baked), 'SAVE TO PRESET');
+  // Applying a saved preset clears it.
+  presetRowMain(baked, 'user_0001').events.onactivate();
+  presetRowControl(baked, 'user_0001', 'HPColorsPresetRowConfirm').events.onactivate();
   assert.equal(glows(baked), false);
 
   const fixture = bootMenu(twoPresetState());
@@ -3398,7 +3414,8 @@ test('SAVE TO <NAME> saves nothing when the source is deleted', () => {
   assert.equal(readMenuState(fixture).userPresets.length, 1);
   assert.equal(saveToLabel(fixture), 'SAVE TO PRESET');
   assert.equal(saveToMoreShown(fixture), false);
-  assert.equal(saveToButton(fixture).BHasClass('Unsaved'), false);
+  // The settings are no longer saved anywhere, so the reminder glow stays on.
+  assert.equal(saveToButton(fixture).BHasClass('Unsaved'), true);
 
   // The button no longer names a target: it just opens the list, saving nothing.
   saveToButton(fixture).events.onactivate();
