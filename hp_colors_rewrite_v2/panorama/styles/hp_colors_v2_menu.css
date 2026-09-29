@@ -609,12 +609,7 @@ Slider.HPColorsSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsGradientRows {
   width: 100%;
-  visibility: collapse;
   flow-children: down;
-}
-
-.HPColorsGradientRows.Active {
-  visibility: visible;
 }
 
 .HPColorsConditionalRow {
@@ -1033,10 +1028,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsExitSaveButton.Disabled {
   visibility: collapse;
-}
-
-.HPColorsTransferDialogActions .HPColorsExitDiscardButton {
-  margin-left: 12px;
 }
 
 .HPColorsTransferDialogEyebrow {
@@ -1952,7 +1943,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 /* Same box as a condition button, never shown: keeps toggles lined up on
    rows whose setting can't have conditions. */
-.HPColorsConditionIndicator.HPColorsConditionSpacer,
 .HPColorsSettingRow:hover .HPColorsConditionIndicator.HPColorsConditionSpacer {
   opacity: 0;
 }

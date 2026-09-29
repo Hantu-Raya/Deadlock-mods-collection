@@ -6,7 +6,7 @@
   if (context.HPV2EventProbeStop) context.HPV2EventProbeStop();
   var isRelay = context.BHasClass("HPV2BridgeRelay");
   var root = context.GetParent();
-  var instance = Date.now() + ":" + Math.random().toString(16).slice(2);
+  var instance = isRelay ? "" : Date.now() + ":" + Math.random().toString(16).slice(2);
   var sequence = 0;
   var stopped = false;
   var relay = null;
@@ -46,9 +46,13 @@
     $.DispatchEvent("Activated", relay, "mouse");
   }
 
+  function alive() {
+    return context.IsValid() && !!root && root.IsValid();
+  }
+
   function relaySnapshot() {
     if (stopped) return;
-    if (!context.IsValid() || !root || !root.IsValid()) {
+    if (!alive()) {
       context.HPV2EventProbeStop();
       return;
     }
@@ -65,7 +69,7 @@
 
   if (!isRelay) {
     context.HPV2QueuePickup = function (record) {
-      if (stopped || !context.IsValid() || !root || !root.IsValid()) return;
+      if (stopped || !alive()) return;
       try { queueSnapshot(record); }
       catch (error) { $.Msg("[test_hpv2][relay-error] " + String(error)); }
     };

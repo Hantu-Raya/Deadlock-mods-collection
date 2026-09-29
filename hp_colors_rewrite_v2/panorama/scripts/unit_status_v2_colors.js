@@ -11,7 +11,8 @@
   var CONFIG_MAGIC = "HP_COLORS_V2_CONFIG";
   var CONFIG_ATTR = "hp_colors_v2_config";
   var CONFIG_VERSION = 2;
-  var ALLY_ATTR = "hp_colors_v2_ally";
+  var ANCESTOR_LIMIT = 12;
+  var LINEAGE_LIMIT = 16;
   // Bars stay stock until a published config arrives. While the editor reports
   // a cold-boot restore in progress the wait lasts as long as the restore does
   // (its own deadlines are terminal); without that signal, defaults apply after
@@ -49,17 +50,17 @@
   }
 
 
-  function clearStyleAlias(panel, property, base) {
+  function clearStyleAlias(style, property, base) {
     var siblings = STYLE_ALIAS_GROUPS[base];
     var values = [];
     for (var index = 0; index < siblings.length; index++) {
       var sibling = siblings[index];
-      values[index] = sibling === property ? "" : String(panel.style[sibling] || "");
+      values[index] = sibling === property ? "" : String(style[sibling] || "");
     }
-    panel.style[base] = null;
+    style[base] = null;
     for (var restoreIndex = 0; restoreIndex < siblings.length; restoreIndex++) {
       if (values[restoreIndex] !== "")
-        panel.style[siblings[restoreIndex]] = values[restoreIndex];
+        style[siblings[restoreIndex]] = values[restoreIndex];
     }
   }
 
@@ -83,10 +84,10 @@
   var LEVEL_VISIBLE_CLASS = "level_number_visible";
   var LEVEL_HIDDEN_CLASS = "level_number_hidden";
   var LEVEL_TIERS = [
-    { minimum: 11, className: "level_tier2", color: "#f0d000" },
-    { minimum: 19, className: "level_tier3", color: "#ff8c00" },
-    { minimum: 27, className: "level_tier4", color: "#e53935" },
-    { minimum: 35, className: "level_tier5", color: "#8b0000" },
+    { minimum: 11, color: "#f0d000" },
+    { minimum: 19, color: "#ff8c00" },
+    { minimum: 27, color: "#e53935" },
+    { minimum: 35, color: "#8b0000" },
   ];
   var FILL_PULSE_KEYS = [
     "pulseBaseClass",
@@ -116,6 +117,16 @@
     var readoutField = READOUT_FIELDS[readoutFieldIndex];
     READOUT_KEYS.enemy[readoutField] = "readout" + readoutField;
     READOUT_KEYS.ally[readoutField] = "allyReadout" + readoutField;
+  }
+  // Role -> config key per role setting; ally keys mirror the enemy names.
+  var ROLE_FIELDS = ["Enabled", "Visible", "Mode", "Low", "Mid", "High", "TeamHigh",
+    "Healing", "Delta", "BulletShield", "PulseEnabled", "PulseThreshold", "PulseIntensity",
+    "PulseBpm", "PulseColorEnabled", "PulseColorMode", "PulseColor"];
+  var ROLE_KEYS = { enemy: {}, ally: {} };
+  for (var roleFieldIndex = 0; roleFieldIndex < ROLE_FIELDS.length; roleFieldIndex++) {
+    var roleField = ROLE_FIELDS[roleFieldIndex];
+    ROLE_KEYS.enemy[roleField] = "enemy" + roleField;
+    ROLE_KEYS.ally[roleField] = "ally" + roleField;
   }
   var READOUT_FONTS = {
     oracle: "VALVEOracle, Reaver, sans-serif",
@@ -234,7 +245,6 @@
   function hasClass(panel, className) {
     try {
       if (panel && panel.BHasClass) return !!panel.BHasClass(className);
-      if (panel && panel.HasClass) return !!panel.HasClass(className);
     } catch {}
     return false;
   }
@@ -252,6 +262,22 @@
     return null;
   }
 
+  // Panels from `panel` upward, at most `limit`; stops where GetParent throws.
+  function ancestorChain(panel, limit) {
+    var chain = [];
+    var current = panel;
+    for (var depth = 0; current && depth < limit; depth++) {
+      chain.push(current);
+      if (chain.length >= limit) break;
+      try {
+        current = current.GetParent ? current.GetParent() : null;
+      } catch {
+        break;
+      }
+    }
+    return chain;
+  }
+
   function panelParent(panel) {
     try {
       return panel && panel.GetParent ? panel.GetParent() : null;
@@ -263,7 +289,6 @@
   function panelChildCount(panel) {
     try {
       if (panel && panel.GetChildCount) return panel.GetChildCount();
-      if (panel && panel.Children) return (panel.Children() || []).length;
     } catch {}
     return -1;
   }
@@ -271,13 +296,6 @@
   function panelChildren(panel) {
     try {
       if (panel && panel.Children) return panel.Children() || [];
-      if (panel && panel.GetChildCount && panel.GetChild) {
-        var result = [];
-        var count = panel.GetChildCount();
-        for (var index = 0; index < count; index++)
-          result.push(panel.GetChild(index));
-        return result;
-      }
     } catch {}
     return [];
   }
@@ -291,12 +309,22 @@
       collectPanelsWithClass(child, className, result, depth + 1);
     }
   }
+
+  // Ancestors of the live active parent, built while checking the lineage and
+  // reused by the same scan's classification and part resolution.
+  var scanChain = null;
+
+  function lineageWithinHealthbars() {
+    scanChain = ancestorChain(liveLineage.activeParent, LINEAGE_LIMIT);
+    return scanChain.indexOf(liveLineage.healthbars) >= 0;
+  }
+
   function liveLineageUsable() {
     return (
       isValid(liveLineage.healthbars) &&
       isValid(liveLineage.activeParent) &&
       isDescendantOf(liveLineage.healthbars, context) &&
-      isDescendantOf(liveLineage.activeParent, liveLineage.healthbars) &&
+      lineageWithinHealthbars() &&
       panelParent(liveLineage.activeParent) ===
         liveLineage.activeParentParent &&
       panelChildCount(liveLineage.healthbars) ===
@@ -307,6 +335,7 @@
   }
 
   function liveActiveParent() {
+    scanChain = null;
     if (liveLineageUsable()) return liveLineage.activeParent;
     var healthbars = findWithin(context, "UnitHealthbarsContainer");
     var activeParent = findWithin(healthbars, "unit_healthbar_active_parent");
@@ -319,9 +348,20 @@
     return activeParent;
   }
 
+  function takeScanChain(activeParent) {
+    var chain =
+      scanChain && scanChain[0] === activeParent
+        ? scanChain
+        : ancestorChain(activeParent, LINEAGE_LIMIT);
+    scanChain = null;
+    return chain;
+  }
 
-  function classifyTarget(bar) {
-    var current = bar.parts.activeParent;
+
+  function classifyTarget(bar, chain) {
+    var walk = chain || ancestorChain(bar.parts.activeParent, ANCESTOR_LIMIT);
+    var count = Math.min(walk.length, ANCESTOR_LIMIT);
+    var current;
     var neutral = false;
     var enemy = false;
     var ally = false;
@@ -330,26 +370,26 @@
     var building = false;
     var boss = false;
     var sentry = false;
-    var minion = false;
-    for (var depth = 0; current && depth < 12; depth++) {
+    for (var depth = 0; depth < count; depth++) {
+      current = walk[depth];
       neutral = neutral || hasClass(current, "team_neutral");
       enemy = enemy || hasClass(current, "enemy");
       ally = ally || hasClass(current, "friend");
       player = player || hasClass(current, "player");
       if (!team && hasClass(current, "team1")) team = "team1";
       if (!team && hasClass(current, "team2")) team = "team2";
-      sentry = sentry || hasClass(current, "sentry");
-      minion = minion || hasClass(current, "minion");
-      building = building || sentry || hasClass(current, "building");
-      var tierBoss =
-        hasClass(current, "boss_tier1") ||
-        hasClass(current, "boss_tier2") ||
-        hasClass(current, "boss_tier3");
-      boss = boss || tierBoss || hasClass(current, "boss_barracks");
-      try {
-        current = current.GetParent ? current.GetParent() : null;
-      } catch {
-        break;
+    }
+    // Building and boss only gate player-owned level and kill-marker features.
+    if (player) {
+      for (var ownerDepth = 0; ownerDepth < count; ownerDepth++) {
+        current = walk[ownerDepth];
+        sentry = sentry || hasClass(current, "sentry");
+        building = building || sentry || hasClass(current, "building");
+        var tierBoss =
+          hasClass(current, "boss_tier1") ||
+          hasClass(current, "boss_tier2") ||
+          hasClass(current, "boss_tier3");
+        boss = boss || tierBoss || hasClass(current, "boss_barracks");
       }
     }
     var ambiguousRelation = !neutral && enemy && ally;
@@ -368,9 +408,7 @@
       player !== bar.isPlayer ||
       team !== bar.team ||
       building !== bar.isBuilding ||
-      boss !== bar.isBoss ||
-      sentry !== bar.isSentry ||
-      minion !== bar.isMinion;
+      boss !== bar.isBoss;
     if (!changed) return false;
     clearLevelOwnership(bar);
     bar.ambiguousRelation = ambiguousRelation;
@@ -379,28 +417,24 @@
     bar.team = team;
     bar.isBuilding = building;
     bar.isBoss = boss;
-    bar.isSentry = sentry;
-    bar.isMinion = minion;
     bar.levelWrapper =
       findAncestorWithClass(bar.parts.levelContainer, "enemy") ||
       findAncestorWithClass(bar.parts.activeParent, "enemy");
     bar.dirty = true;
-    try {
-      if (context.SetAttributeString)
-        context.SetAttributeString(ALLY_ATTR, role === "ally" ? "1" : "");
-    } catch {}
     return true;
   }
 
 
-  function resolveParts(activeParent) {
+  function resolveParts(activeParent, chain) {
     var container = null;
     var infoHealth = null;
     var unitStatus = null;
     var healthbars = null;
     var windowRoot = null;
-    var current = activeParent;
-    for (var depth = 0; current && depth < 12; depth++) {
+    var walk = chain || ancestorChain(activeParent, ANCESTOR_LIMIT);
+    var count = Math.min(walk.length, ANCESTOR_LIMIT);
+    for (var depth = 0; depth < count; depth++) {
+      var current = walk[depth];
       if (depth < 8) {
         var id = panelId(current);
         if (!container && id === "UnitHealthbarContainer")
@@ -414,11 +448,6 @@
         windowRoot = current;
       if (container && infoHealth && unitStatus && healthbars && windowRoot)
         break;
-      try {
-        current = current.GetParent ? current.GetParent() : null;
-      } catch {
-        break;
-      }
     }
     return {
       windowRoot: windowRoot,
@@ -518,12 +547,12 @@
     bar.partsRetryJob = null;
   }
 
-  function schedulePartsRetry(bar) {
+  function schedulePartsRetry(bar, complete) {
     if (
       !bar ||
       bar.partsRetryJob ||
       stopped ||
-      isComplete(bar.parts)
+      (complete === undefined ? isComplete(bar.parts) : complete)
     ) {
       return;
     }
@@ -539,7 +568,8 @@
         ) {
           return;
         }
-        if (refreshBarParts(bar)) reportData(bar);
+        var chain = ancestorChain(bar.parts.activeParent, ANCESTOR_LIMIT);
+        if (refreshBarParts(bar, chain)) reportData(bar, chain);
       });
     } catch {
       bar.partsRetryJob = null;
@@ -627,27 +657,27 @@
     }
   }
 
-  // Layout the anchored indicators follow; a change re-applies geometry.
-  function anchorLayoutKey(bar) {
-    return anchorFrame(bar) + "|" + visibleBarCenterY(bar);
-  }
-
   // Scan-time check. The stock centers are cached so rapid setting changes
   // never read a layout that has not caught up yet; they are re-measured
   // here, a scan later, and dropped when the layout disagrees. A collapsed
   // indicator can report a stale position that nothing else would reveal.
+  // The frame and bar center the anchored indicators followed at the last
+  // geometry apply are kept on the bar; a change re-applies geometry.
   function anchorLayoutChanged(bar) {
-    if (!bar.anchorLayoutKey || !config.enabled || !config.accessoryAnchorEnabled)
+    if (!bar.anchorLayoutActive || !config.enabled || !config.accessoryAnchorEnabled)
       return false;
-    var key = anchorLayoutKey(bar);
-    var changed = key !== bar.anchorLayoutKey;
-    // Aligning needs the frame and the bar center (the key's null otherwise).
-    var alignable = anchorFrame(bar) > 0 && visibleBarCenterY(bar) !== null;
+    var frame = anchorFrame(bar);
+    var barCenter = visibleBarCenterY(bar);
+    var changed =
+      frame !== bar.anchorFrameSeen || barCenter !== bar.anchorCenterSeen;
+    // Aligning needs the frame and the bar center (null otherwise).
+    var alignable = frame > 0 && barCenter !== null;
     var remeasure = false;
     for (var index = 0; index < ANCHORED_INDICATORS.length; index++) {
+      if (!alignable) continue;
       var indicator = ANCHORED_INDICATORS[index];
       var center = stockIndicatorCenter(bar, indicator);
-      if (center === null || !alignable) continue;
+      if (center === null) continue;
       if (
         bar[indicator[1]] !== bar.parts[indicator[0]] ||
         Math.abs(center - bar[indicator[2]]) > ANCHOR_TOLERANCE_PX
@@ -666,9 +696,9 @@
     return changed;
   }
 
-  function alignedAccessoryMarginTop(bar, indicator, targetCenter) {
+  function alignedAccessoryMarginTop(bar, indicator, targetCenter, frame) {
     var baseMargin = indicator[3];
-    if (targetCenter === null || !anchorFrame(bar)) return baseMargin;
+    if (targetCenter === null || !frame) return baseMargin;
     var panel = bar.parts[indicator[0]];
     if (bar[indicator[1]] !== panel) {
       var center = stockIndicatorCenter(bar, indicator);
@@ -826,10 +856,12 @@
   }
 
 
-  function readoutHealth(bar) {
+  function formatReadout(bar, format) {
+    bar.readoutMaximumText = "";
+    if (bar.lastWidthPercent < 0) return "";
+    if (format === "percent") return String(bar.lastWidthPercent) + "%";
     var maximum = bar.rawMaximumHealth;
-    if (maximum <= 0 || bar.sampleHealthParentWidth <= 0)
-      return { current: 0, maximum: 0 };
+    if (maximum <= 0 || bar.sampleHealthParentWidth <= 0) return "";
     if (
       bar.sampleTotalParentWidth > 0 &&
       bar.sampleHealthParentWidth < bar.sampleTotalParentWidth
@@ -837,27 +869,18 @@
       maximum = Math.round(
         (maximum * bar.sampleHealthParentWidth) / bar.sampleTotalParentWidth,
       );
+    if (maximum <= 0) return "";
     var ratio = Math.max(
       0,
       Math.min(1, bar.sampleFillWidth / bar.sampleHealthParentWidth),
     );
-    var current =
-      ratio >= 0.97 ? maximum : Math.round(maximum * ratio);
-    return {
-      current: Math.max(0, Math.min(maximum, current)),
-      maximum: maximum,
-    };
-  }
-
-  function formatReadout(bar, format) {
-    bar.readoutMaximumText = "";
-    if (bar.lastWidthPercent < 0) return "";
-    if (format === "percent") return String(bar.lastWidthPercent) + "%";
-    var health = readoutHealth(bar);
-    if (health.maximum <= 0) return "";
-    if (format === "current") return String(health.current);
-    bar.readoutMaximumText = String(health.maximum);
-    return health.current + " / ";
+    var current = Math.max(
+      0,
+      Math.min(maximum, ratio >= 0.97 ? maximum : Math.round(maximum * ratio)),
+    );
+    if (format === "current") return String(current);
+    bar.readoutMaximumText = String(maximum);
+    return current + " / ";
   }
 
 
@@ -953,43 +976,49 @@
     return STOCK_DEFAULT_BULLET_SHIELD_COLOR;
   }
 
-  function styleMatches(panel, property, cache, cacheKey) {
-    if (!isValid(panel) || !panel.style) return false;
+  function nativeStyleMatches(panel, style, property, cache, cacheKey) {
     try {
       var native = cache && cache.nativeStyles && cache.nativeStyles[cacheKey];
       if (!native || native.panel !== panel) return false;
-      return String(panel.style[property] || "") === native.value &&
-        (!native.base || String(panel.style[native.base] || "") === native.baseValue);
+      return String(style[property] || "") === native.value &&
+        (!native.base || String(style[native.base] || "") === native.baseValue);
     } catch {
       return false;
     }
   }
 
+  function styleMatches(panel, property, cache, cacheKey) {
+    if (!isValid(panel)) return false;
+    var style = panel.style;
+    return !!style && nativeStyleMatches(panel, style, property, cache, cacheKey);
+  }
+
   function setStyle(panel, property, value, cache, cacheKey) {
-    if (!isValid(panel) || !panel.style) {
+    var style = isValid(panel) ? panel.style : null;
+    if (!style) {
       if (cache) cache[cacheKey] = null;
       return;
     }
     if (
       cache &&
       cache[cacheKey] === value &&
-      styleMatches(panel, property, cache, cacheKey)
+      nativeStyleMatches(panel, style, property, cache, cacheKey)
     ) {
       return;
     }
     try {
       var base = styleAliasBase(property);
-      var previousBase = base ? String(panel.style[base] || "") : "";
+      var previousBase = base ? String(style[base] || "") : "";
       var aliasBase = value === "" ? base : "";
       if (aliasBase) {
-        if (String(panel.style[property] || "") !== "")
-          clearStyleAlias(panel, property, aliasBase);
+        if (String(style[property] || "") !== "")
+          clearStyleAlias(style, property, aliasBase);
       } else {
-        panel.style[property] = value === "" ? null : value;
+        style[property] = value === "" ? null : value;
       }
       if (cache) {
         var nativeStyles = cache.nativeStyles || (cache.nativeStyles = {});
-        var baseValue = base ? String(panel.style[base] || "") : "";
+        var baseValue = base ? String(style[base] || "") : "";
         if (base) {
           for (var key in nativeStyles) {
             var sibling = nativeStyles[key];
@@ -1000,7 +1029,7 @@
         }
         var native = nativeStyles[cacheKey] || (nativeStyles[cacheKey] = {});
         native.panel = panel;
-        native.value = String(panel.style[property] || "");
+        native.value = String(style[property] || "");
         native.base = base;
         native.baseValue = baseValue;
         cache[cacheKey] = value;
@@ -1132,7 +1161,7 @@
   }
 
   // keys: READOUT_KEYS entry, or null to clear. low/mid/high/mode: the bar colors.
-  function applyReadout(bar, keys, low, mid, high, mode, pulseModifiers) {
+  function applyReadout(bar, keys, low, mid, high, mode, pulseModifiers, barColor) {
     var text = keys ? formatReadout(bar, config[keys.Format]) : "";
     var maximumText = keys ? bar.readoutMaximumText : "";
     var color = "";
@@ -1146,13 +1175,17 @@
         mid = config[keys.Mid];
         high = config[keys.High];
         mode = config[keys.Mode];
+        barColor = null;
       }
-      color = (mode === "gradient" ? gradientColor : fixedColor)(
-        bar.lastWidthPercent,
-        low,
-        mid,
-        high,
-      );
+      color =
+        typeof barColor === "string"
+          ? barColor
+          : (mode === "gradient" ? gradientColor : fixedColor)(
+              bar.lastWidthPercent,
+              low,
+              mid,
+              high,
+            );
       maximumColor =
         maximumText && config[keys.MaxTeamColor]
           ? teamHighColor(bar.team, color)
@@ -1281,54 +1314,6 @@
     };
   }
 
-  function clearStaminaOwnership() {
-    setStyle(
-      staminaSurface.container,
-      "transform",
-      baselineStyle(staminaSurface.containerBaseline, "transform"),
-      staminaSurface.applied,
-      "transform",
-    );
-    setStyle(
-      staminaSurface.container,
-      "washColor",
-      baselineStyle(staminaSurface.containerBaseline, "washColor"),
-      staminaSurface.applied,
-      "washColor",
-    );
-    for (var index = 0; index < staminaSurface.icons.length; index++) {
-      var cache = staminaSurface.iconApplied[index] || {};
-      var baseline = staminaSurface.iconBaselines[index] || {};
-      setStyle(
-        staminaSurface.icons[index],
-        "width",
-        baselineStyle(baseline, "width"),
-        cache,
-        "width",
-      );
-      setStyle(
-        staminaSurface.icons[index],
-        "height",
-        baselineStyle(baseline, "height"),
-        cache,
-        "height",
-      );
-      setStyle(
-        staminaSurface.icons[index],
-        "backgroundColor",
-        baselineStyle(baseline, "backgroundColor"),
-        cache,
-        "backgroundColor",
-      );
-      setStyle(
-        staminaSurface.icons[index],
-        "borderColor",
-        baselineStyle(baseline, "borderColor"),
-        cache,
-        "borderColor",
-      );
-    }
-  }
 
   function staminaCacheUsable(scope) {
     if (
@@ -1357,7 +1342,7 @@
   }
 
   function rebuildStaminaCache(scope, container) {
-    clearStaminaOwnership();
+    applyStaminaSurface(true);
     staminaSurface.scope = scope;
     staminaSurface.container = container;
     staminaSurface.containerParent = panelParent(container);
@@ -1396,19 +1381,17 @@
   }
 
 
-  function applyStaminaSurface() {
-    if (
-      !isValid(staminaSurface.container) ||
-      !config.enabled ||
-      !staminaSurface.enemy
-    ) {
-      clearStaminaOwnership();
-      return;
-    }
-    var widthOwned = config.staminaWidth !== 110;
-    var heightOwned = config.staminaHeight !== 44.8;
+  // release: hand every stamina style back to its captured baseline.
+  function applyStaminaSurface(release) {
+    var owned =
+      !release &&
+      isValid(staminaSurface.container) &&
+      config.enabled &&
+      staminaSurface.enemy;
+    var widthOwned = owned && config.staminaWidth !== 110;
+    var heightOwned = owned && config.staminaHeight !== 44.8;
     var transformOwned =
-      config.staminaOffsetX !== 0 || config.staminaOffsetY !== 0;
+      owned && (config.staminaOffsetX !== 0 || config.staminaOffsetY !== 0);
     var transform = transformOwned
       ? "translateX(" +
         config.staminaOffsetX +
@@ -1416,7 +1399,7 @@
         config.staminaOffsetY +
         "px)"
       : baselineStyle(staminaSurface.containerBaseline, "transform");
-    var colorOwned = config.enemyStaminaColorEnabled;
+    var colorOwned = owned && config.enemyStaminaColorEnabled;
     var color = colorOwned ? config.enemyStaminaColor : "";
     setStyle(
       staminaSurface.container,
@@ -1435,7 +1418,7 @@
       "washColor",
     );
     for (var index = 0; index < staminaSurface.icons.length; index++) {
-      var cache = staminaSurface.iconApplied[index];
+      var cache = staminaSurface.iconApplied[index] || {};
       var baseline = staminaSurface.iconBaselines[index] || {};
       setStyle(
         staminaSurface.icons[index],
@@ -1528,14 +1511,6 @@
       bar.applied,
       "levelHiddenClass",
     );
-    for (var index = 0; index < LEVEL_TIERS.length; index++)
-      setOwnedClass(
-        wrapper,
-        LEVEL_TIERS[index].className,
-        false,
-        bar.applied,
-        "levelTier" + index,
-      );
   }
   function clearReadoutOwnership(bar) {
     clearOwnedStyle(
@@ -1659,14 +1634,6 @@
       bar.applied,
       "levelHiddenClass",
     );
-    for (var index = 0; index < LEVEL_TIERS.length; index++)
-      setOwnedClass(
-        wrapper,
-        LEVEL_TIERS[index].className,
-        show && tier === LEVEL_TIERS[index],
-        bar.applied,
-        "levelTier" + index,
-      );
     setStyle(
       bar.parts.levelContainer,
       "borderColor",
@@ -1763,15 +1730,15 @@
     shouldPulse,
     readoutActive,
     intensity,
-    duration,
+    bpm,
     colorPulse,
     pulseColor,
-    overlayWidth,
   ) {
     if (!shouldPulse) {
       clearPulse(bar);
       return false;
     }
+    var duration = pulseDuration(bpm);
     var applied = bar.applied;
     var fill = bar.parts && bar.parts.fill;
     var overlay = bar.parts && bar.parts.pulseOverlay;
@@ -1814,7 +1781,7 @@
         applied,
         "colorPulseWashColor",
       );
-      setStyle(overlay, "width", overlayWidth, applied, "colorPulseWidth");
+      setStyle(overlay, "width", pulseOverlayWidth(bar), applied, "colorPulseWidth");
       setStyle(
         overlay,
         "visibility",
@@ -1872,12 +1839,7 @@
   }
 
   function pulseOverlayWidth(bar) {
-    if (bar.sampleTotalParentWidth <= 0) return "0%";
-    var percent = Math.max(
-      0,
-      Math.min(100, (bar.sampleFillWidth / bar.sampleTotalParentWidth) * 100),
-    );
-    return Math.round(percent * 100) / 100 + "%";
+    return (bar.sampleTotalParentWidth > 0 ? bar.pulseOverlayPercent : 0) + "%";
   }
 
   function pulseDuration(bpm) {
@@ -1911,20 +1873,24 @@
       (config.accessoryAnchorEnabled ? config.positionX : 0);
     var levelBaseMarginTop = LEVEL_BASE_MARGIN_TOP;
     var unitInfoBaseMarginTop = 0;
-    var visibleCenter = config.accessoryAnchorEnabled
-      ? visibleBarCenterY(bar)
-      : null;
-    bar.anchorLayoutKey = config.accessoryAnchorEnabled ? anchorLayoutKey(bar) : "";
-    if (config.accessoryAnchorEnabled) {
+    var anchored = config.accessoryAnchorEnabled;
+    var anchorFrameHeight = anchored ? anchorFrame(bar) : 0;
+    var visibleCenter = anchored ? visibleBarCenterY(bar) : null;
+    bar.anchorLayoutActive = !!anchored;
+    if (anchored) {
+      bar.anchorFrameSeen = anchorFrameHeight;
+      bar.anchorCenterSeen = visibleCenter;
       levelBaseMarginTop = alignedAccessoryMarginTop(
         bar,
         ANCHORED_INDICATORS[0],
         visibleCenter,
+        anchorFrameHeight,
       );
       unitInfoBaseMarginTop = alignedAccessoryMarginTop(
         bar,
         ANCHORED_INDICATORS[1],
         visibleCenter,
+        anchorFrameHeight,
       );
     }
     var accessoryScaleOffsetY =
@@ -2023,7 +1989,7 @@
   ];
 
   function restoreBarGeometry(bar, parts, panelBaseline, onlyPart) {
-    bar.anchorLayoutKey = "";
+    bar.anchorLayoutActive = false;
     for (var index = 0; index < GEOMETRY_STYLES.length; index++) {
       var entry = GEOMETRY_STYLES[index];
       if (onlyPart && entry[0] !== onlyPart) continue;
@@ -2038,41 +2004,29 @@
   }
 
   function applyActiveCustomization(bar, role, panelBaseline) {
-    var roleEnabled = role === "enemy" ? config.enemyEnabled : config.allyEnabled;
-    var colorsEnabled = roleEnabled;
-    var visible = role === "enemy" ? config.enemyVisible : config.allyVisible;
-    var mode = role === "enemy" ? config.enemyMode : config.allyMode;
-    var low = role === "enemy" ? config.enemyLow : config.allyLow;
-    var mid = role === "enemy" ? config.enemyMid : config.allyMid;
-    var high = role === "enemy" ? config.enemyHigh : config.allyHigh;
-    var teamHighEnabled =
-      role === "enemy" ? config.enemyTeamHigh : config.allyTeamHigh;
-    if (teamHighEnabled) high = teamHighColor(bar.team, high);
-    var healing =
-      colorsEnabled
-        ? role === "enemy"
-          ? config.enemyHealing
-          : config.allyHealing
-        : STOCK_HEALING_COLOR;
-    var delta =
-      colorsEnabled
-        ? role === "enemy"
-          ? config.enemyDelta
-          : config.allyDelta
-        : stockDeltaColor(bar);
-    var bulletShield =
-      colorsEnabled
-        ? role === "enemy"
-          ? config.enemyBulletShield
-          : config.allyBulletShield
-        : stockBulletShieldColor(bar);
+    var keys = ROLE_KEYS[role];
+    var colorsEnabled = config[keys.Enabled];
+    var visible = config[keys.Visible];
+    var mode = config[keys.Mode];
+    var low = config[keys.Low];
+    var mid = config[keys.Mid];
+    var high = config[keys.High];
+    if (config[keys.TeamHigh]) high = teamHighColor(bar.team, high);
+    var healing = colorsEnabled ? config[keys.Healing] : STOCK_HEALING_COLOR;
+    var delta = colorsEnabled ? config[keys.Delta] : stockDeltaColor(bar);
+    var bulletShield = colorsEnabled
+      ? config[keys.BulletShield]
+      : stockBulletShieldColor(bar);
     var stockColor = stockUnitColor(bar);
     var color = stockColor;
-    if (colorsEnabled)
-      color =
+    var barColor = null;
+    if (colorsEnabled) {
+      barColor =
         mode === "gradient"
           ? gradientColor(bar.lastWidthPercent, low, mid, high)
           : fixedColor(bar.lastWidthPercent, low, mid, high);
+      color = barColor;
+    }
     var ultColor = stockColor;
     if (config.ultMode === "custom") ultColor = config.ultCustom;
     else if (colorsEnabled) ultColor = color;
@@ -2080,36 +2034,17 @@
       ? READOUT_KEYS[role]
       : null;
 
-    var pulseEnabled =
-      colorsEnabled &&
-      (role === "enemy" ? config.enemyPulseEnabled : config.allyPulseEnabled);
-    var pulseThreshold =
-      role === "enemy"
-        ? config.enemyPulseThreshold
-        : config.allyPulseThreshold;
+    var pulseEnabled = colorsEnabled && config[keys.PulseEnabled];
     var shouldPulse =
-      pulseEnabled && bar.lastWidthPercent <= pulseThreshold;
+      pulseEnabled && bar.lastWidthPercent <= config[keys.PulseThreshold];
     var enemyReadoutPulse = role === "enemy" && shouldPulse && !!readoutKeys;
     var pulseReadoutAnimationActive =
       enemyReadoutPulse && config.enemyPulseReadout;
     var pulseReadoutModifiersActive =
       enemyReadoutPulse && config.enemyPulseReadoutModifiers;
-    var pulseIntensity =
-      role === "enemy"
-        ? config.enemyPulseIntensity
-        : config.allyPulseIntensity;
-    var pulseBpm =
-      role === "enemy" ? config.enemyPulseBpm : config.allyPulseBpm;
-    var pulseColorEnabled =
-      role === "enemy"
-        ? config.enemyPulseColorEnabled
-        : config.allyPulseColorEnabled;
-    var pulseColorMode =
-      role === "enemy"
-        ? config.enemyPulseColorMode
-        : config.allyPulseColorMode;
-    var pulseColor =
-      role === "enemy" ? config.enemyPulseColor : config.allyPulseColor;
+    var pulseColorEnabled = config[keys.PulseColorEnabled];
+    var pulseColorMode = config[keys.PulseColorMode];
+    var pulseColor = config[keys.PulseColor];
     var colorPulse =
       shouldPulse &&
       pulseColorEnabled &&
@@ -2118,11 +2053,10 @@
       bar,
       shouldPulse,
       pulseReadoutAnimationActive,
-      pulseIntensity,
-      pulseDuration(pulseBpm),
+      config[keys.PulseIntensity],
+      config[keys.PulseBpm],
       colorPulse,
       pulseColor,
-      pulseOverlayWidth(bar),
     );
     if (pulseActive) {
       if (pulseColorEnabled && pulseColorMode === "fixed") color = pulseColor;
@@ -2198,6 +2132,7 @@
       high,
       mode,
       pulseReadoutModifiersActive,
+      barColor,
     );
     bar.dirty = 0;
   }
@@ -2408,14 +2343,15 @@
   }
 
 
-  function reportData(bar) {
-    if (!isComplete(bar.parts)) return;
-    classifyTarget(bar);
+  function reportData(bar, chain, complete) {
+    if (!complete && !isComplete(bar.parts)) return;
+    classifyTarget(bar, chain);
     if (!bar.healthSampled || !healthRefreshEnabled(bar))
       sampleHealthPercent(bar);
     var pipText = readPipText(bar.parts.pipLabel);
     updatePipMaximum(bar, pipText);
-    updateLevel(bar, readPipText(bar.parts.levelLabel));
+    // Only player-owned bars use the level.
+    if (bar.isPlayer) updateLevel(bar, readPipText(bar.parts.levelLabel));
     if (!bar.dirty && (layoutStyleDrift(bar) || anchorLayoutChanged(bar)))
       bar.dirty = true;
     if (bar.dirty) applyCustomization(bar);
@@ -2439,7 +2375,7 @@
     bar.sampleBarWidth = 0;
   }
 
-  function addBar(parts) {
+  function addBar(parts, chain) {
     var bar = {
       generation: 1,
       dirty: true,
@@ -2457,21 +2393,19 @@
       team: "",
       isBuilding: false,
       isBoss: false,
-      isSentry: false,
-      isMinion: false,
       seen: true,
       parts: parts,
     };
     resetBarSamples(bar);
     bar.panelBaseline = capturePanelBaseline(bar);
     bars.push(bar);
-    reportData(bar);
+    reportData(bar, chain);
     schedulePartsRetry(bar);
     return bar;
   }
 
-  function refreshBarParts(bar) {
-    var nextParts = resolveParts(bar.parts.activeParent);
+  function refreshBarParts(bar, chain) {
+    var nextParts = resolveParts(bar.parts.activeParent, chain);
     if (sameParts(bar.parts, nextParts)) return false;
     var previousParts = bar.parts;
     var previousBaseline = bar.panelBaseline;
@@ -2499,16 +2433,17 @@
     var staminaBar = null;
 
     var activeParent = liveActiveParent();
+    var chain = takeScanChain(activeParent);
     if (isValid(activeParent)) {
       var bar = findBarByParent(activeParent);
       if (!bar) {
-        bar = addBar(resolveParts(activeParent));
+        bar = addBar(resolveParts(activeParent, chain), chain);
       } else {
         bar.seen = true;
-        refreshBarParts(bar);
-        schedulePartsRetry(bar);
-
-        reportData(bar);
+        refreshBarParts(bar, chain);
+        var complete = isComplete(bar.parts);
+        schedulePartsRetry(bar, complete);
+        if (complete) reportData(bar, chain, true);
       }
       staminaBar = bar;
     }
@@ -2533,9 +2468,10 @@
   }
 
   function refreshColor(bar) {
+    var refreshing = healthRefreshEnabled(bar);
+    if (!refreshing && !bar.dirty) return false;
     if (!isComplete(bar.parts)) return false;
-    if (!healthRefreshEnabled(bar)) {
-      if (!bar.dirty) return false;
+    if (!refreshing) {
       applyCustomization(bar);
       return true;
     }
@@ -2581,7 +2517,7 @@
       bars[index].generation += 1;
       restoreBarOwnership(bars[index]);
     }
-    clearStaminaOwnership();
+    applyStaminaSurface(true);
     try {
       if (scanJob && $.CancelScheduled) $.CancelScheduled(scanJob);
       if (paintJob && $.CancelScheduled) $.CancelScheduled(paintJob);
@@ -2612,7 +2548,7 @@
     for (var index = 0; index < bars.length; index++) {
       if (refreshColor(bars[index])) changed = true;
     }
-    var now = Date.now ? Date.now() : +new Date();
+    var now = nowMs();
     if (changed) lastColorChangeAt = now;
     var delay = changed
       ? PAINT_ACTIVE_SEC

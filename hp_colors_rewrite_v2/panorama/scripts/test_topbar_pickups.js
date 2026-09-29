@@ -213,6 +213,22 @@
     ultimateName = name;
   }
 
+  function countRowNames() {
+    var names = [];
+    var counts = Object.create(null);
+    var name;
+    for (var local = 0; local < localPlayerLabels.length; local++) {
+      name = readName(localPlayerLabels[local]);
+      if (name) counts[name] = (counts[name] || 0) + 1;
+    }
+    for (var index = 0; index < rows.length; index++) {
+      name = readName(rows[index].label);
+      names.push(name);
+      if (name) counts[name] = (counts[name] || 0) + 1;
+    }
+    return { names: names, counts: counts };
+  }
+
   function ultimateTick() {
     if (stopped || !valid(context)) return;
     if (!ultimateTimerEnabled()) {
@@ -220,21 +236,12 @@
       return;
     }
     try {
-      var names = Object.create(null);
       var players = [];
-      for (var local = 0; local < localPlayerLabels.length; local++) {
-        var localName = readName(localPlayerLabels[local]);
-        if (localName) names[localName] = (names[localName] || 0) + 1;
-      }
-      for (var index = 0; index < rows.length; index++) {
-        rows[index].ultimateName = readName(rows[index].label);
-        var name = rows[index].ultimateName;
-        if (name) names[name] = (names[name] || 0) + 1;
-      }
+      var scan = countRowNames();
       for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
         var row = rows[rowIndex];
-        var player = row.ultimateName;
-        if (!player || player.length > 256 || names[player] !== 1 || !valid(row.ultimate) ||
+        var player = scan.names[rowIndex];
+        if (!player || player.length > 256 || scan.counts[player] !== 1 || !valid(row.ultimate) ||
             row.label.BAscendantHasClass("LocalPlayer") || row.label.BAscendantHasClass("Dead") ||
             row.label.BAscendantHasClass("Disconnected")) continue;
         var angle = 0;
@@ -488,8 +495,9 @@
       if (lastPublishedName) publish("", 0);
       return;
     }
+    var now = Date.now();
     // Stale or missing control always permits scanning.
-    if (!scanEnabled && Date.now() >= gateReceivedAt && Date.now() - gateReceivedAt < 15000) {
+    if (!scanEnabled && now >= gateReceivedAt && now - gateReceivedAt < 15000) {
       publish("", 0);
       return;
     }
@@ -510,7 +518,6 @@
     }
     if (!valid(namePanel)) namePanel = context.FindChildTraverse("name");
     var name = readName(namePanel);
-    var now = Date.now();
     if (name && name === localPlayerName && now >= gateReceivedAt && now - gateReceivedAt < 15000) {
       clipCaptures.length = 0;
       if (lastPublishedName) publish("", 0);
@@ -551,7 +558,7 @@
   }
 
   function applyConfigMessage(message, raw) {
-    if (!topBar || !message || message.magic_word !== CONFIG_MAGIC ||
+    if (!message || message.magic_word !== CONFIG_MAGIC ||
         message.version !== CONFIG_VERSION || !message.values ||
         typeof message.values !== "object" || Array.isArray(message.values)) return false;
     var revision = message.revision;
@@ -641,7 +648,6 @@
     return false;
   }
   function readConfigRoot() {
-    if (!topBar) return "";
     var nextRoot;
     try {
       nextRoot = snapshotRoot();
@@ -923,20 +929,12 @@
   function renderRows(affectedName, previousName) {
     var units = readUnits(affectedName, previousName);
     var now = Date.now();
-    var counts = Object.create(null);
-    for (var local = 0; local < localPlayerLabels.length; local++) {
-      var localName = readName(localPlayerLabels[local]);
-      if (localName) counts[localName] = (counts[localName] || 0) + 1;
-    }
-    for (var index = 0; index < rows.length; index++) {
-      var name = rows[index].renderName = readName(rows[index].label);
-      counts[name] = (counts[name] || 0) + 1;
-    }
+    var scan = countRowNames();
     for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       var row = rows[rowIndex];
-      var player = row.renderName;
+      var player = scan.names[rowIndex];
       if (affectedName !== undefined && player !== affectedName && player !== previousName) continue;
-      var unit = player && counts[player] === 1 ? units[player] : null;
+      var unit = player && scan.counts[player] === 1 ? units[player] : null;
       var blocked = rowUnavailable(row, now, player);
       var mask = pickupTimersEnabled() && !blocked && unit && unit !== -1 &&
         unit.at >= (row.acceptAfter || 0) ? unit.mask : 0;
@@ -964,9 +962,7 @@
     if (seconds !== null) lastGameTime = seconds;
     var scan = !normal || seconds === null || seconds >= 300;
     var localName = localPlayerLabels.length === 1 ? readName(localPlayerLabels[0]) : "";
-    for (var index = 0; localName && index < rows.length; index++) {
-      if (readName(rows[index].label) === localName) localName = "";
-    }
+    if (localName && countRowNames().counts[localName] !== 1) localName = "";
     if (localName.length > 256) localName = "";
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
       magic_word: "HPV2_PICKUP_SCAN_GATE", scan: scan, localName: localName, since: sessionStartedAt, at: Date.now()
@@ -990,7 +986,6 @@
       return false;
     config = next;
     ultimateStylesDirty = true;
-    pickupStyleRevision++;
     if (!pickupTimersEnabled()) {
       clipCaptures.length = 0;
       if (lastPublishedName) publish("", 0);
@@ -1052,10 +1047,13 @@
         updatePause(Date.now());
         renderRows();
       } else {
-        if (ultimateName && (Date.now() < ultimateAt || Date.now() - ultimateAt >= 4000 ||
-            readName(namePanel) !== ultimateName || ultimateName === localPlayerName ||
-            context.BAscendantHasClass("LocalPlayer") || !valid(ultimateReady) ||
-            ultimateReady.visible !== false)) clearUltimate();
+        if (ultimateName) {
+          var now = Date.now();
+          if (now < ultimateAt || now - ultimateAt >= 4000 ||
+              readName(namePanel) !== ultimateName || ultimateName === localPlayerName ||
+              context.BAscendantHasClass("LocalPlayer") || !valid(ultimateReady) ||
+              ultimateReady.visible !== false) clearUltimate();
+        }
         sampleUnit();
       }
     } catch (error) {
