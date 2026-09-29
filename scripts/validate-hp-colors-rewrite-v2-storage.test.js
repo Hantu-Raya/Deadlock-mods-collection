@@ -1070,6 +1070,37 @@ test('a schema 4 save is read-only and never overwritten', () => {
   record(fixture);
 });
 
+// A save this build cannot read (for example one written by a newer build)
+// must still be removable on purpose; otherwise a downgraded player is stuck.
+test('a save this build cannot read can be cleared after confirming, then saving resumes', () => {
+  const future = rawRecord({ m: 'HPV2STORE', s: 4, t: 1, b: exceptBody({ widthScale: 150 }) });
+  const profile = createProfile({ [KEY_CURRENT]: future, [KEY_PREVIOUS]: future });
+  const fixture = launch(profile, { label: 'clear unreadable save' });
+  fixture.run(8000);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+
+  const forget = panelById(fixture.harness, 'HPColorsStoreForgetButton');
+  assert.equal(forget.enabled, true, 'CLEAR PC SAVE stays usable');
+  forget.events.onactivate();
+  fixture.run(8000);
+  assert.equal(profile.disk.get(KEY_CURRENT), future, 'one press never deletes');
+
+  forget.events.onactivate();
+  forget.events.onactivate();
+  fixture.run(2000);
+  assert.equal(profile.disk.has(KEY_CURRENT), false);
+  assert.equal(profile.disk.has(KEY_PREVIOUS), false);
+  assertOtherModsUntouched(profile);
+  assert.equal(fixture.status(), 'SAVE CLEARED');
+
+  openEditor(fixture);
+  setWidth(fixture, 120);
+  closeEditor(fixture);
+  fixture.run(3000);
+  assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 120, 'saving resumes');
+  record(fixture);
+});
+
 test('Layered presets: own survives a restart', () => {
   const body = {
     version: 1,
