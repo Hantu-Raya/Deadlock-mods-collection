@@ -186,7 +186,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
   if (isV2) {
     // Stock #SubOptions is bottom-anchored and grows upward 32px per row; the
     // QOLLOCK and HP rows push it into the primaries, so lift them 64px from
-    // QOLLOCK's hud_escape_menu.css (490/420/350 in 3.2.0 and 4.0) and stock #changehero (280).
+    // QOLLOCK's hud_escape_menu.css (490/420/350 in 4.0.0) and stock #changehero (280).
     for (const [id, marginBottom] of [['newgame', 554], ['watchgame', 484], ['guides', 414], ['changehero', 344]]) {
       xml = replaceOnce(
         xml,

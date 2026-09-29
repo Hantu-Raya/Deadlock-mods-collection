@@ -506,10 +506,12 @@
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
-                      <Label text="10 HP PER SMALL PIP" class="HPColorsSettingTitle" />
-                      <Label text="Count each small pip as 10 HP when calculating health text. Manual game configuration is required." class="HPColorsSettingHelp" />
+                      <Label text="MORE PRECISE HP TEXT" class="HPColorsSettingTitle" />
+                      <Label text="Show HP numbers to the nearest 10 instead of 100. Needs 3 lines added to a game file. Turning it on shows you how." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsPrecisePipsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                    <!-- Keeps this toggle in line with rows that have a condition button. -->
+                    <Panel class="HPColorsConditionIndicator HPColorsConditionSpacer" hittest="false" />
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
@@ -1035,7 +1037,7 @@
       <Panel id="HPColorsPrecisePipsDialog" class="HPColorsPrecisePipsDialog" hittest="false" hittestchildren="true">
         <Panel class="HPColorsPrecisePipsDialogBackdrop" hittest="false" />
         <Panel class="HPColorsPrecisePipsDialogPanel" hittest="true" hittestchildren="true">
-          <Label id="HPColorsPrecisePipsDialogTitle" class="HPColorsPrecisePipsDialogTitle" text="10 HP PER SMALL PIP" />
+          <Label id="HPColorsPrecisePipsDialogTitle" class="HPColorsPrecisePipsDialogTitle" text="MORE PRECISE HP TEXT" />
           <Label id="HPColorsPrecisePipsDialogMessage" class="HPColorsPrecisePipsDialogMessage" text="" />
           <Label id="HPColorsPrecisePipsDialogCommands" class="HPColorsPrecisePipsDialogCommands" text="" />
           <Panel class="HPColorsPrecisePipsDialogActions">

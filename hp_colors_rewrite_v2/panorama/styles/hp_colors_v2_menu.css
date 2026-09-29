@@ -294,7 +294,9 @@
 .HPColorsPage {
   width: 100%;
   height: fill-parent-flow(1);
-  padding: 28px 40px 18px 40px;
+  /* No bottom padding: the bottom gap lives inside the scroll content
+     (.HPColorsSettingsPage) so the last row can always scroll into view. */
+  padding: 28px 40px 0px 40px;
   flow-children: down;
 }
 
@@ -354,6 +356,7 @@
 
 .HPColorsSettingsPage {
   width: 100%;
+  padding-bottom: 24px;
   visibility: collapse;
   flow-children: down;
 }
@@ -836,6 +839,7 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsSecondaryAction Label,
 .HPColorsPrimaryAction Label {
+  horizontal-align: center;
   vertical-align: center;
   font-family: oracle;
   font-size: 15px;
@@ -859,7 +863,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsPrimaryAction Label {
-  horizontal-align: center;
   color: #10130d;
 }
 
@@ -1067,7 +1070,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsPrecisePipsDialogActions {
-  width: 100%;
   margin-top: 18px;
   horizontal-align: center;
   flow-children: right;
@@ -1080,7 +1082,7 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsPresetWorkspace {
   width: 100%;
-  padding: 2px;
+  padding: 2px 2px 24px 2px;
 }
 
 .HPColorsPresetSurface {
@@ -1637,6 +1639,13 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 .HPColorsConditionIndicator.Matched,
 .HPColorsConditionIndicator.Unavailable {
   opacity: 1;
+}
+
+/* Same box as a condition button, never shown: keeps toggles lined up on
+   rows whose setting can't have conditions. */
+.HPColorsConditionIndicator.HPColorsConditionSpacer,
+.HPColorsSettingRow:hover .HPColorsConditionIndicator.HPColorsConditionSpacer {
+  opacity: 0;
 }
 
 .HPColorsConditionIndicator Label {

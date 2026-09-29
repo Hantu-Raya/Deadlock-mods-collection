@@ -20,7 +20,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 - Current/max, percentage, and current-only HP formats for enemies, plus an opt-in, independently styled ally copy.
 - Size, bounded placement, stock-derived or custom colors, and optional pulse-specific presentation.
-- Health-pip visibility and optional precise 10-HP calculation with manual `gameinfo.gi` copy/reset guidance.
+- Health-pip visibility and optional **More Precise HP Text** (10-HP calculation) with manual `gameinfo.gi` copy/reset guidance.
 - Enemy-player level visibility and tier styling without writing engine-owned text.
 
 ### Editor and settings
@@ -295,9 +295,9 @@ Ordinary preset Apply updates existing rows instead of rebuilding their controls
 
 The normal wrapper builds standalone pak02 by default. With ShowRank Barebones pak89 installed, use `build_hp_colors_rewrite_v2.ps1 -ShowRankBarebones` to compose its Escape open/out handlers while preserving HP editor cancellation. This changes only the staged layout; the canonical runtime remains independent of ShowRank.
 
-The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned QOLLOCK 3.2.0 `pak03_dir.vpk` dependency by default. `-Qollock4` builds against the unreleased QOLLOCK 4.0 `pak60_dir.vpk` pinned in `hp_colors_rewrite_v2_qollock4/`; both pins share the bridge script in `hp_colors_rewrite_v2_qollock/`. It overrides only the Escape menu (QOLLOCK's menu plus the HP COLORS V2 button and editor) and the topbar (QOLLOCK's topbar plus pickup-timer includes); QOLLOCK's own `hud.xml` stays authoritative, so pak02 never ships a stale copy of it. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied QOLLOCK package. Both wrappers accept `-SkipDeploy` for archive-only builds.
+The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and builds against the pinned QOLLOCK 4.0.0 `pak47_dir.vpk`; its layout, pin, contract and bridge live in `hp_colors_rewrite_v2_qollock/`. QOLLOCK 3.2.0 and the 4.0 beta are no longer supported. It overrides only the Escape menu (QOLLOCK's menu plus the HP COLORS V2 button and editor) and the topbar (QOLLOCK's topbar plus pickup-timer includes); QOLLOCK's own `hud.xml` stays authoritative, so pak02 never ships a stale copy of it. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied QOLLOCK package. Both wrappers accept `-SkipDeploy` for archive-only builds.
 
-Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching QOLLOCK 3.2.0 pak03 and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
+Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching QOLLOCK 4.0.0 pak47 and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
 
 ## Third Eye compatibility
 
