@@ -96,11 +96,6 @@
 	visibility: collapse;
 }
 
-.health_particle_active #LevelHealthContainer
-{
-	visibility: collapse;
-}
-
 #UnitInfoContainer.unit_info_panel
 {
 	width: 300px;
@@ -113,25 +108,6 @@
 	margin-left: 422.5px;
 }
 
-
-#BulletShieldContainer
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_bullet_resist_low_psd.vtex");
-	background-size: 100% 100%;
-	width: 50%;
-	height: 50%;
-	visibility: visible;
-}
-
-#TechShieldContainer
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_tech_resist_low_psd.vtex");
-	background-size: 100% 100%;
-	width: 50%;
-	height: 50%;
-	visibility: visible;
-	vertical-align: bottom;
-}
 
 #unit_info_bg
 {
@@ -246,74 +222,6 @@
 	horizontal-align: center;
 	visibility: visible;
 	z-index: 2;
-}
-
-#bounty_gold_label
-{
-	font-size: 100px;
-	color: #46e2ac;
-	font-weight: bold;
-	font-family: sans;
-	text-shadow: 0px 0px 4px 4 DropshadowColor;
-	text-align: center;
-	vertical-align: top;
-	horizontal-align: middle;
-	width: 300px;
-	visibility: visible;
-	z-index: 2;
-}
-
-#unit_resist_container
-{
-	flow-children: down;
-	width: fit-children;
-	height: fit-children;
-	vertical-align: middle;
-	horizontal-align: left;
-}
-
-#unit_bullet_resist_image
-{
-	height: 90px;
-	width: 90px;
-	background-size: 100%;
-}
-
-#unit_tech_resist_image
-{
-	height: 90px;
-	width: 90px;
-	background-size: 100%;
-}
-
-.bullet_resist_negative
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_bullet_resist_negative_psd.vtex");
-}
-
-.tech_resist_negative
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_tech_resist_negative_psd.vtex");
-}
-
-.bullet_resist_low
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_bullet_resist_low_psd.vtex");
-}
-
-.tech_resist_low
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_tech_resist_low_psd.vtex");
-}
-
-.bullet_resist_high
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_bullet_resist_high_psd.vtex");
-}
-
-.tech_resist_high
-{
-	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_tech_resist_high_psd.vtex");
 }
 
 #UnitHealthbarContainer
@@ -641,21 +549,6 @@
 	box-shadow: fill #488e4020 0px 0px 30px 0px;
 }
 
-#unit_healthbar_pip_destruction
-{
-	horizontal-align: left;
-	vertical-align: middle;
-	flow-children: right;
-	width: 32px;
-	height: 380px;
-	background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex");
-	background-size: 1024px 128px;
-	wash-color: white;
-	z-index: 5;
-	box-shadow: fill #488e4020 0px 0px 30px 0px;
-	pre-transform-scale2d: 1.0, 10.8;
-}
-
 #unit_healthbar_bullet_shield
 {
 	min-width: 0%;
@@ -725,18 +618,6 @@
 	visibility: visible;
 }
 
-#unit_healthbar_fg
-{
-	width: 100%;
-	height: 100%;
-	visibility: visible;
-	border-image-source: url("s2r://panorama/images/hud/world_space/hero_healthbar_fg_psd.vtex");
-	border-image-repeat: round round;
-	border-image-slice: 3px 3px 3px 3px fill;
-	border-width: 3px;
-	z-index: 4;
-}
-
 #state_container
 {
 	height: 100%;
@@ -791,47 +672,7 @@
 	wash-color: TeamFriendColor;
 }
 
-.pip_only #healthpips
-{
-	visibility: collapse;
-}
-
-#pip_image
-{
-	horizontal-align: center;
-	width: 50px;
-	height: 50px;
-	wash-color: TeamNeutralColor;
-	opacity: 0.7;
-	visibility: collapse;
-}
-
-.pip_only #pip_image
-{
-	visibility: visible;
-}
-
-.team1 #pip_image
-{
-	wash-color: team1Color;
-}
-
-.team2 #pip_image
-{
-	wash-color: team2Color;
-}
-
-.friend #pip_image
-{
-	wash-color: lightgreen;
-}
-
-.enemy #pip_image
-{
-	wash-color: red;
-}
-
-#bounty,#status,#stacks
+#status,#stacks
 {
 	width: 100%;
 	height: fit-children;
@@ -906,26 +747,6 @@
 
 .CLASS_NECRO_HAUNTINGSKULL #TargetableIndicator
 {
-	visibility: visible;
-}
-
-#NameVoiceContainer
-{
-	flow-children: right;
-	horizontal-align: center;
-	height: 25px;
-	overflow: noclip;
-	width: 100%;
-}
-
-.health_hidden #NameVoiceContainer
-{
-	margin-bottom: 40px;
-}
-
-.show_bounty.enemy #bounty
-{
-	color: gold;
 	visibility: visible;
 }
 

@@ -1095,7 +1095,7 @@ test('menu boot can retry after a transient CreatePanel failure', () => {
         const createPanel = harness.$.CreatePanel;
         let failed = false;
         harness.$.CreatePanel = (type, parent, id) => {
-          if (!failed && id === 'HPColorsHeroOption3') {
+          if (!failed && id === 'HPColorsScopeHeroOption3') {
             failed = true;
             return null;
           }
@@ -1127,7 +1127,7 @@ test('menu boot contains thrown panel creation errors and an explicit retry reco
         const createPanel = harness.$.CreatePanel;
         let failed = false;
         harness.$.CreatePanel = (type, parent, id) => {
-          if (!failed && id === 'HPColorsHeroOption3') {
+          if (!failed && id === 'HPColorsScopeHeroOption3') {
             failed = true;
             throw new Error('panel creation unavailable');
           }

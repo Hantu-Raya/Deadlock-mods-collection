@@ -829,9 +829,7 @@
     "conditionRemoveButton conditionCancelButton conditionApplyButton " +
     "transferButton transferDialog transferInput transferFeedback " +
     "transferExportButton transferImportButton transferCloseButton " +
-    "heroModeAuto heroModeManual heroModeOff heroPhase heroIdentity " +
-    "heroDetail heroManualRow heroManualButton heroManualValue heroDialog " +
-    "heroOptions heroCloseButton currentScopeAll currentScopeSelected " +
+    "heroIdentity currentScopeAll currentScopeSelected " +
     "currentScopeSummary scopeDialog scopeSearch scopeOptions " +
     "scopeCloseButton presetNameInput presetSaveButton " +
     "presetSaveButtonLabel presetSaveMode presetNewButton presetForm " +
@@ -1025,18 +1023,7 @@
     precisePipsCopyLabel: null,
     precisePipsCopyButton: null,
     precisePipsCloseButton: null,
-    heroModeAuto: null,
-    heroModeManual: null,
-    heroModeOff: null,
-    heroPhase: null,
     heroIdentity: null,
-    heroDetail: null,
-    heroManualRow: null,
-    heroManualButton: null,
-    heroManualValue: null,
-    heroDialog: null,
-    heroOptions: null,
-    heroCloseButton: null,
     currentScopeAll: null,
     currentScopeSelected: null,
     currentScopeExcept: null,
@@ -1125,7 +1112,6 @@
     gameTime: null,
     watchGeneration: 0,
     renderSignature: "",
-    optionPanels: [],
   };
   var ability = {
     slotParent: null,
@@ -1685,19 +1671,6 @@
     return "TRANSITIONING";
   }
 
-  function syncHeroOptionSelection() {
-    var view = currentView();
-    var manualHeroKey = view && view.identity ? view.identity.manualHeroKey : "";
-    for (var index = 0; index < identity.optionPanels.length; index++) {
-      var option = identity.optionPanels[index];
-      var key = "";
-      try {
-        key = option.GetAttributeString("hp_colors_hero_key", "");
-      } catch {}
-      setClass(option, "Selected", key === manualHeroKey);
-    }
-  }
-
   function renderIdentity() {
     var view = currentView();
     if (!view || !view.identity) return;
@@ -1720,63 +1693,30 @@
     identity.renderSignature = signature;
 
     var identityText = "NO HERO DETECTED";
-    var detailText =
-      "No stable local hero is available. Hero-scoped state will not be selected.";
     if (identityView.mode === HERO_MODE_OFF) {
       identityText = "HERO DETECTION OFF";
-      detailText = "Hero identity is disabled.";
     } else if (identityView.mode === HERO_MODE_MANUAL) {
       var manualName = heroDisplayName(
         identityView.effectiveHeroKey,
         view.heroes,
       );
-      if (manualName) {
-        identityText = "HERO: " + manualName + " (MANUAL)";
-        detailText = "Stable ID: " + identityView.effectiveHeroKey;
-      } else {
-        detailText = "Choose a hero for Manual Override.";
-      }
+      if (manualName) identityText = "HERO: " + manualName + " (MANUAL)";
     } else if (identityView.status === "settled") {
       var detectedName = heroDisplayName(
         identityView.effectiveHeroKey,
         view.heroes,
       );
       identityText = "HERO: " + detectedName;
-      detailText = "Stable ID: " + identityView.effectiveHeroKey;
     } else if (identityView.status === "settling") {
       identityText =
         "DETECTING HERO: " +
         (heroDisplayName(identityView.candidateHeroKey, view.heroes) ||
           "UNKNOWN");
-      detailText = "Waiting for a second matching local-HUD sample.";
     } else if (identityView.phase !== HERO_PHASE_ACTIVE) {
       // The runtime phase label is collapsed; surface the phase here.
       identityText += " · " + phaseDisplayName(identityView.phase);
-      detailText = "Auto detection waits for an active match.";
     }
-    setClass(
-      ui.heroModeAuto,
-      "Selected",
-      identityView.mode === HERO_MODE_AUTO,
-    );
-    setClass(
-      ui.heroModeManual,
-      "Selected",
-      identityView.mode === HERO_MODE_MANUAL,
-    );
-    setClass(ui.heroModeOff, "Selected", identityView.mode === HERO_MODE_OFF);
-    setClass(
-      ui.heroManualRow,
-      "Active",
-      identityView.mode === HERO_MODE_MANUAL,
-    );
-    setText(ui.heroPhase, "MATCH: " + phaseDisplayName(identityView.phase));
     setText(ui.heroIdentity, identityText);
-    setText(ui.heroDetail, detailText);
-    setText(
-      ui.heroManualValue,
-      heroDisplayName(identityView.manualHeroKey, view.heroes) || "SELECT HERO",
-    );
   }
 
   function refreshEditorAfterIdentityChange(result) {
@@ -1853,78 +1793,7 @@
     identity.watchGeneration += 1;
     scheduleIdentityTick(identity.watchGeneration, 0);
   }
-  function closeHeroDialog() {
-    if (!isValid(ui.heroDialog) || !ui.heroDialog.BHasClass("Open")) return;
-    setClass(ui.heroDialog, "Open", false);
-    focus(ui.heroManualButton);
-  }
 
-  function openHeroDialog() {
-    var view = currentView();
-    if (!view || !view.identity || view.identity.mode !== HERO_MODE_MANUAL)
-      return;
-    closeTransferDialog();
-    closeScopeDialog();
-    closePicker();
-    closePrecisePipsDialog();
-    syncHeroOptionSelection();
-    setClass(ui.heroDialog, "Open", true);
-    focus(ui.heroDialog);
-  }
-
-  function selectManualHero(heroKey) {
-    var view = currentView();
-    if (!findHero(heroKey, viewHeroes(view))) return;
-    sendState({ type: "hero_manual", heroKey: heroKey });
-    renderIdentity();
-    closeHeroDialog();
-  }
-
-  function setHeroMode(mode) {
-    if (
-      mode !== HERO_MODE_AUTO &&
-      mode !== HERO_MODE_MANUAL &&
-      mode !== HERO_MODE_OFF
-    )
-      return;
-    sendState({ type: "hero_mode", mode: mode });
-    closeHeroDialog();
-    renderIdentity();
-  }
-
-  function createHeroOptions() {
-    if (!isValid(ui.heroOptions)) return false;
-    try {
-      ui.heroOptions.RemoveAndDeleteChildren();
-    } catch {}
-    identity.optionPanels = [];
-    var view = currentView();
-    var heroes = viewHeroes(view);
-    for (var index = 0; index < heroes.length; index++) {
-      (function (heroKey, heroName, optionIndex) {
-        var option = $.CreatePanel(
-          "Button",
-          ui.heroOptions,
-          "HPColorsHeroOption" + optionIndex,
-        );
-        if (!isValid(option)) return;
-        var label = $.CreatePanel(
-          "Label",
-          option,
-          "HPColorsHeroOptionLabel" + optionIndex,
-        );
-        if (!isValid(label)) return;
-        option.AddClass("HPColorsHeroOption");
-        option.SetAttributeString("hp_colors_hero_key", heroKey);
-        label.text = heroName;
-        setPanelEvent(option, "onactivate", function () {
-          selectManualHero(heroKey);
-        });
-        identity.optionPanels.push(option);
-      })(heroes[index].key, heroes[index].name, index);
-    }
-    return identity.optionPanels.length === heroes.length;
-  }
   function currentScopeRow() {
     var view = currentView();
     return view && view.currentScope ? view.currentScope : null;
@@ -2077,7 +1946,6 @@
       ? ui.currentScopeExcept
       : ui.currentScopeSelected;
     closeTransferDialog();
-    closeHeroDialog();
     closePicker();
     closePrecisePipsDialog();
     if (isValid(ui.scopeSearch)) ui.scopeSearch.text = "";
@@ -2947,7 +2815,6 @@
   function openPresetTransferDialog() {
     presetTransferRequest += 1;
     closePicker();
-    closeHeroDialog();
     closeScopeDialog();
     setText(ui.presetTransferInput, "");
     setClass(ui.presetTransferDialog, "Open", true);
@@ -3342,7 +3209,6 @@
     if (panelHasClass(ui.saveToPresetButton, "Disabled")) return;
     closeTransferDialog();
     closePresetTransferDialog();
-    closeHeroDialog();
     closeScopeDialog();
     closePrecisePipsDialog();
     closePicker();
@@ -3450,7 +3316,6 @@
   }
 
   function openPrecisePipsDialog(enabled) {
-    closeHeroDialog();
     setText(
       ui.precisePipsDialogTitle,
       enabled ? "TURN ON MORE PRECISE HP TEXT" : "UNDO THE GAME FILE CHANGE",
@@ -3517,7 +3382,6 @@
     transferRequest += 1;
     closePicker();
     closePrecisePipsDialog();
-    closeHeroDialog();
     setText(ui.transferInput, "");
     setClass(ui.transferDialog, "Open", true);
     setTransferFeedback(
@@ -4613,7 +4477,6 @@
     closeResetDialog(false);
     closePresetTransferDialog();
     closeTransferDialog();
-    closeHeroDialog();
     closeScopeDialog();
     closePicker();
     var rule = state.conditions[key];
@@ -4645,7 +4508,6 @@
   function pickConditionColor() {
     var control = conditionControls[conditionDraft.key];
     if (!control || control.type !== "color") return;
-    closeHeroDialog();
     showPicker(
       conditionDraft.key,
       ui.conditionColorSwatch,
@@ -4974,7 +4836,6 @@
 
   function openPicker(key, returnPanel) {
     if (!COLOR_KEYS[key]) return;
-    closeHeroDialog();
     showPicker(key, returnPanel, false, state.values[key]);
   }
 
@@ -5233,7 +5094,6 @@
   function beginPeek() {
     if (!state.open || state.peeking) return;
     closePicker();
-    closeHeroDialog();
     closeScopeDialog();
     closeSaveToDialog(false);
     state.peeking = true;
@@ -5252,7 +5112,6 @@
     closeConditionEditor();
     showResetFeedback("");
     closeTransferDialog();
-    closeHeroDialog();
     closeScopeDialog();
     closePicker();
     presetFormOpen = false;
@@ -5418,10 +5277,6 @@
     }
     if (isValid(ui.scopeDialog) && ui.scopeDialog.BHasClass("Open")) {
       closeScopeDialog();
-      return true;
-    }
-    if (isValid(ui.heroDialog) && ui.heroDialog.BHasClass("Open")) {
-      closeHeroDialog();
       return true;
     }
     if (
@@ -5666,18 +5521,6 @@
     setPanelEvent(ui.transferImportButton, "onactivate", importLiveSettings);
     setPanelEvent(ui.transferCloseButton, "onactivate", closeTransferDialog);
     setPanelEvent(ui.transferDialog, "oncancel", closeTransferDialog);
-    setPanelEvent(ui.heroModeAuto, "onactivate", function () {
-      setHeroMode(HERO_MODE_AUTO);
-    });
-    setPanelEvent(ui.heroModeManual, "onactivate", function () {
-      setHeroMode(HERO_MODE_MANUAL);
-    });
-    setPanelEvent(ui.heroModeOff, "onactivate", function () {
-      setHeroMode(HERO_MODE_OFF);
-    });
-    setPanelEvent(ui.heroManualButton, "onactivate", openHeroDialog);
-    setPanelEvent(ui.heroCloseButton, "onactivate", closeHeroDialog);
-    setPanelEvent(ui.heroDialog, "oncancel", closeHeroDialog);
     setPanelEvent(ui.currentScopeAll, "onactivate", function () {
       setCurrentScopeMode(HERO_SCOPE_ALL);
     });
@@ -5824,7 +5667,7 @@
     }
     state.view = stateInstance.read();
     try {
-      if (!createSliders() || !createHeroOptions() || !createScopeHeroOptions()) {
+      if (!createSliders() || !createScopeHeroOptions()) {
         $.Msg("[HP Colors Rewrite] menu boot failed: control creation incomplete");
         return;
       }
