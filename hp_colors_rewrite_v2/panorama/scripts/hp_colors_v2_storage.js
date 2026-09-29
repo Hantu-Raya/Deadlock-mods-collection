@@ -302,6 +302,13 @@
       return null;
     }
 
+    function clearAllTimers() {
+      readyTimer = clearTimer(readyTimer);
+      injectTimer = clearTimer(injectTimer);
+      navigateTimer = clearTimer(navigateTimer);
+      exchangeTimer = clearTimer(exchangeTimer);
+    }
+
     function later(seconds, callback) {
       return schedule(seconds, function () {
         if (alive) callback();
@@ -521,10 +528,7 @@
       if (unavailable) return;
       unavailable = true;
       ready = false;
-      readyTimer = clearTimer(readyTimer);
-      injectTimer = clearTimer(injectTimer);
-      navigateTimer = clearTimer(navigateTimer);
-      exchangeTimer = clearTimer(exchangeTimer);
+      clearAllTimers();
       log("bridge unavailable: " + code);
       var pending = active ? [active].concat(queue) : queue;
       active = null;
@@ -629,10 +633,7 @@
 
     function dispose() {
       alive = false;
-      readyTimer = clearTimer(readyTimer);
-      injectTimer = clearTimer(injectTimer);
-      navigateTimer = clearTimer(navigateTimer);
-      exchangeTimer = clearTimer(exchangeTimer);
+      clearAllTimers();
       active = null;
       queue = [];
       ready = false;

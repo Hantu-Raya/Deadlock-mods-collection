@@ -224,7 +224,8 @@ function launch(profile, options = {}) {
     harness,
     bridge,
     identityTree,
-    status: () => panelById(harness, 'HPColorsLiveStatus').text,
+    status: () => panelById(harness, 'HPColorsLiveStatus').GetAttributeString('hp_colors_store_status', ''),
+    chip: () => panelById(harness, 'HPColorsLiveStatus').text,
     renderer: () => harness.root.HPV2GetNormalizedConfig(),
     attr: (name) => harness.root.GetAttributeString(name, ''),
     run(ms) {
@@ -342,9 +343,9 @@ test('first launch saves, and a restart restores settings and presets without a 
   setWidth(first, 180);
   createPreset(first, 'Haze é%20 ✓');
   closeEditor(first);
-  assert.equal(first.status(), 'SAVING');
+  assert.equal(first.status(), 'SAVING ON THIS PC...');
   first.run(2000);
-  assert.equal(first.status(), 'SAVED');
+  assert.equal(first.status(), 'SAVED ON THIS PC');
   const saved = storedRecord(profile);
   assert.equal(saved.kind, 'valid');
   assert.equal(JSON.parse(saved.body).values.widthScale, 180);
@@ -361,7 +362,7 @@ test('first launch saves, and a restart restores settings and presets without a 
     menuState(second).userPresets.map((preset) => preset.name),
     ['Haze é%20 ✓'],
   );
-  assert.equal(second.status(), 'SAVED');
+  assert.equal(second.status(), 'SAVED ON THIS PC');
   record(second);
 
   // Hero routing may add its Current scope once after a restore; after that
@@ -418,7 +419,7 @@ test('a corrupt current record restores from the backup and never overwrites it'
   const fixture = launch(profile, { label: 'corrupt current' });
   fixture.run(3000);
   assert.equal(fixture.renderer().widthScale, 140);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   assert.equal(profile.disk.get(KEY_PREVIOUS), backup, 'a corrupt record is never rotated over the backup');
 
   openEditor(fixture);
@@ -489,7 +490,7 @@ test('Forget clears only v2 keys, keeps live settings, and saves again after the
 
   const forget = panelById(fixture.harness, 'HPColorsStoreForgetButton');
   forget.events.onactivate();
-  assert.equal(panelById(fixture.harness, 'HPColorsStoreForgetLabel').text, 'CONFIRM FORGET');
+  assert.equal(panelById(fixture.harness, 'HPColorsStoreForgetLabel').text, 'CONFIRM CLEAR');
   forget.events.onactivate();
   fixture.run(2000);
   assert.equal(profile.disk.has(KEY_CURRENT), false);
@@ -549,7 +550,7 @@ test('an old builder pak01 layout still boots and tells the player to delete it'
     omitStorageScript: true,
   });
   fixture.run(4000);
-  assert.equal(fixture.status(), 'OLD PRESET VPK');
+  assert.equal(fixture.status(), 'UPDATE PRESET FILE');
   assert.equal(fixture.renderer().enabled, true);
   openEditor(fixture);
   assert.ok(fixture.harness.logs.some((line) => line.includes('delete pak01_dir.vpk')));
@@ -623,7 +624,7 @@ test('a lost first read is asked once more, and the save loads', () => {
   });
   fixture.run(20000);
   assert.equal(fixture.renderer().widthScale, 145);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   assert.match(fixture.harness.logs.join('\n'), /no reply to read part 0/);
   record(fixture);
 });
@@ -661,7 +662,7 @@ test('a lost save acknowledgement is retried by the editor without rotating the 
   setWidth(fixture, 175);
   closeEditor(fixture);
   fixture.run(20000);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 175);
   assert.equal(
     JSON.parse(storedRecord(profile, KEY_PREVIOUS).body).values.widthScale,
@@ -688,7 +689,7 @@ test('no script reaches the page until file:// has loaded, so the load is never 
   fixture.run(20000);
   assert.equal(fixture.bridge.aborted, undefined, 'the file:// load was never interrupted');
   assert.equal(fixture.renderer().widthScale, 205);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/C:\/ \(load 1\)/);
   record(fixture);
 });
@@ -714,7 +715,7 @@ test('if the C: listing never loads, bare file:// still reaches the same save', 
   const fixture = launch(profile, { label: 'file:///C:/ always fails', bridge: { failUrl: 'file:///C:/' } });
   fixture.run(20000);
   assert.equal(fixture.renderer().widthScale, 214);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/ \(load 2/);
   record(fixture);
 });
@@ -731,7 +732,7 @@ test('doubled URL events move to the next address once', () => {
   fixture.run(20000);
   assert.deepEqual(fixture.bridge.urls, ['file:///C:/', 'file://']);
   assert.equal(fixture.renderer().widthScale, 216);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   record(fixture);
 });
 
@@ -748,7 +749,7 @@ test('a load that reports an error and then commits keeps its page', () => {
   closeEditor(fixture);
   fixture.run(8000);
   assert.equal(storedEditedWidth(profile), 196);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   record(fixture);
 });
 
@@ -849,7 +850,7 @@ test('audit 2: a checksum-valid but unusable current falls back and never replac
     const fixture = launch(profile, { label: `audit 2 ${label}` });
     fixture.run(10000);
     assert.equal(fixture.renderer().widthScale, 135, `${label}: restored from the backup`);
-    assert.equal(fixture.status(), 'SAVED');
+    assert.equal(fixture.status(), 'SAVED ON THIS PC');
     openEditor(fixture);
     setWidth(fixture, 145);
     closeEditor(fixture);
@@ -897,7 +898,7 @@ test('audit 3: Forget stays forgotten through automatic hero routing', () => {
   closeEditor(fixture);
   fixture.run(6000);
   assert.equal(profile.disk.has(KEY_CURRENT), true, 'a deliberate edit saves again');
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   record(fixture);
 });
 
@@ -911,7 +912,7 @@ test('audit 5: a lost first page title still gets the page injected', () => {
   });
   fixture.run(20000);
   assert.equal(fixture.renderer().widthScale, 215);
-  assert.equal(fixture.status(), 'SAVED');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
   record(fixture);
 });
 
@@ -1067,4 +1068,175 @@ test('a schema 4 save is read-only and never overwritten', () => {
   assert.equal(fixture.bridge.writes, 0);
   assert.equal(profile.disk.get(KEY_CURRENT), future);
   record(fixture);
+});
+
+// A save this build cannot read (for example one written by a newer build)
+// must still be removable on purpose; otherwise a downgraded player is stuck.
+test('a save this build cannot read can be cleared after confirming, then saving resumes', () => {
+  const future = rawRecord({ m: 'HPV2STORE', s: 4, t: 1, b: exceptBody({ widthScale: 150 }) });
+  const profile = createProfile({ [KEY_CURRENT]: future, [KEY_PREVIOUS]: future });
+  const fixture = launch(profile, { label: 'clear unreadable save' });
+  fixture.run(8000);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+
+  const forget = panelById(fixture.harness, 'HPColorsStoreForgetButton');
+  assert.equal(forget.enabled, true, 'CLEAR PC SAVE stays usable');
+  forget.events.onactivate();
+  fixture.run(8000);
+  assert.equal(profile.disk.get(KEY_CURRENT), future, 'one press never deletes');
+
+  forget.events.onactivate();
+  forget.events.onactivate();
+  fixture.run(2000);
+  assert.equal(profile.disk.has(KEY_CURRENT), false);
+  assert.equal(profile.disk.has(KEY_PREVIOUS), false);
+  assertOtherModsUntouched(profile);
+  assert.equal(fixture.status(), 'SAVE CLEARED');
+
+  openEditor(fixture);
+  setWidth(fixture, 120);
+  closeEditor(fixture);
+  fixture.run(3000);
+  assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 120, 'saving resumes');
+  record(fixture);
+});
+
+test('Layered presets: own survives a restart', () => {
+  const body = {
+    version: 1,
+    values: { widthScale: 140 },
+    conditions: {},
+    scopes: [],
+    userPresets: [
+      { id: 'user_0001', name: 'Everyone', mode: 'all', heroes: [], values: { widthScale: 140 } },
+      { id: 'user_0002', name: 'Haze Only', mode: 'selected', heroes: ['hero_haze'], values: { widthScale: 170 }, own: ['widthScale'] },
+    ],
+  };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }) });
+  const first = launch(profile, { label: 'own seed' });
+  first.run(8000);
+  assert.equal(first.attr('hp_colors_v2_store_status'), 'ok');
+  openEditor(first);
+  setWidth(first, 205);
+  closeEditor(first);
+  first.run(8000);
+  const saved = JSON.parse(storedRecord(profile).body).userPresets.find((row) => row.id === 'user_0002');
+  assert.ok(saved, 'the Only These preset is saved');
+  assert.deepEqual(saved.own, ['widthScale'], 'own is written to the save');
+  const savedAll = JSON.parse(storedRecord(profile).body).userPresets.find((row) => row.id === 'user_0001');
+  assert.equal(savedAll.own, undefined, 'All Heroes presets never carry own');
+  record(first);
+
+  const second = launch(profile, { label: 'own restart' });
+  second.run(8000);
+  assert.equal(second.attr('hp_colors_v2_store_status'), 'ok');
+  openEditor(second);
+  setWidth(second, 210);
+  closeEditor(second);
+  second.run(8000);
+  const restored = JSON.parse(storedRecord(profile).body).userPresets.find((row) => row.id === 'user_0002');
+  assert.equal(restored.mode, 'selected');
+  assert.deepEqual(restored.own, ['widthScale'], 'own survives the restart');
+  record(second);
+});
+
+// Round 4: REVERT is preset_apply and UNDO takes it back; both steps reach
+// the local save like any other live change.
+test('REVERT and its UNDO both persist through local autosave', () => {
+  const body = {
+    version: 1,
+    values: { widthScale: 140 },
+    conditions: {},
+    scopes: [],
+    userPresets: [
+      { id: 'user_0001', name: 'Everyone', mode: 'all', heroes: [], values: { widthScale: 140 } },
+    ],
+  };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }) });
+  const fixture = launch(profile, { label: 'revert seed' });
+  fixture.run(8000);
+  assert.equal(fixture.attr('hp_colors_v2_store_status'), 'ok');
+  openEditor(fixture);
+  panelById(fixture.harness, 'HPColorsCategoryPresets').events.onactivate();
+  panelById(fixture.harness, 'HPColorsTab0').events.onactivate();
+  const everyoneRow = () => {
+    const row = panelById(fixture.harness, 'HPColorsPresetOptions').Children().find(
+      (option) => option.GetAttributeString('hp_colors_preset_id', '') === 'user_0001',
+    );
+    assert.ok(row, 'expected the Everyone row');
+    return row;
+  };
+  // A row click re-renders the list; read the row again afterwards.
+  everyoneRow().FindChildrenWithClassTraverse('HPColorsPresetOptionMain')[0].events.onactivate();
+  const row = everyoneRow();
+  setWidth(fixture, 150);
+  fixture.run(8000);
+  assert.equal(storedEditedWidth(profile), 150);
+  assert.equal(row.FindChildrenWithClassTraverse('HPColorsPresetOptionStatus')[0].text, 'CHANGED');
+
+  row.FindChildrenWithClassTraverse('HPColorsPresetRowRevert')[0].events.onactivate();
+  assert.equal(menuState(fixture).scopes[0].values.widthScale, 140);
+  assert.equal(menuState(fixture).scopes[0].sourcePresetId, 'user_0001');
+  fixture.run(8000);
+  assert.equal(storedEditedWidth(profile), 140, 'the reverted state is saved');
+  assert.equal(fixture.status(), 'SAVED ON THIS PC');
+
+  panelById(fixture.harness, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(menuState(fixture).scopes[0].values.widthScale, 150);
+  fixture.run(8000);
+  assert.equal(storedEditedWidth(profile), 150, 'the undone revert is saved');
+  const saved = JSON.parse(storedRecord(profile).body).userPresets.find((preset) => preset.id === 'user_0001');
+  assert.equal(saved.values.widthScale, 140, 'the preset itself never changed');
+  assertOtherModsUntouched(profile);
+  record(fixture);
+});
+
+// Tester round 5: the header chip names the preset the live settings belong
+// to (healthy local save is silent), so a player can tell a named preset
+// from Rewrite Default or settings that are in no preset.
+test('header chip names the preset the current settings belong to', () => {
+  const body = {
+    version: 1,
+    values: { widthScale: 140 },
+    conditions: {},
+    scopes: [],
+    userPresets: [
+      { id: 'user_0001', name: 'A Very Long Everyone Preset', mode: 'all', heroes: [], values: { widthScale: 140 } },
+    ],
+  };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }) });
+  const fixture = launch(profile, { label: 'chip seed' });
+  fixture.run(8000);
+  openEditor(fixture);
+  panelById(fixture.harness, 'HPColorsCategoryPresets').events.onactivate();
+  panelById(fixture.harness, 'HPColorsTab0').events.onactivate();
+  const row = () => panelById(fixture.harness, 'HPColorsPresetOptions').Children().find(
+    (option) => option.GetAttributeString('hp_colors_preset_id', '') === 'user_0001',
+  );
+  row().FindChildrenWithClassTraverse('HPColorsPresetOptionMain')[0].events.onactivate();
+  const chip = panelById(fixture.harness, 'HPColorsLiveStatus');
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE…');
+  assert.equal(chip.BHasClass('PresetChanged'), false);
+
+  setWidth(fixture, 150);
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE… · CHANGED', 'changes show before the save settles');
+  assert.equal(chip.BHasClass('PresetChanged'), true);
+  fixture.run(8000);
+  assert.equal(fixture.status(), 'SAVED ON THIS PC', 'the local save still runs underneath');
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE… · CHANGED');
+
+  panelById(fixture.harness, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(fixture.chip(), 'PRESET: A VERY LONG EVE…');
+
+  // Rewrite Default, then an edit that belongs to no preset.
+  const fresh = launch(createProfile(), { label: 'chip fresh' });
+  fresh.run(8000);
+  assert.equal(fresh.chip(), 'PRESET: REWRITE DEFAULT');
+  openEditor(fresh);
+  setWidth(fresh, 175);
+  assert.equal(fresh.chip(), 'NOT SAVED TO A PRESET');
+  assert.equal(panelById(fresh.harness, 'HPColorsLiveStatus').BHasClass('PresetChanged'), true);
+  fresh.run(8000);
+  assert.equal(fresh.status(), 'SAVED ON THIS PC');
+  assert.equal(fresh.chip(), 'NOT SAVED TO A PRESET');
 });
