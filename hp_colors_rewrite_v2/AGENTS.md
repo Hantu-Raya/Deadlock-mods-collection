@@ -31,7 +31,7 @@ unit_status_overlay_v2.xml
   -> unit_status_v2_colors.js + unit_status_v2.css
 ```
 
-- `hp_colors_v2_contract.js` owns the 72-key legacy codec, v2-only extension keys, shipped defaults, normalization, bounds, and enum policy.
+- `hp_colors_v2_contract.js` owns the 72-key legacy codec, v2-only extension keys, shipped defaults, normalization, bounds, and enum policy. Retired keys (the three color exclusions and ghoul opacity) keep their codec slots but are not editable; old ghoul opacity values, ability rules, and `own` keys are dropped on load and import instead of rejecting the save or code that carries them.
 - `hp_colors_v2_state.js` owns canonical values, effective resolution, scopes, presets, conditions, Undo, import/export, and state transitions through one immutable `send()` and `read()` factory.
 - `hp_colors_v2_storage.js` owns the hidden-page bridge, record codec, chunked read/write/delete protocol, and timeouts through `$.HPColorsV2StorageFactory`.
 - `hp_colors_v2_menu.js` owns Panorama panels, Escape lifecycle, rendering, HSL controls, replay, transport, save gating/status/Forget, and clipboard effects.

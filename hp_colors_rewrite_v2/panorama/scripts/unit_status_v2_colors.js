@@ -331,7 +331,6 @@
     var boss = false;
     var sentry = false;
     var minion = false;
-    var creature = false;
     for (var depth = 0; current && depth < 12; depth++) {
       neutral = neutral || hasClass(current, "team_neutral");
       enemy = enemy || hasClass(current, "enemy");
@@ -342,7 +341,6 @@
       sentry = sentry || hasClass(current, "sentry");
       minion = minion || hasClass(current, "minion");
       building = building || sentry || hasClass(current, "building");
-      creature = creature || hasClass(current, "creature");
       var tierBoss =
         hasClass(current, "boss_tier1") ||
         hasClass(current, "boss_tier2") ||
@@ -364,7 +362,6 @@
           : ally
             ? "ally"
             : "other";
-    var ghoul = creature && !player && !building && !boss;
     var changed =
       role !== bar.role ||
       ambiguousRelation !== bar.ambiguousRelation ||
@@ -373,8 +370,7 @@
       building !== bar.isBuilding ||
       boss !== bar.isBoss ||
       sentry !== bar.isSentry ||
-      minion !== bar.isMinion ||
-      ghoul !== bar.isGhoul;
+      minion !== bar.isMinion;
     if (!changed) return false;
     clearLevelOwnership(bar);
     bar.ambiguousRelation = ambiguousRelation;
@@ -385,7 +381,6 @@
     bar.isBoss = boss;
     bar.isSentry = sentry;
     bar.isMinion = minion;
-    bar.isGhoul = ghoul;
     bar.levelWrapper =
       findAncestorWithClass(bar.parts.levelContainer, "enemy") ||
       findAncestorWithClass(bar.parts.activeParent, "enemy");
@@ -2087,17 +2082,12 @@
         config.enemyVisible &&
         !(pulseActive && config.enemyPulseHideBar),
     );
-    var opacity =
-      bar.isGhoul && config.ghoulOpacityEnabled
-        ? config.ghoulOpacity <= 1
-          ? "0.01"
-          : String(config.ghoulOpacity / 100)
-        : colorsEnabled
-          ? visible &&
-            !(pulseActive && role === "enemy" && config.enemyPulseHideBar)
-            ? "1"
-            : "0.01"
-          : baselineStyle(panelBaseline.container, "opacity");
+    var opacity = colorsEnabled
+      ? visible &&
+        !(pulseActive && role === "enemy" && config.enemyPulseHideBar)
+        ? "1"
+        : "0.01"
+      : baselineStyle(panelBaseline.container, "opacity");
     var ultBackgroundOpacity = colorsEnabled
       ? opacity
       : baselineStyle(panelBaseline.ultBackground, "opacity");
@@ -2410,7 +2400,6 @@
       isBoss: false,
       isSentry: false,
       isMinion: false,
-      isGhoul: false,
       seen: true,
       parts: parts,
     };

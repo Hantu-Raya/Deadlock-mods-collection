@@ -49,8 +49,6 @@ const ENEMY_BAR_DEFAULTS = {
   enemyMid: '#FF7B00',
   enemyHigh: '#00FF00',
   enemyTeamHigh: false,
-  ghoulOpacityEnabled: false,
-  ghoulOpacity: 100,
 };
 const ENEMY_BAR_KEYS = Object.keys(ENEMY_BAR_DEFAULTS);
 // This harness loads no storage runtime, so the status chip's resting text is
@@ -256,8 +254,6 @@ function changedEnemyValues() {
     lowThreshold: 10,
     highThreshold: 90,
     enemyTeamHigh: true,
-    ghoulOpacityEnabled: true,
-    ghoulOpacity: 35,
     allyLow: '#445566',
     widthScale: 123,
   };
@@ -2580,12 +2576,15 @@ test('exit prompt: an unsaved form name prompts Case B without a save button; an
   assert.equal(editorOpen(fixture), false);
 });
 
-test('layout parity: exit dialog, no-source banner, hint, and cancel hooks exist in every layout; row actions in the shared script and CSS', () => {
+test('layout parity: exit dialog, no-source banner, SAVE TO PRESET, hint, and cancel hooks exist in every layout; row actions in the shared script and CSS', () => {
   const ids = [
     'HPColorsExitDialog', 'HPColorsExitBackdrop', 'HPColorsExitDialogTitle',
     'HPColorsExitDialogMessage', 'HPColorsExitFeedback', 'HPColorsExitSaveButton',
     'HPColorsExitReviewButton', 'HPColorsExitDiscardButton',
     'HPColorsPresetSourceRow', 'HPColorsPresetSaveAsNewButton',
+    'HPColorsSaveToPresetButton', 'HPColorsSaveToDialog', 'HPColorsSaveToBackdrop',
+    'HPColorsSaveToOptions', 'HPColorsSaveToFeedback', 'HPColorsSaveToNewButton',
+    'HPColorsSaveToCloseButton',
   ];
   const hookedControls = {
     rewrite_v2: ['CitadelHudEscapeMenu', 'EscapeBackground', 'EscapeButton'],
@@ -2611,6 +2610,41 @@ test('layout parity: exit dialog, no-source banner, hint, and cancel hooks exist
       const tag = source.match(new RegExp(`<${control === 'CitadelHudEscapeMenu' ? control : `[A-Za-z]+ id="${control}"`}[^>]*>`));
       assert.ok(tag && tag[0].includes('$.HPColorsMenuCancel'), `${lane}: ${control} routes through the cancel hook`);
     }
+    // SAVE TO PRESET sits in the footer between the spacer and EXIT, and its
+    // dialog owns its list, feedback, and both actions.
+    const footer = source.match(/<Panel class="HPColorsEditorFooter">[\s\S]*?<\/Panel>\s*<\/Panel>/);
+    assert.ok(footer, `${lane}: editor footer`);
+    const footerIds = Array.from(footer[0].matchAll(/\bid="([^"]+)"/g), (match) => match[1]);
+    assert.deepEqual(footerIds, [
+      'HPColorsPeekButton', 'HPColorsUndoButton', 'HPColorsResetSectionButton',
+      'HPColorsTransferButton', 'HPColorsSaveToPresetButton', 'HPColorsDoneButton',
+    ], lane);
+    assert.ok(
+      footer[0].indexOf('HPColorsFooterSpacer') < footer[0].indexOf('id="HPColorsSaveToPresetButton"'),
+      `${lane}: SAVE TO PRESET follows the spacer`,
+    );
+    assert.ok(ancestry.get('HPColorsSaveToPresetButton').includes('HPColorsEditorRoot'), lane);
+    for (const id of [
+      'HPColorsSaveToBackdrop', 'HPColorsSaveToOptions', 'HPColorsSaveToFeedback',
+      'HPColorsSaveToNewButton', 'HPColorsSaveToCloseButton',
+    ])
+      assert.ok(ancestry.get(id).includes('HPColorsSaveToDialog'), `${lane}: ${id} lives in the dialog`);
+    assert.match(
+      source,
+      /id="HPColorsSaveToPresetButton" class="HPColorsSecondaryAction"><Label text="SAVE TO PRESET" \/><\/Button>/,
+      lane,
+    );
+    assert.equal(source.split('text="SAVE TO PRESET"').length - 1, 2, `${lane}: button label and dialog title`);
+    assert.equal(source.split('<Label text="+ NEW PRESET (ALL HEROES)" />').length - 1, 1, lane);
+    assert.equal(
+      source.split('Pick a preset to save your current settings into. Its HEROES stay the same.').length - 1,
+      1,
+      lane,
+    );
+    assert.equal(source.split('id="HPColorsSaveToCloseButton"').length - 1, 1, lane);
+    // Ghoul opacity is gone from every layout.
+    assert.doesNotMatch(source, /HPColorsGhoulOpacity/, lane);
+    assert.doesNotMatch(source, /GHOUL/i, lane);
   }
   for (const className of ['HPColorsPresetRowSave', 'HPColorsPresetRowRevert']) {
     assert.match(menuSource, new RegExp(`"${className}"`));
@@ -2619,4 +2653,609 @@ test('layout parity: exit dialog, no-source banner, hint, and cancel hooks exist
   assert.match(menuStyleSource, /\.HPColorsPresetOption\.Changed \{/);
   assert.match(menuStyleSource, /\.HPColorsPresetOption\.RowChanged \.HPColorsPresetRowEdit/);
   assert.match(menuStyleSource, /\.HPColorsExitSaveButton\.Disabled \{/);
+  assert.match(menuStyleSource, /\.HPColorsSaveToOption\.Confirming \{/);
+  assert.match(menuStyleSource, /#HPColorsSaveToPresetButton\.Unsaved \{/);
+});
+
+// ---------------------------------------------------------------------------
+// Retired ghoul opacity: an old save may still carry it, nothing shows it.
+
+test('an old save carrying ghoul opacity boots, publishes no ghoul keys, and the editor has no ghoul controls', () => {
+  const rule = { slot: 1, minTier: 1, value: 20 };
+  const oldValues = { enemyLow: '#123456', ghoulOpacityEnabled: true, ghoulOpacity: 35 };
+  const fixture = bootMenu({
+    version: 1,
+    values: oldValues,
+    conditions: { ghoulOpacity: rule },
+    scopes: [{
+      id: 'scope_current',
+      mode: 'all',
+      heroes: [],
+      values: oldValues,
+      conditions: { ghoulOpacity: rule },
+    }],
+    userPresets: [{
+      id: 'user_0001',
+      kind: 'user',
+      name: 'Old',
+      mode: 'all',
+      heroes: [],
+      values: oldValues,
+      conditions: { ghoulOpacityEnabled: { slot: 1, minTier: 1, value: true } },
+      own: ['ghoulOpacity'],
+    }],
+  });
+  assert.equal(typeof panel(fixture, 'HPColorsMenuButton').events.onactivate, 'function');
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), true);
+
+  const config = readConfig(fixture);
+  assert.equal(config.values.enemyLow, '#123456');
+  for (const key of ['ghoulOpacityEnabled', 'ghoulOpacity'])
+    assert.equal(Object.hasOwn(config.values, key), false, key);
+  assert.doesNotMatch(JSON.stringify(readMenuState(fixture)), /ghoul/i);
+
+  selectEnemyBar(fixture);
+  for (const id of [
+    'HPColorsGhoulOpacityToggle', 'HPColorsGhoulOpacityRow', 'HPColorsGhoulOpacitySliderHost',
+    'HPColorsGhoulOpacitySlider', 'HPColorsGhoulOpacityEntry',
+  ])
+    assert.equal(fixture.harness.root.FindChildTraverse(id), null, id);
+  const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
+  assert.doesNotMatch(JSON.stringify(categories), /ghoul/i);
+
+  // The section still resets and publishes without the retired pair.
+  requestReset(fixture);
+  confirmReset(fixture);
+  assert.doesNotMatch(JSON.stringify(readConfig(fixture)), /ghoul/i);
+  assert.doesNotMatch(JSON.stringify(readMenuState(fixture)), /ghoul/i);
+});
+
+// ---------------------------------------------------------------------------
+// Footer SAVE TO PRESET: overwrite a chosen user preset with the live settings,
+// or save them as a new All Heroes preset, without ever changing HEROES.
+
+function saveToPresetState() {
+  return {
+    version: 1,
+    values: {},
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001', kind: 'user', name: 'Everyone', mode: 'all', heroes: [],
+        values: { enemyLow: '#222222' }, conditions: null,
+      },
+      {
+        id: 'user_0002', kind: 'user', name: 'Haze Only', mode: 'selected', heroes: ['hero_haze'],
+        values: { enemyLow: '#333333' }, own: ['enemyLow'], conditions: null,
+      },
+    ],
+  };
+}
+
+function saveToButton(fixture) {
+  return panel(fixture, 'HPColorsSaveToPresetButton');
+}
+
+function saveToDialog(fixture) {
+  return panel(fixture, 'HPColorsSaveToDialog');
+}
+
+function openSaveTo(fixture) {
+  const button = saveToButton(fixture);
+  assert.equal(typeof button.events.onactivate, 'function');
+  button.events.onactivate();
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), true);
+}
+
+function saveToRows(fixture) {
+  return panel(fixture, 'HPColorsSaveToOptions').Children();
+}
+
+function saveToRowIds(fixture) {
+  return saveToRows(fixture).map((row) => row.GetAttributeString('hp_colors_save_to_id', ''));
+}
+
+function saveToRow(fixture, presetId) {
+  const found = saveToRows(fixture).find(
+    (row) => row.GetAttributeString('hp_colors_save_to_id', '') === presetId,
+  );
+  assert.ok(found, `expected SAVE TO row ${presetId}`);
+  return found;
+}
+
+function saveToRowPart(fixture, presetId, className) {
+  const part = saveToRow(fixture, presetId).FindChildrenWithClassTraverse(className)[0];
+  assert.ok(part, `expected ${className} in SAVE TO row ${presetId}`);
+  return part;
+}
+
+function saveToRowSave(fixture, presetId) {
+  return saveToRowPart(fixture, presetId, 'HPColorsSaveToRowSave');
+}
+
+function saveToRowState(fixture, presetId) {
+  return {
+    armed: saveToRow(fixture, presetId).BHasClass('Confirming'),
+    button: saveToRowSave(fixture, presetId).Children()[0].text,
+    message: saveToRowPart(fixture, presetId, 'HPColorsSaveToOptionMessage').text,
+    tag: saveToRowPart(fixture, presetId, 'HPColorsSaveToOptionTag').text,
+  };
+}
+
+function armAndConfirmSaveTo(fixture, presetId) {
+  saveToRowSave(fixture, presetId).events.onactivate();
+  assert.equal(saveToRowState(fixture, presetId).armed, true);
+  saveToRowSave(fixture, presetId).events.onactivate();
+}
+
+test('SAVE TO PRESET: the first SAVE only arms; the second replaces that preset, keeps its HEROES, and applies it', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  setWidthWithoutGesture(fixture, 150);
+  assertChangedRow(fixture, 'user_0001');
+  const everyoneBefore = savedPreset(fixture, 'user_0001');
+
+  openSaveTo(fixture);
+  assert.equal(saveToDialog(fixture).focused, true);
+  // Only user presets are offered, in list order. Rewrite Default never is.
+  assert.deepEqual(saveToRowIds(fixture), ['user_0001', 'user_0002']);
+  // The preset the live settings came from is tagged so players find it fast.
+  assert.deepEqual(saveToRowState(fixture, 'user_0001'), {
+    armed: false, button: 'SAVE', message: '', tag: 'CHANGED',
+  });
+  assert.deepEqual(saveToRowState(fixture, 'user_0002'), {
+    armed: false, button: 'SAVE', message: '', tag: '',
+  });
+  // The row body does nothing; only its own SAVE button acts.
+  assert.equal(saveToRow(fixture, 'user_0002').events.onactivate, undefined);
+
+  saveToRowSave(fixture, 'user_0002').events.onactivate();
+  assert.deepEqual(saveToRowState(fixture, 'user_0002'), {
+    armed: true, button: 'REPLACE?', message: 'CLICK AGAIN TO REPLACE HAZE ONLY', tag: '',
+  });
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), true);
+  assert.equal(savedPreset(fixture, 'user_0002').values.widthScale, 100, 'the first click saves nothing');
+
+  saveToRowSave(fixture, 'user_0002').events.onactivate();
+  const saved = savedPreset(fixture, 'user_0002');
+  assert.equal(saved.name, 'Haze Only');
+  assert.equal(saved.mode, 'selected');
+  assert.deepEqual(saved.heroes, ['hero_haze']);
+  assert.equal(saved.values.widthScale, 150);
+  assert.ok(saved.own.includes('widthScale'));
+  assert.deepEqual(savedPreset(fixture, 'user_0001'), everyoneBefore);
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+
+  // The live settings now belong to the saved preset.
+  assert.equal(currentScope(fixture).sourcePresetId, 'user_0002');
+  assert.equal(currentScope(fixture).mode, 'selected');
+  assert.deepEqual(currentScope(fixture).heroes, ['hero_haze']);
+  assert.equal(readConfig(fixture).values.widthScale, 150);
+  assertPlainUserRow(fixture, 'user_0001', '');
+  assertPlainUserRow(fixture, 'user_0002', 'ACTIVE');
+  assert.equal(presetFeedback(fixture), 'SAVED HAZE ONLY.');
+  assert.equal(saveToButton(fixture).focused, true);
+
+  // A short header note confirms it, then the resting status returns.
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'SAVED TO HAZE ONLY.');
+  fixture.harness.scheduler.runByDelay(3);
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
+
+  // Nothing is left unsaved, so EXIT closes without the exit prompt.
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(exitDialog(fixture).open, false);
+  assert.equal(editorOpen(fixture), false);
+});
+
+test('SAVE TO PRESET is not undoable, but applying the saved preset afterwards is', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  setWidthWithoutGesture(fixture, 150);
+  openSaveTo(fixture);
+  armAndConfirmSaveTo(fixture, 'user_0002');
+  assert.equal(currentScope(fixture).sourcePresetId, 'user_0002');
+
+  const undo = panel(fixture, 'HPColorsUndoButton');
+  assert.equal(undo.enabled, true);
+  undo.events.onactivate();
+  assert.equal(currentScope(fixture).mode, 'all');
+  assert.equal(currentScope(fixture).sourcePresetId, 'user_0001');
+  assert.equal(readConfig(fixture).values.widthScale, 150);
+  assert.equal(savedPreset(fixture, 'user_0002').values.widthScale, 150, 'the saved preset keeps its settings');
+});
+
+test('SAVE TO PRESET warns when the top All Heroes preset would also change hero presets', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  openSaveTo(fixture);
+  saveToRowSave(fixture, 'user_0001').events.onactivate();
+  assert.equal(
+    saveToRowState(fixture, 'user_0001').message,
+    'CLICK AGAIN TO REPLACE EVERYONE · ALSO CHANGES HERO PRESETS',
+  );
+  saveToRowSave(fixture, 'user_0002').events.onactivate();
+  assert.equal(saveToRowState(fixture, 'user_0001').message, '');
+  assert.equal(saveToRowState(fixture, 'user_0002').message, 'CLICK AGAIN TO REPLACE HAZE ONLY');
+
+  // Only the top All Heroes preset is the one hero presets inherit from.
+  const state = saveToPresetState();
+  state.userPresets.push({
+    id: 'user_0003', kind: 'user', name: 'Second All', mode: 'all', heroes: [],
+    values: { enemyLow: '#444444' }, conditions: null,
+  });
+  const second = bootMenu(state);
+  openPresetsForm(second);
+  openSaveTo(second);
+  saveToRowSave(second, 'user_0003').events.onactivate();
+  assert.equal(saveToRowState(second, 'user_0003').message, 'CLICK AGAIN TO REPLACE SECOND ALL');
+
+  // With no hero presets there is nothing else to warn about.
+  const plain = bootMenu(twoPresetState());
+  openPresetsForm(plain);
+  openSaveTo(plain);
+  saveToRowSave(plain, 'user_0001').events.onactivate();
+  assert.equal(saveToRowState(plain, 'user_0001').message, 'CLICK AGAIN TO REPLACE SHIV COLORS');
+});
+
+test('SAVE TO PRESET disarms on another row, timeout, cancel, Escape, and reopen; a timeout never saves', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  setWidthWithoutGesture(fixture, 150);
+  const before = readMenuState(fixture).userPresets;
+  const timers = () => fixture.harness.scheduler.jobs.filter((job) => Number(job.delay) === 4);
+  const armed = (id) => saveToRowState(fixture, id).armed;
+  openSaveTo(fixture);
+
+  // Arming another row disarms the first; the older timer cannot touch the newer arm.
+  saveToRowSave(fixture, 'user_0001').events.onactivate();
+  saveToRowSave(fixture, 'user_0002').events.onactivate();
+  assert.equal(armed('user_0001'), false);
+  assert.equal(saveToRowState(fixture, 'user_0001').button, 'SAVE');
+  assert.equal(armed('user_0002'), true);
+  assert.equal(timers().length, 2);
+  timers()[0].fn();
+  assert.equal(armed('user_0002'), true, 'a stale timer is ignored');
+  timers()[1].fn();
+  assert.equal(armed('user_0002'), false, 'the live timer disarms');
+  assert.deepEqual(readMenuState(fixture).userPresets, before, 'a timeout never saves');
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), true);
+
+  // After a timeout one click arms again instead of saving.
+  saveToRowSave(fixture, 'user_0002').events.onactivate();
+  assert.equal(armed('user_0002'), true);
+  assert.deepEqual(readMenuState(fixture).userPresets, before);
+
+  // CANCEL closes; reopening rebuilds the rows unarmed.
+  panel(fixture, 'HPColorsSaveToCloseButton').events.onactivate();
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+  openSaveTo(fixture);
+  assert.equal(armed('user_0002'), false);
+  assert.deepEqual(readMenuState(fixture).userPresets, before);
+
+  // Escape closes; reopening is unarmed again, and every older timer stays inert.
+  saveToRowSave(fixture, 'user_0001').events.onactivate();
+  assert.equal(armed('user_0001'), true);
+  assert.equal(harnessCancel(fixture), true);
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+  openSaveTo(fixture);
+  assert.equal(armed('user_0001'), false);
+  saveToRowSave(fixture, 'user_0001').events.onactivate();
+  const pending = timers();
+  pending.slice(0, -1).forEach((job) => job.fn());
+  assert.equal(armed('user_0001'), true, 'timers from earlier arms cannot disarm this one');
+  pending[pending.length - 1].fn();
+  assert.equal(armed('user_0001'), false);
+
+  // Closing the editor also ends the arm.
+  saveToRowSave(fixture, 'user_0001').events.onactivate();
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+  openEditor(fixture);
+  openSaveTo(fixture);
+  assert.equal(armed('user_0001'), false);
+  assert.deepEqual(readMenuState(fixture).userPresets, before);
+});
+
+test('an open SAVE TO PRESET dialog follows the current source and keeps its arm', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  setWidthWithoutGesture(fixture, 150);
+  openSaveTo(fixture);
+  saveToRowSave(fixture, 'user_0002').events.onactivate();
+  assert.equal(saveToRowState(fixture, 'user_0001').tag, 'CHANGED');
+  assert.equal(saveToRow(fixture, 'user_0001').BHasClass('Changed'), true);
+
+  // UNDO (behind the dialog) puts the settings back on the saved preset: the
+  // tag follows, the armed row stays armed, and the rows are not rebuilt.
+  const rowsBefore = saveToRows(fixture);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(saveToRowState(fixture, 'user_0001').tag, '');
+  assert.equal(saveToRow(fixture, 'user_0001').BHasClass('Changed'), false);
+  assert.equal(saveToRowState(fixture, 'user_0002').armed, true);
+  assert.deepEqual(saveToRows(fixture), rowsBefore);
+});
+
+test('SAVE TO PRESET re-reads its target: a preset deleted under an armed row saves nothing', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  setWidthWithoutGesture(fixture, 150);
+  openSaveTo(fixture);
+  saveToRowSave(fixture, 'user_0002').events.onactivate();
+  const staleSave = saveToRowSave(fixture, 'user_0002');
+
+  // The delete flow lives behind the dialog backdrop; drive it directly.
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowDelete').events.onactivate();
+  presetRowControl(fixture, 'user_0002', 'HPColorsPresetRowConfirm').events.onactivate();
+  assert.equal(readMenuState(fixture).userPresets.length, 1);
+
+  staleSave.events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSaveToFeedback').text, 'THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.');
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), true);
+  assert.deepEqual(saveToRowIds(fixture), ['user_0001']);
+  assert.equal(readMenuState(fixture).userPresets.length, 1);
+  assert.equal(savedPreset(fixture, 'user_0001').values.widthScale, 100);
+});
+
+test('SAVE TO PRESET lists only user presets with HEROES summaries, and explains an empty list', () => {
+  const state = saveToPresetState();
+  state.userPresets.push({
+    id: 'user_0003', kind: 'user', name: 'Skip Some', mode: 'except',
+    heroes: ['hero_haze', 'hero_shiv', 'hero_atlas'], values: {}, conditions: null,
+  });
+  const fixture = bootMenu(state);
+  openPresetsForm(fixture);
+  assert.ok(presetOption(fixture, 'baked_default'), 'Rewrite Default is a library row');
+  openSaveTo(fixture);
+  assert.deepEqual(saveToRowIds(fixture), ['user_0001', 'user_0002', 'user_0003']);
+  const label = (id, className) => saveToRowPart(fixture, id, className).text;
+  assert.deepEqual(
+    ['user_0001', 'user_0002', 'user_0003'].map((id) => [
+      label(id, 'HPColorsSaveToOptionName'),
+      label(id, 'HPColorsSaveToOptionScope'),
+    ]),
+    [
+      ['Everyone', 'ALL HEROES'],
+      ['Haze Only', 'ONLY THESE — Haze'],
+      ['Skip Some', 'ALL EXCEPT — Abrams, Haze +1'],
+    ],
+  );
+  assert.equal(panel(fixture, 'HPColorsSaveToFeedback').text, '');
+
+  const empty = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(empty);
+  openSaveTo(empty);
+  assert.deepEqual(saveToRowIds(empty), []);
+  assert.equal(
+    panel(empty, 'HPColorsSaveToFeedback').text,
+    'No presets yet. NEW PRESET saves your settings as one.',
+  );
+  // The new-preset button still works with an empty list.
+  panel(empty, 'HPColorsSaveToNewButton').events.onactivate();
+  assert.equal(savedPreset(empty, 'user_0001').name, 'PRESET 1');
+  openSaveTo(empty);
+  assert.deepEqual(saveToRowIds(empty), ['user_0001']);
+  assert.equal(panel(empty, 'HPColorsSaveToFeedback').text, '');
+});
+
+test('SAVE TO PRESET + NEW PRESET (ALL HEROES) saves the live hero settings as PRESET 3 for all heroes and applies it', () => {
+  const fixture = bootLayeredMenu('SHIV');
+  openPresetsForm(fixture);
+  setWidthWithoutGesture(fixture, 170);
+  const everyoneBefore = savedPreset(fixture, 'user_0001');
+  const shivBefore = savedPreset(fixture, 'user_0002');
+  assert.deepEqual(rowStatus(fixture, 'user_0002'), { active: false, text: 'CHANGED' });
+
+  openSaveTo(fixture);
+  panel(fixture, 'HPColorsSaveToNewButton').events.onactivate();
+
+  const created = savedPreset(fixture, 'user_0003');
+  assert.equal(created.name, 'PRESET 3');
+  assert.equal(created.mode, 'all');
+  assert.deepEqual(created.heroes, []);
+  assert.equal(created.values.widthScale, 170);
+  assert.equal(created.values.enemyLow, '#222222');
+  assert.equal(Object.hasOwn(created, 'own'), false);
+  assert.deepEqual(savedPreset(fixture, 'user_0001'), everyoneBefore);
+  assert.deepEqual(savedPreset(fixture, 'user_0002'), shivBefore);
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+
+  // It is applied: the live settings belong to it and apply to all heroes.
+  assert.equal(currentScope(fixture).mode, 'all');
+  assert.deepEqual(currentScope(fixture).heroes, []);
+  assert.equal(currentScope(fixture).sourcePresetId, 'user_0003');
+  assert.equal(readConfig(fixture).values.widthScale, 170);
+  assert.deepEqual(rowStatus(fixture, 'user_0003'), { active: true, text: 'ACTIVE' });
+  assert.deepEqual(rowStatus(fixture, 'user_0002'), { active: false, text: '' });
+  assert.equal(presetFeedback(fixture), 'SAVED PRESET 3.');
+  assert.equal(
+    panel(fixture, 'HPColorsLiveStatus').text,
+    'SAVED AS PRESET 3. SET ITS HEROES ON PRESETS.',
+  );
+  fixture.harness.scheduler.runByDelay(3);
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, STATUS_WITHOUT_STORE);
+
+  panel(fixture, 'HPColorsDoneButton').events.onactivate();
+  assert.equal(exitDialog(fixture).open, false);
+  assert.equal(editorOpen(fixture), false);
+});
+
+test('SAVE TO PRESET + NEW PRESET skips a taken PRESET number, ignoring case', () => {
+  const state = layeredMenuState();
+  state.userPresets[0].name = 'preset 3';
+  const fixture = bootLayeredMenu('SHIV', state);
+  openPresetsForm(fixture);
+  openSaveTo(fixture);
+  panel(fixture, 'HPColorsSaveToNewButton').events.onactivate();
+  assert.equal(savedPreset(fixture, 'user_0003').name, 'PRESET 4');
+  assert.equal(
+    panel(fixture, 'HPColorsLiveStatus').text,
+    'SAVED AS PRESET 4. SET ITS HEROES ON PRESETS.',
+  );
+});
+
+test('Escape closes SAVE TO PRESET first and keeps the editor open, ahead of the exit prompt', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  assert.equal(saveToButton(fixture).focused, false);
+  openSaveTo(fixture);
+  assert.equal(harnessCancel(fixture), true);
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+  assert.equal(editorOpen(fixture), true);
+  assert.equal(saveToButton(fixture).focused, true);
+  assert.equal(harnessCancel(fixture), true);
+  assert.equal(editorOpen(fixture), false);
+
+  // The backdrop and the dialog's own cancel event close it as well.
+  openEditor(fixture);
+  openSaveTo(fixture);
+  panel(fixture, 'HPColorsSaveToBackdrop').events.onactivate();
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+  openSaveTo(fixture);
+  saveToDialog(fixture).events.oncancel();
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+  assert.equal(editorOpen(fixture), true);
+
+  // With a CHANGED source the dialog still goes first; the next cancel prompts.
+  const changed = changedFixture();
+  openSaveTo(changed);
+  assert.equal(harnessCancel(changed), true);
+  assert.equal(saveToDialog(changed).BHasClass('Open'), false);
+  assert.equal(exitDialog(changed).open, false);
+  assert.equal(editorOpen(changed), true);
+  assert.equal(harnessCancel(changed), true);
+  assert.equal(exitDialog(changed).open, true);
+});
+
+test('opening SAVE TO PRESET closes the other dialogs and the color picker', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  const closed = (id) => panel(fixture, id).BHasClass('Open') === false;
+
+  panel(fixture, 'HPColorsTransferButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsTransferDialog').BHasClass('Open'), true);
+  openSaveTo(fixture);
+  assert.equal(closed('HPColorsTransferDialog'), true);
+  panel(fixture, 'HPColorsSaveToCloseButton').events.onactivate();
+
+  panel(fixture, 'HPColorsCurrentScopeSelected').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsScopeDialog').BHasClass('Open'), true);
+  openSaveTo(fixture);
+  assert.equal(closed('HPColorsScopeDialog'), true);
+  panel(fixture, 'HPColorsSaveToCloseButton').events.onactivate();
+
+  panel(fixture, 'HPColorsPresetImportButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPresetTransferDialog').BHasClass('Open'), true);
+  openSaveTo(fixture);
+  assert.equal(closed('HPColorsPresetTransferDialog'), true);
+  panel(fixture, 'HPColorsSaveToCloseButton').events.onactivate();
+
+  panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPickerRoot').BHasClass('Open'), true);
+  openSaveTo(fixture);
+  assert.equal(closed('HPColorsPickerRoot'), true);
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), true);
+});
+
+test('the footer SAVE TO PRESET button is disabled and inert while the preset name form is open', () => {
+  const fixture = bootMenu(saveToPresetState());
+  openPresetsForm(fixture);
+  const button = saveToButton(fixture);
+  assert.equal(button.enabled, true);
+  assert.equal(button.BHasClass('Disabled'), false);
+
+  panel(fixture, 'HPColorsPresetNewButton').events.onactivate();
+  assert.equal(button.enabled, false);
+  assert.equal(button.BHasClass('Disabled'), true);
+  button.events.onactivate();
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false, 'a disabled button opens nothing');
+
+  panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
+  assert.equal(button.enabled, true);
+  assert.equal(button.BHasClass('Disabled'), false);
+
+  // EDIT opens the same form, so it disables the button too.
+  presetRowControl(fixture, 'user_0001', 'HPColorsPresetRowEdit').events.onactivate();
+  assert.equal(button.enabled, false);
+  panel(fixture, 'HPColorsPresetCancelEditButton').events.onactivate();
+  assert.equal(button.enabled, true);
+  openSaveTo(fixture);
+});
+
+test('the SAVE TO PRESET button glows only while the preset the settings came from is CHANGED', () => {
+  // The harness has no store, so the header chip is not showing the preset
+  // name; the glow follows the saved-preset state on its own.
+  const glows = (fixture) => saveToButton(fixture).BHasClass('Unsaved');
+
+  // Nothing saved in a preset yet: no glow, with or without a live edit.
+  const none = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(none);
+  assert.equal(glows(none), false);
+  setWidthWithoutGesture(none, 150);
+  assert.equal(glows(none), false);
+
+  // Rewrite Default is never a source, so editing it does not glow.
+  const baked = bootMenu(twoPresetState());
+  openPresetsForm(baked);
+  presetRowMain(baked, 'baked_default').events.onactivate();
+  setWidthWithoutGesture(baked, 150);
+  assert.equal(glows(baked), false);
+
+  const fixture = bootMenu(twoPresetState());
+  openPresetsForm(fixture);
+  assert.equal(glows(fixture), false);
+  presetRowMain(fixture, 'user_0001').events.onactivate();
+  assert.equal(glows(fixture), false);
+
+  setWidthWithoutGesture(fixture, 150);
+  assert.equal(glows(fixture), true);
+  // The glow does not depend on which page is showing.
+  selectEnemyBar(fixture);
+  assert.equal(glows(fixture), true);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(glows(fixture), false);
+
+  // REVERT clears it.
+  setWidthWithoutGesture(fixture, 160);
+  assert.equal(glows(fixture), true);
+  leaveAndReturnToPresets(fixture);
+  rowAction(fixture, 'user_0001', 'HPColorsPresetRowRevert').events.onactivate();
+  assert.equal(glows(fixture), false);
+
+  // SAVE TO that preset clears it too.
+  setWidthWithoutGesture(fixture, 170);
+  assert.equal(glows(fixture), true);
+  openSaveTo(fixture);
+  armAndConfirmSaveTo(fixture, 'user_0001');
+  assert.equal(saveToDialog(fixture).BHasClass('Open'), false);
+  assert.equal(glows(fixture), false);
+  assert.equal(savedPreset(fixture, 'user_0001').values.widthScale, 170);
+
+  // Saving into a different preset moves the source there, still not glowing.
+  setWidthWithoutGesture(fixture, 120);
+  assert.equal(glows(fixture), true);
+  openSaveTo(fixture);
+  armAndConfirmSaveTo(fixture, 'user_0002');
+  assert.equal(currentScope(fixture).sourcePresetId, 'user_0002');
+  assert.equal(glows(fixture), false);
+});
+
+test('the SAVE TO PRESET CSS animates only opacity and uses no shadows or clipping', () => {
+  const css = menuStyleSource.replace(/\/\*[\s\S]*?\*\//g, '');
+  const blocks = Array.from(css.matchAll(/([^{}]*SaveTo[^{}]*)\{([^{}]*)\}/g));
+  assert.ok(blocks.length >= 6, 'SAVE TO PRESET rules exist');
+  for (const [, selector, body] of blocks) {
+    assert.doesNotMatch(body, /box-shadow|clip-path/, selector.trim());
+    const transition = body.match(/transition-property:\s*([^;]+);/);
+    if (transition) assert.equal(transition[1].trim(), 'opacity', selector.trim());
+  }
+  const pulse = css.match(/@keyframes\s+'([^']*SaveTo[^']*)'\s*\{([\s\S]*?)\r?\n\}/);
+  assert.ok(pulse, 'the glow has a keyframes block');
+  const properties = Array.from(pulse[2].matchAll(/([a-z-]+)\s*:/g), (match) => match[1]);
+  assert.ok(properties.length >= 2);
+  assert.deepEqual(Array.from(new Set(properties)), ['opacity']);
+  assert.match(css, new RegExp(`animation-name:\\s*${pulse[1]}\\s*;`));
 });

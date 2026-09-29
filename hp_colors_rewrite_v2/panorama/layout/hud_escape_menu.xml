@@ -322,24 +322,6 @@
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
-                      <Label text="USE CUSTOM GHOUL OPACITY" class="HPColorsSettingTitle" />
-                      <Label text="Apply one opacity value to the ghoul healthbar and ultimate-ready background." class="HPColorsSettingHelp" />
-                    </Panel>
-                    <Button id="HPColorsGhoulOpacityToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
-                  </Panel>
-                  <Panel id="HPColorsGhoulOpacityRow" class="HPColorsSettingRow HPColorsFollowedRow">
-                    <Panel class="HPColorsSettingCopy">
-                      <Label text="GHOUL HUD OPACITY" class="HPColorsSettingTitle" />
-                      <Label text="0% is nearly invisible. 100% keeps normal opacity." class="HPColorsSettingHelp" />
-                    </Panel>
-                    <Panel class="HPColorsSliderGroup">
-                      <Panel id="HPColorsGhoulOpacitySliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
-                      <TextEntry id="HPColorsGhoulOpacityEntry" class="HPColorsNumberEntry" text="100" />
-                      <Label text="%" class="HPColorsUnitLabel" />
-                    </Panel>
-                  </Panel>
-                  <Panel class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy">
                       <Label text="COLOR MODE" class="HPColorsSettingTitle" />
                       <Label text="Use fixed color steps or blend smoothly between them." class="HPColorsSettingHelp" />
                     </Panel>
@@ -912,6 +894,7 @@
               <Button id="HPColorsResetSectionButton" class="HPColorsSecondaryAction"><Label text="RESET SECTION" /></Button>
               <Button id="HPColorsTransferButton" class="HPColorsSecondaryAction"><Label text="IMPORT / EXPORT" /></Button>
               <Panel class="HPColorsFooterSpacer" />
+              <Button id="HPColorsSaveToPresetButton" class="HPColorsSecondaryAction"><Label text="SAVE TO PRESET" /></Button>
               <Button id="HPColorsDoneButton" class="HPColorsPrimaryAction"><Label text="EXIT" /></Button>
             </Panel>
           </Panel>
@@ -1091,6 +1074,20 @@
           <Panel id="HPColorsScopeOptions" class="HPColorsHeroOptions HPColorsScopeOptions" hittest="true" hittestchildren="true" />
           <Panel class="HPColorsTransferDialogActions">
             <Button id="HPColorsScopeCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel id="HPColorsSaveToDialog" class="HPColorsHeroDialog HPColorsSaveToDialog" hittest="false" hittestchildren="true">
+        <Button id="HPColorsSaveToBackdrop" class="HPColorsTransferDialogBackdrop" hittest="true" />
+        <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">
+          <Label class="HPColorsTransferDialogEyebrow" text="PRESETS" />
+          <Label class="HPColorsTransferDialogTitle" text="SAVE TO PRESET" />
+          <Label class="HPColorsTransferDialogMessage" text="Pick a preset to save your current settings into. Its HEROES stay the same." />
+          <Panel id="HPColorsSaveToOptions" class="HPColorsHeroOptions HPColorsSaveToOptions" hittest="true" hittestchildren="true" />
+          <Label id="HPColorsSaveToFeedback" class="HPColorsTransferFeedback" text="" />
+          <Panel class="HPColorsTransferDialogActions">
+            <Button id="HPColorsSaveToNewButton" class="HPColorsPrimaryAction"><Label text="+ NEW PRESET (ALL HEROES)" /></Button>
+            <Button id="HPColorsSaveToCloseButton" class="HPColorsSecondaryAction"><Label text="CANCEL" /></Button>
           </Panel>
         </Panel>
       </Panel>

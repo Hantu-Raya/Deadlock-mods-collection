@@ -12,7 +12,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 - Enemy and optional ally fixed/gradient colors with shared thresholds.
 - Independent enemy and ally team-high colors.
-- Reversible enemy/ally visibility, dimensions, position, ghoul opacity, healing, damage-delta, shield-indicator, and ultimate-icon coloring.
+- Reversible enemy/ally visibility, dimensions, position, healing, damage-delta, shield-indicator, and ultimate-icon coloring.
 - Neutral-first classification; neutral and unclassified targets never enter enemy coloring.
 - Enemy/ally CSS-driven low-HP pulse and enemy-player-only static kill marker.
 
@@ -31,6 +31,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 - Auto, Manual Override, and Off hero identity with lifecycle settling and stale-callback rejection.
 - The Preset Library manages durable All Heroes, Selected Heroes (Only These), and All Except snapshots, the hidden Rewrite Default fallback, and exact Selected → All Except → All Heroes → Rewrite Default routing.
 - Create stores Current without applying; clicking a preset row applies it; **EDIT** loads a preset and opens its form, and **SAVE** replaces that preset with what is on screen. Rename (through the form name field), reorder, copy, import, delete, hide, and restore remain available.
+- The footer **SAVE TO PRESET** button saves what is on screen into a saved preset without leaving the page: pick a preset (never Rewrite Default) or use **+ NEW PRESET (ALL HEROES)**. See Milestone 22.
 - `HPCRP1` single-record and bundle copy/import use atomic validation and preserve fresh monotonic user IDs, canonical typed ability conditions, and repository-only effects.
 - Session-scoped ability signature-tier conditions for serializable settings, with row markers, ability-card tier cycling, typed override editors, base fallback, and changed-effective-only publication.
 
@@ -109,12 +110,11 @@ The picker uses one modal panel and one active setting key. Closing, Escape, pag
 Implemented controls:
 
 - Independent stock team-color endpoints for enemy and ally high health; unknown teams retain each relation's configured high color.
-- Full-ghoul-healthbar opacity applies independently of bar colors.
 - Horizontal and vertical translation of the complete healthbar stack. The unit stays fixed. One shared toggle makes the level badge and ultimate icon follow the bar's measured left edge or remain at their stock positions.
 - Independent horizontal and vertical offsets for the level badge and ultimate icon. These offsets apply in both anchor modes.
 - One shared ultimate-ready icon rule: Follow Bar uses each customized relation's final bar color; Custom applies one color to enemy and ally icons even when their bar-color toggle is off.
 
-The renderer classifies relation, team, player, building, sentry, boss, and creature-class ghoul facts in the existing ancestry pass. Neutral classification remains authoritative. Building and boss facts restrict player-only level and kill-marker behavior. Sentry and minion facts select stock dimensions. Ghoul opacity applies one value to the cached `UnitHealthbarContainer` and `unit_info_bg`. Zero uses `opacity: 0.01` to preserve engine width updates. The slider and number entry stay disabled until custom ghoul opacity is enabled.
+The renderer classifies relation, team, player, building, sentry, boss, and minion facts in the existing ancestry pass. Neutral classification remains authoritative. Building and boss facts restrict player-only level and kill-marker behavior. Sentry and minion facts select stock dimensions. Custom ghoul opacity was retired: nothing reads, shows, or publishes it (see Milestone 22).
 
 The v1 implementation passed its focused automated and in-game checks before this port. Rewrite v2 still requires its own fresh-restart in-game smoke before parity can be claimed.
 
@@ -272,6 +272,14 @@ Bar and HP-text offset ranges remain wider than the visible viewport by design. 
 **Ally → HP TEXT** sits alongside the enemy text page and exposes visibility, format, size, font, Bar Color or Custom Fixed/Gradient low/mid/high colors, team-colored maximum HP, and horizontal/vertical offsets. Ally text is off by default and never changes enemy text. Bar Color follows ally bar colors and mode using the shared thresholds; enemy pulse text modifiers stay enemy-only.
 
 The twelve `allyReadout*` settings append to the versioned `hpv2` extension, so older HPCR2 and HPCRP1 codes keep their defaults. Health sampling stays on the paint cadence whenever relation colors or HP text are visible. Ally's default offsets copy the enemy defaults; ally text alignment still needs an in-game check because ally bars have no level badge.
+
+## Milestone 22: footer SAVE TO PRESET and retired ghoul opacity
+
+**SAVE TO PRESET** sits in the editor footer between the spacer and EXIT and opens a dialog with one row per saved user preset, in library order: its name, its HEROES summary, a small **CHANGED** tag on the preset the settings on screen came from, and its own **SAVE** button. The row body does nothing. The first **SAVE** click arms only that row (**REPLACE?** and `CLICK AGAIN TO REPLACE <NAME>`, plus ` · ALSO CHANGES HERO PRESETS` on the top All Heroes preset while hero presets exist); a second click on the same button writes the settings and ability conditions on screen into that preset with the `preset_save_to {id}` intent, which keeps the preset's id, name, and HEROES and stores hero presets' `own` keys against the current Base. Arming another row, a four-second timeout (never a save), closing, Escape, or reopening disarms. **+ NEW PRESET (ALL HEROES)** deselects, then calls `preset_save` with `allHeroes: true` to create `PRESET N` for all heroes (N is the next free number, skipping a taken name in any case); `allHeroes` always creates and can never rewrite an existing preset's HEROES.
+
+After either save the dialog closes and the saved preset is applied, so it is ACTIVE, the previous source's CHANGED marker clears, EXIT does not prompt, and a three-second header note reads `SAVED TO <NAME>.` or `SAVED AS <NAME>. SET ITS HEROES ON PRESETS.`. Saving is not undoable; the apply is. The footer button is disabled while the preset name form is open, Escape closes the dialog before anything else, and the button pulses amber only while the preset the settings came from is CHANGED (never for Rewrite Default or settings no preset owns). Nothing saves into a preset automatically; the automatic PC save of the live settings is unchanged. To fit six actions, the footer buttons use compact fixed widths with shrinking labels.
+
+**Ghoul opacity** (`ghoulOpacityEnabled`, `ghoulOpacity`) is retired like the earlier exclusions: no editor controls, no renderer branch, and no published keys. Codec slots 68–69 stay reserved so later slots keep their positions. Old saves, presets, HPCR2 codes, and HPCRP1 codes that carry them, in values, ability rules, or hero-preset `own` keys, still load with them dropped; a rule set that held only ghoul rules loads as no rules. Rules on any other unknown key still reject the import.
 
 ## Priority 8 runtime measurement baseline
 
