@@ -2027,3 +2027,251 @@ test('hideout keeps Manual and Off routes, and pregame lobby keeps the hero pres
   const bogus = send(lobby, 'lifecycle_observe', { epoch: 3, phase: 'hideaway' });
   assert.equal(bogus.status, 'rejected');
 });
+
+function settleHero(state, epoch, heroName) {
+  send(state, 'lifecycle_observe', { epoch, phase: 'active' });
+  send(state, 'hero_observe', { epoch, heroName });
+  return send(state, 'hero_observe', { epoch, heroName });
+}
+
+function autoState(userPresets, overrides = {}) {
+  const state = createState(makeSession({ userPresets, ...overrides }));
+  send(state, 'hero_mode', { mode: 'auto' });
+  return state;
+}
+
+test('All Except routing order is Only These, All Except, All Heroes, then Rewrite Default', () => {
+  const presets = [
+    rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111' } }),
+    rawPreset({ id: 'user_0002', name: 'Skip Haze A', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0003', name: 'Skip Haze B', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#333333' } }),
+    rawPreset({ id: 'user_0004', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#444444' } }),
+  ];
+  const state = autoState(presets);
+  assert.equal(row(state.read(), 'user_0002').mode, 'except');
+  assert.deepEqual(row(state.read(), 'user_0002').heroes, ['hero_haze']);
+
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0004');
+  assert.equal(shiv.view.effectiveValues.enemyLow, '#444444');
+
+  send(state, 'hero_mode', { mode: 'manual' });
+  const abrams = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(abrams.view.identity.effectiveHeroKey, 'hero_atlas');
+  assert.equal(abrams.view.repository.activeId, 'user_0002');
+  assert.equal(abrams.view.effectiveValues.enemyLow, '#222222');
+
+  const moved = send(state, 'preset_move', { id: 'user_0003', delta: -1 });
+  assert.equal(moved.view.repository.activeId, 'user_0002');
+  send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  const abramsAgain = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(abramsAgain.view.repository.activeId, 'user_0003');
+  assert.equal(abramsAgain.view.effectiveValues.enemyLow, '#333333');
+
+  const skipped = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(skipped.view.repository.activeId, 'user_0001');
+  assert.equal(skipped.view.effectiveValues.enemyLow, '#111111');
+
+  const noAll = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+  ]);
+  const shivNoAll = settleHero(noAll, 1, 'SHIV');
+  assert.equal(shivNoAll.view.repository.activeId, 'user_0001');
+  assert.equal(shivNoAll.view.effectiveValues.enemyLow, '#222222');
+  const hazeNoAll = settleHero(noAll, 2, 'HAZE');
+  assert.equal(hazeNoAll.view.repository.activeId, 'baked_default');
+  assert.equal(hazeNoAll.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+});
+
+test('All Except save keeps Rewrite Default visible and keeps the skip list on create and update', () => {
+  const state = createState();
+  const scoped = send(state, 'scope_set', { mode: 'except', heroes: ['hero_shiv', 'hero_haze', 'hero_haze'] });
+  assert.equal(scoped.status, 'committed');
+  assert.equal(currentScope(scoped.view).mode, 'except');
+  assert.deepEqual(currentScope(scoped.view).heroes, ['hero_haze', 'hero_shiv']);
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#123456' });
+
+  const created = send(state, 'preset_save', { name: 'Skip Two' });
+  assert.equal(created.status, 'committed');
+  const id = created.view.repository.selectedId;
+  assert.equal(row(created.view, id).mode, 'except');
+  assert.deepEqual(row(created.view, id).heroes, ['hero_haze', 'hero_shiv']);
+  assert.equal(created.view.repository.hiddenBakedIds.includes('baked_default'), false);
+  assert.equal(visibleRows(created.view).some((candidate) => candidate.id === 'baked_default'), true);
+
+  send(state, 'scope_set', { mode: 'except', heroes: ['hero_haze'] });
+  const updated = send(state, 'preset_save', { name: 'Skip Haze' });
+  assert.equal(updated.code, 'PRESET_UPDATED');
+  assert.equal(row(updated.view, id).mode, 'except');
+  assert.deepEqual(row(updated.view, id).heroes, ['hero_haze']);
+  assert.equal(visibleRows(updated.view).some((candidate) => candidate.id === 'baked_default'), true);
+});
+
+test('All Except scope_set normalizes empty to all, accepts every hero, and survives Reset then Undo', () => {
+  const state = createState();
+  const empty = send(state, 'scope_set', { mode: 'except', heroes: [] });
+  assert.equal(empty.status, 'committed');
+  assert.equal(currentScope(empty.view).mode, 'all');
+  assert.deepEqual(currentScope(empty.view).heroes, []);
+
+  const everyHero = state.read().heroes.map(({ key }) => key);
+  const all = send(state, 'scope_set', { mode: 'except', heroes: everyHero });
+  assert.equal(all.status, 'committed');
+  assert.equal(currentScope(all.view).mode, 'except');
+  assert.deepEqual(currentScope(all.view).heroes, everyHero);
+
+  send(state, 'scope_set', { mode: 'except', heroes: ['hero_haze', 'hero_shiv'] });
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#123456' });
+  const request = send(state, 'reset_request', { keys: ['enemyLow'] });
+  const reset = send(state, 'reset_confirm', { token: request.view.transactions.confirmation.token });
+  assert.equal(reset.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+  assert.equal(currentScope(reset.view).mode, 'except');
+  const undone = send(state, 'undo');
+  assert.equal(undone.view.effectiveValues.enemyLow, '#123456');
+  assert.equal(currentScope(undone.view).mode, 'except');
+  assert.deepEqual(currentScope(undone.view).heroes, ['hero_haze', 'hero_shiv']);
+});
+
+test('All Except never matches an unknown hero, and Auto hideout drops an except Current', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+  ]);
+  const before = state.read();
+  const unknown = settleHero(state, 1, '');
+  assert.equal(unknown.view.identity.effectiveHeroKey, '');
+  assert.notEqual(unknown.view.repository.activeId, 'user_0001');
+  assert.deepEqual(unknown.view.effectiveValues, before.effectiveValues);
+
+  const shiv = settleHero(state, 2, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  assert.equal(currentScope(shiv.view).mode, 'except');
+  const hideout = send(state, 'lifecycle_observe', { epoch: 3, phase: 'hideout' });
+  assert.equal(hideout.view.repository.activeId, 'baked_default');
+  assert.equal(hideout.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+
+  const withAll = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'All', mode: 'all', values: { enemyLow: '#333333' } }),
+  ]);
+  assert.equal(settleHero(withAll, 1, 'SHIV').view.repository.activeId, 'user_0001');
+  const allHideout = send(withAll, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(allHideout.view.repository.activeId, 'user_0002');
+  assert.equal(allHideout.view.effectiveValues.enemyLow, '#333333');
+});
+
+test('All Except explicit apply works on a skipped hero, and Manual mode routes past it', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'All', mode: 'all', values: { enemyLow: '#333333' } }),
+  ]);
+  const haze = settleHero(state, 1, 'HAZE');
+  assert.equal(haze.view.repository.activeId, 'user_0002');
+  const applied = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.equal(applied.status, 'committed');
+  assert.equal(applied.view.repository.activeId, 'user_0001');
+  assert.equal(applied.view.effectiveValues.enemyLow, '#222222');
+  assert.equal(currentScope(applied.view).mode, 'except');
+  assert.deepEqual(currentScope(applied.view).heroes, ['hero_haze']);
+
+  send(state, 'hero_mode', { mode: 'manual' });
+  const shiv = send(state, 'hero_manual', { heroKey: 'hero_shiv' });
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  const manualHaze = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(manualHaze.view.identity.effectiveHeroKey, 'hero_haze');
+  assert.equal(manualHaze.view.repository.activeId, 'user_0002');
+  assert.equal(manualHaze.view.effectiveValues.enemyLow, '#333333');
+});
+
+test('All Except edited Current stays on non-skipped heroes and routes away on a skipped hero', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'All', mode: 'all', values: { enemyLow: '#333333' } }),
+  ]);
+  send(state, 'hero_mode', { mode: 'manual' });
+  assert.equal(send(state, 'hero_manual', { heroKey: 'hero_shiv' }).view.repository.activeId, 'user_0001');
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  send(state, 'condition_set', { key: 'enemyVisible', slot: 2, minTier: 1, value: false });
+
+  const kept = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(kept.view.effectiveValues.enemyLow, '#ABCDEF');
+  assert.equal(currentScope(kept.view).mode, 'except');
+  assert.deepEqual(currentScope(kept.view).conditions.enemyVisible, { slot: 2, minTier: 1, value: false });
+  assert.deepEqual(kept.view.ability.requiredSlots, [false, true, false, false]);
+
+  const away = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(away.view.repository.activeId, 'user_0002');
+  assert.equal(away.view.effectiveValues.enemyLow, '#333333');
+  assert.deepEqual(away.view.ability.requiredSlots, [false, false, false, false]);
+});
+
+test('All Except conditions and required ability slots follow the preset in effect', () => {
+  const state = autoState([
+    rawPreset({
+      id: 'user_0001', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'],
+      conditions: { enemyLow: { slot: 4, minTier: 1, value: '#444444' } },
+    }),
+    rawPreset({
+      id: 'user_0002', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'],
+      conditions: { enemyVisible: { slot: 2, minTier: 1, value: false } },
+    }),
+    rawPreset({
+      id: 'user_0003', name: 'All', mode: 'all',
+      conditions: { enemyLow: { slot: 1, minTier: 1, value: '#111111' } },
+    }),
+  ]);
+  send(state, 'hero_mode', { mode: 'manual' });
+  const atlas = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(atlas.view.repository.activeId, 'user_0002');
+  assert.deepEqual(atlas.view.ability.requiredSlots, [false, true, false, false]);
+  const active = send(state, 'ability_observe', { epoch: atlas.view.identity.epoch, tiers: [0, 1, 0, 0] });
+  assert.equal(active.view.effectiveValues.enemyVisible, false);
+
+  const shiv = send(state, 'hero_manual', { heroKey: 'hero_shiv' });
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  assert.deepEqual(shiv.view.ability.requiredSlots, [false, false, false, true]);
+
+  const haze = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(haze.view.repository.activeId, 'user_0003');
+  assert.deepEqual(haze.view.ability.requiredSlots, [true, false, false, false]);
+});
+
+test('All Except preset codes round-trip, including a preset that skips every hero, and empty lists reject atomically', () => {
+  const everyHero = createState().read().heroes.map(({ key }) => key);
+  const source = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+      rawPreset({ id: 'user_0002', name: 'Skip Everyone', mode: 'except', heroes: everyHero }),
+    ],
+    selectedPresetId: 'user_0002',
+  }));
+  const selectedCode = effect(send(source, 'preset_copy_selected'), 'clipboard_write').text;
+  const allCode = effect(send(source, 'preset_copy_all'), 'clipboard_write').text;
+
+  const single = createState();
+  const singleImport = send(single, 'preset_import', { raw: selectedCode });
+  assert.equal(singleImport.status, 'committed', singleImport.code);
+  const singleId = singleImport.view.repository.selectedId;
+  assert.equal(row(singleImport.view, singleId).mode, 'except');
+  assert.deepEqual(row(singleImport.view, singleId).heroes, everyHero);
+
+  const destination = createState();
+  const before = destination.read();
+  const imported = send(destination, 'preset_import', { raw: allCode });
+  assert.equal(imported.status, 'committed', imported.code);
+  const users = allRows(imported.view).filter((candidate) => candidate.kind === 'user');
+  assert.deepEqual(users.map(({ mode }) => mode), ['except', 'except']);
+  assert.deepEqual(users.map(({ heroes }) => heroes), [['hero_haze'], everyHero]);
+  assert.deepEqual(imported.view.effectiveValues, before.effectiveValues);
+  assertNoEffect(imported, 'effective_publish');
+
+  const payload = JSON.parse(allCode.slice(6));
+  const emptyRecord = payload.records.find(({ id }) => id === 'user_0001');
+  emptyRecord.heroes = [];
+  const target = createState();
+  const unchanged = target.read();
+  const rejected = send(target, 'preset_import', { raw: `HPCRP1${JSON.stringify(payload)}` });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.view, unchanged);
+  assert.deepEqual(rejected.effects, []);
+  assert.equal(allRows(rejected.view).some((candidate) => candidate.kind === 'user'), false);
+});

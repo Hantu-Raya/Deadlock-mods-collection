@@ -694,6 +694,173 @@ test('Current scope controls keep mode, summaries, and hero options synchronized
   assert.equal(shiv.BHasClass('Selected'), false);
 });
 
+function openPresetsForm(fixture) {
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+}
+
+function currentScope(fixture) {
+  const current = readMenuState(fixture).scopes.find(
+    (scope) => scope.id === 'scope_current',
+  );
+  assert.ok(current);
+  return current;
+}
+
+test('scope switch offers All Except with its own picker wording', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openPresetsForm(fixture);
+
+  const except = panel(fixture, 'HPColorsCurrentScopeExcept');
+  const selected = panel(fixture, 'HPColorsCurrentScopeSelected');
+  const dialog = panel(fixture, 'HPColorsScopeDialog');
+  const title = panel(fixture, 'HPColorsScopeDialogTitle');
+  const message = panel(fixture, 'HPColorsScopeDialogMessage');
+  const close = panel(fixture, 'HPColorsScopeCloseButton');
+
+  assert.equal(typeof except.events.onactivate, 'function');
+  except.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), true);
+  assert.equal(title.text, 'SKIP THESE HEROES');
+  assert.equal(message.text, "These heroes won't get this preset by itself.");
+
+  close.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), false);
+  selected.events.onactivate();
+  assert.equal(dialog.BHasClass('Open'), true);
+  assert.equal(title.text, 'PICK HEROES');
+  assert.equal(message.text, 'These heroes get this preset by itself.');
+});
+
+test('All Except picker marks skipped heroes and summarizes the skip list', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openPresetsForm(fixture);
+
+  const all = panel(fixture, 'HPColorsCurrentScopeAll');
+  const selected = panel(fixture, 'HPColorsCurrentScopeSelected');
+  const except = panel(fixture, 'HPColorsCurrentScopeExcept');
+  const summary = panel(fixture, 'HPColorsCurrentScopeSummary');
+  const haze = scopeOption(fixture, 'hero_haze');
+  const shiv = scopeOption(fixture, 'hero_shiv');
+  const bebop = scopeOption(fixture, 'hero_bebop');
+  const kelvin = scopeOption(fixture, 'hero_kelvin');
+
+  except.events.onactivate();
+  haze.events.onactivate();
+  shiv.events.onactivate();
+
+  let current = currentScope(fixture);
+  assert.equal(current.mode, 'except');
+  assert.deepEqual(current.heroes, ['hero_haze', 'hero_shiv']);
+  assert.equal(haze.BHasClass('Skipped'), true);
+  assert.equal(shiv.BHasClass('Skipped'), true);
+  assert.equal(haze.BHasClass('Selected'), false);
+  assert.equal(shiv.BHasClass('Selected'), false);
+  assert.equal(bebop.BHasClass('Skipped'), false);
+  assert.equal(except.BHasClass('Selected'), true);
+  assert.equal(all.BHasClass('Selected'), false);
+  assert.equal(selected.BHasClass('Selected'), false);
+  assert.equal(summary.text, 'ALL EXCEPT Haze, Shiv');
+
+  bebop.events.onactivate();
+  kelvin.events.onactivate();
+  current = currentScope(fixture);
+  assert.equal(current.mode, 'except');
+  assert.deepEqual(
+    current.heroes,
+    ['hero_bebop', 'hero_haze', 'hero_kelvin', 'hero_shiv'],
+  );
+  assert.equal(summary.text, 'ALL EXCEPT Bebop, Haze +2');
+});
+
+test('emptied All Except list becomes all but the picker stays in except mode', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openPresetsForm(fixture);
+
+  const all = panel(fixture, 'HPColorsCurrentScopeAll');
+  const except = panel(fixture, 'HPColorsCurrentScopeExcept');
+  const dialog = panel(fixture, 'HPColorsScopeDialog');
+  const haze = scopeOption(fixture, 'hero_haze');
+  const shiv = scopeOption(fixture, 'hero_shiv');
+
+  except.events.onactivate();
+  haze.events.onactivate();
+  assert.equal(currentScope(fixture).mode, 'except');
+
+  haze.events.onactivate();
+  let current = currentScope(fixture);
+  assert.equal(current.mode, 'all');
+  assert.deepEqual(current.heroes, []);
+  assert.equal(all.BHasClass('Selected'), true);
+  assert.equal(haze.BHasClass('Skipped'), false);
+  assert.equal(dialog.BHasClass('Open'), true);
+
+  shiv.events.onactivate();
+  current = currentScope(fixture);
+  assert.equal(current.mode, 'except');
+  assert.deepEqual(current.heroes, ['hero_shiv']);
+  assert.equal(shiv.BHasClass('Skipped'), true);
+  assert.equal(shiv.BHasClass('Selected'), false);
+});
+
+test('closing the scope dialog returns focus to the button that opened it', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openPresetsForm(fixture);
+
+  const selected = panel(fixture, 'HPColorsCurrentScopeSelected');
+  const except = panel(fixture, 'HPColorsCurrentScopeExcept');
+  const close = panel(fixture, 'HPColorsScopeCloseButton');
+
+  selected.focused = false;
+  except.focused = false;
+  except.events.onactivate();
+  close.events.onactivate();
+  assert.equal(except.focused, true);
+  assert.equal(selected.focused, false);
+
+  selected.focused = false;
+  except.focused = false;
+  selected.events.onactivate();
+  close.events.onactivate();
+  assert.equal(selected.focused, true);
+  assert.equal(except.focused, false);
+});
+
+test('library rows show AUTO scope text for All Except presets', () => {
+  const fixture = bootMenu({
+    version: 1,
+    values: {},
+    scopes: [],
+    userPresets: [
+      {
+        id: 'user_0001',
+        kind: 'user',
+        name: 'Skip Some',
+        mode: 'except',
+        heroes: ['hero_haze', 'hero_shiv'],
+        values: { enemyLow: '#222222' },
+        conditions: null,
+      },
+      {
+        id: 'user_0002',
+        kind: 'user',
+        name: 'Skip Many',
+        mode: 'except',
+        heroes: ['hero_bebop', 'hero_haze', 'hero_kelvin', 'hero_shiv'],
+        values: { enemyLow: '#333333' },
+        conditions: null,
+      },
+    ],
+  });
+  openPresetsForm(fixture);
+
+  const scopeText = (id) => presetOption(fixture, id)
+    .FindChildrenWithClassTraverse('HPColorsPresetOptionScope')[0].text;
+  assert.equal(scopeText('user_0001'), 'AUTO  ·  ALL EXCEPT Haze, Shiv');
+  assert.equal(scopeText('user_0002'), 'AUTO  ·  ALL EXCEPT Bebop, Haze +2');
+});
+
 test('stale settings clipboard callbacks cannot import into a reopened dialog', () => {
   const fixture = bootMenu(
     { version: 1, values: { widthScale: 100 }, scopes: [] },
