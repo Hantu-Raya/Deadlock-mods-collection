@@ -17,14 +17,16 @@ const statePath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_state.js');
 const read = (file) => fs.readFileSync(file, 'utf8');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
-function bootState() {
+function bootState(fresh = false) {
   const context = { $: {} };
   vm.runInNewContext(read(contractPath), context, { filename: contractPath });
   const contract = context.$.HPColorsV2ContractFactory.create();
   vm.runInNewContext(read(statePath), context, { filename: statePath });
   return {
     contract,
-    state: context.$.HPColorsV2StateFactory.create(),
+    state: context.$.HPColorsV2StateFactory.create(fresh ? null : {
+      version: 1, offsetVersion: 2, values: contract.sparseDefaults,
+    }),
   };
 }
 
@@ -130,14 +132,14 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.defaults.enemyStaminaColor, '#FD4949');
   assert.equal(contract.defaults.allyPulseColorMode, 'fixed');
   assert.equal(contract.defaults.accessoryAnchorEnabled, true);
-  assert.equal(contract.defaults.ultOffsetX, 0);
-  assert.equal(contract.defaults.ultOffsetY, 0);
-  assert.equal(contract.defaults.levelOffsetX, 0);
-  assert.equal(contract.defaults.levelOffsetY, 0);
+  assert.equal(contract.defaults.ultOffsetX, 74);
+  assert.equal(contract.defaults.ultOffsetY, 48);
+  assert.equal(contract.defaults.levelOffsetX, 74);
+  assert.equal(contract.defaults.levelOffsetY, 48);
 });
 
 test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapshot', () => {
-  const { state } = bootState();
+  const { state } = bootState(true);
   assert.equal(state.read().values.enemyMode, 'gradient');
   assert.equal(state.read().values.enemyLow, '#FD4949');
 
@@ -146,7 +148,11 @@ test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapsh
   const payload = JSON.parse(copied.slice(5));
   assert.equal(payload.v.some(([index]) => index === 7), false);
   assert.ok(payload.v.some(([index, value]) => index === 8 && value === '#FD4949'));
-  assert.deepEqual(payload.hpv2, { v: 1, values: [], conditions: {} });
+  assert.equal(payload.hpv2.v, 2);
+  assert.equal(state.read().values.widthScale, 148);
+  assert.equal(state.read().values.heightScale, 80);
+  assert.equal(state.read().values.readoutOffsetX, 18);
+  assert.equal(state.read().values.ultOffsetY, 48);
 
   const imported = send(state, 'settings_import', {
     raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
@@ -221,7 +227,7 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   const presetCode = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
   const presetPayload = JSON.parse(presetCode.slice(6));
   assert.deepEqual(presetPayload.records[0].hpv2, {
-    v: 1,
+    v: 2,
     values: [
       [0, 150],
       [1, 52.5],
@@ -270,7 +276,7 @@ test('Appearance appended booleans round-trip conditions without changing protoc
   const code = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
   const payload = JSON.parse(code.slice(5));
   assert.deepEqual(Object.keys(payload).sort(), ['c', 'hpv2', 'v']);
-  assert.equal(payload.hpv2.v, 1);
+  assert.equal(payload.hpv2.v, 2);
   assert.deepEqual(payload.hpv2.values, [[47, false], [48, false]]);
   const destination = bootState().state;
   const imported = send(destination, 'settings_import', { raw: code });
@@ -340,6 +346,15 @@ test('round native format retirement preserves slots and appends independent nam
   const { contract, state } = bootState();
   assert.equal(contract.codecKeys[29], 'readoutFormat');
   assert.equal(contract.extensionKeys[30], 'allyReadoutFormat');
+  assert.equal(contract.codecKeys[40], 'precisePipsEnabled');
+  assert.equal(contract.codecKeys[70], 'readoutMaxTeamColor');
+  assert.equal(contract.extensionKeys[40], 'allyReadoutMaxTeamColor');
+  for (const key of ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor']) {
+    assert.equal(contract.keys.includes(key), false, key);
+    assert.equal(Object.hasOwn(contract.defaults, key), false, key);
+    assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
+    assert.equal(contract.settingMeta[key], undefined, key);
+  }
   assert.equal(contract.extensionKeys.length, 62);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
@@ -348,14 +363,22 @@ test('round native format retirement preserves slots and appends independent nam
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
   const imported = send(state, 'settings_import', { raw: 'HPCR2' + JSON.stringify({
-    v: [[29, 'percent']], c: { readoutFormat: { slot: 1, minTier: 1, value: 'current' } },
-    hpv2: { v: 1, values: [[30, 'current'], [53, 40], [54, -200]],
-      conditions: { allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' } } },
+    v: [[29, 'percent'], [40, true], [70, true]],
+    c: { readoutFormat: { slot: 1, minTier: 1, value: 'current' },
+      precisePipsEnabled: { slot: 1, minTier: 1, value: true },
+      readoutMaxTeamColor: { slot: 1, minTier: 1, value: true } },
+    hpv2: { v: 1, values: [[30, 'current'], [40, true], [53, 40], [54, -200]],
+      conditions: { allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' },
+        allyReadoutMaxTeamColor: { slot: 1, minTier: 1, value: true } } },
   }) });
   assert.notEqual(imported.outcome.kind, 'error');
   assert.equal(imported.view.values.nameSize, 40);
   assert.equal(imported.view.values.nameOffsetX, -200);
   assert.equal(Object.hasOwn(imported.view.values, 'readoutFormat'), false);
+  for (const key of ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor']) {
+    assert.equal(Object.hasOwn(imported.view.values, key), false, key);
+    assert.equal(Object.hasOwn(imported.view.conditions, key), false, key);
+  }
 });
 
 test('round name settings and raw geometry survive both codecs; retired rules drop atomically', () => {
@@ -404,10 +427,13 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
-    assert.equal(contract.defaults[key], value, key);
+    assert.equal(contract.sparseDefaults[key], value, key);
     assert.equal(contract.codecDefaults[key], value, key);
     assert.equal(contract.settingMeta[key].conditionEligible, true, key);
   }
+  assert.equal(contract.defaults.enemyPipColorEnabled, true);
+  assert.equal(contract.defaults.enemyPipColor, '#000000');
+  assert.equal(contract.defaults.staminaShape, 'box');
   assert.deepEqual(plain(contract.enumOptions.staminaShape), ['arrow', 'circle', 'box']);
   assert.equal(contract.validateSettingValue('staminaShape', 'triangle'), false);
   assert.equal(contract.normalizeValues({ pipOpacity: -1 }).pipOpacity, 0);

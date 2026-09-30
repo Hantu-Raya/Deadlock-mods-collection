@@ -556,19 +556,19 @@
                   <Panel id="HPColorsReadoutHighRow" class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="HIGH TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsReadoutHighSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsReadoutHighHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" /></Panel>
                   </Panel>
                   <Panel id="HPColorsReadoutOffsetXRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the health text left or right without moving the healthbar." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move health text by % of bar width; follows bar size without moving the bar." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSliderGroup">
                       <Panel id="HPColorsReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
                       <TextEntry id="HPColorsReadoutOffsetXEntry" class="HPColorsNumberEntry" text="0" />
-                      <Label text="PX" class="HPColorsUnitLabel" />
+                      <Label text="%" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
                   <Panel id="HPColorsReadoutOffsetYRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the health text up or down without changing the surrounding layout." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move health text by % of bar height; follows bar size without changing surrounding layout." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSliderGroup">
                       <Panel id="HPColorsReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
                       <TextEntry id="HPColorsReadoutOffsetYEntry" class="HPColorsNumberEntry" text="0" />
-                      <Label text="PX" class="HPColorsUnitLabel" />
+                      <Label text="%" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
                 </Panel>
@@ -594,12 +594,12 @@
                     <Button id="HPColorsLevelsVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
                   <Panel id="HPColorsLevelOffsetXRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="LEVEL HORIZONTAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the level badge left or right." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsLevelOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsLevelOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="LEVEL HORIZONTAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the level badge by % of bar width; follows bar size." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsLevelOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsLevelOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                   <Panel id="HPColorsLevelOffsetYRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="LEVEL VERTICAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the level badge up or down." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsLevelOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsLevelOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="LEVEL VERTICAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the level badge by % of bar height; follows bar size." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsLevelOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsLevelOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                 </Panel>
 
@@ -739,12 +739,12 @@
                     </Panel>
                   </Panel>
                   <Panel id="HPColorsUltOffsetXRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the ultimate icon and cooldown progress left or right." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsUltOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsUltOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL POSITION" class="HPColorsSettingTitle" /><Label text="Move ultimate icon and cooldown progress by % of bar width; follows bar size." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsUltOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsUltOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                   <Panel id="HPColorsUltOffsetYRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL POSITION" class="HPColorsSettingTitle" /><Label text="Move the ultimate icon and cooldown progress up or down." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsUltOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsUltOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL POSITION" class="HPColorsSettingTitle" /><Label text="Move ultimate icon and cooldown progress by % of bar height; follows bar size." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsUltOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsUltOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                 </Panel>
 
@@ -803,12 +803,12 @@
                     <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutSizeEntry" class="HPColorsNumberEntry" text="145" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                   <Panel id="HPColorsEnemyPulseReadoutOffsetXRow" class="HPColorsSettingRow HPColorsFollowedRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT HORIZONTAL" class="HPColorsSettingTitle" /><Label text="Move the health text left or right during the pulse." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT HORIZONTAL" class="HPColorsSettingTitle" /><Label text="Move health text during the pulse by % of bar width; follows bar size." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                   <Panel id="HPColorsEnemyPulseReadoutOffsetYRow" class="HPColorsSettingRow HPColorsFollowedRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT VERTICAL" class="HPColorsSettingTitle" /><Label text="Move the health text up or down during the pulse." class="HPColorsSettingHelp" /></Panel>
-                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="PULSE TEXT VERTICAL" class="HPColorsSettingTitle" /><Label text="Move health text during the pulse by % of bar height; follows bar size." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsEnemyPulseReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsEnemyPulseReadoutOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                 </Panel>
 
@@ -912,19 +912,19 @@
                   <Panel id="HPColorsAllyReadoutHighRow" class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="HIGH TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyReadoutHighSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyReadoutHighHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" /></Panel>
                   </Panel>
                   <Panel id="HPColorsAllyReadoutOffsetXRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the ally health text left or right without moving the healthbar." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move ally health text by % of bar width; follows bar size without moving the bar." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSliderGroup">
                       <Panel id="HPColorsAllyReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
                       <TextEntry id="HPColorsAllyReadoutOffsetXEntry" class="HPColorsNumberEntry" text="0" />
-                      <Label text="PX" class="HPColorsUnitLabel" />
+                      <Label text="%" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
                   <Panel id="HPColorsAllyReadoutOffsetYRow" class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the ally health text up or down without changing the surrounding layout." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move ally health text by % of bar height; follows bar size without changing surrounding layout." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSliderGroup">
                       <Panel id="HPColorsAllyReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
                       <TextEntry id="HPColorsAllyReadoutOffsetYEntry" class="HPColorsNumberEntry" text="0" />
-                      <Label text="PX" class="HPColorsUnitLabel" />
+                      <Label text="%" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
                 </Panel>

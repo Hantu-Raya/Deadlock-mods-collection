@@ -16,6 +16,10 @@ const sourceRoot = path.resolve(__dirname, '../hp_colors_rewrite_v2/panorama/scr
 const contractSource = fs.readFileSync(path.join(sourceRoot, 'hp_colors_v2_contract.js'), 'utf8');
 const rendererSource = fs.readFileSync(path.join(sourceRoot, 'unit_status_v2_colors.js'), 'utf8');
 const styleSeam = 'var STOCK_TEAM1_COLOR = "#E7B659";';
+const contractContext = vm.createContext({ $: {} });
+vm.runInContext(contractSource, contractContext);
+const contract = contractContext.$.HPColorsV2ContractFactory.create();
+const stockValues = contract.sparseDefaults;
 
 function loadStyleHelpers() {
   const $ = {};
@@ -201,7 +205,7 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHar
   const counterMax = add(row, 'hp_counter_max', { style: { visibility: 'collapse' } });
   let revision = 0;
   const setConfig = (nextValues) => harness.root.SetAttributeString('hp_colors_v2_config', JSON.stringify({
-    magic_word: 'HP_COLORS_V2_CONFIG', version: 2, revision: ++revision, values: nextValues,
+    magic_word: 'HP_COLORS_V2_CONFIG', version: 2, revision: ++revision, values: { ...stockValues, ...nextValues },
   }));
   setConfig(values);
   harness.contextPanel = status;
@@ -222,6 +226,31 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHar
   };
 }
 
+test('level-up tier changes retain a two-pixel ring and native number at the moved badge', () => {
+  const values = { enabled: true, levelOffsetX: 74, accessoryAnchorEnabled: false, widthScale: 148, heightScale: 80 };
+  const fixture = makeOwnershipFixture(['player', 'enemy'], values);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'hp_colors_rewrite_v2', 'panorama', 'styles', 'unit_status_v2.css'), 'utf8');
+  const badgeRule = css.match(/\.WindowRoot #LevelContainer\.NP_playerlevel_container\s*\{([^}]*)\}/)[1];
+  assert.match(badgeRule, /width:\s*21px/);
+  assert.match(badgeRule, /height:\s*21px/);
+  assert.match(badgeRule, /border:\s*2px solid Team1Color/);
+  assert.match(badgeRule, /background-color:\s*#0a0a0ae6/);
+  for (const [level, color] of [[12, '#f0d000'], [19, '#ff8c00'], [27, '#e53935'], [12, '#f0d000']]) {
+    fixture.levelLabel.text = String(level);
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(fixture.level.style.border, '2px solid ' + color,
+      'each tier update must own rim width/style as well as color, not the native borderColor alias');
+    assert.equal(fixture.level.style.visibility, 'visible');
+    assert.equal(fixture.level.style.marginLeft, '19.71px');
+    assert.equal(fixture.levelLabel.text, String(level));
+    for (const property of ['width', 'height', 'visibility', 'washColor', 'color'])
+      assert.equal(fixture.levelLabel.style[property] || '', '', 'native number must not be rewritten');
+    assert.equal(fixture.level.style.backgroundColor || '', '', 'tier color must never become badge fill');
+  }
+  fixture.update({ enabled: false });
+  assert.equal(fixture.level.style.border, '', 'release the complete owned rim when disabled');
+});
+
 test('default stamina retains stock pips without the owned box class', () => {
   const fixture = makeOwnershipFixture(['player', 'enemy'], { enabled: true });
   assert.equal(fixture.window.BHasClass('HPColorsRewriteEnemyPlayer'), true);
@@ -240,23 +269,23 @@ test('stamina box ownership is enemy-player-only and released to stock', () => {
     { staminaHeight: 50 },
     { enemyStaminaColorEnabled: true, enemyStaminaColor: '#654321' },
   ]) {
-    const fixture = makeOwnershipFixture(['player', 'enemy'], { enabled: true, ...custom });
+    const fixture = makeOwnershipFixture(['player', 'enemy'], { enabled: true, staminaShape: 'box', ...custom });
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), true);
-    fixture.update({ enabled: false, ...custom });
+    fixture.update({ enabled: false, staminaShape: 'box', ...custom });
     assert.equal(fixture.window.BHasClass('HPColorsRewriteEnemyPlayer'), false);
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), false);
     assert.equal(fixture.icon.style.width, '11px');
     assert.equal(fixture.icon.style.height, '4.48px');
     assert.equal(fixture.icon.style.backgroundColor, '#ABCDEF');
     assert.equal(fixture.icon.style.borderColor, '#123456');
-    fixture.update({ enabled: true, ...custom });
+    fixture.update({ enabled: true, staminaShape: 'box', ...custom });
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), true);
     fixture.update({ enabled: true });
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), false);
   }
   for (const classes of [['player', 'friend'], ['minion', 'enemy'], ['building', 'enemy'], ['enemy']]) {
     const fixture = makeOwnershipFixture(classes, {
-      enabled: true, npcEnemyEnabled: true, buildingEnemyEnabled: true, staminaWidth: 120,
+      enabled: true, npcEnemyEnabled: true, buildingEnemyEnabled: true, staminaShape: 'box', staminaWidth: 120,
     });
     assert.equal(fixture.window.BHasClass('HPColorsRewriteEnemyPlayer'), false, classes.join(' '));
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), false, classes.join(' '));
@@ -275,14 +304,14 @@ test('native health ownership belongs to player surfaces and never writes the sh
     assert.equal(fixture.health.style.visibility, classes.includes('enemy') ? 'collapse' : 'visible');
     fixture.update({ enabled: false, readoutVisible: true, allyReadoutVisible: true });
     assert.equal(fixture.health.style.visibility, 'visible');
-    fixture.update({ enabled: true, readoutVisible: true, allyReadoutVisible: true, staminaWidth: 120 });
+    fixture.update({ enabled: true, readoutVisible: true, allyReadoutVisible: true, staminaShape: 'box', staminaWidth: 120 });
     assert.equal(fixture.health.style.visibility, 'visible');
     assert.equal(fixture.health.GetParent(), fixture.row);
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), classes.includes('enemy'));
     fixture.world.RemoveClass('player');
     fixture.world.AddClass('minion');
     fixture.update({ enabled: true, npcEnemyEnabled: true, npcAllyEnabled: true,
-      readoutVisible: true, allyReadoutVisible: true, staminaWidth: 120 });
+      readoutVisible: true, allyReadoutVisible: true, staminaShape: 'box', staminaWidth: 120 });
     assert.equal(fixture.health.style.visibility, 'visible');
     assert.equal(fixture.window.BHasClass('HPColorsRewriteEnemyPlayer'), false);
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), false);
@@ -850,6 +879,38 @@ test('accessory margins retain rebased stock coordinates after offsets or bypass
     fixture.world.AddClass('minion');
     fixture.update({ npcEnemyEnabled: true, npcAllyEnabled: true });
     assertCssMargins();
+  }
+});
+
+test('anchor-on shipped indicator offsets preserve the requested anchor-off placement', () => {
+  const requested = makeOwnershipFixture(['player', 'enemy'], {
+    widthScale: 148, heightScale: 80, positionX: 0, positionY: -38,
+    accessoryAnchorEnabled: false, ultOffsetX: 74, levelOffsetX: 74,
+    ultOffsetY: 0, levelOffsetY: 0,
+  });
+  const shipped = makeOwnershipFixture(['player', 'enemy'], contract.defaults);
+  assert.equal(contract.defaults.accessoryAnchorEnabled, true);
+  for (const key of ['level', 'unitInfo']) {
+    assert.equal(shipped[key].style.marginLeft, requested[key].style.marginLeft, key);
+    // Integer raw offsets can only approximate 47.5: nearest 48 is +0.04 CSS px.
+    assert.ok(Math.abs(parseFloat(shipped[key].style.marginTop) -
+      parseFloat(requested[key].style.marginTop)) <= 0.040001, key);
+  }
+});
+
+test('indicator offset deltas scale once per bar axis and stay unchanged at 100 percent', () => {
+  for (const [widthScale, heightScale] of [[100, 100], [148, 80], [60, 160]]) {
+    const values = { widthScale, heightScale, accessoryAnchorEnabled: false,
+      ultOffsetX: 0, ultOffsetY: 0, levelOffsetX: 0, levelOffsetY: 0 };
+    const fixture = makeOwnershipFixture(['player', 'enemy'], values);
+    const before = [fixture.level, fixture.unitInfo].map(panel =>
+      [parseFloat(panel.style.marginLeft), parseFloat(panel.style.marginTop)]);
+    fixture.update({ ...values, ultOffsetX: 100, ultOffsetY: -100,
+      levelOffsetX: 100, levelOffsetY: -100 });
+    for (const [index, panel] of [fixture.level, fixture.unitInfo].entries()) {
+      assert.ok(Math.abs(parseFloat(panel.style.marginLeft) - before[index][0] - widthScale / 10) < 0.000001);
+      assert.ok(Math.abs(parseFloat(panel.style.marginTop) - before[index][1] + heightScale / 10) < 0.000001);
+    }
   }
 });
 

@@ -1870,12 +1870,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   opacity: 1;
 }
 
-/* Same box as a condition button, never shown: keeps toggles lined up on
-   rows whose setting can't have conditions. */
-.HPColorsSettingRow:hover .HPColorsConditionIndicator.HPColorsConditionSpacer {
-  opacity: 0;
-}
-
 .HPColorsConditionIndicator Label {
   horizontal-align: center;
   vertical-align: center;

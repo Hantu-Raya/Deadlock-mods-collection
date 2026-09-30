@@ -40,6 +40,11 @@ const stateSource = fs.readFileSync(
   'utf8',
 );
 const MENU_STATE_ATTR = 'hp_colors_v2_menu_state';
+const contractContext = vm.createContext({ $: {} });
+vm.runInContext(contractSource, contractContext);
+const shippedDefaults = JSON.parse(JSON.stringify(
+  contractContext.$.HPColorsV2ContractFactory.create().defaults,
+));
 const CONFIG_ATTR = 'hp_colors_v2_config';
 const ENEMY_BAR_DEFAULTS = {
   enemyEnabled: true,
@@ -295,27 +300,30 @@ test('width slider preserves the legacy 230 percent maximum', () => {
 });
 
 test('movement slider windows preserve full typed bounds and pip opacity visibility', () => {
-  const fixture = bootMenu();
+  const fixture = bootMenu({ version: 1, values: { enemyPipColorEnabled: false }, scopes: [] });
   openEditor(fixture);
   for (const base of ['Position', 'StaminaOffset', 'UltOffset', 'LevelOffset']) {
     for (const axis of ['X', 'Y']) {
       const key = `${base[0].toLowerCase()}${base.slice(1)}${axis}`;
       const slider = panel(fixture, `HPColors${base}${axis}Slider`);
       const entry = panel(fixture, `HPColors${base}${axis}Entry`);
+      const percent = base === 'UltOffset' || base === 'LevelOffset';
+      const displayScale = percent ? 100 / (axis === 'X' ? 76 : 18) : 1;
       const limit = axis === 'X' ? 30 : 20;
-      assert.equal(slider.min, -limit, key);
-      assert.equal(slider.max, limit, key);
+      assert.ok(Math.abs(slider.min + limit * displayScale) < 1e-10, key);
+      assert.ok(Math.abs(slider.max - limit * displayScale) < 1e-10, key);
       for (const direction of [-1, 1]) {
         slider.events.onmousedown();
-        slider.value = direction * limit;
+        slider.value = direction * limit * displayScale;
         slider.events.onvaluechanged();
         slider.events.onmouseup();
         assert.equal(readMenuState(fixture).values[key], direction * limit * 10, key);
-        entry.text = String(direction * 150);
+        entry.text = String(direction * 150 * displayScale);
         entry.events.ontextentrysubmit();
         assert.equal(readMenuState(fixture).values[key], direction * 1500, key);
-        assert.equal(entry.text, String(direction * 150), key);
-        assert.equal(slider.value, direction * limit, key);
+        const displayed = Math.round(direction * 150 * displayScale * 10) / 10;
+        assert.equal(entry.text, String(displayed), key);
+        assert.ok(Math.abs(slider.value - direction * limit * displayScale) < 1e-10, key);
         assert.equal(readConfig(fixture).values[key], direction * 1500, key);
       }
     }
@@ -511,10 +519,10 @@ test('overview layout reset applies negative X immediately despite a late slider
 
   const resetState = readMenuState(fixture);
   const resetConfig = readConfig(fixture);
-  assert.equal(resetState.values.widthScale, 100);
-  assert.equal(resetState.values.heightScale, 100);
+  assert.equal(resetState.values.widthScale, 148);
+  assert.equal(resetState.values.heightScale, 80);
   assert.equal(resetState.values.positionX, 0);
-  assert.equal(resetState.values.positionY, 0);
+  assert.equal(resetState.values.positionY, -38);
   assert.equal(slider.value, 0);
   assert.equal(entry.text, '0');
   assert.equal(resetConfig.revision, beforeConfig.revision + 1);
@@ -1210,7 +1218,7 @@ test('native 6722 readout retires the pip-derived manual config workflow', () =>
   openEditor(fixture);
   assert.equal(fixture.harness.root.FindChildTraverse('HPColorsPrecisePipsToggle'), null);
   assert.equal(fixture.harness.root.FindChildTraverse('HPColorsPrecisePipsDialog'), null);
-  assert.equal(readConfig(fixture).values.precisePipsEnabled, true, 'legacy wire value remains compatible');
+  assert.equal(readConfig(fixture).values.precisePipsEnabled, undefined, 'retired legacy value is dropped on load');
 });
 
 test('sync contains panel API failures and keeps control events enabled', () => {
@@ -1278,8 +1286,7 @@ test('every setting key has one tab owner and its controls live in that XML page
   const modes = extractArrayDeclaration(canonicalMenuSource, 'MODE_CONTROLS');
   const sliders = extractArrayDeclaration(canonicalMenuSource, 'SLIDER_CONTROLS');
   const colors = extractArrayDeclaration(canonicalMenuSource, 'COLOR_CONTROLS');
-  const defaultKeys = Object.keys(readConfig(bootMenu()).values)
-    .filter(key => !['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'].includes(key)).sort();
+  const defaultKeys = Object.keys(readConfig(bootMenu()).values).sort();
   const keyOwners = new Map();
   const controlIdsByKey = new Map();
 
@@ -1558,9 +1565,12 @@ test('Layered presets reset confirmation names the All Heroes settings', () => {
 });
 
 function twoPresetState(values = {}) {
+  // Start on today's Rewrite Default; sparse saved presets still restore the
+  // frozen stock baseline, so applying them is a real, undoable transition.
   return {
     version: 1,
-    values,
+    offsetVersion: 2,
+    values: { ...shippedDefaults, ...values },
     scopes: [],
     userPresets: [
       {
@@ -2739,8 +2749,11 @@ test('an old save carrying ghoul opacity boots, publishes no ghoul keys, and the
 
 function saveToPresetState() {
   return {
+    // Match today's baked preset so the first row click does not need a
+    // discard confirmation before exercising SAVE TO PRESET.
     version: 1,
-    values: {},
+    offsetVersion: 2,
+    values: shippedDefaults,
     scopes: [],
     userPresets: [
       {
@@ -3228,7 +3241,7 @@ test('the SAVE TO PRESET button glows while the settings on screen are not saved
 
   // Untouched defaults match Rewrite Default: no glow. Any edit glows as a
   // reminder, UNDO back to defaults clears it, and NEW PRESET saves it away.
-  const none = bootMenu({ version: 1, values: {}, scopes: [] });
+  const none = bootMenu({ version: 1, offsetVersion: 2, values: shippedDefaults, scopes: [] });
   openEditor(none);
   assert.equal(glows(none), false);
   setWidthWithoutGesture(none, 150);
@@ -3465,8 +3478,10 @@ test('the SAVE TO PRESET CSS animates only opacity and uses no shadows or clippi
 });
 
 
-test('all readout sliders start at zero and span the world-panel canvas in CSS pixels', () => {
-  const fixture = bootMenu();
+test('all readout sliders preserve the stock zero and physical canvas windows in percent', () => {
+  const fixture = bootMenu({ version: 1, values: {
+    widthScale: 100, heightScale: 100, readoutOffsetX: 0, readoutOffsetY: 0,
+  }, scopes: [] });
   openEditor(fixture);
   for (const [base, key, limit] of [
     ['HPColorsReadoutOffsetX', 'readoutOffsetX', 200],
@@ -3478,8 +3493,9 @@ test('all readout sliders start at zero and span the world-panel canvas in CSS p
   ]) {
     const slider = panel(fixture, base + 'Slider');
     const entry = panel(fixture, base + 'Entry');
-    assert.equal(slider.min, -limit, key);
-    assert.equal(slider.max, limit, key);
+    const scale = 100 / (/X$/.test(key) ? 76 : 18);
+    assert.equal(slider.min, -limit * scale, key);
+    assert.equal(slider.max, limit * scale, key);
     assert.equal(slider.value, 0, key);
     assert.equal(entry.text, '0', key);
   }
@@ -3669,7 +3685,7 @@ test('layout reset captures only its five keys in one Undo', () => {
   assert.equal(keys.length, 5);
   const values = Object.fromEntries(keys.map(key => [key, key === 'accessoryAnchorEnabled' ? false :
     /Scale$/.test(key) ? 60 : -10]));
-  const fixture = bootMenu({ version: 1, values: {
+  const fixture = bootMenu({ version: 1, offsetVersion: 2, values: {
     ...values, enemyPulseReadoutOffsetX: 55, pickupOffsetX: 66,
   }, scopes: [] });
   openEditor(fixture);
@@ -3678,8 +3694,9 @@ test('layout reset captures only its five keys in one Undo', () => {
   selectEnemyBar(fixture);
   confirmReset(fixture);
   const after = readConfig(fixture).values;
-  for (const key of keys) assert.equal(after[key], key === 'accessoryAnchorEnabled' ? true :
-    /Scale$/.test(key) ? 100 : 0, key);
+  const shippedLayout = { widthScale: 148, heightScale: 80, positionX: 0,
+    positionY: -38, accessoryAnchorEnabled: true };
+  for (const key of keys) assert.equal(after[key], shippedLayout[key], key);
   assert.equal(after.enemyPulseReadoutOffsetX, 55);
   assert.equal(after.pickupOffsetX, 66);
   panel(fixture, 'HPColorsUndoButton').events.onactivate();
@@ -3754,8 +3771,7 @@ test('follow-up pages expose every editable key once without heading-only or Adv
   const context = vm.createContext({ $: {} });
   vm.runInContext(contractSource, context);
   const contract = context.$.HPColorsV2ContractFactory.create();
-  const hidden = ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'];
-  assert.deepEqual([...keys].sort(), Array.from(contract.keys).filter(key => !hidden.includes(key)).sort());
+  assert.deepEqual([...keys].sort(), Array.from(contract.keys).sort());
   assert.equal(new Set(keys).size, keys.length);
   const indicators = categories.find(category => category.name === 'INDICATORS');
   assert.deepEqual(indicators.tabs.find(tab => tab.name === 'STAMINA').keys, [
@@ -3848,12 +3864,82 @@ test('pip controls publish team colors and opacity, and stamina dropdown resets 
   assert.equal(readConfig(fixture).values.staminaOffsetX, -123);
   requestReset(fixture);
   confirmReset(fixture);
-  assert.equal(readConfig(fixture).values.staminaShape, 'arrow');
-  assert.equal(shape.GetSelected().id, 'arrow');
+  assert.equal(readConfig(fixture).values.staminaShape, 'box');
+  assert.equal(shape.GetSelected().id, 'box');
   assert.equal(readConfig(fixture).values.staminaOffsetX, 0);
   assert.equal(readConfig(fixture).values.pipOpacity, 42, 'PIPS page is not reset by STAMINA');
   panel(fixture, 'HPColorsUndoButton').events.onactivate();
   assert.equal(readConfig(fixture).values.staminaShape, 'circle');
   assert.equal(shape.GetSelected().id, 'circle');
   assert.equal(readConfig(fixture).values.staminaOffsetX, -123);
+});
+
+test('bar-relative percent offsets use stable display and consistent typed slider values', () => {
+  const fixture = bootMenu({ version: 1, values: { widthScale: 100, heightScale: 100 }, scopes: [] });
+  openEditor(fixture);
+  for (const base of ['ReadoutOffset', 'AllyReadoutOffset', 'EnemyPulseReadoutOffset', 'UltOffset', 'LevelOffset']) {
+    for (const axis of ['X', 'Y']) {
+      const key = base[0].toLowerCase() + base.slice(1) + axis;
+      const raw = base === 'UltOffset' || base === 'LevelOffset';
+      const size = axis === 'X' ? 76 : 18;
+      const scale = (raw ? 10 : 100) / size;
+      const slider = panel(fixture, `HPColors${base}${axis}Slider`);
+      const entry = panel(fixture, `HPColors${base}${axis}Entry`);
+      const limit = raw ? (axis === 'X' ? 300 : 200) : (axis === 'X' ? 200 : 210);
+      assert.equal(slider.min, -limit * scale, key);
+      assert.equal(slider.max, limit * scale, key);
+      assert.equal(slider.increment, scale, key);
+      entry.text = '50';
+      entry.events.ontextentrysubmit();
+      assert.equal(readConfig(fixture).values[key], size * (raw ? 5 : 0.5), key);
+      slider.value = -26 * scale;
+      slider.events.onvaluechanged();
+      assert.equal(readConfig(fixture).values[key], -26, key);
+      const bound = raw ? limit : (axis === 'X' ? 334 : 350);
+      for (const value of [-bound, -limit, -26, -1, 0, 1, 26, 74, limit, bound]) {
+        entry.text = String(value * scale);
+        entry.events.ontextentrysubmit();
+        const decimals = raw ? 10 : 1;
+        assert.equal(entry.text, String(Math.round(value * scale * decimals) / decimals), key);
+        assert.ok(slider.value >= slider.min && slider.value <= slider.max, key + ' track clamp');
+        const before = readConfig(fixture).values[key];
+        entry.events.ontextentrysubmit();
+        entry.events.onblur();
+        assert.equal(readConfig(fixture).values[key], before, key + ' display round trip');
+      }
+      const rowStart = layoutSource.indexOf(`id="HPColors${base}${axis}Row"`);
+      const nextRow = layoutSource.indexOf('class="HPColorsSettingRow', rowStart + 80);
+      assert.match(layoutSource.slice(rowStart, nextRow === -1 ? undefined : nextRow),
+        /text="%" class="HPColorsUnitLabel"/, key + ' percent unit');
+    }
+  }
+});
+
+test('bar-relative percent conditions use the same display rounding and stored units', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    for (const base of ['ReadoutOffsetX', 'UltOffsetX']) {
+      const row = harness.root.FindChildTraverse('HPColors' + base + 'Row');
+      row.AddClass('HPColorsSettingRow');
+      harness.root.FindChildTraverse('HPColors' + base + 'SliderHost').SetParent(row);
+      harness.root.FindChildTraverse('HPColors' + base + 'Entry').SetParent(row);
+    }
+  } });
+  openEditor(fixture);
+  for (const [key, typed, stored, shown] of [
+    ['readoutOffsetX', 50, 38, '50'],
+    ['readoutOffsetX', 26 / 76 * 100, 26, '34'],
+    ['ultOffsetX', 74 / 760 * 100, 74, '9.7'],
+  ]) {
+    panel(fixture, 'HPColorsCondition_' + key).events.onactivate();
+    if (key === 'readoutOffsetX')
+      assert.equal(panel(fixture, 'HPColorsConditionNumberSlider').max, 334 * (100 / 76));
+    const entry = panel(fixture, 'HPColorsConditionNumberEntry');
+    entry.text = String(typed);
+    entry.events.ontextentrysubmit();
+    assert.equal(entry.text, shown);
+    assert.equal(panel(fixture, 'HPColorsConditionNumberSlider').value, Number(shown));
+    entry.events.ontextentrysubmit();
+    panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
+    assert.equal(readMenuState(fixture).conditions[key].value, stored);
+  }
 });
