@@ -916,14 +916,13 @@
     "pageDescription npcEnemyToggle npcAllyToggle npcNeutralToggle " +
     "buildingEnemyToggle buildingAllyToggle neutralColorRow " +
     "neutralColorSwatch neutralColorHex pickerRoot pickerPanel pickerBackdrop " +
-    "pickerDone pickerHueHost pickerSaturationHost pickerLumenHost " +
+    "pickerDone " +
     "criticalIndicatorToggle playerNamesToggle"
   ).split(" ");
   // Save UI panels stay optional: an old builder pak01 layout lacks them, and
   // the editor must still boot there to show the stale-layout warning.
   var OPTIONAL_UI_PANEL_KEYS = (
-    "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
-    "pickerSaturationValue pickerLightnessValue storeForgetButton " +
+    "supporterTicker pickerTitle pickerPreview pickerHex nativePicker storeForgetButton " +
     "storeForgetLabel presetHiddenRow currentScopeExcept scopeDialogTitle " +
     "scopeDialogMessage presetScopeHelp presetGuide presetGuideToggleLabel " +
     "presetGuideToggle presetGuideText " +
@@ -935,9 +934,6 @@
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
-    pickerHueHost: "HPColorsPickerHueSliderHost",
-    pickerSaturationHost: "HPColorsPickerSaturationSliderHost",
-    pickerLumenHost: "HPColorsPickerLumenSliderHost",
   };
   var context = $.GetContextPanel();
   var DEFAULTS = {};
@@ -1226,14 +1222,15 @@
 
   var picker = {
     key: "",
-    hue: 0,
-    saturation: 0,
-    lightness: 100,
+    color: "#FFFFFF",
+    openingColor: "#FFFFFF",
     returnPanel: null,
     condition: false,
   };
   var pickerGestureActive = false;
-  var pickerPartCache = {};
+  var pickerSeeding = false;
+  var nativePickerHex = null;
+  var nativePickerWarningLogged = false;
   var ui = {
     categoryButtons: [],
     tabButtons: [],
@@ -3637,68 +3634,6 @@
     return /^#[0-9A-F]{6}$/.test(raw) ? raw : fallback;
   }
 
-  function hexToHsl(hex) {
-    var value = parseInt(normalizeColor(hex, "#FFFFFF").slice(1), 16);
-    var red = ((value >> 16) & 255) / 255;
-    var green = ((value >> 8) & 255) / 255;
-    var blue = (value & 255) / 255;
-    var max = Math.max(red, green, blue);
-    var min = Math.min(red, green, blue);
-    var delta = max - min;
-    var lightness = (max + min) / 2;
-    var hue = 0;
-    var saturation = 0;
-    if (delta) {
-      saturation =
-        delta / Math.max(0.0001, 1 - Math.abs(2 * lightness - 1));
-      if (max === red) hue = 60 * (((green - blue) / delta) % 6);
-      else if (max === green) hue = 60 * ((blue - red) / delta + 2);
-      else hue = 60 * ((red - green) / delta + 4);
-      if (hue < 0) hue += 360;
-    }
-    return {
-      hue: Math.round(hue) % 360,
-      saturation: Math.round(saturation * 100),
-      lightness: Math.round(lightness * 100),
-    };
-  }
-
-  function hslToHex(hue, saturation, lightness) {
-    var h = ((Number(hue) % 360) + 360) % 360;
-    var s = Math.max(0, Math.min(100, Number(saturation))) / 100;
-    var l = Math.max(0, Math.min(100, Number(lightness))) / 100;
-    var chroma = (1 - Math.abs(2 * l - 1)) * s;
-    var section = h / 60;
-    var second = chroma * (1 - Math.abs((section % 2) - 1));
-    var red = 0;
-    var green = 0;
-    var blue = 0;
-    if (section < 1) {
-      red = chroma;
-      green = second;
-    } else if (section < 2) {
-      red = second;
-      green = chroma;
-    } else if (section < 3) {
-      green = chroma;
-      blue = second;
-    } else if (section < 4) {
-      green = second;
-      blue = chroma;
-    } else if (section < 5) {
-      red = second;
-      blue = chroma;
-    } else {
-      red = chroma;
-      blue = second;
-    }
-    var match = l - chroma / 2;
-    var packed =
-      (Math.round((red + match) * 255) << 16) |
-      (Math.round((green + match) * 255) << 8) |
-      Math.round((blue + match) * 255);
-    return "#" + ((1 << 24) | packed).toString(16).slice(1).toUpperCase();
-  }
 
 
   function presetDisplayName(preset) {
@@ -4841,194 +4776,79 @@
     setText(controlPanel(control.base + "Hex"), value);
   }
 
-  var PICKER_HUE_TRACK =
-    "gradient(linear, 0% 0%, 100% 0%, from(#FF0000), color-stop(0.1667, #FFFF00), color-stop(0.3333, #00FF00), color-stop(0.5, #00FFFF), color-stop(0.6667, #0000FF), color-stop(0.8333, #FF00FF), to(#FF0000))";
-
-  function pickerColor() {
-    return hslToHex(picker.hue, picker.saturation, picker.lightness);
-  }
-
-  function pickerHueGradient() {
-    return PICKER_HUE_TRACK;
-  }
-
-  function pickerSaturationGradient() {
-    return (
-      "gradient(linear, 0% 0%, 100% 0%, from(" +
-      hslToHex(picker.hue, 0, picker.lightness) +
-      "), to(" +
-      hslToHex(picker.hue, 100, picker.lightness) +
-      "))"
-    );
-  }
-
-  function pickerLumenGradient() {
-    return (
-      "gradient(linear, 0% 0%, 100% 0%, from(#000000), color-stop(0.5, " +
-      hslToHex(picker.hue, picker.saturation, 50) +
-      "), to(#FFFFFF))"
-    );
-  }
-
-  // Thumb and track panels per slider; a slider that is re-resolved or a
-  // child that went invalid starts a fresh lookup.
-  function pickerParts(component, slider) {
-    var parts = pickerPartCache[component];
-    if (!parts || parts.slider !== slider) {
-      parts = { slider: slider, thumb: null, track: null, trackKey: "" };
-      pickerPartCache[component] = parts;
-    }
-    return parts;
-  }
-
-  // trackKey names the inputs of the gradient last written to the track, so
-  // an unchanged track is neither rebuilt nor compared again.
-  function setPickerTrack(component, slider, trackKey, gradientFor) {
-    if (!isValid(slider) || !slider.FindChildTraverse) return;
-    try {
-      var parts = pickerParts(component, slider);
-      if (!isValid(parts.track)) {
-        parts.track = slider.FindChildTraverse("SliderTrack");
-        parts.trackKey = "";
-      }
-      var track = parts.track;
-      if (!isValid(track) || parts.trackKey === trackKey) return;
-      var gradient = gradientFor();
-      if (track.style.backgroundColor !== gradient)
-        track.style.backgroundColor = gradient;
-      parts.trackKey = trackKey;
-    } catch {}
-  }
-
-  function setPickerThumb(component, slider, color, lightness) {
-    if (!isValid(slider) || !slider.FindChildTraverse) return;
-    try {
-      var parts = pickerParts(component, slider);
-      if (!isValid(parts.thumb))
-        parts.thumb = slider.FindChildTraverse("SliderThumb");
-      var thumb = parts.thumb;
-      if (!isValid(thumb) || !thumb.style) return;
-      if (thumb.style.backgroundColor !== color)
-        thumb.style.backgroundColor = color;
-      var border = lightness < 35 ? "#FFEFD7" : "#10130D";
-      if (thumb.style.borderColor !== border)
-        thumb.style.borderColor = border;
-    } catch {}
-  }
-
   function syncPicker() {
     if (!picker.key || !isValid(ui.pickerRoot)) return;
-    var color = pickerColor();
     setText(ui.pickerTitle, COLOR_TITLES[picker.key] || "COLOR");
-    setText(ui.pickerHex, color);
-    setText(ui.pickerHueValue, picker.hue + "°");
-    setText(ui.pickerSaturationValue, picker.saturation + "%");
-    setText(ui.pickerLightnessValue, picker.lightness + "%");
-    setBackgroundColor(ui.pickerPreview, color);
-    setSliderValue(ui.pickerHueSlider, picker.hue);
-    setSliderValue(ui.pickerSaturationSlider, picker.saturation);
-    setSliderValue(ui.pickerLumenSlider, picker.lightness);
-
-    setPickerThumb("hue", ui.pickerHueSlider, color, picker.lightness);
-    setPickerThumb("saturation", ui.pickerSaturationSlider, color, picker.lightness);
-    setPickerThumb("lightness", ui.pickerLumenSlider, color, picker.lightness);
-
-    setPickerTrack("hue", ui.pickerHueSlider, "", pickerHueGradient);
-    setPickerTrack(
-      "saturation",
-      ui.pickerSaturationSlider,
-      picker.hue + "|" + picker.lightness,
-      pickerSaturationGradient,
-    );
-    setPickerTrack(
-      "lightness",
-      ui.pickerLumenSlider,
-      picker.hue + "|" + picker.saturation,
-      pickerLumenGradient,
-    );
+    setText(ui.pickerHex, picker.color);
+    setBackgroundColor(ui.pickerPreview, picker.color);
   }
 
-  function bindPickerSlider(slider, component) {
-    if (!isValid(slider)) return;
+  function seedNativePicker() {
+    if (!isValid(nativePickerHex)) return;
+    pickerSeeding = true;
     try {
-      slider.increment = 1;
-    } catch {}
-    setPanelEvent(slider, "onmousedown", function () {
-      if (picker.condition || !picker.key) return;
-      if (pickerGestureActive)
-        sendState({ type: "gesture_cancel", key: picker.key });
-      var result = sendState({
-        type: "gesture_begin",
-        key: picker.key,
-        value: pickerColor(),
-      });
-      pickerGestureActive = stateAccepted(result);
-    });
-    setPanelEvent(slider, "onvaluechanged", function () {
-      if (syncingControls || !picker.key) return;
-      var max = component === "hue" ? 359 : 100;
-      picker[component] = clampNumber(
-        slider.value,
-        0,
-        max,
-        picker[component],
-      );
-      var color = pickerColor();
-      if (picker.condition) {
-        conditionDraft.value = color;
-        syncPicker();
-        renderConditionEditor();
-        return;
-      }
-      if (pickerGestureActive) {
-        sendState({ type: "gesture_update", key: picker.key, value: color });
-        syncPicker();
-      } else {
-        commitValue(picker.key, color);
-      }
-    });
-    setPanelEvent(slider, "onmouseup", function () {
-      if (picker.condition) {
-        renderConditionEditor();
-        return;
-      }
-      if (pickerGestureActive)
-        sendState({
-          type: "gesture_end",
-          key: picker.key,
-          value: pickerColor(),
-        });
-      pickerGestureActive = false;
-      syncControls();
-    });
+      nativePickerHex.text = picker.color.slice(1);
+      $.DispatchEvent("TextEntryChanged", nativePickerHex);
+    } finally {
+      pickerSeeding = false;
+    }
   }
 
-  function closePicker() {
+  function changePickerColor(color) {
+    if (pickerSeeding || !picker.key || color === picker.color) return;
+    if (!picker.condition && !pickerGestureActive) {
+      pickerGestureActive = stateAccepted(sendState({
+        type: "gesture_begin", key: picker.key, value: picker.openingColor,
+      }));
+      if (!pickerGestureActive) return;
+    }
+    picker.color = color;
+    if (picker.condition) {
+      conditionDraft.value = color;
+      renderConditionEditor();
+    } else {
+      sendState({ type: "gesture_update", key: picker.key, value: color });
+    }
+    syncPicker();
+  }
+
+  function cancelPicker() {
+    closePicker(true);
+  }
+
+  function closePicker(cancel) {
     if (!picker.key) return;
     var wasCondition = picker.condition;
     if (pickerGestureActive) {
-      sendState({ type: "gesture_cancel", key: picker.key });
+      sendState({
+        type: cancel === true ? "gesture_cancel" : "gesture_end",
+        key: picker.key,
+        value: picker.color,
+      });
       pickerGestureActive = false;
     }
+    if (wasCondition && cancel === true)
+      conditionDraft.value = picker.openingColor;
     picker.key = "";
     picker.condition = false;
     setClass(ui.pickerRoot, "Open", false);
     focus(picker.returnPanel);
     if (wasCondition && conditionDraft.key) renderConditionEditor();
     picker.returnPanel = null;
+    syncControls();
   }
 
   function showPicker(key, returnPanel, condition, hex) {
+    closePicker();
     picker.key = key;
     picker.returnPanel = returnPanel;
     picker.condition = condition;
-    var hsl = hexToHsl(hex);
-    picker.hue = hsl.hue;
-    picker.saturation = hsl.saturation;
-    picker.lightness = hsl.lightness;
+    picker.color = normalizeColor(hex, "#FFFFFF");
+    picker.openingColor = picker.color;
     setClass(ui.pickerRoot, "Open", true);
     syncPicker();
-    focus(ui.pickerHueSlider);
+    seedNativePicker();
+    focus(isValid(nativePickerHex) ? nativePickerHex : ui.pickerHex);
   }
 
   function openPicker(key, returnPanel) {
@@ -5494,7 +5314,7 @@
       return true;
     }
     if (picker.key) {
-      closePicker();
+      cancelPicker();
       return true;
     }
     if (
@@ -5650,36 +5470,6 @@
     return slider;
   }
 
-  function createPickerSliders() {
-    ui.pickerHueSlider = createSlider(
-      "HPColorsPickerHueSliderHost",
-      "HPColorsPickerHueSlider",
-      0,
-      359,
-    );
-    ui.pickerSaturationSlider = createSlider(
-      "HPColorsPickerSaturationSliderHost",
-      "HPColorsPickerSaturationSlider",
-      0,
-      100,
-    );
-    ui.pickerLumenSlider = createSlider(
-      "HPColorsPickerLumenSliderHost",
-      "HPColorsPickerLumenSlider",
-      0,
-      100,
-    );
-    var sliders = [
-      ui.pickerHueSlider,
-      ui.pickerSaturationSlider,
-      ui.pickerLumenSlider,
-    ];
-    for (var index = 0; index < sliders.length; index++) {
-      if (!isValid(sliders[index])) return false;
-      sliders[index].AddClass("HPColorsPickerSlider");
-    }
-    return true;
-  }
 
 
   function createSliders() {
@@ -5704,16 +5494,44 @@
       100,
     );
     controlPanels.HPColorsConditionNumberSlider = ui.conditionNumberSlider;
-    return isValid(ui.conditionNumberSlider) && createPickerSliders();
+    return isValid(ui.conditionNumberSlider);
   }
 
   function bindPickerControls() {
-    setPanelEvent(ui.pickerDone, "onactivate", closePicker);
-    setPanelEvent(ui.pickerBackdrop, "onactivate", closePicker);
-    setPanelEvent(ui.pickerPanel, "oncancel", closePicker);
-    bindPickerSlider(ui.pickerHueSlider, "hue");
-    bindPickerSlider(ui.pickerSaturationSlider, "saturation");
-    bindPickerSlider(ui.pickerLumenSlider, "lightness");
+    setPanelEvent(ui.pickerDone, "onactivate", function () { closePicker(); });
+    setPanelEvent(ui.pickerBackdrop, "onactivate", function () { closePicker(); });
+    setPanelEvent(ui.pickerPanel, "oncancel", cancelPicker);
+    var commitHex = function () {
+      changePickerColor(normalizeColor(ui.pickerHex.text, picker.color));
+      syncPicker();
+      seedNativePicker();
+    };
+    setPanelEvent(ui.pickerHex, "ontextentrysubmit", commitHex);
+    setPanelEvent(ui.pickerHex, "onfocuslost", commitHex);
+    ui.nativePicker = find("HPColorsNativePicker");
+    try {
+      nativePickerHex = isValid(ui.nativePicker)
+        ? ui.nativePicker.FindChildTraverse("HexValue") : null;
+      if (!isValid(nativePickerHex)) throw new Error("missing HexValue");
+      $.RegisterEventHandler("CitadelColorPickerColorChanged", ui.nativePicker,
+        function (red, green, blue) {
+          var channels = [red, green, blue];
+          var color = "#";
+          for (var index = 0; index < channels.length; index++) {
+            var byte = Number(channels[index]);
+            if (!isFinite(byte) || byte < 0 || byte > 255 || Math.floor(byte) !== byte) return;
+            color += ("0" + byte.toString(16)).slice(-2).toUpperCase();
+          }
+          changePickerColor(color);
+        });
+    } catch (error) {
+      nativePickerHex = null;
+      if (isValid(ui.nativePicker)) ui.nativePicker.visible = false;
+      if (!nativePickerWarningLogged) {
+        nativePickerWarningLogged = true;
+        $.Msg("[HP Colors Rewrite] native color picker unavailable; using hex entry");
+      }
+    }
   }
 
   function bindControls() {

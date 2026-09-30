@@ -3,6 +3,7 @@
   <styles>
     <include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
     <include src="s2r://panorama/styles/hud_escape_menu.vcss_c" />
+    <include src="s2r://panorama/styles/citadel_ui_color_picker.vcss_c" />
     <include src="s2r://panorama/styles/hp_colors_v2_menu.vcss_c" />
   </styles>
   <scripts>
@@ -1140,24 +1141,10 @@
             </Panel>
             <Panel class="HPColorsPickerHeaderSpacer" />
             <Panel id="HPColorsPickerPreview" class="HPColorsPickerPreview" />
-            <Label id="HPColorsPickerHex" text="#FFFFFF" class="HPColorsPickerHex" />
+            <TextEntry id="HPColorsPickerHex" text="#FFFFFF" class="HPColorsPickerHex" maxchars="7" />
           </Panel>
-          <Panel class="HPColorsPickerSliderRow">
-            <Label text="HUE" class="HPColorsPickerSliderName" />
-            <Panel id="HPColorsPickerHueSliderHost" class="HPColorsPickerSliderHost" hittest="false" hittestchildren="true" />
-            <Label id="HPColorsPickerHueValue" text="0°" class="HPColorsPickerSliderValue" />
-          </Panel>
-          <Panel class="HPColorsPickerSliderRow">
-            <Label text="SATURATION" class="HPColorsPickerSliderName" />
-            <Panel id="HPColorsPickerSaturationSliderHost" class="HPColorsPickerSliderHost" hittest="false" hittestchildren="true" />
-            <Label id="HPColorsPickerSaturationValue" text="0%" class="HPColorsPickerSliderValue" />
-          </Panel>
-          <Panel class="HPColorsPickerSliderRow">
-            <Label text="LIGHTNESS" class="HPColorsPickerSliderName" />
-            <Panel id="HPColorsPickerLumenSliderHost" class="HPColorsPickerSliderHost" hittest="false" hittestchildren="true" />
-            <Label id="HPColorsPickerLightnessValue" text="100%" class="HPColorsPickerSliderValue" />
-          </Panel>
-          <Label text="Drag the Hue, Saturation, and Lightness sliders to choose a color." class="HPColorsPickerHelp" />
+          <CitadelColorPicker id="HPColorsNativePicker" class="HPColorsNativePicker" />
+          <Label text="Choose a color or enter its hex value. Escape cancels." class="HPColorsPickerHelp" />
           <Button id="HPColorsPickerDone" class="HPColorsPickerDone"><Label text="DONE" /></Button>
         </Panel>
       </Panel>
