@@ -1546,7 +1546,6 @@
 	width: 100%;
 	height: 100%;
 	margin-top: 0px;
-	padding: 0px;
 	horizontal-align: center;
 	vertical-align: top;
 	transform-origin: 50% 40.48%;
@@ -1558,7 +1557,6 @@
 {
 	width: 100%;
 	height: 100%;
-	margin-top: 0px;
 	horizontal-align: center;
 	vertical-align: top;
 	overflow: noclip;
@@ -1672,7 +1670,6 @@
 	height: 100%;
 	horizontal-align: center;
 	vertical-align: top;
-	margin-top: 0px;
 	overflow: noclip;
 	ignore-parent-flow: true;
 	z-index: 30;
@@ -1715,7 +1712,6 @@
 	flow-children: right;
 	horizontal-align: right;
 	vertical-align: top;
-	margin-left: 0px;
 	margin-top: 66px;
 	margin-right: 60px;
 	padding: 4px;
@@ -1855,7 +1851,6 @@
 	ignore-parent-flow: true;
 	horizontal-align: left;
 	vertical-align: top;
-	margin-top: 0px;
 	width: 3px;
 	height: 100%;
 	background-color: #FF2222;

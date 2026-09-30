@@ -1939,7 +1939,10 @@
       entry.applied, "opacity");
   }
 
-  function clearPipColorOwnership(bar) {
+  function clearPipColorOwnership(bar, force) {
+    // Neutral fill reconciliation restores other readout styles, not active line opacity.
+    if (!force && bar.surface === "fill" && config.enabled && !bar.spectating &&
+        config.pipOpacity !== 100) return;
     var entries = bar.pipColorEntries || [];
     for (var index = 0; index < entries.length; index++)
       restorePipLine(entries[index]);
@@ -1948,13 +1951,15 @@
 
   function applyPipColors(bar) {
     var enemy = bar.role === "enemy";
-    var custom = config.enabled && !bar.spectating &&
-      (bar.surface === "player" || bar.surface === "unit") &&
-      (enemy ? config.enemyPipColorEnabled :
-        bar.role === "ally" && config.allyPipColorEnabled);
+    var eligible = config.enabled && !bar.spectating &&
+      (bar.surface === "player" || bar.surface === "unit" || bar.surface === "fill") &&
+      (!enemy || config.pipsVisible);
+    var custom = eligible && (enemy ? config.enemyPipColorEnabled :
+      bar.role === "ally" && config.allyPipColorEnabled);
+    var opacityOwned = eligible && config.pipOpacity !== 100;
     var container = bar.parts && bar.parts.pipLines;
-    if (!custom || !isValid(container)) {
-      clearPipColorOwnership(bar);
+    if ((!custom && !opacityOwned) || !isValid(container)) {
+      clearPipColorOwnership(bar, true);
       return;
     }
     var previous = bar.pipColorEntries || [];
@@ -1975,9 +1980,12 @@
         baseline: captureStyleBaseline(panel, ["washColor", "opacity"]),
         applied: {},
       };
-      setStyle(panel, "washColor", enemy ? config.enemyPipColor : config.allyPipColor,
-        entry.applied, "washColor");
-      setStyle(panel, "opacity", String(config.pipOpacity / 100), entry.applied, "opacity");
+      setStyle(panel, "washColor", custom ?
+        (enemy ? config.enemyPipColor : config.allyPipColor) :
+        baselineStyle(entry.baseline, "washColor"), entry.applied, "washColor");
+      setStyle(panel, "opacity", opacityOwned ?
+        String((enemy ? 0.6 : 0.8) * config.pipOpacity / 100) :
+        baselineStyle(entry.baseline, "opacity"), entry.applied, "opacity");
       next.push(entry);
     }
     for (var oldIndex = 0; oldIndex < previous.length; oldIndex++)

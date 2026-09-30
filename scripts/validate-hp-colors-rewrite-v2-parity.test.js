@@ -400,7 +400,7 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
   const defaults = {
     enemyPipColorEnabled: false, enemyPipColor: '#500202',
     allyPipColorEnabled: false, allyPipColor: '#042517',
-    pipOpacity: 60, staminaShape: 'arrow',
+    pipOpacity: 100, staminaShape: 'arrow',
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
@@ -412,6 +412,7 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
   assert.equal(contract.validateSettingValue('staminaShape', 'triangle'), false);
   assert.equal(contract.normalizeValues({ pipOpacity: -1 }).pipOpacity, 0);
   assert.equal(contract.normalizeValues({ pipOpacity: 101 }).pipOpacity, 100);
+  assert.equal(contract.normalizeValues({}).pipOpacity, 100, 'old sparse saves retain stock line opacity');
   for (const prefix of ['enemy', 'ally']) {
     assert.equal(contract.booleanKeys[prefix + 'PipColorEnabled'], true);
     assert.equal(contract.colorKeys[prefix + 'PipColor'], true);
