@@ -112,6 +112,16 @@ function bootMenu(menuState, options = {}) {
   runHpColorsSourcesInVm(stateSource, menuSource, harness, {
     settingsContractSource: contractSource,
   });
+  if (options.stateReadCounter) {
+    const factory = harness.$.HPColorsV2StateFactory;
+    harness.$.HPColorsV2StateFactory = { create(config) {
+      const instance = factory.create(config);
+      return { send: instance.send, read() {
+        options.stateReadCounter.count++;
+        return instance.read();
+      } };
+    } };
+  }
   harness.$.HPColorsMenuBoot();
   return { harness, identityTree };
 }
@@ -1352,6 +1362,88 @@ test('sync contains panel API failures and keeps control events enabled', () => 
   panel(fixture, 'HPColorsMasterToggle').events.onactivate();
 
   assert.equal(readMenuState(fixture).values.enabled, false);
+});
+
+test('unchanged warm sync avoids panel traversal and redundant writes', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  const entry = panel(fixture, 'HPColorsWidthEntry');
+  const before = { ...fixture.harness.operationCounts };
+  for (let index = 0; index < 3; index++) entry.events.oncancel();
+  for (const counter of ['findTraversals', 'textWrites', 'styleWrites', 'classWrites']) {
+    assert.equal(fixture.harness.operationCounts[counter], before[counter], counter);
+  }
+});
+
+test('old-layout sync does not rescan absent Appearance and pip-opacity controls', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    harness.root.FindChildTraverse('HPColorsV2Store').DeleteAsync();
+    for (const child of harness.root.Children()) {
+      if (/^HPColors(?:Name|EnemyName|AllyName|PipOpacity)/.test(child.id))
+        child.DeleteAsync();
+    }
+  } });
+  openEditor(fixture);
+  const entry = panel(fixture, 'HPColorsWidthEntry');
+  const before = { ...fixture.harness.findCounts };
+  for (let index = 0; index < 3; index++) entry.events.oncancel();
+  for (const id of Object.keys(fixture.harness.findCounts)) {
+    if (/^HPColors(?:Name|EnemyName|AllyName|PipOpacity)/.test(id))
+      assert.equal(fixture.harness.findCounts[id], before[id], id);
+  }
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'OLD PRESET VPK');
+});
+
+test('sync reacquires an invalid cached control without changing the settings', () => {
+  for (const legacy of [false, true]) {
+    const fixture = bootMenu(undefined, { beforeBoot(harness) {
+      if (legacy) harness.root.FindChildTraverse('HPColorsV2Store').DeleteAsync();
+    } });
+    openEditor(fixture);
+    const before = readConfig(fixture);
+    const entry = panel(fixture, 'HPColorsWidthEntry');
+    const swatch = panel(fixture, 'HPColorsEnemyLowSwatch');
+    swatch.DeleteAsync();
+    const replacement = fixture.harness.root.add(new MockPanel('HPColorsEnemyLowSwatch'));
+    entry.events.oncancel();
+    assert.equal(replacement.style.backgroundColor, before.values.enemyLow);
+    assert.deepEqual(readConfig(fixture), before);
+  }
+});
+
+test('condition indicator sync shares one settings snapshot for all configured rows', () => {
+  const stateReadCounter = { count: 0 };
+  const controls = [
+    ['widthScale', 'HPColorsWidth', 'HPColorsWidthScaleRow', 200],
+    ['heightScale', 'HPColorsHeight', 'HPColorsHeightScaleRow', 130],
+    ['positionX', 'HPColorsPositionX', 'HPColorsPositionXRow', 10],
+    ['positionY', 'HPColorsPositionY', 'HPColorsPositionYRow', 10],
+    ['lowThreshold', 'HPColorsSharedLowThreshold', 'HPColorsSharedLowThresholdRow', 10],
+    ['highThreshold', 'HPColorsSharedHighThreshold', 'HPColorsSharedHighThresholdRow', 90],
+  ];
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [], conditions:
+    Object.fromEntries(controls.map(([key, , , value]) =>
+      [key, { slot: 1, minTier: 1, value }])) }, {
+    stateReadCounter,
+    beforeBoot(harness) {
+      for (const [, base, rowId] of controls) {
+        const row = harness.root.FindChildTraverse(rowId);
+        row.AddClass('HPColorsSettingRow');
+        harness.root.FindChildTraverse(base + 'SliderHost').SetParent(row);
+        harness.root.FindChildTraverse(base + 'Entry').SetParent(row);
+      }
+    },
+  });
+  openEditor(fixture);
+  const entry = panel(fixture, 'HPColorsWidthEntry');
+  stateReadCounter.count = 0;
+  entry.events.oncancel();
+  assert.ok(stateReadCounter.count <= 6, `sync read state ${stateReadCounter.count} times`);
+  for (const [key] of controls) {
+    const indicator = panel(fixture, 'HPColorsCondition_' + key);
+    assert.equal(indicator.BHasClass('Configured'), true, key);
+    assert.equal(indicator.BHasClass('Unavailable'), true, key);
+  }
 });
 
 test('effect pages live under their healthbar categories', () => {

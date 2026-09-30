@@ -2164,6 +2164,15 @@
       }, { settingId: key, code: "GESTURE_COMMITTED" });
     }
 
+    // Restores a parsed values/conditions(/scopes) snapshot into the editor.
+    function restoreSnapshot(previous) {
+      state.values = normalizeValues(previous.values);
+      state.conditions = normalizeConditions(previous.conditions);
+      if (Array.isArray(previous.scopes))
+        state.scopes = normalizeScopes(previous.scopes);
+      state.restoredEffectivePending = false;
+    }
+
     function handleGestureCancel(intent) {
       var key = String(intent.key || "");
       if (!state.gesture || state.gesture.key !== key)
@@ -2175,13 +2184,7 @@
         previous = null;
       }
       return commit("gesture_cancel", function () {
-        if (previous) {
-          state.values = normalizeValues(previous.values);
-          state.conditions = normalizeConditions(previous.conditions);
-          if (Array.isArray(previous.scopes))
-            state.scopes = normalizeScopes(previous.scopes);
-          state.restoredEffectivePending = false;
-        }
+        if (previous) restoreSnapshot(previous);
         state.gesture = null;
         return true;
       }, { code: "GESTURE_CANCELED" });
@@ -2198,16 +2201,19 @@
       }
       return commit("undo", function () {
         state.history.pop();
-        if (Array.isArray(previous.scopes)) {
-          state.values = normalizeValues(previous.values);
-          state.conditions = normalizeConditions(previous.conditions);
-          state.scopes = normalizeScopes(previous.scopes);
-          state.restoredEffectivePending = false;
-        } else {
-          replaceBase(previous.values, previous.conditions, false);
-        }
+        if (Array.isArray(previous.scopes)) restoreSnapshot(previous);
+        else replaceBase(previous.values, previous.conditions, false);
         return true;
       }, { settingId: "*" });
+    }
+
+    function cancelConfirmation(kind, action, intent) {
+      var token = String(intent.token || "");
+      if (!validConfirmation(kind, token)) return reject(action, "INVALID_CONFIRMATION");
+      return commit(action, function () {
+        state.confirmation = null;
+        return true;
+      }, { code: "CONFIRMATION_CANCELED" });
     }
 
     function handleResetRequest(intent) {
@@ -2264,12 +2270,7 @@
     }
 
     function handleResetCancel(intent) {
-      var token = String(intent.token || "");
-      if (!validConfirmation("reset", token)) return reject("reset_cancel", "INVALID_CONFIRMATION");
-      return commit("reset_cancel", function () {
-        state.confirmation = null;
-        return true;
-      }, { code: "CONFIRMATION_CANCELED" });
+      return cancelConfirmation("reset", "reset_cancel", intent);
     }
 
     function handleHeroMode(intent) {
@@ -2684,13 +2685,7 @@
     }
 
     function handlePresetRemoveCancel(intent) {
-      var token = String(intent.token || "");
-      if (!validConfirmation("preset_remove", token))
-        return reject("preset_remove_cancel", "INVALID_CONFIRMATION");
-      return commit("preset_remove_cancel", function () {
-        state.confirmation = null;
-        return true;
-      }, { code: "CONFIRMATION_CANCELED" });
+      return cancelConfirmation("preset_remove", "preset_remove_cancel", intent);
     }
 
     function handlePresetRestoreBaked() {

@@ -185,7 +185,6 @@
       kind: "valid",
       body: body,
       sum: parts[1],
-      savedAt: Number.isFinite(envelope.t) ? envelope.t : 0,
     };
   }
 
@@ -267,7 +266,6 @@
         $.Msg("[HP Colors Rewrite][store] " + message);
       };
 
-    var alive = true;
     var started = false;
     var ready = false;
     var unavailable = false;
@@ -295,12 +293,6 @@
       injectTimer = clearTimer(injectTimer);
       navigateTimer = clearTimer(navigateTimer);
       exchangeTimer = clearTimer(exchangeTimer);
-    }
-
-    function later(seconds, callback) {
-      return schedule(seconds, function () {
-        if (alive) callback();
-      });
     }
 
     function run(code) {
@@ -346,7 +338,7 @@
 
     function transmit(request) {
       exchangeTimer = clearTimer(exchangeTimer);
-      exchangeTimer = later(EXCHANGE_TIMEOUT_SEC, function () {
+      exchangeTimer = schedule(EXCHANGE_TIMEOUT_SEC, function () {
         exchangeTimer = null;
         log("no reply to " + request.op + " part " + request.part);
         fail(request, "timeout");
@@ -463,7 +455,7 @@
       navigations += 1;
       try {
         panel.SetURL(PAGE_URLS[navigations - 1]);
-      } catch (error) {
+      } catch {
         markUnavailable("navigate");
       }
     }
@@ -471,7 +463,7 @@
     // Each address is loaded once; a load that ends anywhere but file: moves
     // on to the next address.
     function onUrl(panelOrUrl, eventUrl) {
-      if (!alive || ready || unavailable) return;
+      if (ready || unavailable) return;
       var url = String(arguments.length > 1 ? eventUrl : panelOrUrl || "");
       pageUrl = url;
       if (isStoragePage(url)) {
@@ -479,18 +471,17 @@
         navigateTimer = clearTimer(navigateTimer);
         // The listing's title triggers the inject; this covers a lost title.
         injectTimer = clearTimer(injectTimer);
-        injectTimer = later(INJECT_FALLBACK_SEC, inject);
+        injectTimer = schedule(INJECT_FALLBACK_SEC, inject);
         return;
       }
       // A repeated error event for the same load changes nothing.
       if (!url || url === "about:blank" || navigateTimer !== null) return;
       log("page load failed at " + url.slice(0, 40) + " (load " + navigations + ")");
-      if (navigations < PAGE_URLS.length) navigateTimer = later(1, navigate);
+      if (navigations < PAGE_URLS.length) navigateTimer = schedule(1, navigate);
       else markUnavailable("load_failed");
     }
 
     function onTitle(panelOrTitle, eventTitle) {
-      if (!alive) return;
       var title = arguments.length > 1 ? eventTitle : panelOrTitle;
       if (typeof title !== "string" || !title) return;
       if (title.indexOf(TITLE_PREFIX) !== 0) {
@@ -537,11 +528,11 @@
       try {
         $.RegisterEventHandler("HTMLTitle", panel, onTitle);
         $.RegisterEventHandler("HTMLURLChanged", panel, onUrl);
-      } catch (error) {
+      } catch {
         markUnavailable("register");
         return false;
       }
-      readyTimer = later(READY_TIMEOUT_SEC, function () {
+      readyTimer = schedule(READY_TIMEOUT_SEC, function () {
         readyTimer = null;
         if (!ready) markUnavailable("ready_timeout");
       });
@@ -619,20 +610,11 @@
       });
     }
 
-    function dispose() {
-      alive = false;
-      clearAllTimers();
-      active = null;
-      queue = [];
-      ready = false;
-    }
-
     return Object.freeze({
       start: start,
       load: load,
       save: save,
       forget: forget,
-      dispose: dispose,
     });
   }
 
