@@ -53,7 +53,7 @@
 		<Panel id="UnitStatus" hittest="false">
 			<Panel id="InfoHealthContainer">
 				<Panel id="LevelContainer" class="NP_playerlevel_container" hittest="false" hittestchildren="false" style="visibility: collapse;">
-					<Label id="unit_level_label" class="NP_playerlevel" text="{i:player_level}" hittest="false" style="visibility: collapse;" />
+					<Label id="unit_level_label" class="NP_playerlevel" text="{i:player_level}" hittest="false" />
 				</Panel>
 				<Panel id="UnitHealthbarsContainer">
 					<Panel id="UnitHealthbar" class="UnitHealthbarContainer">

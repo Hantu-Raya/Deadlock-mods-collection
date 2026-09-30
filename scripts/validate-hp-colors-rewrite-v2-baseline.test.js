@@ -524,7 +524,7 @@ function makeStatusFixture(
     siblingLevel.add(new MockPanel('unit_level_label', {
       classes: ['NP_playerlevel'],
       text: '10',
-      style: { visibility: 'collapse' },
+      style: {},
       findCounts: harness.findCounts,
       operationCounts: harness.operationCounts,
     }));
@@ -728,7 +728,7 @@ function makeStatusFixture(
   const levelLabel = levelContainer.add(new MockPanel('unit_level_label', {
     classes: ['NP_playerlevel'],
     text: '10',
-    style: { visibility: 'collapse' },
+    style: {},
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -861,6 +861,13 @@ test('v2 preserves the frozen static stock tree and adds only passive owned pane
   }
   verifyOwned(layout);
   const window = layout[0].children.find(node => node.attributes.class === 'WindowRoot');
+  const status = window.children.find(node => node.attributes.id === 'UnitStatus');
+  const info = status.children.find(node => node.attributes.id === 'InfoHealthContainer');
+  const level = info.children.find(node => node.attributes.id === 'LevelContainer');
+  const label = level.children.find(node => node.attributes.id === 'unit_level_label');
+  assert.match(level.attributes.style, /visibility:\s*collapse/);
+  assert.equal(label.attributes.text, '{i:player_level}');
+  assert.doesNotMatch(label.attributes.style || '', /visibility:\s*collapse/);
   const container = window.children.find(node => node.attributes.id === 'hp_counter_container');
   const anchor = container.children.find(node => node.attributes.id === 'hp_counter_anchor');
   const row = anchor.children.find(node => node.attributes.id === 'hp_counter_row');
@@ -1188,6 +1195,89 @@ test('v2 uses the minimum available health signal and preserves layout-width sam
     assert.equal(fixture.counter.text, `${Math.min(entry.expected, 8)}%`);
   }
 });
+test('v2 normalizes health and marker measurements without converting CSS clip lengths', () => {
+  const fixture = makeStatusFixture('enemy', {
+    enemyEnabled: true, enemyMode: 'fixed',
+    enemyLow: '#FF0000', enemyMid: '#FFFF00', enemyHigh: '#00FF00',
+    lowThreshold: 20, highThreshold: 80,
+    readoutVisible: true, readoutFormat: 'percent',
+    enemyKillMarkerEnabled: true, enemyKillMarkerThreshold: 50,
+    enemyKillMarkerWidth: 1,
+    enemyPulseEnabled: true, enemyPulseThreshold: 100,
+    enemyPulseColorEnabled: true, enemyPulseColorMode: 'gradient',
+  });
+  const scale = (panel, x, y) => {
+    panel.actualuiscale_x = 2;
+    panel.actualuiscale_y = 3;
+    panel.actuallayoutwidth = x * 2;
+    panel.actuallayoutheight = y * 3;
+  };
+  scale(fixture.healthbars, 100, 40);
+  scale(fixture.healthbar, 76, 18);
+  fixture.healthbar.actualxoffset = 46;
+  fixture.healthbar.actualyoffset = 33;
+  scale(fixture.inner, 69, 12);
+  fixture.inner.actualxoffset = 7;
+  fixture.inner.actualyoffset = 9;
+  scale(fixture.fill, 34.5, 12);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '50%');
+  assert.equal(fixture.fill.style.washColor, '#FFFF00');
+  assert.equal(fixture.pulseOverlay.style.width, '50%');
+  assert.equal(fixture.killMarker.style.width, '1px');
+  assert.equal(fixture.killMarker.style.marginLeft, '37.5px');
+  assert.equal(fixture.unitShieldbarValue.text, '9999');
+  assert.equal(fixture.secondaryShieldFill.style.backgroundColor, '#DDAA11');
+
+  fixture.fill.actualxoffset = -17.25; // -8.625 CSS px.
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '37%');
+  fixture.fill.actualxoffset = 0;
+  fixture.fill.style.clip = 'rect(0px, 17.25px, 12px, 0px)';
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '50%', 'clip lengths compare with CSS fill width, not raw window width');
+  fixture.fill.style.clip = 'rect(0px, 8.625px, 12px, 0px)';
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '25%', 'CSS clip fraction retains the minimum-signal policy');
+  fixture.fill.style.clip = 'rect(0%, 12%, 100%, 0%)';
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '12%', 'percentage clips are scale-independent');
+  fixture.fill.style.clip = '';
+  fixture.fill.style.width = '17.25px';
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '25%', 'inline width remains CSS px');
+  fixture.fill.style.width = '';
+
+  fixture.inner.actuallayoutwidth = 0;
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '');
+  fixture.inner.actuallayoutwidth = 69;
+  const nativeWidth = Object.getOwnPropertyDescriptor(fixture.fill, 'actuallayoutwidth');
+  Object.defineProperty(fixture.fill, 'actuallayoutwidth', {
+    configurable: true,
+    get() { throw new Error('layout not available yet'); },
+  });
+  assert.doesNotThrow(() => fixture.harness.scheduler.runByDelay(1));
+  assert.equal(fixture.counter.text, '0%', 'missing width cannot be mistaken for full health');
+  Object.defineProperty(fixture.fill, 'actuallayoutwidth', nativeWidth);
+  fixture.fill.actuallayoutwidth = 34.5;
+  fixture.inner.actualxoffset = 3.5;
+  for (const panel of [fixture.inner, fixture.fill]) {
+    panel.actualuiscale_x = 0;
+    panel.actualuiscale_y = NaN;
+  }
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '50%', 'invalid scale falls back to 1 per panel');
+  assert.equal(fixture.killMarker.style.marginLeft, '37.5px');
+  for (const panel of [fixture.inner, fixture.fill]) {
+    delete panel.actualuiscale_x;
+    delete panel.actualuiscale_y;
+  }
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.counter.text, '50%', 'missing scale falls back to 1');
+  assert.equal(fixture.healthValue.text, '300');
+});
+
 
 test('v2 health sampling survives unavailable style signals and absent Panorama logging', () => {
   const fixture = makeStatusFixture('enemy', {
@@ -1882,7 +1972,7 @@ test('indicator geometry stays aligned at maximum native scale and negative offs
   assert.equal(fixture.unitInfo.style.marginTop, '-62.4px');
 });
 
-test('v2 damage transitions never write engine layer dimensions or debug logs', () => {
+test('v2 damage transitions never write engine layer dimensions or old health sampling logs', () => {
   for (const widthScale of [100, 230]) {
     const fixture = makeStatusFixture('enemy', {
       enemyMode: 'gradient', enemyLow: '#FD4949', enemyMid: '#FF7B00',
@@ -1907,7 +1997,7 @@ test('v2 damage transitions never write engine layer dimensions or debug logs', 
       assert.deepEqual(panel.styleWrites.filter(write =>
         ['width', 'maxWidth', 'height', 'transform'].includes(write.property)), []);
     assert.deepEqual(fixture.unitStatus.styleWrites.filter(write => write.property === 'transform'), []);
-    assert.deepEqual(fixture.harness.logs, []);
+    assert.equal(fixture.harness.logs.filter(log => /DIAG_HEALTH_SAMPLING/.test(log)).length, 0);
   }
 });
 
@@ -2131,7 +2221,7 @@ test('v2 ally pulse fixed and gradient modes use the selected custom color', () 
   assert.equal(gradient.pulseOverlay.style.washColor, '#ABCDEF');
 });
 
-test('v2 level visibility leaves native group centering and ultimate placement unchanged', () => {
+test('v2 level parent alone gates the engine-bound label without moving the ultimate', () => {
   const fixture = makeStatusFixture('enemy', { levelsVisible: false });
   const before = {
     left: fixture.unitInfo.style.marginLeft,
@@ -2140,8 +2230,31 @@ test('v2 level visibility leaves native group centering and ultimate placement u
     counter: fixture.counterContainer.style.transform,
   };
   assert.equal(fixture.levelContainer.style.visibility, 'collapse');
+  assert.equal(fixture.levelLabel.style.visibility || '', '');
+  fixture.levelLabel.styleWrites.length = 0;
   dispatchColorSnapshot(fixture, 2, { levelsVisible: true });
   assert.equal(fixture.levelContainer.style.visibility, 'visible');
+  assert.equal(fixture.levelLabel.text, '10');
+  fixture.levelLabel.__text = '{i:player_level}';
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.levelContainer.style.visibility, 'collapse');
+  fixture.levelLabel.__text = '10'; // Engine resolves the binding; no config publish.
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.levelContainer.style.visibility, 'visible');
+  assert.equal(fixture.levelLabel.style.visibility || '', '');
+  dispatchColorSnapshot(fixture, 3, { levelsVisible: false });
+  assert.equal(fixture.levelContainer.style.visibility, 'collapse');
+  dispatchColorSnapshot(fixture, 4, { levelsVisible: true, enabled: false });
+  assert.equal(fixture.levelContainer.style.visibility, '');
+  dispatchColorSnapshot(fixture, 5, { levelsVisible: true });
+  assert.equal(fixture.levelContainer.style.visibility, 'visible');
+  fixture.worldRoot.RemoveClass('enemy');
+  fixture.worldRoot.AddClass('friend');
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.levelContainer.style.visibility, '', 'ally level stays stock');
+  assert.equal(fixture.levelLabel.text, '10');
+  assert.equal(fixture.levelLabel.style.visibility || '', '');
+  assert.deepEqual(fixture.levelLabel.styleWrites, []);
   assert.equal(fixture.unitInfo.style.marginLeft, before.left);
   assert.equal(fixture.unitInfo.style.marginTop, before.top);
   assert.equal(fixture.infoHealth.style.transform, before.info);
