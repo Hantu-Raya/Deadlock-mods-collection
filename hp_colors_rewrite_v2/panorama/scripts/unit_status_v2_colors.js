@@ -37,7 +37,7 @@
   };
 
   function styleAliasBase(property) {
-    if (property === "marginLeft" || property === "marginTop") return "margin";
+    if (property === "marginLeft" || property === "marginTop" || property === "marginRight") return "margin";
     if (property === "fontSize" || property === "fontFamily") return "font";
     if (property === "animationDuration") return "animation";
     if (property === "borderColor") return "border";
@@ -1348,7 +1348,7 @@
     setStyle(parts.counterAnchor, "width", "", bar.applied, "readoutAnchorWidth");
     setStyle(parts.counterAnchor, "height", "", bar.applied, "readoutAnchorHeight");
     setStyle(parts.counterAnchor, "transform", "", bar.applied, "readoutTransform");
-    setStyle(parts.counterRow, "marginLeft", "", bar.applied, "readoutLeft");
+    setStyle(parts.counterRow, "marginRight", "", bar.applied, "readoutRight");
     setStyle(parts.counterRow, "marginTop", "", bar.applied, "readoutTop");
   }
 
@@ -1370,17 +1370,19 @@
       bar.readoutSample = null;
       return false;
     }
-    var left = Math.max(0, Math.min(Math.max(0, width - rowWidth),
-      width / 2 + (bar.role === "ally" ? 30 : 40) - rowWidth + position.x));
+    // The row is right-aligned, so a wider or narrower engine number grows
+    // left in layout at once; only the left-edge clamp depends on rowWidth.
+    var right = Math.max(0, Math.min(Math.max(0, width - rowWidth),
+      width / 2 - (bar.role === "ally" ? 30 : 40) - position.x));
     var top = Math.max(0, Math.min(Math.max(0, height - rowHeight), 66 + position.y));
-    var sample = [width, height, rowWidth, rowHeight, left, top].join(",");
+    var sample = [width, height, rowWidth, rowHeight, right, top].join(",");
     var changed = bar.readoutSample !== sample;
     bar.readoutSample = sample;
     // Cached native readback also retries rejected writes and repairs drift.
     setStyle(parts.counterAnchor, "width", pixels(width), bar.applied, "readoutAnchorWidth");
     setStyle(parts.counterAnchor, "height", pixels(height), bar.applied, "readoutAnchorHeight");
     setStyle(parts.counterAnchor, "transform", "", bar.applied, "readoutTransform");
-    setStyle(parts.counterRow, "marginLeft", pixels(left), bar.applied, "readoutLeft");
+    setStyle(parts.counterRow, "marginRight", pixels(right), bar.applied, "readoutRight");
     setStyle(parts.counterRow, "marginTop", pixels(top), bar.applied, "readoutTop");
     return changed;
   }

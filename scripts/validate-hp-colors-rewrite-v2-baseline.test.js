@@ -1064,7 +1064,7 @@ test('v2 HP/current readouts own an external engine-bound label without rewritin
     assert.equal(fixture.healthValue.style.fontSize, '20px');
     assert.equal(fixture.healthValue.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
     assert.equal(fixture.counterAnchor.style.transform, '');
-    assert.equal(fixture.counterRow.style.marginLeft, '152px');
+    assert.equal(fixture.counterRow.style.marginRight, '0px');
     assert.equal(fixture.counterRow.style.marginTop, '0px');
     assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
     assert.equal(fixture.counterContainer.GetParent(), fixture.windowRoot);
@@ -1276,7 +1276,7 @@ test('v2 ally health text is opt-in, independently styled, and native labels res
   assert.equal(fixture.counter.style.fontSize, '20px');
   assert.equal(fixture.counter.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
   assert.equal(fixture.counterAnchor.style.transform, '');
-  assert.equal(fixture.counterRow.style.marginLeft, '92px');
+  assert.equal(fixture.counterRow.style.marginRight, '60px');
   assert.equal(fixture.counterRow.style.marginTop, '186px');
   assert.equal(fixture.healthValue.style.visibility, 'collapse');
 
@@ -1569,7 +1569,7 @@ test('v2 clamps native readout offsets across the canvas and retains the percent
     readoutVisible: true, readoutSize: 140, readoutOffsetX: 405, readoutOffsetY: 840,
   });
   assert.equal(fixture.counterAnchor.style.transform, '');
-  assert.equal(fixture.counterRow.style.marginLeft, '152px');
+  assert.equal(fixture.counterRow.style.marginRight, '0px');
   assert.equal(fixture.counterRow.style.marginTop, '186px');
   assert.equal(fixture.healthValue.style.fontSize, '14px');
   assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
@@ -1590,21 +1590,21 @@ test('v2 default and pulse readouts use zero-based 1:1 CSS pixel offsets plus na
     }, offsetX: 'enemyPulseReadoutOffsetX', offsetY: 'enemyPulseReadoutOffsetY' },
   ]) {
     const fixture = makeStatusFixture(entry.role, entry.values);
-    const baselineLeft = entry.role === 'ally' ? 82 : 92;
+    const baselineRight = entry.role === 'ally' ? 70 : 60;
     assert.equal(fixture.counterAnchor.style.transform, '', entry.role);
-    assert.equal(fixture.counterRow.style.marginLeft, baselineLeft + 'px');
+    assert.equal(fixture.counterRow.style.marginRight, baselineRight + 'px');
     assert.equal(fixture.counterRow.style.marginTop, '66px');
     dispatchColorSnapshot(fixture, 2, { ...entry.values, [entry.offsetX]: 50 });
-    assert.equal(fixture.counterRow.style.marginLeft, (baselineLeft + 50) + 'px', entry.offsetX);
+    assert.equal(fixture.counterRow.style.marginRight, (baselineRight - 50) + 'px', entry.offsetX);
     dispatchColorSnapshot(fixture, 3, {
       ...entry.values, [entry.offsetX]: 50, [entry.offsetY]: -100,
       positionX: 200, positionY: -100,
     });
     assert.equal(fixture.counterAnchor.style.transform, '');
-    assert.equal(fixture.counterRow.style.marginLeft, '152px', entry.offsetY);
+    assert.equal(fixture.counterRow.style.marginRight, '0px', entry.offsetY);
     assert.equal(fixture.counterRow.style.marginTop, '0px', entry.offsetY);
     dispatchColorSnapshot(fixture, 4, entry.values);
-    assert.equal(fixture.counterRow.style.marginLeft, baselineLeft + 'px');
+    assert.equal(fixture.counterRow.style.marginRight, baselineRight + 'px');
     assert.equal(fixture.counterRow.style.marginTop, '66px');
   }
 });
@@ -1642,8 +1642,8 @@ test('v2 full-canvas readout frame grows left from the stock label edge and leve
   assert.doesNotMatch(anchor, /fit-children|margin-top|transform/);
   assert.doesNotMatch(css, /hp_counter_slot/);
   const row = cssBlock(css, '.WindowRoot #hp_counter_row');
-  for (const property of ['width: fit-children', 'height: fit-children', 'horizontal-align: left',
-    'vertical-align: top', 'margin-top: 66px', 'flow-children: right', 'margin-right: 0px',
+  for (const property of ['width: fit-children', 'height: fit-children', 'horizontal-align: right',
+    'vertical-align: top', 'margin-top: 66px', 'flow-children: right', 'margin-right: 60px',
     'margin-left: 0px', 'padding: 4px'])
     assert.ok(row.includes(property), `row ${property}`);
   const level = cssBlock(css, '.WindowRoot #LevelContainer.NP_playerlevel_container');

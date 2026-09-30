@@ -1608,18 +1608,27 @@
 	overflow: noclip;
 }
 
+/* Right-aligned so the number grows left like stock. These defaults already
+   match the 200px canvas at zero offset (edge = center +40px, ally +30px), so
+   the first frame and digit changes never jump before the renderer measures. */
 .WindowRoot #hp_counter_row
 {
 	width: fit-children;
 	height: fit-children;
 	flow-children: right;
-	horizontal-align: left;
+	horizontal-align: right;
 	vertical-align: top;
 	margin-left: 0px;
 	margin-top: 66px;
-	margin-right: 0px;
+	margin-right: 60px;
 	padding: 4px;
 	overflow: noclip;
+}
+
+.friend .WindowRoot #hp_counter_row,
+.WindowRoot.friend #hp_counter_row
+{
+	margin-right: 70px;
 }
 
 .WindowRoot #hp_counter,

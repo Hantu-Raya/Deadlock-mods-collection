@@ -346,7 +346,7 @@ function assertReadoutBounds(fixture, x = 0, y = 0) {
   const { container, anchor, row, world } = fixture;
   const width = container.actuallayoutwidth;
   const height = container.actuallayoutheight;
-  const left = Number.parseFloat(row.style.marginLeft);
+  const left = width - Number.parseFloat(row.style.marginRight) - row.actuallayoutwidth;
   const top = Number.parseFloat(row.style.marginTop);
   const edge = width / 2 + (world.BHasClass('friend') ? 30 : 40);
   assert.equal(left, Math.max(0, Math.min(width - row.actuallayoutwidth, edge - row.actuallayoutwidth + x)));
@@ -401,7 +401,7 @@ test('unchanged-fill paint tracks digit/font row reflow and container resize wit
     const fixture = makeOwnershipFixture(classes, { [prefix + 'Visible']: true }, prepareNativeReadout);
     const edge = prefix === 'readout' ? 140 : 130;
     assertReadoutBounds(fixture);
-    assert.equal(Number.parseFloat(fixture.row.style.marginLeft) + fixture.row.actuallayoutwidth, edge);
+    assert.equal(fixture.container.actuallayoutwidth - Number.parseFloat(fixture.row.style.marginRight), edge);
     for (const x of [0, 200]) {
       fixture.update({ [prefix + 'Visible']: true, [prefix + 'OffsetX']: x });
       for (const [number, width] of [['9', 16], ['999', 32], ['1,000', 46], ['2,990', 48], ['10,000', 60]]) {
@@ -409,7 +409,7 @@ test('unchanged-fill paint tracks digit/font row reflow and container resize wit
         fixture.row.actuallayoutwidth = width;
         paintReadout(fixture);
         assertReadoutBounds(fixture, x);
-        assert.equal(Number.parseFloat(fixture.row.style.marginLeft) + width, x ? 200 : edge);
+        assert.equal(200 - Number.parseFloat(fixture.row.style.marginRight), x ? 200 : edge);
       }
     }
     for (const font of ['default', 'oracle', 'pulp']) for (const size of [72, 320]) {
@@ -433,7 +433,7 @@ test('unchanged-fill paint tracks digit/font row reflow and container resize wit
     assertReadoutBounds(fixture);
     fixture.update({ [prefix + 'Visible']: false });
     for (const property of ['width', 'height', 'transform']) assert.equal(fixture.anchor.style[property], '');
-    for (const property of ['marginLeft', 'marginTop']) assert.equal(fixture.row.style[property], '');
+    for (const property of ['marginRight', 'marginTop']) assert.equal(fixture.row.style[property], '');
   }
 });
 
@@ -452,13 +452,33 @@ test('readout geometry converts measured window pixels to CSS pixels at world-pa
       parts.row.actuallayoutheight = 48;
     });
     paintReadout(fixture);
-    assert.equal(fixture.row.style.marginLeft, (edge - 48) + 'px');
+    assert.equal(fixture.row.style.marginRight, (200 - edge) + 'px');
     assert.equal(fixture.row.style.marginTop, '66px');
     assert.equal(fixture.anchor.style.width, '200px');
     assert.equal(fixture.anchor.style.height, '210px');
     fixture.update({ [prefix + 'Visible']: true, [prefix + 'OffsetX']: 200, [prefix + 'OffsetY']: 210 });
-    assert.equal(fixture.row.style.marginLeft, (200 - 48) + 'px');
+    assert.equal(fixture.row.style.marginRight, '0px');
     assert.equal(fixture.row.style.marginTop, (210 - 24) + 'px');
+  }
+});
+
+test('right-anchored readout keeps its edge through digit changes and before first measurement', () => {
+  // Stylesheet defaults equal the renderer's zero-offset result on the 200px
+  // canvas, so the first frame (before layout is measured) is already placed.
+  const css = fs.readFileSync(path.join(__dirname, '..', 'hp_colors_rewrite_v2', 'panorama', 'styles', 'unit_status_v2.css'), 'utf8');
+  const rowRule = css.match(/\.WindowRoot #hp_counter_row\s*\{([^}]*)\}/)[1];
+  assert.match(rowRule, /horizontal-align:\s*right/);
+  assert.match(rowRule, /margin-right:\s*60px/);
+  assert.match(css, /\.friend \.WindowRoot #hp_counter_row,\s*\.WindowRoot\.friend #hp_counter_row\s*\{\s*margin-right:\s*70px/);
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, prepareNativeReadout);
+  assert.equal(fixture.row.style.marginRight, '60px');
+  for (const width of [16, 32, 46, 60]) {
+    fixture.row.actuallayoutwidth = width;
+    fixture.row.styleWrites.length = 0;
+    paintReadout(fixture);
+    // The right edge never depends on the (lagging) measured number width.
+    assert.deepEqual(fixture.row.styleWrites.filter(write => write.property === 'marginRight'), []);
+    assert.equal(fixture.row.style.marginRight, '60px');
   }
 });
 
@@ -467,7 +487,7 @@ test('invalid readout layout defers on the existing cadence; oversized rows expo
     prepareNativeReadout(parts);
     parts.row.actuallayoutwidth = 0;
   });
-  assert.equal(fixture.row.style.marginLeft || '', '');
+  assert.equal(fixture.row.style.marginRight || '', '');
   const panels = [fixture.anchor, fixture.row];
   for (const [panel, property, invalid] of [
     [fixture.row, 'actuallayoutwidth', 0], [fixture.row, 'actuallayoutheight', NaN],
@@ -487,7 +507,7 @@ test('invalid readout layout defers on the existing cadence; oversized rows expo
   fixture.row.actuallayoutwidth = 250;
   fixture.row.actuallayoutheight = 230;
   paintReadout(fixture);
-  assert.equal(fixture.row.style.marginLeft, '0px');
+  assert.equal(fixture.row.style.marginRight, '0px');
   assert.equal(fixture.row.style.marginTop, '0px');
   assert.ok(fixture.row.actuallayoutwidth > fixture.container.actuallayoutwidth);
   assert.ok(fixture.row.actuallayoutheight > fixture.container.actuallayoutheight);
@@ -503,18 +523,18 @@ test('readout geometry retries rejected margins and repairs native drift at unch
   let reject = true;
   fixture.row.style = new Proxy(nativeStyle, {
     set(target, property, value) {
-      if (property === 'marginLeft' && reject) throw new Error('temporarily unavailable margin');
+      if (property === 'marginRight' && reject) throw new Error('temporarily unavailable margin');
       target[property] = value;
       return true;
     },
   });
   fixture.row.actuallayoutwidth = 60;
   paintReadout(fixture);
-  assert.equal(nativeStyle.marginLeft, '92px');
+  assert.equal(nativeStyle.marginRight, '60px');
   reject = false;
   paintReadout(fixture);
   assertReadoutBounds(fixture);
-  nativeStyle.marginLeft = '0px';
+  nativeStyle.marginRight = '0px';
   fixture.anchor.style.width = '1px';
   paintReadout(fixture);
   assertReadoutBounds(fixture);
@@ -538,7 +558,7 @@ test('HP/current readouts adopt the same engine label outside UnitStatus with ze
       assert.equal(fixture.health.style.fontSize, '20px');
       assert.equal(fixture.health.style.fontFamily, 'VALVEPulp, Noto Sans, sans-serif');
       assert.equal(fixture.anchor.style.transform, '');
-      assert.equal(fixture.row.style.marginLeft, prefix === 'readout' ? '152px' : '142px');
+      assert.equal(fixture.row.style.marginRight, prefix === 'readout' ? '0px' : '10px');
       assert.equal(fixture.row.style.marginTop, '0px');
       assert.equal(fixture.row.FindChildTraverse('UnitHealthbarValue'), fixture.health);
       assert.equal(fixture.health.GetParent(), fixture.row);
@@ -581,7 +601,7 @@ test('runtime HP/percent switching returns the engine label and transfers pulse 
   assert.equal(fixture.counter.style.fontSize, '20px');
   assert.equal(fixture.counter.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
   assert.equal(fixture.anchor.style.transform, '');
-  assert.equal(fixture.row.style.marginLeft, '142px');
+  assert.equal(fixture.row.style.marginRight, '10px');
   assert.equal(fixture.row.style.marginTop, '0px');
   assert.equal(fixture.counter.BHasClass('HPColorsRewritePulseIntense'), true);
   const writes = fixture.counter.readoutTextWrites.length;
@@ -590,7 +610,7 @@ test('runtime HP/percent switching returns the engine label and transfers pulse 
   assert.equal(fixture.health.style.visibility, 'visible');
   assert.equal(fixture.health.style.washColor, '#123456');
   assert.equal(fixture.anchor.style.transform, '');
-  assert.equal(fixture.row.style.marginLeft, '142px');
+  assert.equal(fixture.row.style.marginRight, '10px');
   assert.equal(fixture.row.style.marginTop, '0px');
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseSubtle'), true);
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), false);
@@ -670,9 +690,9 @@ test('counter row replacement never orphans the adopted engine label', () => {
   fixture.harness.scheduler.runByDelay(1);
   assert.equal(fixture.health.GetParent(), row);
   assert.deepEqual(fixture.health.readoutParentWrites, [fixture.row, fixture.info, row]);
-  assert.equal(fixture.row.style.marginLeft, '');
+  assert.equal(fixture.row.style.marginRight, '');
   assert.equal(fixture.row.style.marginTop, '');
-  assert.equal(row.style.marginLeft, '68px');
+  assert.equal(row.style.marginRight, '60px');
   assert.equal(row.style.marginTop, '66px');
   fixture.update({ enabled: false });
   assert.equal(fixture.health.GetParent(), fixture.info);
