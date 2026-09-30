@@ -1864,8 +1864,14 @@
     return false;
   }
 
-  function clearReadoutOwnership(bar) {
+  function clearReadoutOwnership(bar, preservePipOpacity) {
     clearPipColorOwnership(bar);
+    if (!preservePipOpacity) clearOwnedStyle(
+      bar.parts && bar.parts.pipLines,
+      "opacity",
+      bar.applied,
+      "pipOpacity",
+    );
     clearOwnedStyle(
       bar.parts && bar.parts.pipLines,
       "visibility",
@@ -1946,14 +1952,9 @@
   function restorePipLine(entry) {
     setStyle(entry.panel, "washColor", baselineStyle(entry.baseline, "washColor"),
       entry.applied, "washColor");
-    setStyle(entry.panel, "opacity", baselineStyle(entry.baseline, "opacity"),
-      entry.applied, "opacity");
   }
 
-  function clearPipColorOwnership(bar, force) {
-    // Neutral fill reconciliation restores other readout styles, not active line opacity.
-    if (!force && bar.surface === "fill" && config.enabled && !bar.spectating &&
-        config.pipOpacity !== 100) return;
+  function clearPipColorOwnership(bar) {
     var entries = bar.pipColorEntries || [];
     for (var index = 0; index < entries.length; index++)
       restorePipLine(entries[index]);
@@ -1969,8 +1970,10 @@
       bar.role === "ally" && config.allyPipColorEnabled);
     var opacityOwned = eligible && config.pipOpacity !== 100;
     var container = bar.parts && bar.parts.pipLines;
-    if ((!custom && !opacityOwned) || !isValid(container)) {
-      clearPipColorOwnership(bar, true);
+    setStyle(container, "opacity", opacityOwned ? String(config.pipOpacity / 100) : "",
+      bar.applied, "pipOpacity");
+    if (!custom || !isValid(container)) {
+      clearPipColorOwnership(bar);
       return;
     }
     var previous = bar.pipColorEntries || [];
@@ -1988,15 +1991,12 @@
         }
       if (!entry) entry = {
         panel: panel,
-        baseline: captureStyleBaseline(panel, ["washColor", "opacity"]),
+        baseline: captureStyleBaseline(panel, ["washColor"]),
         applied: {},
       };
       setStyle(panel, "washColor", custom ?
         (enemy ? config.enemyPipColor : config.allyPipColor) :
         baselineStyle(entry.baseline, "washColor"), entry.applied, "washColor");
-      setStyle(panel, "opacity", opacityOwned ?
-        String((enemy ? 0.6 : 0.8) * config.pipOpacity / 100) :
-        baselineStyle(entry.baseline, "opacity"), entry.applied, "opacity");
       next.push(entry);
     }
     for (var oldIndex = 0; oldIndex < previous.length; oldIndex++)
@@ -2424,7 +2424,8 @@
   function restoreInactiveCustomization(bar, panelBaseline) {
     clearPulse(bar);
     clearKillMarkerOwnership(bar);
-    clearReadoutOwnership(bar);
+    // Decorations reconcile pip opacity below; avoid clearing it between identical paints.
+    clearReadoutOwnership(bar, true);
     clearPlayerNameOwnership(bar);
     applyReadoutDecorations(bar);
     applyUltimateWash(bar, "");
