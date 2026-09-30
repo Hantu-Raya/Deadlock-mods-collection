@@ -124,13 +124,13 @@
     "pulseNativeReadoutIntenseClass",
   ];
   var NATIVE_READOUT_STYLES = [
-    "visibility", "opacity", "washColor", "fontSize", "fontFamily", "animationDuration",
+    "visibility", "opacity", "washColor", "fontSize", "fontFamily", "animationDuration", "textShadow",
   ];
   var NATIVE_READOUT_CLASSES = [
     "HPColorsRewritePulse", "HPColorsRewritePulseSubtle", "HPColorsRewritePulseIntense",
   ];
   var READOUT_FIELDS = ["Visible", "Size", "Font", "OffsetX", "OffsetY",
-    "ColorMode", "Mode", "Low", "Mid", "High"];
+    "ColorMode", "Mode", "Low", "Mid", "High", "OutlineWidth"];
   // Role -> config key per readout field; enemy keys predate the ally copy.
   var READOUT_KEYS = { enemy: {}, ally: {} };
   for (var readoutFieldIndex = 0; readoutFieldIndex < READOUT_FIELDS.length; readoutFieldIndex++) {
@@ -1322,6 +1322,8 @@
       setStyle(bar.parts.healthValue, "washColor", color, bar.applied, "nativeReadoutwashColor");
       setStyle(bar.parts.healthValue, "fontSize", fontSize, bar.applied, "nativeReadoutfontSize");
       setStyle(bar.parts.healthValue, "fontFamily", fontFamily, bar.applied, "nativeReadoutfontFamily");
+      applyTextOutline(bar.parts.healthValue, config[keys.OutlineWidth], "#10130D",
+        (bar.panelBaseline || {}).healthValue, bar.applied, "nativeReadouttextShadow");
     } else if (!keys) {
       restoreNativeReadout(bar);
     }
@@ -1442,7 +1444,7 @@
     var oldBaseline = previousBaseline || {};
     return {
       name: retainPanelBaseline(parts.name, oldParts.name, oldBaseline.name,
-        ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop"]),
+        ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop", "textShadow"]),
       primary: retainPanelBaseline(
         parts.primary,
         oldParts.primary,
@@ -1490,7 +1492,7 @@
 
   function clearPlayerNameOwnership(bar) {
     if (!bar.nameOwned) return;
-    var properties = ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop"];
+    var properties = ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop", "textShadow"];
     var restored = true;
     for (var index = 0; index < properties.length; index++) {
       var property = properties[index];
@@ -1503,6 +1505,14 @@
     bar.nameOwned = !restored;
   }
 
+  function applyTextOutline(panel, width, color, baseline, cache, key) {
+    // Stock offBlack = #10130D (citadel_base_styles); names use offBlack&ee.
+    // Five leaves the native rule untouched, unless returning our inline override.
+    if (width === 5 && !Object.prototype.hasOwnProperty.call(cache, key)) return;
+    setStyle(panel, "textShadow", width === 5 ? baselineStyle(baseline, "textShadow") :
+      "0px 0px 0px " + width + " " + color, cache, key);
+  }
+
   function applyPlayerName(bar) {
     var panel = bar.parts.name;
     if (!config.enabled || bar.surface !== "player" || !config.playerNamesVisible ||
@@ -1512,6 +1522,8 @@
     }
     bar.nameOwned = true;
     var baseline = (bar.panelBaseline || {}).name;
+    applyTextOutline(panel, config.nameOutlineWidth, "#10130Dee",
+      baseline, bar.applied, "nametextShadow");
     var enemy = bar.role === "enemy";
     var colorEnabled = enemy ? config.enemyNameColorEnabled : config.allyNameColorEnabled;
     var color = colorEnabled ? (enemy ? config.enemyNameColor : config.allyNameColor) : "";

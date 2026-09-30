@@ -3224,6 +3224,57 @@ test('new pip and shape keys support Current scope, ability conditions, transfer
   assert.equal(restored.read().values.pipOpacity, 42);
 });
 
+test('outline widths append stock baselines and round-trip settings, presets, scopes and saves', () => {
+  const keys = ['readoutOutlineWidth', 'allyReadoutOutlineWidth', 'nameOutlineWidth'];
+  assert.equal(createState().read().values.staminaShape, 'arrow');
+  assert.deepEqual(EXTENSION_KEYS.slice(62), keys);
+  for (const [values, expected] of [
+    [{}, 'arrow'], [{ staminaWidth: 150 }, 'box'],
+    [{ staminaShape: 'box' }, 'box'], [{ staminaWidth: 150, staminaShape: 'arrow' }, 'arrow'],
+  ]) assert.equal(createState(makeSession({ values })).read().values.staminaShape, expected);
+  const legacy = createState();
+  send(legacy, 'settings_import', { raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[[0,150]],"conditions":{}}}' });
+  assert.equal(legacy.read().values.staminaShape, 'box');
+  for (const key of keys) assert.equal(legacy.read().values[key], 5);
+  const state = createState();
+  for (const [index, key] of keys.entries()) {
+    assert.equal(DEFAULTS[key], 5);
+    assert.equal(CONTRACT.sparseDefaults[key], 5);
+    assert.equal(CODEC_DEFAULTS[key], 5);
+    assert.equal(SETTING_META[key].type, 'number');
+    assert.equal(SETTING_META[key].conditionEligible, true);
+    assert.deepEqual(CONTRACT.numberBounds[key], [0, 10]);
+    assert.equal(CONTRACT.normalizeValue(key, 2.7), 2.5);
+    assert.equal(CONTRACT.normalizeValue(key, -1), 0);
+    assert.equal(CONTRACT.normalizeValue(key, 11), 10);
+    assert.equal(createState(makeSession()).read().values[key], 5);
+    send(state, 'setting_edit', { key, value: index + 0.5 });
+    send(state, 'condition_set', { key, slot: 1, minTier: 2, value: index + 6.5 });
+  }
+  const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.equal(JSON.parse(code.slice(5)).hpv2.v, 2);
+  const restored = createState();
+  const imported = send(restored, 'settings_import', { raw: code });
+  const saved = createState({ sessionRaw: effect(imported, 'session_replace').raw });
+  for (const key of keys) {
+    assert.equal(restored.read().values[key], state.read().values[key]);
+    assert.deepEqual(restored.read().conditions[key], state.read().conditions[key]);
+    assert.equal(saved.read().values[key], state.read().values[key]);
+    assert.deepEqual(saved.read().conditions[key], state.read().conditions[key]);
+  }
+  send(state, 'preset_save', { name: 'Outline widths' });
+  const presetCode = effect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  send(restored, 'preset_import', { raw: presetCode });
+  for (const key of keys) assert.equal(row(restored.read(), 'user_0001').values[key], state.read().values[key]);
+  send(state, 'scope_set', { mode: 'selected', heroes: ['hero_shiv'] });
+  for (const key of keys) {
+    const changed = send(state, 'setting_edit', { key, value: 9.5 });
+    assert.equal(currentScope(changed.view).values[key], 9.5);
+    const reloaded = createState({ sessionRaw: effect(changed, 'session_replace').raw });
+    assert.equal(currentScope(reloaded.read()).values[key], 9.5);
+  }
+});
+
 test('bar-relative defaults and historical offset migration round-trip once', () => {
   const factory = loadFactory();
   const fresh = factory.create(null);
@@ -3231,7 +3282,7 @@ test('bar-relative defaults and historical offset migration round-trip once', ()
   assert.equal(fresh.read().values.heightScale, 80);
   assert.equal(fresh.read().values.readoutOffsetX, 18);
   assert.equal(fresh.read().values.readoutOffsetY, 14);
-  assert.equal(fresh.read().values.staminaShape, 'box');
+  assert.equal(fresh.read().values.staminaShape, 'arrow');
   const old = factory.create(JSON.stringify({
     version: 1, values: { widthScale: 200, heightScale: 60, readoutOffsetX: 26, readoutOffsetY: 12 },
     userPresets: [{ id: 'user_0001', name: 'Old', mode: 'all', heroes: [],

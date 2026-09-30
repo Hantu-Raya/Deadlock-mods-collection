@@ -100,6 +100,7 @@
             "allyNameColorEnabled",
             "allyNameColor",
             "nameSize",
+            "nameOutlineWidth",
             "nameOffsetX",
             "nameOffsetY"
           ]
@@ -143,6 +144,7 @@
           keys: [
             "readoutVisible",
             "readoutSize",
+            "readoutOutlineWidth",
             "readoutFont",
             "readoutColorMode",
             "readoutMode",
@@ -225,6 +227,7 @@
           keys: [
             "allyReadoutVisible",
             "allyReadoutSize",
+            "allyReadoutOutlineWidth",
             "allyReadoutFont",
             "allyReadoutColorMode",
             "allyReadoutMode",
@@ -655,6 +658,7 @@
     {base: "HPColorsPipOpacity", key: "pipOpacity", min: 0, max: 100},
 
     { base: "HPColorsNameSize", key: "nameSize", min: 8, max: 40 },
+    { base: "HPColorsNameOutlineWidth", key: "nameOutlineWidth", min: 0, max: 10, increment: 0.5 },
     { base: "HPColorsNameOffsetX", key: "nameOffsetX", min: -200, max: 200 },
     { base: "HPColorsNameOffsetY", key: "nameOffsetY", min: -210, max: 210 },
     { base: "HPColorsWidth", key: "widthScale", min: 60, max: 230 },
@@ -700,6 +704,7 @@
       displayScale: 0.1,
     },
     { base: "HPColorsReadoutSize", key: "readoutSize", min: 72, max: 320 },
+    { base: "HPColorsReadoutOutlineWidth", key: "readoutOutlineWidth", min: 0, max: 10, increment: 0.5 },
     {
       base: "HPColorsReadoutOffsetX",
       key: "readoutOffsetX",
@@ -718,6 +723,7 @@
       min: 72,
       max: 320,
     },
+    { base: "HPColorsAllyReadoutOutlineWidth", key: "allyReadoutOutlineWidth", min: 0, max: 10, increment: 0.5 },
     {
       base: "HPColorsAllyReadoutOffsetX",
       key: "allyReadoutOffsetX",
@@ -990,6 +996,7 @@
     "allyReadoutColorMode": "HPColorsAllyReadoutColorModeRow",
     "allyReadoutMode": "HPColorsAllyReadoutModeRow",
     "nameSize": "HPColorsNameSizeRow",
+    "nameOutlineWidth": "HPColorsNameOutlineWidthRow",
     "nameOffsetX": "HPColorsNameOffsetXRow",
     "nameOffsetY": "HPColorsNameOffsetYRow",
     "widthScale": "HPColorsWidthScaleRow",
@@ -1005,9 +1012,11 @@
     "staminaOffsetX": "HPColorsStaminaOffsetXRow",
     "staminaOffsetY": "HPColorsStaminaOffsetYRow",
     "readoutSize": "HPColorsReadoutSizeRow",
+    "readoutOutlineWidth": "HPColorsReadoutOutlineWidthRow",
     "readoutOffsetX": "HPColorsReadoutOffsetXRow",
     "readoutOffsetY": "HPColorsReadoutOffsetYRow",
     "allyReadoutSize": "HPColorsAllyReadoutSizeRow",
+    "allyReadoutOutlineWidth": "HPColorsAllyReadoutOutlineWidthRow",
     "allyReadoutOffsetX": "HPColorsAllyReadoutOffsetXRow",
     "allyReadoutOffsetY": "HPColorsAllyReadoutOffsetYRow",
     "lowThreshold": "HPColorsSharedLowThresholdRow",
@@ -5198,7 +5207,7 @@
     if (key === "enemyPipColorEnabled" || key === "allyPipColorEnabled") return values.pipsVisible;
     if (key === "pipOpacity") return values.pipsVisible;
     if (key === "levelOffsetX" || key === "levelOffsetY") return values.levelsVisible;
-    if (/^(enemyName|allyName|nameSize|nameOffset)/.test(key)) return values.playerNamesVisible;
+    if (/^(enemyName|allyName|nameSize|nameOutlineWidth|nameOffset)/.test(key)) return values.playerNamesVisible;
     if (/^allyReadout/.test(key) && key !== "allyReadoutVisible") return values.allyReadoutVisible;
     if (/^readout/.test(key) && key !== "readoutVisible") return values.readoutVisible;
     if (/^enemyPulse/.test(key) && key !== "enemyPulseEnabled") return values.enemyPulseEnabled;

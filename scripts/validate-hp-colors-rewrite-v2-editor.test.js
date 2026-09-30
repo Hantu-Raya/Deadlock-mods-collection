@@ -3781,13 +3781,13 @@ test('follow-up pages expose every editable key once without heading-only or Adv
   const expected = [
     ['GENERAL', 'MASTER', 'HPColorsSettingsOverviewStatus', ['enabled', 'lowThreshold', 'highThreshold']],
     ['GENERAL', 'LAYOUT', 'HPColorsSettingsOverviewLayout', ['widthScale', 'heightScale', 'positionX', 'positionY', 'accessoryAnchorEnabled']],
-    ['GENERAL', 'NAME & APPEARANCE', 'HPColorsSettingsOverviewAppearance', ['criticalIndicatorVisible', 'playerNamesVisible', 'enemyNameColorEnabled', 'enemyNameColor', 'allyNameColorEnabled', 'allyNameColor', 'nameSize', 'nameOffsetX', 'nameOffsetY']],
+    ['GENERAL', 'NAME & APPEARANCE', 'HPColorsSettingsOverviewAppearance', ['criticalIndicatorVisible', 'playerNamesVisible', 'enemyNameColorEnabled', 'enemyNameColor', 'allyNameColorEnabled', 'allyNameColor', 'nameSize', 'nameOutlineWidth', 'nameOffsetX', 'nameOffsetY']],
     ['ENEMY', 'BAR', 'HPColorsSettingsEnemyBar', ['enemyEnabled', 'enemyVisible', 'enemyMode', 'enemyLow', 'enemyMid', 'enemyHigh', 'enemyTeamHigh']],
     ['ENEMY', 'HEAL & SHIELD', 'HPColorsSettingsEnemyFeedback', ['enemyHealing', 'enemyDelta', 'enemyBulletShield']],
-    ['ENEMY', 'HP TEXT', 'HPColorsSettingsReadoutNumber', ['readoutVisible', 'readoutSize', 'readoutFont', 'readoutColorMode', 'readoutMode', 'readoutLow', 'readoutMid', 'readoutHigh', 'readoutOffsetX', 'readoutOffsetY']],
+    ['ENEMY', 'HP TEXT', 'HPColorsSettingsReadoutNumber', ['readoutVisible', 'readoutSize', 'readoutOutlineWidth', 'readoutFont', 'readoutColorMode', 'readoutMode', 'readoutLow', 'readoutMid', 'readoutHigh', 'readoutOffsetX', 'readoutOffsetY']],
     ['ALLY', 'BAR', 'HPColorsSettingsAllyBar', ['allyEnabled', 'allyVisible', 'allyMode', 'allyLow', 'allyMid', 'allyHigh', 'allyTeamHigh']],
     ['ALLY', 'HEAL & SHIELD', 'HPColorsSettingsAllyFeedback', ['allyHealing', 'allyDelta', 'allyBulletShield']],
-    ['ALLY', 'HP TEXT', 'HPColorsSettingsAllyReadout', ['allyReadoutVisible', 'allyReadoutSize', 'allyReadoutFont', 'allyReadoutColorMode', 'allyReadoutMode', 'allyReadoutLow', 'allyReadoutMid', 'allyReadoutHigh', 'allyReadoutOffsetX', 'allyReadoutOffsetY']],
+    ['ALLY', 'HP TEXT', 'HPColorsSettingsAllyReadout', ['allyReadoutVisible', 'allyReadoutSize', 'allyReadoutOutlineWidth', 'allyReadoutFont', 'allyReadoutColorMode', 'allyReadoutMode', 'allyReadoutLow', 'allyReadoutMid', 'allyReadoutHigh', 'allyReadoutOffsetX', 'allyReadoutOffsetY']],
     ['INDICATORS', 'PIPS & LEVEL', 'HPColorsSettingsReadoutLevels', ['pipsVisible', 'enemyPipColorEnabled', 'enemyPipColor', 'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'levelsVisible', 'levelOffsetX', 'levelOffsetY']],
     ['INDICATORS', 'ULTIMATE', 'HPColorsSettingsUltimateTimer', ['ultMode', 'ultCustom', 'ultimateTimerColorMode', 'ultimateTimerUnavailableColor', 'ultimateTimerAvailableColor', 'ultimateTimerEnabled', 'ultimateTimerSize', 'ultimateTimerDarkness', 'ultOffsetX', 'ultOffsetY']],
     ['UNITS', 'NPCS', 'HPColorsSettingsNpc', ['npcEnemyEnabled', 'npcAllyEnabled']],
@@ -3864,8 +3864,8 @@ test('pip controls publish team colors and opacity, and stamina dropdown resets 
   assert.equal(readConfig(fixture).values.staminaOffsetX, -123);
   requestReset(fixture);
   confirmReset(fixture);
-  assert.equal(readConfig(fixture).values.staminaShape, 'box');
-  assert.equal(shape.GetSelected().id, 'box');
+  assert.equal(readConfig(fixture).values.staminaShape, 'arrow');
+  assert.equal(shape.GetSelected().id, 'arrow');
   assert.equal(readConfig(fixture).values.staminaOffsetX, 0);
   assert.equal(readConfig(fixture).values.pipOpacity, 42, 'PIPS page is not reset by STAMINA');
   panel(fixture, 'HPColorsUndoButton').events.onactivate();
@@ -3912,6 +3912,44 @@ test('bar-relative percent offsets use stable display and consistent typed slide
       assert.match(layoutSource.slice(rowStart, nextRow === -1 ? undefined : nextRow),
         /text="%" class="HPColorsUnitLabel"/, key + ' percent unit');
     }
+  }
+});
+
+test('text outline sliders publish half steps, register conditions, gate rows and reset their page', () => {
+  const cases = [
+    ['readoutOutlineWidth', 'HPColorsReadoutOutlineWidth', 'Enemy', 2, 'readoutVisible'],
+    ['allyReadoutOutlineWidth', 'HPColorsAllyReadoutOutlineWidth', 'Ally', 2, 'allyReadoutVisible'],
+    ['nameOutlineWidth', 'HPColorsNameOutlineWidth', 'Overview', 2, 'playerNamesVisible'],
+  ];
+  for (const [key, base, category, tab, visibilityKey] of cases) {
+    const fixture = bootMenu(undefined, { beforeBoot(harness) {
+      const row = harness.root.FindChildTraverse(base + 'Row');
+      assert.ok(row, base + ' row exists');
+      row.AddClass('HPColorsSettingRow');
+      harness.root.FindChildTraverse(base + 'SliderHost').SetParent(row);
+      harness.root.FindChildTraverse(base + 'Entry').SetParent(row);
+    } });
+    openEditor(fixture);
+    panel(fixture, 'HPColorsCategory' + category).events.onactivate();
+    panel(fixture, 'HPColorsTab' + tab).events.onactivate();
+    const slider = panel(fixture, base + 'Slider');
+    assert.equal(slider.min, 0, key);
+    assert.equal(slider.max, 10, key);
+    assert.equal(slider.increment, 0.5, key);
+    assert.equal(readConfig(fixture).values[key], 5, key);
+    slider.events.onmousedown();
+    slider.value = 2.5;
+    slider.events.onvaluechanged();
+    slider.events.onmouseup();
+    assert.equal(readConfig(fixture).values[key], 2.5, key);
+    panel(fixture, 'HPColorsCondition_' + key).events.onactivate();
+    assert.equal(panel(fixture, 'HPColorsConditionNumberSlider').increment, 0.5, key);
+    panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+    requestReset(fixture);
+    confirmReset(fixture);
+    assert.equal(readConfig(fixture).values[key], 5, key);
+    const hidden = bootMenu({ version: 1, values: { [visibilityKey]: false }, scopes: [] });
+    assert.equal(panel(hidden, base + 'Row').BHasClass('FeatureOff'), true, key);
   }
 });
 
