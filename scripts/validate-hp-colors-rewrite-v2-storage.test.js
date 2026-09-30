@@ -55,7 +55,7 @@ const PROCESS_ATTRS = [
   'hp_colors_v2_hydration',
 ];
 const TITLE_LIMIT = 4096;
-const DEFAULT_WIDTH = 100;
+const DEFAULT_WIDTH = 148;
 
 const transcript = [];
 
@@ -772,7 +772,7 @@ test('saves from the first local-save build (schema 1) still restore and upgrade
   closeEditor(fixture);
   fixture.run(8000);
   const stored = profile.disk.get(KEY_CURRENT).split('.')[2];
-  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 2);
+  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 4);
   assert.equal(storedEditedWidth(profile), 200);
   record(fixture);
 });
@@ -787,19 +787,22 @@ test('saves keep only non-default values, and a restart fills the rest', () => {
   closeEditor(first);
   first.run(4000);
   const body = JSON.parse(storedRecord(profile).body);
-  assert.deepEqual(Object.keys(body.values), ['widthScale']);
-  assert.deepEqual(Object.keys(body.userPresets[0].values), ['widthScale']);
+  const changedFromFrozen = ['widthScale', 'heightScale', 'positionY', 'readoutFont',
+    'readoutOffsetX', 'readoutOffsetY', 'ultOffsetX', 'ultOffsetY', 'levelOffsetX',
+    'levelOffsetY', 'enemyPipColorEnabled', 'enemyPipColor', 'staminaShape'];
+  assert.deepEqual(Object.keys(body.values), changedFromFrozen);
+  assert.deepEqual(Object.keys(body.userPresets[0].values), changedFromFrozen);
   assert.ok(profile.disk.get(KEY_CURRENT).length < 3000, 'a typical save is one chunk');
 
   const restart = launch(profile, { label: 'sparse restore' });
   restart.run(6000);
   assert.equal(restart.renderer().widthScale, 210);
-  assert.equal(restart.renderer().heightScale, 100, 'omitted values restore to defaults');
+  assert.equal(restart.renderer().heightScale, 80, 'new defaults are explicit against the frozen baseline');
   assert.equal(menuState(restart).userPresets[0].values.enemyLow, '#FD4949');
   record(restart, { recordChars: profile.disk.get(KEY_CURRENT).length });
 });
 
-test('6722 Units, Appearance and zero-based readout settings persist through a real editor restart', () => {
+test('6722 Units, Appearance and bar-relative readout settings persist through a real editor restart', () => {
   const profile = createProfile();
   const first = launch(profile, { label: '6722 settings save' });
   first.run(2000);
@@ -811,9 +814,9 @@ test('6722 Units, Appearance and zero-based readout settings persist through a r
   panelById(first.harness, 'HPColorsPlayerNamesToggle').events.onactivate();
   const x = panelById(first.harness, 'HPColorsReadoutOffsetXEntry');
   const y = panelById(first.harness, 'HPColorsReadoutOffsetYEntry');
-  x.text = '150';
+  x.text = '197'; // 197% of 76 px rounds to 150 stored px.
   x.events.ontextentrysubmit();
-  y.text = '-100';
+  y.text = '-556'; // -556% of 18 px rounds to -100 stored px.
   y.events.ontextentrysubmit();
   createPreset(first, '6722 saved');
   closeEditor(first);
@@ -1005,7 +1008,7 @@ test('an All Except preset keeps its mode and skipped heroes through a restart',
   record(second);
 });
 
-test('a save without any All Except preset or scope is written with envelope schema 2', () => {
+test('a save without any All Except preset or scope is written with envelope schema 4', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'schema 2 write' });
   fixture.run(2000);
@@ -1014,12 +1017,12 @@ test('a save without any All Except preset or scope is written with envelope sch
   closeEditor(fixture);
   fixture.run(4000);
   assert.equal(storedRecord(profile).kind, 'valid');
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   assert.equal(storedEditedWidth(profile), 175);
   record(fixture);
 });
 
-test('a schema 2 save still restores and the next save stays schema 2', () => {
+test('a schema 2 save still restores and the next save upgrades to schema 4', () => {
   const profile = createProfile({
     [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 2, t: 1, b: JSON.parse(savedBody({ widthScale: 165 })) }),
   });
@@ -1031,12 +1034,12 @@ test('a schema 2 save still restores and the next save stays schema 2', () => {
   setWidth(fixture, 185);
   closeEditor(fixture);
   fixture.run(8000);
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   assert.equal(storedEditedWidth(profile), 185);
   record(fixture);
 });
 
-test('an All Except Current scope saves as schema 3, and returning to All Heroes saves schema 2', () => {
+test('an All Except Current scope saves as schema 4 before and after returning to All Heroes', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'except scope schema' });
   fixture.run(2000);
@@ -1049,7 +1052,7 @@ test('an All Except Current scope saves as schema 3, and returning to All Heroes
   fixture.run(4000);
   const current = JSON.parse(storedRecord(profile).body).scopes.find((scope) => scope.id === 'scope_current');
   assert.equal(current.mode, 'except');
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 4);
 
   openEditor(fixture);
   panelById(fixture.harness, 'HPColorsCurrentScopeAll').events.onactivate();
@@ -1057,11 +1060,11 @@ test('an All Except Current scope saves as schema 3, and returning to All Heroes
   fixture.run(4000);
   const body = JSON.parse(storedRecord(profile).body);
   assert.ok(!(body.scopes || []).some((scope) => scope.mode === 'except'));
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   record(fixture);
 });
 
-test('deleting the All Except preset keeps schema 3 until Current returns to All Heroes', () => {
+test('deleting the All Except preset keeps schema 4 when Current returns to All Heroes', () => {
   const profile = createProfile({
     [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: exceptBody({ widthScale: 140 }) }),
   });
@@ -1071,7 +1074,7 @@ test('deleting the All Except preset keeps schema 3 until Current returns to All
   setWidth(fixture, 150);
   closeEditor(fixture);
   fixture.run(8000);
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 4);
 
   openEditor(fixture);
   const rowIndex = Array.from({ length: 64 }, (_, index) => index).find((index) => {
@@ -1084,7 +1087,7 @@ test('deleting the All Except preset keeps schema 3 until Current returns to All
   closeEditor(fixture);
   fixture.run(8000);
   assert.equal(JSON.parse(storedRecord(profile).body).userPresets.some((row) => row.mode === 'except'), false);
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 4);
 
   openEditor(fixture);
   panelById(fixture.harness, 'HPColorsCurrentScopeAll').events.onactivate();
@@ -1093,14 +1096,14 @@ test('deleting the All Except preset keeps schema 3 until Current returns to All
   const body = JSON.parse(storedRecord(profile).body);
   assert.equal((body.userPresets || []).some((row) => row.mode === 'except'), false);
   assert.equal((body.scopes || []).some((scope) => scope.mode === 'except'), false);
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   record(fixture);
 });
 
-test('a schema 4 save is read-only and never overwritten', () => {
-  const future = rawRecord({ m: 'HPV2STORE', s: 4, t: 1, b: exceptBody({ widthScale: 150 }) });
+test('a schema 5 save is read-only and never overwritten', () => {
+  const future = rawRecord({ m: 'HPV2STORE', s: 5, t: 1, b: exceptBody({ widthScale: 150 }) });
   const profile = createProfile({ [KEY_CURRENT]: future });
-  const fixture = launch(profile, { label: 'schema 4 read-only' });
+  const fixture = launch(profile, { label: 'schema 5 read-only' });
   fixture.run(8000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   openEditor(fixture);
@@ -1115,7 +1118,7 @@ test('a schema 4 save is read-only and never overwritten', () => {
 // A save this build cannot read (for example one written by a newer build)
 // must still be removable on purpose; otherwise a downgraded player is stuck.
 test('a save this build cannot read can be cleared after confirming, then saving resumes', () => {
-  const future = rawRecord({ m: 'HPV2STORE', s: 4, t: 1, b: exceptBody({ widthScale: 150 }) });
+  const future = rawRecord({ m: 'HPV2STORE', s: 5, t: 1, b: exceptBody({ widthScale: 150 }) });
   const profile = createProfile({ [KEY_CURRENT]: future, [KEY_PREVIOUS]: future });
   const fixture = launch(profile, { label: 'clear unreadable save' });
   fixture.run(8000);
@@ -1286,6 +1289,7 @@ test('header chip names the preset the current settings belong to', () => {
 test('round schema-3 restart drops saved formats without losing names geometry scopes or hero own', () => {
   const values = {
     readoutFormat: 'percent', allyReadoutFormat: 'current',
+    precisePipsEnabled: true, readoutMaxTeamColor: true, allyReadoutMaxTeamColor: true,
     enemyNameColorEnabled: true, enemyNameColor: '#123456',
     allyNameColorEnabled: true, allyNameColor: '#ABCDEF',
     nameSize: 40, nameOffsetX: -170, nameOffsetY: 160,
@@ -1297,10 +1301,18 @@ test('round schema-3 restart drops saved formats without losing names geometry s
   };
   const body = exceptBody(values);
   body.conditions = { readoutFormat: { slot: 1, minTier: 1, value: 'current' },
-    allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' } };
+    allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' },
+    precisePipsEnabled: { slot: 1, minTier: 1, value: true },
+    readoutMaxTeamColor: { slot: 1, minTier: 1, value: true },
+    allyReadoutMaxTeamColor: { slot: 1, minTier: 1, value: true } };
   body.userPresets[0].values = values;
   body.userPresets[0].conditions = body.conditions;
-  body.userPresets[0].own = ['readoutFormat', 'allyReadoutFormat', 'nameSize', 'positionX'];
+  body.userPresets[0].own = ['readoutFormat', 'allyReadoutFormat', 'precisePipsEnabled',
+    'readoutMaxTeamColor', 'allyReadoutMaxTeamColor', 'nameSize', 'positionX'];
+  // This geometry/retirement fixture has an explicit historical stock base;
+  // fallback-default pinning is covered separately.
+  body.userPresets.push({ id: 'user_0002', name: 'Frozen base', mode: 'all',
+    heroes: [], values: {}, conditions: null });
   const oldRecord = rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body });
   const profile = createProfile({ [KEY_CURRENT]: oldRecord });
   const first = launch(profile, { label: 'round saved format restore' });
@@ -1308,17 +1320,31 @@ test('round schema-3 restart drops saved formats without losing names geometry s
   const restored = menuState(first);
   assert.equal(Object.hasOwn(restored.values, 'readoutFormat'), false);
   assert.equal(Object.hasOwn(restored.conditions, 'allyReadoutFormat'), false);
+  const retiredKeys = ['readoutFormat', 'allyReadoutFormat', 'precisePipsEnabled',
+    'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'];
+  for (const key of retiredKeys) {
+    assert.equal(Object.hasOwn(restored.values, key), false, key);
+    assert.equal(Object.hasOwn(restored.conditions, key), false, key);
+    assert.equal(Object.hasOwn(restored.userPresets[0].values, key), false, key);
+    assert.equal(Object.hasOwn(restored.userPresets[0].conditions || {}, key), false, key);
+    for (const scope of restored.scopes) {
+      assert.equal(Object.hasOwn(scope.values, key), false, key);
+      assert.equal(Object.hasOwn(scope.conditions || {}, key), false, key);
+    }
+  }
   assert.deepEqual(restored.userPresets[0].own, ['positionX', 'nameSize']);
   for (const [key, value] of Object.entries(values)) {
-    if (key.endsWith('Format')) continue;
-    assert.equal(restored.userPresets[0].values[key], value, key);
+    if (retiredKeys.includes(key)) continue;
+    const expected = /^(readout|allyReadout|enemyPulseReadout)Offset[XY]$/.test(key)
+      ? Math.round(value / 0.6) : value;
+    assert.equal(restored.userPresets[0].values[key], expected, key);
   }
   openEditor(first);
   assert.equal(panelById(first.harness, 'HPColorsNativeFormatNotice').BHasClass('Active'), true);
   setWidth(first, 65);
   closeEditor(first);
   first.run(8000);
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 4);
   assert.equal(JSON.parse(storedRecord(profile).body).userPresets[0].mode, 'except');
   const second = launch(profile, { label: 'round normalized restart' });
   second.run(8000);
@@ -1326,8 +1352,10 @@ test('round schema-3 restart drops saved formats without losing names geometry s
   assert.equal(panelById(second.harness, 'HPColorsNativeFormatNotice').BHasClass('Active'), false);
   const preset = menuState(second).userPresets[0];
   for (const [key, value] of Object.entries(values)) {
-    if (key.endsWith('Format')) continue;
-    assert.equal(preset.values[key], value, key);
+    if (retiredKeys.includes(key)) continue;
+    const expected = /^(readout|allyReadout|enemyPulseReadout)Offset[XY]$/.test(key)
+      ? Math.round(value / 0.6) : value;
+    assert.equal(preset.values[key], expected, key);
   }
   for (const [key, value] of Object.entries(THIRD_EYE_KEYS)) assert.equal(profile.disk.get(key), value);
   record(first);
@@ -1361,7 +1389,7 @@ test('schema 3 stamina migration and explicit shapes survive sparse saves and re
     setWidth(first, 205);
     closeEditor(first);
     first.run(8000);
-    assert.equal(storedSchema(profile), 3, 'All Except keeps the durable schema');
+    assert.equal(storedSchema(profile), 4, 'All Except keeps the durable schema');
     const persisted = JSON.parse(storedRecord(profile).body);
     if (initialValues.staminaShape === 'arrow') {
       assert.equal(persisted.values.staminaShape, 'arrow', 'explicit default defeats derived box migration');
@@ -1380,4 +1408,54 @@ test('schema 3 stamina migration and explicit shapes survive sparse saves and re
     assertOtherModsUntouched(profile);
     record(restarted);
   }
+});
+
+test('schema four marks scaled offsets and schema three retains old offset semantics', () => {
+  const codec = loadStorageCodec().codec;
+  const body = JSON.stringify({ version: 1, offsetVersion: 2, values: { widthScale: 60, readoutOffsetX: 333 } });
+  const record = codec.encodeRecord(body, 1);
+  const envelope = JSON.parse(Buffer.from(record.split('.')[2], 'base64url').toString());
+  assert.equal(envelope.s, 4);
+  assert.equal(JSON.parse(codec.classifyRecord(record).body).offsetVersion, 2);
+  const old = { m: 'HPV2STORE', s: 3, t: 1, b: { version: 1, values: { widthScale: 60, readoutOffsetX: 200 } } };
+  const payload = Buffer.from(JSON.stringify(old)).toString('base64url');
+  assert.equal(codec.classifyRecord(`HPV2S1.${codec.checksum(payload)}.${payload}`).kind, 'valid');
+});
+
+test('schema three offset migration preserves base scopes presets and conditions through schema four restart', () => {
+  const values = { widthScale: 60, heightScale: 60, readoutOffsetX: 200,
+    readoutOffsetY: 210, allyReadoutOffsetX: -200, allyReadoutOffsetY: -210,
+    enemyPulseReadoutOffsetX: 120, enemyPulseReadoutOffsetY: -120 };
+  const conditions = { readoutOffsetX: { slot: 1, minTier: 1, value: -180 } };
+  const body = { version: 1, values, conditions,
+    scopes: [{ id: 'scope_current', mode: 'all', heroes: [], values, conditions }],
+    userPresets: [{ id: 'user_0001', name: 'Historical', mode: 'all', heroes: [], values, conditions }] };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }) });
+  const first = launch(profile, { label: 'historical offsets schema 3' });
+  first.run(8000);
+  const restored = menuState(first);
+  for (const row of [restored, restored.scopes[0], restored.userPresets[0]]) {
+    assert.equal(row.values.readoutOffsetX, 333);
+    assert.equal(row.values.readoutOffsetY, 350);
+    assert.equal(row.values.allyReadoutOffsetX, -333);
+    assert.equal(row.values.allyReadoutOffsetY, -350);
+    assert.equal(row.values.enemyPulseReadoutOffsetX, 200);
+    assert.equal(row.values.enemyPulseReadoutOffsetY, -200);
+    assert.equal(row.values.readoutFont, 'default');
+    assert.equal(row.values.staminaShape, 'arrow');
+    assert.equal(row.conditions.readoutOffsetX.value, -300);
+  }
+  openEditor(first);
+  setWidth(first, 70);
+  closeEditor(first);
+  first.run(8000);
+  assert.equal(storedSchema(profile), 4);
+  const second = launch(profile, { label: 'migrated offsets schema 4 restart' });
+  second.run(8000);
+  assert.equal(menuState(second).scopes[0].values.readoutOffsetX, 333);
+  assert.equal(menuState(second).userPresets[0].values.readoutOffsetY, 350);
+  assert.equal(menuState(second).values.staminaShape, 'arrow');
+  assertOtherModsUntouched(profile);
+  record(first);
+  record(second);
 });

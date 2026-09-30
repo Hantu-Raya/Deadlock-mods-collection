@@ -77,7 +77,7 @@
         {
           name: "LAYOUT",
           title: "BAR LAYOUT",
-          description: "Move each part using CSS pixels. Ultimate/level own offsets scale with the bar; anchoring additionally follows bar translation. RESET PAGE returns hero Current to Base, otherwise defaults.",
+          description: "Bar/name/stamina movement uses CSS pixels. HP text, ultimate and level offsets use % of bar width/height and follow bar size. Anchoring additionally follows bar translation. RESET PAGE returns hero Current to Base, otherwise defaults.",
           pageId: "HPColorsSettingsOverviewLayout",
           keys: [
             "widthScale",
@@ -703,14 +703,14 @@
     {
       base: "HPColorsReadoutOffsetX",
       key: "readoutOffsetX",
-      min: -200,
-      max: 200,
+      min: -334,
+      max: 334,
     },
     {
       base: "HPColorsReadoutOffsetY",
       key: "readoutOffsetY",
-      min: -210,
-      max: 210,
+      min: -350,
+      max: 350,
     },
     {
       base: "HPColorsAllyReadoutSize",
@@ -721,14 +721,14 @@
     {
       base: "HPColorsAllyReadoutOffsetX",
       key: "allyReadoutOffsetX",
-      min: -200,
-      max: 200,
+      min: -334,
+      max: 334,
     },
     {
       base: "HPColorsAllyReadoutOffsetY",
       key: "allyReadoutOffsetY",
-      min: -210,
-      max: 210,
+      min: -350,
+      max: 350,
     },
     {
       base: "HPColorsSharedLowThreshold",
@@ -763,14 +763,14 @@
     {
       base: "HPColorsEnemyPulseReadoutOffsetX",
       key: "enemyPulseReadoutOffsetX",
-      min: -200,
-      max: 200,
+      min: -334,
+      max: 334,
     },
     {
       base: "HPColorsEnemyPulseReadoutOffsetY",
       key: "enemyPulseReadoutOffsetY",
-      min: -210,
-      max: 210,
+      min: -350,
+      max: 350,
     },
     {
       base: "HPColorsAllyPulseThreshold",
@@ -1068,8 +1068,19 @@
     var displayControl = SLIDER_CONTROLS[displayIndex];
     if (displayControl.displayScale) LEGACY_DISPLAY_KEYS[displayControl.key] = displayControl.displayScale;
   }
-  function displayScale(key) { return LEGACY_DISPLAY_KEYS[key] || 1; }
-  function displayNumber(key, value) { return Math.round(value * displayScale(key) * 10) / 10; }
+  var BAR_PERCENT_KEYS = {
+    readoutOffsetX: 100 / 76, readoutOffsetY: 100 / 18,
+    allyReadoutOffsetX: 100 / 76, allyReadoutOffsetY: 100 / 18,
+    enemyPulseReadoutOffsetX: 100 / 76, enemyPulseReadoutOffsetY: 100 / 18,
+    ultOffsetX: 10 / 76, ultOffsetY: 10 / 18,
+    levelOffsetX: 10 / 76, levelOffsetY: 10 / 18
+  };
+  function displayScale(key) { return BAR_PERCENT_KEYS[key] || LEGACY_DISPLAY_KEYS[key] || 1; }
+  function displayNumber(key, value) {
+    // Whole % preserves integer px; tenths preserve integer raw (0.1 px) offsets.
+    var precision = BAR_PERCENT_KEYS[key] && !LEGACY_DISPLAY_KEYS[key] ? 1 : 10;
+    return Math.round(value * displayScale(key) * precision) / precision;
+  }
   var state = {
     booted: false,
     open: false,
@@ -3767,15 +3778,15 @@
     return $.HPColorsV2StorageFactory.codec.checksum(String(text));
   }
 
-  // Shipped defaults, read once through the state seam; hydration may need
-  // them before the menu's own state instance exists.
+  // Frozen sparse baseline, read once through the state seam; hydration may
+  // need it before the menu's own state instance exists.
   var shippedDefaults = null;
   function storeDefaults() {
     if (!shippedDefaults)
       shippedDefaults = $.HPColorsV2StateFactory.create({
         sessionRaw: null,
         publishedRaw: null,
-      }).read().schema.defaults;
+      }).read().schema.sparseDefaults;
     return shippedDefaults;
   }
   function dropDefaults(values, defaults) {
@@ -3798,8 +3809,8 @@
 
   // What the store keeps: the session without effectiveRevision (it moves
   // with hero and ability transitions that change no setting) and with only
-  // non-default values. Hydration refills defaults through normalizeValues,
-  // so a value left at default follows the shipped default in later builds.
+  // non-baseline values. Hydration refills the frozen sparse baseline, so
+  // omitted values keep their look when shipped defaults change.
   function durableBody(raw) {
     var data = null;
     try {
@@ -4305,7 +4316,6 @@
 
   function registerConditionControl(panel, key, min, max, option, increment) {
     if (
-      key === "precisePipsEnabled" ||
       !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
       !isValid(panel)
     )
@@ -4391,7 +4401,7 @@
     function commitEntry() {
       if (syncingControls) return;
       var value = entry.text;
-      if (LEGACY_DISPLAY_KEYS[key] && String(value).replace(/^\s+|\s+$/g, "") !== "")
+      if ((LEGACY_DISPLAY_KEYS[key] || BAR_PERCENT_KEYS[key]) && String(value).replace(/^\s+|\s+$/g, "") !== "")
         value = Number(value) / displayScale(key);
       commitValue(key, value);
       try {
@@ -4411,6 +4421,9 @@
     // Keep condition bounds full-sized; only the movement track uses the legacy window.
     if (LEGACY_DISPLAY_KEYS[key]) {
       max = /X$/.test(key) ? 300 : 200;
+      min = -max;
+    } else if (BAR_PERCENT_KEYS[key]) {
+      max = /X$/.test(key) ? 200 : 210;
       min = -max;
     }
     var gestureBefore = "";
@@ -4808,7 +4821,7 @@
   function setSlider(control, value) {
     var slider = controlPanel(control.base + "Slider");
     var displayValue = displayNumber(control.key, value);
-    if (LEGACY_DISPLAY_KEYS[control.key] && isValid(slider))
+    if ((LEGACY_DISPLAY_KEYS[control.key] || BAR_PERCENT_KEYS[control.key]) && isValid(slider))
       displayValue = Math.max(slider.min, Math.min(slider.max, displayValue));
     setSliderValue(slider, displayValue);
     setText(controlPanel(control.base + "Entry"), String(displayNumber(control.key, value)));

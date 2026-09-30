@@ -47,6 +47,10 @@ const colorConsumerPath = path.join(
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
+const frozenContractContext = vm.createContext({ $: {} });
+vm.runInContext(read(contractPath), frozenContractContext);
+const frozenContract = frozenContractContext.$.HPColorsV2ContractFactory.create();
+const stockValues = frozenContract.sparseDefaults;
 const NEW_STOCK_LAYOUT = `<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
 <root>
 	<styles>
@@ -236,7 +240,7 @@ function makeSnapshot(revision, values) {
     magic_word: 'HP_COLORS_V2_CONFIG',
     version: 2,
     revision,
-    values,
+    values: { ...stockValues, ...values },
   });
 }
 
@@ -1672,7 +1676,7 @@ test('v2 clamps native readout offsets across the canvas in the stationary frame
     assert.match(cssBlock(style, selector), /overflow\s*:\s*noclip\s*;/);
 });
 
-test('v2 default and pulse readouts use zero-based 1:1 CSS pixel offsets plus native bar translation', () => {
+test('v2 stock-scale default and pulse readouts use zero-based CSS pixel offsets plus native bar translation', () => {
   for (const entry of [
     { role: 'enemy', values: {}, offsetX: 'readoutOffsetX', offsetY: 'readoutOffsetY' },
     { role: 'ally', values: { allyReadoutVisible: true },
@@ -1698,6 +1702,28 @@ test('v2 default and pulse readouts use zero-based 1:1 CSS pixel offsets plus na
     dispatchColorSnapshot(fixture, 4, entry.values);
     assert.equal(fixture.counterRow.style.marginRight, baselineRight + 'px');
     assert.equal(fixture.counterRow.style.marginTop, '66px');
+  }
+});
+
+test('native enemy ally and pulse offsets scale with bar axes without changing 100 percent placement', () => {
+  for (const entry of [
+    { role: 'enemy', values: {}, x: 'readoutOffsetX', y: 'readoutOffsetY' },
+    { role: 'ally', values: { allyReadoutVisible: true }, x: 'allyReadoutOffsetX', y: 'allyReadoutOffsetY' },
+    { role: 'enemy', values: { enemyPulseEnabled: true, enemyPulseThreshold: 100, enemyPulseReadoutModifiers: true },
+      x: 'enemyPulseReadoutOffsetX', y: 'enemyPulseReadoutOffsetY' },
+  ]) {
+    const base = { ...entry.values, widthScale: 100, heightScale: 100, positionX: 0, positionY: 0,
+      [entry.x]: 10, [entry.y]: 20 };
+    const fixture = makeStatusFixture(entry.role, base);
+    const right = entry.role === 'ally' ? 70 : 60;
+    assert.equal(fixture.counterRow.style.marginRight, (right - 10) + 'px', entry.x);
+    assert.equal(fixture.counterRow.style.marginTop, '86px', entry.y);
+    let revision = 1;
+    for (const [widthScale, heightScale] of [[148, 80], [60, 160], [230, 60]]) {
+      dispatchColorSnapshot(fixture, ++revision, { ...base, widthScale, heightScale });
+      assert.equal(parseFloat(fixture.counterRow.style.marginRight), right - 10 * widthScale / 100, entry.x);
+      assert.equal(parseFloat(fixture.counterRow.style.marginTop), 66 + 20 * heightScale / 100, entry.y);
+    }
   }
 });
 
@@ -2009,6 +2035,7 @@ test('v2 enemy stamina display settings customize only enemy stamina and preserv
   const customizedValues = {
     enabled: true,
     enemyColor: '#123456',
+    staminaShape: 'box',
     staminaWidth: 150,
     staminaHeight: 52.5,
     staminaOffsetX: 24,
@@ -2075,6 +2102,7 @@ test('v2 stamina section reset restores stock styles immediately', () => {
   const customizedValues = {
     enabled: true,
     enemyColor: '#123456',
+    staminaShape: 'box',
     staminaWidth: 150,
     staminaHeight: 52.5,
     staminaOffsetX: 24,
@@ -2106,6 +2134,7 @@ test('v2 stamina section reset restores stock styles immediately', () => {
 
   dispatchColorSnapshot(fixture, 2, {
     ...customizedValues,
+    staminaShape: 'arrow',
     staminaWidth: 110,
     staminaHeight: 44.8,
     staminaOffsetX: 0,

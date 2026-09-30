@@ -99,13 +99,17 @@ test('shared settings contract owns immutable defaults and normalization policy'
     staminaOffsetX: [-2000, 2000], staminaOffsetY: [-2100, 2100],
     ultOffsetX: [-3334, 3334], ultOffsetY: [-3500, 3500],
     levelOffsetX: [-3334, 3334], levelOffsetY: [-3500, 3500],
+    readoutOffsetX: [-334, 334], readoutOffsetY: [-350, 350],
+    allyReadoutOffsetX: [-334, 334], allyReadoutOffsetY: [-350, 350],
+    enemyPulseReadoutOffsetX: [-334, 334], enemyPulseReadoutOffsetY: [-350, 350],
   };
   for (const slot of [
     ...wireManifest.legacySlots,
     ...wireManifest.extensionSlots,
   ]) {
     assert.equal(contract.codecDefaults[slot.key], slot.codecDefault, slot.key);
-    if (slot.retired || ['readoutFormat', 'allyReadoutFormat'].includes(slot.key)) {
+    if (slot.retired || ['readoutFormat', 'allyReadoutFormat', 'precisePipsEnabled',
+      'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'].includes(slot.key)) {
       assert.equal(contract.settingMeta[slot.key], undefined, slot.key);
       continue;
     }
@@ -130,7 +134,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
     max: 230,
     options: [],
   });
-  assert.equal(contract.settingMeta.precisePipsEnabled.conditionEligible, false);
+  assert.equal(contract.settingMeta.precisePipsEnabled, undefined);
 
   const normalized = contract.normalizeValues({
     enabled: 0,
@@ -307,7 +311,9 @@ function setConditions(state, conditions) {
 
 function expectedPairs(values, keys, defaults) {
   return keys.flatMap((key, index) =>
-    !Object.hasOwn(values, key) || values[key] === defaults[key]
+    !Object.hasOwn(values, key) || (values[key] === defaults[key] &&
+      !(key === 'staminaShape' && values[key] === 'arrow' &&
+        (values.staminaWidth !== 110 || values.staminaHeight !== 44.8 || values.enemyStaminaColorEnabled)))
       ? []
       : [[index, values[key]]],
   );
@@ -330,22 +336,25 @@ test('HPCR2 corpus covers every legacy slot and canonicalizes retired slots', ()
     wireManifest.legacySlots.map(({ slot }) => slot),
   );
 
-  const state = createState();
+  const state = createState({ version: 1, offsetVersion: 2, values: CONTRACT.sparseDefaults });
   const imported = send(state, 'settings_import', {
     raw: wireCorpus.hpcr2.inputCode,
   });
   assert.equal(imported.status, 'committed');
   for (const [key, value] of Object.entries(wireCorpus.hpcr2.activeValues)) {
-    assert.equal(imported.view.values[key], value, key);
+    assert.equal(imported.view.values[key], ['precisePipsEnabled', 'readoutMaxTeamColor',
+      'allyReadoutMaxTeamColor'].includes(key) ? undefined : value, key);
   }
-  assert.deepEqual(imported.view.conditions, wireCorpus.hpcr2.conditions);
+  const keptConditions = Object.fromEntries(Object.entries(wireCorpus.hpcr2.conditions)
+    .filter(([key]) => !['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'].includes(key)));
+  assert.deepEqual(imported.view.conditions, keptConditions);
   const exported = JSON.parse(
     effect(send(state, 'settings_copy'), 'clipboard_write').text.slice(5),
   );
   const canonical = JSON.parse(wireCorpus.hpcr2.canonicalCode.slice(5));
-  assert.deepEqual(exported.v, canonical.v);
-  assert.deepEqual(exported.c, canonical.c);
-  assert.deepEqual(exported.hpv2, { v: 1, values: [], conditions: {} });
+  assert.deepEqual(exported.v, canonical.v.filter(([slot]) => ![40, 70].includes(slot)));
+  assert.deepEqual(exported.c, keptConditions);
+  assert.deepEqual(exported.hpv2, { v: 2, values: [], conditions: {} });
 });
 
 test('HPCRP1 corpus covers every active slot and canonicalizes retired slots', () => {
@@ -372,6 +381,17 @@ test('HPCRP1 corpus covers every active slot and canonicalizes retired slots', (
     effect(send(state, 'preset_copy_all'), 'clipboard_write').text.slice(6),
   );
   const canonical = JSON.parse(wireCorpus.hpcrp1.canonicalCode.slice(6));
+  for (const record of canonical.records) {
+    record.values = record.values.filter(([slot]) => ![40, 70].includes(slot));
+    record.hpv2.values = record.hpv2.values.filter(([slot]) => slot !== 40);
+    for (const rules of [record.conditions, record.hpv2.conditions]) {
+      if (!rules) continue;
+      for (const key of ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'])
+        delete rules[key];
+    }
+    if (record.own) record.own = record.own.filter(key =>
+      !['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'].includes(key));
+  }
   assert.deepEqual(exported.records, canonical.records);
   assert.equal(exported.selectedPresetId, canonical.selectedPresetId);
 });
@@ -562,7 +582,7 @@ test('HPCR2 copies and restores every schema setting and eligible condition', ()
     Object.entries(conditions).filter(([key]) => !EXTENSION_KEYS.includes(key)),
   ));
   assert.deepEqual(payload.hpv2, {
-    v: 1,
+    v: 2,
     values: expectedPairs(values, EXTENSION_KEYS, CODEC_DEFAULTS),
     conditions: Object.fromEntries(
       Object.entries(conditions).filter(([key]) => EXTENSION_KEYS.includes(key)),
@@ -716,8 +736,8 @@ test('HPCR2 exports and atomically imports ability conditions', () => {
     enemyLow: { slot: 4, minTier: 3, value: '#123456' },
   });
   assert.deepEqual(copiedPayload.hpv2, {
-    v: 1,
-    values: [],
+    v: 2,
+    values: expectedPairs(DEFAULTS, EXTENSION_KEYS, CODEC_DEFAULTS),
     conditions: {},
   });
 
@@ -1472,13 +1492,14 @@ test('repository rename, remove/hide, restore, and reference repair remain non-l
 
 test('preset apply updates layout and ally bar immediately', () => {
   const state = createState(
-    makeSession({
+    { ...makeSession({
+      values: DEFAULTS,
       userPresets: [
         rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111', widthScale: 230, allyEnabled: true, allyVisible: false } }),
         rawPreset({ id: 'user_0002', name: 'Haze', mode: 'selected', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
       ],
       selectedPresetId: null,
-    }),
+    }), offsetVersion: 2 },
   );
   const selected = send(state, 'preset_select', { id: 'user_0002' });
   assert.equal(selected.view.repository.selectedId, 'user_0002');
@@ -1592,13 +1613,22 @@ test('HPCRP1 accepts builder hero order and retains strict atomic hero validatio
   for (const source of payload.records) {
     const result = copied.records.find(({ id }) => id === source.id);
     const canonicalValues = source.values.filter(([index, value]) =>
-      ![12, 13, 67, 68, 69].includes(index) && value !== CODEC_DEFAULTS[CODEC_KEYS[index]])
-      .map(([index, value]) => [index, CONTRACT.normalizeValues({ [CODEC_KEYS[index]]: value })[CODEC_KEYS[index]]]);
+      ![12, 13, 29, 40, 67, 68, 69, 70].includes(index) && value !== CODEC_DEFAULTS[CODEC_KEYS[index]])
+      .map(([index, value]) => {
+        const key = CODEC_KEYS[index];
+        const oldLimit = key.endsWith('X') ? 200 : 210;
+        const normalized = /^(readout|enemyPulseReadout)Offset[XY]$/.test(key)
+          ? Math.round(Math.max(-oldLimit, Math.min(oldLimit, value)) /
+            (key.endsWith('X') ? 1.61 : 0.6))
+          : CONTRACT.normalizeValues({ [key]: value })[key];
+        return [index, normalized];
+      });
     assert.deepEqual(result.values, canonicalValues);
     assert.deepEqual(result.conditions, source.conditions);
     assert.equal(row(imported.view, source.id).values.staminaShape, 'box');
     assert.deepEqual(result.hpv2, {
       ...source.hpv2,
+      v: 2,
       values: [...source.hpv2.values, [61, 'box']],
     });
   }
@@ -2415,13 +2445,13 @@ test('Layered presets derive legacy own, drop unknown own keys, keep own through
   assert.deepEqual(storedPreset(touched, 'user_0003').own, ['enemyHigh']);
   assert.equal(Object.hasOwn(storedPreset(touched, 'user_0001'), 'own'), false);
 
-  const source = createState(makeSession({
+  const source = createState({ ...makeSession({
     userPresets: [
       { ...rawPreset({ id: 'user_0001', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
     ],
     selectedPresetId: 'user_0001',
     nextUserPresetNumber: 2,
-  }));
+  }), offsetVersion: 2 });
   const code = effect(send(source, 'preset_copy_selected'), 'clipboard_write').text;
   const destination = createState();
   const imported = send(destination, 'preset_import', { raw: code });
@@ -2665,7 +2695,12 @@ test('an old local save carrying ghoul opacity in values, rules, scopes, and own
 
   const touched = send(state, 'preset_select', { id: 'user_0001' });
   const saved = storedPreset(touched, 'user_0001');
-  assert.deepEqual(saved.own, ['widthScale']);
+  assert.deepEqual(saved.own, keyOrder(DEFAULT_KEYS.filter(
+    key => key === 'widthScale' || DEFAULTS[key] !== CONTRACT.sparseDefaults[key],
+  )));
+  for (const key of saved.own) {
+    assert.equal(saved.values[key], key === 'widthScale' ? 160 : CONTRACT.sparseDefaults[key], key);
+  }
   assert.deepEqual(saved.conditions, KEPT_RULE);
   assert.doesNotMatch(effect(touched, 'session_replace').raw, /ghoul/i);
 });
@@ -2679,7 +2714,7 @@ test('HPCR2 codes that carry ghoul opacity slots and rules import without them a
   const imported = send(state, 'settings_import', { raw: code });
   assert.equal(imported.status, 'committed', imported.code);
   assert.equal(imported.view.values.widthScale, 150);
-  assert.equal(imported.view.values.readoutMaxTeamColor, true);
+  assert.equal(Object.hasOwn(imported.view.values, 'readoutMaxTeamColor'), false);
   assert.equal(imported.view.values.allyTeamHigh, true);
   assert.deepEqual(imported.view.conditions, KEPT_RULE);
   assert.doesNotMatch(JSON.stringify(imported.view), /ghoul/i);
@@ -2692,7 +2727,7 @@ test('HPCR2 codes that carry ghoul opacity slots and rules import without them a
   assert.equal(pairs.has(69), false);
   assert.equal(pairs.get(1), 150);
   // Slots after the retired pair keep their positions.
-  assert.equal(pairs.get(70), true);
+  assert.equal(pairs.has(70), false);
   assert.equal(pairs.get(71), true);
   assert.deepEqual(Object.keys(exported.c), ['enemyMid']);
 
@@ -2737,7 +2772,9 @@ test('HPCRP1 preset codes that carry ghoul opacity slots, rules, and own keys im
   assert.equal(saved.name, 'Old Import');
   assert.equal(saved.mode, 'selected');
   assert.equal(saved.values.widthScale, 150);
-  assert.deepEqual(saved.own, ['widthScale']);
+  assert.deepEqual(saved.own, keyOrder(DEFAULT_KEYS.filter(
+    key => key === 'widthScale' || DEFAULTS[key] !== CONTRACT.sparseDefaults[key],
+  )));
   assert.deepEqual(saved.conditions, KEPT_RULE);
   assert.doesNotMatch(effect(imported, 'session_replace').raw, /ghoul/i);
 
@@ -2922,21 +2959,22 @@ test('preset_save allHeroes always creates a new All Heroes preset and never rew
 test('readout offsets normalize and round-trip as zero-based CSS pixels', () => {
   const keys = ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
     'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'];
-  const omitted = createState();
+  const omitted = createState({ version: 1, offsetVersion: 2, values: CONTRACT.sparseDefaults });
   send(omitted, 'settings_import', { raw: 'HPCR2{"v":[],"c":{}}' });
   const omittedPreset = createState();
   send(omittedPreset, 'preset_import', { raw:
     'HPCRP1{"records":[{"id":"user_0001","kind":"user","name":"Old defaults","mode":"all","heroes":[],"values":[],"conditions":null}]}' });
   send(omittedPreset, 'preset_apply', { id: 'user_0001' });
   for (const key of keys) {
-    const limit = key.endsWith('X') ? 200 : 210;
-    assert.equal(DEFAULTS[key], 0, key);
+    const limit = key.endsWith('X') ? 334 : 350;
+    assert.equal(CONTRACT.sparseDefaults[key], 0, key);
     assert.equal(CODEC_DEFAULTS[key], 0, key);
     assert.equal(omitted.read().values[key], 0, key);
     assert.equal(omittedPreset.read().effectiveValues[key], 0, key);
     assert.equal(CONTRACT.normalizeValues({ [key]: 999 })[key], limit, key);
     assert.equal(CONTRACT.normalizeValues({ [key]: -999 })[key], -limit, key);
-    const hydrated = createState({ sessionRaw: makeSession({ values: { [key]: 999 } }) });
+    const hydrated = createState({ sessionRaw: JSON.stringify({ version: 1,
+      offsetVersion: 2, values: { [key]: 999 } }) });
     assert.equal(hydrated.read().values[key], limit, key);
   }
   for (const [x, y] of [[0, 0], [27, -30], [150, -100], [200, 210], [-200, -210]]) {
@@ -2968,6 +3006,9 @@ test('historical baked readout defaults canonicalize without dropping user prese
   send(source, 'preset_save', { name: 'User pixels' });
   const payload = JSON.parse(effect(send(source, 'preset_copy_all'), 'clipboard_write').text.slice(6));
   const baked = payload.records.find(record => record.kind === 'baked');
+  const expectedBaked = JSON.parse(JSON.stringify(baked));
+  baked.values = JSON.parse(wireCorpus.hpcrp1.historicalCanonicalCode.slice(6))
+    .records.find(record => record.kind === 'baked').values;
   baked.values.push([32, -30], [33, 434], [55, 27], [56, 500]);
   baked.hpv2 = { v: 1, values: [[33, -30], [34, 434]], conditions: {} };
   const raw = 'HPCRP1' + JSON.stringify(payload);
@@ -2978,11 +3019,10 @@ test('historical baked readout defaults canonicalize without dropping user prese
   for (const target of [state, hydrated]) {
     const copied = JSON.parse(effect(send(target, 'preset_copy_all'), 'clipboard_write').text.slice(6));
     const canonical = copied.records.find(record => record.kind === 'baked');
-    assert.equal(canonical.values.some(([index]) => [32, 33, 55, 56].includes(index)), false);
-    assert.equal(canonical.hpv2, undefined);
+    assert.deepEqual(canonical, expectedBaked);
     for (const key of ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
       'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'])
-      assert.equal(row(target.read(), 'baked_default').values[key], 0, key);
+      assert.equal(row(target.read(), 'baked_default').values[key], DEFAULTS[key], key);
     const user = copied.records.find(record => record.kind === 'user');
     assert.ok(user.values.some(([index, value]) => index === 32 && value === 150));
     assert.ok(user.values.some(([index, value]) => index === 33 && value === -100));
@@ -3038,7 +3078,7 @@ test('appended Units settings remain typed, stock by default, and use the existi
   });
   const code = effect(send(source, 'settings_copy'), 'clipboard_write').text;
   const payload = JSON.parse(code.slice(5));
-  assert.deepEqual(payload.hpv2.values.slice(-6), [
+  assert.deepEqual(payload.hpv2.values.filter(([slot]) => slot >= 41 && slot <= 46), [
     [41, true],
     [42, true],
     [43, true],
@@ -3158,7 +3198,7 @@ test('legacy presets and hero scopes derive stamina shape once without changing 
 });
 
 test('new pip and shape keys support Current scope, ability conditions, transfer and Undo', () => {
-  const state = createState();
+  const state = createState({ version: 1, offsetVersion: 2, values: CONTRACT.sparseDefaults });
   send(state, 'scope_set', { mode: 'selected', heroes: ['hero_shiv'] });
   for (const [key, value] of [
     ['enemyPipColorEnabled', true], ['enemyPipColor', '#123456'],
@@ -3168,7 +3208,7 @@ test('new pip and shape keys support Current scope, ability conditions, transfer
     const changed = send(state, 'setting_edit', { key, value });
     assert.equal(changed.status, 'committed', key);
     assert.equal(currentScope(changed.view).values[key], value);
-    assert.equal(changed.view.values[key], DEFAULTS[key], 'Base unchanged');
+    assert.equal(changed.view.values[key], CONTRACT.sparseDefaults[key], 'Frozen stock Base unchanged');
     const conditioned = send(state, 'condition_set', { key, slot: 1, minTier: 1, value });
     assert.equal(conditioned.status, 'committed', key);
     assert.deepEqual(currentScope(conditioned.view).conditions[key], { slot: 1, minTier: 1, value });
@@ -3182,4 +3222,100 @@ test('new pip and shape keys support Current scope, ability conditions, transfer
   send(restored, 'setting_edit', { key: 'pipOpacity', value: 70 });
   send(restored, 'undo');
   assert.equal(restored.read().values.pipOpacity, 42);
+});
+
+test('bar-relative defaults and historical offset migration round-trip once', () => {
+  const factory = loadFactory();
+  const fresh = factory.create(null);
+  assert.equal(fresh.read().values.widthScale, 148);
+  assert.equal(fresh.read().values.heightScale, 80);
+  assert.equal(fresh.read().values.readoutOffsetX, 18);
+  assert.equal(fresh.read().values.readoutOffsetY, 14);
+  assert.equal(fresh.read().values.staminaShape, 'box');
+  const old = factory.create(JSON.stringify({
+    version: 1, values: { widthScale: 200, heightScale: 60, readoutOffsetX: 26, readoutOffsetY: 12 },
+    userPresets: [{ id: 'user_0001', name: 'Old', mode: 'all', heroes: [],
+      values: { widthScale: 200, heightScale: 60, allyReadoutOffsetX: 24, allyReadoutOffsetY: 12 } }],
+  }));
+  assert.equal(old.read().values.readoutOffsetX, 13);
+  assert.equal(old.read().values.readoutOffsetY, 20);
+  assert.equal(old.read().values.readoutFont, 'default');
+  assert.equal(old.read().values.staminaShape, 'arrow');
+  const copy = fresh.send({ type: 'settings_copy' });
+  const code = effect(copy, 'clipboard_write').text;
+  assert.equal(JSON.parse(code.slice(5)).hpv2.v, 2);
+  const target = factory.create(null);
+  target.send({ type: 'settings_import', raw: code });
+  assert.deepEqual(target.read().values, fresh.read().values);
+});
+
+test('historical wire corpus retains effective HP offsets within integer migration tolerance', () => {
+  const hpKeys = new Set(['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
+    'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY']);
+  for (const [kind, type] of [['hpcr2', 'settings_import'], ['hpcrp1', 'preset_import']]) {
+    const state = createState({ version: 1, offsetVersion: 2, values: CONTRACT.sparseDefaults });
+    const imported = send(state, type, { raw: wireCorpus[kind].inputCode });
+    const values = kind === 'hpcr2' ? imported.view.values :
+      imported.view.repository.allRows.find(row => row.id === wireCorpus[kind].selectedPresetId).values;
+    for (const [key, oldValue] of Object.entries(wireCorpus[kind].historicalActiveValues)) {
+      if (!DEFAULT_KEYS.includes(key)) continue;
+      if (hpKeys.has(key)) {
+        const scale = values[key.endsWith('X') ? 'widthScale' : 'heightScale'] / 100;
+        assert.ok(Math.abs(values[key] * scale - oldValue) <= 0.5 * scale + 1e-9, `${kind}: ${key}`);
+      } else assert.equal(values[key], oldValue, `${kind}: ${key}`);
+    }
+  }
+});
+
+test('RESET historical settings restores the new shipped defaults', () => {
+  const state = createState({ version: 1, values: {} });
+  assert.equal(state.read().values.widthScale, 100);
+  const request = send(state, 'reset_request', { keys: DEFAULT_KEYS });
+  const reset = send(state, 'reset_confirm', { token: request.view.transactions.confirmation.token });
+  assert.deepEqual((currentScope(reset.view) || reset.view).values, DEFAULTS);
+});
+
+test('old explicit own presets pin changed fallback defaults only without an All Heroes base', () => {
+  const old = { id: 'user_0001', name: 'Old own', mode: 'selected', heroes: ['hero_haze'],
+    values: { widthScale: 180 }, own: ['widthScale'], conditions: null };
+  const state = createState({ version: 1, values: {}, userPresets: [old] });
+  send(state, 'preset_apply', { id: 'user_0001' });
+  assert.equal(currentScope(state.read()).values.widthScale, 180);
+  assert.equal(currentScope(state.read()).values.heightScale, 100);
+  assert.equal(currentScope(state.read()).values.readoutFont, 'default');
+  assert.equal(currentScope(state.read()).values.readoutOffsetX, 0);
+  assert.equal(currentScope(state.read()).values.staminaShape, 'arrow');
+  const imported = createState();
+  send(imported, 'preset_import', { raw: 'HPCRP1' + JSON.stringify({ records: [{
+    ...old, kind: 'user', values: [[1, 180]], conditions: null,
+  }] }) });
+  send(imported, 'preset_apply', { id: 'user_0001' });
+  assert.equal(currentScope(imported.read()).values.readoutFont, 'default');
+  assert.equal(currentScope(imported.read()).values.ultOffsetX, 0);
+  const withBase = createState({ version: 1, values: {}, userPresets: [
+    { id: 'user_0002', name: 'Base', mode: 'all', heroes: [],
+      values: { heightScale: 140, readoutFont: 'oracle' }, conditions: null }, old,
+  ] });
+  send(withBase, 'preset_apply', { id: 'user_0001' });
+  assert.equal(currentScope(withBase.read()).values.heightScale, 140);
+  assert.equal(currentScope(withBase.read()).values.readoutFont, 'oracle');
+  const modern = createState({ version: 1, offsetVersion: 2, values: {}, userPresets: [old] });
+  send(modern, 'preset_apply', { id: 'user_0001' });
+  assert.equal(currentScope(modern.read()).values.heightScale, 80);
+  assert.equal(currentScope(modern.read()).values.readoutFont, 'oracle');
+});
+
+test('old published hydration snapshots migrate once alongside their session', () => {
+  const factory = loadFactory();
+  const source = { version: 1, values: { widthScale: 60, heightScale: 60,
+    readoutOffsetX: 200, readoutOffsetY: 210 } };
+  const old = factory.create({ sessionRaw: source, publishedRaw: { ...source, revision: 7 } });
+  assert.equal(old.read().effectiveValues.readoutOffsetX, 333);
+  assert.equal(old.read().effectiveValues.readoutOffsetY, 350);
+  assert.equal(old.read().effectiveRevision, 7);
+  assert.equal(source.values.readoutOffsetX, 200, 'hydration must not mutate caller data');
+  const modern = factory.create({ sessionRaw: { ...source, offsetVersion: 2 },
+    publishedRaw: { ...source, revision: 8 } });
+  assert.equal(modern.read().effectiveValues.readoutOffsetX, 200);
+  assert.equal(modern.read().effectiveValues.readoutOffsetY, 210);
 });

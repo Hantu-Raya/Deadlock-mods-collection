@@ -148,7 +148,6 @@
   var bars = [];
   var configRoot = null;
   var configRaw = "";
-  var defaultConfig = normalizeConfig(null);
   var config = normalizeConfig({ enabled: false });
   var awaitingConfig = true;
   var awaitingSince = nowMs();
@@ -1314,8 +1313,8 @@
       fontSize = pixels(nativePx(size));
       fontFamily = READOUT_FONTS[config[keys.Font]] || DEFAULT_READOUT_FONT;
       bar.readoutPosition = {
-        x: nativePx(config.positionX) + offsetX,
-        y: nativePx(config.positionY) + offsetY,
+        x: nativePx(config.positionX) + offsetX * config.widthScale / 100,
+        y: nativePx(config.positionY) + offsetY * config.heightScale / 100,
       };
     }
     if (keys && adoptNativeReadout(bar)) {
@@ -1460,7 +1459,7 @@
         parts.levelContainer,
         oldParts.levelContainer,
         oldBaseline.levelContainer,
-        ["marginLeft", "marginTop", "visibility", "borderColor"],
+        ["marginLeft", "marginTop", "visibility", "border"],
       ),
       unitInfo: retainPanelBaseline(
         parts.unitInfo,
@@ -1799,9 +1798,9 @@
     );
     clearOwnedStyle(
       bar.parts && bar.parts.levelContainer,
-      "borderColor",
+      "border",
       bar.applied,
-      "levelBorderColor",
+      "levelBorder",
     );
   }
 
@@ -2026,16 +2025,18 @@
       bar.applied,
       "levelVisibility",
     );
+    // Reassert the complete rim when the level tier changes: the native color
+    // alias must not leave border width/style to a previously expanded shorthand.
     setStyle(
       bar.parts.levelContainer,
-      "borderColor",
+      "border",
       show
-        ? tier
+        ? "2px solid " + (tier
           ? tier.color
-          : teamHighColor(bar.team, DEFAULT_LEVEL_BORDER)
+          : teamHighColor(bar.team, DEFAULT_LEVEL_BORDER))
         : "",
       bar.applied,
-      "levelBorderColor",
+      "levelBorder",
     );
   }
 

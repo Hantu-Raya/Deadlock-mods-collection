@@ -74,6 +74,7 @@
   delete $.HPColorsV2ContractFactory;
   var DEFAULTS = settingsContract.defaults;
   var CODEC_DEFAULTS = settingsContract.codecDefaults;
+  var SPARSE_DEFAULTS = settingsContract.sparseDefaults;
   var DEFAULT_KEYS = settingsContract.keys;
   var CODEC_KEYS = settingsContract.codecKeys;
   var EXTENSION_KEYS = settingsContract.extensionKeys;
@@ -608,6 +609,52 @@
   }
 
 
+  // Pre-v2 offsets were absolute CSS pixels; convert once using each record's
+  // own bar dimensions. Ultimate/level offsets already scaled in old builds.
+  function migrateReadoutOffsets(values, conditions, legacyOnly) {
+    var keys = ["readoutOffsetX", "readoutOffsetY", "allyReadoutOffsetX",
+      "allyReadoutOffsetY", "enemyPulseReadoutOffsetX", "enemyPulseReadoutOffsetY"];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (legacyOnly && EXTENSION_KEY_SET[key]) continue;
+      var horizontal = key.charAt(key.length - 1) === "X";
+      var scale = values[horizontal ? "widthScale" : "heightScale"] / 100;
+      var oldLimit = horizontal ? 200 : 210;
+      var oldValue = Math.max(-oldLimit, Math.min(oldLimit, values[key]));
+      values[key] = normalizeValue(key, Math.round(oldValue / scale), values);
+      if (conditions && conditions[key]) {
+        var oldCondition = Math.max(-oldLimit, Math.min(oldLimit, conditions[key].value));
+        conditions[key].value = normalizeValue(key, Math.round(oldCondition / scale), values);
+      }
+    }
+    return values;
+  }
+
+  function restoreSparseRecord(record, migrate) {
+    record.values = normalizeValues(record.values, SPARSE_DEFAULTS);
+    if (migrate) migrateReadoutOffsets(record.values, record.conditions);
+  }
+
+  function hasAllHeroesBase(records) {
+    var rows = Array.isArray(records) ? records : [];
+    for (var i = 0; i < rows.length; i++)
+      if (rows[i] && rows[i].mode === HERO_SCOPE_ALL) return true;
+    return false;
+  }
+
+  // Old explicit ownership inherited the old shipped fallback. Pin only the
+  // changed fallback keys, retaining live inheritance from an All Heroes base.
+  function pinFrozenFallback(record) {
+    if (!record || !scopeUsesHeroes(record.mode) || !Array.isArray(record.own)) return;
+    var own = normalizeOwnKeys(record.own);
+    for (var i = 0; i < DEFAULT_KEYS.length; i++) {
+      var key = DEFAULT_KEYS[i];
+      if (SPARSE_DEFAULTS[key] === DEFAULTS[key] || own.indexOf(key) >= 0) continue;
+      record.values[key] = SPARSE_DEFAULTS[key];
+      own.push(key);
+    }
+    record.own = normalizeOwnKeys(own);
+  }
   function deserializePresetExtension(source) {
     if (source === undefined)
       return { values: normalizeValues({}, CODEC_DEFAULTS), conditions: null };
@@ -623,7 +670,7 @@
     }
     if (
       fieldCount !== 3 ||
-      source.v !== 1 ||
+      (source.v !== 1 && source.v !== 2) ||
       !Array.isArray(source.values) ||
       !source.conditions ||
       !isObjectValue(source.conditions) ||
@@ -659,6 +706,7 @@
     return {
       values: normalizeValues(changed, CODEC_DEFAULTS),
       conditions: nullableConditions(conditions, true),
+      offsetVersion: source.v,
     };
   }
 
@@ -803,19 +851,18 @@
       values: canonicalValuePairs(values, CODEC_KEYS),
       conditions: nullableFilteredConditions(conditions, false),
     };
-    if (extensionValues.length || extensionConditions) {
-      record.hpv2 = {
-        v: 1,
-        values: extensionValues,
-        conditions: extensionConditions || {},
-      };
-    }
+    record.hpv2 = {
+      v: 2,
+      values: extensionValues,
+      conditions: extensionConditions || {},
+    };
     if (preset.own) record.own = preset.own.slice(0);
     return record;
   }
 
   // Only the canonical baked record may carry historical shipped readout offsets.
   function normalizeBakedReadoutOffsets(values, source) {
+    var baseline = source.hpv2 && source.hpv2.v === 2 ? DEFAULTS : SPARSE_DEFAULTS;
     var historical = {
       readoutOffsetX: [27, -30],
       readoutOffsetY: [500, 434],
@@ -834,9 +881,9 @@
         var pair = group.pairs[pairIndex];
         var key = group.keys[pair[0]];
         if (!Object.prototype.hasOwnProperty.call(historical, key)) continue;
-        if (pair[1] !== DEFAULTS[key] && historical[key].indexOf(pair[1]) < 0)
+        if (pair[1] !== baseline[key] && historical[key].indexOf(pair[1]) < 0)
           return false;
-        values[key] = DEFAULTS[key];
+        values[key] = baseline[key];
       }
     }
     return true;
@@ -911,17 +958,20 @@
       if (!presetConditionsAreValid(sourceConditions, conditions))
         return { error: "INVALID PRESET CONDITIONS" };
       conditions = mergeConditions(conditions, extension.conditions);
+      if (extension.offsetVersion !== 2)
+        migrateReadoutOffsets(decoded.values, conditions);
       if (kind === "baked") {
         if (!normalizeBakedReadoutOffsets(decoded.values, source))
           return { error: "INVALID BAKED PRESET" };
         if (
           id !== DEFAULT_PRESET_ID ||
           mode !== HERO_SCOPE_OFF ||
-          JSON.stringify(decoded.values) !== JSON.stringify(DEFAULTS) ||
+          JSON.stringify(decoded.values) !== JSON.stringify(extension.offsetVersion === 2 ? DEFAULTS : SPARSE_DEFAULTS) ||
           JSON.stringify(heroes) !== "[]" ||
           JSON.stringify(conditions) !== "null"
         )
           return { error: "INVALID BAKED PRESET" };
+        decoded.values = copyValues(DEFAULTS);
       } else if (
         !/^user_\d{4,}$/.test(id) ||
         (mode !== HERO_SCOPE_ALL && !scopeUsesHeroes(mode)) ||
@@ -945,6 +995,7 @@
         mode: mode,
         heroes: heroes,
         conditions: conditions,
+        offsetVersion: extension.offsetVersion,
       });
     }
     var hidden = [];
@@ -988,6 +1039,7 @@
     return freezeDeep({
       keys: DEFAULT_KEYS.slice(0),
       defaults: defaults,
+      sparseDefaults: copyValues(SPARSE_DEFAULTS),
       settings: settings,
     });
   }
@@ -1026,6 +1078,26 @@
     if (!published || published.version !== 1 || !published.values)
       published = null;
     if (!data || data.version !== 1 || !data.values) data = null;
+    if (data) {
+      data = JSON.parse(JSON.stringify(data));
+      var migrate = data.offsetVersion !== 2;
+      if (migrate && published) {
+        published = JSON.parse(JSON.stringify(published));
+        restoreSparseRecord(published, true);
+      }
+      restoreSparseRecord(data, migrate);
+      var lists = [data.scopes, data.userPresets];
+      for (var list = 0; list < lists.length; list++) {
+        var rows = Array.isArray(lists[list]) ? lists[list] : [];
+        for (var row = 0; row < rows.length; row++)
+          if (rows[row] && isObjectValue(rows[row])) restoreSparseRecord(rows[row], migrate);
+      }
+      if (migrate && !hasAllHeroesBase(data.userPresets)) {
+        var oldPresets = Array.isArray(data.userPresets) ? data.userPresets : [];
+        for (var oldIndex = 0; oldIndex < oldPresets.length; oldIndex++)
+          pinFrozenFallback(oldPresets[oldIndex]);
+      }
+    }
     var values = normalizeValues(data && data.values);
     var isMenuState = !!(
       data &&
@@ -1332,6 +1404,7 @@
     function sessionRaw() {
       return JSON.stringify({
         version: 1,
+        offsetVersion: 2,
         values: state.values,
         conditions: state.conditions,
         scopes: state.scopes,
@@ -2633,7 +2706,7 @@
         v: canonicalRecordValues(editableValues()),
         c: filterConditions(editableConditions(), false),
         hpv2: {
-          v: 1,
+          v: 2,
           values: canonicalValuePairs(editableValues(), EXTENSION_KEYS),
           conditions: filterConditions(editableConditions(), true),
         },
@@ -2666,6 +2739,8 @@
           if (Object.prototype.hasOwnProperty.call(extensionConditions, extensionKey))
             importedConditions[extensionKey] = extensionConditions[extensionKey];
         }
+        if (!parsed.extension || parsed.extension.offsetVersion !== 2)
+          migrateReadoutOffsets(importedValues, importedConditions, !parsed.extension);
         return replaceEditor(importedValues, importedConditions, true);
       }, { settingId: "*" });
     }
@@ -2707,8 +2782,10 @@
         ? parsed.hiddenBakedPresetIds.slice(0)
         : state.hiddenBakedPresetIds.slice(0);
       var index;
+      var hasBase = hasAllHeroesBase(state.userPresets) || hasAllHeroesBase(parsed.records);
       for (index = 0; index < parsed.records.length; index++) {
         var source = parsed.records[index];
+        if (!hasBase && source.offsetVersion !== 2) pinFrozenFallback(source);
         if (source.kind === "baked") {
           if (source.name === "Rewrite Default") delete nextOverrides[source.id];
           else nextOverrides[source.id] = source.name;

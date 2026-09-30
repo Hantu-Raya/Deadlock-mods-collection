@@ -165,7 +165,16 @@ const unchanged = factory.create();
 const unchangedPayload = JSON.parse(
   effect(send(unchanged, "settings_copy"), "clipboard_write").text.slice(5),
 );
-assert.deepEqual(unchangedPayload.hpv2, { v: 1, values: [], conditions: {} });
+// Fresh defaults must be explicit against the frozen wire baseline.
+assert.deepEqual(unchangedPayload.hpv2, {
+  v: 2,
+  values: [[8, 74], [9, 48], [10, 74], [11, 48],
+    [56, true], [57, "#000000"], [61, "box"]],
+  conditions: {},
+});
+const freshRoundtrip = factory.create();
+send(freshRoundtrip, "settings_import", { raw: "HPCR2" + JSON.stringify(unchangedPayload) });
+assert.deepEqual(plain(freshRoundtrip.read().values), plain(unchanged.read().values));
 const bakedCode = effect(send(unchanged, "preset_copy_all"), "clipboard_write").text;
 send(factory.create(), "preset_import", { raw: bakedCode });
 
