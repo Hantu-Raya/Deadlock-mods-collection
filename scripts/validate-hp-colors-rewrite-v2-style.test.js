@@ -191,9 +191,9 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null) {
       shieldText.set(value);
     },
   });
-  const container = add(window, 'hp_counter_container');
+  const container = add(window, 'hp_counter_container', { actuallayoutwidth: 200, actuallayoutheight: 210 });
   const anchor = add(container, 'hp_counter_anchor');
-  const row = add(add(anchor, 'hp_counter_slot'), 'hp_counter_row');
+  const row = add(anchor, 'hp_counter_row', { actuallayoutwidth: 48, actuallayoutheight: 24 });
   const counter = add(row, 'hp_counter', { style: { visibility: 'collapse' } });
   const counterMax = add(row, 'hp_counter_max', { style: { visibility: 'collapse' } });
   let revision = 0;
@@ -203,13 +203,13 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null) {
   setConfig(values);
   harness.contextPanel = status;
   if (beforeBoot) beforeBoot({ harness, world, window, status, stack, primary, inner,
-    health, shield, info, anchor, row, counter, counterMax });
+    health, shield, info, container, anchor, row, counter, counterMax });
   const context = createVmContext(harness, { includeGameUI: false });
   runInVm(contractSource, context);
   runInVm(rendererSource, context);
   return {
     harness, world, window, status, stack, primary, inner, stamina, icon, health, shield, shieldWrites, level, unitInfo,
-    info, anchor, row, counter, counterMax,
+    info, container, anchor, row, counter, counterMax,
     update(nextValues) {
       setConfig(nextValues);
       harness.scheduler.runByDelay(1);
@@ -338,6 +338,163 @@ function assertInactiveReadout(panel) {
   for (const className of nativePulseClasses) assert.equal(panel.BHasClass(className), false, className);
 }
 
+function paintReadout(fixture) {
+  fixture.harness.scheduler.takeByFunctionName('paintColors').fn();
+}
+
+function assertReadoutBounds(fixture, x = 0, y = 0) {
+  const { container, anchor, row, world } = fixture;
+  const width = container.actuallayoutwidth;
+  const height = container.actuallayoutheight;
+  const left = Number.parseFloat(row.style.marginLeft);
+  const top = Number.parseFloat(row.style.marginTop);
+  const edge = width / 2 + (world.BHasClass('friend') ? 30 : 40);
+  assert.equal(left, Math.max(0, Math.min(width - row.actuallayoutwidth, edge - row.actuallayoutwidth + x)));
+  assert.equal(top, Math.max(0, Math.min(height - row.actuallayoutheight, 66 + y)));
+  assert.ok(left >= 0 && left + row.actuallayoutwidth <= width);
+  assert.ok(top >= 0 && top + row.actuallayoutheight <= height);
+  assert.equal(anchor.style.width, width + 'px');
+  assert.equal(anchor.style.height, height + 'px');
+  assert.equal(anchor.style.transform, '');
+  assert.equal(fixture.health.readoutTextReads, 0);
+  assert.deepEqual(fixture.health.readoutTextWrites, []);
+  assert.deepEqual(fixture.shieldWrites, []);
+}
+
+test('readout offset matrix saturates measured edges without changing normalized offsets', () => {
+  for (const role of ['enemy', 'ally', 'pulse']) {
+    for (const format of ['hp', 'current', 'percent']) {
+      for (const [width, height, positionX, positionY] of [[200, 210, 0, 0], [260, 240, 100, -100]]) {
+        const ally = role === 'ally';
+        const prefix = ally ? 'allyReadout' : 'readout';
+        const offsetPrefix = role === 'pulse' ? 'enemyPulseReadout' : prefix;
+        const fixture = makeOwnershipFixture(['player', ally ? 'friend' : 'enemy'], {}, (parts) => {
+          prepareNativeReadout(parts);
+          parts.container.actuallayoutwidth = width;
+          parts.container.actuallayoutheight = height;
+        });
+        for (const x of [-200, 0, 200]) for (const y of [-210, 0, 210]) {
+          fixture.update({
+            [prefix + 'Visible']: true, [prefix + 'Format']: format,
+            [offsetPrefix + 'OffsetX']: x, [offsetPrefix + 'OffsetY']: y,
+            enemyPulseEnabled: role === 'pulse', enemyPulseThreshold: 100,
+            enemyPulseReadoutModifiers: role === 'pulse', positionX, positionY,
+          });
+          assertReadoutBounds(fixture, x + positionX * 0.1, y + positionY * 0.1);
+          const normalized = fixture.status.HPV2GetNormalizedConfig();
+          assert.equal(normalized[offsetPrefix + 'OffsetX'], x);
+          assert.equal(normalized[offsetPrefix + 'OffsetY'], y);
+          if (format !== 'percent') {
+            assert.equal(fixture.health.GetParent(), fixture.row);
+            assert.equal(fixture.health.style.visibility, 'visible');
+            assert.equal(fixture.health.style.opacity, '1');
+          }
+        }
+      }
+    }
+  }
+});
+
+test('unchanged-fill paint tracks digit/font row reflow and container resize without native text access', () => {
+  for (const classes of [['player', 'enemy'], ['player', 'friend']]) {
+    const prefix = classes.includes('friend') ? 'allyReadout' : 'readout';
+    const fixture = makeOwnershipFixture(classes, { [prefix + 'Visible']: true }, prepareNativeReadout);
+    const edge = prefix === 'readout' ? 140 : 130;
+    assertReadoutBounds(fixture);
+    assert.equal(Number.parseFloat(fixture.row.style.marginLeft) + fixture.row.actuallayoutwidth, edge);
+    for (const x of [0, 200]) {
+      fixture.update({ [prefix + 'Visible']: true, [prefix + 'OffsetX']: x });
+      for (const [number, width] of [['9', 16], ['999', 32], ['1,000', 46], ['2,990', 48], ['10,000', 60]]) {
+        fixture.health.__text = number; // Engine update; geometry, not text, is sampled.
+        fixture.row.actuallayoutwidth = width;
+        paintReadout(fixture);
+        assertReadoutBounds(fixture, x);
+        assert.equal(Number.parseFloat(fixture.row.style.marginLeft) + width, x ? 200 : edge);
+      }
+    }
+    for (const font of ['default', 'oracle', 'pulp']) for (const size of [72, 320]) {
+      fixture.update({ [prefix + 'Visible']: true, [prefix + 'Font']: font, [prefix + 'Size']: size });
+      fixture.row.actuallayoutwidth = size === 72 ? 36 : 100;
+      fixture.row.actuallayoutheight = size === 72 ? 18 : 40;
+      paintReadout(fixture);
+      assertReadoutBounds(fixture);
+    }
+    fixture.container.actuallayoutwidth = 240;
+    fixture.container.actuallayoutheight = 250;
+    paintReadout(fixture);
+    assertReadoutBounds(fixture);
+    fixture.update({ [prefix + 'Visible']: true, [prefix + 'Format']: 'percent' });
+    fixture.row.actuallayoutwidth = 40;
+    paintReadout(fixture);
+    assertReadoutBounds(fixture);
+    fixture.update({ [prefix + 'Visible']: true, [prefix + 'Format']: 'current' });
+    fixture.row.actuallayoutwidth = 60;
+    paintReadout(fixture);
+    assertReadoutBounds(fixture);
+    fixture.update({ [prefix + 'Visible']: false });
+    for (const property of ['width', 'height', 'transform']) assert.equal(fixture.anchor.style[property], '');
+    for (const property of ['marginLeft', 'marginTop']) assert.equal(fixture.row.style[property], '');
+  }
+});
+
+test('invalid readout layout defers on the existing cadence; oversized rows expose the fit limit', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, (parts) => {
+    prepareNativeReadout(parts);
+    parts.row.actuallayoutwidth = 0;
+  });
+  assert.equal(fixture.row.style.marginLeft || '', '');
+  const panels = [fixture.anchor, fixture.row];
+  for (const [panel, property, invalid] of [
+    [fixture.row, 'actuallayoutwidth', 0], [fixture.row, 'actuallayoutheight', NaN],
+    [fixture.container, 'actuallayoutwidth', Infinity], [fixture.container, 'actuallayoutheight', -1],
+  ]) {
+    const previous = panel[property];
+    panel[property] = invalid;
+    for (const target of panels) target.styleWrites.length = 0;
+    paintReadout(fixture);
+    for (const target of panels) assert.deepEqual(target.styleWrites, []);
+    assert.equal(fixture.harness.scheduler.jobs.length, 2, 'only original scan and paint loops');
+    panel[property] = previous;
+  }
+  fixture.row.actuallayoutwidth = 48;
+  paintReadout(fixture);
+  assertReadoutBounds(fixture);
+  fixture.row.actuallayoutwidth = 250;
+  fixture.row.actuallayoutheight = 230;
+  paintReadout(fixture);
+  assert.equal(fixture.row.style.marginLeft, '0px');
+  assert.equal(fixture.row.style.marginTop, '0px');
+  assert.ok(fixture.row.actuallayoutwidth > fixture.container.actuallayoutwidth);
+  assert.ok(fixture.row.actuallayoutheight > fixture.container.actuallayoutheight);
+  fixture.row.actuallayoutwidth = 48;
+  fixture.row.actuallayoutheight = 24;
+  paintReadout(fixture);
+  assertReadoutBounds(fixture);
+});
+
+test('readout geometry retries rejected margins and repairs native drift at unchanged measurements', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, prepareNativeReadout);
+  const nativeStyle = fixture.row.style;
+  let reject = true;
+  fixture.row.style = new Proxy(nativeStyle, {
+    set(target, property, value) {
+      if (property === 'marginLeft' && reject) throw new Error('temporarily unavailable margin');
+      target[property] = value;
+      return true;
+    },
+  });
+  fixture.row.actuallayoutwidth = 60;
+  paintReadout(fixture);
+  assert.equal(nativeStyle.marginLeft, '92px');
+  reject = false;
+  paintReadout(fixture);
+  assertReadoutBounds(fixture);
+  nativeStyle.marginLeft = '0px';
+  fixture.anchor.style.width = '1px';
+  paintReadout(fixture);
+  assertReadoutBounds(fixture);
+});
+
 test('HP/current readouts adopt the same engine label outside UnitStatus with zero text access', () => {
   for (const [classes, prefix] of [[['player', 'enemy'], 'readout'], [['player', 'friend'], 'allyReadout']]) {
     for (const format of ['hp', 'current']) {
@@ -355,10 +512,12 @@ test('HP/current readouts adopt the same engine label outside UnitStatus with ze
       assert.equal(fixture.health.style.washColor, '#112233');
       assert.equal(fixture.health.style.fontSize, '20px');
       assert.equal(fixture.health.style.fontFamily, 'VALVEPulp, Noto Sans, sans-serif');
-      assert.equal(fixture.anchor.style.transform, 'translate3d(60px, -110px, 0px)');
+      assert.equal(fixture.anchor.style.transform, '');
+      assert.equal(fixture.row.style.marginLeft, prefix === 'readout' ? '152px' : '142px');
+      assert.equal(fixture.row.style.marginTop, '0px');
       assert.equal(fixture.row.FindChildTraverse('UnitHealthbarValue'), fixture.health);
       assert.equal(fixture.health.GetParent(), fixture.row);
-      assert.equal(fixture.row.GetParent().GetParent().GetParent().GetParent(), fixture.window);
+      assert.equal(fixture.row.GetParent().GetParent().GetParent(), fixture.window);
       assert.deepEqual(fixture.health.readoutParentWrites, [fixture.row]);
       for (const panel of [fixture.health, fixture.counter, fixture.counterMax]) {
         assert.deepEqual(panel.readoutTextWrites, []);
@@ -396,14 +555,18 @@ test('runtime HP/percent switching returns the engine label and transfers pulse 
   assert.equal(fixture.counter.style.washColor, '#123456');
   assert.equal(fixture.counter.style.fontSize, '20px');
   assert.equal(fixture.counter.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
-  assert.equal(fixture.anchor.style.transform, 'translate3d(50px, -100px, 0px)');
+  assert.equal(fixture.anchor.style.transform, '');
+  assert.equal(fixture.row.style.marginLeft, '142px');
+  assert.equal(fixture.row.style.marginTop, '0px');
   assert.equal(fixture.counter.BHasClass('HPColorsRewritePulseIntense'), true);
   const writes = fixture.counter.readoutTextWrites.length;
   fixture.update({ ...values, readoutFormat: 'current', enemyPulseIntensity: 0 });
   assert.equal(fixture.health.GetParent(), fixture.row);
   assert.equal(fixture.health.style.visibility, 'visible');
   assert.equal(fixture.health.style.washColor, '#123456');
-  assert.equal(fixture.anchor.style.transform, 'translate3d(50px, -100px, 0px)');
+  assert.equal(fixture.anchor.style.transform, '');
+  assert.equal(fixture.row.style.marginLeft, '142px');
+  assert.equal(fixture.row.style.marginTop, '0px');
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseSubtle'), true);
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), false);
   for (const panel of [fixture.counter, fixture.counterMax]) assertInactiveReadout(panel);
@@ -476,12 +639,16 @@ test('label replacement restores the retired panel before adopting the replaceme
 test('counter row replacement never orphans the adopted engine label', () => {
   const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, prepareNativeReadout);
   fixture.row.SetParent(fixture.window);
-  const row = fixture.anchor.add(new MockPanel('hp_counter_row'));
+  const row = fixture.anchor.add(new MockPanel('hp_counter_row', { actuallayoutwidth: 72, actuallayoutheight: 24 }));
   row.add(new MockPanel('hp_counter', { style: { visibility: 'collapse' } }));
   row.add(new MockPanel('hp_counter_max', { style: { visibility: 'collapse' } }));
   fixture.harness.scheduler.runByDelay(1);
   assert.equal(fixture.health.GetParent(), row);
   assert.deepEqual(fixture.health.readoutParentWrites, [fixture.row, fixture.info, row]);
+  assert.equal(fixture.row.style.marginLeft, '');
+  assert.equal(fixture.row.style.marginTop, '');
+  assert.equal(row.style.marginLeft, '68px');
+  assert.equal(row.style.marginTop, '66px');
   fixture.update({ enabled: false });
   assert.equal(fixture.health.GetParent(), fixture.info);
   assertNativeStock(fixture.health);
@@ -543,7 +710,7 @@ test('adopted label rediscovery avoids repeated SetParent, style, class and text
     readoutVisible: true, enemyPulseEnabled: true, enemyPulseThreshold: 100, enemyPulseReadout: true,
   };
   const fixture = makeOwnershipFixture(['player', 'enemy'], values, prepareNativeReadout);
-  const panels = [fixture.health, fixture.counter, fixture.counterMax, fixture.anchor, fixture.window];
+  const panels = [fixture.health, fixture.counter, fixture.counterMax, fixture.container, fixture.anchor, fixture.row, fixture.window];
   const classWrites = [];
   for (const panel of panels) {
     panel.styleWrites.length = 0;
@@ -554,8 +721,9 @@ test('adopted label rediscovery avoids repeated SetParent, style, class and text
   }
   for (let i = 0; i < 5; i++) {
     fixture.health.__text = String(345 - i);
-    fixture.harness.scheduler.runNext();
+    paintReadout(fixture);
     fixture.update(values);
+    assert.equal(fixture.harness.scheduler.jobs.length, 2);
   }
   for (const panel of panels) assert.deepEqual(panel.styleWrites, [], panel.id);
   assert.deepEqual(classWrites, []);
