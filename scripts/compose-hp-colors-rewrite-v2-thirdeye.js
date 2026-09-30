@@ -148,6 +148,7 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
   const hpScripts = [
     's2r://panorama/scripts/hp_colors_v2_contract.vjs_c',
     's2r://panorama/scripts/hp_colors_v2_state.vjs_c',
+    's2r://panorama/scripts/hp_colors_v2_storage.vjs_c',
     's2r://panorama/scripts/hp_colors_v2_menu.vjs_c',
   ];
   const canonicalStyles = extractIncludes(canonicalXml, 'styles');
@@ -158,7 +159,8 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
   }
   requireMatchCount(canonicalXml, /id="HPColorsMenuButton"/g, 1, 'canonical HPColorsMenuButton');
   requireMatchCount(canonicalXml, /id="HPColorsEditorRoot"/g, 1, 'canonical HPColorsEditorRoot');
-  requireMatchCount(canonicalXml, /id="HPColorsRewritePresetStore"/g, 1, 'canonical HPColorsRewritePresetStore');
+  requireMatchCount(canonicalXml, /id="HPColorsV2StoreWrap"/g, 1, 'canonical HPColorsV2StoreWrap');
+  requireMatchCount(canonicalXml, /id="HPColorsRewritePresetStore"/g, 0, 'canonical retired HPColorsRewritePresetStore');
 
   const thirdEyeStyles = extractIncludes(thirdEyeXml, 'styles');
   const thirdEyeScripts = extractIncludes(thirdEyeXml, 'scripts');
@@ -191,7 +193,7 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
 
   const hpButton = extractElementById(canonicalXml, 'Button', 'HPColorsMenuButton');
   const hpEditor = extractElementById(canonicalXml, 'Panel', 'HPColorsEditorRoot');
-  const hpPresetStore = extractElementById(canonicalXml, 'Panel', 'HPColorsRewritePresetStore');
+  const hpStore = extractElementById(canonicalXml, 'Panel', 'HPColorsV2StoreWrap');
   const thirdEyeButton = extractElementById(thirdEyeXml, 'Button', 'ThirdEyeSettingsBtn');
   const settingsRowPattern = /[ \t]*<Panel class="SettingsRow">[\s\S]*?<Button id="ThirdEyeSettingsBtn"[\s\S]*?<\/Button>[\s\S]*?<\/Panel>/g;
   requireMatchCount(thirdEyeXml, settingsRowPattern, 1, 'ThirdEye settings row');
@@ -206,6 +208,16 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
   merged = replaceOnce(merged, /<styles>[\s\S]*?<\/styles>/, `<styles>\n${styleBody}\n\t</styles>`, 'merged style includes');
   merged = replaceOnce(merged, /<scripts>[\s\S]*?<\/scripts>/, `<scripts>\n${scriptBody}\n\t</scripts>`, 'merged script includes');
   merged = replaceOnce(merged, settingsRowPattern, (match) => `${match}\n${hpRow}`, 'HP button insertion');
+  // Stock #SubOptions is bottom-anchored and grows upward 32px per row. Third
+  // Eye and HP rows add two, so lift the bottom-anchored primaries by 64px.
+  for (const [id, marginBottom] of [['te_PlayButton', 484], ['te_WatchButton', 414], ['changehero', 344]]) {
+    merged = replaceOnce(
+      merged,
+      new RegExp(`<Button id="${id}"[^>]*>`),
+      (tag) => setAttribute(tag, 'style', `margin-bottom: ${marginBottom}px;`, id),
+      `${id} lift`,
+    );
+  }
   merged = replaceLiteralOnce(
     merged,
     thirdEyeButton,
@@ -220,7 +232,7 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
   merged = replaceOnce(
     merged,
     /\s*<\/CitadelHudEscapeMenu>/,
-    `\n${hpEditor}\n${hpPresetStore}\n\t</CitadelHudEscapeMenu>`,
+    `\n${hpEditor}\n${hpStore}\n\t</CitadelHudEscapeMenu>`,
     'HP editor insertion',
   );
 
@@ -261,12 +273,14 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
     'te_WatchButton',
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
-    'HPColorsRewritePresetStore',
+    'HPColorsV2StoreWrap',
+    'HPColorsV2Store',
     'EscapeBackground',
     'EscapeButton',
   ]) {
     requireMatchCount(merged, new RegExp(`id="${id}"`, 'g'), 1, `merged ${id}`);
   }
+  requireMatchCount(merged, /id="HPColorsRewritePresetStore"/g, 0, 'merged retired HPColorsRewritePresetStore');
   requireMatchCount(merged, /onload="\$\.HPColorsMenuBoot\(\)"/g, 1, 'merged HP boot handler');
   requireMatchCount(merged, /oncancel="if \(!\$\.HPColorsMenuCancel\(\)\)/g, 1, 'merged Escape cancel contract');
   requireMatchCount(merged, /id="EscapeBackground"[^>]*onactivate="if \(!\$\.HPColorsMenuCancel\(\)\)/g, 1, 'merged Escape backdrop contract');
@@ -281,12 +295,12 @@ function buildEscapeMenu({ canonicalXml, thirdEyeXml, bridgeAsset, windowAsset, 
 function buildTopbarUltimateFeature(source) {
   return replaceLiteralOnce(
     source,
-    '            var ultimate = statusRow.FindChild("UltimateStatus");',
+    '            const ultimate = statusRow.FindChild("UltimateStatus");',
     [
-      '            var ultimate = statusRow.FindChild("UltimateStatus");',
+      '            let ultimate = statusRow.FindChild("UltimateStatus");',
       '            // HPv2 wraps the native ultimate while pickup indicators are active.',
       '            if (!thirdEye.core.panel.isAlive(ultimate)) {',
-      '                var pickups = statusRow.FindChild("HPV2PickupIndicators");',
+      '                const pickups = statusRow.FindChild("HPV2PickupIndicators");',
       '                if (thirdEye.core.panel.isAlive(pickups)) {',
       '                    ultimate = pickups.FindChild("UltimateStatus");',
       '                }',

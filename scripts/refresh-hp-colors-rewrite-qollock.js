@@ -99,6 +99,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     ? [
       'hp_colors_v2_contract.vjs_c',
       'hp_colors_v2_state.vjs_c',
+      'hp_colors_v2_storage.vjs_c',
       'hp_colors_v2_menu.vjs_c',
     ]
     : [
@@ -106,12 +107,15 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
       'hp_colors_state.vjs_c',
       'hp_colors_menu.vjs_c',
     ];
+  // v1 keeps its read-only builder preset store; v2 replaced it with the
+  // durable storage panel.
+  const storePanelId = isV2 ? 'HPColorsV2StoreWrap' : 'HPColorsRewritePresetStore';
   for (const id of [
     'HPColorsMenuButton',
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
     'HPColorsAllyTeamHighToggle',
-    'HPColorsRewritePresetStore',
+    storePanelId,
   ]) {
     requireMatchCount(
       sourceXml,
@@ -141,7 +145,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     `\n\t\t<include src="s2r://panorama/styles/${styleAsset}" />`,
     'Escape-menu style anchor',
   );
-  const hpPresetStore = extractElementById(canonicalXml, 'Panel', 'HPColorsRewritePresetStore');
+  const hpStorePanel = extractElementById(canonicalXml, 'Panel', storePanelId);
   const scriptIncludes = scriptAssets
     .concat('qollock_hp_colors_bridge.vjs_c')
     .map((asset) => `\t\t<include src="s2r://panorama/scripts/${asset}" />`);
@@ -179,10 +183,39 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     ].join('\n'),
     'QOLLOCK settings row',
   );
+  if (isV2) {
+    // QOLLOCK's close and resume buttons also close an open editor subdialog
+    // (or prompt to save) before leaving the menu.
+    for (const [pattern, label] of [
+      [/<Button id="CloseBtn"[^>]*>/, 'QOLLOCK close button'],
+      [/<Button id="EscapeButton"[^>]*>/, 'Escape resume button'],
+      [/<CitadelBindingButton id="EscapeButton"[^>]*>/, 'Escape resume binding'],
+    ]) {
+      xml = replaceOnce(xml, pattern, (tag) => prefixHandler(
+        tag,
+        'onactivate',
+        'if ($.HPColorsMenuCancel &amp;&amp; $.HPColorsMenuCancel()) {} else ',
+        label,
+      ), label);
+    }
+  }
+  if (isV2) {
+    // Stock #SubOptions is bottom-anchored and grows upward 32px per row; the
+    // QOLLOCK and HP rows push it into the primaries, so lift them 64px from
+    // QOLLOCK's hud_escape_menu.css (490/420/350 in 4.0.0) and stock #changehero (280).
+    for (const [id, marginBottom] of [['newgame', 554], ['watchgame', 484], ['guides', 414], ['changehero', 344]]) {
+      xml = replaceOnce(
+        xml,
+        new RegExp(`<Button id="${id}"[^>]*>`),
+        (tag) => setAttribute(tag, 'style', `margin-bottom: ${marginBottom}px;`, id),
+        `${sourceLabel} ${id} lift`,
+      );
+    }
+  }
   xml = replaceOnce(
     xml,
     /\s*<\/CitadelHudEscapeMenu>/,
-    `\n${hpEditor}\n${hpPresetStore}\n\t</CitadelHudEscapeMenu>`,
+    `\n${hpEditor}\n${hpStorePanel}\n\t</CitadelHudEscapeMenu>`,
     'Escape-menu editor insertion',
   );
   for (const id of [
@@ -190,7 +223,7 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     'HPColorsEditorRoot',
     'HPColorsSupporterTicker',
     'HPColorsAllyTeamHighToggle',
-    'HPColorsRewritePresetStore',
+    storePanelId,
   ]) {
     requireMatchCount(
       xml,

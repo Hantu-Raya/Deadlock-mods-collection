@@ -19,10 +19,9 @@ Unit kind and relation are separate facts. The bounded ancestor walk gathers exp
 | `player` | Classified enemy/friendly player | Relation settings, layout, pulse, readout, pips, and player-only accessories as configured. |
 | `unit` | Enemy/friendly NPC or building with its independent opt-in enabled | Relation palette, feedback, pulse, visibility/layout, and enemy pip-line visibility. No HP readout, level badge, kill marker, ultimate coloring/timer, or stamina. |
 | `fill` | Known neutral NPC with `npcNeutralEnabled` | Fixed `neutralColor` fill only. Neutral feedback, bounty, tier art, lines, values, and other stock presentation stay stock. |
-| `opacity` | Classified creature NPC ghoul with `ghoulOpacityEnabled`, even when its NPC color gate is off | Ghoul bar and native info-background opacity only. |
 | stock | Master off, unknown kind/relation, ambiguous relation, disabled category, or unsupported neutral/building kind | Restore native styles and classes. |
 
-Enemy/friendly NPC and building gates default off and are independent of player `enemyEnabled` / `allyEnabled`. The six new settings append to the existing `hpv2` extension. State, presets, conditions, HPCR2, HPCRP1, and the `HP_COLORS_V2_CONFIG` transport use the existing generic contract; state remains session-scoped.
+Enemy/friendly NPC and building gates default off and are independent of player `enemyEnabled` / `allyEnabled`. The six new settings append to the existing `hpv2` extension. State, presets, conditions, HPCR2, HPCRP1, and the `HP_COLORS_V2_CONFIG` transport use the existing generic contract; settings, scopes, presets, and conditions persist through the canonical durable save bridge.
 
 ## Stock appearance ownership
 
@@ -75,7 +74,7 @@ CSS mirrors stock damage wiggle and the `midboss`, `neutral_vault`, `health_hidd
 
 Sep 30 client.dll IDA inspection found `citadel_unit_status_width = 200`, `citadel_unit_status_height = 210`, and `citadel_unit_status_window_scale = 2.0`, registered at `0x1801db782`, `0x1801dab32`, and `0x1801db822` and used by the `unit_status_overlay_v2` spawner `sub_181CF27C0`. The bounds target the approximately 200×210 CSS-pixel world-panel canvas; the exact convar-to-CSS mapping and supported UI scales still need live verification.
 
-Known compatibility change: old HPCR2/HPCRP1 codes with omitted offset slots now decode to zero, preserving the default position. Explicit legacy user offset values, including explicit old defaults such as 27/500 or -30/434, are clamped to the new bounds and interpreted directly as CSS pixels. Existing session and imported builder values use the same normalization. There is no general migration, sentinel, wire-version change, or remapping of explicit user values. New zero, 27, and other in-range pixel offsets round-trip unchanged.
+Known compatibility change: old HPCR2/HPCRP1 codes with omitted offset slots now decode to zero, preserving the default position. Explicit legacy user offset values, including explicit old defaults such as 27/500 or -30/434, are clamped to the new bounds and interpreted directly as CSS pixels. Existing saved sessions and imported user presets use the same normalization. There is no general migration, sentinel, wire-version change, or remapping of explicit user values. New zero, 27, and other in-range pixel offsets round-trip unchanged.
 
 The canonical `baked_default` record alone accepts current zero offsets or exact historical shipped offsets for these six keys, then normalizes them to current defaults; every other deviation from the shipped baked values still rejects the bundle. Raw offsets are checked before clamping so arbitrary out-of-range values cannot impersonate historical defaults. This keeps older HPCRP1 bundles usable without changing user records. The web builder was intentionally not updated; existing local saves remain untouched.
 
@@ -113,6 +112,6 @@ Do not package the settings preview, legacy unit-status override, stock icon CSS
 
 ## Verification and live-only limits
 
-Run the five focused Rewrite v2 validators and `build_hp_colors_rewrite_v2.ps1 -SkipDeploy`; this leaves the installed addon untouched. Source/VM and compiler/package checks do not establish live rendering, data parity, or performance.
+Run all `scripts/validate-hp-colors-rewrite-v2-*.test.js` validators and `build_hp_colors_rewrite_v2.ps1 -SkipDeploy`; this leaves the installed addon untouched. Source/VM and compiler/package checks do not establish live rendering, data parity, or performance.
 
 A fresh-restart in-game smoke is still required for actual `WorldUIRoot` classes and lineage on players, neutral camps, troopers/bosses, and buildings; current-label locale/lag behavior and exact max HP; shield/armor/deferred overlap; accessory, counter, and marker alignment; `LEGACY_TO_NATIVE`, supported UI scales, player stamina depletion; native ultimate-ready/cooldown priority; stock preview isolation; late/reused unit panels; menu focus and height; and actual frame cost. Do not claim exact current/max readout, precise-line support, FPS, or visual success from synthetic tests or logs alone.
