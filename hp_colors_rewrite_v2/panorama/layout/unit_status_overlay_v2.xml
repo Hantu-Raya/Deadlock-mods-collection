@@ -90,9 +90,11 @@
 		</Panel>
 		<Panel id="hp_counter_container" hittest="false" hittestchildren="false">
 			<Panel id="hp_counter_anchor" hittest="false" hittestchildren="false">
-				<Panel id="hp_counter_row" hittest="false" hittestchildren="false">
-					<Label id="hp_counter" text="" hittest="false" style="visibility: collapse;" />
-					<Label id="hp_counter_max" text="" hittest="false" style="visibility: collapse;" />
+				<Panel id="hp_counter_slot" hittest="false" hittestchildren="false">
+					<Panel id="hp_counter_row" hittest="false" hittestchildren="false">
+						<Label id="hp_counter" text="" hittest="false" style="visibility: collapse;" />
+						<Label id="hp_counter_max" text="" hittest="false" style="visibility: collapse;" />
+					</Panel>
 				</Panel>
 			</Panel>
 		</Panel>
