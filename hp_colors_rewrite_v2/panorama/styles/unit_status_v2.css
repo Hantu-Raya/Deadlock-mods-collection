@@ -1567,9 +1567,11 @@
 	overflow: noclip;
 }
 
-/* The frame covers WindowRoot. At zero offset the row grows left from the
-   stock label's right edge (center +40px, friend +30px), with its top at
-   #UnitStatus's 65px margin + the stock label's 1px margin. */
+/* The frame covers WindowRoot. The translated anchor is a fixed 3x canvas
+   centered on it, so offsets and wider numbers never leave the moving
+   panel's own box. Its slot maps back to the canvas: at zero offset the row
+   grows left from the stock label's right edge (center +40px, friend +30px),
+   with its top at #UnitStatus's 65px margin + the stock label's 1px margin. */
 .WindowRoot #hp_counter_container
 {
 	width: 100%;
@@ -1602,11 +1604,20 @@
 
 .WindowRoot #hp_counter_anchor
 {
+	width: 300%;
+	height: 300%;
+	horizontal-align: center;
+	vertical-align: center;
+	overflow: noclip;
+}
+
+/* Middle third vertically, left half of the canvas horizontally. */
+.WindowRoot #hp_counter_slot
+{
 	width: 50%;
-	height: fit-children;
+	height: 33.3333%;
 	horizontal-align: left;
-	vertical-align: top;
-	margin-top: 66px;
+	vertical-align: center;
 	overflow: noclip;
 }
 
@@ -1616,6 +1627,8 @@
 	height: fit-children;
 	flow-children: right;
 	horizontal-align: right;
+	vertical-align: top;
+	margin-top: 66px;
 	margin-right: -40px;
 	padding: 4px;
 	overflow: noclip;

@@ -193,7 +193,7 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null) {
   });
   const container = add(window, 'hp_counter_container');
   const anchor = add(container, 'hp_counter_anchor');
-  const row = add(anchor, 'hp_counter_row');
+  const row = add(add(anchor, 'hp_counter_slot'), 'hp_counter_row');
   const counter = add(row, 'hp_counter', { style: { visibility: 'collapse' } });
   const counterMax = add(row, 'hp_counter_max', { style: { visibility: 'collapse' } });
   let revision = 0;
@@ -358,7 +358,7 @@ test('HP/current readouts adopt the same engine label outside UnitStatus with ze
       assert.equal(fixture.anchor.style.transform, 'translate3d(60px, -110px, 0px)');
       assert.equal(fixture.row.FindChildTraverse('UnitHealthbarValue'), fixture.health);
       assert.equal(fixture.health.GetParent(), fixture.row);
-      assert.equal(fixture.row.GetParent().GetParent().GetParent(), fixture.window);
+      assert.equal(fixture.row.GetParent().GetParent().GetParent().GetParent(), fixture.window);
       assert.deepEqual(fixture.health.readoutParentWrites, [fixture.row]);
       for (const panel of [fixture.health, fixture.counter, fixture.counterMax]) {
         assert.deepEqual(panel.readoutTextWrites, []);

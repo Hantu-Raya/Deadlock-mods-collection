@@ -358,7 +358,11 @@ function addCounterCanvas(windowRoot, harness) {
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
-  const row = anchor.add(new MockPanel('hp_counter_row', {
+  const slot = anchor.add(new MockPanel('hp_counter_slot', {
+    findCounts: harness.findCounts,
+    operationCounts: harness.operationCounts,
+  }));
+  const row = slot.add(new MockPanel('hp_counter_row', {
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -861,7 +865,8 @@ test('v2 preserves the frozen static stock tree and adds only passive owned pane
   const window = layout[0].children.find(node => node.attributes.class === 'WindowRoot');
   const container = window.children.find(node => node.attributes.id === 'hp_counter_container');
   const anchor = container.children.find(node => node.attributes.id === 'hp_counter_anchor');
-  const row = anchor.children.find(node => node.attributes.id === 'hp_counter_row');
+  const slot = anchor.children.find(node => node.attributes.id === 'hp_counter_slot');
+  const row = slot.children.find(node => node.attributes.id === 'hp_counter_row');
   assert.deepEqual(row.children.map(node => node.attributes.id), ['hp_counter', 'hp_counter_max']);
   assert.doesNotMatch(read(layoutPath), /hp_counter_native/);
 });
@@ -1566,8 +1571,8 @@ test('v2 clamps native readout offsets across the canvas and retains the percent
   assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
   assert.equal(fixture.counterContainer.GetParent(), fixture.windowRoot);
   const style = read(stylePath);
-  for (const selector of ['.WindowRoot #hp_counter_container',
-    '.WindowRoot #hp_counter_anchor', '.WindowRoot #hp_counter_row'])
+  for (const selector of ['.WindowRoot #hp_counter_container', '.WindowRoot #hp_counter_anchor',
+    '.WindowRoot #hp_counter_slot', '.WindowRoot #hp_counter_row'])
     assert.match(cssBlock(style, selector), /overflow\s*:\s*noclip\s*;/);
 });
 
@@ -1619,13 +1624,21 @@ test('v2 full-canvas readout frame grows left from the stock label edge and leve
   for (const hidden of ['.health_hidden', '.GameStatePreGame', '.beingSpectatedInEye',
     '.health_particle_active', '.neutral_vault', '.midboss'])
     assert.ok(new RegExp(`\\${hidden} #hp_counter_container[\\s\\S]*?visibility:\\s*collapse`).test(css), hidden);
+  // The translated anchor is a fixed 3x canvas, so moving it or changing the
+  // number never pushes the text outside the transformed panel's own box.
   const anchor = cssBlock(css, '.WindowRoot #hp_counter_anchor');
-  for (const property of ['width: 50%', 'height: fit-children', 'horizontal-align: left',
-    'vertical-align: top', 'margin-top: 66px'])
+  for (const property of ['width: 300%', 'height: 300%', 'horizontal-align: center',
+    'vertical-align: center'])
     assert.ok(anchor.includes(property), `anchor ${property}`);
+  assert.doesNotMatch(anchor, /fit-children|margin-top/);
+  const slot = cssBlock(css, '.WindowRoot #hp_counter_slot');
+  for (const property of ['width: 50%', 'height: 33.3333%', 'horizontal-align: left',
+    'vertical-align: center'])
+    assert.ok(slot.includes(property), `slot ${property}`);
   const row = cssBlock(css, '.WindowRoot #hp_counter_row');
   for (const property of ['width: fit-children', 'height: fit-children', 'horizontal-align: right',
-    'flow-children: right', 'margin-right: -40px', 'padding: 4px'])
+    'vertical-align: top', 'margin-top: 66px', 'flow-children: right', 'margin-right: -40px',
+    'padding: 4px'])
     assert.ok(row.includes(property), `row ${property}`);
   const friendRow = cssBlock(css, '.WindowRoot.friend #hp_counter_row');
   assert.match(css, /\.friend \.WindowRoot #hp_counter_row,\s*\.WindowRoot\.friend #hp_counter_row/);
