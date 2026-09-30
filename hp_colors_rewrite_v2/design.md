@@ -1,54 +1,99 @@
 # HP Colors Rewrite v2 layout contract
 
-## Healthbar geometry
+## Shipped stock frame
 
-`#UnitStatus` is a fixed `2000px × 2000px` canvas. CSS centers `#UnitHealthbarsContainer` in that canvas. Runtime reads the live segment stack and bar geometry, then places the scale origin at the visible bar center. Do not replace this with a fixed percentage because max-HP layouts change the bar's position inside the stack.
+The v2 override is rebased on the static unit-status tree shipped in Deadlock build 6722. The supplied GameTracking master snapshot (`245f2952f9`, byte-identical to the 6711 snapshots) provides its stock XML and CSS. `#UnitStatus` is `100×40`; the primary `#UnitHealthbar.UnitHealthbarContainer` is `76×18`; its direct `#UnitHealthbarInner` surface is `69×12`. Stock margins, health layers, line panels, labels, and indicator visibility remain engine-owned, except for the permanent mask and outer-background deletions documented below.
 
-The engine owns `UnitHealthbarContainer.width` and `max-width`. Rewrite never writes them. Max-HP changes can change the live width without changing the preset, so the existing health sample also reads `actuallayoutwidth` and reapplies layout only when that width changes.
+`#UnitHealthbarsContainer` has two sibling branches: primary `#UnitHealthbar` and secondary `#UnitShieldbar`. Both contain an ID `UnitHealthbarInner`, and each has its own `unit_healthbar_bullet_shield`. Always resolve the direct `UnitHealthbar` child and that child's direct inner panel before looking up health layers. Never select the first `.UnitHealthbarContainer` or search the complete stack for a duplicate ID.
 
-Do not derive alignment from pip count, `maxhp_segment_*` classes, fill width, or health percentage. Those values describe health state, not the rendered bar boundary.
+Rewrite-owned level, pulse, kill-marker, and ultimate-timer panels are attached only to their local stock owners. HP/current readouts temporarily adopt the engine's existing health label into the counter row attached directly to `WindowRoot`; percentage uses the custom counter there. Both readouts stay outside the small `UnitStatus`/`InfoHealthContainer` canvas and both bar branches. The stock settings preview has no `.WindowRoot`, Rewrite scripts, or owned panels; appended overrides that target its stock IDs stay scoped to `.WindowRoot`. The permanent stock stylesheet deletions also apply to the preview.
 
-While customization is active, write X/Y translation explicitly, including zero after Layout Reset. Clearing the inline transform can defer the visible reset until another layout update. Restore the captured stock transform only when releasing ownership.
+## Ownership and classification
 
-## HP readout stacking
+Unit kind and relation are separate facts. The bounded ancestor walk gathers explicit engine classes, including classes on `WorldUIRoot`; the pure `classifyUnit(facts)` policy applies building → player → NPC precedence. Neutral facts win over enemy/friend, exactly one of enemy/friend sets the relation, and contradictory or unknown ownership stays stock. `team1`/`team2` choose palette endpoints only; they never infer ownership.
 
-`#hp_counter_container` and `#UnitStatus` are root siblings. The counter container appears first in XML, so its own `z-index: 30` raises both HP labels above the later stock panel. Keep the stacking value on the sibling container. A child label or `#hp_counter_anchor` cannot reliably escape its parent's sibling layer.
+`resolveSurface(bar, config)` is the only gate for custom presentation:
 
-## Level and ultimate alignment
+| Surface | Eligibility | Owned presentation |
+|---|---|---|
+| `player` | Classified enemy/friendly player | Relation settings, layout, pulse, readout, pips, and player-only accessories as configured. |
+| `unit` | Enemy/friendly NPC or building with its independent opt-in enabled | Relation palette, feedback, pulse, visibility/layout, and enemy pip-line visibility. No HP readout, level badge, kill marker, ultimate coloring/timer, or stamina. |
+| `fill` | Known neutral NPC with `npcNeutralEnabled` | Fixed `neutralColor` fill only. Neutral feedback, bounty, tier art, lines, values, and other stock presentation stay stock. |
+| `opacity` | Classified creature NPC ghoul with `ghoulOpacityEnabled`, even when its NPC color gate is off | Ghoul bar and native info-background opacity only. |
+| stock | Master off, unknown kind/relation, ambiguous relation, disabled category, or unsupported neutral/building kind | Restore native styles and classes. |
 
-The level badge and `#UnitInfoContainer` have independent X/Y offsets. Width scaling always preserves their relation to the rendered bar edge. Anchoring additionally follows bar translation:
+Enemy/friendly NPC and building gates default off and are independent of player `enemyEnabled` / `allyEnabled`. The six new settings append to the existing `hpv2` extension. State, presets, conditions, HPCR2, HPCRP1, and the `HP_COLORS_V2_CONFIG` transport use the existing generic contract; state remains session-scoped.
+
+## Stock appearance ownership
+
+The appended `criticalIndicatorVisible` and `playerNamesVisible` booleans default true (stock pass-through); the `hpv2` extension has 49 slots. Legacy 72 slots, `hpv2.v = 1`, and transport version 2 remain unchanged. Player labels are independent of relation color enablement. Only `player` surfaces receive owned WindowRoot hide classes, with late collapse-only selectors for `#CriticalIndicator` and `#name`; removal defers to stock visibility, including spectator and convar rules.
+
+All unit-status bars are permanently rectangular without an outer background, including players, NPCs, buildings, shields, previews, and master-off or ungated surfaces. Because this stylesheet replaces stock, it deletes the three `opacity-mask` declarations on `.UnitHealthbarContainer`, `#UnitHealthbarInner`, and `#UnitHealthbarLines`, and all eight container background-color declarations. The six relation rules that become empty are removed; the black inner backing and every other stock declaration remain. There is no shape setting, runtime class ownership, or inline mask write.
+
+Master-off, surface loss, classification change, replacement, retirement, and teardown release label owners. Existing paint reconciliation repairs failed label class writes and external class drift without another timer. Missing optional labels/lines never block colors or create retries. Clips, geometry, health math, and stock critical animations/scaling/wash/margins remain unchanged. The critical-state convar is never executed, saved, or changed. This is not a full v1 mode.
+
+## Health sampling and readout
+
+Health percentage uses the minimum available visible-fill signal on primary `unit_healthbar_lagging`: layout width relative to the primary inner width, negative X offset, inline clip rectangle, horizontal transform/pre-transform scale, and inline width. Empty, unparsable, or unavailable signals are ignored. Pulse coverage uses the same fraction. Do not subtract primary bullet shield, ratking armor, deferred damage, or the separate `UnitShieldbar`; those are overlapping stock layers. Never write engine layer widths. Live build 6722 evidence: the engine keeps the fill at full layout width and writes an inline clip such as `rect( 0.0%, 77.710846%, 100.0%, 0.0%)`, whose right edge is the health percentage; `unit_healthbar_delta` is clipped from the new to the old edge. The clip signal is therefore authoritative in practice; the other signals remain defensive fallbacks.
+
+Owned `hp` and `current` formats use the engine's existing `UnitHealthbarValue` `{d:health}` label, preserving its panel identity, exact text, and locale grouping (`2,990` is live-confirmed). Rewrite never parses, samples, rounds, or rewrites that number. Percentage text and gradient colors remain fill-derived and need no parsed HP. No verified maximum-HP source exists, so `hp` remains current-only. Never infer maximum HP from pips, line count, shield arithmetic, or rounded fill ratio. `precisePipsEnabled` remains in the codec for compatibility, but its nonfunctional menu/dialog and unverified ConVar instructions are removed.
+
+Sep 30 client.dll IDA inspection establishes label-local binding: `sub_181CF8FF0` traverses the layout for ID `UnitHealthbarValue` (vtable offset `+400`) and caches its pointer at `this+3624`, beside `UnitHealthbar` at `this+3616`; the shield pair is at `+3728/+3736`. Per-tick `sub_181D0D7B0` calls `sub_18218FDD0(a2[1], {hash, "health"}, v[8]+v[10]+v[12])`, setting the dialog variable on the cached value label, not the root. A second `{d:health}` label would not receive those updates. Reparent the existing label instead; `test_topbar_pickups.js` already uses `SetParent` on the engine-owned `UltimateStatus`. This evidence supports pointer preservation, not a claim of live visual validation.
+
+In native mode, remember the original parent and `SetParent` the same label into this bar's own `hp_counter_row`. Force visibility and opacity `1` and apply its wash color, font, size, and enemy text pulse; translation belongs to `hp_counter_anchor`. Discovery accepts the label as a direct child of either its own `InfoHealthContainer` or its own counter row, never a sibling WindowRoot. Unchanged scans do not re-adopt it. Capture every written inline style and the original pulse classes; restore them before returning it to the remembered parent on release, bypass, role change, percent switch, replacement, retirement, or teardown. When the original parent has expired, parts replacement uses the new valid info container as the restoration destination. Retired owners release before new owners capture shared baselines.
+
+Percentage restores the label to its original location and suppresses it. Enemy players remain hidden when **Show Health Text** is off; ally readout off leaves the native label's text, styles, classes, and parent exactly stock. Never modify `UnitShieldbarValue`.
+
+## Measured geometry
+
+`applyBarGeometry()` is the only owner of Rewrite scale and translation. Let `Sx = widthScale / 100`, `Sy = heightScale / 100`, and let measured primary outer bounds relative to the stock stack be `B = (x, y, width, height)`. Measure both axes, stack offsets/dimensions, outer bounds, and inner insets from `actualxoffset`, `actualyoffset`, `actuallayoutwidth`, and `actuallayoutheight` in the existing scan/health pass.
 
 ```text
-scaleOffsetX = (825 - liveBarWidth × scaleX) / 2
-anchorOffsetX = scaleOffsetX + (anchored ? positionX : 0)
-levelMarginLeft = 422.5 + anchorOffsetX + levelOffsetX × widthScale / 100
-ultimateMarginLeft = 422.5 + anchorOffsetX + ultOffsetX × widthScale / 100
-scaleX = 1.1 × widthScale / 100
+C = stackOffset + (B.x + B.width / 2, B.y + B.height / 2)
+originX = (B.x + B.width / 2) / stackWidth
+originY = (B.y + B.height / 2) / stackHeight
+scaledLeft = C.x - B.width * Sx / 2
+
+for player indicator i:
+  gapX_i = stockBarLeft - originalCenterX_i
+  targetCenterX_i = scaledLeft - gapX_i
+                   + (anchored ? native(positionX) : 0)
+                   + native(indicatorOffsetX_i) * Sx
+  gapY_i = stockBarCenterY - originalCenterY_i
+  targetCenterY_i = stockBarCenterY - gapY_i * Sy
+                   + (anchored ? native(positionY) : 0)
+                   + native(indicatorOffsetY_i) * Sy
 ```
 
-`pre-transform-scale2d` scales the bar before its translation. X translation is already in parent pixels; multiplying it by `scaleX` makes the indicators drift as width increases.
+Capture each player indicator's original center once per panel generation. Margin baselines are explicit stylesheet constants (level badge `-23px`/`-14px`, stock `unit_info_panel` `0px`/`-14px`) because Panorama exposes only inline styles: a zero delta clears the inline margin so the stylesheet applies, and a nonzero delta writes baseline plus delta. Convert target deltas using its alignment: the stock `unit_info_panel` and Rewrite level badge are vertically centered, so their margin-top delta is doubled; a top-aligned panel uses a one-to-one delta. NPC/building `unit` surfaces transform only the bar stack and never write indicator margins. At 100% scale use stock scale/origin baselines; do not add the retired `1.1` multiplier or a discontinuity at 101%. While Rewrite owns layout, write explicit X/Y translation, including zero after reset. Restore captured styles on release. The engine owns primary width/height and `max-width` at all times.
 
-The renderer measures the live bar center and each indicator's original center. It also applies vertical scale compensation, so both indicators visibly move as bar height changes. When anchoring is enabled, it converts the center difference into Panorama's centered-margin coordinates, then adds `positionY × 2` and the indicator's own Y offset. When anchoring is disabled, it ignores bar translation but still follows bar scale.
+Both readouts use `hp_counter_container`, a direct `WindowRoot` child outside `#UnitStatus` and its 100×40 canvas. XML leaves `UnitHealthbarValue` in `InfoHealthContainer` for engine initialization; native ownership moves that existing panel into the row at runtime, without adding labels. `.WindowRoot #hp_counter_row #UnitHealthbarValue` changes only adopted-label layout: left/top alignment, zero margins and padding, no rotation, nowrap, and noclip. Its two IDs outrank stock relation selectors, and returning the panel removes that selector's effect.
 
-At the default `750px` live width, the scaled bar begins at local X `587.5`. The `300px` UnitInfo panel begins at `422.5`, placing its center at `572.5`, or `15px` left of the bar. This gap keeps the ultimate icon off the bar and leaves low-percentage kill markers visible.
+The frame covers the full world-panel canvas (`width: 100%; height: 100%`), centered horizontally and top-aligned with zero top margin, `overflow: noclip`, `ignore-parent-flow: true`, and `z-index: 30`. Its left-aligned 50%-width anchor ends at canvas center and starts at Y=66px: the stock `UnitStatus` top margin (65px) plus the stock label's 1px margin. The right-aligned fit-children row uses `margin-right: -40px` (`-30px` for friend), so its box ends at canvas center +40px (friend +30px) and grows leftward like stock. Row padding is 4px; the adopted label has zero padding to avoid doubling stock padding. Both `.friend .WindowRoot` and `.WindowRoot.friend` class placements use the friend edge. These are stylesheet geometry targets, not a claim of live CSS-coordinate calibration.
 
-With anchoring disabled, bar X/Y offsets do not move the indicators. Width scaling still preserves their bar-edge relationship and scales each indicator's X offset by `widthScale / 100`. Their Y offsets remain independent. Reset enables anchoring and restores every accessory offset to zero.
+CSS mirrors stock damage wiggle and the `midboss`, `neutral_vault`, `health_hidden`, `GameStatePreGame`, `health_particle_active`, and `beingSpectatedInEye` collapse rules. In HP/current mode both custom labels stay collapsed and receive no text writes. In percentage mode the native label returns to its original parent and collapses. Both paths use the same unrotated anchor `translate3d(...)`: `nativePx(positionX/Y) + readoutOffsetX/Y`, selecting enemy, ally, or pulse-modifier keys. All six offset defaults, including codec defaults, are zero. Offsets are plain CSS pixels (1:1), with X bounds `[-200, 200]` and Y bounds `[-210, 210]`; no default subtraction or `LEGACY_TO_NATIVE` conversion applies to readout offsets. Size and bar translation retain their existing conversion.
 
-## Kill marker
+Sep 30 client.dll IDA inspection found `citadel_unit_status_width = 200`, `citadel_unit_status_height = 210`, and `citadel_unit_status_window_scale = 2.0`, registered at `0x1801db782`, `0x1801dab32`, and `0x1801db822` and used by the `unit_status_overlay_v2` spawner `sub_181CF27C0`. The bounds target the approximately 200×210 CSS-pixel world-panel canvas; the exact convar-to-CSS mapping and supported UI scales still need live verification.
 
-The kill marker remains a child of `UnitHealthbarContainer`. Its threshold uses the health-parent width and its configured percentage. Accessory alignment must not cover the marker. Do not compensate by changing marker percentage or width.
+Known compatibility change: old HPCR2/HPCRP1 codes with omitted offset slots now decode to zero, preserving the default position. Explicit legacy user offset values, including explicit old defaults such as 27/500 or -30/434, are clamped to the new bounds and interpreted directly as CSS pixels. Existing session and imported builder values use the same normalization. There is no general migration, sentinel, wire-version change, or remapping of explicit user values. New zero, 27, and other in-range pixel offsets round-trip unchanged.
 
-## Runtime cost
+The canonical `baked_default` record alone accepts current zero offsets or exact historical shipped offsets for these six keys, then normalizes them to current defaults; every other deviation from the shipped baked values still rejects the bundle. Raw offsets are checked before clamping so arbitrary out-of-range values cannot impersonate historical defaults. This keeps older HPCRP1 bundles usable without changing user records. The web builder was intentionally not updated; existing local saves remain untouched.
 
-Bar width is sampled in the existing health pass. A changed width marks that bar dirty; cached style writes suppress unchanged assignments. Production contains no geometry traversal, geometry formatter, or `[DEBUG-HPV2-CENTER]` output.
+The player name (`#name`) is unrotated: a Rewrite-owned `.WindowRoot #name { transform: none; }` rule overrides the stock `rotateZ(-4deg)` without editing the stock prefix.
 
-`resolveParts()` resolves the nearest bar ancestors in one guarded walk, retaining the eight-level ID and twelve-level WindowRoot limits. Child discovery still runs on each scan so reparenting, replacement, and late panels remain detectable. Scan and paint cadence are unchanged.
+The kill marker is a direct child of primary `UnitHealthbar`. Its X is `innerInsetX + innerWidth × threshold / 100 - markerWidth / 2`, clamped to the primary inner interval. Marker width is `max(1 native pixel, native(enemyKillMarkerWidth))`, further clamped to that interval. It never follows the secondary shield surface or writes stock geometry.
 
-`applyBarGeometry()` owns bar scale/translation and indicator alignment inside the renderer script. It samples the vertical bar center once for both indicators and does not allocate a geometry result object.
+## Display-unit calibration candidate
+
+`LEGACY_TO_NATIVE = 0.1` is a renderer-only **candidate**, not a measured conversion. `nativePx()` applies it only at world-healthbar write sites for `positionX/Y`, HP-text size (including pulse and ally variants), stamina dimensions/offsets, level/ultimate offsets, and kill-marker width. Readout offsets are the zero-based 1:1 CSS-pixel exception documented above. Percentages, BPM, thresholds, colors, topbar pickup dimensions/offsets, and ultimate cooldown percentage scale are not converted. Re-measure representative presets at supported UI scales before release; do not silently divide the full HUD by ten.
+
+The 21-pixel level badge, 2-pixel rim, ~10-pixel text, small-box stamina spacing, native current-number placement, and counter/bar overlap are likewise unverified live calibration values.
+
+The level badge starts immediately left of the ultimate icon, with `margin-left: -23px` and the icon's `margin-top: -14px`. These CSS margins are the captured geometry baseline: zero level offsets at stock bar scale/position preserve them.
 
 ## Package
 
-The production package contains exactly these eight compiled assets:
+The normal production package contains the wrapper's exact 13 compiled assets:
 
 - `panorama/layout/hud_escape_menu.vxml_c`
 - `panorama/layout/unit_status_overlay_v2.vxml_c`
@@ -58,7 +103,16 @@ The production package contains exactly these eight compiled assets:
 - `panorama/scripts/hp_colors_v2_state.vjs_c`
 - `panorama/scripts/hp_colors_v2_menu.vjs_c`
 - `panorama/scripts/unit_status_v2_colors.vjs_c`
+- `panorama/layout/citadel_hud_top_bar.vxml_c`
+- `panorama/layout/test_event_relay.vxml_c`
+- `panorama/scripts/test_event_bridge.vjs_c`
+- `panorama/scripts/test_topbar_pickups.vjs_c`
+- `panorama/images/hpv2/ultimate_progress.vtex_c`
 
-## Release check
+Do not package the settings preview, legacy unit-status override, stock icon CSS override, or scratch snapshots. Keep the user's timer includes and assets.
 
-Run the Rewrite v2 validators and build with `-SkipDeploy`. After deployment, restart Deadlock and check `800`, `2100`, and `4100` max HP at default and changed widths. The level badge and ultimate icon must keep their left-edge gap, an `18%` kill marker must remain visible, reset must use the current max-HP width, and the console must contain no Rewrite exceptions.
+## Verification and live-only limits
+
+Run the five focused Rewrite v2 validators and `build_hp_colors_rewrite_v2.ps1 -SkipDeploy`; this leaves the installed addon untouched. Source/VM and compiler/package checks do not establish live rendering, data parity, or performance.
+
+A fresh-restart in-game smoke is still required for actual `WorldUIRoot` classes and lineage on players, neutral camps, troopers/bosses, and buildings; current-label locale/lag behavior and exact max HP; shield/armor/deferred overlap; accessory, counter, and marker alignment; `LEGACY_TO_NATIVE`, supported UI scales, player stamina depletion; native ultimate-ready/cooldown priority; stock preview isolation; late/reused unit panels; menu focus and height; and actual frame cost. Do not claim exact current/max readout, precise-line support, FPS, or visual success from synthetic tests or logs alone.

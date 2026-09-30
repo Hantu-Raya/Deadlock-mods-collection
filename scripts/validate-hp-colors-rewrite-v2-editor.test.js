@@ -46,8 +46,6 @@ const ENEMY_BAR_DEFAULTS = {
   lowThreshold: 25,
   highThreshold: 65,
   enemyTeamHigh: false,
-  ghoulOpacityEnabled: false,
-  ghoulOpacity: 100,
 };
 const ENEMY_BAR_KEYS = Object.keys(ENEMY_BAR_DEFAULTS);
 
@@ -112,7 +110,7 @@ function selectEnemyBar(fixture) {
 function selectStamina(fixture) {
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
   panel(fixture, 'HPColorsTab5').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY STAMINA');
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY PLAYER STAMINA');
 }
 
 function selectOverviewLayout(fixture) {
@@ -234,6 +232,26 @@ test('width slider preserves the legacy 230 percent maximum', () => {
   entry.events.ontextentrysubmit();
   assert.equal(readMenuState(fixture).values.widthScale, 230);
   assert.equal(slider.value, 230);
+});
+
+test('all readout sliders start at zero and span the world-panel canvas in CSS pixels', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  for (const [base, key, limit] of [
+    ['HPColorsReadoutOffsetX', 'readoutOffsetX', 200],
+    ['HPColorsReadoutOffsetY', 'readoutOffsetY', 210],
+    ['HPColorsAllyReadoutOffsetX', 'allyReadoutOffsetX', 200],
+    ['HPColorsAllyReadoutOffsetY', 'allyReadoutOffsetY', 210],
+    ['HPColorsEnemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetX', 200],
+    ['HPColorsEnemyPulseReadoutOffsetY', 'enemyPulseReadoutOffsetY', 210],
+  ]) {
+    const slider = panel(fixture, base + 'Slider');
+    const entry = panel(fixture, base + 'Entry');
+    assert.equal(slider.min, -limit, key);
+    assert.equal(slider.max, limit, key);
+    assert.equal(slider.value, 0, key);
+    assert.equal(entry.text, '0', key);
+  }
 });
 
 test('reset request opens confirmation without mutation, history, or dispatch', () => {
@@ -871,12 +889,104 @@ test('effect pages live under their healthbar categories', () => {
   panel(fixture, 'HPColorsCategoryAlly').events.onactivate();
   panel(fixture, 'HPColorsTab3').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY PULSE');
-  assert.equal(panel(fixture, 'HPColorsTab4').BHasClass('Available'), false);
+  panel(fixture, 'HPColorsTab4').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ALLY HP TEXT');
+  assert.equal(panel(fixture, 'HPColorsTab5').BHasClass('Available'), false);
 
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'HP TEXT');
 });
 
+
+test('Units pages expose independent gates, neutral HSL/hex, and scoped reset/Undo', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryUnits').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'NPC COLORING');
+  assert.match(panel(fixture, 'HPColorsPageDescription').text, /independently/);
+  const initial = readConfig(fixture);
+  for (const key of [
+    'npcEnemyEnabled',
+    'npcAllyEnabled',
+    'npcNeutralEnabled',
+    'buildingEnemyEnabled',
+    'buildingAllyEnabled',
+  ])
+    assert.equal(initial.values[key], false, key);
+
+  panel(fixture, 'HPColorsNpcEnemyToggle').events.onactivate();
+  panel(fixture, 'HPColorsNpcAllyToggle').events.onactivate();
+  assert.equal(readConfig(fixture).values.npcEnemyEnabled, true);
+  assert.equal(readConfig(fixture).values.npcAllyEnabled, true);
+  assert.equal(readConfig(fixture).values.enemyEnabled, true);
+  assert.equal(readConfig(fixture).values.allyEnabled, false);
+
+  panel(fixture, 'HPColorsTab1').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'NEUTRAL COLORING');
+  const neutralRow = panel(fixture, 'HPColorsNeutralColorRow');
+  assert.equal(neutralRow.BHasClass('Disabled'), true);
+  assert.equal(panel(fixture, 'HPColorsNeutralColorHex').text, '#5BEFB5');
+  panel(fixture, 'HPColorsNpcNeutralToggle').events.onactivate();
+  assert.equal(neutralRow.BHasClass('Disabled'), false);
+
+  panel(fixture, 'HPColorsNeutralColorSwatch').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPickerRoot').BHasClass('Open'), true);
+  const hue = panel(fixture, 'HPColorsPickerHueSlider');
+  hue.value = (hue.value + 30) % 360;
+  hue.events.onvaluechanged();
+  assert.notEqual(readConfig(fixture).values.neutralColor, '#5BEFB5');
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  const neutralHex = panel(fixture, 'HPColorsNeutralColorHex');
+  neutralHex.text = '#2468AC';
+  neutralHex.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.neutralColor, '#2468AC');
+
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'BUILDING COLORING');
+  panel(fixture, 'HPColorsBuildingEnemyToggle').events.onactivate();
+  panel(fixture, 'HPColorsBuildingAllyToggle').events.onactivate();
+  assert.equal(readConfig(fixture).values.buildingEnemyEnabled, true);
+  assert.equal(readConfig(fixture).values.buildingAllyEnabled, true);
+  assert.equal(readConfig(fixture).values.allyEnabled, false);
+
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  requestReset(fixture);
+  confirmReset(fixture);
+  const reset = readConfig(fixture).values;
+  assert.equal(reset.npcEnemyEnabled, false);
+  assert.equal(reset.npcAllyEnabled, false);
+  assert.equal(reset.npcNeutralEnabled, true);
+  assert.equal(reset.neutralColor, '#2468AC');
+  assert.equal(reset.buildingEnemyEnabled, true);
+  assert.equal(reset.buildingAllyEnabled, true);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.npcEnemyEnabled, true);
+  assert.equal(readConfig(fixture).values.npcAllyEnabled, true);
+});
+
+test('a missing Units color control keeps menu boot retryable', () => {
+  const fixture = bootMenu(
+    { version: 1, values: {}, scopes: [] },
+    {
+      beforeBoot(harness) {
+        harness.root.FindChildTraverse('HPColorsNeutralColorHex').DeleteAsync();
+      },
+    },
+  );
+  assert.equal(
+    typeof fixture.harness.root.FindChildTraverse('HPColorsMenuButton').events.onactivate,
+    'undefined',
+  );
+  fixture.harness.root.add(new MockPanel('HPColorsNeutralColorHex', {
+    findCounts: fixture.harness.findCounts,
+    childReadCounts: fixture.harness.childReadCounts,
+  }));
+  fixture.harness.$.HPColorsMenuBoot();
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryUnits').events.onactivate();
+  panel(fixture, 'HPColorsTab1').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'NEUTRAL COLORING');
+});
 
 test('Presets page hides Reset Section and Undo', () => {
   const fixture = bootMenu({
@@ -991,4 +1101,53 @@ test('stale reset feedback callback cannot overwrite LIVE after editor close', (
 
   fixture.harness.scheduler.runByDelay(1.25);
   assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'LIVE');
+});
+
+test('Appearance toggles publish exact keys and reset/Undo only their section', () => {
+  const keys = ['criticalIndicatorVisible', 'playerNamesVisible'];
+  const ids = ['HPColorsCriticalIndicatorToggle', 'HPColorsPlayerNamesToggle'];
+  const fixture = bootMenu({ version: 1, values: { widthScale: 123 }, scopes: [] });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsTab3').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'STOCK APPEARANCE');
+  assert.equal(panel(fixture, 'HPColorsSettingsOverviewAppearance').BHasClass('Active'), true);
+  for (let index = 0; index < keys.length; index++) {
+    const before = readConfig(fixture);
+    const dispatches = configDispatches(fixture).length;
+    panel(fixture, ids[index]).events.onactivate();
+    const after = readConfig(fixture);
+    assert.equal(after.values[keys[index]], false);
+    assert.deepEqual(after.values, { ...before.values, [keys[index]]: false });
+    assert.equal(configDispatches(fixture).length, dispatches + 1);
+    assert.deepEqual(Object.keys(after).sort(), ['magic_word', 'revision', 'values', 'version']);
+  }
+  requestReset(fixture);
+  confirmReset(fixture);
+  for (const key of keys) assert.equal(readConfig(fixture).values[key], true);
+  assert.equal(readConfig(fixture).values.widthScale, 123);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  for (const key of keys) assert.equal(readConfig(fixture).values[key], false);
+  assert.equal(readConfig(fixture).values.widthScale, 123);
+});
+
+test('each required Appearance panel supports explicit boot retry without duplicates', () => {
+  for (const id of ['HPColorsSettingsOverviewAppearance', 'HPColorsCriticalIndicatorToggle',
+    'HPColorsPlayerNamesToggle']) {
+    const fixture = bootMenu(undefined, {
+      beforeBoot(harness) { harness.root.FindChildTraverse(id).DeleteAsync(); },
+    });
+    assert.equal(configDispatches(fixture).length, 0, id);
+    assert.equal(fixture.harness.scheduler.jobs.length, 0, id);
+    fixture.harness.root.add(new MockPanel(id));
+    fixture.harness.$.HPColorsMenuBoot();
+    const dispatches = configDispatches(fixture).length;
+    const jobs = fixture.harness.scheduler.jobs.length;
+    fixture.harness.$.HPColorsMenuBoot();
+    assert.equal(configDispatches(fixture).length, dispatches, id);
+    assert.equal(fixture.harness.scheduler.jobs.length, jobs, id);
+    openEditor(fixture);
+    panel(fixture, 'HPColorsTab3').events.onactivate();
+    panel(fixture, 'HPColorsCriticalIndicatorToggle').events.onactivate();
+    assert.equal(readConfig(fixture).values.criticalIndicatorVisible, false, id);
+  }
 });

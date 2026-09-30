@@ -16,14 +16,6 @@
   var PRESET_STORE_CONTRACT = "HPCRP1";
   var PRESET_STORE_VERSION = "1";
   var PRESET_STORE_MAX_HEX_LENGTH = 524288;
-  var PRECISE_PIPS_ENABLE_TEXT =
-    '"citadel_unit_status_health_per_minor_pip" "10"\n' +
-    '"citadel_unit_status_health_per_pip" "10"\n' +
-    '"citadel_unit_status_minor_pip_per_major_pip" "10"';
-  var PRECISE_PIPS_RESET_TEXT =
-    '"citadel_unit_status_health_per_minor_pip" "100"\n' +
-    '"citadel_unit_status_health_per_pip" "100"\n' +
-    '"citadel_unit_status_minor_pip_per_major_pip" "5"';
   var REPLAY_HOT_SEC = 1;
   var REPLAY_WARM_SEC = 3;
   var REPLAY_IDLE_SEC = 8;
@@ -69,6 +61,14 @@
           pageId: "HPColorsSettingsOverviewHero",
           keys: [],
         },
+        {
+          name: "APPEARANCE",
+          title: "STOCK APPEARANCE",
+          description:
+            "Player labels share one setting for enemies and allies.",
+          pageId: "HPColorsSettingsOverviewAppearance",
+          keys: ["criticalIndicatorVisible", "playerNamesVisible"],
+        },
       ],
     },
     {
@@ -78,7 +78,7 @@
           name: "BAR",
           title: "ENEMY BAR",
           description:
-            "Choose fixed low, mid, and high colors or blend between them. Neutral units keep their default bars.",
+            "Choose fixed low, mid, and high colors or blend smoothly between them. Neutral and other non-player units keep stock bars unless enabled under UNITS.",
           pageId: "HPColorsSettingsEnemyBar",
           keys: [
             "enemyEnabled",
@@ -90,8 +90,6 @@
             "lowThreshold",
             "highThreshold",
             "enemyTeamHigh",
-            "ghoulOpacityEnabled",
-            "ghoulOpacity",
           ],
         },
         {
@@ -197,6 +195,27 @@
             "allyPulseColorMode",
           ],
         },
+        {
+          name: "HP TEXT",
+          title: "ALLY HP TEXT",
+          description:
+            "Show ally HP as current and maximum, percentage, or current only, then style and place it.",
+          pageId: "HPColorsSettingsAllyReadout",
+          keys: [
+            "allyReadoutVisible",
+            "allyReadoutFormat",
+            "allyReadoutSize",
+            "allyReadoutFont",
+            "allyReadoutColorMode",
+            "allyReadoutMode",
+            "allyReadoutLow",
+            "allyReadoutMid",
+            "allyReadoutHigh",
+            "allyReadoutMaxTeamColor",
+            "allyReadoutOffsetX",
+            "allyReadoutOffsetY",
+          ],
+        },
       ],
     },
     {
@@ -206,7 +225,7 @@
           name: "HP TEXT",
           title: "HP TEXT",
           description:
-            "Choose how enemy HP appears: current and maximum, percentage, or current only.",
+            "Choose how enemy-player HP appears: current and maximum, percentage, or current only. Maximum appears only when the game exposes it.",
           pageId: "HPColorsSettingsReadoutNumber",
           keys: [
             "readoutVisible",
@@ -225,7 +244,7 @@
           name: "TEXT POSITION",
           title: "TEXT POSITION",
           description:
-            "Move the HP text without moving the healthbar or unit icon.",
+            "Move player HP text without moving the healthbar or unit icon.",
           pageId: "HPColorsSettingsReadoutPlacement",
           keys: ["readoutOffsetX", "readoutOffsetY"],
         },
@@ -233,11 +252,10 @@
           name: "PIPS & LEVEL",
           title: "HEALTH PIPS & PLAYER LEVEL",
           description:
-            "Set health pips, level visibility, and level badge position.",
+            "Show lines on enemy-player and opted-in enemy NPC/building bars. The level badge appears on enemy players only.",
           pageId: "HPColorsSettingsReadoutLevels",
           keys: [
             "pipsVisible",
-            "precisePipsEnabled",
             "levelsVisible",
             "levelOffsetX",
             "levelOffsetY",
@@ -267,7 +285,7 @@
           name: "ULTIMATE",
           title: "ULTIMATE ICON & TIMER",
           description:
-            "Set the base icon color, progress override, position, and cooldown visibility.",
+            "World ultimate icon settings apply to player bars; topbar cooldown timers remain separate. Set the base icon color, progress override, position, and cooldown visibility.",
           pageId: "HPColorsSettingsUltimateTimer",
           keys: [
             "ultMode",
@@ -284,9 +302,9 @@
         },
         {
           name: "STAMINA",
-          title: "ENEMY STAMINA",
+          title: "ENEMY PLAYER STAMINA",
           description:
-            "Resize, move, and recolor enemy stamina pips without changing ally or neutral indicators.",
+            "Resize, move, and recolor enemy-player stamina pips. NPCs, buildings, allies, and neutral units keep stock stamina.",
           pageId: "HPColorsSettingsStamina",
           keys: [
             "staminaWidth",
@@ -299,6 +317,35 @@
         },
       ],
     },
+    {
+      name: "UNITS",
+      tabs: [
+        {
+          name: "NPCS",
+          title: "NPC COLORING",
+          description:
+            "Enemy and friendly NPC gates work independently of player-color switches and share the Enemy and Ally palettes and Overview layout. Neutral NPCs have a separate fixed fill. Level badge, kill marker, HP text, ultimate icon, and stamina are player-only.",
+          pageId: "HPColorsSettingsNpc",
+          keys: ["npcEnemyEnabled", "npcAllyEnabled", "ghoulOpacityEnabled", "ghoulOpacity"],
+        },
+        {
+          name: "NEUTRALS",
+          title: "NEUTRAL COLORING",
+          description:
+            "Replace only the fill color on known neutral NPCs. Bounty, tier icons, and all other neutral presentation stay stock.",
+          pageId: "HPColorsSettingsNeutral",
+          keys: ["npcNeutralEnabled", "neutralColor"],
+        },
+        {
+          name: "BUILDINGS",
+          title: "BUILDING COLORING",
+          description:
+            "Building gates work independently of player-color switches and share the Enemy and Ally palettes and Overview layout. Player-only extras stay off.",
+          pageId: "HPColorsSettingsBuildings",
+          keys: ["buildingEnemyEnabled", "buildingAllyEnabled"],
+        },
+      ],
+    },
   ];
 
   var CATEGORY_BUTTON_IDS = [
@@ -306,36 +353,8 @@
     "HPColorsCategoryEnemy",
     "HPColorsCategoryAlly",
     "HPColorsCategoryReadout",
+    "HPColorsCategoryUnits",
   ];
-  var COLOR_KEYS = {
-    enemyLow: true,
-    enemyMid: true,
-    enemyHigh: true,
-    enemyHealing: true,
-    enemyDelta: true,
-    enemyBulletShield: true,
-    allyLow: true,
-    allyMid: true,
-    allyHigh: true,
-    allyHealing: true,
-    allyDelta: true,
-    allyBulletShield: true,
-    ultCustom: true,
-    ultimateTimerUnavailableColor: true,
-    ultimateTimerAvailableColor: true,
-    readoutLow: true,
-    readoutMid: true,
-    readoutHigh: true,
-    enemyPulseColor: true,
-    enemyKillMarkerColor: true,
-    allyPulseColor: true,
-    enemyStaminaColor: true,
-    pickupGunColor: true,
-    pickupMovementColor: true,
-    pickupSpiritColor: true,
-    pickupSurvivalColor: true,
-    pickupGlyphColor: true,
-  };
   var COLOR_TITLES = {
     enemyLow: "ENEMY LOW",
     enemyMid: "ENEMY MID",
@@ -355,6 +374,9 @@
     readoutLow: "HEALTH TEXT LOW",
     readoutMid: "HEALTH TEXT MID",
     readoutHigh: "HEALTH TEXT HIGH",
+    allyReadoutLow: "ALLY HEALTH TEXT LOW",
+    allyReadoutMid: "ALLY HEALTH TEXT MID",
+    allyReadoutHigh: "ALLY HEALTH TEXT HIGH",
     enemyPulseColor: "ENEMY PULSE COLOR",
     enemyKillMarkerColor: "ENEMY KILL MARKER COLOR",
     enemyStaminaColor: "ENEMY STAMINA COLOR",
@@ -363,10 +385,13 @@
     pickupSpiritColor: "PICKUP SPIRIT COLOR",
     pickupSurvivalColor: "PICKUP SURVIVAL COLOR",
     pickupGlyphColor: "PICKUP GLYPH COLOR",
+    neutralColor: "NEUTRAL FILL COLOR",
   };
 
   var TOGGLE_CONTROLS = [
     { id: "HPColorsMasterToggle", key: "enabled" },
+    { id: "HPColorsCriticalIndicatorToggle", key: "criticalIndicatorVisible" },
+    { id: "HPColorsPlayerNamesToggle", key: "playerNamesVisible" },
     { id: "HPColorsEnemyToggle", key: "enemyEnabled" },
     { id: "HPColorsEnemyVisibleToggle", key: "enemyVisible" },
     { id: "HPColorsAllyToggle", key: "allyEnabled" },
@@ -378,6 +403,11 @@
     {
       id: "HPColorsReadoutMaxTeamColorToggle",
       key: "readoutMaxTeamColor",
+    },
+    { id: "HPColorsAllyReadoutToggle", key: "allyReadoutVisible" },
+    {
+      id: "HPColorsAllyReadoutMaxTeamColorToggle",
+      key: "allyReadoutMaxTeamColor",
     },
     { id: "HPColorsPipsVisibleToggle", key: "pipsVisible" },
     { id: "HPColorsLevelsVisibleToggle", key: "levelsVisible" },
@@ -417,6 +447,11 @@
     },
     { id: "HPColorsPickupTimersToggle", key: "pickupTimersEnabled" },
     { id: "HPColorsUltimateTimerToggle", key: "ultimateTimerEnabled" },
+    { id: "HPColorsNpcEnemyToggle", key: "npcEnemyEnabled" },
+    { id: "HPColorsNpcAllyToggle", key: "npcAllyEnabled" },
+    { id: "HPColorsNpcNeutralToggle", key: "npcNeutralEnabled" },
+    { id: "HPColorsBuildingEnemyToggle", key: "buildingEnemyEnabled" },
+    { id: "HPColorsBuildingAllyToggle", key: "buildingAllyEnabled" },
   ];
   var MODE_CONTROLS = [
     { id: "HPColorsEnemyModeFixed", key: "enemyMode", value: "fixed" },
@@ -544,6 +579,52 @@
       key: "readoutMode",
       value: "gradient",
     },
+    { id: "HPColorsAllyReadoutFormatHP", key: "allyReadoutFormat", value: "hp" },
+    {
+      id: "HPColorsAllyReadoutFormatPercent",
+      key: "allyReadoutFormat",
+      value: "percent",
+    },
+    {
+      id: "HPColorsAllyReadoutFormatCurrent",
+      key: "allyReadoutFormat",
+      value: "current",
+    },
+    {
+      id: "HPColorsAllyReadoutFontDefault",
+      key: "allyReadoutFont",
+      value: "default",
+    },
+    {
+      id: "HPColorsAllyReadoutFontOracle",
+      key: "allyReadoutFont",
+      value: "oracle",
+    },
+    {
+      id: "HPColorsAllyReadoutFontPulp",
+      key: "allyReadoutFont",
+      value: "pulp",
+    },
+    {
+      id: "HPColorsAllyReadoutColorBar",
+      key: "allyReadoutColorMode",
+      value: "bar",
+    },
+    {
+      id: "HPColorsAllyReadoutColorCustom",
+      key: "allyReadoutColorMode",
+      value: "custom",
+    },
+    {
+      id: "HPColorsAllyReadoutModeFixed",
+      key: "allyReadoutMode",
+      value: "fixed",
+    },
+    {
+      id: "HPColorsAllyReadoutModeGradient",
+      key: "allyReadoutMode",
+      value: "gradient",
+    },
   ];
   var SLIDER_CONTROLS = [
     { base: "HPColorsWidth", key: "widthScale", min: 60, max: 230 },
@@ -589,14 +670,32 @@
     {
       base: "HPColorsReadoutOffsetX",
       key: "readoutOffsetX",
-      min: -405,
-      max: 405,
+      min: -200,
+      max: 200,
     },
     {
       base: "HPColorsReadoutOffsetY",
       key: "readoutOffsetY",
-      min: -35,
-      max: 840,
+      min: -210,
+      max: 210,
+    },
+    {
+      base: "HPColorsAllyReadoutSize",
+      key: "allyReadoutSize",
+      min: 72,
+      max: 320,
+    },
+    {
+      base: "HPColorsAllyReadoutOffsetX",
+      key: "allyReadoutOffsetX",
+      min: -200,
+      max: 200,
+    },
+    {
+      base: "HPColorsAllyReadoutOffsetY",
+      key: "allyReadoutOffsetY",
+      min: -210,
+      max: 210,
     },
     {
       base: "HPColorsSharedLowThreshold",
@@ -631,14 +730,14 @@
     {
       base: "HPColorsEnemyPulseReadoutOffsetX",
       key: "enemyPulseReadoutOffsetX",
-      min: -405,
-      max: 405,
+      min: -200,
+      max: 200,
     },
     {
       base: "HPColorsEnemyPulseReadoutOffsetY",
       key: "enemyPulseReadoutOffsetY",
-      min: -35,
-      max: 840,
+      min: -210,
+      max: 210,
     },
     {
       base: "HPColorsAllyPulseThreshold",
@@ -737,12 +836,19 @@
     { base: "HPColorsReadoutLow", key: "readoutLow" },
     { base: "HPColorsReadoutMid", key: "readoutMid" },
     { base: "HPColorsReadoutHigh", key: "readoutHigh" },
+    { base: "HPColorsAllyReadoutLow", key: "allyReadoutLow" },
+    { base: "HPColorsAllyReadoutMid", key: "allyReadoutMid" },
+    { base: "HPColorsAllyReadoutHigh", key: "allyReadoutHigh" },
     { base: "HPColorsPickupGunColor", key: "pickupGunColor" },
     { base: "HPColorsPickupMovementColor", key: "pickupMovementColor" },
     { base: "HPColorsPickupSpiritColor", key: "pickupSpiritColor" },
     { base: "HPColorsPickupSurvivalColor", key: "pickupSurvivalColor" },
     { base: "HPColorsPickupGlyphColor", key: "pickupGlyphColor" },
+    { base: "HPColorsNeutralColor", key: "neutralColor" },
   ];
+  var COLOR_KEYS = {};
+  for (var colorControlIndex = 0; colorControlIndex < COLOR_CONTROLS.length; colorControlIndex++)
+    COLOR_KEYS[COLOR_CONTROLS[colorControlIndex].key] = true;
   var REQUIRED_UI_PANEL_KEYS = (
     "menuButton editorRoot editorShell peekCapture peekButton doneButton " +
     "undoButton resetButton resetDialog resetDialogTitle resetDialogMessage " +
@@ -765,11 +871,11 @@
     "presetTransferDialog presetTransferInput presetTransferFeedback " +
     "presetTransferConfirmButton presetTransferCloseButton presetGuide " +
     "presetInfoToggle headerCategory liveStatus pageEyebrow pageTitle " +
-    "pageDescription precisePipsToggle precisePipsDialog " +
-    "precisePipsDialogTitle precisePipsDialogMessage " +
-    "precisePipsDialogCommands precisePipsCopyLabel precisePipsCopyButton " +
-    "precisePipsCloseButton pickerRoot pickerPanel pickerBackdrop " +
-    "pickerDone pickerHueHost pickerSaturationHost pickerLumenHost"
+    "pageDescription npcEnemyToggle npcAllyToggle npcNeutralToggle " +
+    "buildingEnemyToggle buildingAllyToggle neutralColorRow " +
+    "neutralColorSwatch neutralColorHex pickerRoot pickerPanel pickerBackdrop " +
+    "pickerDone pickerHueHost pickerSaturationHost pickerLumenHost " +
+    "criticalIndicatorToggle playerNamesToggle"
   ).split(" ");
   var OPTIONAL_UI_PANEL_KEYS = (
     "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
@@ -906,14 +1012,6 @@
     tabButtons: [],
     tabLabels: [],
     settingsPages: [],
-    precisePipsToggle: null,
-    precisePipsDialog: null,
-    precisePipsDialogTitle: null,
-    precisePipsDialogMessage: null,
-    precisePipsDialogCommands: null,
-    precisePipsCopyLabel: null,
-    precisePipsCopyButton: null,
-    precisePipsCloseButton: null,
     heroModeAuto: null,
     heroModeManual: null,
     heroModeOff: null,
@@ -1715,7 +1813,6 @@
     closeTransferDialog();
     closeScopeDialog();
     closePicker();
-    closePrecisePipsDialog();
     syncHeroOptionSelection();
     setClass(ui.heroDialog, "Open", true);
     focus(ui.heroDialog);
@@ -1896,7 +1993,6 @@
     closeTransferDialog();
     closeHeroDialog();
     closePicker();
-    closePrecisePipsDialog();
     if (isValid(ui.scopeSearch)) ui.scopeSearch.text = "";
     filterScopeHeroOptions();
     renderCurrentScope();
@@ -2731,51 +2827,6 @@
 
 
 
-  function closePrecisePipsDialog() {
-    setClass(ui.precisePipsDialog, "Open", false);
-    focus(ui.precisePipsToggle);
-  }
-
-  function openPrecisePipsDialog(enabled) {
-    closeHeroDialog();
-    setText(
-      ui.precisePipsDialogTitle,
-      enabled ? "ENABLE PRECISE PIPS" : "REMOVE PRECISE PIP CONFIG",
-    );
-    setText(
-      ui.precisePipsDialogMessage,
-      enabled
-        ? "Copy these lines into the ConVars block in gameinfo.gi. HP Colors cannot apply or verify this game configuration."
-        : "If you do not plan to use precise pips, copy these default lines into the ConVars block in gameinfo.gi, or delete the custom precise-pip entries.",
-    );
-    setText(
-      ui.precisePipsDialogCommands,
-      enabled ? PRECISE_PIPS_ENABLE_TEXT : PRECISE_PIPS_RESET_TEXT,
-    );
-    setText(ui.precisePipsCopyLabel, "COPY");
-    setClass(ui.precisePipsDialog, "Open", true);
-    focus(ui.precisePipsDialog);
-  }
-
-  function copyPrecisePipsText() {
-    var text =
-      state.values.precisePipsEnabled
-        ? PRECISE_PIPS_ENABLE_TEXT
-        : PRECISE_PIPS_RESET_TEXT;
-    var copied = false;
-    try {
-      copied = $.DispatchEvent("CopyStringToClipboard", text) !== false;
-    } catch {}
-    setText(ui.precisePipsCopyLabel, copied ? "COPIED" : "COPY FAILED");
-  }
-
-  function togglePrecisePips() {
-    if (syncingControls) return;
-    var enabled = !state.values.precisePipsEnabled;
-    sendState({ type: "setting_edit", key: "precisePipsEnabled", value: enabled });
-    syncControls();
-    openPrecisePipsDialog(enabled);
-  }
   function setTransferFeedback(message, isError) {
     setText(ui.transferFeedback, message);
     setClass(ui.transferDialog, "Error", !!isError);
@@ -2806,7 +2857,6 @@
   function openTransferDialog() {
     transferRequest += 1;
     closePicker();
-    closePrecisePipsDialog();
     closeHeroDialog();
     setText(ui.transferInput, "");
     setClass(ui.transferDialog, "Open", true);
@@ -3972,6 +4022,12 @@
       "HPColorsGhoulOpacityEntry",
     );
 
+    syncDependentRow(
+      "HPColorsNeutralColorRow",
+      values.npcNeutralEnabled,
+      "HPColorsNeutralColorSwatch",
+      "HPColorsNeutralColorHex",
+    );
     var enemyStaminaColorActive = values.enemyStaminaColorEnabled;
     syncDependentRow(
       "HPColorsEnemyStaminaColorRow",
@@ -4050,18 +4106,8 @@
       allyPulseColorActive,
     );
 
-    var customReadoutColors = values.readoutColorMode === "custom";
-    setClass(
-      controlPanel("HPColorsReadoutCustomRows"),
-      "Active",
-      customReadoutColors,
-    );
-    syncDependentRow(
-      "HPColorsReadoutModeRow",
-      customReadoutColors,
-      "HPColorsReadoutModeFixed",
-      "HPColorsReadoutModeGradient",
-    );
+    syncReadoutColorRows("HPColorsReadout", values.readoutColorMode);
+    syncReadoutColorRows("HPColorsAllyReadout", values.allyReadoutColorMode);
     setClass(
       controlPanel("HPColorsUltCustomRow"),
       "Active",
@@ -4084,6 +4130,17 @@
     setEnabled(controlPanel("HPColorsSharedLowThresholdEntry"), true);
     setEnabled(controlPanel("HPColorsSharedHighThresholdSlider"), true);
     setEnabled(controlPanel("HPColorsSharedHighThresholdEntry"), true);
+  }
+
+  function syncReadoutColorRows(base, colorMode) {
+    var custom = colorMode === "custom";
+    setClass(controlPanel(base + "CustomRows"), "Active", custom);
+    syncDependentRow(
+      base + "ModeRow",
+      custom,
+      base + "ModeFixed",
+      base + "ModeGradient",
+    );
   }
 
   function syncControls() {
@@ -4296,13 +4353,6 @@
       closeTransferDialog();
       return true;
     }
-    if (
-      isValid(ui.precisePipsDialog) &&
-      ui.precisePipsDialog.BHasClass("Open")
-    ) {
-      closePrecisePipsDialog();
-      return true;
-    }
     if (state.open) {
       closeEditor();
       return true;
@@ -4477,7 +4527,6 @@
       var mode = MODE_CONTROLS[index];
       bindMode(mode.id, mode.key, mode.value);
     }
-    setPanelEvent(ui.precisePipsToggle, "onactivate", togglePrecisePips);
     for (index = 0; index < SLIDER_CONTROLS.length; index++) {
       var slider = SLIDER_CONTROLS[index];
       bindSlider(
@@ -4576,9 +4625,6 @@
       bindTab(tabIndex);
     bindControls();
     bindPickerControls();
-    setPanelEvent(ui.precisePipsCopyButton, "onactivate", copyPrecisePipsText);
-    setPanelEvent(ui.precisePipsCloseButton, "onactivate", closePrecisePipsDialog);
-    setPanelEvent(ui.precisePipsDialog, "oncancel", closePrecisePipsDialog);
   }
 
   function boot() {

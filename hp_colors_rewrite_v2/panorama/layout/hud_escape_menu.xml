@@ -122,6 +122,10 @@
               <Label text="04" class="HPColorsCategoryIndex" />
               <Label text="HUD DETAILS" class="HPColorsCategoryLabel" />
             </Button>
+            <Button id="HPColorsCategoryUnits" class="HPColorsCategoryButton">
+              <Label text="05" class="HPColorsCategoryIndex" />
+              <Label text="UNITS" class="HPColorsCategoryLabel" />
+            </Button>
           </Panel>
 
           <Panel class="HPColorsContent">
@@ -202,6 +206,17 @@
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy"><Label text="ANCHOR INDICATORS TO BAR" class="HPColorsSettingTitle" /><Label text="Move the ultimate icon and level badge with the bar's X/Y offsets. Bar scale and their own offsets apply in either mode." class="HPColorsSettingHelp" /></Panel>
                     <Button id="HPColorsAccessoryAnchorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsOverviewAppearance" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="CRITICAL LABEL" class="HPColorsSettingTitle" /><Label text="Allow the stock CRITICAL label on enemy and ally players. Off hides the label only; stock flashing remains." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsCriticalIndicatorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="PLAYER NAMES" class="HPColorsSettingTitle" /><Label text="Allow stock player names. Spectator visibility still follows the game." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsPlayerNamesToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
                 </Panel>
 
@@ -305,7 +320,7 @@
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
                       <Label text="ENEMY BAR COLORS" class="HPColorsSettingTitle" />
-                      <Label text="Turn custom colors for enemy healthbars on or off. Neutral units stay unchanged." class="HPColorsSettingHelp" />
+                      <Label text="Turn custom colors for enemy-player healthbars on or off. Neutral and other non-player units keep stock bars unless enabled under UNITS." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsEnemyToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
@@ -322,24 +337,6 @@
                       <Label text="Use each enemy's team color above the high-health threshold and at the top of a gradient." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsEnemyTeamHighToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
-                  </Panel>
-                  <Panel class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy">
-                      <Label text="USE CUSTOM GHOUL OPACITY" class="HPColorsSettingTitle" />
-                      <Label text="Apply one opacity value to the ghoul healthbar and ultimate-ready background." class="HPColorsSettingHelp" />
-                    </Panel>
-                    <Button id="HPColorsGhoulOpacityToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
-                  </Panel>
-                  <Panel id="HPColorsGhoulOpacityRow" class="HPColorsSettingRow HPColorsFollowedRow">
-                    <Panel class="HPColorsSettingCopy">
-                      <Label text="GHOUL HUD OPACITY" class="HPColorsSettingTitle" />
-                      <Label text="0% is nearly invisible. 100% keeps normal opacity." class="HPColorsSettingHelp" />
-                    </Panel>
-                    <Panel class="HPColorsSliderGroup">
-                      <Panel id="HPColorsGhoulOpacitySliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
-                      <TextEntry id="HPColorsGhoulOpacityEntry" class="HPColorsNumberEntry" text="100" />
-                      <Label text="%" class="HPColorsUnitLabel" />
-                    </Panel>
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
@@ -460,11 +457,11 @@
 
                 <Panel id="HPColorsSettingsReadoutNumber" class="HPColorsSettingsPage">
                   <Panel class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="SHOW HEALTH TEXT" class="HPColorsSettingTitle" /><Label text="Show current health, maximum health, or a percentage on enemy healthbars." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="SHOW HEALTH TEXT" class="HPColorsSettingTitle" /><Label text="Show current health, maximum health, or a percentage on enemy player bars only." class="HPColorsSettingHelp" /></Panel>
                     <Button id="HPColorsReadoutToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
                   <Panel class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="HEALTH TEXT FORMAT" class="HPColorsSettingTitle" /><Label text="Choose current and maximum health, percentage, or current health only." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="HEALTH TEXT FORMAT" class="HPColorsSettingTitle" /><Label text="Choose current and maximum health, percentage, or current health only. Maximum appears only when the game exposes it." class="HPColorsSettingHelp" /></Panel>
                     <Panel class="HPColorsSegment">
                       <Button id="HPColorsReadoutFormatHP" class="HPColorsSegmentButton"><Label text="HP" /></Button>
                       <Button id="HPColorsReadoutFormatPercent" class="HPColorsSegmentButton"><Label text="%" /></Button>
@@ -534,16 +531,9 @@
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
                       <Label text="SHOW HEALTH PIPS" class="HPColorsSettingTitle" />
-                      <Label text="Show health pips on enemy healthbars. Ally, neutral, and standard bars keep their normal pips." class="HPColorsSettingHelp" />
+                      <Label text="Show health lines on enemy-player and opted-in enemy NPC/building bars. Ally, neutral, and disabled categories keep stock lines." class="HPColorsSettingHelp" />
                     </Panel>
                     <Button id="HPColorsPipsVisibleToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
-                  </Panel>
-                  <Panel class="HPColorsSettingRow">
-                    <Panel class="HPColorsSettingCopy">
-                      <Label text="10 HP PER SMALL PIP" class="HPColorsSettingTitle" />
-                      <Label text="Count each small pip as 10 HP when calculating health text. Manual game configuration is required." class="HPColorsSettingHelp" />
-                    </Panel>
-                    <Button id="HPColorsPrecisePipsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
                   <Panel class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy">
@@ -855,6 +845,145 @@
                     <TextEntry id="HPColorsAllyPulseColorHex" class="HPColorsHexEntry" text="#FF2222" maxchars="7" />
                   </Panel>
                 </Panel>
+
+                <Panel id="HPColorsSettingsAllyReadout" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="SHOW HEALTH TEXT" class="HPColorsSettingTitle" /><Label text="Show current health, maximum health, or a percentage on ally healthbars." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyReadoutToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HEALTH TEXT FORMAT" class="HPColorsSettingTitle" /><Label text="Choose current and maximum health, percentage, or current health only." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutFormatHP" class="HPColorsSegmentButton"><Label text="HP" /></Button>
+                      <Button id="HPColorsAllyReadoutFormatPercent" class="HPColorsSegmentButton"><Label text="%" /></Button>
+                      <Button id="HPColorsAllyReadoutFormatCurrent" class="HPColorsSegmentButton"><Label text="CURRENT HP" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT SIZE" class="HPColorsSettingTitle" /><Label text="Set the size of the ally health text." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsAllyReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsAllyReadoutSizeEntry" class="HPColorsNumberEntry" text="145" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT FONT" class="HPColorsSettingTitle" /><Label text="Choose the default, Oracle, or Pulp font." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutFontDefault" class="HPColorsSegmentButton"><Label text="DEFAULT" /></Button>
+                      <Button id="HPColorsAllyReadoutFontOracle" class="HPColorsSegmentButton"><Label text="ORACLE" /></Button>
+                      <Button id="HPColorsAllyReadoutFontPulp" class="HPColorsSegmentButton"><Label text="PULP" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Match the ally bar colors or use a separate color palette." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutColorBar" class="HPColorsSegmentButton"><Label text="BAR COLOR" /></Button>
+                      <Button id="HPColorsAllyReadoutColorCustom" class="HPColorsSegmentButton"><Label text="CUSTOM" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEAM COLOR MAX HP" class="HPColorsSettingTitle" /><Label text="Color only the maximum HP value with the unit team color." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyReadoutMaxTeamColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsAllyReadoutModeRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT COLOR MODE" class="HPColorsSettingTitle" /><Label text="Use fixed color steps or blend smoothly between them." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsAllyReadoutModeFixed" class="HPColorsSegmentButton"><Label text="FIXED" /></Button>
+                      <Button id="HPColorsAllyReadoutModeGradient" class="HPColorsSegmentButton"><Label text="GRADIENT" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsAllyReadoutCustomRows" class="HPColorsGradientRows HPColorsConditionalRow">
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="LOW TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color at or below the low-health threshold." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyReadoutLowSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyReadoutLowHex" class="HPColorsHexEntry" text="#E16161" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="MID TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color between the low and high thresholds." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyReadoutMidSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyReadoutMidHex" class="HPColorsHexEntry" text="#FF7B00" maxchars="7" /></Panel>
+                    <Panel class="HPColorsSettingRow HPColorsColorRow"><Panel class="HPColorsSettingCopy"><Label text="HIGH TEXT COLOR" class="HPColorsSettingTitle" /><Label text="Use this color above the high-health threshold or at full health." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyReadoutHighSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyReadoutHighHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" /></Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the ally health text left or right without moving the healthbar." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsAllyReadoutOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsAllyReadoutOffsetXEntry" class="HPColorsNumberEntry" text="-30" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the ally health text up or down without changing the surrounding layout." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsAllyReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsAllyReadoutOffsetYEntry" class="HPColorsNumberEntry" text="434" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                </Panel>
+                <Panel id="HPColorsSettingsNpc" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="COLOR ENEMY NPCS" class="HPColorsSettingTitle" />
+                      <Label text="Use the Enemy palette, feedback colors, pulse, and bar layout on enemy troopers and other enemy NPCs, even while Enemy Bar Colors is off. Player-only extras stay off." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsNpcEnemyToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="COLOR FRIENDLY NPCS" class="HPColorsSettingTitle" />
+                      <Label text="Use the Ally palette on friendly NPCs, even while Ally Bar Colors is off." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsNpcAllyToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="USE CUSTOM GHOUL OPACITY" class="HPColorsSettingTitle" />
+                      <Label text="Apply one opacity value to the ghoul healthbar and ultimate-ready background. Works without Color Enemy NPCs." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsGhoulOpacityToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsGhoulOpacityRow" class="HPColorsSettingRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="GHOUL HUD OPACITY" class="HPColorsSettingTitle" />
+                      <Label text="0% is nearly invisible. 100% keeps normal opacity." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsGhoulOpacitySliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsGhoulOpacityEntry" class="HPColorsNumberEntry" text="100" />
+                      <Label text="%" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsNeutral" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="COLOR NEUTRAL NPCS" class="HPColorsSettingTitle" />
+                      <Label text="Replace the stock neutral fill color only. Bounty, tier icons, and all other neutral presentation stay stock." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsNpcNeutralToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsNeutralColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsFollowedRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="NEUTRAL FILL COLOR" class="HPColorsSettingTitle" />
+                      <Label text="Set the fixed fill color used for known neutral NPCs." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsNeutralColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsNeutralColorHex" class="HPColorsHexEntry" text="#5BEFB5" maxchars="7" />
+                  </Panel>
+                </Panel>
+
+                <Panel id="HPColorsSettingsBuildings" class="HPColorsSettingsPage">
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="COLOR ENEMY BUILDINGS" class="HPColorsSettingTitle" />
+                      <Label text="Use the Enemy palette and layout on enemy guardians, walkers, and other enemy buildings, even while Enemy Bar Colors is off." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsBuildingEnemyToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy">
+                      <Label text="COLOR FRIENDLY BUILDINGS" class="HPColorsSettingTitle" />
+                      <Label text="Use the Ally palette and layout on friendly buildings, even while Ally Bar Colors is off." class="HPColorsSettingHelp" />
+                    </Panel>
+                    <Button id="HPColorsBuildingAllyToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                </Panel>
               </Panel>
             </Panel>
             <Panel class="HPColorsEditorFooter">
@@ -996,18 +1125,6 @@
                     </Panel>
                   </Panel>
                 </Panel>
-      <Panel id="HPColorsPrecisePipsDialog" class="HPColorsPrecisePipsDialog" hittest="false" hittestchildren="true">
-        <Panel class="HPColorsPrecisePipsDialogBackdrop" hittest="false" />
-        <Panel class="HPColorsPrecisePipsDialogPanel" hittest="true" hittestchildren="true">
-          <Label id="HPColorsPrecisePipsDialogTitle" class="HPColorsPrecisePipsDialogTitle" text="10 HP PER SMALL PIP" />
-          <Label id="HPColorsPrecisePipsDialogMessage" class="HPColorsPrecisePipsDialogMessage" text="" />
-          <Label id="HPColorsPrecisePipsDialogCommands" class="HPColorsPrecisePipsDialogCommands" text="" />
-          <Panel class="HPColorsPrecisePipsDialogActions">
-            <Button id="HPColorsPrecisePipsCopyButton" class="HPColorsPrimaryAction"><Label id="HPColorsPrecisePipsCopyLabel" text="COPY" /></Button>
-            <Button id="HPColorsPrecisePipsCloseButton" class="HPColorsSecondaryAction"><Label text="CLOSE" /></Button>
-          </Panel>
-        </Panel>
-      </Panel>
       <Panel id="HPColorsHeroDialog" class="HPColorsHeroDialog" hittest="false" hittestchildren="true">
         <Panel class="HPColorsTransferDialogBackdrop" hittest="false" />
         <Panel class="HPColorsTransferDialogPanel" hittest="true" hittestchildren="true">

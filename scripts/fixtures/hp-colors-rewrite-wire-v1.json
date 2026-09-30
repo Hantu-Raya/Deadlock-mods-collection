@@ -376,11 +376,11 @@
     {
       "slot": 32,
       "key": "readoutOffsetX",
-      "codecDefault": 27,
+      "codecDefault": 0,
       "type": "number",
       "bounds": [
-        -405,
-        405
+        -200,
+        200
       ],
       "enum": null,
       "retired": false,
@@ -389,11 +389,11 @@
     {
       "slot": 33,
       "key": "readoutOffsetY",
-      "codecDefault": 500,
+      "codecDefault": 0,
       "type": "number",
       "bounds": [
-        -35,
-        840
+        -210,
+        210
       ],
       "enum": null,
       "retired": false,
@@ -639,11 +639,11 @@
     {
       "slot": 55,
       "key": "enemyPulseReadoutOffsetX",
-      "codecDefault": 27,
+      "codecDefault": 0,
       "type": "number",
       "bounds": [
-        -405,
-        405
+        -200,
+        200
       ],
       "enum": null,
       "retired": false,
@@ -652,11 +652,11 @@
     {
       "slot": 56,
       "key": "enemyPulseReadoutOffsetY",
-      "codecDefault": 500,
+      "codecDefault": 0,
       "type": "number",
       "bounds": [
-        -35,
-        840
+        -210,
+        210
       ],
       "enum": null,
       "retired": false,

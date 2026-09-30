@@ -695,6 +695,34 @@
     return record;
   }
 
+  // Only the canonical baked record may carry historical shipped readout offsets.
+  function normalizeBakedReadoutOffsets(values, source) {
+    var historical = {
+      readoutOffsetX: [27, -30],
+      readoutOffsetY: [500, 434],
+      enemyPulseReadoutOffsetX: [27],
+      enemyPulseReadoutOffsetY: [500],
+      allyReadoutOffsetX: [-30],
+      allyReadoutOffsetY: [434],
+    };
+    var groups = [
+      { pairs: source.values, keys: CODEC_KEYS },
+      { pairs: source.hpv2 ? source.hpv2.values : [], keys: EXTENSION_KEYS },
+    ];
+    for (var groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+      var group = groups[groupIndex];
+      for (var pairIndex = 0; pairIndex < group.pairs.length; pairIndex++) {
+        var pair = group.pairs[pairIndex];
+        var key = group.keys[pair[0]];
+        if (!Object.prototype.hasOwnProperty.call(historical, key)) continue;
+        if (pair[1] !== DEFAULTS[key] && historical[key].indexOf(pair[1]) < 0)
+          return false;
+        values[key] = DEFAULTS[key];
+      }
+    }
+    return true;
+  }
+
   function parsePresetTransfer(raw) {
     var text = String(raw || "").replace(/^\s+|\s+$/g, "");
     if (text.slice(0, 6) !== "HPCRP1")
@@ -763,6 +791,8 @@
         return { error: "INVALID PRESET CONDITIONS" };
       conditions = mergeConditions(conditions, extension.conditions);
       if (kind === "baked") {
+        if (!normalizeBakedReadoutOffsets(decoded.values, source))
+          return { error: "INVALID BAKED PRESET" };
         if (
           id !== DEFAULT_PRESET_ID ||
           mode !== HERO_SCOPE_OFF ||

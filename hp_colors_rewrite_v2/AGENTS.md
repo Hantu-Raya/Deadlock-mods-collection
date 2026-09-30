@@ -41,11 +41,12 @@ The state module and renderer each capture the contract factory and remove it fr
 - Keep all state session-scoped.
 - Preserve the v2 message magic, root attribute, payload version, and `{magic_word,version,revision,values}` shape.
 - Publish every effective change immediately and replay unchanged snapshots for late unit-status contexts.
-- Keep neutral-first classification and reject unknown ownership.
-- Discover only the live `UnitHealthbarsContainer` lineage. Never style the hidden `old_bar` copy.
-- Cache panel references and unchanged writes. Long-lived scheduled work needs stale-generation checks.
-- For bar width, max-HP segments, X/Y position, levels, ultimate icons, or kill markers, read `design.md` and preserve its measured left-edge formula.
+- Classify unit kind separately from relation. Neutral-first precedence remains; only known neutral NPCs get the explicit fixed-fill opt-in. Unknown type/relation and conflicting enemy/friend ownership stay stock.
+- Discover the live `UnitHealthbarsContainer` → direct `UnitHealthbar.UnitHealthbarContainer` → direct `UnitHealthbarInner` lineage. Never adopt `UnitShieldbar`, its duplicate IDs, or a retired `old_bar` tree.
+- Cache panel references and unchanged writes. Long-lived scheduled work needs stale-generation checks; optional panels must not create retry loops.
+- For scale, position, readout, level, ultimate, stamina, or marker geometry, read `design.md` and use measured 6722 stock-relative bounds. Keep `UnitHealthbarValue` current-only unless a live exact maximum source is proven.
 - Use Source 2 CSS only. Keep passive overlays `hittest="false"` and hidden panels collapsed.
+- Unit-status bars are always rectangular without the outer background, including shields and previews. The stock CSS prefix intentionally deletes three healthbar masks and eight container background declarations (and six emptied relation rules); retain the black inner backing and all other stock declarations. Do not add a shape toggle or inline mask override.
 
 ## Source and generated files
 
@@ -62,6 +63,6 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1 -SkipDep
 
 The build wrapper runs these validators again against source and Closure output, checks the compiled asset set and VPK contents, and writes root `pak02_dir.vpk`. `-SkipDeploy` leaves the installed addon untouched.
 
-Release builds contain no temporary profiling collector or timing switches. Preserve native-style readback, alias restoration, and failed-write retry coverage in the style validator. Use `-ShowRankBarebones` only with its required pak89 installed; use the separate QOLLOCK wrapper for pak03 compatibility.
+Release builds contain no temporary profiling collector or timing switches. Preserve native-style readback, alias restoration, and failed-write retry coverage in the style validator. Use `-ShowRankBarebones` only with its required pak89 installed; use the separate QOLLOCK wrapper for QOLLOCK 4.0.1 (release `pak47_dir.vpk`) compatibility, and refresh its Escape-menu override with `-RefreshFromInstalledQollock -QollockPak <path>` whenever QOLLOCK's Escape menu changes.
 
 After deployment, restart Deadlock before the live smoke test. Verify enemy and ally rendering, fixed and gradient thresholds, exclusions, dimensions, position, feedback colors, ultimate icons, all readout modes, pips, levels, pulses, kill marker behavior, hero scopes, ability conditions, presets, HPCR2 settings transfer, HPCRP1 preset transfer, Escape cancel/resume behavior, and supported UI scales. Automated tests cannot prove live panel lineage, rendering, or frame cost.
