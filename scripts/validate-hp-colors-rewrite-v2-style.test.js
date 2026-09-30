@@ -389,11 +389,9 @@ test('readout offset matrix saturates measured edges without changing normalized
           const normalized = fixture.status.HPV2GetNormalizedConfig();
           assert.equal(normalized[offsetPrefix + 'OffsetX'], x);
           assert.equal(normalized[offsetPrefix + 'OffsetY'], y);
-          if (format !== 'percent') {
             assert.equal(fixture.health.GetParent(), fixture.row);
             assert.equal(fixture.health.style.visibility, 'visible');
             assert.equal(fixture.health.style.opacity, '1');
-          }
         }
       }
     }
@@ -584,7 +582,7 @@ test('HP/current readouts adopt the same engine label outside UnitStatus with ze
   }
 });
 
-test('runtime HP/percent switching returns the engine label and transfers pulse cleanly', () => {
+test('retired format snapshots keep the same native engine label and pulse ownership', () => {
   const values = {
     readoutVisible: true, readoutFormat: 'hp', readoutSize: 200, readoutFont: 'oracle',
     readoutOffsetX: 50, readoutOffsetY: -100,
@@ -597,18 +595,16 @@ test('runtime HP/percent switching returns the engine label and transfers pulse 
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), true);
   assert.equal(fixture.health.style.animationDuration, '0.800s');
   fixture.update({ ...values, readoutFormat: 'percent' });
-  assertNativeStock(fixture.health, 'collapse');
-  assert.equal(fixture.health.GetParent(), fixture.info);
-  assert.equal(fixture.counter.text, '50%');
-  assert.equal(fixture.counter.style.visibility, 'visible');
-  assert.equal(fixture.counterMax.style.visibility, 'collapse');
-  assert.equal(fixture.counter.style.washColor, '#123456');
-  assert.equal(fixture.counter.style.fontSize, '20px');
-  assert.equal(fixture.counter.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
+  assert.equal(fixture.health.GetParent(), fixture.row);
+  assert.equal(fixture.health.style.visibility, 'visible');
+  assert.equal(fixture.health.style.washColor, '#123456');
+  assert.equal(fixture.health.style.fontSize, '20px');
+  assert.equal(fixture.health.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
+  for (const panel of [fixture.counter, fixture.counterMax]) assertInactiveReadout(panel);
   assert.equal(fixture.anchor.style.transform, '');
   assert.equal(fixture.row.style.marginRight, '10px');
   assert.equal(fixture.row.style.marginTop, '0px');
-  assert.equal(fixture.counter.BHasClass('HPColorsRewritePulseIntense'), true);
+  assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), true);
   const writes = fixture.counter.readoutTextWrites.length;
   fixture.update({ ...values, readoutFormat: 'current', enemyPulseIntensity: 0 });
   assert.equal(fixture.health.GetParent(), fixture.row);
@@ -624,8 +620,8 @@ test('runtime HP/percent switching returns the engine label and transfers pulse 
   assert.deepEqual(fixture.health.readoutTextWrites, []);
   assert.equal(fixture.health.readoutTextReads, 0);
   fixture.update({ ...values, readoutFormat: 'percent', enemyPulseEnabled: false });
-  assertNativeStock(fixture.health, 'collapse');
-  assert.equal(fixture.health.GetParent(), fixture.info);
+  assert.equal(fixture.health.GetParent(), fixture.row);
+  assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), false);
   fixture.update({ enabled: false });
   assertNativeStock(fixture.health);
   for (const panel of [fixture.counter, fixture.counterMax]) assertInactiveReadout(panel);
@@ -914,7 +910,7 @@ test('early, late and asymmetric world scales give identical CSS accessory, mark
   assert.deepEqual(expected.level, ['-72.4px', '-22.4px']);
   assert.deepEqual(expected.ultimate, ['-49.4px', '-22.4px']);
   assert.deepEqual(expected.marker, ['37.5px', '1px']);
-  assert.deepEqual(expected.health, ['50%', '#00FF00']);
+  assert.deepEqual(expected.health, ['', '#00FF00']);
   for (const fixture of [late, asymmetric]) {
     assert.deepEqual(accessoryResult(fixture), expected);
     assert.equal(fixture.ultIcon.visible, true, 'stock ready-icon visibility is native-owned');
@@ -951,7 +947,8 @@ test('zero and accessory-only late layout recovers without a config change or an
     assert.equal(pending.unitInfo.style.marginLeft, '');
     if (zero.length === 2) {
       assert.equal(pending.fill.style.washColor, '#00FF00', 'optional accessories do not block color');
-      assert.equal(pending.counter.text, '50%');
+      assert.equal(pending.counter.text, '');
+      assert.equal(pending.health.GetParent(), pending.row);
     }
     assert.equal(pending.harness.scheduler.jobs.length, 2, 'reuse scan and paint');
     resolveGeometry(...zero.map(key => pending[key]));
@@ -1006,205 +1003,14 @@ test('delayed primary, pending hydration and primary replacement recapture ready
     fill: nextFill, marker: nextMarker }), expected);
   assert.equal(old.IsValid(), false);
 });
-// Reuse the existing VM seam pattern to invoke only the diagnostic on a known bar.
-const diagnosticSeam = '  // [part, property, cache key] for every geometry style the bar owns.';
-const diagnosticSource = rendererSource.replace(diagnosticSeam,
-  '  $.HPV2DiagnosticProbe = function () { for (var i = 0; i < bars.length; i++) diagnoseAccessories(bars[i]); };\n'
-  + diagnosticSeam);
-
-test('accessory diagnostics report early/late facts and readback once per change on a shared root', () => {
-  assert.notEqual(diagnosticSource, rendererSource, 'diagnostic probe seam must be present');
-  const classes = ['alive', 'player', 'enemy', 'team2', 'WorldUIRoot',
-    'has_ultimate', 'CLASS_PLAYER', 'hero_inferno', 'playerIsBot'];
-  const early = makeOwnershipFixture(classes, accessoryValues,
-    parts => measuredGeometry(parts, 1, 1), null, diagnosticSource);
-  assert.equal(early.harness.logs.length, 1);
-  early.harness.now = 8000;
-  const late = makeOwnershipFixture(classes, accessoryValues,
-    parts => measuredGeometry(parts, 2, 3), early.harness, diagnosticSource);
-  const records = () => early.harness.logs.map(line => {
-    assert.match(line, /^\[HPV2-DIAG\] \{.*\}$/);
-    assert.equal(line.includes('\n'), false, 'one compact JSON line per change');
-    return JSON.parse(line.slice('[HPV2-DIAG] '.length));
-  });
-  assert.equal(records().length, 2);
-  const [first, second] = records();
-  assert.equal(first.discovery.phase, 'early');
-  assert.equal(second.discovery.phase, 'late');
-  assert.equal(second.discovery.firstSeenMs, 8000);
-  assert.equal(second.discovery.ordinal, 2);
-  assert.equal(second.discovery.lateThresholdMs, 3000);
-  assert.equal(second.discovery.timing, 'observed-context');
-  assert.equal(second.discovery.configRevision, 1);
-  assert.equal(second.discovery.awaitingConfig, false);
-  assert.equal(second.discovery.hydration, '');
-  assert.equal(second.configRevision, 1);
-  assert.equal(second.gates.surface, 'player');
-  assert.equal(second.gates.levelValid, true);
-  assert.equal(second.settings.widthScale, 230);
-  assert.equal(second.settings.heightScale, 160);
-  assert.equal(typeof second.settings.ultimateTimerEnabled, 'boolean');
-  assert.equal(typeof second.settings.ultimateTimerSize, 'number');
-  const world = second.ancestors.find(panel => panel.id === 'WorldUIRoot');
-  assert.ok(world);
-  for (const cls of ['alive', 'player', 'enemy', 'has_ultimate', 'CLASS_PLAYER', 'playerIsBot'])
-    assert.ok(world.classes.known.includes(cls), cls);
-  assert.ok(world.classes.heroes.includes('hero_inferno'));
-  assert.equal(world.classes.enumeration, 'unavailable', 'do not guess an unexposed class list');
-  for (const name of ['unitInfo', 'ultBackground', 'ultIcon', 'ultOverlay', 'level', 'stack', 'primary', 'inner']) {
-    assert.equal(second.panels[name].exists, true, name);
-    assert.equal(second.panels[name].valid, true, name);
-    assert.equal(second.panels[name].computedVisibility, 'unavailable', name);
-  }
-  assert.equal(second.panels.unitInfo.raw.width, 44);
-  assert.equal(second.panels.unitInfo.css.width, 22);
-  assert.equal(second.panels.primary.raw.width, 152);
-  assert.equal(second.panels.primary.css.width, 76);
-  assert.equal(second.panels.unitInfo.raw.scaleY, 3);
-  assert.equal(second.panels.unitInfo.raw.height, 66);
-  assert.equal(second.panels.unitInfo.css.height, 22);
-  assert.equal(second.panels.ultBackground.parentId, 'unit_info_panel');
-  assert.equal(second.panels.ultIcon.parentId, 'unit_info_bg');
-  assert.equal(second.panels.unitInfo.visible, true);
-  for (const [key, desired] of [['level', '-72.4px'], ['unitInfo', '-49.4px']]) {
-    const anchor = second.anchors[key];
-    assert.equal(anchor.ready, true, key);
-    assert.ok(Math.abs(anchor.deltaX + 49.4) < 1e-8, key);
-    assert.equal(anchor.verticalFactor, 2, key);
-    assert.equal(anchor.desired.marginLeft, desired, key);
-    assert.equal(anchor.written.marginLeft, desired, key);
-    assert.equal(anchor.readback.marginLeft, desired, key);
-    assert.equal(anchor.desired.marginTop, '-22.4px', key);
-    assert.equal(anchor.readback.marginTop, '-22.4px', key);
-  }
-  const count = early.harness.logs.length;
-  late.context.$.HPV2DiagnosticProbe();
-  late.harness.scheduler.runFor(2000);
-  assert.equal(early.harness.logs.length, count, 'unchanged scan/paint never re-emits');
-  late.ultIcon.actualxoffset = 2;
-  late.context.$.HPV2DiagnosticProbe();
-  assert.equal(early.harness.logs.length, count + 1);
-  assert.equal(records().at(-1).panels.ultIcon.raw.x, 2);
-  assert.equal(JSON.parse(early.harness.root.GetAttributeString('hp_colors_v2_diag_accessory', '{}')).attempts,
-    count + 1);
-
-  let labelReads = 0;
-  Object.defineProperty(late.levelLabel, 'text', {
-    get() { labelReads++; throw new Error('diagnostic must not read engine level text'); },
-  });
-  late.ultIcon.actualxoffset = 3;
-  late.context.$.HPV2DiagnosticProbe(); // Isolate from normal renderer level sampling.
-  assert.equal(labelReads, 0);
-  assert.equal(early.harness.logs.length, count + 2);
-});
-
-test('accessory diagnostic shares its 80 attempted lines across contexts, even if Msg throws', () => {
-  const classes = ['player', 'enemy', 'CLASS_PLAYER', 'hero_inferno'];
-  const early = makeOwnershipFixture(classes, accessoryValues,
-    parts => measuredGeometry(parts, 1, 1), null, diagnosticSource);
-  early.harness.now = 8000;
-  const late = makeOwnershipFixture(classes, accessoryValues,
-    parts => measuredGeometry(parts, 2, 3), early.harness, diagnosticSource);
-  for (let index = 1; index <= 100; index++) {
-    late.ultIcon.actualxoffset = index;
-    late.context.$.HPV2DiagnosticProbe();
-  }
-  assert.equal(early.harness.logs.length, 80);
-  assert.equal(JSON.parse(early.harness.root.GetAttributeString('hp_colors_v2_diag_accessory', '{}')).attempts, 80);
-  const missing = makeOwnershipFixture(classes, accessoryValues, parts => {
-    measuredGeometry(parts, 2, 3);
-    delete parts.harness.$.Msg;
-  }, null, diagnosticSource);
-  assert.equal(missing.fill.style.washColor, '#00FF00');
-  assert.equal(missing.harness.root.GetAttributeString('hp_colors_v2_diag_accessory', ''), '');
-  const throwing = makeOwnershipFixture(classes, accessoryValues, parts => {
-    measuredGeometry(parts, 2, 3);
-    parts.harness.$.Msg = () => { throw new Error('logger unavailable'); };
-  }, null, diagnosticSource);
-  for (let index = 1; index <= 100; index++) {
-    throwing.ultIcon.actualxoffset = index;
-    assert.doesNotThrow(() => throwing.context.$.HPV2DiagnosticProbe());
-  }
-  assert.equal(throwing.fill.style.washColor, '#00FF00');
-  assert.equal(throwing.harness.logs.length, 0);
-  assert.equal(JSON.parse(throwing.harness.root.GetAttributeString('hp_colors_v2_diag_accessory', '{}')).attempts, 80);
-});
-
-test('unavailable diagnostic root and panel reads cannot interrupt player rendering', () => {
-  const classes = ['player', 'enemy', 'CLASS_PLAYER', 'hero_inferno'];
-  for (const method of ['GetAttributeString', 'SetAttributeString']) {
-    const fixture = makeOwnershipFixture(classes, accessoryValues, parts => {
-      measuredGeometry(parts, 2, 3);
-      const root = parts.harness.root;
-      const native = root[method].bind(root);
-      root[method] = (key, ...args) => {
-        if (key === 'hp_colors_v2_diag_accessory') throw new Error('root unavailable');
-        return native(key, ...args);
-      };
-    }, null, diagnosticSource);
-    assert.equal(fixture.fill.style.washColor, '#00FF00');
-    assert.equal(fixture.unitInfo.style.marginLeft, '-49.4px');
-    assert.deepEqual(fixture.harness.logs, [], method);
-  }
-  const fixture = makeOwnershipFixture(classes, accessoryValues, parts => {
-    measuredGeometry(parts, 2, 3);
-    Object.defineProperty(parts.ultIcon, 'visible', {
-      get() { throw new Error('panel temporarily unavailable'); },
-    });
-    Object.defineProperty(parts.ultIcon, 'actualuiscale_y', {
-      get() { throw new Error('scale temporarily unavailable'); },
-    });
-    parts.ultIcon.BHasClass = () => { throw new Error('class state unavailable'); };
-  }, null, diagnosticSource);
-  const record = JSON.parse(fixture.harness.logs[0].slice('[HPV2-DIAG] '.length));
-  assert.equal(record.panels.ultIcon.visible, 'unavailable');
-  assert.equal(record.panels.ultIcon.raw.scaleY, 'unavailable');
-  assert.equal(record.panels.ultIcon.css.height, 'unavailable');
-  assert.equal(record.panels.ultIcon.computedVisibility, 'unavailable');
-  assert.ok(record.panels.ultIcon.classes.unavailable.includes('has_ultimate'));
-  assert.equal(fixture.fill.style.washColor, '#00FF00');
-  assert.equal(fixture.unitInfo.style.marginLeft, '-49.4px');
-});
-
-test('diagnostic distinguishes cleared, desired and rejected margins and can be disabled in one edit', () => {
-  const classes = ['player', 'enemy', 'CLASS_PLAYER'];
-  const defaults = makeOwnershipFixture(classes, {},
-    parts => measuredGeometry(parts, 2, 3), null, diagnosticSource);
-  const cleared = JSON.parse(defaults.harness.logs[0].slice('[HPV2-DIAG] '.length));
-  for (const key of ['level', 'unitInfo']) {
-    assert.equal(cleared.anchors[key].desired.marginLeft, '');
-    assert.equal(cleared.anchors[key].written.marginLeft, '');
-    assert.equal(cleared.anchors[key].readback.marginLeft, '');
-  }
-  const rejected = makeOwnershipFixture(classes, accessoryValues, parts => {
-    measuredGeometry(parts, 2, 3);
-    const style = parts.unitInfo.style;
-    parts.unitInfo.style = new Proxy(style, {
-      set(target, property, value) {
-        if (property !== 'marginLeft') target[property] = value;
-        return true;
-      },
-    });
-  }, null, diagnosticSource);
-  const failed = JSON.parse(rejected.harness.logs[0].slice('[HPV2-DIAG] '.length));
-  assert.equal(failed.anchors.unitInfo.desired.marginLeft, '-49.4px');
-  assert.equal(failed.anchors.unitInfo.written.marginLeft, '');
-  assert.equal(failed.anchors.unitInfo.readback.marginLeft, '');
-  assert.equal(rejected.fill.style.washColor, '#00FF00');
-  const disabledSource = rendererSource.replace('var ACCESSORY_DIAGNOSTICS = true;',
-    'var ACCESSORY_DIAGNOSTICS = false;');
-  assert.notEqual(disabledSource, rendererSource);
-  const disabled = makeOwnershipFixture(classes, accessoryValues,
-    parts => measuredGeometry(parts, 2, 3), null, disabledSource);
-  assert.equal(disabled.unitInfo.style.marginLeft, '-49.4px');
-  assert.deepEqual(disabled.harness.logs, []);
-  assert.equal(disabled.harness.root.GetAttributeString('hp_colors_v2_diag_accessory', ''), '');
-});
 
 
 
-test('old health sampling diagnostic remains absent in the temporary accessory build', () => {
-  assert.doesNotMatch(rendererSource, /DIAG_HEALTH_SAMPLING|diagnos(?:e|tic)Health/);
+test('production renderer has no diagnostics or temporary probes', () => {
+  assert.doesNotMatch(rendererSource, /DIAG|diagnos(?:e|tic)|accessoryDiagnostic|\$\.Msg/);
+  const fixture = makeOwnershipFixture(['player', 'enemy'], accessoryValues,
+    parts => measuredGeometry(parts, 2, 3));
+  assert.deepEqual(fixture.harness.logs, []);
 });
 
 const appearanceOff = {

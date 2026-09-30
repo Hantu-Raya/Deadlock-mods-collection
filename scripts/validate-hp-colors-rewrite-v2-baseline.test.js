@@ -594,6 +594,7 @@ function makeStatusFixture(
   }));
   const namePanel = windowRoot.add(new MockPanel('name', {
     text: 'Enemy',
+    style: fixtureOptions.nameStyle || {},
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -872,7 +873,7 @@ test('v2 preserves the frozen static stock tree and adds only passive owned pane
   const anchor = container.children.find(node => node.attributes.id === 'hp_counter_anchor');
   const row = anchor.children.find(node => node.attributes.id === 'hp_counter_row');
   assert.doesNotMatch(read(layoutPath), /hp_counter_slot/);
-  assert.deepEqual(row.children.map(node => node.attributes.id), ['hp_counter', 'hp_counter_max']);
+  assert.deepEqual(row.children.map(node => node.attributes.id), []);
   assert.doesNotMatch(read(layoutPath), /hp_counter_native/);
 });
 
@@ -1054,8 +1055,8 @@ test('v2 marker native width and inset clamp stay inside the primary inner surfa
 });
 
 
-test('v2 HP/current readouts own an external engine-bound label without rewriting text', () => {
-  for (const format of ['hp', 'current']) {
+test('v2 native readouts own an external engine-bound label without rewriting text', () => {
+  for (const format of ['hp', 'current', 'percent']) {
     const fixture = makeStatusFixture('enemy', {
       enabled: true, enemyColor: '#123456', readoutVisible: true,
       readoutFormat: format, readoutSize: 200, readoutFont: 'oracle',
@@ -1122,14 +1123,14 @@ test('v2 visible clipping drives enemy fill, readout, ultimate and pulse coverag
     false, false, false, true, null, null, {
       fillWidth: 69, fillStyle: { clip: 'rect(0%, 12%, 100%, 0%)' },
     });
-  assert.equal(fixture.counter.text, '12%');
-  for (const panel of [fixture.fill, fixture.counter, fixture.ult, fixture.ultOverlay])
+  assert.equal(fixture.counter.text, '');
+  for (const panel of [fixture.fill, fixture.healthValue, fixture.ult, fixture.ultOverlay])
     assert.equal(panel.style.washColor, '#FF0000', panel.id);
   assert.equal(fixture.pulseOverlay.style.width, '12%');
 
   fixture.fill.style.clip = 'rect(0%, 12.5%, 100%, 0%)';
   fixture.harness.scheduler.runNext();
-  assert.equal(fixture.counter.text, '12%');
+  assert.equal(fixture.counter.text, '');
   assert.equal(fixture.pulseOverlay.style.width, '12.5%');
 });
 
@@ -1142,15 +1143,15 @@ test('v2 samples the exact live decimal clip while layout width stays full', () 
     fillWidth: 69,
     fillStyle: { clip: 'rect( 0.0%, 77.710846%, 100.0%, 0.0%)' },
   });
-  assert.equal(fixture.counter.text, '77%');
+  assert.equal(fixture.counter.text, '');
   assert.equal(fixture.pulseOverlay.style.width, '77.71%');
   assert.equal(fixture.fill.actuallayoutwidth, 69);
   fixture.fill.style.clip = 'rect( 0.0% 77.710846% 100.0% 0.0% )';
   fixture.harness.scheduler.runNext();
-  assert.equal(fixture.counter.text, '77%');
+  assert.equal(fixture.counter.text, '');
   fixture.fill.style.clip = 'rect(0%, , 77%, 100%, 0%)';
   fixture.harness.scheduler.runNext();
-  assert.equal(fixture.counter.text, '100%', 'malformed clips are ignored');
+  assert.equal(fixture.pulseOverlay.style.width, '100%', 'malformed clips are ignored');
 });
 
 test('v2 uses the minimum available health signal and preserves layout-width sampling', () => {
@@ -1188,11 +1189,11 @@ test('v2 uses the minimum available health signal and preserves layout-width sam
       fixture.fill.actualxoffset = entry.x;
       fixture.harness.scheduler.runNext();
     }
-    assert.equal(fixture.counter.text, `${entry.expected}%`, JSON.stringify(entry));
+    assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), entry.expected, JSON.stringify(entry));
     assert.equal(fixture.pulseOverlay.style.width, `${entry.expected}%`, JSON.stringify(entry));
     fixture.fill.style.clip = 'rect(0%, 8%, 100%, 0%)';
     fixture.harness.scheduler.runNext();
-    assert.equal(fixture.counter.text, `${Math.min(entry.expected, 8)}%`);
+    assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), Math.min(entry.expected, 8));
   }
 });
 test('v2 normalizes health and marker measurements without converting CSS clip lengths', () => {
@@ -1221,7 +1222,7 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
   fixture.inner.actualyoffset = 9;
   scale(fixture.fill, 34.5, 12);
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '50%');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50);
   assert.equal(fixture.fill.style.washColor, '#FFFF00');
   assert.equal(fixture.pulseOverlay.style.width, '50%');
   assert.equal(fixture.killMarker.style.width, '1px');
@@ -1231,21 +1232,21 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
 
   fixture.fill.actualxoffset = -17.25; // -8.625 CSS px.
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '37%');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 37);
   fixture.fill.actualxoffset = 0;
   fixture.fill.style.clip = 'rect(0px, 17.25px, 12px, 0px)';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '50%', 'clip lengths compare with CSS fill width, not raw window width');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50, 'clip lengths compare with CSS fill width, not raw window width');
   fixture.fill.style.clip = 'rect(0px, 8.625px, 12px, 0px)';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '25%', 'CSS clip fraction retains the minimum-signal policy');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 25, 'CSS clip fraction retains the minimum-signal policy');
   fixture.fill.style.clip = 'rect(0%, 12%, 100%, 0%)';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '12%', 'percentage clips are scale-independent');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 12, 'percentage clips are scale-independent');
   fixture.fill.style.clip = '';
   fixture.fill.style.width = '17.25px';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '25%', 'inline width remains CSS px');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 25, 'inline width remains CSS px');
   fixture.fill.style.width = '';
 
   fixture.inner.actuallayoutwidth = 0;
@@ -1258,7 +1259,7 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
     get() { throw new Error('layout not available yet'); },
   });
   assert.doesNotThrow(() => fixture.harness.scheduler.runByDelay(1));
-  assert.equal(fixture.counter.text, '0%', 'missing width cannot be mistaken for full health');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 0, 'missing width cannot be mistaken for full health');
   Object.defineProperty(fixture.fill, 'actuallayoutwidth', nativeWidth);
   fixture.fill.actuallayoutwidth = 34.5;
   fixture.inner.actualxoffset = 3.5;
@@ -1267,14 +1268,14 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
     panel.actualuiscale_y = NaN;
   }
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '50%', 'invalid scale falls back to 1 per panel');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50, 'invalid scale falls back to 1 per panel');
   assert.equal(fixture.killMarker.style.marginLeft, '37.5px');
   for (const panel of [fixture.inner, fixture.fill]) {
     delete panel.actualuiscale_x;
     delete panel.actualuiscale_y;
   }
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.counter.text, '50%', 'missing scale falls back to 1');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50, 'missing scale falls back to 1');
   assert.equal(fixture.healthValue.text, '300');
 });
 
@@ -1287,7 +1288,7 @@ test('v2 health sampling survives unavailable style signals and absent Panorama 
     withoutMsg: true, fillWidth: 69,
     fillStyle: { clip: 'rect(0%, 12%, 100%, 0%)' },
   });
-  assert.equal(fixture.counter.text, '12%');
+  assert.equal(fixture.counter.text, '');
   const style = fixture.fill.style;
   fixture.fill.style = new Proxy(style, {
     get(target, property) {
@@ -1301,7 +1302,7 @@ test('v2 health sampling survives unavailable style signals and absent Panorama 
   });
   fixture.healthValue.text = '110';
   assert.doesNotThrow(() => fixture.harness.scheduler.runNext());
-  assert.equal(fixture.counter.text, '12%');
+  assert.equal(fixture.counter.text, '');
   assert.equal(fixture.fill.style.washColor, '#FF0000');
 });
 
@@ -1324,7 +1325,7 @@ test('v2 uses only primary inner width and does not confuse the shield-bar dupli
   assert.equal(fixture.secondaryShield.inner.id, 'UnitHealthbarInner');
   assert.equal(fixture.inner.id, 'UnitHealthbarInner');
   assert.equal(fixture.fill.style.washColor, '#123456');
-  assert.equal(fixture.counter.text, '50%');
+  assert.equal(fixture.counter.text, '');
   assert.equal(fixture.counterMax.text, '');
   assert.equal(fixture.secondaryShieldFill.style.backgroundColor, '#DDAA11');
   assert.equal(fixture.secondaryShieldFill.style.washColor, undefined);
@@ -1359,21 +1360,21 @@ test('v2 ally health text is opt-in, independently styled, and native labels res
     allyReadoutOffsetX: 10,
     allyReadoutOffsetY: 150,
   });
-  assert.equal(fixture.counter.text, '50%');
-  assert.equal(fixture.counter.style.visibility, 'visible');
+  assert.equal(fixture.counter.text, '');
+  assert.equal(fixture.healthValue.style.visibility, 'visible');
   assert.equal(fixture.counterMax.style.visibility, 'collapse');
-  assert.equal(fixture.counter.style.washColor, '#445566');
-  assert.equal(fixture.counter.style.fontSize, '20px');
-  assert.equal(fixture.counter.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
+  assert.equal(fixture.healthValue.style.washColor, '#445566');
+  assert.equal(fixture.healthValue.style.fontSize, '20px');
+  assert.equal(fixture.healthValue.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
   assert.equal(fixture.counterAnchor.style.transform, '');
   assert.equal(fixture.counterRow.style.marginRight, '60px');
   assert.equal(fixture.counterRow.style.marginTop, '186px');
-  assert.equal(fixture.healthValue.style.visibility, 'collapse');
+  assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
 
   fixture.fill.actuallayoutwidth = 6.9;
   fixture.harness.scheduler.runNext();
-  assert.equal(fixture.counter.text, '10%');
-  assert.equal(fixture.counter.style.washColor, '#112233');
+  assert.equal(fixture.counter.text, '');
+  assert.equal(fixture.healthValue.style.washColor, '#112233');
 
   dispatchColorSnapshot(fixture, 2, { enabled: false });
   assert.equal(fixture.counter.style.visibility, 'collapse');
@@ -1654,7 +1655,7 @@ test('v2 maps positive and negative legacy position units without moving UnitSta
     assert.match(cssBlock(style, selector), /overflow\s*:\s*noclip\s*;/);
 });
 
-test('v2 clamps native readout offsets across the canvas and retains the percent frame', () => {
+test('v2 clamps native readout offsets across the canvas in the stationary frame', () => {
   const fixture = makeStatusFixture('enemy', {
     readoutVisible: true, readoutSize: 140, readoutOffsetX: 405, readoutOffsetY: 840,
   });
@@ -1705,7 +1706,7 @@ test('v2 full-canvas readout frame grows left from the stock label edge and leve
   assert.doesNotMatch(read(colorConsumerPath), /HPColorsRewriteNativeReadout|NATIVE_READOUT_BASE_X/);
   const ownedCss = css.slice(css.indexOf('/* Rewrite-owned additions'));
   for (const suffix of ['', '.HPColorsRewritePulseSubtle', '.HPColorsRewritePulseIntense'])
-    assert.ok(ownedCss.includes('.WindowRoot #hp_counter_row #UnitHealthbarValue.HPColorsRewritePulse' + suffix + ','),
+    assert.ok(ownedCss.includes('.WindowRoot #hp_counter_row #UnitHealthbarValue.HPColorsRewritePulse' + suffix),
       `native pulse selector ${suffix}`);
   const native = cssBlock(css, '.WindowRoot #hp_counter_row #UnitHealthbarValue');
   for (const property of ['horizontal-align: left', 'vertical-align: top', 'margin: 0px',
@@ -2387,4 +2388,103 @@ test('Appearance primary replacement preserves external inline masks and leaves 
   assert.equal(replacement.primary.style.opacityMask, 'primary-original');
   assert.equal(replacement.inner.style.opacityMask || '', '');
   assert.equal(replacement.lines.style.opacityMask || '', '');
+});
+
+test('round saved percent renders only the same engine number at unchanged fill', () => {
+  const fixture = makeStatusFixture('enemy', { readoutFormat: 'percent' }, 1, '999');
+  assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
+  const descriptor = Object.getOwnPropertyDescriptor(fixture.healthValue, 'text');
+  let writes = 0;
+  Object.defineProperty(fixture.healthValue, 'text', {
+    ...descriptor, set(value) { writes++; descriptor.set(value); },
+  });
+  for (const text of ['1,000', '2,990', '10,000']) {
+    fixture.healthValue.text = text;
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(fixture.healthValue.text, text);
+    assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
+  }
+  assert.equal(writes, 3, 'only the simulated engine writes the number');
+  assert.equal(fixture.counter.text, '');
+});
+
+test('round independent player name colors size and clamped offsets release to stock', () => {
+  for (const role of ['enemy', 'ally']) {
+    const fixture = makeStatusFixture(role, {
+      enemyEnabled: false, allyEnabled: false,
+      enemyNameColorEnabled: true, enemyNameColor: '#123456',
+      allyNameColorEnabled: true, allyNameColor: '#ABCDEF',
+      nameSize: 40, nameOffsetX: 200, nameOffsetY: 210,
+    });
+    fixture.windowRoot.actuallayoutwidth = 400;
+    fixture.windowRoot.actuallayoutheight = 420;
+    fixture.windowRoot.actualuiscale_x = 2;
+    fixture.windowRoot.actualuiscale_y = 2;
+    fixture.namePanel.actuallayoutwidth = 160;
+    fixture.namePanel.actuallayoutheight = 100;
+    fixture.namePanel.actualuiscale_x = 2;
+    fixture.namePanel.actualuiscale_y = 2;
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(fixture.namePanel.style.color, role === 'enemy' ? '#123456' : '#ABCDEF');
+    assert.equal(fixture.namePanel.style.fontSize, '40px');
+    assert.equal(fixture.namePanel.style.marginTop, '160px');
+    assert.equal(fixture.namePanel.style.marginLeft, '120px');
+    dispatchColorSnapshot(fixture, 2, { enabled: false });
+    assert.equal(fixture.namePanel.style.color, '');
+    assert.equal(fixture.namePanel.style.fontSize, '');
+    assert.equal(fixture.namePanel.style.marginTop, '');
+    assert.equal(fixture.namePanel.style.marginLeft, '');
+  }
+});
+
+test('round full canvas stock info origin and contained health lines marker', () => {
+  const css = read(stylePath);
+  const status = cssBlock(css, '.WindowRoot #UnitStatus');
+  assert.match(status, /width:\s*100%/);
+  assert.match(status, /height:\s*100%/);
+  assert.match(status, /margin-top:\s*0px/);
+  const info = cssBlock(css, '.WindowRoot #InfoHealthContainer');
+  assert.match(info, /width:\s*100px/);
+  assert.match(info, /height:\s*40px/);
+  assert.match(info, /margin-top:\s*65px/);
+  assert.match(info, /overflow:\s*noclip/);
+  const lines = cssBlock(css, '.WindowRoot #UnitHealthbarLines');
+  assert.match(lines, /height:\s*100%/);
+  assert.match(lines, /margin-top:\s*0px/);
+  assert.match(lines, /overflow:\s*clip/);
+  assert.match(cssBlock(css, '.WindowRoot #UnitHealthbarLines .line_large.line_large'), /height:\s*100%/);
+  const small = cssBlock(css, '.WindowRoot #UnitHealthbarLines .line_small.line_small');
+  assert.match(small, /height:\s*8px/);
+  assert.match(small, /vertical-align:\s*bottom/);
+  const marker = cssBlock(css, '.WindowRoot #UnitHealthbar #hp_colors_kill_marker');
+  assert.match(marker, /height:\s*100%/);
+  assert.match(marker, /margin-top:\s*0px/);
+});
+
+test('round name ownership keeps spectator alpha and native text, then restores captured aliases', () => {
+  const stock = { color: '#11223344', fontSize: '15px', maxHeight: '22px',
+    height: 'fit-children', marginLeft: '2px', marginTop: '48px' };
+  const fixture = makeStatusFixture('enemy', {
+    enemyNameColorEnabled: true, enemyNameColor: '#ABCDEF', nameSize: 40,
+    nameOffsetX: -200, nameOffsetY: -210,
+  }, 1, '300', false, false, false, true, null, null,
+  { extraClasses: ['spectating'], nameStyle: stock });
+  assert.equal(fixture.namePanel.style.color, '#ABCDEF80');
+  Object.defineProperty(fixture.namePanel, 'text', {
+    get() { throw new Error('name text is engine-owned'); },
+    set() { throw new Error('name text is engine-owned'); },
+  });
+  assert.doesNotThrow(() => fixture.harness.scheduler.runFor(2000));
+  dispatchColorSnapshot(fixture, 2, { playerNamesVisible: false });
+  for (const [property, value] of Object.entries(stock))
+    assert.equal(fixture.namePanel.style[property], value, property);
+  assert.equal(fixture.namePanel.visible, true, 'do not override engine visibility');
+  for (const kind of ['npc', 'building']) {
+    const nonplayer = makeStatusFixture('enemy', {
+      npcEnemyEnabled: true, buildingEnemyEnabled: true,
+      enemyNameColorEnabled: true, enemyNameColor: '#ABCDEF', nameSize: 40,
+    }, 1, '300', false, false, false, false, null, null, { kind, nameStyle: stock });
+    for (const [property, value] of Object.entries(stock))
+      assert.equal(nonplayer.namePanel.style[property], value, kind + ' ' + property);
+  }
 });

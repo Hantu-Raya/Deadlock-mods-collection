@@ -550,7 +550,7 @@ test('an old builder pak01 layout still boots and tells the player to delete it'
     omitStorageScript: true,
   });
   fixture.run(4000);
-  assert.equal(fixture.status(), 'UPDATE PRESET FILE');
+  assert.equal(fixture.status(), 'OLD PRESET VPK');
   assert.equal(fixture.renderer().enabled, true);
   openEditor(fixture);
   assert.ok(fixture.harness.logs.some((line) => line.includes('delete pak01_dir.vpk')));
@@ -1278,4 +1278,55 @@ test('header chip names the preset the current settings belong to', () => {
   fresh.run(8000);
   assert.equal(fresh.status(), 'SAVED ON THIS PC');
   assert.equal(fresh.chip(), 'NOT SAVED TO A PRESET');
+});
+
+test('round schema-3 restart drops saved formats without losing names geometry scopes or hero own', () => {
+  const values = {
+    readoutFormat: 'percent', allyReadoutFormat: 'current',
+    enemyNameColorEnabled: true, enemyNameColor: '#123456',
+    allyNameColorEnabled: true, allyNameColor: '#ABCDEF',
+    nameSize: 40, nameOffsetX: -170, nameOffsetY: 160,
+    widthScale: 60, heightScale: 60, positionX: -1200, positionY: 1100,
+    accessoryAnchorEnabled: false, ultOffsetX: -2300, ultOffsetY: 2200,
+    levelOffsetX: 2100, levelOffsetY: -2000, staminaOffsetX: -900, staminaOffsetY: 800,
+    readoutOffsetX: -100, readoutOffsetY: 90, allyReadoutOffsetX: 80, allyReadoutOffsetY: -70,
+    enemyPulseReadoutOffsetX: -60, enemyPulseReadoutOffsetY: 50,
+  };
+  const body = exceptBody(values);
+  body.conditions = { readoutFormat: { slot: 1, minTier: 1, value: 'current' },
+    allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' } };
+  body.userPresets[0].values = values;
+  body.userPresets[0].conditions = body.conditions;
+  body.userPresets[0].own = ['readoutFormat', 'allyReadoutFormat', 'nameSize', 'positionX'];
+  const oldRecord = rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body });
+  const profile = createProfile({ [KEY_CURRENT]: oldRecord });
+  const first = launch(profile, { label: 'round saved format restore' });
+  first.run(8000);
+  const restored = menuState(first);
+  assert.equal(Object.hasOwn(restored.values, 'readoutFormat'), false);
+  assert.equal(Object.hasOwn(restored.conditions, 'allyReadoutFormat'), false);
+  assert.deepEqual(restored.userPresets[0].own, ['positionX', 'nameSize']);
+  for (const [key, value] of Object.entries(values)) {
+    if (key.endsWith('Format')) continue;
+    assert.equal(restored.userPresets[0].values[key], value, key);
+  }
+  openEditor(first);
+  assert.equal(panelById(first.harness, 'HPColorsNativeFormatNotice').BHasClass('Active'), true);
+  setWidth(first, 65);
+  closeEditor(first);
+  first.run(8000);
+  assert.equal(storedSchema(profile), 3);
+  assert.equal(JSON.parse(storedRecord(profile).body).userPresets[0].mode, 'except');
+  const second = launch(profile, { label: 'round normalized restart' });
+  second.run(8000);
+  openEditor(second);
+  assert.equal(panelById(second.harness, 'HPColorsNativeFormatNotice').BHasClass('Active'), false);
+  const preset = menuState(second).userPresets[0];
+  for (const [key, value] of Object.entries(values)) {
+    if (key.endsWith('Format')) continue;
+    assert.equal(preset.values[key], value, key);
+  }
+  for (const [key, value] of Object.entries(THIRD_EYE_KEYS)) assert.equal(profile.disk.get(key), value);
+  record(first);
+  record(second);
 });

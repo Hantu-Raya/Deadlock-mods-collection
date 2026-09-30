@@ -74,7 +74,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 49);
+  assert.equal(contract.extensionKeys.length, 56);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -83,10 +83,10 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
     'buildingAllyEnabled',
     'neutralColor',
   ]);
-  assert.deepEqual(plain(contract.extensionKeys).slice(47), [
+  assert.deepEqual(plain(contract.extensionKeys).slice(47, 49), [
     'criticalIndicatorVisible', 'playerNamesVisible',
   ]);
-  for (const key of contract.extensionKeys.slice(47)) {
+  for (const key of contract.extensionKeys.slice(47, 49)) {
     assert.equal(contract.defaults[key], true);
     assert.equal(contract.booleanKeys[key], true);
     assert.equal(contract.settingMeta[key].conditionEligible, true);
@@ -331,4 +331,59 @@ test('Appearance imports reject non-boolean values/conditions atomically in both
   send(older, 'preset_apply', { id: template.records[0].id });
   for (const key of ['criticalIndicatorVisible', 'playerNamesVisible'])
     assert.equal(older.read().effectiveValues[key], true);
+});
+
+test('round native format retirement preserves slots and appends independent name settings', () => {
+  const { contract, state } = bootState();
+  assert.equal(contract.codecKeys[29], 'readoutFormat');
+  assert.equal(contract.extensionKeys[30], 'allyReadoutFormat');
+  assert.equal(contract.extensionKeys.length, 56);
+  assert.equal(contract.keys.includes('readoutFormat'), false);
+  assert.equal(contract.keys.includes('allyReadoutFormat'), false);
+  const imported = send(state, 'settings_import', { raw: 'HPCR2' + JSON.stringify({
+    v: [[29, 'percent']], c: { readoutFormat: { slot: 1, minTier: 1, value: 'current' } },
+    hpv2: { v: 1, values: [[30, 'current'], [53, 40], [54, -200]],
+      conditions: { allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' } } },
+  }) });
+  assert.notEqual(imported.outcome.kind, 'error');
+  assert.equal(imported.view.values.nameSize, 40);
+  assert.equal(imported.view.values.nameOffsetX, -200);
+  assert.equal(Object.hasOwn(imported.view.values, 'readoutFormat'), false);
+});
+
+test('round name settings and raw geometry survive both codecs; retired rules drop atomically', () => {
+  const { state } = bootState();
+  const values = {
+    enemyNameColorEnabled: true, enemyNameColor: '#123456',
+    allyNameColorEnabled: true, allyNameColor: '#ABCDEF',
+    nameSize: 40, nameOffsetX: -170, nameOffsetY: 160,
+    widthScale: 60, heightScale: 60, positionX: -1200, positionY: 1100,
+    ultOffsetX: -2300, ultOffsetY: 2200, levelOffsetX: 2100, levelOffsetY: -2000,
+    staminaOffsetX: -900, staminaOffsetY: 800,
+    readoutOffsetX: -100, readoutOffsetY: 90,
+    allyReadoutOffsetX: 80, allyReadoutOffsetY: -70,
+    enemyPulseReadoutOffsetX: -60, enemyPulseReadoutOffsetY: 50,
+  };
+  for (const [key, value] of Object.entries(values)) send(state, 'setting_edit', { key, value });
+  send(state, 'condition_set', { key: 'nameSize', slot: 4, minTier: 3, value: 30 });
+  const settings = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  const copy = bootState().state;
+  assert.equal(send(copy, 'settings_import', { raw: settings }).outcome.status, 'committed');
+  for (const [key, value] of Object.entries(values)) assert.equal(copy.read().values[key], value, key);
+  send(state, 'preset_save', { name: 'Names and geometry' });
+  const preset = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const bundle = JSON.parse(preset.slice(6));
+  bundle.records[0].values.push([29, 'percent']);
+  bundle.records[0].conditions = { readoutFormat: { slot: 1, minTier: 1, value: 'current' } };
+  bundle.records[0].hpv2.values.push([30, 'current']);
+  bundle.records[0].hpv2.conditions.allyReadoutFormat = { slot: 1, minTier: 1, value: 'percent' };
+  const destination = bootState().state;
+  assert.equal(send(destination, 'preset_import', { raw: 'HPCRP1' + JSON.stringify(bundle) }).outcome.status, 'committed');
+  send(destination, 'preset_apply', { id: bundle.records[0].id });
+  for (const [key, value] of Object.entries(values)) assert.equal(destination.read().effectiveValues[key], value, key);
+  assert.equal(Object.hasOwn(destination.read().conditions, 'allyReadoutFormat'), false);
+  const before = plain(destination.read());
+  bundle.records[0].hpv2.conditions.unknownSetting = { slot: 1, minTier: 1, value: true };
+  assert.equal(send(destination, 'preset_import', { raw: 'HPCRP1' + JSON.stringify(bundle) }).outcome.status, 'rejected');
+  assert.deepEqual(plain(destination.read().values), before.values);
 });

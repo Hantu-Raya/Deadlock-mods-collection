@@ -20,25 +20,25 @@ Surface ownership is kept in one renderer decision: `player` has relation settin
 
 ### HP readout and stock indicators
 
-- HP/current formats temporarily move the engine's existing `UnitHealthbarValue` into the WindowRoot-level counter row, preserving the same panel and engine-updated text without parsing, sampling, or text writes. Percentage remains a custom, fill-derived counter; the health denominator is only the primary `UnitHealthbarInner`, never shield, armor, or deferred widths.
-- Exact maximum HP is unverified because the supplied tree exposes no max binding. Both `hp` and `current` therefore show the native current-only number; no maximum is inferred from pips or rounded fill.
-- Enemy and ally readouts are player-only. Adopted HP/current labels are visible at opacity `1`, regardless of stock damage/Show Health Value gates. Percentage returns the engine label to its original parent and suppresses it; **Show Health Text** off still hides enemy numbers, while ally readout off leaves the native label exactly stock. Inline styles, original pulse classes, and parent restore on release; the secondary shield value is untouched.
-- Readout colors, fonts, size, translation, and enemy text pulses use the selected native or percentage path. Player-level badge and enemy kill marker are player-only; health-line visibility can also apply to opted-in enemy NPCs/buildings.
+- HP text adopts the engine's existing `UnitHealthbarValue` into the stationary WindowRoot counter row, preserving exact engine-updated text and locale grouping without reading or writing the number. No percent/custom counter or maximum exists.
+- Retired format slots remain decodable. Old percent/current saves load as native HP with a one-time menu note; other settings, scopes, conditions and presets survive.
+- Enemy and ally readouts are player-only. Enemy text off suppresses the number; ally text off returns its parent, styles and pulse classes fully to stock. Shield values are untouched.
+- Native text keeps colors, fonts, size, position and enemy pulse modifiers. The level and kill marker are player-only; line visibility also covers opted-in enemy NPC/building bars. Tall lines and the marker span the primary bar from top to bottom; short 8px ticks are contained and bottom-aligned.
 
 ### Stock appearance
 
-OVERVIEW → APPEARANCE shares two stock-pass-through controls between enemy and ally players, independent of player color toggles. CRITICAL LABEL hides only the stock label when off; stock critical flashing, scaling, wash, margins, and Rewrite pulses remain unchanged. PLAYER NAMES hides player names when off; when on, spectator visibility remains game-owned.
+GENERAL → NAME & LABELS shares CRITICAL LABEL and PLAYER NAMES between enemies and allies, independent of bar colors. Names gain independent enabled enemy/ally colors, shared 8–40px size and Layout X/Y offsets. Names remain straight, brightness 0.8 and spectator alpha retained; text and visibility stay engine-owned. Fitting names clamp at canvas edges. Critical-label hiding leaves native flashing and scaling unchanged.
 
 All unit-status healthbars are always rectangular without the outer container background (including players, NPCs, buildings, shields, and previews), even with the master toggle off. This intentional stock stylesheet deviation deletes the three healthbar mask declarations and all container background-color declarations from the replacement stylesheet, removing six otherwise-empty relation rules. The black inner backing and all other stock declarations remain. There is no shape setting or inline mask override.
 
-The label controls use existing session settings, scopes, ability conditions, presets, Reset Section, Undo, HPCR2 and HPCRP1. Defaults never force labels visible. Master-off, surface loss, replacement, retirement, and teardown release owned label classes and return label styling to stock. The owned HP readout is straight, at its existing stock right-side placement. `citadel_unit_status_show_critical_state` stays engine-owned.
+The label controls use existing session settings, scopes, ability conditions, presets, Reset Page, Undo, HPCR2 and HPCRP1. Defaults never force labels visible. Master-off, surface loss, replacement, retirement, and teardown release owned label classes and return label styling to stock. The owned HP readout is straight, at its existing stock right-side placement. `citadel_unit_status_show_critical_state` stays engine-owned.
 
 Ultimate progress art matches the 6722 ready icon: a black disk with an open white eye and progress ring, dimmed beneath the radial-clipped bright fill.
 
 ### Editor and settings
 
-- Six ESC rail categories: General (Master, Layout, Appearance), Enemy (Bar, Heal & Shield, HP Text, Pulse, Kill Marker), Ally (Bar, Heal & Shield, HP Text, Pulse), Indicators (Pips & Level, Ultimate, Stamina, Pickup Timers), Presets (Library), and Units (NPCs, Neutrals, Buildings). Every editable setting belongs to one tab; Reset Section resets that tab's keys.
-- Immediate application, confirmed section reset with guarded feedback, session Undo, Peek, native HSL picker, and HPCR2 live settings import/export.
+- Fifteen tabs on six ESC rails: General (Master, Layout, Name & Labels), Enemy (Bar, HP Text, Pulse, Kill Marker), Ally (Bar, HP Text, Pulse), Indicators (Pips & Level, Ultimate, Pickup Timers), Presets (Library), Units (Other Units). Feedback colors live on Bar; stamina appearance lives on Pips & Level. Layout owns 16 sliders plus anchor, including all unit-status positions except pulse-time text offsets. RESET PAGE resets captured page keys, including hidden advanced rows; hero Current resets to Base, not necessarily stock. Hidden compatibility keys have no reset home. One session-wide Advanced fold opens across pages, resets closed on editor open, and reports changed values/conditions. Feature-off rows remain collapsed even while Advanced is open.
+- Immediate application, confirmed page reset with guarded feedback, session Undo, Peek, native HSL picker, and HPCR2 live settings import/export.
 - One canonical global base and one resolved effective snapshot.
 - Automatic hero detection with lifecycle settling and stale-callback rejection. The editor has no hero-mode controls; detection always runs in Auto.
 - The Preset Library manages durable All Heroes, Selected Heroes (Only These), and All Except snapshots, the hidden Rewrite Default fallback, and exact Selected → All Except → All Heroes → Rewrite Default routing.
@@ -61,9 +61,9 @@ Implemented source files:
 
 ### Data path
 
-The renderer reads each unit's local primary health layers and native current-HP label. Primary inner width drives fill percentage, pulse overlay, and marker math; engine layer widths and secondary shield values remain untouched. Replacement or reparented panels increment the local generation and reset cached sampling/presentation state.
+The renderer samples each unit's local primary health layers, never the native current-HP label text. Primary inner width drives fill percentage, pulse overlay, and marker math; engine layer widths and secondary shield values remain untouched. Replacement or reparented panels increment the local generation and reset cached sampling/presentation state.
 
-### Diagnostic evidence
+### Historical diagnostic evidence
 
 The final pre-cleanup 2026-08-20 capture contained 1,946 transition-only per-bar data lines and no Rewrite exceptions. Those lines were measurement scaffolding and were removed from production after the health sampling and scan-path comparison.
 
@@ -134,12 +134,12 @@ The v1 implementation passed its focused automated and in-game checks before thi
 2. Inspect a player, neutral camp, trooper/trooper boss, midboss, and building. Record actual `WorldUIRoot` kind/relation/team classes and verify the static primary `UnitHealthbar` and separate shield branch.
 3. With NPC, neutral, and building gates off, apply extreme player layout/color settings: non-player bars, bounty/tier art, stock indicators, and the secondary shield must remain stock.
 4. Enable each NPC/building gate independently and verify only its explicit type/relation changes; it must reuse that relation's palette without player-only accessories. Enable neutral fill and verify bounty, tier art, lines, and values remain stock. Confirm imported legacy ghoul opacity values never affect rendering.
-5. Compare enemy/ally HP/current native readouts with percentage counters, including `0`, missing/unbound text, same-percent current changes, Show Health Value/damage gates, runtime format switching, bypass, and ally stock visibility. Native locale grouping such as `2,990` stays engine-owned; max HP remains unverified.
+5. Compare native enemy/ally HP at 0, 999, 1,000, 2,990 and 10,000, including same-fill number changes, all fonts, pulse modifiers, master-off and ally-off restoration. Check that only the original engine label updates and no shield label is adopted.
 6. Check fixed/gradient thresholds, team endpoints, visibility, healing, delta, bullet shield, deferred/lagging damage, armor, pulses, and the new stock critical/assassinate/unkillable/rejuvenator/kill-streak indicators.
-7. At width 60/100/230%, height 60/100/160%, position extrema, and supported UI scales, verify measured origins, left-edge gaps, explicit-zero reset, counter/indicator alignment, and an 18% marker clamped to the inner health interval. Check readout `0/0` at canvas center +40px enemy/+30px ally, top 66px, then exercise X `±200` and Y `±210`, percentage and enemy pulse modifiers. Fitting rows must stop at visible edges while saved offsets retain the requested values. Cross `999↔1,000` and `2,990→10,000` at unchanged fill, test all shipped fonts/minimum and maximum sizes, and inspect measured row/root bounds. Reject oversized rows or transient clipping; record fresh-restart visual evidence separately from VM/build results.
+7. At width 60/100/230%, height 60/100/160%, position extrema, and supported UI scales, verify measured origins, left-edge gaps, explicit-zero reset, counter/indicator alignment, and an 18% marker clamped to the inner health interval. Check readout `0/0` at canvas center +40px enemy/+30px ally, top 66px, then exercise X `±200` and Y `±210`, and enemy pulse modifiers. Fitting rows must stop at visible edges while saved offsets retain the requested values. Cross `999↔1,000` and `2,990→10,000` at unchanged fill, test all shipped fonts/minimum and maximum sizes, and inspect measured row/root bounds. Reject oversized rows or transient clipping; record fresh-restart visual evidence separately from VM/build results.
 8. Verify enemy-player-only level tiers, marker, ultimate wash/timer priority, and stamina. Inspect both the level rim **and engine-bound number**; levels off/on and master off/on must collapse/restore the parent while leaving the label's text engine-owned. Default stamina must keep native pips; custom boxes must restore texture/depleted behavior. NPC/building opt-ins must not acquire player accessories.
 9. Exercise late spawn, death/respawn, shield-only/midboss contexts, reparent/replacement/removal, spectator state, and reused panels. Open the stock healthbar preview and verify no Rewrite geometry, overlays, or palette leaks. Open the editor and test Units HSL/hex controls, scoped reset/Undo, transfer compatibility, and Escape lifecycle.
-10. Exercise APPEARANCE on enemy/ally players at normal and critical HP, with the critical-state convar on/off and in-eye spectator names suppressed. Verify always-rectangular low/full-HP edges, pips, and fill on players, NPCs, buildings, shields, and previews, including master-off and supported UI scales. Label defaults must return control to stock; label hiding must preserve critical motion and flashing.
+10. Exercise NAME & LABELS on enemy/ally players at normal and critical HP, with the critical-state convar on/off and in-eye spectator names suppressed. Verify always-rectangular low/full-HP edges, pips, and fill on players, NPCs, buildings, shields, and previews, including master-off and supported UI scales. Label defaults must return control to stock; label hiding must preserve critical motion and flashing.
 11. Record screenshots/debugger facts and console evidence. Automated tests do not establish visual rendering, exact maximum HP, precise line settings, or frame cost/FPS.
 
 ## Milestone 7: HP readout
@@ -147,23 +147,23 @@ The v1 implementation passed its focused automated and in-game checks before thi
 Implemented controls:
 
 - Show or hide the enemy HP number.
-- Current/max HP, percentage, and current-only formats.
+- The engine current HP number only; legacy format values are recognized and discarded.
 - Font chooser with Default (`Retail Demo, Noto Sans, sans-serif`), Oracle (`VALVEOracle, Reaver, sans-serif`), and Pulp (`VALVEPulp, Noto Sans, sans-serif`). Runtime writes the expanded families because stock `sans`, `oracle`, and `block` are compile-time CSS aliases.
 - Text size plus horizontal (`-200...200`) and vertical (`-210...210`) readout offsets, both defaulting to `0`. Enemy, ally, and enemy pulse-modifier offsets are plain CSS pixels: +50 requests +50px movement until the row reaches the visible edge, where rendering stops without changing the stored value. Text size and bar translation keep their existing renderer calibration candidate.
-- Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds. Custom enables its own Fixed/Gradient choice. The always-editable shared threshold pair lives under Enemy → Bar and also drives ally bars and custom HP text. Labels are tinted through `washColor`, matching the bar and legacy rendering path without replacing their base `color`.
-- Optional team coloring targets only maximum HP if a verified maximum source becomes available; current HP and any separator keep the active text color.
+- Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds. Custom enables its own Fixed/Gradient choice. The always-editable shared threshold pair lives under General → Master and also drives ally bars and custom HP text. Labels are tinted through `washColor`, matching the bar and legacy rendering path without replacing their base `color`.
+- Maximum-team-color keys remain hidden and inert for codec compatibility.
 
-Both formats use the direct `WindowRoot` counter frame outside the small `UnitStatus`/`InfoHealthContainer` canvas. HP/current moves the existing engine label into `hp_counter_row`; XML keeps it in its stock position for initialization, and no new bound label is added. Sep 30 client.dll IDA inspection found that `sub_181CF8FF0` caches `UnitHealthbarValue` at `this+3624`, and `sub_181D0D7B0` calls `sub_18218FDD0` to set `health` on that cached label itself, not the root. Reparenting preserves the engine's pointer and updates; see the [layout contract](design.md#health-sampling-and-readout) for binding evidence and restoration rules.
+Native HP uses the stationary root-level frame. XML leaves `UnitHealthbarValue` in InfoHealthContainer for the engine to cache it; runtime adopts that same panel. The label-local engine binding does not update replacement `{d:health}` labels, so no custom bound label is created.
 
-The frame covers 100% of the world-panel width and height, with zero top margin. Its stationary left/top-aligned anchor uses measured container dimensions (200×210px CSS fallback), no transform, and a direct fit-children row with 4px padding. At offsets `0/0`, a fitting row ends at canvas center +40px (ally +30px), top 66px, and grows leftward; this baseline still needs live confirmation. Both formats add plain pixel offsets to native-pixel bar translation and clamp the rendered row inside the measured canvas. Requested saved/imported offsets are unchanged. Existing paint passes track measured row width/height for digit/font reflow even at unchanged fill, with no new loop or unchanged style writes. Zero/invalid measurements defer; oversized rows cannot fit and require live calibration. Both custom labels stay collapsed without text writes in native mode; percentage returns the engine label. Stock damage-wiggle and hidden/pre-game/spectate collapse rules remain.
+The frame covers 100% of the world-panel width and height, with zero top margin. Its stationary left/top-aligned anchor uses measured container dimensions (200×210px CSS fallback), no transform, and a direct fit-children row with 4px padding. At offsets `0/0`, a fitting row ends at canvas center +40px (ally +30px), top 66px, and grows leftward; this baseline still needs live confirmation. Native readouts add plain pixel offsets to native-pixel bar translation and clamp the rendered row inside the measured canvas. Requested saved/imported offsets are unchanged. Existing paint passes track measured row width/height for digit/font reflow even at unchanged fill, with no new loop or unchanged style writes. Zero/invalid measurements defer; oversized rows cannot fit and require live calibration. Both custom labels stay collapsed without text writes in native mode; percentage returns the engine label. Stock damage-wiggle and hidden/pre-game/spectate collapse rules remain.
 
 Known compatibility change: omitted readout slots in old HPCR2/HPCRP1 codes now use zero. Explicit legacy user values, including explicit old defaults (27/500 or -30/434), are clamped and read as CSS pixels; saved session and imported user-preset values follow the same bounds. No general migration or sentinel is added. New zero and in-range offsets round-trip unchanged. Only the canonical `baked_default` record accepts exact historical shipped offsets and resets them to current defaults, preserving old bundles and their user records; all other baked deviations still reject. The web builder was intentionally not updated, so local saves remain untouched. The `±200/±210` limits target the approximately 200×210 canvas suggested by the Sep 30 engine convars (window scale 2.0); exact CSS mapping, supported UI scales, and clipping still require live verification.
 
 The player name is drawn level (no stock `-4deg` tilt).
 
-The engine renders current HP itself through the native `UnitHealthbarValue` `{d:health}` binding; the renderer no longer parses that text. The supplied tree has no maximum binding, so exact max remains unknown and `hp` format displays current-only until a live exact source is proven. `precisePipsEnabled` remains in the codec for compatibility but has no menu consumer; the old pip string and unverified `gameinfo.gi` instructions are retired.
+The engine renders current HP itself through `UnitHealthbarValue`; Rewrite never parses or writes it. Percent/custom counters and maximum paths have been removed. `precisePipsEnabled` is codec-only; no line-count health inference exists.
 
-Focused VM regressions cover native-label ownership and exact restoration, HP/current and percentage switching, no custom text writes in native mode, percentage, visibility/scope, colors, pulse, caching, and replacement replay.
+Focused VM regressions cover exact native-label ownership/restoration, retired percent/current import, no text access, visibility, colors, pulse, unchanged-fill locale changes, replacement and replay.
 
 ## Milestone 8: health pips, enemy levels, and low-HP effects
 
@@ -224,7 +224,7 @@ A row click loads a preset into Current and publishes it immediately, even when 
 
 Automatic routing, only when a hero is known, chooses the first Selected Heroes (Only These) preset listing the hero, otherwise the first **All Except** preset that does not skip the hero, otherwise the first All Heroes preset, otherwise **Rewrite Default**; "first" is library order. An All Except preset stores its skipped hero keys (catalogue-validated, deduplicated, catalogue order); an empty skip list becomes All Heroes, and skipping every hero is valid but never auto-picked. Unknown heroes never match Selected or All Except, and in Hideout an All Except Current falls back like a Selected Current. Routing preserves edited Current while the resolved preset's stable source ID remains the same (or while a Selected/All Except Current still covers the hero and no Selected preset matches), and publishes only when effective values change. Saved-state envelopes use schema 3 (same embedded object body as schema 2) only when an All Except preset or Current scope exists, otherwise schema 2, so older builds keep saving for everyone else; schemas 1–3 are read, and older builds treat schema 3 as unsupported and never overwrite it.
 
-Hero presets (Only These and All Except) layer on a Base: the first All Heroes preset in library order, otherwise Rewrite Default. Each hero record keeps its full `values` snapshot plus `own`, the setting keys it changes (contract order); applying or routing to it sets Current to the Base with those keys overridden, and ACTIVE/no-op checks compare against that resolved result. Update/Create of a hero preset stores `own` as the keys where Current differs from the Base; older saves and codes without `own` derive it on load/import. When the Base changes (All Heroes update/create, delete, reorder, import), an unedited hero Current refreshes once without an Undo entry; an edited one is left alone. While Current is hero-scoped, Reset Section returns the tab to Base values; the scope help line and the preset feedback say that only changed settings are saved. `HPCRP1` codes carry `own`; a non-array `own` rejects the import.
+Hero presets (Only These and All Except) layer on a Base: the first All Heroes preset in library order, otherwise Rewrite Default. Each hero record keeps its full `values` snapshot plus `own`, the setting keys it changes (contract order); applying or routing to it sets Current to the Base with those keys overridden, and ACTIVE/no-op checks compare against that resolved result. Update/Create of a hero preset stores `own` as the keys where Current differs from the Base; older saves and codes without `own` derive it on load/import. When the Base changes (All Heroes update/create, delete, reorder, import), an unedited hero Current refreshes once without an Undo entry; an edited one is left alone. While Current is hero-scoped, Reset Page returns the tab to Base values; the scope help line and the preset feedback say that only changed settings are saved. `HPCRP1` codes carry `own`; a non-array `own` rejects the import.
 
 ## Milestone 14: preset repository management
 
@@ -246,11 +246,11 @@ The Preset Library lives under its own **PRESETS → LIBRARY** rail entry. A one
 
 HPCRP1 hero lists may arrive in any order and are normalized to catalogue order on import. Unknown IDs, duplicate IDs, and non-string entries reject the entire bundle without changing the repository.
 
-## Milestone 17: confirmed section reset
+## Milestone 17: confirmed page reset
 
-**Reset Section** confirms and resets only the active tab's keys. **General → Master** owns `enabled` and the shared low/high thresholds; those thresholds no longer reset with **Enemy → Bar**. Opening, cancelling, and already-default requests remain inert. Confirming creates one Undo entry and publishes only an effective change.
+**Reset Page** confirms and resets only the active tab's keys. **General → Master** owns `enabled` and the shared low/high thresholds; those thresholds no longer reset with **Enemy → Bar**. Opening, cancelling, and already-default requests remain inert. Confirming creates one Undo entry and publishes only an effective change.
 
-The header reports completion or already-default state through a generation-guarded message. Reset Section stays hidden on Presets → Library while Undo remains visible there; both show on settings pages. Escape and the blocking backdrop preserve dialog precedence.
+The header reports completion or already-default state through a generation-guarded message. Reset Page stays hidden on Presets → Library while Undo remains visible there; both show on settings pages. Escape and the blocking backdrop preserve dialog precedence.
 
 Focused regressions cover captured-tab reset, unrelated-value preservation, one-entry Undo, effective-equal dispatch suppression, keyless Presets, Escape precedence, stale feedback rejection, and footer restoration. Detached tooltips and a grouped two-axis position picker remain intentionally omitted.
 
@@ -274,23 +274,15 @@ The stamina and accessory controls use the versioned `hpv2` extension in HPCRP1 
 
 ## Milestone 20: feedback rendering fixes
 
-The enemy text pulse targets the adopted engine HP/current label or percentage counter according to the active format, and restores the original label's pulse classes and animation duration when ownership changes. Maximum HP remains unavailable. Ally custom pulse color has the same Fixed and Gradient modes as enemy pulse color; Fixed replaces the active bar color and Gradient animates an overlay over the normal ally color. This V2-only mode remains in the `hpv2` extension for HPCRP1 and HPCR2.
+Enemy text pulses target the adopted native label and restore captured pulse classes/duration on release. Ally pulse keeps Fixed/Gradient modes and the existing versioned extension.
 
-Hiding the enemy-player level badge collapses only that out-of-flow badge. The stock `InfoHealthContainer` has no flow to recenter, so Rewrite does not shift the bar, ultimate icon, or readout when levels are hidden. Both readouts use the root-level frame's mirrored stock hidden states; adoption leaves other native info panels in place.
+Hiding the enemy-player level badge collapses only that out-of-flow badge. The stock `InfoHealthContainer` has no flow to recenter, so Rewrite does not shift the bar, ultimate icon, or readout when levels are hidden. Enemy and ally text use the root-level frame's mirrored stock hidden states; adoption leaves other native info panels in place.
 
 Bar and HP-text ranges remain wider than the visible viewport for compatibility. Bar width/height scale the measured primary outer surface around its full X/Y center; runtime never writes engine-owned width/height. Stack, primary, inner, accessory, fill, and marker `actual*` measurements use each panel's per-axis UI scale to get CSS pixels; inline CSS values stay in CSS units. Anchored player indicators preserve their measured gaps only after positive layout dimensions permit original-center capture, including late contexts whose initial bounds were zero. Bar translation uses the candidate native mapping and is never multiplied by scale. Layout Reset writes zero translation explicitly. The existing scan/health pass samples changed outer/inner dimensions and offsets. Production emits no geometry records; the temporary bounded `[HPV2-DIAG]` console probe is only for the current investigation and must be removed before release.
 
 ## Milestone 21: ally HP text
 
-**Ally → HP TEXT** exposes the enemy HP-text controls for ally bars: visibility, format, size, font, Bar Color or Custom Fixed/Gradient low/mid/high colors, team-colored maximum HP, and horizontal/vertical offsets. Ally text is off by default and never changes enemy text. Bar Color follows the ally bar's colors and mode with the shared thresholds. Enemy pulse text modifiers stay enemy-only.
-
-The twelve `allyReadout*` settings remain appended to the versioned `hpv2` extension, and legacy codes without them use defaults. Ally readout is player-only: HP/current adopts the existing engine label into the root-level counter row, while percentage uses the custom counter. Ally text off restores the label's stock parent, inline styles and classes. Max remains unavailable until a live exact source is established. Fill sampling stays on the paint cadence when relation colors or an enabled player readout require it; neither readout path parses or samples the native number.
-
-## Milestone 21: ally HP text
-
-**Ally → HP TEXT** sits alongside the enemy text page and exposes visibility, format, size, font, Bar Color or Custom Fixed/Gradient low/mid/high colors, team-colored maximum HP, and horizontal/vertical offsets. Ally text is off by default and never changes enemy text. Bar Color follows ally bar colors and mode using the shared thresholds; enemy pulse text modifiers stay enemy-only.
-
-The twelve `allyReadout*` settings append to the versioned `hpv2` extension, so older HPCR2 and HPCRP1 codes keep their defaults. Health sampling stays on the paint cadence whenever relation colors or HP text are visible. Ally's default offsets copy the enemy defaults; ally text alignment still needs an in-game check because ally bars have no level badge.
+**Ally → HP TEXT** exposes native-number visibility, size, font, Bar Color or Custom Fixed/Gradient colors. It is off by default and never changes enemy text. Its normal X/Y offsets live on General → Layout; enemy pulse modifiers remain on Enemy → Pulse. Ally off restores the same engine label's stock parent, styles and classes. Extension slot 30 remains reserved for the retired ally format; hidden maximum-team color is inert.
 
 ## Milestone 22: footer SAVE TO PRESET and retired ghoul opacity
 
@@ -361,6 +353,12 @@ Settings, Current scopes, user presets, conditions, and repository metadata save
 Cold boot keeps healthbars stock until saved state is restored. An unreadable, corrupt, or newer-format record pauses saving for that run rather than overwriting data; failed writes retry automatically. The header chip reports LOADING, SAVING, SAVED, SAVE RETRYING, SAVE CLEARED, SAVE TOO LARGE, SAVE UNAVAILABLE, or OLD PRESET VPK. The Preset Library's bottom **SAVED ON THIS PC** strip holds **CLEAR PC SAVE**; confirm it twice to delete only the two v2 keys while keeping current settings. Automatic routing does not recreate a forgotten save; the next deliberate edit does.
 
 The web-builder pak01 seed is retired. HPCR2/HPCRP1 codes remain the sharing and off-PC backup path; clearing Steam's browser cache, reinstalling Steam, or moving PCs loses the local save.
+
+## October 1 native/layout/editor round
+
+UnitStatus is full-canvas, margin-top 0. Noclip InfoHealthContainer inherits the former 100×40 centered reference box at top 65; damage wiggle/transition live there, not on the expanded root. Root-level names/stamina/status/other stock indicators are not rebased twice. The engine draw window remains about 200×210 CSS pixels, not unlimited. F7 cross-boundary inspection remains mandatory; if the compact reference still clips, expand the descendant frame and rebase leaves before release.
+
+Eight legacy movement keys keep raw values, with editor display/input raw×0.1 CSS px. Bar/stamina bounds are ±2000/±2100; ultimate/level bounds are ±3334/±3500 to span the canvas at minimum 60% scale. Native HP/name clamp only in rendering; other parts move freely. New name keys append at extension slots 49–55 (56 slots total), with protocol/save versions unchanged. Normal gated saving removes retired format values/rules/own entries; there is no eager migration or extra storage key. The temporary accessory diagnostic and all of its probes/budget attributes are removed.
 
 ## Remaining limits and live checks
 
