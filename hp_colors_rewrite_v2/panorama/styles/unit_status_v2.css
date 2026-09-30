@@ -1621,7 +1621,7 @@
 	margin-right: 60px;
 }
 
-.WindowRoot #UnitHealthbarLines
+.WindowRoot.HPColorsRewriteBarLines #UnitHealthbarLines
 {
 	height: 100%;
 	margin-top: 0px;
@@ -1629,13 +1629,13 @@
 	overflow: clip;
 }
 
-.WindowRoot #UnitHealthbarLines .line_large.line_large
+.WindowRoot.HPColorsRewriteBarLines #UnitHealthbarLines .line_large.line_large
 {
 	height: 100%;
 	vertical-align: top;
 }
 
-.WindowRoot #UnitHealthbarLines .line_small.line_small
+.WindowRoot.HPColorsRewriteBarLines #UnitHealthbarLines .line_small.line_small
 {
 	height: 8px;
 	vertical-align: bottom;

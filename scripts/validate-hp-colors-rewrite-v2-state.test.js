@@ -944,6 +944,86 @@ test('effective routing is Selected then All then Rewrite Default, with stable e
   assert.equal(baked.view.repository.activeId, 'baked_default');
 });
 
+const addedRetailHeroes = [
+  ['hero_baba', 'Baba'],
+  ['hero_deadpack', 'Deadman Danny'],
+  ['hero_nurse', 'Nurse Harrow'],
+  ['hero_ratking', 'Rat King'],
+  ['hero_chessmaster', 'Solomon'],
+  ['hero_artist', 'Violet'],
+];
+
+test('new retail heroes settle exact names and preserve scoped saves and HPCRP1 transfers', () => {
+  for (const [key, name] of addedRetailHeroes) {
+    const identity = createState();
+    send(identity, 'hero_mode', { mode: 'auto' });
+    send(identity, 'lifecycle_observe', { epoch: 1, phase: 'active' });
+    const first = send(identity, 'hero_observe', { epoch: 1, heroName: name });
+    assert.equal(first.view.identity.status, 'settling', name);
+    assert.equal(first.view.identity.effectiveHeroKey, '');
+    const settled = send(identity, 'hero_observe', { epoch: 1, heroName: name });
+    assert.equal(settled.view.identity.status, 'settled', name);
+    assert.equal(settled.view.identity.effectiveHeroKey, key);
+    assert.equal(settled.view.heroes.find(hero => hero.key === key).name, name);
+    for (const mode of ['selected', 'except']) {
+      const state = createState();
+      assert.equal(send(state, 'scope_set', { mode, heroes: [key] }).status, 'committed');
+      send(state, 'setting_edit', { key: 'enemyLow', value: '#123456' });
+      const saved = send(state, 'preset_save', { name: `${name} ${mode}` });
+      const id = saved.view.repository.selectedId;
+      const reloaded = createState({ sessionRaw: effect(saved, 'session_replace').raw });
+      for (const target of [state, reloaded]) {
+        assert.equal(currentScope(target.read()).mode, mode);
+        assert.deepEqual(currentScope(target.read()).heroes, [key]);
+        assert.equal(row(target.read(), id).mode, mode);
+        assert.deepEqual(row(target.read(), id).heroes, [key]);
+        for (const action of ['preset_copy_selected', 'preset_copy_all']) {
+          const code = effect(send(target, action), 'clipboard_write').text;
+          const imported = createState();
+          assert.equal(send(imported, 'preset_import', { raw: code }).status, 'committed');
+          assert.deepEqual(row(imported.read(), id).heroes, [key]);
+          assert.equal(row(imported.read(), id).mode, mode);
+          assert.equal(effect(send(imported, action), 'clipboard_write').text, code);
+          for (const heroes of [[key, key], [key, 'hero_unknown']]) {
+            const payload = JSON.parse(code.slice(6));
+            payload.records.find(record => record.id === id).heroes = heroes;
+            const before = imported.read();
+            const rejected = send(imported, 'preset_import', { raw: `HPCRP1${JSON.stringify(payload)}` });
+            assert.equal(rejected.code, 'INVALID PRESET HEROES');
+            assert.equal(rejected.status, 'rejected');
+            assert.equal(rejected.view, before);
+            assert.deepEqual(rejected.effects, []);
+          }
+        }
+      }
+    }
+  }
+});
+
+test('roster expansion keeps existing corpus exports byte-identical', () => {
+  const context = { $: {} };
+  vm.runInNewContext(contractSource, context);
+  const oldRosterSource = stateSource.replace(
+    /^\s*\["hero_(?:baba|deadpack|nurse|ratking|chessmaster|artist)", "[^"]+"\],\r?\n/gm,
+    '',
+  );
+  vm.runInNewContext(oldRosterSource, context);
+  const oldFactory = context.$.HPColorsV2StateFactory;
+  for (const [input, importAction, copyAction] of [
+    [wireCorpus.hpcr2.inputCode, 'settings_import', 'settings_copy'],
+    [wireCorpus.hpcrp1.inputCode, 'preset_import', 'preset_copy_all'],
+  ]) {
+    const oldState = oldFactory.create();
+    const expanded = createState();
+    for (const target of [oldState, expanded])
+      assert.equal(send(target, importAction, { raw: input }).status, 'committed');
+    assert.equal(
+      effect(send(expanded, copyAction), 'clipboard_write').text,
+      effect(send(oldState, copyAction), 'clipboard_write').text,
+    );
+  }
+});
+
 test('hero identity settles from two samples and stale lifecycle or hero epochs cannot mutate it', () => {
   const state = createState();
   send(state, 'hero_mode', { mode: 'auto' });
