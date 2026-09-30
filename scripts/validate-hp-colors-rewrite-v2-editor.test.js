@@ -71,6 +71,19 @@ function installLayoutPanels(harness) {
       childReadCounts: harness.childReadCounts,
     }));
   }
+  const native = harness.root.FindChildTraverse('HPColorsNativePicker');
+  if (native) {
+    const hex = native.add(new MockPanel('HexValue'));
+    const dispatch = harness.$.DispatchEvent;
+    harness.$.DispatchEvent = (...args) => {
+      if (args[0] === 'TextEntryChanged' && args[1] === hex) {
+        const rgb = hex.text.replace('#', '').match(/../g).map((byte) => parseInt(byte, 16));
+        if (native.events.CitadelColorPickerColorChanged)
+          native.events.CitadelColorPickerColorChanged(...rgb);
+      }
+      return dispatch(...args);
+    };
+  }
   const shape = harness.root.FindChildTraverse('HPColorsStaminaShape');
   if (shape) for (const option of ['arrow', 'circle', 'box'])
     shape.AddOption(harness.root.FindChildTraverse(option));
@@ -1211,6 +1224,104 @@ test('color picker closes from its backdrop and condition swatches accept clicks
     typeof panel(fixture, 'HPColorsConditionColorSwatch').events.onactivate,
     'function',
   );
+});
+
+function nativeColor(fixture, r, g, b) {
+  panel(fixture, 'HPColorsNativePicker').events.CitadelColorPickerColorChanged(r, g, b);
+}
+
+test('native picker seed is inert, RGB previews live, and each session has one Undo', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  const before = readConfig(fixture).values.enemyLow;
+  const count = configDispatches(fixture).length;
+  panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsNativePicker').FindChildTraverse('HexValue').text, before.slice(1));
+  assert.equal(configDispatches(fixture).length, count);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+  nativeColor(fixture, 16, 32, 48);
+  assert.equal(readConfig(fixture).values.enemyLow, '#102030');
+  nativeColor(fixture, 0, 255, 1);
+  assert.equal(readConfig(fixture).values.enemyLow, '#00FF01');
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
+  nativeColor(fixture, 255, 255, 255);
+  panel(fixture, 'HPColorsPickerBackdrop').events.onactivate();
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, '#00FF01');
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, before);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+});
+
+test('native picker Escape restores opening color without Undo and returns focus', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  const before = readConfig(fixture).values.enemyLow;
+  const swatch = panel(fixture, 'HPColorsEnemyLowSwatch');
+  swatch.events.onactivate();
+  nativeColor(fixture, 1, 2, 3);
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.equal(readConfig(fixture).values.enemyLow, before);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+  assert.equal(swatch.focused, true);
+});
+
+test('native construction failure keeps hex-only picker editing available and logs once', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    const native = harness.root.FindChildTraverse('HPColorsNativePicker');
+    if (native) native.RemoveAndDeleteChildren();
+  } });
+  openEditor(fixture);
+  const swatch = panel(fixture, 'HPColorsEnemyLowSwatch');
+  swatch.events.onactivate();
+  const hex = panel(fixture, 'HPColorsPickerHex');
+  hex.text = '#2468AC';
+  hex.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.enemyLow, '#2468AC');
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  swatch.events.onactivate();
+  assert.equal(fixture.harness.logs.filter((line) => /native color picker/i.test(line)).length, 1);
+});
+
+test('invalid native picker falls back without blocking boot or recording opening as Undo', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    harness.root.FindChildTraverse('HPColorsNativePicker').valid = false;
+  } });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+  const hex = panel(fixture, 'HPColorsPickerHex');
+  hex.text = '#ABCDEF';
+  hex.events.ontextentrysubmit();
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.equal(readConfig(fixture).values.enemyLow, shippedDefaults.enemyLow);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+});
+
+test('native condition picker changes only its draft and Escape restores that draft', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    harness.root.FindChildTraverse('HPColorsEnemyLowRow').AddClass('HPColorsSettingRow');
+    harness.root.FindChildTraverse('HPColorsEnemyLowSwatch')
+      .SetParent(harness.root.FindChildTraverse('HPColorsEnemyLowRow'));
+  } });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCondition_enemyLow').events.onactivate();
+  const before = readConfig(fixture);
+  const draft = panel(fixture, 'HPColorsConditionColorEntry').text;
+  panel(fixture, 'HPColorsConditionColorSwatch').events.onactivate();
+  nativeColor(fixture, 12, 34, 56);
+  assert.equal(panel(fixture, 'HPColorsConditionColorEntry').text, '#0C2238');
+  assert.deepEqual(readConfig(fixture), before);
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.equal(panel(fixture, 'HPColorsConditionColorEntry').text, draft);
+  panel(fixture, 'HPColorsConditionColorSwatch').events.onactivate();
+  nativeColor(fixture, 65, 43, 21);
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsConditionColorEntry').text, '#412B15');
+  assert.deepEqual(readConfig(fixture), before);
+  panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
+  assert.equal(readMenuState(fixture).conditions.enemyLow.value, '#412B15');
 });
 
 test('native 6722 readout retires the pip-derived manual config workflow', () => {
@@ -3502,7 +3613,7 @@ test('all readout sliders preserve the stock zero and physical canvas windows in
 });
 
 
-test('Units pages expose independent gates, neutral HSL/hex, and scoped reset/Undo', () => {
+test('Units pages expose independent gates, neutral native/hex, and scoped reset/Undo', () => {
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
   openEditor(fixture);
   panel(fixture, 'HPColorsCategoryUnits').events.onactivate();
@@ -3534,9 +3645,7 @@ test('Units pages expose independent gates, neutral HSL/hex, and scoped reset/Un
 
   panel(fixture, 'HPColorsNeutralColorSwatch').events.onactivate();
   assert.equal(panel(fixture, 'HPColorsPickerRoot').BHasClass('Open'), true);
-  const hue = panel(fixture, 'HPColorsPickerHueSlider');
-  hue.value = (hue.value + 30) % 360;
-  hue.events.onvaluechanged();
+  nativeColor(fixture, 32, 64, 96);
   assert.notEqual(readConfig(fixture).values.neutralColor, '#5BEFB5');
   panel(fixture, 'HPColorsPickerDone').events.onactivate();
   const neutralHex = panel(fixture, 'HPColorsNeutralColorHex');

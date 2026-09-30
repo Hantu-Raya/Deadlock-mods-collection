@@ -649,8 +649,8 @@ Slider.HPColorsSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsPickerPanel {
-  width: 340px;
-  height: 380px;
+  width: 440px;
+  height: fit-children;
   padding: 18px 20px;
   horizontal-align: center;
   vertical-align: center;
@@ -681,85 +681,9 @@ Slider.HPColorsSlider.HorizontalSlider #SliderThumb {
 }
 
 
-.HPColorsPickerSliderRow {
-  width: 100%;
-  height: 60px;
-  flow-children: right;
-  border-bottom: 1px solid #ffefd70d;
-}
-
-.HPColorsPickerSliderName,
-.HPColorsPickerSliderValue {
-  vertical-align: center;
-  font-family: oracle;
-  font-size: 12px;
-  font-weight: bold;
-  color: #ffefd799;
-}
-
-.HPColorsPickerSliderName {
-  width: 82px;
-  letter-spacing: 1px;
-}
-
-.HPColorsPickerSliderValue {
-  width: 48px;
-  text-align: right;
-  color: #ffefd7;
-}
-
-.HPColorsPickerSliderHost {
-  width: 170px;
-  height: 30px;
-  vertical-align: center;
-  overflow: noclip;
-}
-
-.HPColorsPickerSlider {
-  width: 100%;
-  height: 16px;
-  vertical-align: center;
-  overflow: noclip;
-}
-
-.HPColorsPickerSlider.HorizontalSlider #SliderTrack {
-  width: 100%;
-  height: 8px;
-  padding: 0px;
-  vertical-align: center;
-  background-color: #303532;
-  border: 1px solid #ffefd71f;
-  border-radius: 999px;
-}
-
-
-.HPColorsPickerSlider.HorizontalSlider #SliderTrackProgress {
-  height: 8px;
-  vertical-align: center;
-  background-color: #00000000;
-  box-shadow: none;
-}
-
-.HPColorsPickerSlider.HorizontalSlider .SliderThumb,
-Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
-  width: 15px;
-  height: 15px;
-  vertical-align: center;
-  background-color: #ffefd7;
-  border: 2px solid #10130d;
-  border-radius: 2px;
-  box-shadow: fill #000000cc 0px 0px 5px 0px;
-  transform: rotateZ(45deg);
-  transition-property: border, box-shadow, pre-transform-scale2d, background-color;
-  transition-duration: 0.1s;
-}
-
-.HPColorsPickerSlider.HorizontalSlider:hover .SliderThumb,
-.HPColorsPickerSlider.HorizontalSlider:focus .SliderThumb,
-.HPColorsPickerSlider.HorizontalSlider:active .SliderThumb {
-  border: 2px solid #5fe69e;
-  box-shadow: fill #5fe69eb3 0px 0px 8px 0px;
-  pre-transform-scale2d: 1.18;
+.HPColorsNativePicker {
+  horizontal-align: center;
+  margin-top: 12px;
 }
 
 .HPColorsPickerHelp {
