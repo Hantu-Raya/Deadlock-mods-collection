@@ -534,7 +534,14 @@
     for (index = 0; index < keys.length; index++) {
       var key = keys[index];
       if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) continue;
-      if (normalized[key] !== CODEC_DEFAULTS[key])
+      if (
+        normalized[key] !== CODEC_DEFAULTS[key] ||
+        (key === "staminaShape" &&
+          normalized[key] === "arrow" &&
+          (normalized.staminaWidth !== 110 ||
+            normalized.staminaHeight !== 44.8 ||
+            normalized.enemyStaminaColorEnabled))
+      )
         pairs.push([index, normalized[key]]);
     }
     return pairs;

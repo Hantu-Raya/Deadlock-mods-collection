@@ -270,8 +270,8 @@ function addLiveHealthbar(healthbars, harness, currentText = '300', fillWidth = 
     classes: ['UnitHealthbarContainer'],
     actuallayoutwidth: 76,
     actuallayoutheight: 18,
-    actualxoffset: 12,
-    actualyoffset: 11,
+    actualxoffset: 62,
+    actualyoffset: 65,
     style: {
       width: stockStyles ? stockStyles.width : '',
       maxWidth: stockStyles ? stockStyles.maxWidth : '',
@@ -634,8 +634,8 @@ function makeStatusFixture(
     operationCounts: harness.operationCounts,
   }));
   const unitStatus = windowRoot.add(new MockPanel('UnitStatus', {
-    actuallayoutwidth: 100,
-    actuallayoutheight: 40,
+    actuallayoutwidth: 200,
+    actuallayoutheight: 210,
     style: { transform: barStockStyles ? barStockStyles.unitStatusTransform : '' },
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
@@ -708,8 +708,8 @@ function makeStatusFixture(
     operationCounts: harness.operationCounts,
   }));
   const infoHealth = unitStatus.add(new MockPanel('InfoHealthContainer', {
-    actuallayoutwidth: 100,
-    actuallayoutheight: 40,
+    actuallayoutwidth: 200,
+    actuallayoutheight: 210,
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -717,11 +717,11 @@ function makeStatusFixture(
     classes: ['NP_playerlevel_container'],
     actuallayoutwidth: 21,
     actuallayoutheight: 21,
-    // CSS left margin and centered -14px top margin in the native 100x40 box.
-    actualxoffset: -23,
-    actualyoffset: 2.5,
+    // Rebasing keeps the original compact leaf at its stock world coordinate.
+    actualxoffset: 27,
+    actualyoffset: 67.5,
     style: { marginLeft: '', marginTop: '', visibility: 'collapse',
-      verticalAlign: 'middle', horizontalAlign: 'left',
+      verticalAlign: 'top', horizontalAlign: 'left',
       ...fixtureOptions.levelStyle },
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
@@ -734,8 +734,8 @@ function makeStatusFixture(
     operationCounts: harness.operationCounts,
   }));
   const healthbars = infoHealth.add(new MockPanel('UnitHealthbarsContainer', {
-    actuallayoutwidth: 100,
-    actuallayoutheight: 40,
+    actuallayoutwidth: 200,
+    actuallayoutheight: 210,
     actualxoffset: 0,
     actualyoffset: 0,
     findCounts: harness.findCounts,
@@ -746,15 +746,16 @@ function makeStatusFixture(
     ? { primary: null, inner: null, fill: null, pulseOverlay: null, lines: null,
       killMarker: null, bulletShield: null, deferred: null, healing: null, armor: null, delta: null }
     : addLiveHealthbar(healthbars, harness, currentText, fixtureOptions.fillWidth ?? 34.5, barStockStyles);
+  if (liveBar.primary && isPlayer) liveBar.primary.actualxoffset = 70.5;
   if (liveBar.fill && fixtureOptions.fillStyle)
     Object.assign(liveBar.fill.style, fixtureOptions.fillStyle);
   const unitInfo = infoHealth.add(new MockPanel('unit_info_panel', {
     classes: ['unit_info_panel'],
     actuallayoutwidth: 22,
     actuallayoutheight: 22,
-    actualxoffset: 0,
-    actualyoffset: 2,
-    style: { marginLeft: '', marginTop: '', verticalAlign: 'middle', horizontalAlign: 'left' },
+    actualxoffset: 50,
+    actualyoffset: 67,
+    style: { marginLeft: '', marginTop: '', verticalAlign: 'top', horizontalAlign: 'left' },
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -1024,9 +1025,9 @@ test('v2 releases player classes, readouts, markers, stamina and margins when ki
     assert.equal(fixture.killMarker.style.visibility, 'collapse');
     assert.equal(fixture.staminaContainer.BHasClass('HPColorsRewriteStaminaOwned'), false);
     assert.equal(fixture.staminaIcons[0].style.width, '');
-    assert.equal(fixture.levelContainer.style.marginLeft, '');
-    assert.equal(fixture.unitInfo.style.marginLeft, '');
-    assert.equal(fixture.unitInfo.style.marginTop, '');
+    assert.equal(fixture.levelContainer.style.marginLeft, '27px');
+    assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+    assert.equal(fixture.unitInfo.style.marginTop, '67px');
   }
 });
 
@@ -1533,7 +1534,7 @@ test('v2 restores all owned styles before dropping the primary lineage', () => {
   );
   assert.equal(fixture.fill.style.washColor, '#123456');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '1.6, 1.4');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '54.25% 35.24%');
   assert.equal(
     fixture.healthbars.style.transform,
     'translateX(8px) translateY(4px)',
@@ -1557,7 +1558,7 @@ test('v2 restores all owned styles before dropping the primary lineage', () => {
 
   assert.equal(fixture.fill.style.washColor, '#FD4949');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
-  assert.equal(fixture.healthbars.style.transformOrigin, '');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% ' + String(8500 / 210) + '%');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbar.style.height, stock.height);
   assert.equal(fixture.healthbar.style.transform, stock.transform);
@@ -1615,14 +1616,14 @@ test('v2 scales the measured native stack around the primary outer center', () =
     enabled: true, enemyColor: '#123456',
     widthScale: 230, heightScale: 160, positionX: 300, positionY: 200,
   });
-  assert.equal(fixture.unitStatus.actuallayoutwidth, 100);
-  assert.equal(fixture.unitStatus.actuallayoutheight, 40);
+  assert.equal(fixture.unitStatus.actuallayoutwidth, 200);
+  assert.equal(fixture.unitStatus.actuallayoutheight, 210);
   assert.equal(fixture.healthbar.actuallayoutwidth, 76);
   assert.equal(fixture.healthbar.actuallayoutheight, 18);
   assert.equal(fixture.inner.actuallayoutwidth, 69);
   assert.equal(fixture.inner.actuallayoutheight, 12);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.3, 1.6');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '54.25% 35.24%');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [30, 20]);
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
   assert.equal(fixture.healthbar.style.transformOrigin, '');
@@ -1636,7 +1637,7 @@ test('v2 scales the measured native stack around the primary outer center', () =
   fixture.healthbar.actuallayoutwidth = 60;
   fixture.healthbar.actuallayoutheight = 12;
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.healthbars.style.transformOrigin, '35% 12.5%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '17.5% 12.5%');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.3, 1.6');
 });
 
@@ -1738,25 +1739,25 @@ test('v2 full-canvas readout frame grows left from the stock label edge and leve
     'margin-left: 0px', 'padding: 4px'])
     assert.ok(row.includes(property), `row ${property}`);
   const level = cssBlock(css, '.WindowRoot #LevelContainer.NP_playerlevel_container');
-  assert.match(level, /margin-left:\s*-23px/);
-  assert.match(level, /margin-top:\s*-14px/);
+  assert.match(level, /margin-left:\s*27px/);
+  assert.match(level, /margin-top:\s*67\.5px/);
   assert.match(cssBlock(css, '.WindowRoot #UnitStatus'), /overflow:\s*noclip/);
   const fixture = makeStatusFixture('enemy', {});
-  for (const panel of [fixture.levelContainer, fixture.unitInfo]) {
-    assert.equal(panel.style.marginLeft, '');
-    assert.equal(panel.style.marginTop, '');
-  }
+  assert.equal(fixture.levelContainer.style.marginLeft, '27px');
+  assert.equal(fixture.levelContainer.style.marginTop, '67.5px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+  assert.equal(fixture.unitInfo.style.marginTop, '67px');
   assert.ok(fixture.levelContainer.actualxoffset + fixture.levelContainer.actuallayoutwidth
     < fixture.unitInfo.actualxoffset, 'CSS baseline places the badge left of the ult');
   assert.equal(fixture.levelContainer.actualyoffset + fixture.levelContainer.actuallayoutheight / 2,
     fixture.unitInfo.actualyoffset + fixture.unitInfo.actuallayoutheight / 2);
   assert.match(cssBlock(css, '.unit_info_panel'), /margin-top:\s*-14px/);
   dispatchColorSnapshot(fixture, 2, { levelOffsetX: 100, levelOffsetY: 100 });
-  assert.equal(fixture.levelContainer.style.marginLeft, '-13px');
-  assert.equal(fixture.levelContainer.style.marginTop, '6px');
+  assert.equal(fixture.levelContainer.style.marginLeft, '37px');
+  assert.equal(fixture.levelContainer.style.marginTop, '77.5px');
   dispatchColorSnapshot(fixture, 3, {});
-  assert.equal(fixture.levelContainer.style.marginLeft, '');
-  assert.equal(fixture.levelContainer.style.marginTop, '');
+  assert.equal(fixture.levelContainer.style.marginLeft, '27px');
+  assert.equal(fixture.levelContainer.style.marginTop, '67.5px');
 });
 
 test('v2 overview layout reset applies immediately without changing engine geometry', () => {
@@ -1775,14 +1776,14 @@ test('v2 overview layout reset applies immediately without changing engine geome
   });
   assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
-  assert.equal(fixture.healthbars.style.transformOrigin, '');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% ' + String(8500 / 210) + '%');
   for (const property of ['width', 'maxWidth', 'height', 'transform'])
     assert.equal(fixture.healthbar.style[property], stock[property]);
   assert.equal(fixture.unitStatus.style.transform, stock.unitStatusTransform);
-  assert.equal(fixture.levelContainer.style.marginLeft, '');
-  assert.equal(fixture.levelContainer.style.marginTop, '');
-  assert.equal(fixture.unitInfo.style.marginLeft, '');
-  assert.equal(fixture.unitInfo.style.marginTop, '');
+  assert.equal(fixture.levelContainer.style.marginLeft, '27px');
+  assert.equal(fixture.levelContainer.style.marginTop, '67.5px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+  assert.equal(fixture.unitInfo.style.marginTop, '67px');
 });
 
 test('v2 late optional panel discovery cannot contaminate the stock layout baseline', () => {
@@ -1801,12 +1802,12 @@ test('v2 late optional panel discovery cannot contaminate the stock layout basel
   });
   assert.equal(replacement.style.washColor, fixture.fill.style.washColor);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
-  assert.equal(fixture.healthbars.style.transformOrigin, '');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% ' + String(8500 / 210) + '%');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
-  assert.equal(fixture.unitInfo.style.marginTop, '');
+  assert.equal(fixture.unitInfo.style.marginTop, '67px');
   dispatchColorSnapshot(fixture, 3, { enabled: false });
-  assert.equal(fixture.unitInfo.style.marginLeft, '');
-  assert.equal(fixture.unitInfo.style.marginTop, '');
+  assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+  assert.equal(fixture.unitInfo.style.marginTop, '67px');
 });
 
 test('v2 layout reset survives an incomplete required-part refresh', () => {
@@ -1825,7 +1826,7 @@ test('v2 layout reset survives an incomplete required-part refresh', () => {
   fixture.harness.scheduler.runByDelay(1);
   assert.match(replacement.style.washColor, /^#[0-9a-f]{6}$/i);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
-  assert.equal(fixture.healthbars.style.transformOrigin, '');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% ' + String(8500 / 210) + '%');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
   assert.equal(fixture.healthbar.style.height, '');
@@ -1845,7 +1846,7 @@ test('v2 scan repairs custom scale without touching engine-owned width or clippi
   assert.equal(fixture.healthbar.style.width, '72px');
   assert.equal(fixture.healthbar.style.maxWidth, '80px');
   assert.equal(fixture.healthbars.style.preTransformScale2d, '2.3, 1');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '54.25% 35.24%');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [30, 20]);
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
   assert.equal(fixture.healthbar.style.transform, '');
@@ -1874,7 +1875,7 @@ test('v2 preset apply updates layout and ally visibility on existing panels', ()
   dispatchColorSnapshot(enemy, 2, { widthScale: 230, positionX: 300 });
   assert.deepEqual(translation(enemy.healthbars.style.transform), [30, 0]);
   assert.equal(enemy.healthbars.style.preTransformScale2d, '2.3, 1');
-  assert.equal(enemy.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(enemy.healthbars.style.transformOrigin, '54.25% 35.24%');
   assert.equal(enemy.healthbar.style.width, '');
   assert.equal(enemy.healthbar.style.maxWidth, '');
   assert.equal(enemy.healthbar.style.preTransformScale2d, '');
@@ -1887,23 +1888,23 @@ test('v2 preset apply updates layout and ally visibility on existing panels', ()
 test('v2 measured indicator gaps follow changing native widths and restore on bypass', () => {
   const fixture = makeStatusFixture('enemy', { widthScale: 230 });
   // Scaling the 76px primary by 2.3 moves its left edge by -49.4px.
-  assert.equal(fixture.levelContainer.style.marginLeft, '-72.4px');
-  assert.equal(fixture.unitInfo.style.marginLeft, '-49.4px');
-  assert.equal(fixture.levelContainer.style.marginTop, '');
-  assert.equal(fixture.unitInfo.style.marginTop, '');
+  assert.equal(fixture.levelContainer.style.marginLeft, '-22.4px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '0.6px');
+  assert.equal(fixture.levelContainer.style.marginTop, '67.5px');
+  assert.equal(fixture.unitInfo.style.marginTop, '67px');
   fixture.healthbar.actuallayoutwidth = 60;
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(fixture.healthbars.style.transformOrigin, '42% 50%');
-  assert.equal(fixture.levelContainer.style.marginLeft, '-62px');
-  assert.equal(fixture.unitInfo.style.marginLeft, '-39px');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50.25% 35.24%');
+  assert.equal(fixture.levelContainer.style.marginLeft, '-12px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '11px');
   dispatchColorSnapshot(fixture, 2, { widthScale: 100 });
-  assert.equal(fixture.levelContainer.style.marginLeft, '');
-  assert.equal(fixture.unitInfo.style.marginLeft, '');
+  assert.equal(fixture.levelContainer.style.marginLeft, '27px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '50px');
   dispatchColorSnapshot(fixture, 3, { enabled: false });
-  assert.equal(fixture.levelContainer.style.marginLeft, '');
-  assert.equal(fixture.levelContainer.style.marginTop, '');
-  assert.equal(fixture.unitInfo.style.marginLeft, '');
-  assert.equal(fixture.unitInfo.style.marginTop, '');
+  assert.equal(fixture.levelContainer.style.marginLeft, '27px');
+  assert.equal(fixture.levelContainer.style.marginTop, '67.5px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+  assert.equal(fixture.unitInfo.style.marginTop, '67px');
 });
 
 test('ally and enemy icons follow native translation without scaling the offset', () => {
@@ -1942,35 +1943,35 @@ test('layout reset writes zero translation before another native layout update',
 test('indicator centers preserve measured vertical gaps and mapped anchored offsets', () => {
   const fixture = makeStatusFixture('enemy', {});
   dispatchColorSnapshot(fixture, 2, { heightScale: 160, positionY: 200 });
-  assert.equal(fixture.levelContainer.style.marginTop, '17.6px');
-  assert.equal(fixture.unitInfo.style.marginTop, '17.6px');
+  assert.equal(fixture.levelContainer.style.marginTop, '89.9px');
+  assert.equal(fixture.unitInfo.style.marginTop, '89.4px');
   dispatchColorSnapshot(fixture, 3, { heightScale: 60, positionY: -200 });
-  assert.equal(fixture.levelContainer.style.marginTop, '-48.4px');
-  assert.equal(fixture.unitInfo.style.marginTop, '-48.4px');
+  assert.equal(fixture.levelContainer.style.marginTop, '45.9px');
+  assert.equal(fixture.unitInfo.style.marginTop, '45.4px');
   dispatchColorSnapshot(fixture, 4, {
     accessoryAnchorEnabled: false, widthScale: 230, heightScale: 100,
     positionX: 80, positionY: 30, levelOffsetX: -63, ultOffsetX: 245,
     levelOffsetY: 30, ultOffsetY: -20,
   });
-  assert.equal(fixture.levelContainer.style.marginLeft, '-86.89px');
-  assert.equal(fixture.unitInfo.style.marginLeft, '6.95px');
-  assert.equal(fixture.levelContainer.style.marginTop, '-8px');
-  assert.equal(fixture.unitInfo.style.marginTop, '-18px');
+  assert.equal(fixture.levelContainer.style.marginLeft, '-36.89px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '56.95px');
+  assert.equal(fixture.levelContainer.style.marginTop, '70.5px');
+  assert.equal(fixture.unitInfo.style.marginTop, '65px');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [8, 3]);
   dispatchColorSnapshot(fixture, 5, {
     accessoryAnchorEnabled: false, widthScale: 60,
     levelOffsetX: -63, ultOffsetX: 245,
   });
-  assert.equal(fixture.levelContainer.style.marginLeft, '-11.58px');
-  assert.equal(fixture.unitInfo.style.marginLeft, '29.9px');
+  assert.equal(fixture.levelContainer.style.marginLeft, '38.42px');
+  assert.equal(fixture.unitInfo.style.marginLeft, '79.9px');
 });
 
 test('indicator geometry stays aligned at maximum native scale and negative offset', () => {
   const fixture = makeStatusFixture('enemy', {
     widthScale: 230, heightScale: 160, positionX: -200, positionY: -200,
   });
-  assert.equal(fixture.levelContainer.style.marginTop, '-62.4px');
-  assert.equal(fixture.unitInfo.style.marginTop, '-62.4px');
+  assert.equal(fixture.levelContainer.style.marginTop, '49.9px');
+  assert.equal(fixture.unitInfo.style.marginTop, '49.4px');
 });
 
 test('v2 damage transitions never write engine layer dimensions or old health sampling logs', () => {
@@ -2136,7 +2137,7 @@ test('v2 clears ultimate background opacity when customization turns off', () =>
   assert.equal(fixture.infoBg.style.opacity, '0.01');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '1.6, 1');
-  assert.equal(fixture.healthbars.style.transformOrigin, '50% 50%');
+  assert.equal(fixture.healthbars.style.transformOrigin, '54.25% 35.24%');
   assert.equal(fixture.healthbar.style.width, '');
   assert.equal(fixture.healthbar.style.maxWidth, '');
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
@@ -2146,7 +2147,7 @@ test('v2 clears ultimate background opacity when customization turns off', () =>
   assert.equal(fixture.infoBg.style.opacity, '');
   assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
   assert.equal(fixture.healthbars.style.preTransformScale2d, '');
-  assert.equal(fixture.healthbars.style.transformOrigin, '');
+  assert.equal(fixture.healthbars.style.transformOrigin, '50% ' + String(8500 / 210) + '%');
   assert.equal(fixture.healthbar.style.width, '');
   assert.equal(fixture.healthbar.style.maxWidth, '');
   assert.equal(fixture.healthbar.style.preTransformScale2d, '');
@@ -2444,10 +2445,27 @@ test('round full canvas stock info origin and contained health lines marker', ()
   assert.match(status, /height:\s*100%/);
   assert.match(status, /margin-top:\s*0px/);
   const info = cssBlock(css, '.WindowRoot #InfoHealthContainer');
-  assert.match(info, /width:\s*100px/);
-  assert.match(info, /height:\s*40px/);
-  assert.match(info, /margin-top:\s*65px/);
+  assert.match(info, /width:\s*100%/);
+  assert.match(info, /height:\s*100%/);
+  assert.match(info, /margin-top:\s*0px/);
   assert.match(info, /overflow:\s*noclip/);
+  assert.match(info, /horizontal-align:\s*center/);
+  assert.match(info, /vertical-align:\s*top/);
+  const stack = cssBlock(css, '.WindowRoot #UnitHealthbarsContainer');
+  assert.match(stack, /width:\s*100%/);
+  assert.match(stack, /height:\s*100%/);
+  assert.match(stack, /overflow:\s*noclip/);
+  for (const selector of ['.WindowRoot', '.WindowRoot #UnitStatus',
+    '.WindowRoot #InfoHealthContainer', '.WindowRoot #UnitHealthbarsContainer'])
+    assert.match(cssBlock(css, selector), /overflow:\s*noclip/, selector);
+  assert.match(cssBlock(css, '.WindowRoot #UnitHealthbar'), /margin-top:\s*65px/);
+  const compactBar = cssBlock(css, '.UnitHealthbarContainer');
+  assert.match(compactBar, /width:\s*76px/);
+  assert.match(compactBar, /height:\s*18px/);
+  assert.match(cssBlock(css, '.WindowRoot .unit_info_panel'), /horizontal-align:\s*left/);
+  assert.match(cssBlock(css, '.WindowRoot .unit_info_panel'), /vertical-align:\s*top/);
+  assert.match(cssBlock(css, '.WindowRoot .unit_info_panel'), /margin-left:\s*50px/);
+  assert.match(cssBlock(css, '.WindowRoot .unit_info_panel'), /margin-top:\s*67px/);
   const lines = cssBlock(css, '.WindowRoot #UnitHealthbarLines');
   assert.match(lines, /height:\s*100%/);
   assert.match(lines, /margin-top:\s*0px/);

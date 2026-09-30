@@ -74,7 +74,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 56);
+  assert.equal(contract.extensionKeys.length, 62);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -183,13 +183,14 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   const settingsPayload = JSON.parse(settingsCode.slice(5));
   assert.deepEqual(Object.keys(settingsPayload).sort(), ['c', 'hpv2', 'v']);
   assert.equal(settingsPayload.v.some(([index]) => index >= 72), false);
-  assert.deepEqual(settingsPayload.hpv2.values.slice(-6), [
+  assert.deepEqual(settingsPayload.hpv2.values.slice(-7), [
     [41, true],
     [42, true],
     [43, true],
     [44, true],
     [45, true],
     [46, '#2468AC'],
+    [61, 'arrow'],
   ]);
   assert.deepEqual(settingsPayload.hpv2.conditions, {
     staminaWidth: { slot: 4, minTier: 3, value: 180 },
@@ -235,6 +236,7 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
       [44, true],
       [45, true],
       [46, '#2468AC'],
+      [61, 'arrow'],
     ],
     conditions: {
       staminaWidth: { slot: 4, minTier: 3, value: 180 },
@@ -247,6 +249,7 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   send(destination, 'preset_apply', { id: presetPayload.records[0].id });
   assert.equal(destination.read().effectiveValues.staminaWidth, 150);
   assert.equal(destination.read().effectiveValues.enemyStaminaColor, '#123456');
+  assert.equal(destination.read().effectiveValues.staminaShape, 'arrow');
   assert.equal(
     destination.read().effectiveValues.allyPulseColorMode,
     'gradient',
@@ -337,7 +340,11 @@ test('round native format retirement preserves slots and appends independent nam
   const { contract, state } = bootState();
   assert.equal(contract.codecKeys[29], 'readoutFormat');
   assert.equal(contract.extensionKeys[30], 'allyReadoutFormat');
-  assert.equal(contract.extensionKeys.length, 56);
+  assert.equal(contract.extensionKeys.length, 62);
+  assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
+    'enemyPipColorEnabled', 'enemyPipColor',
+    'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
+  ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
   const imported = send(state, 'settings_import', { raw: 'HPCR2' + JSON.stringify({
@@ -386,4 +393,28 @@ test('round name settings and raw geometry survive both codecs; retired rules dr
   bundle.records[0].hpv2.conditions.unknownSetting = { slot: 1, minTier: 1, value: true };
   assert.equal(send(destination, 'preset_import', { raw: 'HPCRP1' + JSON.stringify(bundle) }).outcome.status, 'rejected');
   assert.deepEqual(plain(destination.read().values), before.values);
+});
+
+test('follow-up pip colors and stamina shape append six typed extension slots', () => {
+  const { contract } = bootState();
+  const defaults = {
+    enemyPipColorEnabled: false, enemyPipColor: '#500202',
+    allyPipColorEnabled: false, allyPipColor: '#042517',
+    pipOpacity: 60, staminaShape: 'arrow',
+  };
+  assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
+  for (const [key, value] of Object.entries(defaults)) {
+    assert.equal(contract.defaults[key], value, key);
+    assert.equal(contract.codecDefaults[key], value, key);
+    assert.equal(contract.settingMeta[key].conditionEligible, true, key);
+  }
+  assert.deepEqual(plain(contract.enumOptions.staminaShape), ['arrow', 'circle', 'box']);
+  assert.equal(contract.validateSettingValue('staminaShape', 'triangle'), false);
+  assert.equal(contract.normalizeValues({ pipOpacity: -1 }).pipOpacity, 0);
+  assert.equal(contract.normalizeValues({ pipOpacity: 101 }).pipOpacity, 100);
+  for (const prefix of ['enemy', 'ally']) {
+    assert.equal(contract.booleanKeys[prefix + 'PipColorEnabled'], true);
+    assert.equal(contract.colorKeys[prefix + 'PipColor'], true);
+    assert.equal(contract.normalizeValues({ [prefix + 'PipColor']: 'aabbcc' })[prefix + 'PipColor'], '#AABBCC');
+  }
 });

@@ -2167,27 +2167,13 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   visibility: collapse;
 }
 
-.HPColorsSettingsPage .HPColorsAdvancedRow {
+.HPColorsSettingsPage .FeatureOff {
   visibility: collapse;
 }
 
-.HPColorsSettingsPage.AdvancedOpen .HPColorsAdvancedRow {
-  visibility: visible;
-}
-
-.HPColorsSettingsPage .FeatureOff,
-.HPColorsSettingsPage.AdvancedOpen .HPColorsAdvancedRow.FeatureOff {
-  visibility: collapse;
-}
-
-.HPColorsAdvancedToggle {
-  margin-top: 12px;
-  margin-bottom: 8px;
-}
-
-.HPColorsGroupRow {
-  border-top: 1px solid #ffefd722;
-  margin-top: 8px;
+.HPColorsStaminaShape {
+  width: 240px;
+  vertical-align: center;
 }
 
 .HPColorsNativeFormatNotice {

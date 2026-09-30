@@ -1596,7 +1596,11 @@ test('HPCRP1 accepts builder hero order and retains strict atomic hero validatio
       .map(([index, value]) => [index, CONTRACT.normalizeValues({ [CODEC_KEYS[index]]: value })[CODEC_KEYS[index]]]);
     assert.deepEqual(result.values, canonicalValues);
     assert.deepEqual(result.conditions, source.conditions);
-    assert.deepEqual(result.hpv2, source.hpv2);
+    assert.equal(row(imported.view, source.id).values.staminaShape, 'box');
+    assert.deepEqual(result.hpv2, {
+      ...source.hpv2,
+      values: [...source.hpv2.values, [61, 'box']],
+    });
   }
   for (const heroes of [
     ['hero_hornet', 'not_a_hero'], ['hero_hornet', 'hero_hornet'],
@@ -3089,4 +3093,93 @@ test('Appearance defaults hydrate older snapshots and scope/ability overrides re
   send(state, 'scope_set', { mode: 'off', heroes: [] });
   for (const key of keys) assert.equal(state.read().effectiveValues[key], true);
   assert.equal(state.read().effectiveValues.widthScale, 123);
+});
+
+test('stamina shape migration and explicit arrows survive settings/preset and session round trips', () => {
+  for (const [values, expected] of [
+    [{}, 'arrow'], [{ staminaWidth: 150 }, 'box'], [{ staminaHeight: 60 }, 'box'],
+    [{ enemyStaminaColorEnabled: true }, 'box'], [{ staminaOffsetX: 20 }, 'arrow'],
+    [{ staminaWidth: 150, staminaShape: 'arrow' }, 'arrow'],
+  ]) {
+    assert.equal(createState({ sessionRaw: makeSession({ values }) }).read().values.staminaShape, expected);
+  }
+  const oldCode = createState();
+  send(oldCode, 'settings_import', { raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[[0,150]],"conditions":{}}}' });
+  assert.equal(oldCode.read().values.staminaShape, 'box');
+  for (const shape of ['arrow', 'circle', 'box']) {
+    const state = createState();
+    send(state, 'setting_edit', { key: 'staminaWidth', value: 150 });
+    send(state, 'setting_edit', { key: 'staminaShape', value: shape });
+    send(state, 'setting_edit', { key: 'enemyPipColorEnabled', value: true });
+    send(state, 'setting_edit', { key: 'enemyPipColor', value: '#123456' });
+    send(state, 'setting_edit', { key: 'pipOpacity', value: 42 });
+    const copied = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+    const restored = createState();
+    send(restored, 'settings_import', { raw: copied });
+    assert.equal(restored.read().values.staminaShape, shape);
+    assert.equal(restored.read().values.enemyPipColor, '#123456');
+    assert.equal(restored.read().values.pipOpacity, 42);
+    send(state, 'preset_save', { name: 'Shape ' + shape });
+    const presetCode = effect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+    send(restored, 'preset_import', { raw: presetCode });
+    assert.equal(row(restored.read(), 'user_0001').values.staminaShape, shape);
+  }
+});
+
+test('legacy presets and hero scopes derive stamina shape once without changing unrelated values', () => {
+  const state = createState(makeSession({
+    values: { enemyLow: '#112233', staminaOffsetX: 20 },
+    scopes: [{
+      id: 'scope_current', mode: 'selected', heroes: ['hero_shiv'],
+      values: { staminaHeight: 60, allyHigh: '#ABCDEF' },
+    }],
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Custom stamina', values: { enemyStaminaColorEnabled: true } }),
+      rawPreset({ id: 'user_0002', name: 'Stock stamina', values: { staminaOffsetY: 15 } }),
+    ],
+  }));
+  assert.equal(state.read().values.staminaShape, 'arrow');
+  assert.equal(state.read().values.enemyLow, '#112233');
+  assert.equal(currentScope(state.read()).values.staminaShape, 'box');
+  assert.equal(currentScope(state.read()).values.allyHigh, '#ABCDEF');
+  assert.equal(row(state.read(), 'user_0001').values.staminaShape, 'box');
+  assert.equal(row(state.read(), 'user_0002').values.staminaShape, 'arrow');
+  const imported = createState();
+  const result = send(imported, 'preset_import', { raw: 'HPCRP1' + JSON.stringify({
+    records: [{
+      id: 'user_0001', kind: 'user', name: 'Old boxes', mode: 'all', heroes: [],
+      values: [], conditions: null,
+      hpv2: { v: 1, values: [[1, 60]], conditions: {} },
+    }],
+    selectedPresetId: 'user_0001',
+  }) });
+  assert.equal(result.status, 'committed');
+  assert.equal(row(imported.read(), 'user_0001').values.staminaShape, 'box');
+});
+
+test('new pip and shape keys support Current scope, ability conditions, transfer and Undo', () => {
+  const state = createState();
+  send(state, 'scope_set', { mode: 'selected', heroes: ['hero_shiv'] });
+  for (const [key, value] of [
+    ['enemyPipColorEnabled', true], ['enemyPipColor', '#123456'],
+    ['allyPipColorEnabled', true], ['allyPipColor', '#ABCDEF'],
+    ['pipOpacity', 42], ['staminaShape', 'circle'],
+  ]) {
+    const changed = send(state, 'setting_edit', { key, value });
+    assert.equal(changed.status, 'committed', key);
+    assert.equal(currentScope(changed.view).values[key], value);
+    assert.equal(changed.view.values[key], DEFAULTS[key], 'Base unchanged');
+    const conditioned = send(state, 'condition_set', { key, slot: 1, minTier: 1, value });
+    assert.equal(conditioned.status, 'committed', key);
+    assert.deepEqual(currentScope(conditioned.view).conditions[key], { slot: 1, minTier: 1, value });
+  }
+  const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+  const restored = createState();
+  const imported = send(restored, 'settings_import', { raw: code });
+  assert.equal(imported.status, 'committed');
+  assert.equal(restored.read().values.staminaShape, 'circle');
+  assert.equal(restored.read().conditions.pipOpacity.value, 42);
+  send(restored, 'setting_edit', { key: 'pipOpacity', value: 70 });
+  send(restored, 'undo');
+  assert.equal(restored.read().values.pipOpacity, 42);
 });

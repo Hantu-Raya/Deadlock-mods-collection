@@ -198,6 +198,9 @@ function installLayoutPanels(harness, layout) {
       childReadCounts: harness.childReadCounts,
     }));
   }
+  const shape = harness.root.FindChildTraverse('HPColorsStaminaShape');
+  if (shape) for (const option of ['arrow', 'circle', 'box'])
+    shape.AddOption(harness.root.FindChildTraverse(option));
 }
 
 function launch(profile, options = {}) {
@@ -1329,4 +1332,52 @@ test('round schema-3 restart drops saved formats without losing names geometry s
   for (const [key, value] of Object.entries(THIRD_EYE_KEYS)) assert.equal(profile.disk.get(key), value);
   record(first);
   record(second);
+});
+
+test('schema 3 stamina migration and explicit shapes survive sparse saves and real menu restarts', () => {
+  for (const [initialValues, expectedShape] of [
+    [{}, 'arrow'],
+    [{ staminaWidth: 150 }, 'box'],
+    [{ staminaHeight: 60 }, 'box'],
+    [{ enemyStaminaColorEnabled: true }, 'box'],
+    [{ staminaOffsetX: 20 }, 'arrow'],
+    [{ staminaWidth: 150, enemyStaminaColorEnabled: true, staminaShape: 'arrow' }, 'arrow'],
+    [{ staminaWidth: 150, staminaShape: 'circle' }, 'circle'],
+    [{ staminaShape: 'box' }, 'box'],
+  ]) {
+    const values = { ...initialValues, enemyPipColorEnabled: true, enemyPipColor: '#123456',
+      allyPipColorEnabled: true, allyPipColor: '#ABCDEF', pipOpacity: 42 };
+    const body = exceptBody(values);
+    body.userPresets[0].values = { ...values };
+    body.userPresets[0].conditions = { pipOpacity: { slot: 1, minTier: 1, value: 70 } };
+    const profile = createProfile({
+      [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }),
+    });
+    const first = launch(profile, { label: 'shape migration ' + expectedShape });
+    first.run(8000);
+    assert.equal(menuState(first).values.staminaShape, expectedShape);
+    assert.equal(menuState(first).userPresets[0].values.staminaShape, expectedShape);
+    openEditor(first);
+    setWidth(first, 205);
+    closeEditor(first);
+    first.run(8000);
+    assert.equal(storedSchema(profile), 3, 'All Except keeps the durable schema');
+    const persisted = JSON.parse(storedRecord(profile).body);
+    if (initialValues.staminaShape === 'arrow') {
+      assert.equal(persisted.values.staminaShape, 'arrow', 'explicit default defeats derived box migration');
+      assert.equal(persisted.userPresets[0].values.staminaShape, 'arrow');
+    }
+    assert.equal(persisted.values.enemyPipColor, '#123456');
+    assert.equal(persisted.values.allyPipColor, '#ABCDEF');
+    assert.equal(persisted.values.pipOpacity, 42);
+    record(first);
+    const restarted = launch(profile, { label: 'shape restart ' + expectedShape });
+    restarted.run(8000);
+    assert.equal(menuState(restarted).values.staminaShape, expectedShape);
+    assert.equal(menuState(restarted).userPresets[0].values.staminaShape, expectedShape);
+    assert.deepEqual(menuState(restarted).userPresets[0].conditions.pipOpacity,
+      { slot: 1, minTier: 1, value: 70 });
+    assertOtherModsUntouched(profile);
+    record(restarted);
+  }
 });

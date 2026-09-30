@@ -16,11 +16,11 @@
   var CONFIG_GRACE_MS = 3000;
   var HYDRATION_WAIT_MAX_MS = 180000;
   var LEGACY_TO_NATIVE = 0.1;
-  // CSS baselines: Rewrite level badge and stock .unit_info_panel.
-  var LEVEL_BASE_MARGIN_LEFT = -23;
-  var LEVEL_BASE_MARGIN_TOP = -14;
-  var UNIT_INFO_BASE_MARGIN_LEFT = 0;
-  var UNIT_INFO_BASE_MARGIN_TOP = -14;
+  // Full-canvas CSS fallbacks at the stock 200 x 210 world window.
+  var LEVEL_BASE_MARGIN_LEFT = 27;
+  var LEVEL_BASE_MARGIN_TOP = 67.5;
+  var UNIT_INFO_BASE_MARGIN_LEFT = 50;
+  var UNIT_INFO_BASE_MARGIN_TOP = 67;
 
   if (!$.HPColorsV2ContractFactory || !$.HPColorsV2ContractFactory.create)
     throw new Error("HP Colors v2 settings contract unavailable");
@@ -684,7 +684,81 @@
     return Math.max(0, readPanelNumber(panel, "actuallayoutheight"));
   }
 
+  function rebaseNativeLabel(bar, panel, key, right) {
+    var owner = bar[key];
+    if (owner && (owner.panel !== panel || right === "")) {
+      setStyle(owner.panel, "marginRight", owner.marginRight, bar.applied, key + "MarginRight");
+      bar[key] = null;
+    }
+    if (!isValid(panel) || right === "") return;
+    if (!bar[key]) bar[key] = {
+      panel: panel,
+      marginRight: String(panel.style.marginRight || ""),
+    };
+    setStyle(panel, "marginRight", right, bar.applied, key + "MarginRight");
+  }
+
+  function rebaseStockGeometry(bar) {
+    var info = bar.parts.infoHealth;
+    var width = cssLayout(info, "actuallayoutwidth", "x");
+    var height = cssLayout(info, "actuallayoutheight", "y");
+    if (!Number.isFinite(width) || width <= 0 ||
+        !Number.isFinite(height) || height <= 0) return;
+    var origin = "50% " + String(8500 / height) + "%";
+    var resized = width !== bar.canvasWidth || height !== bar.canvasHeight;
+    bar.canvasWidth = width;
+    bar.canvasHeight = height;
+    bar.stockTransformOrigin = origin;
+    setStyle(info, "transformOrigin", origin, bar.applied, "infoStockOrigin");
+    setStyle(panelParent(info), "transformOrigin", origin, bar.applied, "unitStockOrigin");
+    if (!bar.surface || bar.surface === "fill" ||
+        (config.widthScale === 100 && config.heightScale === 100))
+      setStyle(bar.parts.healthbars, "transformOrigin", origin,
+        bar.applied, "segmentTransformOrigin");
+    var accessories = [
+      ["levelContainer", "levelAnchor", LEVEL_BASE_MARGIN_LEFT, LEVEL_BASE_MARGIN_TOP],
+      ["unitInfo", "unitInfoAnchor", UNIT_INFO_BASE_MARGIN_LEFT, UNIT_INFO_BASE_MARGIN_TOP],
+    ];
+    for (var index = 0; index < accessories.length; index++) {
+      var entry = accessories[index];
+      var panel = bar.parts[entry[0]];
+      var panelHeight = cssLayout(panel, "actuallayoutheight", "y");
+      var left = entry[2] + (width - 200) / 2;
+      var top = Number.isFinite(panelHeight) && panelHeight > 0
+        ? 85 - (panelHeight + 14) / 2 : entry[3];
+      if (bar[entry[1] + "BaseLeft"] !== left ||
+          bar[entry[1] + "BaseTop"] !== top || resized) {
+        bar[entry[1] + "BaseLeft"] = left;
+        bar[entry[1] + "BaseTop"] = top;
+        bar[entry[1] + "Panel"] = null;
+        bar.dirty = true;
+      }
+      if (bar.surface !== "player" || !bar[entry[1] + "Panel"]) {
+        setStyle(panel, "marginLeft", pixels(left), bar.applied, entry[1] + "MarginLeft");
+        setStyle(panel, "marginTop", pixels(top), bar.applied, entry[1] + "MarginTop");
+      }
+    }
+    var boss = false;
+    var friend = false;
+    for (var ancestor = info, depth = 0; ancestor && depth < 12; depth++) {
+      boss = boss || hasClass(ancestor, "boss_tier1") ||
+        hasClass(ancestor, "boss_tier2") || hasClass(ancestor, "boss_barracks") ||
+        hasClass(ancestor, "building");
+      friend = friend || hasClass(ancestor, "friend");
+      ancestor = panelParent(ancestor);
+    }
+    var health = panelParent(bar.parts.healthValue) === info ? bar.parts.healthValue : null;
+    var shield = directChild(info, "UnitShieldbarValue");
+    // At the stock canvas size CSS owns native-label placement entirely.
+    rebaseNativeLabel(bar, health, "stockHealthRebase", width === 200 ? "" :
+      pixels(width / 2 - (boss ? 35 : friend ? 30 : 40)));
+    rebaseNativeLabel(bar, shield, "stockShieldRebase", width === 200 ? "" :
+      pixels(width / 2 - 40));
+    if (resized) bar.dirty = true;
+  }
+
   function sampleBarGeometry(bar) {
+    rebaseStockGeometry(bar);
     var stack = bar.parts.healthbars;
     var primary = bar.parts.primary;
     var inner = bar.parts.inner;
@@ -1142,9 +1216,8 @@
   }
 
   function layoutStyleDrift(bar) {
-    if (!bar.surface) return false;
     var styleCount =
-      bar.surface === "player" ? GEOMETRY_STYLES.length : 3;
+      bar.surface === "player" ? GEOMETRY_STYLES.length : 4;
     for (var index = 0; index < styleCount; index++) {
       var entry = GEOMETRY_STYLES[index];
       if (
@@ -1177,6 +1250,8 @@
     try {
       if (panelParent(panel) !== row) panel.SetParent(row);
       if (panelParent(panel) !== row) return false;
+      // Release only measured canvas compensation, not pre-existing native styles.
+      rebaseNativeLabel(bar, null, "stockHealthRebase", "");
       bar.nativeReadoutOwned = true;
       return true;
     } catch {
@@ -1205,6 +1280,7 @@
           bar.healthValueOriginalParent = null;
       } catch {}
     }
+    rebaseStockGeometry(bar);
   }
 
 
@@ -1361,6 +1437,7 @@
   }
 
   function capturePanelBaseline(bar, previousParts, previousBaseline) {
+    rebaseStockGeometry(bar);
     var parts = bar.parts || {};
     var oldParts = previousParts || {};
     var oldBaseline = previousBaseline || {};
@@ -1510,6 +1587,8 @@
         cache,
         "borderColor",
       );
+      setStyle(staminaSurface.icons[index], "washColor",
+        baselineStyle(baseline, "washColor"), cache, "washColor");
     }
     setOwnedClass(
       staminaSurface.container,
@@ -1518,6 +1597,10 @@
       staminaSurface.applied,
       "ownedClass",
     );
+    setOwnedClass(staminaSurface.container, "HPColorsRewriteStaminaCircle", false,
+      staminaSurface.applied, "circleClass");
+    setOwnedClass(staminaSurface.container, "HPColorsRewriteStaminaBox", false,
+      staminaSurface.applied, "boxClass");
   }
 
   function staminaCacheUsable(scope) {
@@ -1580,6 +1663,7 @@
           "height",
           "backgroundColor",
           "borderColor",
+          "washColor",
         ]),
       );
     }
@@ -1598,14 +1682,19 @@
     var widthOwned = config.staminaWidth !== 110;
     var heightOwned = config.staminaHeight !== 44.8;
     var colorOwned = config.enemyStaminaColorEnabled;
-    var boxOwned = widthOwned || heightOwned || colorOwned;
+    var shape = config.staminaShape || "arrow";
+    var shaped = shape === "circle" || shape === "box";
     setOwnedClass(
       staminaSurface.container,
       "HPColorsRewriteStaminaOwned",
-      boxOwned,
+      shaped,
       staminaSurface.applied,
       "ownedClass",
     );
+    setOwnedClass(staminaSurface.container, "HPColorsRewriteStaminaCircle", shape === "circle",
+      staminaSurface.applied, "circleClass");
+    setOwnedClass(staminaSurface.container, "HPColorsRewriteStaminaBox", shape === "box",
+      staminaSurface.applied, "boxClass");
     var transformOwned =
       config.staminaOffsetX !== 0 || config.staminaOffsetY !== 0;
     var transform = transformOwned
@@ -1654,7 +1743,7 @@
         "height",
       );
       var empty = false;
-      if (colorOwned) {
+      if (colorOwned || shaped) {
         var parent = staminaSurface.iconParents[index];
         empty =
           hasClass(staminaSurface.icons[index], "PipEmpty") ||
@@ -1667,10 +1756,8 @@
       setStyle(
         staminaSurface.icons[index],
         "backgroundColor",
-        colorOwned
-          ? empty
-            ? "#000000"
-            : color
+        shaped
+          ? (empty ? "#000000" : (colorOwned ? color : "#FFFFFF"))
           : baselineStyle(baseline, "backgroundColor"),
         cache,
         "backgroundColor",
@@ -1678,10 +1765,14 @@
       setStyle(
         staminaSurface.icons[index],
         "borderColor",
-        colorOwned ? color : baselineStyle(baseline, "borderColor"),
+        shaped ? (colorOwned ? color : "#FFFFFF") : baselineStyle(baseline, "borderColor"),
         cache,
         "borderColor",
       );
+      setStyle(staminaSurface.icons[index], "washColor",
+        shaped ? "#FFFFFF" : colorOwned
+          ? (empty ? "offBlack" : color)
+          : baselineStyle(baseline, "washColor"), cache, "washColor");
     }
   }
 
@@ -1763,6 +1854,7 @@
   }
 
   function clearReadoutOwnership(bar) {
+    clearPipColorOwnership(bar);
     clearOwnedStyle(
       bar.parts && bar.parts.pipLines,
       "visibility",
@@ -1840,7 +1932,61 @@
   }
 
 
+  function restorePipLine(entry) {
+    setStyle(entry.panel, "washColor", baselineStyle(entry.baseline, "washColor"),
+      entry.applied, "washColor");
+    setStyle(entry.panel, "opacity", baselineStyle(entry.baseline, "opacity"),
+      entry.applied, "opacity");
+  }
+
+  function clearPipColorOwnership(bar) {
+    var entries = bar.pipColorEntries || [];
+    for (var index = 0; index < entries.length; index++)
+      restorePipLine(entries[index]);
+    bar.pipColorEntries = [];
+  }
+
+  function applyPipColors(bar) {
+    var enemy = bar.role === "enemy";
+    var custom = config.enabled && !bar.spectating &&
+      (bar.surface === "player" || bar.surface === "unit") &&
+      (enemy ? config.enemyPipColorEnabled :
+        bar.role === "ally" && config.allyPipColorEnabled);
+    var container = bar.parts && bar.parts.pipLines;
+    if (!custom || !isValid(container)) {
+      clearPipColorOwnership(bar);
+      return;
+    }
+    var previous = bar.pipColorEntries || [];
+    var next = [];
+    var children = panelChildren(container);
+    for (var index = 0; index < children.length; index++) {
+      var panel = children[index];
+      if (!isValid(panel) ||
+          (!hasClass(panel, "line_large") && !hasClass(panel, "line_small"))) continue;
+      var entry = null;
+      for (var oldIndex = 0; oldIndex < previous.length; oldIndex++)
+        if (previous[oldIndex].panel === panel) {
+          entry = previous[oldIndex];
+          break;
+        }
+      if (!entry) entry = {
+        panel: panel,
+        baseline: captureStyleBaseline(panel, ["washColor", "opacity"]),
+        applied: {},
+      };
+      setStyle(panel, "washColor", enemy ? config.enemyPipColor : config.allyPipColor,
+        entry.applied, "washColor");
+      setStyle(panel, "opacity", String(config.pipOpacity / 100), entry.applied, "opacity");
+      next.push(entry);
+    }
+    for (var oldIndex = 0; oldIndex < previous.length; oldIndex++)
+      if (next.indexOf(previous[oldIndex]) < 0) restorePipLine(previous[oldIndex]);
+    bar.pipColorEntries = next;
+  }
+
   function applyReadoutDecorations(bar) {
+    applyPipColors(bar);
     var surface = bar.surface;
     var enemyBarSurface =
       (surface === "player" || surface === "unit") && bar.role === "enemy";
@@ -2062,7 +2208,7 @@
   }
 
   function accessoryMargin(baseline, delta) {
-    return delta === 0 ? "" : pixels(baseline + delta);
+    return pixels(baseline + delta);
   }
 
   function rememberAccessoryCenter(bar, panel, key) {
@@ -2071,8 +2217,8 @@
     if (bar[panelKey] === panel) return true;
     var width = cssLayout(panel, "actuallayoutwidth", "x");
     var height = cssLayout(panel, "actuallayoutheight", "y");
-    var x = cssLayout(panel, "actualxoffset", "x");
-    var y = cssLayout(panel, "actualyoffset", "y");
+    var x = bar[key + "BaseLeft"];
+    var y = bar[key + "BaseTop"];
     if (!bar.geometryReady || !Number.isFinite(width) || width <= 0 ||
         !Number.isFinite(height) || height <= 0 ||
         !Number.isFinite(x) || !Number.isFinite(y)) return false;
@@ -2114,7 +2260,7 @@
       "transformOrigin",
       scaleActive
         ? segmentTransformOrigin(bar)
-        : baselineStyle(panelBaseline.healthbars, "transformOrigin"),
+        : bar.stockTransformOrigin || "50% 40.48%",
       bar.applied,
       "segmentTransformOrigin",
     );
@@ -2159,21 +2305,11 @@
         (stockBarCenterY - bar.levelAnchorCenterY) * scaleY +
         (anchor ? nativePx(config.positionY) : 0) +
         nativePx(config.levelOffsetY) * scaleY;
-      var levelVerticalAlignment = String(
-        (bar.parts.levelContainer.style &&
-          bar.parts.levelContainer.style.verticalAlign) ||
-          "middle",
-      );
-      var levelVerticalFactor =
-        levelVerticalAlignment === "middle" ||
-        levelVerticalAlignment === "center"
-          ? 2
-          : 1;
       setStyle(
         bar.parts.levelContainer,
         "marginLeft",
         accessoryMargin(
-          LEVEL_BASE_MARGIN_LEFT,
+          bar.levelAnchorBaseLeft,
           levelCenterX - bar.levelAnchorCenterX,
         ),
         bar.applied,
@@ -2183,8 +2319,8 @@
         bar.parts.levelContainer,
         "marginTop",
         accessoryMargin(
-          LEVEL_BASE_MARGIN_TOP,
-          (levelCenterY - bar.levelAnchorCenterY) * levelVerticalFactor,
+          bar.levelAnchorBaseTop,
+          levelCenterY - bar.levelAnchorCenterY,
         ),
         bar.applied,
         "levelAnchorMarginTop",
@@ -2201,20 +2337,11 @@
         (stockBarCenterY - bar.unitInfoAnchorCenterY) * scaleY +
         (anchor ? nativePx(config.positionY) : 0) +
         nativePx(config.ultOffsetY) * scaleY;
-      var unitInfoVerticalAlignment = String(
-        (bar.parts.unitInfo.style && bar.parts.unitInfo.style.verticalAlign) ||
-          "middle",
-      );
-      var unitInfoVerticalFactor =
-        unitInfoVerticalAlignment === "middle" ||
-        unitInfoVerticalAlignment === "center"
-          ? 2
-          : 1;
       setStyle(
         bar.parts.unitInfo,
         "marginLeft",
         accessoryMargin(
-          UNIT_INFO_BASE_MARGIN_LEFT,
+          bar.unitInfoAnchorBaseLeft,
           unitInfoCenterX - bar.unitInfoAnchorCenterX,
         ),
         bar.applied,
@@ -2224,8 +2351,8 @@
         bar.parts.unitInfo,
         "marginTop",
         accessoryMargin(
-          UNIT_INFO_BASE_MARGIN_TOP,
-          (unitInfoCenterY - bar.unitInfoAnchorCenterY) * unitInfoVerticalFactor,
+          bar.unitInfoAnchorBaseTop,
+          unitInfoCenterY - bar.unitInfoAnchorCenterY,
         ),
         bar.applied,
         "unitInfoAnchorMarginTop",
@@ -2240,6 +2367,7 @@
     ["healthbars", "preTransformScale2d", "segmentPreTransformScale2d"],
     ["healthbars", "transformOrigin", "segmentTransformOrigin"],
     ["healthbars", "transform", "segmentTransform"],
+    ["infoHealth", "transformOrigin", "infoStockOrigin"],
     ["levelContainer", "marginLeft", "levelAnchorMarginLeft"],
     ["levelContainer", "marginTop", "levelAnchorMarginTop"],
     ["unitInfo", "marginLeft", "unitInfoAnchorMarginLeft"],
@@ -2250,15 +2378,26 @@
     for (var index = 0; index < GEOMETRY_STYLES.length; index++) {
       var entry = GEOMETRY_STYLES[index];
       if (onlyPart && entry[0] !== onlyPart) continue;
+      var value = baselineStyle(panelBaseline[entry[0]], entry[1]);
+      if (entry[0] === "levelContainer" || entry[0] === "unitInfo") {
+        var key = entry[0] === "levelContainer" ? "levelAnchor" : "unitInfoAnchor";
+        var fallback = entry[0] === "levelContainer"
+          ? entry[1] === "marginLeft" ? LEVEL_BASE_MARGIN_LEFT : LEVEL_BASE_MARGIN_TOP
+          : entry[1] === "marginLeft" ? UNIT_INFO_BASE_MARGIN_LEFT : UNIT_INFO_BASE_MARGIN_TOP;
+        var baseline = bar[key + (entry[1] === "marginLeft" ? "BaseLeft" : "BaseTop")];
+        value = pixels(baseline === undefined ? fallback : baseline);
+      } else if (entry[1] === "transformOrigin") {
+        value = bar.stockTransformOrigin || "50% 40.48%";
+      }
       setStyle(
         parts[entry[0]],
         entry[1],
-        entry[0] === "levelContainer" || entry[0] === "unitInfo"
-          ? "" : baselineStyle(panelBaseline[entry[0]], entry[1]),
+        value,
         bar.applied,
         entry[2],
       );
     }
+    rebaseStockGeometry(bar);
   }
 
   function restoreInactiveCustomization(bar, panelBaseline) {
@@ -2539,6 +2678,8 @@
     bar.surface = "";
     bar.dirty = true;
     applyCustomization(bar, true);
+    rebaseNativeLabel(bar, null, "stockHealthRebase", "");
+    rebaseNativeLabel(bar, null, "stockShieldRebase", "");
   }
 
   function applyConfigRaw(raw) {
@@ -2789,6 +2930,8 @@
       applyCustomization(bar);
       return true;
     }
+    rebaseStockGeometry(bar);
+    applyPipColors(bar);
     var changed = positionReadout(bar);
     applyPlayerName(bar);
     if (healthRefreshEnabled(bar)) {

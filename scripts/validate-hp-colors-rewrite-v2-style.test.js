@@ -156,22 +156,22 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHar
     style: { width: '11px', height: '4.48px', backgroundColor: '#ABCDEF', borderColor: '#123456' },
   });
   const status = add(window, 'UnitStatus');
-  const info = add(status, 'InfoHealthContainer');
+  const info = add(status, 'InfoHealthContainer', { actuallayoutwidth: 200, actuallayoutheight: 210 });
   const level = add(info, 'LevelContainer', {
-    actuallayoutwidth: 21, actuallayoutheight: 21, actualxoffset: -23, actualyoffset: 2.5,
-    style: { marginLeft: '', marginTop: '', visibility: 'collapse', verticalAlign: 'middle' },
+    actuallayoutwidth: 21, actuallayoutheight: 21, actualxoffset: 27, actualyoffset: 67.5,
+    style: { marginLeft: '', marginTop: '', visibility: 'collapse', verticalAlign: 'top' },
   });
   const levelLabel = add(level, 'unit_level_label', { text: '10', style: {} });
   const unitInfo = add(info, 'unit_info_panel', {
     classes: ['unit_info_panel'],
-    actuallayoutwidth: 22, actuallayoutheight: 22, actualxoffset: 0, actualyoffset: 2,
-    style: { marginLeft: '', marginTop: '', verticalAlign: 'middle' },
+    actuallayoutwidth: 22, actuallayoutheight: 22, actualxoffset: 50, actualyoffset: 67,
+    style: { marginLeft: '', marginTop: '', verticalAlign: 'top' },
   });
   const ultBackground = add(unitInfo, 'unit_info_bg');
   const ultIcon = add(ultBackground, 'unit_ult_ready_icon');
   const ultOverlay = add(ultBackground, 'HPV2UltimateOverlay');
-  const stack = add(info, 'UnitHealthbarsContainer');
-  const primary = add(stack, 'UnitHealthbar', { classes: ['UnitHealthbarContainer'] });
+  const stack = add(info, 'UnitHealthbarsContainer', { actuallayoutwidth: 200, actuallayoutheight: 210 });
+  const primary = add(stack, 'UnitHealthbar', { classes: ['UnitHealthbarContainer'], actuallayoutwidth: 76, actuallayoutheight: 18, actualxoffset: 70.5, actualyoffset: 65 });
   const inner = add(primary, 'UnitHealthbarInner', { actuallayoutwidth: 69 });
   const fill = add(inner, 'unit_healthbar_lagging', { actuallayoutwidth: 34.5 });
   const marker = add(primary, 'hp_colors_kill_marker', { style: { visibility: 'collapse' } });
@@ -181,7 +181,7 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHar
   const shieldWrites = [];
   shield.style = new Proxy(shield.style, {
     set(target, property, value) {
-      shieldWrites.push([property, value]);
+      if (property !== 'marginRight' && property !== 'marginTop') shieldWrites.push([property, value]);
       target[property] = value;
       return true;
     },
@@ -703,7 +703,9 @@ test('counter row replacement never orphans the adopted engine label', () => {
 test('InfoHealthContainer replacement retains pointer identity when the original parent expires', () => {
   const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, prepareNativeReadout);
   fixture.info.SetParent(fixture.window);
-  const info = fixture.status.add(new MockPanel('InfoHealthContainer'));
+  const info = fixture.status.add(new MockPanel('InfoHealthContainer', {
+    actuallayoutwidth: 200, actuallayoutheight: 210,
+  }));
   fixture.stack.SetParent(info);
   fixture.info.valid = false;
   fixture.harness.scheduler.runByDelay(1);
@@ -818,26 +820,26 @@ test('failed native adoption retries on the existing cadence without showing an 
   for (const panel of [fixture.counter, fixture.counterMax]) assertInactiveReadout(panel);
 });
 
-test('accessory margins defer to CSS at zero delta and restore after offsets or bypass', () => {
+test('accessory margins retain rebased stock coordinates after offsets or bypass', () => {
   for (const classes of [['player', 'enemy'], ['player', 'friend']]) {
     const fixture = makeOwnershipFixture(classes);
     const assertCssMargins = () => {
-      for (const panel of [fixture.level, fixture.unitInfo]) {
-        assert.equal(panel.style.marginLeft, '');
-        assert.equal(panel.style.marginTop, '');
-      }
+      assert.equal(fixture.level.style.marginLeft, '27px');
+      assert.equal(fixture.level.style.marginTop, '67.5px');
+      assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+      assert.equal(fixture.unitInfo.style.marginTop, '67px');
     };
     assertCssMargins();
     fixture.update({ levelOffsetX: 100, ultOffsetX: 100 });
-    assert.equal(fixture.level.style.marginLeft, '-13px');
-    assert.equal(fixture.unitInfo.style.marginLeft, '10px');
-    assert.equal(fixture.level.style.marginTop, '');
-    assert.equal(fixture.unitInfo.style.marginTop, '');
+    assert.equal(fixture.level.style.marginLeft, '37px');
+    assert.equal(fixture.unitInfo.style.marginLeft, '60px');
+    assert.equal(fixture.level.style.marginTop, '67.5px');
+    assert.equal(fixture.unitInfo.style.marginTop, '67px');
     fixture.update({ levelOffsetY: 100, ultOffsetY: 100 });
-    assert.equal(fixture.level.style.marginLeft, '');
-    assert.equal(fixture.unitInfo.style.marginLeft, '');
-    assert.equal(fixture.level.style.marginTop, '6px');
-    assert.equal(fixture.unitInfo.style.marginTop, '6px');
+    assert.equal(fixture.level.style.marginLeft, '27px');
+    assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+    assert.equal(fixture.level.style.marginTop, '77.5px');
+    assert.equal(fixture.unitInfo.style.marginTop, '77px');
     fixture.update({});
     assertCssMargins();
     fixture.update({ levelOffsetX: 100, ultOffsetY: 100 });
@@ -863,9 +865,10 @@ const accessoryValues = {
 function measuredGeometry(parts, scaleX, scaleY, unready = []) {
   const zero = new Set(unready);
   for (const [key, width, height, x, y] of [
-    ['stack', 100, 40, 0, 0], ['primary', 76, 18, 23, 11],
+    ['info', 200, 210, 0, 0], ['status', 200, 210, 0, 0],
+    ['window', 200, 210, 0, 0], ['stack', 200, 210, 0, 0], ['primary', 76, 18, 70.5, 65],
     ['inner', 69, 12, 3.5, 3], ['fill', 34.5, 12, 0, 0],
-    ['level', 21, 21, -23, 2.5], ['unitInfo', 22, 22, 0, 2],
+    ['level', 21, 21, 27, 67.5], ['unitInfo', 22, 22, 50, 67],
     ['container', 200, 210, 0, 0], ['row', 48, 24, 0, 0],
   ]) {
     const panel = parts[key];
@@ -907,8 +910,8 @@ test('early, late and asymmetric world scales give identical CSS accessory, mark
   const asymmetric = makeOwnershipFixture(classes, accessoryValues,
     parts => measuredGeometry(parts, 2, 3), early.harness);
   const expected = accessoryResult(early);
-  assert.deepEqual(expected.level, ['-72.4px', '-22.4px']);
-  assert.deepEqual(expected.ultimate, ['-49.4px', '-22.4px']);
+  assert.deepEqual(expected.level, ['-22.4px', '69.9px']);
+  assert.deepEqual(expected.ultimate, ['0.6px', '69.4px']);
   assert.deepEqual(expected.marker, ['37.5px', '1px']);
   assert.deepEqual(expected.health, ['', '#00FF00']);
   for (const fixture of [late, asymmetric]) {
@@ -925,12 +928,12 @@ test('early, late and asymmetric world scales give identical CSS accessory, mark
   const scaledOffset = makeOwnershipFixture(classes, offset, parts => measuredGeometry(parts, 2, 3));
   assert.deepEqual(accessoryResult(scaledOffset), accessoryResult(normalOffset));
   assert.deepEqual([normalOffset.level.style.marginLeft, normalOffset.unitInfo.style.marginTop],
-    ['-92.4px', '-62.4px']);
+    ['-42.4px', '49.4px']);
   const defaults = makeOwnershipFixture(classes, {}, parts => measuredGeometry(parts, 2, 3));
-  for (const panel of [defaults.level, defaults.unitInfo]) {
-    assert.equal(panel.style.marginLeft, '', 'zero delta uses CSS left margin');
-    assert.equal(panel.style.marginTop, '', 'zero delta uses CSS top margin');
-  }
+  assert.equal(defaults.level.style.marginLeft, '27px');
+  assert.equal(defaults.level.style.marginTop, '67.5px');
+  assert.equal(defaults.unitInfo.style.marginLeft, '50px');
+  assert.equal(defaults.unitInfo.style.marginTop, '67px');
 });
 
 test('zero and accessory-only late layout recovers without a config change or another timer', () => {
@@ -943,8 +946,8 @@ test('zero and accessory-only late layout recovers without a config change or an
   ]) {
     const pending = makeOwnershipFixture(classes, accessoryValues,
       parts => measuredGeometry(parts, 2, 3, zero));
-    assert.equal(pending.level.style.marginLeft, '');
-    assert.equal(pending.unitInfo.style.marginLeft, '');
+    assert.equal(pending.level.style.marginLeft, '27px');
+    assert.equal(pending.unitInfo.style.marginLeft, '50px');
     if (zero.length === 2) {
       assert.equal(pending.fill.style.washColor, '#00FF00', 'optional accessories do not block color');
       assert.equal(pending.counter.text, '');
@@ -968,7 +971,8 @@ test('delayed primary, pending hydration and primary replacement recapture ready
     measuredGeometry(parts, 2, 3);
     parts.primary.DeleteAsync();
   });
-  assert.equal(delayed.unitInfo.style.marginLeft, '');
+  assert.equal(delayed.unitInfo.style.marginLeft, '',
+    'without a primary owner, stock placement remains stylesheet-owned');
   const primary = delayed.stack.add(new MockPanel('UnitHealthbar', { classes: ['UnitHealthbarContainer'] }));
   const inner = primary.add(new MockPanel('UnitHealthbarInner'));
   const fill = inner.add(new MockPanel('unit_healthbar_lagging'));
@@ -985,7 +989,7 @@ test('delayed primary, pending hydration and primary replacement recapture ready
   });
   resolveGeometry(hydrating.level, hydrating.unitInfo);
   hydrating.harness.scheduler.runByDelay(1);
-  assert.equal(hydrating.unitInfo.style.marginLeft, '', 'hydration leaves stock CSS in place');
+  assert.equal(hydrating.unitInfo.style.marginLeft, '50px', 'hydration keeps the rebased stock leaf position');
   hydrating.update(accessoryValues);
   assert.deepEqual(accessoryResult(hydrating), expected);
 
@@ -1198,4 +1202,220 @@ test('stock CSS differs only by permanent healthbar mask and outer-background de
   assert.match(prefix, /#UnitHealthbarInner\s*\{[^}]*background-color: black;/);
   assert.doesNotMatch(rendererSource, /opacityMask|syncHealthbarMasks/);
   assert.match(css, /\.WindowRoot #HPV2UltimateDark\s*\{\s*brightness: 0\.3;/);
+});
+
+test('explicit stamina shapes preserve arrows with custom dimensions and restore all shape styles', () => {
+  for (const shape of ['arrow', 'circle', 'box']) {
+    const fixture = makeOwnershipFixture(['player', 'enemy'], {
+      enabled: true, staminaShape: shape, staminaWidth: 150, staminaHeight: 60,
+      enemyStaminaColorEnabled: true, enemyStaminaColor: '#654321',
+    });
+    assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), shape !== 'arrow');
+    assert.equal(fixture.icon.style.width, '15px');
+    assert.equal(fixture.icon.style.height, '6px');
+    assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaCircle'), shape === 'circle');
+    assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaBox'), shape === 'box');
+    assert.equal(fixture.icon.style.washColor, shape === 'arrow' ? '#654321' : '#FFFFFF');
+    assert.equal(fixture.icon.style.backgroundColor, shape === 'arrow' ? '#ABCDEF' : '#654321');
+    fixture.icon.GetParent().AddClass('PipEmpty');
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(fixture.icon.style.washColor, shape === 'arrow' ? 'offBlack' : '#FFFFFF');
+    assert.equal(fixture.icon.style.backgroundColor, shape === 'arrow' ? '#ABCDEF' : '#000000');
+    fixture.update({ enabled: false, staminaShape: shape });
+    assert.equal(fixture.icon.style.washColor, '');
+    assert.equal(fixture.icon.style.borderRadius || '', '');
+    assert.equal(fixture.icon.style.backgroundColor, '#ABCDEF');
+  }
+  const friend = makeOwnershipFixture(['player', 'friend'], { enabled: true, staminaShape: 'circle', staminaWidth: 150 });
+  assert.equal(friend.stamina.BHasClass('HPColorsRewriteStaminaOwned'), false);
+  assert.equal(friend.icon.style.width, '11px');
+  const css = fs.readFileSync(path.join(sourceRoot, '../styles/unit_status_v2.css'), 'utf8');
+  assert.match(css, /HPColorsRewriteStaminaCircle[^{}]*\.StaminaPipIcon\s*\{[^}]*border-radius:\s*50%/);
+});
+
+test('pip colors own matching opted-in lines only and restore stock/spectator presentation', () => {
+  for (const [classes, prefix, gate] of [
+    [['player', 'enemy'], 'enemy', {}], [['player', 'friend'], 'ally', {}],
+    [['minion', 'enemy'], 'enemy', { npcEnemyEnabled: true }],
+    [['building', 'friend'], 'ally', { buildingAllyEnabled: true }],
+  ]) {
+    let lines;
+    const fixture = makeOwnershipFixture(classes, { enabled: true, ...gate }, ({ primary }) => {
+      lines = ['line_large', 'line_small'].map((type, index) =>
+        primary.FindChildTraverse('UnitHealthbarLines').add(new MockPanel('pip' + index, {
+          classes: [type], style: { washColor: '', opacity: '' },
+        })));
+    });
+    for (const line of lines) assert.equal(line.style.washColor, '');
+    const custom = { enabled: true, ...gate, [prefix + 'PipColorEnabled']: true,
+      [prefix + 'PipColor']: '#123456', pipOpacity: 42 };
+    fixture.update(custom);
+    for (const line of lines) {
+      assert.equal(line.style.washColor, '#123456');
+      assert.equal(line.style.opacity, '0.42');
+    }
+    fixture.world.AddClass('spectating');
+    fixture.update(custom);
+    for (const line of lines) {
+      assert.equal(line.style.washColor, '');
+      assert.equal(line.style.opacity, '');
+    }
+    fixture.world.RemoveClass('spectating');
+    fixture.update(custom);
+    fixture.update({ ...custom, [prefix + 'PipColorEnabled']: false });
+    for (const line of lines) assert.equal(line.style.washColor, '');
+    fixture.update(custom);
+    fixture.update({ ...custom, enabled: false });
+    for (const line of lines) {
+      assert.equal(line.style.washColor, '');
+      assert.equal(line.style.opacity, '');
+    }
+  }
+});
+
+test('native label canvas compensation releases exactly on adoption, resize and replacement', () => {
+  const fixture = makeOwnershipFixture(['player', 'friend'], {
+    allyReadoutVisible: false,
+  }, parts => {
+    prepareNativeReadout(parts);
+    measuredGeometry(parts, 2, 3);
+    for (const panel of [parts.info, parts.window, parts.status, parts.stack])
+      panel.actuallayoutwidth = 600;
+  });
+  assert.equal(fixture.health.style.marginRight, '120px');
+  for (const [property, value] of Object.entries(nativeReadoutStock))
+    if (property !== 'marginRight') assert.equal(fixture.health.style[property], value, property);
+  fixture.update({ allyReadoutVisible: true });
+  assert.equal(fixture.health.GetParent(), fixture.row);
+  assert.equal(fixture.health.style.marginRight, nativeReadoutStock.marginRight,
+    'measured stock compensation does not follow the adopted label');
+  fixture.update({ allyReadoutVisible: false });
+  assert.equal(fixture.health.GetParent(), fixture.info);
+  assert.equal(fixture.health.style.marginRight, '120px');
+  fixture.update({ allyReadoutVisible: true });
+  const replacement = fixture.info.add(new MockPanel('UnitHealthbarValue', {
+    style: { ...nativeReadoutStock },
+  }));
+  fixture.harness.scheduler.runByDelay(1);
+  assertNativeStock(fixture.health);
+  assert.equal(replacement.GetParent(), fixture.row);
+  assert.equal(replacement.style.marginRight, nativeReadoutStock.marginRight);
+  fixture.health.DeleteAsync(); // The engine retires the replaced native binding.
+  fixture.update({ allyReadoutVisible: false });
+  assert.equal(replacement.style.marginRight, '120px');
+  for (const panel of [fixture.info, fixture.window, fixture.status, fixture.stack])
+    panel.actuallayoutwidth = 400;
+  fixture.harness.scheduler.runByDelay(1);
+  assertNativeStock(replacement);
+});
+
+test('full-canvas rebase preserves stock leaf positions and old-frame wiggle pivot before hydration', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'hp_colors_rewrite_v2',
+    'panorama', 'styles', 'unit_status_v2.css'), 'utf8');
+  const rule = selector => css.slice(css.indexOf(selector)).match(/\{([^}]*)\}/)[1];
+  const cssPixels = (body, property) =>
+    Number(body.match(new RegExp(property + ':\\s*([\\d.]+)px'))[1]);
+  for (const [classes, healthTop, healthEdge] of [
+    [['player', 'enemy'], 66, 40],
+    [['player', 'friend'], 66, 30],
+    [['boss_tier1', 'enemy'], 70, 35],
+    [['neutral', 'minion'], 66, 40],
+  ]) {
+    for (const [width, height, sx, sy] of [[200, 210, 1, 1], [300, 260, 2, 3]]) {
+      const fixture = makeOwnershipFixture(classes, { enabled: false }, parts => {
+        measuredGeometry(parts, sx, sy);
+        for (const panel of [parts.info, parts.window, parts.status, parts.stack]) {
+          panel.actuallayoutwidth = width * sx;
+          panel.actuallayoutheight = height * sy;
+        }
+        parts.harness.root.SetAttributeString('hp_colors_v2_hydration', 'pending');
+        parts.harness.root.SetAttributeString('hp_colors_v2_config', '');
+      });
+      const position = (panel) => [
+        Number.parseFloat(panel.style.marginLeft), Number.parseFloat(panel.style.marginTop),
+      ];
+      assert.deepEqual(position(fixture.unitInfo), [width / 2 - 50, 67], classes.join(' ') + ' ultimate');
+      assert.deepEqual(position(fixture.level), [width / 2 - 73, 67.5], classes.join(' ') + ' level');
+      const healthRule = rule(classes.includes('boss_tier1')
+        ? '.building .WindowRoot #InfoHealthContainer #UnitHealthbarValue'
+        : '.WindowRoot #InfoHealthContainer #UnitHealthbarValue');
+      const healthRightRule = classes.includes('friend')
+        ? rule('.friend .WindowRoot #InfoHealthContainer #UnitHealthbarValue') : healthRule;
+      const shieldRule = rule('.WindowRoot #InfoHealthContainer #UnitShieldbarValue');
+      assert.equal(fixture.health.style.marginTop || '', '', 'vertical stock placement is CSS-owned');
+      assert.equal(cssPixels(healthRule, 'margin-top'), healthTop);
+      const healthRight = Number.parseFloat(fixture.health.style.marginRight ||
+        cssPixels(healthRightRule, 'margin-right'));
+      assert.equal(width - healthRight, width / 2 + healthEdge);
+      assert.equal(fixture.shield.style.marginTop || '', '');
+      assert.equal(cssPixels(shieldRule, 'margin-top'), 85);
+      const shieldRight = Number.parseFloat(fixture.shield.style.marginRight ||
+        cssPixels(shieldRule, 'margin-right'));
+      assert.equal(width - shieldRight, width / 2 + 40);
+      assert.equal(fixture.health.GetParent(), fixture.info, 'no adoption during hydration');
+      for (const panel of [fixture.status, fixture.info, fixture.stack]) {
+        const pivot = String(panel.style.transformOrigin).match(/^([\d.]+)%\s+([\d.]+)%$/);
+        assert.ok(pivot, panel.id + ' pivot');
+        assert.ok(Math.abs(Number(pivot[1]) / 100 * width - width / 2) < 0.001);
+        assert.ok(Math.abs(Number(pivot[2]) / 100 * height - 85) < 0.001);
+      }
+      assert.equal(fixture.harness.scheduler.jobs.length, 2, 'rebase does not schedule another loop');
+      fixture.harness.scheduler.runByDelay(1);
+      assert.deepEqual(position(fixture.unitInfo), [width / 2 - 50, 67], 'unchanged cadence does not double-rebase');
+    }
+  }
+});
+
+test('full-canvas accessories move beyond the old info frame and release to rebased defaults', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], {
+    levelOffsetX: 2000, levelOffsetY: 2100, ultOffsetX: -2000, ultOffsetY: -2100,
+  }, parts => measuredGeometry(parts, 2, 3));
+  assert.deepEqual([fixture.level.style.marginLeft, fixture.level.style.marginTop], ['227px', '277.5px']);
+  assert.deepEqual([fixture.unitInfo.style.marginLeft, fixture.unitInfo.style.marginTop], ['-150px', '-143px']);
+  fixture.update({ enabled: false });
+  assert.deepEqual([fixture.level.style.marginLeft, fixture.level.style.marginTop], ['27px', '67.5px']);
+  assert.deepEqual([fixture.unitInfo.style.marginLeft, fixture.unitInfo.style.marginTop], ['50px', '67px']);
+  assert.equal(fixture.stack.style.transform, '');
+});
+
+test('circle and box stamina use stock-filled white and black empty interiors without custom color', () => {
+  for (const shape of ['circle', 'box']) {
+    const fixture = makeOwnershipFixture(['player', 'enemy'], { staminaShape: shape });
+    assert.equal(fixture.icon.style.backgroundColor, '#FFFFFF');
+    assert.equal(fixture.icon.style.borderColor, '#FFFFFF');
+    fixture.icon.GetParent().AddClass('PipEmpty');
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(fixture.icon.style.backgroundColor, '#000000');
+    assert.equal(fixture.icon.style.borderColor, '#FFFFFF');
+    fixture.icon.GetParent().RemoveClass('PipEmpty');
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(fixture.icon.style.backgroundColor, '#FFFFFF');
+    fixture.update({ staminaShape: 'arrow' });
+    assert.equal(fixture.icon.style.backgroundColor, '#ABCDEF');
+    assert.equal(fixture.icon.style.borderColor, '#123456');
+    assert.equal(fixture.icon.style.washColor, '');
+  }
+});
+
+test('custom pip ownership handles late lines and restores captured inline styles on replacement', () => {
+  const custom = { enemyPipColorEnabled: true, enemyPipColor: '#123456', pipOpacity: 42 };
+  const fixture = makeOwnershipFixture(['player', 'enemy'], custom);
+  const container = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+  const original = container.add(new MockPanel('latePip', {
+    classes: ['line_large'], style: { washColor: '#445566', opacity: '0.3' },
+  }));
+  paintReadout(fixture);
+  assert.equal(original.style.washColor, '#123456');
+  assert.equal(original.style.opacity, '0.42');
+  original.SetParent(fixture.window);
+  const replacement = container.add(new MockPanel('replacementPip', {
+    classes: ['line_small'], style: { washColor: '#778899', opacity: '0.7' },
+  }));
+  paintReadout(fixture);
+  assert.equal(original.style.washColor, '#445566');
+  assert.equal(original.style.opacity, '0.3');
+  assert.equal(replacement.style.washColor, '#123456');
+  fixture.update({ enemyPipColorEnabled: false });
+  assert.equal(replacement.style.washColor, '#778899');
+  assert.equal(replacement.style.opacity, '0.7');
 });
