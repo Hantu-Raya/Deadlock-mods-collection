@@ -76,7 +76,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 62);
+  assert.equal(contract.extensionKeys.length, 65);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -355,10 +355,11 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 62);
+  assert.equal(contract.extensionKeys.length, 65);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
+    'readoutOutlineWidth', 'allyReadoutOutlineWidth', 'nameOutlineWidth',
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -424,6 +425,7 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
     enemyPipColorEnabled: false, enemyPipColor: '#500202',
     allyPipColorEnabled: false, allyPipColor: '#042517',
     pipOpacity: 100, staminaShape: 'arrow',
+    readoutOutlineWidth: 5, allyReadoutOutlineWidth: 5, nameOutlineWidth: 5,
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
@@ -433,7 +435,7 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
   }
   assert.equal(contract.defaults.enemyPipColorEnabled, true);
   assert.equal(contract.defaults.enemyPipColor, '#000000');
-  assert.equal(contract.defaults.staminaShape, 'box');
+  assert.equal(contract.defaults.staminaShape, 'arrow');
   assert.deepEqual(plain(contract.enumOptions.staminaShape), ['arrow', 'circle', 'box']);
   assert.equal(contract.validateSettingValue('staminaShape', 'triangle'), false);
   assert.equal(contract.normalizeValues({ pipOpacity: -1 }).pipOpacity, 0);

@@ -169,7 +169,7 @@ const unchangedPayload = JSON.parse(
 assert.deepEqual(unchangedPayload.hpv2, {
   v: 2,
   values: [[8, 74], [9, 48], [10, 74], [11, 48],
-    [56, true], [57, "#000000"], [61, "box"]],
+    [56, true], [57, "#000000"]],
   conditions: {},
 });
 const freshRoundtrip = factory.create();

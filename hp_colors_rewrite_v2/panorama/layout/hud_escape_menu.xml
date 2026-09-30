@@ -245,6 +245,7 @@
                   <Panel id="HPColorsAllyNameColorEnableRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="CUSTOM ALLY NAME COLOR" class="HPColorsSettingTitle" /><Label text="Stock brightness 0.8 and spectator alpha are preserved." class="HPColorsSettingHelp" /></Panel><Button id="HPColorsAllyNameColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button></Panel>
                   <Panel id="HPColorsAllyNameColorRow" class="HPColorsSettingRow HPColorsColorRow HPColorsFollowedRow"><Panel class="HPColorsSettingCopy"><Label text="ALLY NAME COLOR" class="HPColorsSettingTitle" /></Panel><Button id="HPColorsAllyNameColorSwatch" class="HPColorsColorSwatch" /><TextEntry id="HPColorsAllyNameColorHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" /></Panel>
                   <Panel id="HPColorsNameSizeRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="NAME SIZE" class="HPColorsSettingTitle" /><Label text="Native name text shrinks to fit 170 px. Stock is 14." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsNameSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsNameSizeEntry" class="HPColorsNumberEntry" text="14" /><Label text="PX" class="HPColorsUnitLabel" /></Panel></Panel>
+                  <Panel id="HPColorsNameOutlineWidthRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="TEXT OUTLINE" class="HPColorsSettingTitle" /><Label text="Set name outline strength. Stock is 5." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsNameOutlineWidthSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsNameOutlineWidthEntry" class="HPColorsNumberEntry" text="5" /><Label text="PX" class="HPColorsUnitLabel" /></Panel></Panel>
                   <Panel id="HPColorsNameOffsetXRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="NAME X OFFSET" class="HPColorsSettingTitle" /><Label text="Move the name in CSS pixels; fitting names stop at canvas edges." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsNameOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsNameOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel></Panel>
                   <Panel id="HPColorsNameOffsetYRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="NAME Y OFFSET" class="HPColorsSettingTitle" /><Label text="Move the name in CSS pixels; fitting names stop at canvas edges." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsNameOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsNameOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel></Panel>
                 </Panel>
@@ -525,6 +526,14 @@
                     <Panel class="HPColorsSliderGroup">
                       <Panel id="HPColorsReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
                       <TextEntry id="HPColorsReadoutSizeEntry" class="HPColorsNumberEntry" text="145" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsReadoutOutlineWidthRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT OUTLINE" class="HPColorsSettingTitle" /><Label text="Set health-text outline strength. Stock is 5." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsReadoutOutlineWidthSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsReadoutOutlineWidthEntry" class="HPColorsNumberEntry" text="5" />
                       <Label text="PX" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
@@ -881,6 +890,14 @@
                     <Panel class="HPColorsSliderGroup">
                       <Panel id="HPColorsAllyReadoutSizeSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
                       <TextEntry id="HPColorsAllyReadoutSizeEntry" class="HPColorsNumberEntry" text="145" />
+                      <Label text="PX" class="HPColorsUnitLabel" />
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsAllyReadoutOutlineWidthRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="TEXT OUTLINE" class="HPColorsSettingTitle" /><Label text="Set ally health-text outline strength. Stock is 5." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup">
+                      <Panel id="HPColorsAllyReadoutOutlineWidthSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                      <TextEntry id="HPColorsAllyReadoutOutlineWidthEntry" class="HPColorsNumberEntry" text="5" />
                       <Label text="PX" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>

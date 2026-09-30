@@ -139,6 +139,9 @@
     allyPipColor: "#042517",
     pipOpacity: 100,
     staminaShape: "arrow",
+    readoutOutlineWidth: 5,
+    allyReadoutOutlineWidth: 5,
+    nameOutlineWidth: 5,
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -204,6 +207,9 @@
     "allyPipColor",
     "pipOpacity",
     "staminaShape",
+    "readoutOutlineWidth",
+    "allyReadoutOutlineWidth",
+    "nameOutlineWidth",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -336,7 +342,6 @@
   DEFAULTS.readoutOffsetY = 14;
   DEFAULTS.enemyPipColorEnabled = true;
   DEFAULTS.enemyPipColor = "#000000";
-  DEFAULTS.staminaShape = "box";
   DEFAULTS.ultOffsetX = 74;
   DEFAULTS.levelOffsetX = 74;
   // Nearest integer raw offset: anchor compensation 38 / 0.8 = 47.5.
@@ -477,10 +482,16 @@
     nameOffsetX: [-200, 200],
     nameOffsetY: [-210, 210],
     pipOpacity: [0, 100],
+    readoutOutlineWidth: [0, 10],
+    allyReadoutOutlineWidth: [0, 10],
+    nameOutlineWidth: [0, 10],
   };
 
   var NUMBER_STEPS = {
     ultimateTimerSize: 5,
+    readoutOutlineWidth: 0.5,
+    allyReadoutOutlineWidth: 0.5,
+    nameOutlineWidth: 0.5,
   };
 
   function freezeDeep(value) {

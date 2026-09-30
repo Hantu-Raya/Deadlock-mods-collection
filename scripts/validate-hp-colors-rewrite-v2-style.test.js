@@ -711,6 +711,73 @@ test('label replacement restores the retired panel before adopting the replaceme
   for (const className of nativePulseClasses) assert.equal(replacement.BHasClass(className), false);
 });
 
+test('text outline widths retain stock at five and restore native labels on every release', () => {
+  for (const [relation, prefix] of [['enemy', 'readout'], ['friend', 'allyReadout']]) {
+    for (const release of ['reset', 'off', 'master', 'replacement', 'retirement', 'teardown']) {
+      let name;
+      const writes = [];
+      const originalHP = 'original HP shadow';
+      const originalName = 'original name shadow';
+      const values = { readoutVisible: true, allyReadoutVisible: true, playerNamesVisible: true,
+        readoutOutlineWidth: 5, allyReadoutOutlineWidth: 5, nameOutlineWidth: 5,
+        enemyPulseEnabled: true, enemyPulseThreshold: 100, enemyPulseReadout: true,
+        enemyPulseReadoutModifiers: true };
+      const fixture = makeOwnershipFixture(['player', relation], values, (parts) => {
+        parts.health.style.textShadow = originalHP;
+        name = parts.window.add(new MockPanel('name', { text: 'Native name',
+          style: { textShadow: originalName } }));
+        for (const panel of [parts.health, name]) panel.style = new Proxy(panel.style, {
+          set(target, property, value) {
+            if (property === 'textShadow') writes.push([panel.id, value]);
+            target[property] = value;
+            return true;
+          },
+        });
+      });
+      assert.deepEqual(writes, [], 'five must not write a stock shadow');
+      const custom = { ...values, [prefix + 'OutlineWidth']: 2, nameOutlineWidth: 8 };
+      fixture.update(custom);
+      assert.equal(fixture.health.style.textShadow, '0px 0px 0px 2 #10130D');
+      assert.equal(name.style.textShadow, '0px 0px 0px 8 #10130Dee');
+      if (relation === 'enemy') assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), true);
+      const count = writes.length;
+      fixture.update(custom);
+      assert.equal(writes.length, count, 'unchanged shadows are cached');
+      fixture.update({ ...custom, [prefix + 'OutlineWidth']: 8, nameOutlineWidth: 2 });
+      assert.equal(fixture.health.style.textShadow, '0px 0px 0px 8 #10130D');
+      assert.equal(name.style.textShadow, '0px 0px 0px 2 #10130Dee');
+      fixture.update(custom);
+      if (release === 'reset') fixture.update(values);
+      if (release === 'off') fixture.update({ ...custom, readoutVisible: false,
+        allyReadoutVisible: false, playerNamesVisible: false });
+      if (release === 'master') fixture.update({ ...custom, enabled: false });
+      if (release === 'replacement') {
+        const newHP = fixture.info.add(new MockPanel('UnitHealthbarValue',
+          { style: { textShadow: 'replacement HP shadow' } }));
+        name.SetParent(fixture.info);
+        const newName = fixture.window.add(new MockPanel('name',
+          { style: { textShadow: 'replacement name shadow' } }));
+        fixture.harness.scheduler.runByDelay(1);
+        assert.equal(newHP.style.textShadow, '0px 0px 0px 2 #10130D');
+        assert.equal(newName.style.textShadow, '0px 0px 0px 8 #10130Dee');
+        fixture.update({ enabled: false });
+        assert.equal(newHP.style.textShadow, 'replacement HP shadow');
+        assert.equal(newName.style.textShadow, 'replacement name shadow');
+      }
+      if (release === 'retirement') {
+        fixture.primary.RemoveClass('UnitHealthbarContainer');
+        fixture.harness.scheduler.runByDelay(1);
+      }
+      if (release === 'teardown') {
+        fixture.status.valid = false;
+        fixture.harness.scheduler.runNext();
+      }
+      assert.equal(fixture.health.style.textShadow, originalHP, release);
+      assert.equal(name.style.textShadow, originalName, release);
+    }
+  }
+});
+
 test('counter row replacement never orphans the adopted engine label', () => {
   const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, prepareNativeReadout);
   fixture.row.SetParent(fixture.window);
