@@ -728,7 +728,7 @@
     bar.stockTransformOrigin = origin;
     setStyle(info, "transformOrigin", origin, bar.applied, "infoStockOrigin");
     setStyle(panelParent(info), "transformOrigin", origin, bar.applied, "unitStockOrigin");
-    if (!bar.surface || bar.surface === "fill" ||
+    if (!bar.surface ||
         (config.widthScale === 100 && config.heightScale === 100))
       setStyle(bar.parts.healthbars, "transformOrigin", origin,
         bar.applied, "barTransformOrigin");
@@ -1257,8 +1257,8 @@
 
 
   function nativeReadoutEnabled(bar) {
-    var keys = READOUT_KEYS[bar.role];
-    return !!(config.enabled && bar.surface === "player" && keys &&
+    var keys = READOUT_KEYS[bar.role === "ally" ? "ally" : "enemy"];
+    return !!(config.enabled && bar.surface && keys &&
       config[keys.Visible]);
   }
 
@@ -1845,6 +1845,8 @@
   }
 
   function syncOwnedRootClasses(bar) {
+    setOwnedClass(bar.parts && bar.parts.windowRoot, "HPColorsRewriteBarLines",
+      !!(config.enabled && bar.surface), bar.applied, "barLinesClass");
     var enemyPlayer =
       config.enabled &&
       bar.surface === "player" &&
@@ -1892,7 +1894,7 @@
     return false;
   }
 
-  function clearReadoutOwnership(bar, preservePipOpacity) {
+  function clearReadoutOwnership(bar, preservePipOpacity, preserveNative) {
     clearPipColorOwnership(bar);
     if (!preservePipOpacity) clearOwnedStyle(
       bar.parts && bar.parts.pipLines,
@@ -1906,7 +1908,7 @@
       bar.applied,
       "pipVisibility",
     );
-    applyReadout(bar, null);
+    if (!preserveNative) applyReadout(bar, null);
     clearLevelOwnership(bar);
     setNativeHealthValueVisibility(bar, false);
   }
@@ -2449,11 +2451,11 @@
     rebaseStockGeometry(bar);
   }
 
-  function restoreInactiveCustomization(bar, panelBaseline) {
+  function restoreInactiveCustomization(bar, panelBaseline, preserveUnitPresentation) {
     clearPulse(bar);
     clearKillMarkerOwnership(bar);
     // Decorations reconcile pip opacity below; avoid clearing it between identical paints.
-    clearReadoutOwnership(bar, true);
+    clearReadoutOwnership(bar, true, preserveUnitPresentation);
     clearPlayerNameOwnership(bar);
     applyReadoutDecorations(bar);
     applyUltimateWash(bar, "");
@@ -2501,7 +2503,7 @@
       bar.applied,
       "ultBackgroundOpacity",
     );
-    restoreBarGeometry(bar, bar.parts, panelBaseline);
+    if (!preserveUnitPresentation) restoreBarGeometry(bar, bar.parts, panelBaseline);
     bar.geometryChanged = false;
     bar.markerGeometryChanged = false;
   }
@@ -2510,7 +2512,7 @@
     var role = bar.role;
     var surface = bar.surface;
     if (surface === "fill") {
-      restoreInactiveCustomization(bar, panelBaseline);
+      restoreInactiveCustomization(bar, panelBaseline, true);
       setStyle(
         bar.parts.fill,
         "washColor",
@@ -2518,6 +2520,10 @@
         bar.applied,
         "washColor",
       );
+      applyBarGeometry(bar, panelBaseline);
+      applyReadout(bar, config.readoutVisible ? READOUT_KEYS.enemy : null,
+        config.enemyLow, config.enemyMid, config.enemyHigh, config.enemyMode, false);
+      setNativeHealthValueVisibility(bar, false);
       bar.dirty = false;
       return;
     }
@@ -2564,7 +2570,7 @@
     else if (playerSurface && colorsEnabled)
       ultColor = color;
     var readoutKeys =
-      playerSurface && config[READOUT_KEYS[role].Visible]
+      config[READOUT_KEYS[role].Visible]
         ? READOUT_KEYS[role]
         : null;
 
@@ -2956,8 +2962,8 @@
   }
 
   function healthRefreshEnabled(bar) {
-    if (!config.enabled || bar.surface === "fill")
-      return false;
+    if (!config.enabled) return false;
+    if (bar.surface === "fill") return config.readoutVisible;
     if (bar.surface === "unit") return true;
     if (bar.surface !== "player") return false;
     if (bar.role === "enemy") return config.enemyEnabled || config.readoutVisible;

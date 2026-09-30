@@ -226,6 +226,67 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHar
   };
 }
 
+for (const [classes, gate, prefix] of [
+  [['CLASS_TROOPER', 'enemy'], 'npcEnemyEnabled', 'readout'],
+  [['CLASS_TROOPER', 'friend'], 'npcAllyEnabled', 'allyReadout'],
+  [['neutral_weak'], 'npcNeutralEnabled', 'readout'],
+  [['building', 'enemy'], 'buildingEnemyEnabled', 'readout'],
+  [['building', 'friend'], 'buildingAllyEnabled', 'allyReadout'],
+]) test('gated unit shares geometry and native HP text: ' + gate, () => {
+  const values = { enabled: true, [gate]: true, widthScale: 230, heightScale: 160,
+    positionX: 300, positionY: 200, [prefix + 'Visible']: true,
+    [prefix + 'Size']: 200, [prefix + 'Font']: 'pulp',
+    [prefix + 'ColorMode']: 'custom', [prefix + 'Mode']: 'fixed',
+    [prefix + 'Low']: '#112233', [prefix + 'Mid']: '#112233', [prefix + 'High']: '#112233',
+    [prefix + 'OutlineWidth']: 2, pipOpacity: 40,
+    enemyPipColorEnabled: true, enemyPipColor: '#445566',
+    allyPipColorEnabled: true, allyPipColor: '#445566' };
+  const fixture = makeOwnershipFixture(classes, { ...values, [gate]: false }, parts => {
+    prepareNativeReadout(parts);
+    const lines = parts.primary.FindChildTraverse('UnitHealthbarLines');
+    lines.add(new MockPanel('large', { classes: ['line_large'], style: { washColor: '#778899' } }));
+    lines.add(new MockPanel('small', { classes: ['line_small'], style: { washColor: '#778899' } }));
+  });
+  assert.equal(fixture.health.GetParent(), fixture.info);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), false);
+  const lines = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+  assert.equal(lines.style.opacity || '', '');
+  fixture.update(values);
+  assert.equal(fixture.stack.style.preTransformScale2d, '2.3, 1.6');
+  assert.equal(fixture.stack.style.transform, 'translateX(30px) translateY(20px)');
+  assert.equal(fixture.health.GetParent(), fixture.row);
+  assert.equal(fixture.health.style.washColor, '#112233');
+  assert.equal(fixture.health.style.fontSize, '20px');
+  assert.equal(fixture.health.style.fontFamily, 'VALVEPulp, Noto Sans, sans-serif');
+  assert.equal(fixture.health.style.textShadow, '0px 0px 0px 2 #10130D');
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), true);
+  assert.equal(lines.style.opacity, '0.4');
+  for (const line of lines.Children())
+    assert.equal(line.style.washColor, gate === 'npcNeutralEnabled' ? '#778899' : '#445566');
+  assert.equal(fixture.stack.style.transformOrigin, '54.25% 35.24%');
+  fixture.update({ ...values, [prefix + 'OffsetX']: -10, [prefix + 'OffsetY']: 10 });
+  assert.equal(fixture.row.style.marginRight, prefix === 'readout' ? '53px' : '63px');
+  assert.equal(fixture.row.style.marginTop, '102px');
+  for (const panel of [fixture.health, fixture.counter, fixture.counterMax]) {
+    assert.deepEqual(panel.readoutTextWrites, []);
+    assert.equal(panel.readoutTextReads, 0);
+  }
+  fixture.update({ ...values, [prefix + 'Visible']: false });
+  assertNativeStock(fixture.health);
+  assert.equal(fixture.health.GetParent(), fixture.info);
+  for (const off of [{ ...values, [gate]: false }, { ...values, enabled: false }]) {
+    fixture.update(values);
+    fixture.update(off);
+    assertNativeStock(fixture.health);
+    assert.equal(fixture.health.GetParent(), fixture.info);
+    assert.equal(fixture.stack.style.preTransformScale2d, '');
+    assert.equal(lines.style.opacity, '');
+    for (const line of lines.Children()) assert.equal(line.style.washColor, '#778899');
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), false);
+  }
+  assert.deepEqual(fixture.shieldWrites, []);
+});
+
 test('level-up tier changes retain a two-pixel ring and native number at the moved badge', () => {
   const values = { enabled: true, levelOffsetX: 74, accessoryAnchorEnabled: false, widthScale: 148, heightScale: 80 };
   const fixture = makeOwnershipFixture(['player', 'enemy'], values);

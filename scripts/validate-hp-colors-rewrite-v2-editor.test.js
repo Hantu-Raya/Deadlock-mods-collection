@@ -791,6 +791,49 @@ function currentScope(fixture) {
   return current;
 }
 
+test('HEROES picker lists, searches and selects new retail heroes by stable key', () => {
+  const heroes = [
+    ['hero_baba', 'Baba'],
+    ['hero_deadpack', 'Deadman Danny'],
+    ['hero_nurse', 'Nurse Harrow'],
+    ['hero_ratking', 'Rat King'],
+    ['hero_chessmaster', 'Solomon'],
+    ['hero_artist', 'Violet'],
+  ];
+  for (const [key, name] of heroes) {
+    const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+    openPresetsForm(fixture);
+    const option = scopeOption(fixture, key);
+    assert.equal(option.GetChild(0).text, name);
+    for (const [mode, control, summary, selectedClass] of [
+      ['selected', 'HPColorsCurrentScopeSelected', 'ONLY THESE', 'Selected'],
+      ['except', 'HPColorsCurrentScopeExcept', 'ALL EXCEPT', 'Skipped'],
+    ]) {
+      panel(fixture, 'HPColorsCurrentScopeAll').events.onactivate();
+      panel(fixture, control).events.onactivate();
+      const search = panel(fixture, 'HPColorsScopeSearch');
+      for (const query of [name.toLowerCase(), key]) {
+        search.text = query;
+        search.events.ontextentrychange();
+        assert.equal(option.BHasClass('FilteredOut'), false);
+        assert.equal(scopeOption(fixture, 'hero_haze').BHasClass('FilteredOut'), true);
+      }
+      search.text = 'no matching hero';
+      search.events.ontextentrychange();
+      assert.equal(option.BHasClass('FilteredOut'), true);
+      search.text = '';
+      search.events.ontextentrychange();
+      option.events.onactivate();
+      assert.equal(currentScope(fixture).mode, mode);
+      assert.deepEqual(currentScope(fixture).heroes, [key]);
+      assert.equal(option.BHasClass(selectedClass), true);
+      assert.equal(panel(fixture, 'HPColorsCurrentScopeSummary').text, `${summary} — ${name}`);
+      option.events.onactivate();
+      assert.deepEqual(currentScope(fixture).heroes, []);
+    }
+  }
+});
+
 test('scope switch offers All Except with its own picker wording', () => {
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
   openPresetsForm(fixture);

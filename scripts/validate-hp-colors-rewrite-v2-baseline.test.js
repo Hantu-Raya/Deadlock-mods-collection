@@ -930,14 +930,14 @@ test('v2 non-player gates independently authorize only the relation bar surface'
   }
 });
 
-test('v2 neutral NPC opt-in changes fill only and preserves stock bounty and indicators', () => {
+test('v2 neutral NPC opt-in shares layout and HP text while preserving stock bounty and indicators', () => {
   const fixture = makeStatusFixture('neutral', {
     enabled: true, widthScale: 230, positionX: 300, enemyVisible: false,
     readoutVisible: true, npcEnemyEnabled: true, npcAllyEnabled: true,
   });
   const stockPanels = [fixture.neutralBounty, fixture.bountyLabel, fixture.statusEffects,
     fixture.targetable, fixture.rejuvenator, fixture.critical, fixture.assassinate,
-    fixture.unkillable, fixture.healthValue, fixture.unitShieldbarValue];
+    fixture.unkillable, fixture.unitShieldbarValue];
   assert.equal(fixture.fill.style.washColor, '#5BEFB5');
   for (const panel of stockPanels) panel.styleWrites.length = 0;
   dispatchColorSnapshot(fixture, 2, {
@@ -945,8 +945,8 @@ test('v2 neutral NPC opt-in changes fill only and preserves stock bounty and ind
     widthScale: 230, positionX: 300, enemyVisible: false, readoutVisible: true,
   });
   assert.equal(fixture.fill.style.washColor, '#ABCDEF');
-  assert.equal(fixture.healthbars.style.preTransformScale2d || '', '');
-  assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);
+  assert.equal(fixture.healthbars.style.preTransformScale2d, '2.3, 1');
+  assert.deepEqual(translation(fixture.healthbars.style.transform), [30, 0]);
   assert.equal(fixture.healthValue.style.visibility, 'visible');
   assert.equal(fixture.healthValue.text, '300');
   assert.equal(fixture.unitShieldbarValue.text, '9999');
@@ -2497,12 +2497,12 @@ test('round full canvas stock info origin and contained health lines marker', ()
   assert.match(cssBlock(css, '.WindowRoot .unit_info_panel'), /vertical-align:\s*top/);
   assert.match(cssBlock(css, '.WindowRoot .unit_info_panel'), /margin-left:\s*50px/);
   assert.match(cssBlock(css, '.WindowRoot .unit_info_panel'), /margin-top:\s*67px/);
-  const lines = cssBlock(css, '.WindowRoot #UnitHealthbarLines');
+  const lines = cssBlock(css, '.WindowRoot.HPColorsRewriteBarLines #UnitHealthbarLines');
   assert.match(lines, /height:\s*100%/);
   assert.match(lines, /margin-top:\s*0px/);
   assert.match(lines, /overflow:\s*clip/);
-  assert.match(cssBlock(css, '.WindowRoot #UnitHealthbarLines .line_large.line_large'), /height:\s*100%/);
-  const small = cssBlock(css, '.WindowRoot #UnitHealthbarLines .line_small.line_small');
+  assert.match(cssBlock(css, '.WindowRoot.HPColorsRewriteBarLines #UnitHealthbarLines .line_large.line_large'), /height:\s*100%/);
+  const small = cssBlock(css, '.WindowRoot.HPColorsRewriteBarLines #UnitHealthbarLines .line_small.line_small');
   assert.match(small, /height:\s*8px/);
   assert.match(small, /vertical-align:\s*bottom/);
   const marker = cssBlock(css, '.WindowRoot #UnitHealthbar #hp_colors_kill_marker');
