@@ -11,19 +11,19 @@ The v2 overlay is rebased on the static stock tree shipped in Deadlock build 672
 ### Healthbars and feedback
 
 - Enemy-player fixed/gradient colors, team-high endpoints, visibility/layout, healing, damage-delta, shield color, and pulse.
-- Enemy and friendly NPC gates and enemy/friendly building gates default off and work independently of player color toggles. Opted-in units reuse their relation palette, feedback, layout, pulse, and enemy pip-line settings; player-only extras stay off.
-- Known neutral NPCs remain stock unless `npcNeutralEnabled` is on; that gate changes only the fixed fill color. Bounty, tier art, stock labels, and other neutral presentation stay stock.
+- Enemy and friendly NPC gates and enemy/friendly building gates default off and work independently of player color toggles. Opted-in units reuse their relation palette and feedback, shared bar size/position, native HP text settings, and contained health lines; player-only extras stay off.
+- Known neutral NPCs remain stock unless `npcNeutralEnabled` is on; that gate applies the fixed fill color, shared bar size/position, enemy HP text settings, and contained health lines. Bounty, tier art, and other stock indicators stay stock.
 - Ghoul opacity is retired; legacy codec slots remain reserved and old values/rules are dropped on load and import.
 - Unknown type/relation and contradictory enemy/friend ownership remain stock. Neutral facts take precedence over enemy/friend classes; team IDs alone never infer relation.
 
-Surface ownership is kept in one renderer decision: `player` has relation settings and player extras; `unit` has gated non-player bar presentation without HP text or accessories; `fill` has only the neutral fill.
+Surface ownership is kept in one renderer decision: `player` has relation settings and player extras; `unit` has gated non-player bar presentation and native HP text; `fill` has neutral fixed fill plus shared geometry and native HP text. Kill marker, pulse, level, ultimate, and stamina remain player-only.
 
 ### HP readout and stock indicators
 
 - HP text adopts the engine's existing `UnitHealthbarValue` into the stationary WindowRoot counter row, preserving exact engine-updated text and locale grouping without reading or writing the number. No percent/custom counter or maximum exists.
 - Retired format slots remain decodable, but their enum rows are removed. Old percent/current saves load as native HP with a one-time menu note; other settings, scopes, conditions and presets survive.
-- Enemy and ally readouts are player-only. Enemy text off suppresses the number; ally text off returns its parent, styles and pulse classes fully to stock. Shield values are untouched.
-- Native text keeps colors, fonts, size, position, text outline and enemy pulse modifiers. The level and kill marker are player-only; line visibility also covers opted-in enemy NPC/building bars. Tall lines and the marker span the primary bar from top to bottom; short 8px ticks are contained and bottom-aligned.
+- Enemy and neutral units use Enemy → HP Text; friendly units use Ally → HP Text when their UNITS gate is on. Enemy text off suppresses the number; ally text off returns its parent, styles and pulse classes fully to stock. Gate off restores stock presentation. Shield values are untouched.
+- Native text keeps colors, fonts, size, position, and text outline; enemy pulse modifiers remain player-only. The level and kill marker are player-only. Contained lines cover every opted-in unit through the reversible `HPColorsRewriteBarLines` class, with enemy line visibility also covering enemy NPC/building bars. Gate-off or ownership release removes that class. Tall lines and the marker span the primary bar from top to bottom; short 8px ticks are contained and bottom-aligned.
 
 ### Stock appearance
 
@@ -127,7 +127,7 @@ Implemented controls:
 - Independent horizontal and vertical offsets for the level badge and ultimate icon. These offsets apply in both anchor modes.
 - One shared ultimate-ready icon rule: Follow Bar uses each customized relation's final bar color; Custom applies one color to enemy and ally icons even when their bar-color toggle is off.
 
-The ancestry pass classifies explicit building, player, and known NPC facts before relation, with neutral facts first. Player-only level/readout/marker/stamina/ultimate behavior is restricted by `kind`; NPC/building palette gates remain independent of player gates. Ghoul opacity has no renderer branch.
+The ancestry pass classifies explicit building, player, and known NPC facts before relation, with neutral facts first. Level/marker/pulse/stamina/ultimate behavior is restricted to players; NPC/building palette gates remain independent of player gates. Opted-in NPCs/buildings and neutrals share bar geometry and native HP text without acquiring player accessories. Stock boss/building HP labels retain 70% UI scale; stock 180% boss/building and 80% neutral UnitStatus scaling composes with custom bar scale. Ghoul opacity has no renderer branch.
 
 The v1 implementation passed its focused automated and in-game checks before this port. Rewrite v2 still requires its own fresh-restart in-game smoke before parity can be claimed.
 
@@ -136,14 +136,15 @@ The v1 implementation passed its focused automated and in-game checks before thi
 1. Build the source/package with `build_hp_colors_rewrite_v2.ps1 -SkipDeploy`. Deployment and addon replacement are separate actions; after an authorized replacement, fully restart Deadlock.
 2. Inspect a player, neutral camp, trooper/trooper boss, midboss, and building. Record actual `WorldUIRoot` kind/relation/team classes and verify the static primary `UnitHealthbar` and separate shield branch.
 3. With NPC, neutral, and building gates off, apply extreme player layout/color settings: non-player bars, bounty/tier art, stock indicators, and the secondary shield must remain stock.
-4. Enable each NPC/building gate independently and verify only its explicit type/relation changes; it must reuse that relation's palette without player-only accessories. Enable neutral fill and verify bounty, tier art, lines, and values remain stock. Confirm imported legacy ghoul opacity values never affect rendering.
-5. Compare native enemy/ally HP at 0, 999, 1,000, 2,990 and 10,000, including same-fill number changes, all fonts, pulse modifiers, master-off and ally-off restoration. Check that only the original engine label updates and no shield label is adopted.
+4. Enable each NPC/building gate independently and verify only its explicit type/relation changes; check its relation palette, shared size/position, native HP text, and contained lines without player-only accessories. Enable the neutral gate and verify fixed fill, shared geometry, enemy HP text settings, and contained lines while bounty, tier art, and other stock indicators remain stock. Turn each gate off and confirm restoration. Confirm imported legacy ghoul opacity values never affect rendering.
+5. Compare native enemy/ally HP at 0, 999, 1,000, 2,990 and 10,000, including same-fill number changes, all fonts, colors, offsets, outlines, player pulse modifiers, master-off and ally-off restoration. Repeat relation HP-text checks on opted-in NPCs/buildings and neutrals, including stock boss/building label scale and neutral/boss bar scale. Check that only the original engine label updates and no shield label is adopted.
 6. Check fixed/gradient thresholds, team endpoints, visibility, healing, delta, bullet shield, deferred/lagging damage, armor, pulses, and the new stock critical/assassinate/unkillable/rejuvenator/kill-streak indicators.
 7. At width 60/100/230%, height 60/100/160%, position extrema, and supported UI scales, verify measured origins, left-edge gaps, counter/indicator alignment, and an 18% marker clamped to the inner health interval. Check readout `0/0` at canvas center +40px enemy/+30px ally, top 66px; exercise stored X `±334` and Y `±350`, normal/pulse HP text, and ultimate/level percentage controls. Offsets must scale once per bar axis; fitting rows must stop at visible edges without rewriting saved values. Cross `999↔1,000` and `2,990→10,000` at unchanged fill, test all shipped fonts/minimum and maximum sizes, and inspect measured row/root bounds. Check the new defaults and old-data migration separately; record fresh-restart visual evidence separately from VM/build results.
 8. Verify enemy-player-only level tiers, marker, ultimate wash/timer priority, and stamina. Inspect both the level rim **and engine-bound number**, especially transitions through levels 19 and 27; levels off/on and master off/on must collapse/restore the parent while leaving the label's text engine-owned. Default stamina is Arrow; exercise its native texture, Circle, and Box with custom size/color and depleted pips. NPC/building opt-ins must not acquire player accessories.
 9. Exercise late spawn, death/respawn, shield-only/midboss contexts, reparent/replacement/removal, spectator state, and reused panels. Open the stock healthbar preview and verify no Rewrite geometry, overlays, or palette leaks. Open the editor and test Units native picker/hex controls, seeding without an edit, one Undo per picker session, Escape restoration, isolated condition drafts, scoped reset/Undo, transfer compatibility, and Escape lifecycle.
 10. Exercise NAME & APPEARANCE on enemy/ally players at normal and critical HP, with the critical-state convar on/off and in-eye spectator names suppressed. Verify always-rectangular low/full-HP edges, pips, and fill on players, NPCs, buildings, shields, and previews, including master-off and supported UI scales. Label defaults must return control to stock; label hiding must preserve critical motion and flashing.
    Check TEXT OUTLINE at `0`, `5`, and `10` for enemy normal/pulse HP, ally HP, and names. Default, master-off, ally-off, replacement, and ownership release must restore exact prior inline shadows.
+   Check LINE OPACITY at `0`, `50`, and `100` with custom line colors on/off, including lines the engine creates after settings apply. Gate-off, master-off, replacement, and ownership release must restore container opacity and stock line presentation.
 11. Record screenshots/debugger facts and console evidence. Automated tests do not establish visual rendering, exact maximum HP, precise line settings, or frame cost/FPS.
 
 ## Milestone 7: HP readout
@@ -174,7 +175,7 @@ Focused VM regressions cover exact native-label ownership/restoration, retired p
 Implemented controls:
 
 - Enemy pip-line visibility controls the stock `UnitHealthbarLines` panel for enemy players and opted-in enemy NPCs/buildings. The engine still owns generated line positions.
-- Independent enemy/ally health-line colors: enemy defaults on with `#000000`, ally off with stored `#042517`. Shared `pipOpacity` defaults to 100% and accepts `0–100`; it multiplies stock line opacity (enemy 0.6, ally/neutral 0.8) with or without custom color. Matching player and opted-in NPC/building lines use these settings; disabled custom color restores stock washes/opacity and spectator team washes remain untouched. Colors and opacity support conditions, scopes, presets, transfer, and durable save.
+- Independent enemy/ally health-line colors: enemy defaults on with `#000000`, ally off with stored `#042517`. Shared LINE OPACITY (`pipOpacity`) defaults to 100% and accepts `0–100`; it sets `#UnitHealthbarLines` container opacity to `pipOpacity / 100`, multiplying stock child opacity (enemy 0.6, ally/neutral 0.8) so engine-created lines fade too. Matching players and opted-in NPCs/buildings/neutrals use opacity with or without custom color; custom color stays a per-line wash. Disabling custom color restores stock washes without disabling shared opacity; spectator team washes remain untouched. Colors and opacity support conditions, scopes, presets, transfer, and durable save.
 - `precisePipsEnabled` values, conditions, and ownership keys are dropped on load/import while its wire slot stays reserved. The static tree has no verified max-HP binding, and current line panels are not a max source; no precise-pip calculation or manual ConVar copy instructions are advertised.
 - Enemy-player level visibility with engine-bound level text and custom tier boundaries at levels 11, 19, 27, and 35.
 - Level tier recoloring writes the complete `border: 2px solid <tier>` rather than only the color alias, fixing the rim path that produced solid discs at levels 19/27 and above. Fresh in-game confirmation remains pending.
@@ -213,6 +214,8 @@ The Hideout (`connectedToHideout`) is its own `hideout` phase, polled every five
 ## Milestone 12: hero scopes and effective settings
 
 The menu keeps the canonical global base separate from durable Current scopes and preset records. Scopes support **Off**, **All Heroes**, **Selected Heroes (Only These)**, and **All Except**. Hero keys are catalogue-validated, deduplicated, and ordered; empty Selected becomes Off and empty All Except becomes All Heroes. Automatic routing prefers the first matching Selected preset, a still-fitting Current, the first matching All Except preset, the first All Heroes preset, then Rewrite Default. Unknown identity never selects Selected or All Except.
+
+The catalogue includes 44 heroes, adding the prerelease game-data entries Baba (`hero_baba`), Deadman Danny (`hero_deadpack`), Nurse Harrow (`hero_nurse`), Rat King (`hero_ratking`), Solomon (`hero_chessmaster`), and Violet (`hero_artist`). Exact-name Auto detection and the searchable picker use these entries. HPCRP1 stores hero string keys, so no encoding change is needed. Existing All Except lists do not automatically skip newly added heroes; the web builder catalogue still lacks these six.
 
 Only the resolved effective snapshot enters the root config attribute, `ClientUI_FireOutput`, and adaptive replay path. Changes that leave effective values unchanged do not increment revision or dispatch config. Current exposes All Heroes, Only These, and All Except with a searchable hero picker. Hero presets retain their own override keys and layer on the first All Heroes preset or the hidden canonical Rewrite Default; see Milestone 13.
 
@@ -315,6 +318,12 @@ Confirmation requests now use distinct, single-use tokens; a cancelled reset or 
 `node scripts/measure-hp-colors-rewrite-v2-refactor.js --output <report.json>` measures equal ten-second synthetic windows after a one-second warmup. Set `HP_COLORS_REWRITE_SOURCE_ROOT` to compare a preserved source tree. Scenarios cover stable/active enemies, allies, no bars, replacement, layout reset, width editing, scope editing, and state updates.
 
 The preserved before/after runs reduced renderer parent reads from 550 to 370 per stable/active context, scope-editor class reads from 17,930 to 13,930, and newly frozen objects from 1,500 to 1,100 across 100 state edits. Observable snapshots, callback counts, and style writes were unchanged. Serialization work was unchanged. These are VM operation counts, not native CPU or FPS results; fresh live A/B captures and in-game smoke checks remain required for performance acceptance.
+
+## October 1 audit (c7998a0)
+
+The audit removed unused storage disposal/saved-time bookkeeping, redundant renderer guards/writes, and unreachable menu paths. Whole-bar geometry names now use `bar` rather than `segment`; geometry rebases once per paint tick, the shield label is cached, and repeated unit-fact class reads are deduplicated. Menu synchronization reads one state snapshot and caches missing-control lookups for legacy layouts.
+
+Measured idle paint-tick operation counts fell from 52 to 2 class reads, 15 to 4 parent reads, and 70 to 54 layout reads. Review found no behavior changes. These are synthetic operation counts, not native CPU or FPS results; fresh live checks remain required. Per-line opacity bookkeeping was separately removed when LINE OPACITY moved to the container.
 
 ## Release 2.0.3
 
