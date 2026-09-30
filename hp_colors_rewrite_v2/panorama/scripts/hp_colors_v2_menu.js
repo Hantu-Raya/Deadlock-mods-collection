@@ -1393,6 +1393,9 @@
 
   function controlPanel(id) {
     var panel = controlPanels[id];
+    // A retired pak01 layout cannot supply the missing newer controls. Resolve
+    // those absences once per boot; explicit setup retries reset this cache.
+    if (panel === null && navigationCategories !== CATEGORY_DEFS) return null;
     if (!isValid(panel)) {
       panel = find(id);
       controlPanels[id] = panel;
@@ -1884,8 +1887,8 @@
     return "TRANSITIONING";
   }
 
-  function renderIdentity() {
-    var view = currentView();
+  function renderIdentity(view) {
+    if (!view) view = currentView();
     if (!view || !view.identity) return;
     var identityView = view.identity;
     var signature =
@@ -2093,8 +2096,8 @@
     }
   }
 
-  function renderCurrentScope() {
-    var view = currentView();
+  function renderCurrentScope(view) {
+    if (!view) view = currentView();
     var row = view && view.currentScope ? view.currentScope : null;
     var mode =
       row && scopeUsesHeroes(row.mode)
@@ -4054,7 +4057,6 @@
   function renderStoreStatus() {
     var storeText = storeStatusText();
     var warning =
-      storeText === "UPDATE PRESET FILE" ||
       storeText === "SAVE UNAVAILABLE" ||
       storeText === "SAVE RETRYING" ||
       storeText === "SAVE TOO LARGE";
@@ -4545,16 +4547,17 @@
     );
   }
 
-  function syncConditionIndicators() {
-    var activeConditions = state.conditions;
+  function syncConditionIndicators(view) {
+    if (!view) view = currentView();
+    if (!view) return;
+    var scope = view.currentScope || view;
+    var activeConditions = scope.conditions;
     for (var key in conditionControls) {
       if (!Object.prototype.hasOwnProperty.call(conditionControls, key))
         continue;
       var control = conditionControls[key];
       var activeRule = activeConditions[key];
-      var meaningful =
-        !!activeRule &&
-        !conditionValueMatchesSetting(key, activeRule.value);
+      var meaningful = !!activeRule && activeRule.value !== scope.values[key];
       var tier = meaningful
         ? ability.observedTiers[activeRule.slot - 1]
         : -1;
@@ -4764,11 +4767,12 @@
 
   function setSlider(control, value) {
     var slider = controlPanel(control.base + "Slider");
-    var displayValue = displayNumber(control.key, value);
+    var entryValue = displayNumber(control.key, value);
+    var displayValue = entryValue;
     if ((LEGACY_DISPLAY_KEYS[control.key] || BAR_PERCENT_KEYS[control.key]) && isValid(slider))
       displayValue = Math.max(slider.min, Math.min(slider.max, displayValue));
     setSliderValue(slider, displayValue);
-    setText(controlPanel(control.base + "Entry"), String(displayNumber(control.key, value)));
+    setText(controlPanel(control.base + "Entry"), String(entryValue));
   }
 
   function setColor(control, value) {
@@ -4894,6 +4898,16 @@
     }
   }
 
+  function syncPulseColorRows(base, active) {
+    syncDependentRow(
+      base + "ModeRow",
+      active,
+      base + "ModeFixed",
+      base + "ModeGradient",
+    );
+    setClass(controlPanel(base + "Row"), "Active", active);
+  }
+
   function syncDependentRow(rowId, active, firstControlId, secondControlId) {
     setClass(controlPanel(rowId), "Disabled", !active);
     setEnabled(controlPanel(firstControlId), active);
@@ -4940,18 +4954,9 @@
     );
 
     var enemyPulseActive = values.enemyPulseEnabled;
-    var enemyPulseColorActive =
-      enemyPulseActive && values.enemyPulseColorEnabled;
-    syncDependentRow(
-      "HPColorsEnemyPulseColorModeRow",
-      enemyPulseColorActive,
-      "HPColorsEnemyPulseColorModeFixed",
-      "HPColorsEnemyPulseColorModeGradient",
-    );
-    setClass(
-      controlPanel("HPColorsEnemyPulseColorRow"),
-      "Active",
-      enemyPulseColorActive,
+    syncPulseColorRows(
+      "HPColorsEnemyPulseColor",
+      enemyPulseActive && values.enemyPulseColorEnabled,
     );
 
     var enemyPulseReadoutModifiersActive =
@@ -4975,18 +4980,9 @@
       "HPColorsEnemyPulseReadoutOffsetYEntry",
     );
 
-    var allyPulseColorActive =
-      values.allyPulseEnabled && values.allyPulseColorEnabled;
-    syncDependentRow(
-      "HPColorsAllyPulseColorModeRow",
-      allyPulseColorActive,
-      "HPColorsAllyPulseColorModeFixed",
-      "HPColorsAllyPulseColorModeGradient",
-    );
-    setClass(
-      controlPanel("HPColorsAllyPulseColorRow"),
-      "Active",
-      allyPulseColorActive,
+    syncPulseColorRows(
+      "HPColorsAllyPulseColor",
+      values.allyPulseEnabled && values.allyPulseColorEnabled,
     );
 
     syncReadoutColorRows("HPColorsReadout", values.readoutColorMode);
@@ -5047,7 +5043,8 @@
 
   function syncControls() {
     var view = currentView();
-    var values = state.values;
+    var scope = view && (view.currentScope || view);
+    var values = scope ? scope.values : {};
     syncingControls = true;
     try {
       syncToggleControls(values);
@@ -5058,12 +5055,12 @@
       syncFeatureRows(values);
       setEnabled(ui.undoButton, !!(view && view.undoAvailable));
       syncPicker();
-      syncConditionIndicators();
+      syncConditionIndicators(view);
     } finally {
       syncingControls = false;
     }
-    renderIdentity();
-    renderCurrentScope();
+    renderIdentity(view);
+    renderCurrentScope(view);
     refreshPresetActivity(view);
   }
 
@@ -5413,8 +5410,6 @@
       var tabs = navigationCategories[groupIndex].tabs;
       for (var pageIndex = 0; pageIndex < tabs.length; pageIndex++) {
         var pageId = tabs[pageIndex].pageId;
-        if (legacyLayout && (navigationCategories[groupIndex].name === "UNITS" ||
-          pageId === "HPColorsSettingsOverviewAppearance")) continue;
         ui.settingsPages.push(find(pageId));
       }
     }
@@ -5473,6 +5468,7 @@
 
 
   function createSliders() {
+    var legacyLayout = navigationCategories !== CATEGORY_DEFS;
     for (var index = 0; index < SLIDER_CONTROLS.length; index++) {
       var control = SLIDER_CONTROLS[index];
       var sliderId = control.base + "Slider";
@@ -5485,7 +5481,7 @@
       );
       controlPanels[sliderId] = slider;
       controlPanels[control.base + "Entry"] = find(control.base + "Entry");
-      if (!isValid(slider) && !(detectLegacyLayout(find(STORE_PANEL_ID)) && (/^name/.test(control.key) || control.key === "pipOpacity"))) return false;
+      if (!isValid(slider) && !(legacyLayout && (/^name/.test(control.key) || control.key === "pipOpacity"))) return false;
     }
     ui.conditionNumberSlider = createSlider(
       "HPColorsConditionNumberSliderHost",
@@ -5508,7 +5504,6 @@
     };
     setPanelEvent(ui.pickerHex, "ontextentrysubmit", commitHex);
     setPanelEvent(ui.pickerHex, "onfocuslost", commitHex);
-    ui.nativePicker = find("HPColorsNativePicker");
     try {
       nativePickerHex = isValid(ui.nativePicker)
         ? ui.nativePicker.FindChildTraverse("HexValue") : null;
@@ -5524,7 +5519,7 @@
           }
           changePickerColor(color);
         });
-    } catch (error) {
+    } catch {
       nativePickerHex = null;
       if (isValid(ui.nativePicker)) ui.nativePicker.visible = false;
       if (!nativePickerWarningLogged) {

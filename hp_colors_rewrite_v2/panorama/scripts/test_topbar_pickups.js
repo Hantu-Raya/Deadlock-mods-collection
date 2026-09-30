@@ -1024,11 +1024,11 @@
       listener = null;
     }
     for (var index = 0; index < rows.length; index++) {
-      try { render(rows[index], 0); } catch (ignored) {}
+      try { render(rows[index], 0); } catch {}
     }
     if (!topBar) {
-      try { publish("", 0); } catch (ignored) {}
-      try { clearUltimate(); } catch (ignored) {}
+      try { publish("", 0); } catch {}
+      try { clearUltimate(); } catch {}
     }
   };
 
@@ -1059,7 +1059,7 @@
     } catch (error) {
       $.Msg("[test_hpv2] Pickup scan failed: " + error);
       for (var clear = 0; clear < rows.length; clear++) {
-        try { render(rows[clear], 0); } catch (ignored) {}
+        try { render(rows[clear], 0); } catch {}
       }
     }
     $.Schedule(topBar ? 5 : 3, tick);
