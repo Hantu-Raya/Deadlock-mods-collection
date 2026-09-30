@@ -569,6 +569,7 @@
       levelLabel: findWithin(infoHealth, "unit_level_label"),
       healthValue: directChild(infoHealth, "UnitHealthbarValue") ||
         directChild(counterRow, "UnitHealthbarValue"),
+      counterContainer: counterContainer,
       counterAnchor: findWithin(counterContainer, "hp_counter_anchor"),
       counterRow: counterRow,
       counter: findWithin(counterContainer, "hp_counter"),
@@ -1267,7 +1268,9 @@
     var color = "";
     var fontSize = "";
     var fontFamily = "";
-    var transform = "";
+    var readoutMode = keys ? config[keys.Format] : "";
+    if (bar.readoutMode !== readoutMode) clearReadoutGeometry(bar);
+    bar.readoutMode = readoutMode;
     if (keys) {
       if (config[keys.ColorMode] === "custom") {
         low = config[keys.Low];
@@ -1292,14 +1295,10 @@
         : config[keys.OffsetY];
       fontSize = pixels(nativePx(size));
       fontFamily = READOUT_FONTS[config[keys.Font]] || DEFAULT_READOUT_FONT;
-      var readoutX = nativePx(config.positionX) + offsetX;
-      var readoutY = nativePx(config.positionY) + offsetY;
-      transform =
-        "translate3d(" +
-        pixels(readoutX) +
-        ", " +
-        pixels(readoutY) +
-        ", 0px)";
+      bar.readoutPosition = {
+        x: nativePx(config.positionX) + offsetX,
+        y: nativePx(config.positionY) + offsetY,
+      };
     }
     if (native && adoptNativeReadout(bar)) {
       setStyle(bar.parts.healthValue, "opacity", "1", bar.applied, "nativeReadoutopacity");
@@ -1330,13 +1329,8 @@
     setReadoutStyle(bar, "fontSize", native ? "" : fontSize, "FontSize");
     setReadoutStyle(bar, "height", keys && !native ? "fit-children" : "", "Height");
     setReadoutStyle(bar, "fontFamily", native ? "" : fontFamily, "FontFamily");
-    setStyle(
-      bar.parts.counterAnchor,
-      "transform",
-      transform,
-      bar.applied,
-      "readoutTransform",
-    );
+    if (keys) positionReadout(bar);
+    else clearReadoutGeometry(bar);
     setStyle(bar.parts.counter, "washColor", native ? "" : color, bar.applied, "readoutWashColor");
     setStyle(
       bar.parts.counterMax,
@@ -1345,6 +1339,48 @@
       bar.applied,
       "readoutMaximumWashColor",
     );
+  }
+
+  function clearReadoutGeometry(bar) {
+    bar.readoutPosition = null;
+    bar.readoutSample = null;
+    var parts = bar.parts || {};
+    setStyle(parts.counterAnchor, "width", "", bar.applied, "readoutAnchorWidth");
+    setStyle(parts.counterAnchor, "height", "", bar.applied, "readoutAnchorHeight");
+    setStyle(parts.counterAnchor, "transform", "", bar.applied, "readoutTransform");
+    setStyle(parts.counterRow, "marginLeft", "", bar.applied, "readoutLeft");
+    setStyle(parts.counterRow, "marginTop", "", bar.applied, "readoutTop");
+  }
+
+  function positionReadout(bar) {
+    var position = bar.readoutPosition;
+    var parts = bar.parts || {};
+    if (!position || !isValid(parts.counterContainer) ||
+        !isValid(parts.counterAnchor) || !isValid(parts.counterRow)) return false;
+    var width = parts.counterContainer.actuallayoutwidth;
+    var height = parts.counterContainer.actuallayoutheight;
+    var rowWidth = parts.counterRow.actuallayoutwidth;
+    var rowHeight = parts.counterRow.actuallayoutheight;
+    if (!Number.isFinite(width) || width <= 0 ||
+        !Number.isFinite(height) || height <= 0 ||
+        !Number.isFinite(rowWidth) || rowWidth <= 0 ||
+        !Number.isFinite(rowHeight) || rowHeight <= 0) {
+      bar.readoutSample = null;
+      return false;
+    }
+    var left = Math.max(0, Math.min(Math.max(0, width - rowWidth),
+      width / 2 + (bar.role === "ally" ? 30 : 40) - rowWidth + position.x));
+    var top = Math.max(0, Math.min(Math.max(0, height - rowHeight), 66 + position.y));
+    var sample = [width, height, rowWidth, rowHeight, left, top].join(",");
+    var changed = bar.readoutSample !== sample;
+    bar.readoutSample = sample;
+    // Cached native readback also retries rejected writes and repairs drift.
+    setStyle(parts.counterAnchor, "width", pixels(width), bar.applied, "readoutAnchorWidth");
+    setStyle(parts.counterAnchor, "height", pixels(height), bar.applied, "readoutAnchorHeight");
+    setStyle(parts.counterAnchor, "transform", "", bar.applied, "readoutTransform");
+    setStyle(parts.counterRow, "marginLeft", pixels(left), bar.applied, "readoutLeft");
+    setStyle(parts.counterRow, "marginTop", pixels(top), bar.applied, "readoutTop");
+    return changed;
   }
   function setNativeHealthValueVisibility(bar, suppress) {
     var baseline = bar.panelBaseline || {};
@@ -2679,6 +2715,9 @@
   }
   // Per-panel samples; cleared on creation and whenever the part set changes.
   function resetBarSamples(bar) {
+    bar.readoutPosition = null;
+    bar.readoutSample = null;
+    bar.readoutMode = "";
     bar.kind = "unknown";
     bar.role = "other";
     bar.ambiguousRelation = false;
@@ -2813,10 +2852,10 @@
       applyCustomization(bar);
       return true;
     }
-    var changed = false;
+    var changed = positionReadout(bar);
     if (healthRefreshEnabled(bar)) {
       sampleHealthPercent(bar);
-      changed = bar.healthPresentationChanged;
+      changed = bar.healthPresentationChanged || changed;
     }
     if (!bar.dirty && (layoutStyleDrift(bar) || appearanceStyleDrift(bar)))
       bar.dirty = true;

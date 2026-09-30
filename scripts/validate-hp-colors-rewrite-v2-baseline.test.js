@@ -350,6 +350,7 @@ function addLiveHealthbar(healthbars, harness, currentText = '300', fillWidth = 
 
 function addCounterCanvas(windowRoot, harness) {
   const container = windowRoot.add(new MockPanel('hp_counter_container', {
+    actuallayoutwidth: 200, actuallayoutheight: 210,
     style: { visibility: 'collapse' },
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
@@ -358,11 +359,8 @@ function addCounterCanvas(windowRoot, harness) {
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
-  const slot = anchor.add(new MockPanel('hp_counter_slot', {
-    findCounts: harness.findCounts,
-    operationCounts: harness.operationCounts,
-  }));
-  const row = slot.add(new MockPanel('hp_counter_row', {
+  const row = anchor.add(new MockPanel('hp_counter_row', {
+    actuallayoutwidth: 48, actuallayoutheight: 24,
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -865,8 +863,8 @@ test('v2 preserves the frozen static stock tree and adds only passive owned pane
   const window = layout[0].children.find(node => node.attributes.class === 'WindowRoot');
   const container = window.children.find(node => node.attributes.id === 'hp_counter_container');
   const anchor = container.children.find(node => node.attributes.id === 'hp_counter_anchor');
-  const slot = anchor.children.find(node => node.attributes.id === 'hp_counter_slot');
-  const row = slot.children.find(node => node.attributes.id === 'hp_counter_row');
+  const row = anchor.children.find(node => node.attributes.id === 'hp_counter_row');
+  assert.doesNotMatch(read(layoutPath), /hp_counter_slot/);
   assert.deepEqual(row.children.map(node => node.attributes.id), ['hp_counter', 'hp_counter_max']);
   assert.doesNotMatch(read(layoutPath), /hp_counter_native/);
 });
@@ -1065,7 +1063,9 @@ test('v2 HP/current readouts own an external engine-bound label without rewritin
     assert.equal(fixture.healthValue.style.washColor, '#123456');
     assert.equal(fixture.healthValue.style.fontSize, '20px');
     assert.equal(fixture.healthValue.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
-    assert.equal(fixture.counterAnchor.style.transform, 'translate3d(60px, -100px, 0px)');
+    assert.equal(fixture.counterAnchor.style.transform, '');
+    assert.equal(fixture.counterRow.style.marginLeft, '152px');
+    assert.equal(fixture.counterRow.style.marginTop, '0px');
     assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
     assert.equal(fixture.counterContainer.GetParent(), fixture.windowRoot);
     assert.equal(fixture.unitShieldbarValue.style.visibility, 'visible');
@@ -1275,7 +1275,9 @@ test('v2 ally health text is opt-in, independently styled, and native labels res
   assert.equal(fixture.counter.style.washColor, '#445566');
   assert.equal(fixture.counter.style.fontSize, '20px');
   assert.equal(fixture.counter.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
-  assert.equal(fixture.counterAnchor.style.transform, 'translate3d(10px, 150px, 0px)');
+  assert.equal(fixture.counterAnchor.style.transform, '');
+  assert.equal(fixture.counterRow.style.marginLeft, '92px');
+  assert.equal(fixture.counterRow.style.marginTop, '186px');
   assert.equal(fixture.healthValue.style.visibility, 'collapse');
 
   fixture.fill.actuallayoutwidth = 6.9;
@@ -1566,13 +1568,15 @@ test('v2 clamps native readout offsets across the canvas and retains the percent
   const fixture = makeStatusFixture('enemy', {
     readoutVisible: true, readoutSize: 140, readoutOffsetX: 405, readoutOffsetY: 840,
   });
-  assert.equal(fixture.counterAnchor.style.transform, 'translate3d(200px, 210px, 0px)');
+  assert.equal(fixture.counterAnchor.style.transform, '');
+  assert.equal(fixture.counterRow.style.marginLeft, '152px');
+  assert.equal(fixture.counterRow.style.marginTop, '186px');
   assert.equal(fixture.healthValue.style.fontSize, '14px');
   assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
   assert.equal(fixture.counterContainer.GetParent(), fixture.windowRoot);
   const style = read(stylePath);
   for (const selector of ['.WindowRoot #hp_counter_container', '.WindowRoot #hp_counter_anchor',
-    '.WindowRoot #hp_counter_slot', '.WindowRoot #hp_counter_row'])
+    '.WindowRoot #hp_counter_row'])
     assert.match(cssBlock(style, selector), /overflow\s*:\s*noclip\s*;/);
 });
 
@@ -1586,16 +1590,22 @@ test('v2 default and pulse readouts use zero-based 1:1 CSS pixel offsets plus na
     }, offsetX: 'enemyPulseReadoutOffsetX', offsetY: 'enemyPulseReadoutOffsetY' },
   ]) {
     const fixture = makeStatusFixture(entry.role, entry.values);
-    assert.equal(fixture.counterAnchor.style.transform, 'translate3d(0px, 0px, 0px)', entry.role);
+    const baselineLeft = entry.role === 'ally' ? 82 : 92;
+    assert.equal(fixture.counterAnchor.style.transform, '', entry.role);
+    assert.equal(fixture.counterRow.style.marginLeft, baselineLeft + 'px');
+    assert.equal(fixture.counterRow.style.marginTop, '66px');
     dispatchColorSnapshot(fixture, 2, { ...entry.values, [entry.offsetX]: 50 });
-    assert.equal(fixture.counterAnchor.style.transform, 'translate3d(50px, 0px, 0px)', entry.offsetX);
+    assert.equal(fixture.counterRow.style.marginLeft, (baselineLeft + 50) + 'px', entry.offsetX);
     dispatchColorSnapshot(fixture, 3, {
       ...entry.values, [entry.offsetX]: 50, [entry.offsetY]: -100,
       positionX: 200, positionY: -100,
     });
-    assert.equal(fixture.counterAnchor.style.transform, 'translate3d(70px, -110px, 0px)', entry.offsetY);
+    assert.equal(fixture.counterAnchor.style.transform, '');
+    assert.equal(fixture.counterRow.style.marginLeft, '152px', entry.offsetY);
+    assert.equal(fixture.counterRow.style.marginTop, '0px', entry.offsetY);
     dispatchColorSnapshot(fixture, 4, entry.values);
-    assert.equal(fixture.counterAnchor.style.transform, 'translate3d(0px, 0px, 0px)');
+    assert.equal(fixture.counterRow.style.marginLeft, baselineLeft + 'px');
+    assert.equal(fixture.counterRow.style.marginTop, '66px');
   }
 });
 
@@ -1624,25 +1634,18 @@ test('v2 full-canvas readout frame grows left from the stock label edge and leve
   for (const hidden of ['.health_hidden', '.GameStatePreGame', '.beingSpectatedInEye',
     '.health_particle_active', '.neutral_vault', '.midboss'])
     assert.ok(new RegExp(`\\${hidden} #hp_counter_container[\\s\\S]*?visibility:\\s*collapse`).test(css), hidden);
-  // The translated anchor is a fixed 3x canvas, so moving it or changing the
-  // number never pushes the text outside the transformed panel's own box.
+  // Fallback resource geometry; measured bounds and reflow are tested in the style VM.
   const anchor = cssBlock(css, '.WindowRoot #hp_counter_anchor');
-  for (const property of ['width: 300%', 'height: 300%', 'horizontal-align: center',
-    'vertical-align: center'])
+  for (const property of ['width: 200px', 'height: 210px', 'horizontal-align: left',
+    'vertical-align: top'])
     assert.ok(anchor.includes(property), `anchor ${property}`);
-  assert.doesNotMatch(anchor, /fit-children|margin-top/);
-  const slot = cssBlock(css, '.WindowRoot #hp_counter_slot');
-  for (const property of ['width: 50%', 'height: 33.3333%', 'horizontal-align: left',
-    'vertical-align: center'])
-    assert.ok(slot.includes(property), `slot ${property}`);
+  assert.doesNotMatch(anchor, /fit-children|margin-top|transform/);
+  assert.doesNotMatch(css, /hp_counter_slot/);
   const row = cssBlock(css, '.WindowRoot #hp_counter_row');
-  for (const property of ['width: fit-children', 'height: fit-children', 'horizontal-align: right',
-    'vertical-align: top', 'margin-top: 66px', 'flow-children: right', 'margin-right: -40px',
-    'padding: 4px'])
+  for (const property of ['width: fit-children', 'height: fit-children', 'horizontal-align: left',
+    'vertical-align: top', 'margin-top: 66px', 'flow-children: right', 'margin-right: 0px',
+    'margin-left: 0px', 'padding: 4px'])
     assert.ok(row.includes(property), `row ${property}`);
-  const friendRow = cssBlock(css, '.WindowRoot.friend #hp_counter_row');
-  assert.match(css, /\.friend \.WindowRoot #hp_counter_row,\s*\.WindowRoot\.friend #hp_counter_row/);
-  assert.match(friendRow, /margin-right:\s*-30px/);
   const level = cssBlock(css, '.WindowRoot #LevelContainer.NP_playerlevel_container');
   assert.match(level, /margin-left:\s*-23px/);
   assert.match(level, /margin-top:\s*-14px/);
