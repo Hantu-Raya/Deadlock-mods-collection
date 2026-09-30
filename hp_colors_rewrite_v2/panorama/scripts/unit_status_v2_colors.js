@@ -21,6 +21,8 @@
   var LEVEL_BASE_MARGIN_TOP = -14;
   var UNIT_INFO_BASE_MARGIN_LEFT = 0;
   var UNIT_INFO_BASE_MARGIN_TOP = -14;
+  // Temporary accessory-only console evidence; remove after the live smoke.
+  var ACCESSORY_DIAGNOSTICS = true;
 
   if (!$.HPColorsV2ContractFactory || !$.HPColorsV2ContractFactory.create)
     throw new Error("HP Colors v2 settings contract unavailable");
@@ -681,24 +683,17 @@
   }
 
 
-  function readPanelWidthRaw(panel) {
-    try {
-      return Math.max(0, Number(panel.actuallayoutwidth) || 0);
-    } catch {
-      return 0;
-    }
-  }
-
   function readPanelNumber(panel, property) {
-    try {
-      var value = Number(panel && panel[property]);
-      return Number.isFinite(value) ? value : 0;
-    } catch {
-      return 0;
-    }
+    var value = cssLayout(panel, property, property === "actualyoffset" ||
+      property === "actuallayoutheight" ? "y" : "x");
+    return Number.isFinite(value) ? value : 0;
   }
 
-  function readPanelHeightRaw(panel) {
+  function readPanelWidth(panel) {
+    return Math.max(0, readPanelNumber(panel, "actuallayoutwidth"));
+  }
+
+  function readPanelHeight(panel) {
     return Math.max(0, readPanelNumber(panel, "actuallayoutheight"));
   }
 
@@ -708,16 +703,22 @@
     var inner = bar.parts.inner;
     var stackX = readPanelNumber(stack, "actualxoffset");
     var stackY = readPanelNumber(stack, "actualyoffset");
-    var stackWidth = readPanelWidthRaw(stack);
-    var stackHeight = readPanelHeightRaw(stack);
+    var stackWidth = readPanelWidth(stack);
+    var stackHeight = readPanelHeight(stack);
     var primaryX = readPanelNumber(primary, "actualxoffset");
     var primaryY = readPanelNumber(primary, "actualyoffset");
-    var primaryWidth = readPanelWidthRaw(primary);
-    var primaryHeight = readPanelHeightRaw(primary);
+    var primaryWidth = readPanelWidth(primary);
+    var primaryHeight = readPanelHeight(primary);
     var innerX = readPanelNumber(inner, "actualxoffset");
     var innerY = readPanelNumber(inner, "actualyoffset");
-    var innerWidth = readPanelWidthRaw(inner);
-    var innerHeight = readPanelHeightRaw(inner);
+    var innerWidth = readPanelWidth(inner);
+    var innerHeight = readPanelHeight(inner);
+    bar.geometryReady = stackWidth > 0 && stackHeight > 0 &&
+      primaryWidth > 0 && primaryHeight > 0 &&
+      Number.isFinite(cssLayout(stack, "actualxoffset", "x")) &&
+      Number.isFinite(cssLayout(stack, "actualyoffset", "y")) &&
+      Number.isFinite(cssLayout(primary, "actualxoffset", "x")) &&
+      Number.isFinite(cssLayout(primary, "actualyoffset", "y"));
     var changed =
       !bar.geometrySampled ||
       stackX !== bar.stackX ||
@@ -787,12 +788,10 @@
 
   function visibleHealthFraction(fill, innerWidth) {
     if (innerWidth <= 0) return 0;
-    var rawWidth = readHealthSignal(fill, "actuallayoutwidth", false);
-    var width = rawWidth ? Number(rawWidth) : NaN;
+    var width = cssLayout(fill, "actuallayoutwidth", "x");
     var fraction = Number.isFinite(width) && width >= 0
       ? width / innerWidth : Infinity;
-    var rawX = readHealthSignal(fill, "actualxoffset", false);
-    var x = rawX ? Number(rawX) : NaN;
+    var x = cssLayout(fill, "actualxoffset", "x");
     if (Number.isFinite(width) && width >= 0 && Number.isFinite(x) && x < 0)
       fraction = Math.min(fraction, (width + x) / innerWidth);
     var clip = /^rect\s*\(\s*([^)]*)\)$/i.exec(
@@ -838,7 +837,7 @@
 
   function sampleHealthPercent(bar) {
     sampleBarGeometry(bar);
-    var fillWidth = readPanelWidthRaw(bar.parts.fill);
+    var fillWidth = readPanelWidth(bar.parts.fill);
     var innerWidth = bar.innerWidth;
     var primaryWidth = bar.primaryWidth;
     var fraction = visibleHealthFraction(bar.parts.fill, innerWidth);
@@ -1359,10 +1358,10 @@
         !isValid(parts.counterAnchor) || !isValid(parts.counterRow)) return false;
     // actuallayout* are window pixels; margins and sizes are CSS pixels.
     // The 6722 world panel renders at window scale 2 (400x420 for 200x210).
-    var width = cssLayout(parts.counterContainer, "width", "x");
-    var height = cssLayout(parts.counterContainer, "height", "y");
-    var rowWidth = cssLayout(parts.counterRow, "width", "x");
-    var rowHeight = cssLayout(parts.counterRow, "height", "y");
+    var width = cssLayout(parts.counterContainer, "actuallayoutwidth", "x");
+    var height = cssLayout(parts.counterContainer, "actuallayoutheight", "y");
+    var rowWidth = cssLayout(parts.counterRow, "actuallayoutwidth", "x");
+    var rowHeight = cssLayout(parts.counterRow, "actuallayoutheight", "y");
     if (!Number.isFinite(width) || width <= 0 ||
         !Number.isFinite(height) || height <= 0 ||
         !Number.isFinite(rowWidth) || rowWidth <= 0 ||
@@ -1387,9 +1386,17 @@
     return changed;
   }
 
-  function cssLayout(panel, size, axis) {
-    var scale = Number(panel["actualuiscale_" + axis]);
-    return panel["actuallayout" + size] / (scale > 0 ? scale : 1);
+  function cssLayout(panel, property, axis) {
+    try {
+      var raw = panel && panel[property];
+      if (raw === null || raw === undefined || raw === "") return NaN;
+      var value = Number(raw);
+      var scale = Number(panel["actualuiscale_" + axis]);
+      return Number.isFinite(value)
+        ? value / (Number.isFinite(scale) && scale > 0 ? scale : 1) : NaN;
+    } catch {
+      return NaN;
+    }
   }
   function setNativeHealthValueVisibility(bar, suppress) {
     var baseline = bar.panelBaseline || {};
@@ -2158,12 +2165,24 @@
     if (!isValid(panel)) return false;
     var panelKey = key + "Panel";
     if (bar[panelKey] === panel) return true;
+    var width = cssLayout(panel, "actuallayoutwidth", "x");
+    var height = cssLayout(panel, "actuallayoutheight", "y");
+    var x = cssLayout(panel, "actualxoffset", "x");
+    var y = cssLayout(panel, "actualyoffset", "y");
+    if (!bar.geometryReady || !Number.isFinite(width) || width <= 0 ||
+        !Number.isFinite(height) || height <= 0 ||
+        !Number.isFinite(x) || !Number.isFinite(y)) return false;
     bar[panelKey] = panel;
-    bar[key + "CenterX"] =
-      readPanelNumber(panel, "actualxoffset") + readPanelWidthRaw(panel) / 2;
-    bar[key + "CenterY"] =
-      readPanelNumber(panel, "actualyoffset") + readPanelHeightRaw(panel) / 2;
+    bar[key + "CenterX"] = x + width / 2;
+    bar[key + "CenterY"] = y + height / 2;
+    bar.dirty = true;
     return true;
+  }
+
+  function reconcileAccessoryCenters(bar) {
+    if (bar.surface !== "player") return;
+    rememberAccessoryCenter(bar, bar.parts.levelContainer, "levelAnchor");
+    rememberAccessoryCenter(bar, bar.parts.unitInfo, "unitInfoAnchor");
   }
 
   function applyBarGeometry(bar, panelBaseline) {
@@ -2246,6 +2265,9 @@
         levelVerticalAlignment === "center"
           ? 2
           : 1;
+      rememberDiagnosticTarget(bar, "level", levelCenterX - bar.levelAnchorCenterX,
+        levelCenterY - bar.levelAnchorCenterY, levelVerticalFactor,
+        LEVEL_BASE_MARGIN_LEFT, LEVEL_BASE_MARGIN_TOP);
       setStyle(
         bar.parts.levelContainer,
         "marginLeft",
@@ -2287,6 +2309,9 @@
         unitInfoVerticalAlignment === "center"
           ? 2
           : 1;
+      rememberDiagnosticTarget(bar, "unitInfo", unitInfoCenterX - bar.unitInfoAnchorCenterX,
+        unitInfoCenterY - bar.unitInfoAnchorCenterY, unitInfoVerticalFactor,
+        UNIT_INFO_BASE_MARGIN_LEFT, UNIT_INFO_BASE_MARGIN_TOP);
       setStyle(
         bar.parts.unitInfo,
         "marginLeft",
@@ -2309,6 +2334,196 @@
       );
     }
     bar.geometryChanged = false;
+  }
+
+  // Temporary diagnostic island: no label text, dialog variables, or saved payloads.
+  function rememberDiagnosticTarget(bar, key, x, y, factor, left, top) {
+    if (!ACCESSORY_DIAGNOSTICS) return;
+    var targets = bar.accessoryDiagnosticTargets || (bar.accessoryDiagnosticTargets = {});
+    targets[key] = {
+      deltaX: x, deltaY: y, verticalFactor: factor,
+      desired: { marginLeft: accessoryMargin(left, x),
+        marginTop: accessoryMargin(top, y * factor) },
+    };
+  }
+
+  function diagnosticValue(panel, property, inline) {
+    try {
+      var value = inline ? panel.style[property] : panel[property];
+      if (inline && (value === undefined || value === null)) return "";
+      if (value === undefined || value === null) return "unavailable";
+      if (typeof value === "number")
+        return Number.isFinite(value) ? value : "unavailable";
+      return typeof value === "string" || typeof value === "boolean"
+        ? value : "unavailable";
+    } catch {
+      return "unavailable";
+    }
+  }
+
+  function diagnosticClasses(panel) {
+    var known = ["player", "enemy", "friend", "team1", "team2", "alive",
+      "has_ultimate", "CLASS_PLAYER", "playerIsBot", "GameStatePreGame",
+      "health_hidden", "beingSpectatedInEye", "beingSpectated",
+      "unit_info_panel", "WorldUIRoot", "WindowRoot", "hero_inferno"];
+    var result = { enumeration: "unavailable", known: [], heroes: [], unavailable: [] };
+    for (var index = 0; index < known.length; index++) {
+      var name = known[index];
+      try {
+        var probe = panel && (panel.BHasClass || panel.HasClass);
+        if (!probe) result.unavailable.push(name);
+        else if (probe.call(panel, name)) {
+          result.known.push(name);
+          if (name.indexOf("hero_") === 0) result.heroes.push(name);
+        }
+      } catch {
+        result.unavailable.push(name);
+      }
+    }
+    try {
+      if (panel && panel.GetClasses) {
+        var classes = panel.GetClasses();
+        if (typeof classes === "string") classes = classes.split(/\s+/);
+        if (Array.isArray(classes)) {
+          result.enumeration = "available";
+          for (var classIndex = 0; classIndex < classes.length && classIndex < 64; classIndex++) {
+            var hero = String(classes[classIndex]);
+            if (/^hero_[a-z0-9_]{1,64}$/.test(hero) &&
+                result.heroes.indexOf(hero) < 0) result.heroes.push(hero);
+          }
+        }
+      }
+    } catch {}
+    result.known.sort();
+    result.heroes.sort();
+    return result;
+  }
+
+  function diagnosticPanel(panel) {
+    var css = {};
+    var properties = ["actualxoffset", "actualyoffset", "actuallayoutwidth", "actuallayoutheight"];
+    var keys = ["x", "y", "width", "height"];
+    var raw = {};
+    for (var index = 0; index < keys.length; index++) {
+      raw[keys[index]] = diagnosticValue(panel, properties[index], false);
+      var value = cssLayout(panel, properties[index], index % 2 === 0 ? "x" : "y");
+      css[keys[index]] = Number.isFinite(value) ? value : "unavailable";
+    }
+    raw.scaleX = diagnosticValue(panel, "actualuiscale_x", false);
+    raw.scaleY = diagnosticValue(panel, "actualuiscale_y", false);
+    return {
+      exists: !!panel, valid: isValid(panel), parentId: panelId(panelParent(panel)),
+      visible: diagnosticValue(panel, "visible", false),
+      computedVisibility: "unavailable",
+      visibility: diagnosticValue(panel, "visibility", true),
+      classes: diagnosticClasses(panel),
+      marginLeft: diagnosticValue(panel, "marginLeft", true),
+      marginTop: diagnosticValue(panel, "marginTop", true),
+      transform: diagnosticValue(panel, "transform", true),
+      opacity: diagnosticValue(panel, "opacity", true), raw: raw, css: css,
+    };
+  }
+
+  function diagnosticAnchor(bar, key, panel) {
+    var prefix = key === "level" ? "levelAnchor" : "unitInfoAnchor";
+    var active = bar.surface === "player" && config.enabled;
+    var target = active && bar.accessoryDiagnosticTargets &&
+      bar.accessoryDiagnosticTargets[key];
+    var nativeStyles = bar.applied.nativeStyles || {};
+    var left = nativeStyles[prefix + "MarginLeft"];
+    var top = nativeStyles[prefix + "MarginTop"];
+    return {
+      ready: !!(bar.geometryReady && isValid(panel) && bar[prefix + "Panel"] === panel),
+      centerX: bar[prefix + "Panel"] ? bar[prefix + "CenterX"] : "unavailable",
+      centerY: bar[prefix + "Panel"] ? bar[prefix + "CenterY"] : "unavailable",
+      deltaX: target ? target.deltaX : "unavailable",
+      deltaY: target ? target.deltaY : "unavailable",
+      verticalFactor: target ? target.verticalFactor : "unavailable",
+      desired: target ? target.desired : { marginLeft: active ? "unavailable" : "",
+        marginTop: active ? "unavailable" : "" },
+      written: { marginLeft: left && left.panel === panel ? left.value : "unavailable",
+        marginTop: top && top.panel === panel ? top.value : "unavailable" },
+      readback: { marginLeft: diagnosticValue(panel, "marginLeft", true),
+        marginTop: diagnosticValue(panel, "marginTop", true) },
+    };
+  }
+
+  function diagnoseAccessories(bar) {
+    if (!ACCESSORY_DIAGNOSTICS || bar.kind !== "player") return;
+    try {
+      if (typeof $.Msg !== "function") return;
+      var root = absoluteRoot(context);
+      // A truncated/throwing ancestor walk cannot establish a shared session budget.
+      var current = context;
+      for (var depth = 0; current && depth < 24; depth++) {
+        if (!current.GetParent) return;
+        var parent = current.GetParent();
+        if (!parent) break;
+        if (parent === current) return;
+        current = parent;
+      }
+      if (current !== root || depth === 24 || !isValid(root) ||
+          !root.GetAttributeString || !root.SetAttributeString) return;
+      var attribute = "hp_colors_v2_diag_accessory";
+      var rawBudget = root.GetAttributeString(attribute, "");
+      var budget = rawBudget ? JSON.parse(rawBudget) :
+        { originMs: nowMs(), attempts: 0, ordinal: 0 };
+      if (!Number.isFinite(budget.originMs) ||
+          !Number.isInteger(budget.attempts) || budget.attempts < 0 || budget.attempts >= 80 ||
+          !Number.isInteger(budget.ordinal) || budget.ordinal < 0 || budget.ordinal > 1000000) return;
+      var hydration = root.GetAttributeString(HYDRATION_ATTR, "");
+      if (!bar.accessoryDiagnosticDiscovery) {
+        var firstSeenMs = Math.max(0, nowMs() - budget.originMs);
+        budget.ordinal += 1;
+        bar.accessoryDiagnosticDiscovery = {
+          firstSeenMs: firstSeenMs, originMs: budget.originMs, ordinal: budget.ordinal,
+          phase: firstSeenMs > 3000 ? "late" : "early",
+          lateThresholdMs: 3000, timing: "observed-context",
+          configRevision: configRevision, awaitingConfig: awaitingConfig, hydration: hydration,
+        };
+      }
+      var ancestors = [];
+      current = bar.parts.inner;
+      for (var ancestorDepth = 0; current && ancestorDepth < 16; ancestorDepth++) {
+        ancestors.push({ id: panelId(current), classes: diagnosticClasses(current) });
+        if (current === root) break;
+        current = panelParent(current);
+      }
+      var panels = {};
+      var names = ["unitInfo", "ultBackground", "ultIcon", "ultOverlay",
+        "level", "stack", "primary", "inner"];
+      var parts = ["unitInfo", "ultBackground", "ultIcon", "ultOverlay",
+        "levelContainer", "healthbars", "primary", "inner"];
+      for (var panelIndex = 0; panelIndex < names.length; panelIndex++)
+        panels[names[panelIndex]] = diagnosticPanel(bar.parts[parts[panelIndex]]);
+      var settings = {};
+      var settingNames = ["widthScale", "heightScale", "positionX", "positionY",
+        "levelOffsetX", "levelOffsetY", "ultOffsetX", "ultOffsetY",
+        "accessoryAnchorEnabled", "levelsVisible", "enabled", "enemyEnabled",
+        "allyEnabled", "enemyVisible", "allyVisible", "ultimateTimerEnabled", "ultimateTimerSize"];
+      for (var settingIndex = 0; settingIndex < settingNames.length; settingIndex++)
+        settings[settingNames[settingIndex]] = config[settingNames[settingIndex]];
+      var snapshot = JSON.stringify({
+        version: 1, discovery: bar.accessoryDiagnosticDiscovery, ancestors: ancestors,
+        panels: panels, anchors: {
+          level: diagnosticAnchor(bar, "level", bar.parts.levelContainer),
+          unitInfo: diagnosticAnchor(bar, "unitInfo", bar.parts.unitInfo),
+        }, settings: settings,
+        gates: { surface: bar.surface, kind: bar.kind, relation: bar.role,
+          levelValid: bar.level > 0,
+          levelEligible: bar.surface === "player" && bar.role === "enemy" &&
+            config.levelsVisible && bar.level > 0 },
+        configRevision: configRevision, awaitingConfig: awaitingConfig, hydration: hydration,
+      });
+      if (snapshot === bar.accessoryDiagnosticLast) return;
+      // Reserve before Msg, including failed logger attempts. Verify shared root readback.
+      budget.attempts += 1;
+      var nextBudget = JSON.stringify(budget);
+      root.SetAttributeString(attribute, nextBudget);
+      if (root.GetAttributeString(attribute, "") !== nextBudget) return;
+      bar.accessoryDiagnosticLast = snapshot;
+      $.Msg("[HPV2-DIAG] " + snapshot);
+    } catch {}
   }
 
   // [part, property, cache key] for every geometry style the bar owns.
@@ -2719,8 +2934,10 @@
     else if (bar.surface === "player" && sampleBarGeometry(bar))
       bar.dirty = true;
     updateLevel(bar, readLabelText(bar.parts.levelLabel));
+    reconcileAccessoryCenters(bar);
     if (!bar.dirty && layoutStyleDrift(bar)) bar.dirty = true;
     if (bar.dirty) applyCustomization(bar);
+    diagnoseAccessories(bar);
   }
   // Per-panel samples; cleared on creation and whenever the part set changes.
   function resetBarSamples(bar) {
@@ -2744,6 +2961,7 @@
     bar.sampleHealthParentWidth = 0;
     bar.sampleBarWidth = 0;
     bar.geometrySampled = false;
+    bar.geometryReady = false;
     bar.geometryChanged = true;
     bar.markerGeometryChanged = true;
     bar.stackX = 0;
@@ -2764,6 +2982,7 @@
     bar.unitInfoAnchorPanel = null;
     bar.unitInfoAnchorCenterX = 0;
     bar.unitInfoAnchorCenterY = 0;
+    if (ACCESSORY_DIAGNOSTICS) bar.accessoryDiagnosticTargets = null;
   }
 
   function addBar(parts) {
@@ -2866,6 +3085,7 @@
       sampleHealthPercent(bar);
       changed = bar.healthPresentationChanged || changed;
     }
+    reconcileAccessoryCenters(bar);
     if (!bar.dirty && (layoutStyleDrift(bar) || appearanceStyleDrift(bar)))
       bar.dirty = true;
     if (bar.dirty) {
@@ -2923,6 +3143,7 @@
     var changed = false;
     for (var index = 0; index < bars.length; index++) {
       if (refreshColor(bars[index])) changed = true;
+      diagnoseAccessories(bars[index]);
     }
     var now = Date.now ? Date.now() : +new Date();
     if (changed) lastColorChangeAt = now;
