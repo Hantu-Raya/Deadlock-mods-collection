@@ -138,7 +138,7 @@
     enemyPipColor: "#500202",
     allyPipColorEnabled: false,
     allyPipColor: "#042517",
-    pipOpacity: 60,
+    pipOpacity: 100,
     staminaShape: "arrow",
   };
 

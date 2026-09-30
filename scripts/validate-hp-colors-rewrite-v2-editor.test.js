@@ -294,6 +294,39 @@ test('width slider preserves the legacy 230 percent maximum', () => {
   assert.equal(slider.value, 230);
 });
 
+test('movement slider windows preserve full typed bounds and pip opacity visibility', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  for (const base of ['Position', 'StaminaOffset', 'UltOffset', 'LevelOffset']) {
+    for (const axis of ['X', 'Y']) {
+      const key = `${base[0].toLowerCase()}${base.slice(1)}${axis}`;
+      const slider = panel(fixture, `HPColors${base}${axis}Slider`);
+      const entry = panel(fixture, `HPColors${base}${axis}Entry`);
+      const limit = axis === 'X' ? 30 : 20;
+      assert.equal(slider.min, -limit, key);
+      assert.equal(slider.max, limit, key);
+      for (const direction of [-1, 1]) {
+        slider.events.onmousedown();
+        slider.value = direction * limit;
+        slider.events.onvaluechanged();
+        slider.events.onmouseup();
+        assert.equal(readMenuState(fixture).values[key], direction * limit * 10, key);
+        entry.text = String(direction * 150);
+        entry.events.ontextentrysubmit();
+        assert.equal(readMenuState(fixture).values[key], direction * 1500, key);
+        assert.equal(entry.text, String(direction * 150), key);
+        assert.equal(slider.value, direction * limit, key);
+        assert.equal(readConfig(fixture).values[key], direction * 1500, key);
+      }
+    }
+  }
+  assert.equal(readMenuState(fixture).values.enemyPipColorEnabled, false);
+  assert.equal(readMenuState(fixture).values.allyPipColorEnabled, false);
+  assert.equal(panel(fixture, 'HPColorsPipOpacityRow').BHasClass('FeatureOff'), false);
+  panel(fixture, 'HPColorsPipsVisibleToggle').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPipOpacityRow').BHasClass('FeatureOff'), true);
+});
+
 test('reset request opens confirmation without mutation, history, or dispatch', () => {
   const fixture = bootMenu({
     version: 1,
@@ -3614,8 +3647,8 @@ test('restored editor has twenty tabs and retains CSS-pixel legacy input', () =>
   assert.equal(readConfig(fixture).values.positionX, -123);
   assert.equal(entry.text, '-12.3');
   const slider = panel(fixture, 'HPColorsPositionXSlider');
-  assert.equal(slider.min, -200);
-  assert.equal(slider.max, 200);
+  assert.equal(slider.min, -30);
+  assert.equal(slider.max, 30);
   assert.equal(slider.increment, 0.1);
   slider.events.onmousedown();
   slider.value = -15.6;

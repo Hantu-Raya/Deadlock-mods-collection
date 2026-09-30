@@ -1717,8 +1717,9 @@ test('v2 full-canvas readout frame grows left from the stock label edge and leve
   const container = cssBlock(css, '.WindowRoot #hp_counter_container');
   for (const property of [
     'width: 100%', 'height: 100%', 'horizontal-align: center', 'vertical-align: top',
-    'margin-top: 0px', 'ignore-parent-flow: true', 'overflow: noclip', 'z-index: 30',
+    'ignore-parent-flow: true', 'overflow: noclip', 'z-index: 30',
   ]) assert.ok(container.includes(property), property);
+  assert.doesNotMatch(container, /margin(-top)?:\s*-?[1-9]/);
   assert.doesNotMatch(container, /transform:\s*rotate/);
   assert.match(cssBlock(css, '.WindowRoot #name'), /transform:\s*none/);
   // Detached from #UnitStatus, the frame mirrors its damage wiggle and hidden states.
@@ -1736,8 +1737,9 @@ test('v2 full-canvas readout frame grows left from the stock label edge and leve
   const row = cssBlock(css, '.WindowRoot #hp_counter_row');
   for (const property of ['width: fit-children', 'height: fit-children', 'horizontal-align: right',
     'vertical-align: top', 'margin-top: 66px', 'flow-children: right', 'margin-right: 60px',
-    'margin-left: 0px', 'padding: 4px'])
+    'padding: 4px'])
     assert.ok(row.includes(property), `row ${property}`);
+  assert.doesNotMatch(row, /margin-left:\s*-?[1-9]/);
   const level = cssBlock(css, '.WindowRoot #LevelContainer.NP_playerlevel_container');
   assert.match(level, /margin-left:\s*27px/);
   assert.match(level, /margin-top:\s*67\.5px/);
@@ -2447,7 +2449,7 @@ test('round full canvas stock info origin and contained health lines marker', ()
   const info = cssBlock(css, '.WindowRoot #InfoHealthContainer');
   assert.match(info, /width:\s*100%/);
   assert.match(info, /height:\s*100%/);
-  assert.match(info, /margin-top:\s*0px/);
+  assert.doesNotMatch(info, /margin(-top)?:\s*-?[1-9]/);
   assert.match(info, /overflow:\s*noclip/);
   assert.match(info, /horizontal-align:\s*center/);
   assert.match(info, /vertical-align:\s*top/);
@@ -2476,7 +2478,7 @@ test('round full canvas stock info origin and contained health lines marker', ()
   assert.match(small, /vertical-align:\s*bottom/);
   const marker = cssBlock(css, '.WindowRoot #UnitHealthbar #hp_colors_kill_marker');
   assert.match(marker, /height:\s*100%/);
-  assert.match(marker, /margin-top:\s*0px/);
+  assert.doesNotMatch(marker, /margin(-top)?:\s*-?[1-9]/);
 });
 
 test('round name ownership keeps spectator alpha and native text, then restores captured aliases', () => {

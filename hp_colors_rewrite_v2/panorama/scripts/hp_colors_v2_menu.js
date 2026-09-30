@@ -4408,6 +4408,11 @@
     var entry = controlPanel(entryId);
     if (!isValid(slider) || !isValid(entry)) return;
     registerConditionControl(slider, key, min, max, undefined, increment);
+    // Keep condition bounds full-sized; only the movement track uses the legacy window.
+    if (LEGACY_DISPLAY_KEYS[key]) {
+      max = /X$/.test(key) ? 300 : 200;
+      min = -max;
+    }
     var gestureBefore = "";
 
     try {
@@ -4801,7 +4806,11 @@
   }
 
   function setSlider(control, value) {
-    setSliderValue(controlPanel(control.base + "Slider"), displayNumber(control.key, value));
+    var slider = controlPanel(control.base + "Slider");
+    var displayValue = displayNumber(control.key, value);
+    if (LEGACY_DISPLAY_KEYS[control.key] && isValid(slider))
+      displayValue = Math.max(slider.min, Math.min(slider.max, displayValue));
+    setSliderValue(slider, displayValue);
     setText(controlPanel(control.base + "Entry"), String(displayNumber(control.key, value)));
   }
 
@@ -5174,7 +5183,7 @@
     if (key === "enemyPipColor") return values.pipsVisible && values.enemyPipColorEnabled;
     if (key === "allyPipColor") return values.pipsVisible && values.allyPipColorEnabled;
     if (key === "enemyPipColorEnabled" || key === "allyPipColorEnabled") return values.pipsVisible;
-    if (key === "pipOpacity") return values.pipsVisible && (values.enemyPipColorEnabled || values.allyPipColorEnabled);
+    if (key === "pipOpacity") return values.pipsVisible;
     if (key === "levelOffsetX" || key === "levelOffsetY") return values.levelsVisible;
     if (/^(enemyName|allyName|nameSize|nameOffset)/.test(key)) return values.playerNamesVisible;
     if (/^allyReadout/.test(key) && key !== "allyReadoutVisible") return values.allyReadoutVisible;

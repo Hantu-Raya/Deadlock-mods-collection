@@ -1233,6 +1233,52 @@ test('explicit stamina shapes preserve arrows with custom dimensions and restore
   assert.match(css, /HPColorsRewriteStaminaCircle[^{}]*\.StaminaPipIcon\s*\{[^}]*border-radius:\s*50%/);
 });
 
+test('pip opacity multiplies stock lines independently of custom color and restores exact ownership', () => {
+  for (const [classes, gate, stockOpacity] of [
+    [['player', 'enemy'], {}, 0.6],
+    [['player', 'friend'], {}, 0.8],
+    [['minion', 'enemy'], { npcEnemyEnabled: true }, 0.6],
+    [['building', 'friend'], { buildingAllyEnabled: true }, 0.8],
+    [['minion', 'team_neutral'], { npcNeutralEnabled: true }, 0.8],
+  ]) {
+    let line;
+    const fixture = makeOwnershipFixture(classes, gate, ({ primary }) => {
+      line = primary.FindChildTraverse('UnitHealthbarLines').add(new MockPanel('opacityPip', {
+        classes: ['line_large'], style: { washColor: '#445566', opacity: '0.37' },
+      }));
+    });
+    assert.deepEqual(line.styleWrites, [], 'default leaves stock lines untouched');
+    fixture.update({ ...gate, pipOpacity: 50 });
+    assert.equal(line.style.opacity, String(stockOpacity * 0.5));
+    assert.equal(line.style.washColor, '#445566');
+    line.styleWrites.length = 0;
+    fixture.update({ ...gate, pipOpacity: 50 });
+    assert.deepEqual(line.styleWrites, [], 'unchanged opacity does not write');
+    fixture.update({ ...gate, pipOpacity: 100 });
+    assert.equal(line.style.opacity, '0.37');
+    line.styleWrites.length = 0;
+    fixture.update({ ...gate, pipOpacity: 100 });
+    assert.deepEqual(line.styleWrites, [], '100 without custom color writes nothing');
+    fixture.update({ ...gate, pipOpacity: 50 });
+    fixture.world.AddClass('spectating');
+    fixture.update({ ...gate, pipOpacity: 50 });
+    assert.equal(line.style.opacity, '0.37');
+    line.styleWrites.length = 0;
+    fixture.update({ ...gate, pipOpacity: 20, enemyPipColorEnabled: true });
+    assert.deepEqual(line.styleWrites, [], 'spectators remain untouched');
+    fixture.world.RemoveClass('spectating');
+    fixture.update({ ...gate, pipOpacity: 50 });
+    fixture.update({ ...gate, pipOpacity: 50, enabled: false });
+    assert.equal(line.style.opacity, '0.37');
+    assert.equal(line.style.washColor, '#445566');
+    fixture.update({ ...gate, pipOpacity: 50 });
+    line.SetParent(fixture.window);
+    paintReadout(fixture);
+    assert.equal(line.style.opacity, '0.37', 'removed lines restore exactly');
+    assert.equal(line.style.washColor, '#445566');
+  }
+});
+
 test('pip colors own matching opted-in lines only and restore stock/spectator presentation', () => {
   for (const [classes, prefix, gate] of [
     [['player', 'enemy'], 'enemy', {}], [['player', 'friend'], 'ally', {}],
@@ -1252,7 +1298,7 @@ test('pip colors own matching opted-in lines only and restore stock/spectator pr
     fixture.update(custom);
     for (const line of lines) {
       assert.equal(line.style.washColor, '#123456');
-      assert.equal(line.style.opacity, '0.42');
+      assert.equal(line.style.opacity, String((prefix === 'enemy' ? 0.6 : 0.8) * 42 / 100));
     }
     fixture.world.AddClass('spectating');
     fixture.update(custom);
@@ -1406,7 +1452,7 @@ test('custom pip ownership handles late lines and restores captured inline style
   }));
   paintReadout(fixture);
   assert.equal(original.style.washColor, '#123456');
-  assert.equal(original.style.opacity, '0.42');
+  assert.equal(original.style.opacity, String(0.6 * 42 / 100));
   original.SetParent(fixture.window);
   const replacement = container.add(new MockPanel('replacementPip', {
     classes: ['line_small'], style: { washColor: '#778899', opacity: '0.7' },
