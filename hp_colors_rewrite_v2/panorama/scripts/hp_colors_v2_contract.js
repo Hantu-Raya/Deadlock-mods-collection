@@ -127,6 +127,13 @@
     neutralColor: "#5BEFB5",
     criticalIndicatorVisible: true,
     playerNamesVisible: true,
+    enemyNameColorEnabled: false,
+    enemyNameColor: "#FF6A6A",
+    allyNameColorEnabled: false,
+    allyNameColor: "#FFFFFF",
+    nameSize: 14,
+    nameOffsetX: 0,
+    nameOffsetY: 0,
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -179,6 +186,13 @@
     "neutralColor",
     "criticalIndicatorVisible",
     "playerNamesVisible",
+    "enemyNameColorEnabled",
+    "enemyNameColor",
+    "allyNameColorEnabled",
+    "allyNameColor",
+    "nameSize",
+    "nameOffsetX",
+    "nameOffsetY",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -263,6 +277,7 @@
     excludeGhouls: true,
     ghoulOpacityEnabled: true,
     ghoulOpacity: true,
+    readoutFormat: true,
   };
   // Retired keys that v2 once let players attach ability conditions to. Old
   // saves and share codes may still carry rules for them; loaders drop those
@@ -270,10 +285,15 @@
   var RETIRED_CONDITION_KEYS = {
     ghoulOpacityEnabled: true,
     ghoulOpacity: true,
+    readoutFormat: true,
+    allyReadoutFormat: true,
   };
+  var RETIRED_EXTENSION_KEYS = { allyReadoutFormat: true };
   var DEFAULT_KEYS = CODEC_KEYS.filter(function (key) {
     return !RETIRED_CODEC_KEYS[key];
-  }).concat(HPV2_EXTENSION_KEYS);
+  }).concat(HPV2_EXTENSION_KEYS.filter(function (key) {
+    return !RETIRED_EXTENSION_KEYS[key];
+  }));
   var DEFAULTS = {};
   var defaultIndex;
   for (defaultIndex = 0; defaultIndex < DEFAULT_KEYS.length; defaultIndex++) {
@@ -291,6 +311,8 @@
     enabled: true,
     criticalIndicatorVisible: true,
     playerNamesVisible: true,
+    enemyNameColorEnabled: true,
+    allyNameColorEnabled: true,
     enemyEnabled: true,
     enemyVisible: true,
     enemyTeamHigh: true,
@@ -355,6 +377,8 @@
     allyReadoutMid: true,
     allyReadoutHigh: true,
     neutralColor: true,
+    enemyNameColor: true,
+    allyNameColor: true,
   };
 
   var ENUM_OPTIONS = {
@@ -377,12 +401,12 @@
   var NUMBER_BOUNDS = {
     widthScale: [60, 230],
     heightScale: [60, 160],
-    positionX: [-300, 300],
-    positionY: [-200, 200],
+    positionX: [-2000, 2000],
+    positionY: [-2100, 2100],
     staminaWidth: [40, 220],
     staminaHeight: [16, 90],
-    staminaOffsetX: [-300, 300],
-    staminaOffsetY: [-200, 200],
+    staminaOffsetX: [-2000, 2000],
+    staminaOffsetY: [-2100, 2100],
     readoutSize: [72, 320],
     readoutOffsetX: [-200, 200],
     readoutOffsetY: [-210, 210],
@@ -399,10 +423,10 @@
     enemyPulseIntensity: [0, 2],
     allyPulseIntensity: [0, 2],
     highThreshold: [1, 100],
-    ultOffsetX: [-300, 300],
-    ultOffsetY: [-200, 200],
-    levelOffsetX: [-300, 300],
-    levelOffsetY: [-200, 200],
+    ultOffsetX: [-3334, 3334],
+    ultOffsetY: [-3500, 3500],
+    levelOffsetX: [-3334, 3334],
+    levelOffsetY: [-3500, 3500],
     pickupBackgroundDarkness: [0, 100],
     pickupSize: [12, 64],
     pickupSpacing: [0, 16],
@@ -413,6 +437,9 @@
     allyReadoutSize: [72, 320],
     allyReadoutOffsetX: [-200, 200],
     allyReadoutOffsetY: [-210, 210],
+    nameSize: [8, 40],
+    nameOffsetX: [-200, 200],
+    nameOffsetY: [-210, 210],
   };
 
   var NUMBER_STEPS = {
@@ -587,6 +614,7 @@
     keys: DEFAULT_KEYS,
     codecKeys: CODEC_KEYS,
     extensionKeys: HPV2_EXTENSION_KEYS,
+    retiredExtensionKeys: RETIRED_EXTENSION_KEYS,
     retiredConditionKeys: RETIRED_CONDITION_KEYS,
     booleanKeys: BOOLEAN_KEYS,
     colorKeys: COLOR_KEYS,

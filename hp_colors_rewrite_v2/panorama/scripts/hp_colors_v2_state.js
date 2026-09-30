@@ -639,12 +639,15 @@
       )
         return { error: "INVALID HPV2 PRESET VALUE PAIR" };
       seen[pair[0]] = true;
-      changed[EXTENSION_KEYS[pair[0]]] = pair[1];
+      var extensionKey = EXTENSION_KEYS[pair[0]];
+      if (Object.prototype.hasOwnProperty.call(DEFAULTS, extensionKey))
+        changed[extensionKey] = pair[1];
     }
     var valueError = validateImportedValues(changed);
     if (valueError) return { error: valueError };
-    var conditions = filterConditions(source.conditions, true);
-    if (!conditionsAreValid(source.conditions, conditions, true))
+    var sourceConditions = dropRetiredConditions(source.conditions);
+    var conditions = filterConditions(sourceConditions, true);
+    if (!conditionsAreValid(sourceConditions, conditions, true))
       return { error: "INVALID HPV2 PRESET CONDITIONS" };
     return {
       values: normalizeValues(changed, CODEC_DEFAULTS),
@@ -878,6 +881,7 @@
         extensionValueIndex++
       ) {
         var extensionKey = EXTENSION_KEYS[extensionValueIndex];
+        if (!Object.prototype.hasOwnProperty.call(DEFAULTS, extensionKey)) continue;
         decoded.values[extensionKey] = extension.values[extensionKey];
       }
       var heroes = normalizeHeroSelection(source.heroes);
@@ -2650,6 +2654,7 @@
           extensionIndex++
         ) {
           var extensionKey = EXTENSION_KEYS[extensionIndex];
+          if (!Object.prototype.hasOwnProperty.call(DEFAULTS, extensionKey)) continue;
           importedValues[extensionKey] = extensionValues[extensionKey];
           if (Object.prototype.hasOwnProperty.call(extensionConditions, extensionKey))
             importedConditions[extensionKey] = extensionConditions[extensionKey];

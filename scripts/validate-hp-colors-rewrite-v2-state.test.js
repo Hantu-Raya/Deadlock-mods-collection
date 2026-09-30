@@ -94,12 +94,18 @@ test('shared settings contract owns immutable defaults and normalization policy'
     contract.extensionKeys.slice(0, wireManifest.extensionSlots.length),
     wireManifest.extensionSlots.map(({ key }) => key),
   );
+  const currentBounds = {
+    positionX: [-2000, 2000], positionY: [-2100, 2100],
+    staminaOffsetX: [-2000, 2000], staminaOffsetY: [-2100, 2100],
+    ultOffsetX: [-3334, 3334], ultOffsetY: [-3500, 3500],
+    levelOffsetX: [-3334, 3334], levelOffsetY: [-3500, 3500],
+  };
   for (const slot of [
     ...wireManifest.legacySlots,
     ...wireManifest.extensionSlots,
   ]) {
     assert.equal(contract.codecDefaults[slot.key], slot.codecDefault, slot.key);
-    if (slot.retired) {
+    if (slot.retired || ['readoutFormat', 'allyReadoutFormat'].includes(slot.key)) {
       assert.equal(contract.settingMeta[slot.key], undefined, slot.key);
       continue;
     }
@@ -108,7 +114,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
     assert.equal(meta.type, slot.type, slot.key);
     assert.deepEqual(
       meta.min === null ? null : [meta.min, meta.max],
-      slot.bounds,
+      currentBounds[slot.key] || slot.bounds,
       slot.key,
     );
     assert.deepEqual(meta.options.length ? meta.options : null, slot.enum, slot.key);

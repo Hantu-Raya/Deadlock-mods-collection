@@ -21,8 +21,6 @@
   var LEVEL_BASE_MARGIN_TOP = -14;
   var UNIT_INFO_BASE_MARGIN_LEFT = 0;
   var UNIT_INFO_BASE_MARGIN_TOP = -14;
-  // Temporary accessory-only console evidence; remove after the live smoke.
-  var ACCESSORY_DIAGNOSTICS = true;
 
   if (!$.HPColorsV2ContractFactory || !$.HPColorsV2ContractFactory.create)
     throw new Error("HP Colors v2 settings contract unavailable");
@@ -120,16 +118,6 @@
     "colorPulseSubtleClass",
     "colorPulseIntenseClass",
   ];
-  var READOUT_PULSE_KEYS = [
-    "pulseReadoutBaseClass",
-    "pulseReadoutSubtleClass",
-    "pulseReadoutIntenseClass",
-  ];
-  var MAX_READOUT_PULSE_KEYS = [
-    "pulseMaximumReadoutBaseClass",
-    "pulseMaximumReadoutSubtleClass",
-    "pulseMaximumReadoutIntenseClass",
-  ];
   var NATIVE_READOUT_PULSE_KEYS = [
     "pulseNativeReadoutBaseClass",
     "pulseNativeReadoutSubtleClass",
@@ -141,8 +129,8 @@
   var NATIVE_READOUT_CLASSES = [
     "HPColorsRewritePulse", "HPColorsRewritePulseSubtle", "HPColorsRewritePulseIntense",
   ];
-  var READOUT_FIELDS = ["Visible", "Format", "Size", "Font", "OffsetX", "OffsetY",
-    "ColorMode", "Mode", "Low", "Mid", "High", "MaxTeamColor"];
+  var READOUT_FIELDS = ["Visible", "Size", "Font", "OffsetX", "OffsetY",
+    "ColorMode", "Mode", "Low", "Mid", "High"];
   // Role -> config key per readout field; enemy keys predate the ally copy.
   var READOUT_KEYS = { enemy: {}, ally: {} };
   for (var readoutFieldIndex = 0; readoutFieldIndex < READOUT_FIELDS.length; readoutFieldIndex++) {
@@ -556,6 +544,7 @@
       inner: inner,
       infoHealth: infoHealth,
       unitStatus: unitStatus,
+      name: directChild(windowRoot, "name"),
       fill: directChild(inner, "unit_healthbar_lagging"),
       healing: directChild(inner, "unit_healthbar_healing"),
       delta: directChild(inner, "unit_healthbar_delta"),
@@ -574,8 +563,6 @@
       counterContainer: counterContainer,
       counterAnchor: findWithin(counterContainer, "hp_counter_anchor"),
       counterRow: counterRow,
-      counter: findWithin(counterContainer, "hp_counter"),
-      counterMax: findWithin(counterContainer, "hp_counter_max"),
     };
   }
 
@@ -926,9 +913,6 @@
   }
 
 
-  function formatPercentReadout(bar) {
-    return bar.lastWidthPercent < 0 ? "" : String(bar.lastWidthPercent) + "%";
-  }
 
 
   function interpolateHex(left, right, amount) {
@@ -1087,21 +1071,6 @@
     }
   }
 
-  function setText(panel, value, cache, cacheKey) {
-    if (!isValid(panel)) {
-      if (cache) cache[cacheKey] = null;
-      return;
-    }
-    if (cache && cache[cacheKey] === value) {
-      return;
-    }
-    try {
-      panel.text = value;
-      if (cache) cache[cacheKey] = value;
-    } catch {
-      if (cache) cache[cacheKey] = null;
-    }
-  }
 
   function setOwnedClass(panel, className, enabled, cache, cacheKey) {
     var marker = enabled ? "1" : "0";
@@ -1192,31 +1161,11 @@
   }
 
 
-  function setReadoutText(bar, current, maximum) {
-    setText(bar.parts.counter, current, bar.applied, "readoutText");
-    setText(
-      bar.parts.counterMax,
-      maximum,
-      bar.applied,
-      "readoutMaximumText",
-    );
-  }
-
-  function setReadoutStyle(bar, property, value, key) {
-    setStyle(bar.parts.counter, property, value, bar.applied, "readout" + key);
-    setStyle(
-      bar.parts.counterMax,
-      property,
-      value,
-      bar.applied,
-      "readoutMaximum" + key,
-    );
-  }
 
   function nativeReadoutEnabled(bar) {
     var keys = READOUT_KEYS[bar.role];
     return !!(config.enabled && bar.surface === "player" && keys &&
-      config[keys.Visible] && config[keys.Format] !== "percent");
+      config[keys.Visible]);
   }
 
   function adoptNativeReadout(bar) {
@@ -1261,15 +1210,9 @@
 
   // keys: READOUT_KEYS entry, or null to clear. low/mid/high/mode: the bar colors.
   function applyReadout(bar, keys, low, mid, high, mode, pulseModifiers) {
-    var native = !!keys && config[keys.Format] !== "percent";
-    var text = keys && !native ? formatPercentReadout(bar) : "";
-    var maximumText = "";
     var color = "";
     var fontSize = "";
     var fontFamily = "";
-    var readoutMode = keys ? config[keys.Format] : "";
-    if (bar.readoutMode !== readoutMode) clearReadoutGeometry(bar);
-    bar.readoutMode = readoutMode;
     if (keys) {
       if (config[keys.ColorMode] === "custom") {
         low = config[keys.Low];
@@ -1299,45 +1242,16 @@
         y: nativePx(config.positionY) + offsetY,
       };
     }
-    if (native && adoptNativeReadout(bar)) {
+    if (keys && adoptNativeReadout(bar)) {
       setStyle(bar.parts.healthValue, "opacity", "1", bar.applied, "nativeReadoutopacity");
       setStyle(bar.parts.healthValue, "washColor", color, bar.applied, "nativeReadoutwashColor");
       setStyle(bar.parts.healthValue, "fontSize", fontSize, bar.applied, "nativeReadoutfontSize");
       setStyle(bar.parts.healthValue, "fontFamily", fontFamily, bar.applied, "nativeReadoutfontFamily");
-    } else if (!native) {
+    } else if (!keys) {
       restoreNativeReadout(bar);
     }
-    setStyle(
-      bar.parts.counter,
-      "visibility",
-      text ? "visible" : "collapse",
-      bar.applied,
-      "readoutVisibility",
-    );
-    setStyle(
-      bar.parts.counterMax,
-      "visibility",
-      maximumText ? "visible" : "collapse",
-      bar.applied,
-      "readoutMaximumVisibility",
-    );
-    // Do not write even empty text in native mode; the engine owns the number.
-    if (!native && (keys || bar.customReadoutOwned))
-      setReadoutText(bar, text, maximumText);
-    bar.customReadoutOwned = !!keys && !native;
-    setReadoutStyle(bar, "fontSize", native ? "" : fontSize, "FontSize");
-    setReadoutStyle(bar, "height", keys && !native ? "fit-children" : "", "Height");
-    setReadoutStyle(bar, "fontFamily", native ? "" : fontFamily, "FontFamily");
     if (keys) positionReadout(bar);
     else clearReadoutGeometry(bar);
-    setStyle(bar.parts.counter, "washColor", native ? "" : color, bar.applied, "readoutWashColor");
-    setStyle(
-      bar.parts.counterMax,
-      "washColor",
-      native ? "" : color,
-      bar.applied,
-      "readoutMaximumWashColor",
-    );
   }
 
   function clearReadoutGeometry(bar) {
@@ -1392,7 +1306,7 @@
       if (raw === null || raw === undefined || raw === "") return NaN;
       var value = Number(raw);
       var scale = Number(panel["actualuiscale_" + axis]);
-      return Number.isFinite(value)
+      return Number.isFinite(value) && Math.abs(value) < 1000000
         ? value / (Number.isFinite(scale) && scale > 0 ? scale : 1) : NaN;
     } catch {
       return NaN;
@@ -1451,6 +1365,8 @@
     var oldParts = previousParts || {};
     var oldBaseline = previousBaseline || {};
     return {
+      name: retainPanelBaseline(parts.name, oldParts.name, oldBaseline.name,
+        ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop"]),
       primary: retainPanelBaseline(
         parts.primary,
         oldParts.primary,
@@ -1494,6 +1410,58 @@
               return hasClass(parts.healthValue, name);
             }),
     };
+  }
+
+  function clearPlayerNameOwnership(bar) {
+    if (!bar.nameOwned) return;
+    var properties = ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop"];
+    var restored = true;
+    for (var index = 0; index < properties.length; index++) {
+      var property = properties[index];
+      setStyle(bar.parts.name, property,
+        baselineStyle((bar.panelBaseline || {}).name, property),
+        bar.applied, "name" + property);
+      if (bar.applied["name" + property] !==
+          baselineStyle((bar.panelBaseline || {}).name, property)) restored = false;
+    }
+    bar.nameOwned = !restored;
+  }
+
+  function applyPlayerName(bar) {
+    var panel = bar.parts.name;
+    if (!config.enabled || bar.surface !== "player" || !config.playerNamesVisible ||
+        !isValid(panel)) {
+      clearPlayerNameOwnership(bar);
+      return;
+    }
+    bar.nameOwned = true;
+    var baseline = (bar.panelBaseline || {}).name;
+    var enemy = bar.role === "enemy";
+    var colorEnabled = enemy ? config.enemyNameColorEnabled : config.allyNameColorEnabled;
+    var color = colorEnabled ? (enemy ? config.enemyNameColor : config.allyNameColor) : "";
+    // Stock spectator color uses hexadecimal alpha 80, not 80 percent.
+    if (color && bar.spectating) color += "80";
+    setStyle(panel, "color", color || baselineStyle(baseline, "color"),
+      bar.applied, "namecolor");
+    var sized = config.nameSize !== 14;
+    setStyle(panel, "fontSize", sized ? pixels(config.nameSize) : baselineStyle(baseline, "fontSize"),
+      bar.applied, "namefontSize");
+    setStyle(panel, "maxHeight", sized ? pixels(Math.ceil(config.nameSize * 1.5)) :
+      baselineStyle(baseline, "maxHeight"), bar.applied, "namemaxHeight");
+    setStyle(panel, "height", sized ? "fit-children" : baselineStyle(baseline, "height"),
+      bar.applied, "nameheight");
+    var width = cssLayout(bar.parts.windowRoot, "actuallayoutwidth", "x");
+    var height = cssLayout(bar.parts.windowRoot, "actuallayoutheight", "y");
+    var nameWidth = cssLayout(panel, "actuallayoutwidth", "x");
+    var nameHeight = cssLayout(panel, "actuallayoutheight", "y");
+    if (!(width > 0 && height > 0 && nameWidth > 0 && nameHeight > 0)) return;
+    var reach = Math.max(0, (width - nameWidth) / 2);
+    var x = Math.max(-reach, Math.min(reach, config.nameOffsetX));
+    var top = Math.max(0, Math.min(Math.max(0, height - nameHeight), 47 + config.nameOffsetY));
+    setStyle(panel, "marginLeft", x ? pixels(x * 2) : baselineStyle(baseline, "marginLeft"),
+      bar.applied, "namemarginLeft");
+    setStyle(panel, "marginTop", top !== 47 ? pixels(top) : baselineStyle(baseline, "marginTop"),
+      bar.applied, "namemarginTop");
   }
 
   function clearStaminaOwnership() {
@@ -1953,8 +1921,6 @@
     var applied = bar.applied;
     var fill = bar.parts && bar.parts.fill;
     var overlay = bar.parts && bar.parts.pulseOverlay;
-    var counter = bar.parts && bar.parts.counter;
-    var counterMax = bar.parts && bar.parts.counterMax;
     setPulseClasses(
       fill,
       "HPColorsRewritePulse",
@@ -1973,24 +1939,6 @@
       applied,
       COLOR_PULSE_KEYS,
     );
-    setPulseClasses(
-      counter,
-      "HPColorsRewritePulse",
-      false,
-      false,
-      false,
-      applied,
-      READOUT_PULSE_KEYS,
-    );
-    setPulseClasses(
-      counterMax,
-      "HPColorsRewritePulse",
-      false,
-      false,
-      false,
-      applied,
-      MAX_READOUT_PULSE_KEYS,
-    );
     setAnimationDuration(fill, "", applied, "pulseAnimationDuration");
     setAnimationDuration(
       overlay,
@@ -2001,18 +1949,6 @@
     clearOwnedStyle(overlay, "washColor", applied, "colorPulseWashColor");
     clearOwnedStyle(overlay, "width", applied, "colorPulseWidth");
     clearOwnedStyle(overlay, "visibility", applied, "colorPulseVisibility");
-    setAnimationDuration(
-      counter,
-      "",
-      applied,
-      "pulseReadoutAnimationDuration",
-    );
-    setAnimationDuration(
-      counterMax,
-      "",
-      applied,
-      "pulseMaximumReadoutAnimationDuration",
-    );
     syncNativeReadoutPulse(bar, false, false, false, "");
     bar.pulseActive = false;
     bar.colorPulseActive = false;
@@ -2038,8 +1974,6 @@
     var applied = bar.applied;
     var fill = bar.parts && bar.parts.fill;
     var overlay = bar.parts && bar.parts.pulseOverlay;
-    var counter = bar.parts && bar.parts.counter;
-    var counterMax = bar.parts && bar.parts.counterMax;
     var subtle = intensity === 0;
     var intense = intensity === 2;
     var useColorPulse = !!colorPulse && isValid(overlay);
@@ -2099,36 +2033,6 @@
     var native = nativeReadoutEnabled(bar);
     syncNativeReadoutPulse(bar, !!readoutActive && native, subtle, intense, duration);
 
-    setPulseClasses(
-      counter,
-      "HPColorsRewritePulse",
-      !!readoutActive && !native,
-      subtle,
-      intense,
-      applied,
-      READOUT_PULSE_KEYS,
-    );
-    setPulseClasses(
-      counterMax,
-      "HPColorsRewritePulse",
-      !!readoutActive && !native,
-      subtle,
-      intense,
-      applied,
-      MAX_READOUT_PULSE_KEYS,
-    );
-    setAnimationDuration(
-      counter,
-      readoutActive && !native ? duration : "",
-      applied,
-      "pulseReadoutAnimationDuration",
-    );
-    setAnimationDuration(
-      counterMax,
-      readoutActive && !native ? duration : "",
-      applied,
-      "pulseMaximumReadoutAnimationDuration",
-    );
     bar.pulseActive = true;
     bar.colorPulseActive = useColorPulse;
     bar.pulseReadoutActive = !!readoutActive;
@@ -2265,9 +2169,6 @@
         levelVerticalAlignment === "center"
           ? 2
           : 1;
-      rememberDiagnosticTarget(bar, "level", levelCenterX - bar.levelAnchorCenterX,
-        levelCenterY - bar.levelAnchorCenterY, levelVerticalFactor,
-        LEVEL_BASE_MARGIN_LEFT, LEVEL_BASE_MARGIN_TOP);
       setStyle(
         bar.parts.levelContainer,
         "marginLeft",
@@ -2309,9 +2210,6 @@
         unitInfoVerticalAlignment === "center"
           ? 2
           : 1;
-      rememberDiagnosticTarget(bar, "unitInfo", unitInfoCenterX - bar.unitInfoAnchorCenterX,
-        unitInfoCenterY - bar.unitInfoAnchorCenterY, unitInfoVerticalFactor,
-        UNIT_INFO_BASE_MARGIN_LEFT, UNIT_INFO_BASE_MARGIN_TOP);
       setStyle(
         bar.parts.unitInfo,
         "marginLeft",
@@ -2336,195 +2234,6 @@
     bar.geometryChanged = false;
   }
 
-  // Temporary diagnostic island: no label text, dialog variables, or saved payloads.
-  function rememberDiagnosticTarget(bar, key, x, y, factor, left, top) {
-    if (!ACCESSORY_DIAGNOSTICS) return;
-    var targets = bar.accessoryDiagnosticTargets || (bar.accessoryDiagnosticTargets = {});
-    targets[key] = {
-      deltaX: x, deltaY: y, verticalFactor: factor,
-      desired: { marginLeft: accessoryMargin(left, x),
-        marginTop: accessoryMargin(top, y * factor) },
-    };
-  }
-
-  function diagnosticValue(panel, property, inline) {
-    try {
-      var value = inline ? panel.style[property] : panel[property];
-      if (inline && (value === undefined || value === null)) return "";
-      if (value === undefined || value === null) return "unavailable";
-      if (typeof value === "number")
-        return Number.isFinite(value) ? value : "unavailable";
-      return typeof value === "string" || typeof value === "boolean"
-        ? value : "unavailable";
-    } catch {
-      return "unavailable";
-    }
-  }
-
-  function diagnosticClasses(panel) {
-    var known = ["player", "enemy", "friend", "team1", "team2", "alive",
-      "has_ultimate", "CLASS_PLAYER", "playerIsBot", "GameStatePreGame",
-      "health_hidden", "beingSpectatedInEye", "beingSpectated",
-      "unit_info_panel", "WorldUIRoot", "WindowRoot", "hero_inferno"];
-    var result = { enumeration: "unavailable", known: [], heroes: [], unavailable: [] };
-    for (var index = 0; index < known.length; index++) {
-      var name = known[index];
-      try {
-        var probe = panel && (panel.BHasClass || panel.HasClass);
-        if (!probe) result.unavailable.push(name);
-        else if (probe.call(panel, name)) {
-          result.known.push(name);
-          if (name.indexOf("hero_") === 0) result.heroes.push(name);
-        }
-      } catch {
-        result.unavailable.push(name);
-      }
-    }
-    try {
-      if (panel && panel.GetClasses) {
-        var classes = panel.GetClasses();
-        if (typeof classes === "string") classes = classes.split(/\s+/);
-        if (Array.isArray(classes)) {
-          result.enumeration = "available";
-          for (var classIndex = 0; classIndex < classes.length && classIndex < 64; classIndex++) {
-            var hero = String(classes[classIndex]);
-            if (/^hero_[a-z0-9_]{1,64}$/.test(hero) &&
-                result.heroes.indexOf(hero) < 0) result.heroes.push(hero);
-          }
-        }
-      }
-    } catch {}
-    result.known.sort();
-    result.heroes.sort();
-    return result;
-  }
-
-  function diagnosticPanel(panel) {
-    var css = {};
-    var properties = ["actualxoffset", "actualyoffset", "actuallayoutwidth", "actuallayoutheight"];
-    var keys = ["x", "y", "width", "height"];
-    var raw = {};
-    for (var index = 0; index < keys.length; index++) {
-      raw[keys[index]] = diagnosticValue(panel, properties[index], false);
-      var value = cssLayout(panel, properties[index], index % 2 === 0 ? "x" : "y");
-      css[keys[index]] = Number.isFinite(value) ? value : "unavailable";
-    }
-    raw.scaleX = diagnosticValue(panel, "actualuiscale_x", false);
-    raw.scaleY = diagnosticValue(panel, "actualuiscale_y", false);
-    return {
-      exists: !!panel, valid: isValid(panel), parentId: panelId(panelParent(panel)),
-      visible: diagnosticValue(panel, "visible", false),
-      computedVisibility: "unavailable",
-      visibility: diagnosticValue(panel, "visibility", true),
-      classes: diagnosticClasses(panel),
-      marginLeft: diagnosticValue(panel, "marginLeft", true),
-      marginTop: diagnosticValue(panel, "marginTop", true),
-      transform: diagnosticValue(panel, "transform", true),
-      opacity: diagnosticValue(panel, "opacity", true), raw: raw, css: css,
-    };
-  }
-
-  function diagnosticAnchor(bar, key, panel) {
-    var prefix = key === "level" ? "levelAnchor" : "unitInfoAnchor";
-    var active = bar.surface === "player" && config.enabled;
-    var target = active && bar.accessoryDiagnosticTargets &&
-      bar.accessoryDiagnosticTargets[key];
-    var nativeStyles = bar.applied.nativeStyles || {};
-    var left = nativeStyles[prefix + "MarginLeft"];
-    var top = nativeStyles[prefix + "MarginTop"];
-    return {
-      ready: !!(bar.geometryReady && isValid(panel) && bar[prefix + "Panel"] === panel),
-      centerX: bar[prefix + "Panel"] ? bar[prefix + "CenterX"] : "unavailable",
-      centerY: bar[prefix + "Panel"] ? bar[prefix + "CenterY"] : "unavailable",
-      deltaX: target ? target.deltaX : "unavailable",
-      deltaY: target ? target.deltaY : "unavailable",
-      verticalFactor: target ? target.verticalFactor : "unavailable",
-      desired: target ? target.desired : { marginLeft: active ? "unavailable" : "",
-        marginTop: active ? "unavailable" : "" },
-      written: { marginLeft: left && left.panel === panel ? left.value : "unavailable",
-        marginTop: top && top.panel === panel ? top.value : "unavailable" },
-      readback: { marginLeft: diagnosticValue(panel, "marginLeft", true),
-        marginTop: diagnosticValue(panel, "marginTop", true) },
-    };
-  }
-
-  function diagnoseAccessories(bar) {
-    if (!ACCESSORY_DIAGNOSTICS || bar.kind !== "player") return;
-    try {
-      if (typeof $.Msg !== "function") return;
-      var root = absoluteRoot(context);
-      // A truncated/throwing ancestor walk cannot establish a shared session budget.
-      var current = context;
-      for (var depth = 0; current && depth < 24; depth++) {
-        if (!current.GetParent) return;
-        var parent = current.GetParent();
-        if (!parent) break;
-        if (parent === current) return;
-        current = parent;
-      }
-      if (current !== root || depth === 24 || !isValid(root) ||
-          !root.GetAttributeString || !root.SetAttributeString) return;
-      var attribute = "hp_colors_v2_diag_accessory";
-      var rawBudget = root.GetAttributeString(attribute, "");
-      var budget = rawBudget ? JSON.parse(rawBudget) :
-        { originMs: nowMs(), attempts: 0, ordinal: 0 };
-      if (!Number.isFinite(budget.originMs) ||
-          !Number.isInteger(budget.attempts) || budget.attempts < 0 || budget.attempts >= 80 ||
-          !Number.isInteger(budget.ordinal) || budget.ordinal < 0 || budget.ordinal > 1000000) return;
-      var hydration = root.GetAttributeString(HYDRATION_ATTR, "");
-      if (!bar.accessoryDiagnosticDiscovery) {
-        var firstSeenMs = Math.max(0, nowMs() - budget.originMs);
-        budget.ordinal += 1;
-        bar.accessoryDiagnosticDiscovery = {
-          firstSeenMs: firstSeenMs, originMs: budget.originMs, ordinal: budget.ordinal,
-          phase: firstSeenMs > 3000 ? "late" : "early",
-          lateThresholdMs: 3000, timing: "observed-context",
-          configRevision: configRevision, awaitingConfig: awaitingConfig, hydration: hydration,
-        };
-      }
-      var ancestors = [];
-      current = bar.parts.inner;
-      for (var ancestorDepth = 0; current && ancestorDepth < 16; ancestorDepth++) {
-        ancestors.push({ id: panelId(current), classes: diagnosticClasses(current) });
-        if (current === root) break;
-        current = panelParent(current);
-      }
-      var panels = {};
-      var names = ["unitInfo", "ultBackground", "ultIcon", "ultOverlay",
-        "level", "stack", "primary", "inner"];
-      var parts = ["unitInfo", "ultBackground", "ultIcon", "ultOverlay",
-        "levelContainer", "healthbars", "primary", "inner"];
-      for (var panelIndex = 0; panelIndex < names.length; panelIndex++)
-        panels[names[panelIndex]] = diagnosticPanel(bar.parts[parts[panelIndex]]);
-      var settings = {};
-      var settingNames = ["widthScale", "heightScale", "positionX", "positionY",
-        "levelOffsetX", "levelOffsetY", "ultOffsetX", "ultOffsetY",
-        "accessoryAnchorEnabled", "levelsVisible", "enabled", "enemyEnabled",
-        "allyEnabled", "enemyVisible", "allyVisible", "ultimateTimerEnabled", "ultimateTimerSize"];
-      for (var settingIndex = 0; settingIndex < settingNames.length; settingIndex++)
-        settings[settingNames[settingIndex]] = config[settingNames[settingIndex]];
-      var snapshot = JSON.stringify({
-        version: 1, discovery: bar.accessoryDiagnosticDiscovery, ancestors: ancestors,
-        panels: panels, anchors: {
-          level: diagnosticAnchor(bar, "level", bar.parts.levelContainer),
-          unitInfo: diagnosticAnchor(bar, "unitInfo", bar.parts.unitInfo),
-        }, settings: settings,
-        gates: { surface: bar.surface, kind: bar.kind, relation: bar.role,
-          levelValid: bar.level > 0,
-          levelEligible: bar.surface === "player" && bar.role === "enemy" &&
-            config.levelsVisible && bar.level > 0 },
-        configRevision: configRevision, awaitingConfig: awaitingConfig, hydration: hydration,
-      });
-      if (snapshot === bar.accessoryDiagnosticLast) return;
-      // Reserve before Msg, including failed logger attempts. Verify shared root readback.
-      budget.attempts += 1;
-      var nextBudget = JSON.stringify(budget);
-      root.SetAttributeString(attribute, nextBudget);
-      if (root.GetAttributeString(attribute, "") !== nextBudget) return;
-      bar.accessoryDiagnosticLast = snapshot;
-      $.Msg("[HPV2-DIAG] " + snapshot);
-    } catch {}
-  }
 
   // [part, property, cache key] for every geometry style the bar owns.
   var GEOMETRY_STYLES = [
@@ -2556,6 +2265,7 @@
     clearPulse(bar);
     clearKillMarkerOwnership(bar);
     clearReadoutOwnership(bar);
+    clearPlayerNameOwnership(bar);
     applyReadoutDecorations(bar);
     applyUltimateWash(bar, "");
     var stockColor = stockUnitColor(bar);
@@ -2802,6 +2512,7 @@
         (role === "enemy" || (role === "ally" && config.allyReadoutVisible)),
     );
     syncOwnedRootClasses(bar);
+    applyPlayerName(bar);
     bar.dirty = false;
   }
 
@@ -2935,15 +2646,14 @@
       bar.dirty = true;
     updateLevel(bar, readLabelText(bar.parts.levelLabel));
     reconcileAccessoryCenters(bar);
+    applyPlayerName(bar);
     if (!bar.dirty && layoutStyleDrift(bar)) bar.dirty = true;
     if (bar.dirty) applyCustomization(bar);
-    diagnoseAccessories(bar);
   }
   // Per-panel samples; cleared on creation and whenever the part set changes.
   function resetBarSamples(bar) {
     bar.readoutPosition = null;
     bar.readoutSample = null;
-    bar.readoutMode = "";
     bar.kind = "unknown";
     bar.role = "other";
     bar.ambiguousRelation = false;
@@ -2982,7 +2692,6 @@
     bar.unitInfoAnchorPanel = null;
     bar.unitInfoAnchorCenterX = 0;
     bar.unitInfoAnchorCenterY = 0;
-    if (ACCESSORY_DIAGNOSTICS) bar.accessoryDiagnosticTargets = null;
   }
 
   function addBar(parts) {
@@ -3081,6 +2790,7 @@
       return true;
     }
     var changed = positionReadout(bar);
+    applyPlayerName(bar);
     if (healthRefreshEnabled(bar)) {
       sampleHealthPercent(bar);
       changed = bar.healthPresentationChanged || changed;
@@ -3143,7 +2853,6 @@
     var changed = false;
     for (var index = 0; index < bars.length; index++) {
       if (refreshColor(bars[index])) changed = true;
-      diagnoseAccessories(bars[index]);
     }
     var now = Date.now ? Date.now() : +new Date();
     if (changed) lastColorChangeAt = now;
