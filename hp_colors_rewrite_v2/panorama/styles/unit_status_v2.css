@@ -1548,18 +1548,21 @@
 	margin-top: 0px;
 	padding: 0px;
 	horizontal-align: center;
+	vertical-align: top;
+	transform-origin: 50% 40.48%;
 	animation-name: none;
 	transition-property: none;
 }
 
 .WindowRoot #InfoHealthContainer
 {
-	width: 100px;
-	height: 40px;
-	margin-top: 65px;
+	width: 100%;
+	height: 100%;
+	margin-top: 0px;
 	horizontal-align: center;
 	vertical-align: top;
 	overflow: noclip;
+	transform-origin: 50% 40.48%;
 	transition-property: pre-transform-scale2d, transform;
 	transition-duration: 0.08s;
 }
@@ -1584,6 +1587,40 @@
 .WindowRoot #UnitHealthbarsContainer
 {
 	overflow: noclip;
+	width: 100%;
+	height: 100%;
+	transform-origin: 50% 40.48%;
+}
+
+.WindowRoot #UnitHealthbar
+{
+	margin-top: 65px;
+}
+
+.WindowRoot #InfoHealthContainer #UnitHealthbarValue
+{
+	margin-top: 66px;
+	margin-right: 60px;
+}
+
+.friend .WindowRoot #InfoHealthContainer #UnitHealthbarValue
+{
+	margin-right: 70px;
+}
+
+.boss_tier1 .WindowRoot #InfoHealthContainer #UnitHealthbarValue,
+.boss_tier2 .WindowRoot #InfoHealthContainer #UnitHealthbarValue,
+.boss_barracks .WindowRoot #InfoHealthContainer #UnitHealthbarValue,
+.building .WindowRoot #InfoHealthContainer #UnitHealthbarValue
+{
+	margin-top: 70px;
+	margin-right: 65px;
+}
+
+.WindowRoot #InfoHealthContainer #UnitShieldbarValue
+{
+	margin-top: 85px;
+	margin-right: 60px;
 }
 
 .WindowRoot #UnitHealthbarLines
@@ -1609,6 +1646,10 @@
 .WindowRoot .unit_info_panel
 {
 	overflow: noclip;
+	horizontal-align: left;
+	vertical-align: top;
+	margin-left: 50px;
+	margin-top: 67px;
 }
 
 /* Only the adopted engine label uses the root-level readout frame. */
@@ -1707,9 +1748,9 @@
 	height: 21px;
 	ignore-parent-flow: true;
 	horizontal-align: left;
-	vertical-align: middle;
-	margin-left: -23px;
-	margin-top: -14px;
+	vertical-align: top;
+	margin-left: 27px;
+	margin-top: 67.5px;
 	border: 2px solid Team1Color;
 	border-radius: 50%;
 	background-color: #0a0a0ae6;
@@ -1863,7 +1904,8 @@
 	margin: 25px 1px 1px 1px;
 }
 
-.WindowRoot.HPColorsRewriteEnemyPlayer #StaminaContainer.HPColorsRewriteStaminaOwned .StaminaPip .StaminaPipIcon
+.WindowRoot.HPColorsRewriteEnemyPlayer #StaminaContainer.HPColorsRewriteStaminaBox .StaminaPip .StaminaPipIcon,
+.WindowRoot.HPColorsRewriteEnemyPlayer #StaminaContainer.HPColorsRewriteStaminaCircle .StaminaPip .StaminaPipIcon
 {
 	background-image: none;
 	background-size: 100% 100%;
@@ -1874,9 +1916,15 @@
 	wash-color: #FFFFFF;
 }
 
-.WindowRoot.HPColorsRewriteEnemyPlayer #StaminaContainer.HPColorsRewriteStaminaOwned .StaminaPip.PipEmpty .StaminaPipIcon
+.WindowRoot.HPColorsRewriteEnemyPlayer #StaminaContainer.HPColorsRewriteStaminaBox .StaminaPip.PipEmpty .StaminaPipIcon,
+.WindowRoot.HPColorsRewriteEnemyPlayer #StaminaContainer.HPColorsRewriteStaminaCircle .StaminaPip.PipEmpty .StaminaPipIcon
 {
 	background-color: #000000;
+}
+
+.WindowRoot.HPColorsRewriteEnemyPlayer #StaminaContainer.HPColorsRewriteStaminaCircle .StaminaPip .StaminaPipIcon
+{
+	border-radius: 50%;
 }
 
 .WindowRoot.HPColorsRewriteHideCritical #CriticalIndicator

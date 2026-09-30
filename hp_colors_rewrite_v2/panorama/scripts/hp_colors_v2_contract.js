@@ -134,6 +134,12 @@
     nameSize: 14,
     nameOffsetX: 0,
     nameOffsetY: 0,
+    enemyPipColorEnabled: false,
+    enemyPipColor: "#500202",
+    allyPipColorEnabled: false,
+    allyPipColor: "#042517",
+    pipOpacity: 60,
+    staminaShape: "arrow",
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -193,6 +199,12 @@
     "nameSize",
     "nameOffsetX",
     "nameOffsetY",
+    "enemyPipColorEnabled",
+    "enemyPipColor",
+    "allyPipColorEnabled",
+    "allyPipColor",
+    "pipOpacity",
+    "staminaShape",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -343,6 +355,8 @@
     npcNeutralEnabled: true,
     buildingEnemyEnabled: true,
     buildingAllyEnabled: true,
+    enemyPipColorEnabled: true,
+    allyPipColorEnabled: true,
   };
 
   var COLOR_KEYS = {
@@ -379,6 +393,8 @@
     neutralColor: true,
     enemyNameColor: true,
     allyNameColor: true,
+    enemyPipColor: true,
+    allyPipColor: true,
   };
 
   var ENUM_OPTIONS = {
@@ -396,6 +412,7 @@
     allyReadoutFont: ["default", "oracle", "pulp"],
     allyReadoutColorMode: ["bar", "custom"],
     allyReadoutMode: ["fixed", "gradient"],
+    staminaShape: ["arrow", "circle", "box"],
   };
 
   var NUMBER_BOUNDS = {
@@ -440,6 +457,7 @@
     nameSize: [8, 40],
     nameOffsetX: [-200, 200],
     nameOffsetY: [-210, 210],
+    pipOpacity: [0, 100],
   };
 
   var NUMBER_STEPS = {
@@ -553,6 +571,13 @@
           : fallback[key];
       values[key] = normalizeValue(key, value, values, fallback);
     }
+    if (!source || !Object.prototype.hasOwnProperty.call(source, "staminaShape"))
+      values.staminaShape =
+        values.staminaWidth !== 110 ||
+        values.staminaHeight !== 44.8 ||
+        values.enemyStaminaColorEnabled
+          ? "box"
+          : "arrow";
     values.lowThreshold = clampNumber(
       values.lowThreshold,
       0,
