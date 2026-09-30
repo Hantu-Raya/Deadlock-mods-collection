@@ -1357,10 +1357,12 @@
     var parts = bar.parts || {};
     if (!position || !isValid(parts.counterContainer) ||
         !isValid(parts.counterAnchor) || !isValid(parts.counterRow)) return false;
-    var width = parts.counterContainer.actuallayoutwidth;
-    var height = parts.counterContainer.actuallayoutheight;
-    var rowWidth = parts.counterRow.actuallayoutwidth;
-    var rowHeight = parts.counterRow.actuallayoutheight;
+    // actuallayout* are window pixels; margins and sizes are CSS pixels.
+    // The 6722 world panel renders at window scale 2 (400x420 for 200x210).
+    var width = cssLayout(parts.counterContainer, "width", "x");
+    var height = cssLayout(parts.counterContainer, "height", "y");
+    var rowWidth = cssLayout(parts.counterRow, "width", "x");
+    var rowHeight = cssLayout(parts.counterRow, "height", "y");
     if (!Number.isFinite(width) || width <= 0 ||
         !Number.isFinite(height) || height <= 0 ||
         !Number.isFinite(rowWidth) || rowWidth <= 0 ||
@@ -1381,6 +1383,11 @@
     setStyle(parts.counterRow, "marginLeft", pixels(left), bar.applied, "readoutLeft");
     setStyle(parts.counterRow, "marginTop", pixels(top), bar.applied, "readoutTop");
     return changed;
+  }
+
+  function cssLayout(panel, size, axis) {
+    var scale = Number(panel["actualuiscale_" + axis]);
+    return panel["actuallayout" + size] / (scale > 0 ? scale : 1);
   }
   function setNativeHealthValueVisibility(bar, suppress) {
     var baseline = bar.panelBaseline || {};

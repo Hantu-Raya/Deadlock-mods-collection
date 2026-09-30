@@ -437,6 +437,31 @@ test('unchanged-fill paint tracks digit/font row reflow and container resize wit
   }
 });
 
+test('readout geometry converts measured window pixels to CSS pixels at world-panel scale 2', () => {
+  // Live 6722: a 200x210 CSS canvas reports 400x420 actual pixels (window scale 2).
+  for (const [classes, prefix, edge] of [[['player', 'enemy'], 'readout', 140], [['player', 'friend'], 'allyReadout', 130]]) {
+    const fixture = makeOwnershipFixture(classes, { [prefix + 'Visible']: true }, (parts) => {
+      prepareNativeReadout(parts);
+      for (const panel of [parts.container, parts.row]) {
+        panel.actualuiscale_x = 2;
+        panel.actualuiscale_y = 2;
+      }
+      parts.container.actuallayoutwidth = 400;
+      parts.container.actuallayoutheight = 420;
+      parts.row.actuallayoutwidth = 96;
+      parts.row.actuallayoutheight = 48;
+    });
+    paintReadout(fixture);
+    assert.equal(fixture.row.style.marginLeft, (edge - 48) + 'px');
+    assert.equal(fixture.row.style.marginTop, '66px');
+    assert.equal(fixture.anchor.style.width, '200px');
+    assert.equal(fixture.anchor.style.height, '210px');
+    fixture.update({ [prefix + 'Visible']: true, [prefix + 'OffsetX']: 200, [prefix + 'OffsetY']: 210 });
+    assert.equal(fixture.row.style.marginLeft, (200 - 48) + 'px');
+    assert.equal(fixture.row.style.marginTop, (210 - 24) + 'px');
+  }
+});
+
 test('invalid readout layout defers on the existing cadence; oversized rows expose the fit limit', () => {
   const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, (parts) => {
     prepareNativeReadout(parts);
