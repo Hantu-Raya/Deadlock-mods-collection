@@ -1377,20 +1377,34 @@ test('pip opacity multiplies stock lines independently of custom color and resto
     });
     assert.deepEqual(line.styleWrites, [], 'default leaves stock lines untouched');
     fixture.update({ ...gate, pipOpacity: 50 });
-    assert.equal(line.style.opacity, String(stockOpacity * 0.5));
+    const container = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+    assert.equal(container.style.opacity, '0.5');
+    assert.equal(line.style.opacity, '0.37', 'child inline opacity remains untouched');
+    const late = container.add(new MockPanel('newEnginePip', {
+      classes: ['line_small'], style: { washColor: 'rgb(80,2,2)', opacity: String(stockOpacity) },
+    }));
+    assert.equal(Number(late.style.opacity) * Number(container.style.opacity), stockOpacity * 0.5,
+      'engine-created lines are faded immediately without another paint');
+    assert.deepEqual(late.styleWrites, []);
     assert.equal(line.style.washColor, '#445566');
     line.styleWrites.length = 0;
+    container.styleWrites.length = 0;
     fixture.update({ ...gate, pipOpacity: 50 });
     assert.deepEqual(line.styleWrites, [], 'unchanged opacity does not write');
+    assert.deepEqual(container.styleWrites, [], 'unchanged parent opacity does not write');
     fixture.update({ ...gate, pipOpacity: 100 });
     assert.equal(line.style.opacity, '0.37');
+    assert.equal(container.style.opacity, '', '100 releases parent opacity');
     line.styleWrites.length = 0;
+    container.styleWrites.length = 0;
     fixture.update({ ...gate, pipOpacity: 100 });
     assert.deepEqual(line.styleWrites, [], '100 without custom color writes nothing');
+    assert.deepEqual(container.styleWrites, [], 'released parent is not rewritten');
     fixture.update({ ...gate, pipOpacity: 50 });
     fixture.world.AddClass('spectating');
     fixture.update({ ...gate, pipOpacity: 50 });
     assert.equal(line.style.opacity, '0.37');
+    assert.equal(container.style.opacity, '', 'spectating releases parent opacity');
     line.styleWrites.length = 0;
     fixture.update({ ...gate, pipOpacity: 20, enemyPipColorEnabled: true });
     assert.deepEqual(line.styleWrites, [], 'spectators remain untouched');
@@ -1398,12 +1412,31 @@ test('pip opacity multiplies stock lines independently of custom color and resto
     fixture.update({ ...gate, pipOpacity: 50 });
     fixture.update({ ...gate, pipOpacity: 50, enabled: false });
     assert.equal(line.style.opacity, '0.37');
+    assert.equal(container.style.opacity, '', 'master off releases parent opacity');
     assert.equal(line.style.washColor, '#445566');
     fixture.update({ ...gate, pipOpacity: 50 });
     line.SetParent(fixture.window);
     paintReadout(fixture);
     assert.equal(line.style.opacity, '0.37', 'removed lines restore exactly');
     assert.equal(line.style.washColor, '#445566');
+    fixture.update({ ...gate, pipOpacity: 50 });
+    fixture.status.valid = false;
+    fixture.harness.scheduler.runNext();
+    assert.equal(container.style.opacity, '', 'teardown releases parent opacity');
+  }
+});
+
+test('pip parent opacity releases when enemy lines are hidden or the bar retires', () => {
+  for (const release of ['off', 'retirement']) {
+    const fixture = makeOwnershipFixture(['player', 'enemy'], { pipOpacity: 50 });
+    const container = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+    assert.equal(container.style.opacity, '0.5');
+    if (release === 'off') fixture.update({ pipOpacity: 50, pipsVisible: false });
+    else {
+      fixture.primary.RemoveClass('UnitHealthbarContainer');
+      fixture.harness.scheduler.runByDelay(1);
+    }
+    assert.equal(container.style.opacity, '', release);
   }
 });
 
@@ -1426,7 +1459,8 @@ test('pip colors own matching opted-in lines only and restore stock/spectator pr
     fixture.update(custom);
     for (const line of lines) {
       assert.equal(line.style.washColor, '#123456');
-      assert.equal(line.style.opacity, String((prefix === 'enemy' ? 0.6 : 0.8) * 42 / 100));
+      assert.equal(line.style.opacity, '');
+      assert.equal(fixture.primary.FindChildTraverse('UnitHealthbarLines').style.opacity, '0.42');
     }
     fixture.world.AddClass('spectating');
     fixture.update(custom);
@@ -1437,6 +1471,8 @@ test('pip colors own matching opted-in lines only and restore stock/spectator pr
     fixture.world.RemoveClass('spectating');
     fixture.update(custom);
     fixture.update({ ...custom, [prefix + 'PipColorEnabled']: false });
+    assert.equal(fixture.primary.FindChildTraverse('UnitHealthbarLines').style.opacity, '0.42',
+      'color off retains independent opacity');
     for (const line of lines) assert.equal(line.style.washColor, '');
     fixture.update(custom);
     fixture.update({ ...custom, enabled: false });
@@ -1580,7 +1616,8 @@ test('custom pip ownership handles late lines and restores captured inline style
   }));
   paintReadout(fixture);
   assert.equal(original.style.washColor, '#123456');
-  assert.equal(original.style.opacity, String(0.6 * 42 / 100));
+  assert.equal(original.style.opacity, '0.3');
+  assert.equal(container.style.opacity, '0.42');
   original.SetParent(fixture.window);
   const replacement = container.add(new MockPanel('replacementPip', {
     classes: ['line_small'], style: { washColor: '#778899', opacity: '0.7' },
@@ -1592,4 +1629,5 @@ test('custom pip ownership handles late lines and restores captured inline style
   fixture.update({ enemyPipColorEnabled: false });
   assert.equal(replacement.style.washColor, '#778899');
   assert.equal(replacement.style.opacity, '0.7');
+  assert.equal(container.style.opacity, '');
 });
