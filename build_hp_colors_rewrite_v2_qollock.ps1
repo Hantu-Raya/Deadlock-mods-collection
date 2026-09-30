@@ -15,7 +15,9 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
+# QOLLOCK 4.0.1 release layout, pin, contract and bridge.
 $supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
+$bridgeSrc = $supportSrc
 $compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'
 $buildRoot = Join-Path $root '_hp_colors_rewrite_v2_qollock_build'
 $stageSource = Join-Path $buildRoot 'hp_colors_rewrite_v2_qollock'
@@ -30,6 +32,7 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
+
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'
@@ -42,6 +45,7 @@ if ([string]::IsNullOrWhiteSpace($Source2ViewerPath)) {
 $canonicalScripts = @(
     'panorama\scripts\hp_colors_v2_contract.js',
     'panorama\scripts\hp_colors_v2_state.js',
+    'panorama\scripts\hp_colors_v2_storage.js',
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js'
 )
@@ -52,6 +56,7 @@ $canonicalFiles = @(
     'panorama\layout\unit_status_overlay_v2.xml',
     'panorama\scripts\hp_colors_v2_contract.js',
     'panorama\scripts\hp_colors_v2_state.js',
+    'panorama\scripts\hp_colors_v2_storage.js',
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js',
     'panorama\styles\hp_colors_v2_menu.css',
@@ -67,6 +72,7 @@ $supportFiles = @(
     'panorama\layout\hud_escape_menu.xml',
     'panorama\scripts\qollock_hp_colors_bridge.js'
 )
+$bridgeFile = 'panorama\scripts\qollock_hp_colors_bridge.js'
 
 $timerScripts = @(
     'panorama\scripts\test_event_bridge.js',
@@ -195,7 +201,7 @@ foreach ($relativePath in $canonicalScripts + $timerScripts) {
         throw "Runtime script syntax check failed: $relativePath"
     }
 }
-& node --check (Join-Path $supportSrc 'panorama\scripts\qollock_hp_colors_bridge.js')
+& node --check (Join-Path $bridgeSrc $bridgeFile)
 if ($LASTEXITCODE -ne 0) {
     throw 'Runtime script syntax check failed: panorama\scripts\qollock_hp_colors_bridge.js'
 }

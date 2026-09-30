@@ -23,7 +23,6 @@
 		<include src="s2r://panorama/scripts/core/persistence.vjs_c" />
 		<include src="s2r://panorama/scripts/core/position.vjs_c" />
 		<include src="s2r://panorama/scripts/core/perf.vjs_c" />
-		<include src="s2r://panorama/scripts/core/cache.vjs_c" />
 		<include src="s2r://panorama/scripts/features/healthbar_style/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/features/healthbar_position/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/features/healthbar_combat_indicator/manifest.vjs_c" />
@@ -46,6 +45,10 @@
 		<include src="s2r://panorama/scripts/features/clean_stacks/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/features/passive_ability_icons/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/features/perf_profiler/manifest.vjs_c" />
+		<include src="s2r://panorama/scripts/features/active_stats/manifest.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ammo_panel/manifest.vjs_c" />
+		<include src="s2r://panorama/scripts/features/reload_crosshair/manifest.vjs_c" />
+		<include src="s2r://panorama/scripts/features/show_clip_status/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/features/recent_purchases/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/features/purchase_popups/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/features/minimal_build_icons/manifest.vjs_c" />

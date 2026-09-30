@@ -40,7 +40,7 @@ function oneEffect(result, type) {
   return effects[0];
 }
 
-test('v2 contract removes retired color exclusions and shares requested enemy defaults', () => {
+test('v2 contract removes retired color exclusions and ghoul opacity and shares requested enemy defaults', () => {
   const { contract } = bootState();
   assert.equal(contract.version, 2);
   assert.equal(contract.magicWord, 'HP_COLORS_V2_CONFIG');
@@ -50,6 +50,18 @@ test('v2 contract removes retired color exclusions and shares requested enemy de
     assert.equal(Object.hasOwn(contract.defaults, key), false);
     assert.equal(contract.codecDefaults[key], false);
     assert.equal(contract.codecKeys.includes(key), true);
+  }
+  // Ghoul opacity is retired the same way: out of every editable table, but
+  // its two codec slots stay reserved so later slots keep their positions.
+  for (const [key, slot, codecDefault] of [
+    ['ghoulOpacityEnabled', 68, false],
+    ['ghoulOpacity', 69, 100],
+  ]) {
+    assert.equal(contract.keys.includes(key), false);
+    assert.equal(Object.hasOwn(contract.defaults, key), false);
+    assert.equal(contract.settingMeta[key], undefined);
+    assert.equal(contract.codecDefaults[key], codecDefault);
+    assert.equal(contract.codecKeys[slot], key);
   }
   assert.equal(contract.defaults.enemyMode, 'gradient');
   assert.equal(contract.defaults.enemyLow, '#FD4949');

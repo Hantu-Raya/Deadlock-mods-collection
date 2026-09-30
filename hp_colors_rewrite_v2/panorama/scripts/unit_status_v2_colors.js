@@ -11,6 +11,10 @@
   var CONFIG_MAGIC = "HP_COLORS_V2_CONFIG";
   var CONFIG_ATTR = "hp_colors_v2_config";
   var CONFIG_VERSION = 2;
+  // Stay stock until the editor has restored its durable save and published.
+  var HYDRATION_ATTR = "hp_colors_v2_hydration";
+  var CONFIG_GRACE_MS = 3000;
+  var HYDRATION_WAIT_MAX_MS = 180000;
   var LEGACY_TO_NATIVE = 0.1;
   // CSS baselines: Rewrite level badge and stock .unit_info_panel.
   var LEVEL_BASE_MARGIN_LEFT = -23;
@@ -155,7 +159,9 @@
   var configRoot = null;
   var configRaw = "";
   var defaultConfig = normalizeConfig(null);
-  var config = normalizeConfig(null);
+  var config = normalizeConfig({ enabled: false });
+  var awaitingConfig = true;
+  var awaitingSince = nowMs();
   var configRevision = -1;
   var lastColorChangeAt = 0;
   var eventHandlerId = null;
@@ -431,7 +437,6 @@
       role: role,
       team: team,
       ambiguous: ambiguous,
-      ghoul: kind === "npc" && !!facts.creature,
     };
   }
 
@@ -456,8 +461,6 @@
           ? "buildingEnemyEnabled"
           : "buildingAllyEnabled";
     if (settings[gate]) return "unit";
-    if (bar.kind === "npc" && bar.ghoul && settings.ghoulOpacityEnabled)
-      return "opacity";
     return "";
   }
   function classifyTarget(bar) {
@@ -469,7 +472,6 @@
       classified.role !== bar.role ||
       classified.ambiguous !== bar.ambiguousRelation ||
       classified.team !== bar.team ||
-      classified.ghoul !== bar.ghoul ||
       spectating !== bar.spectating;
     if (!changed) return false;
     var previousSurface = bar.surface;
@@ -478,7 +480,6 @@
     bar.role = classified.role;
     bar.ambiguousRelation = classified.ambiguous;
     bar.team = classified.team;
-    bar.ghoul = classified.ghoul;
     bar.spectating = spectating;
     bar.surface = resolveSurface(bar, config);
     if (previousSurface === "player" && bar.surface !== "player") {
@@ -2352,36 +2353,15 @@
   function applyActiveCustomization(bar, panelBaseline) {
     var role = bar.role;
     var surface = bar.surface;
-    if (surface === "fill" || surface === "opacity") {
+    if (surface === "fill") {
       restoreInactiveCustomization(bar, panelBaseline);
-      if (surface === "fill") {
-        setStyle(
-          bar.parts.fill,
-          "washColor",
-          config.neutralColor,
-          bar.applied,
-          "washColor",
-        );
-      } else {
-        var ghoulOpacity =
-          config.ghoulOpacity <= 1
-            ? "0.01"
-            : String(config.ghoulOpacity / 100);
-        setStyle(
-          bar.parts.primary,
-          "opacity",
-          ghoulOpacity,
-          bar.applied,
-          "opacity",
-        );
-        setStyle(
-          bar.parts.ultBackground,
-          "opacity",
-          ghoulOpacity,
-          bar.applied,
-          "ultBackgroundOpacity",
-        );
-      }
+      setStyle(
+        bar.parts.fill,
+        "washColor",
+        config.neutralColor,
+        bar.applied,
+        "washColor",
+      );
       bar.dirty = false;
       return;
     }
@@ -2495,12 +2475,7 @@
     );
 
     var opacity = baselineStyle(panelBaseline.primary, "opacity");
-    if (bar.ghoul && config.ghoulOpacityEnabled) {
-      opacity =
-        config.ghoulOpacity <= 1
-          ? "0.01"
-          : String(config.ghoulOpacity / 100);
-    } else if (colorsEnabled) {
+    if (colorsEnabled) {
       opacity =
         visible &&
         !(pulseActive && role === "enemy" && config.enemyPulseHideBar)
@@ -2511,9 +2486,7 @@
       panelBaseline.ultBackground,
       "opacity",
     );
-    if (bar.ghoul && config.ghoulOpacityEnabled)
-      ultBackgroundOpacity = opacity;
-    else if (playerSurface && colorsEnabled)
+    if (playerSurface && colorsEnabled)
       ultBackgroundOpacity = opacity;
     applyReadoutDecorations(bar);
     setStyle(bar.parts.primary, "opacity", opacity, bar.applied, "opacity");
@@ -2619,6 +2592,7 @@
       config = normalizeConfig(data.values);
       configRaw = raw;
       configRevision = revision;
+      awaitingConfig = false;
       for (var index = 0; index < bars.length; index++) {
         bars[index].dirty = true;
         applyCustomization(bars[index]);
@@ -2637,7 +2611,9 @@
       configRoot = nextRoot;
       configRaw = "";
       configRevision = -1;
-      config = normalizeConfig(null);
+      config = normalizeConfig({ enabled: false });
+      awaitingConfig = true;
+      awaitingSince = nowMs();
       notifyConfigListeners();
     }
     if (!isValid(configRoot) || !configRoot.GetAttributeString) return "";
@@ -2651,6 +2627,34 @@
   function inspectRootConfig() {
     var raw = readRootConfig();
     if (raw && raw !== configRaw) applyConfigRaw(raw);
+    if (awaitingConfig) resolveAwaitedConfig();
+  }
+
+  function nowMs() {
+    return Date.now ? Date.now() : +new Date();
+  }
+
+  function restoringSavedSettings() {
+    if (!isValid(configRoot) || !configRoot.GetAttributeString) return false;
+    try {
+      return configRoot.GetAttributeString(HYDRATION_ATTR, "") === "pending";
+    } catch {
+      return false;
+    }
+  }
+
+  function resolveAwaitedConfig() {
+    var waited = nowMs() - awaitingSince;
+    if (waited < (restoringSavedSettings() ? HYDRATION_WAIT_MAX_MS : CONFIG_GRACE_MS))
+      return;
+    awaitingConfig = false;
+    config = normalizeConfig(null);
+    for (var index = 0; index < bars.length; index++) {
+      bars[index].dirty = true;
+      applyCustomization(bars[index]);
+    }
+    applyStaminaSurface();
+    notifyConfigListeners();
   }
 
   function onConfigEvent(payload) {
@@ -2680,7 +2684,6 @@
     bar.ambiguousRelation = false;
     bar.spectating = false;
     bar.team = "";
-    bar.ghoul = false;
     bar.surface = "";
     bar.levelText = "";
     bar.level = 0;
@@ -2731,7 +2734,6 @@
       role: "other",
       ambiguousRelation: false,
       team: "",
-      ghoul: false,
       spectating: false,
       surface: "",
       seen: true,
@@ -2795,7 +2797,7 @@
   }
 
   function healthRefreshEnabled(bar) {
-    if (!config.enabled || bar.surface === "fill" || bar.surface === "opacity")
+    if (!config.enabled || bar.surface === "fill")
       return false;
     if (bar.surface === "unit") return true;
     if (bar.surface !== "player") return false;

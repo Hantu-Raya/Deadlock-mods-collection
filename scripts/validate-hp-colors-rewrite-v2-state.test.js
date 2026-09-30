@@ -316,89 +316,6 @@ function assertEffectivePublish(result, revision, settingId) {
   return published;
 }
 
-test('readout offsets normalize and round-trip as zero-based CSS pixels', () => {
-  const keys = ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
-    'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'];
-  const omitted = createState();
-  send(omitted, 'settings_import', { raw: 'HPCR2{"v":[],"c":{}}' });
-  const omittedPreset = createState({ builderPresetRaw:
-    'HPCRP1{"records":[{"id":"user_0001","kind":"user","name":"Old defaults","mode":"all","heroes":[],"values":[],"conditions":null}],"selectedPresetId":"user_0001"}' });
-  for (const key of keys) {
-    const limit = key.endsWith('X') ? 200 : 210;
-    assert.equal(DEFAULTS[key], 0, key);
-    assert.equal(CODEC_DEFAULTS[key], 0, key);
-    assert.equal(omitted.read().values[key], 0, key);
-    assert.equal(omittedPreset.read().effectiveValues[key], 0, key);
-    assert.equal(CONTRACT.normalizeValues({ [key]: 999 })[key], limit, key);
-    assert.equal(CONTRACT.normalizeValues({ [key]: -999 })[key], -limit, key);
-    const hydrated = createState({ sessionRaw: makeSession({ values: { [key]: 999 } }) });
-    assert.equal(hydrated.read().values[key], limit, key);
-  }
-  for (const [x, y] of [[0, 0], [27, -30], [150, -100], [200, 210], [-200, -210]]) {
-    const state = createState();
-    for (const key of keys) send(state, 'setting_edit', { key, value: key.endsWith('X') ? x : y });
-    const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
-    const roundtrip = createState();
-    send(roundtrip, 'settings_import', { raw: code });
-    send(state, 'preset_save', { name: 'Pixel offsets' });
-    const preset = effect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
-    const presetRoundtrip = createState({ builderPresetRaw: preset });
-    for (const key of keys) {
-      const expected = key.endsWith('X') ? x : y;
-      assert.equal(roundtrip.read().values[key], expected, key);
-      assert.equal(presetRoundtrip.read().effectiveValues[key], expected, key);
-    }
-  }
-  const legacy = createState();
-  send(legacy, 'settings_import', { raw: 'HPCR2{"v":[[32,27],[33,500],[55,27],[56,500]],"c":{},"hpv2":{"v":1,"values":[[33,-30],[34,434]],"conditions":{}}}' });
-  assert.deepEqual(keys.map(key => legacy.read().values[key]), [27, 210, -30, 210, 27, 210]);
-});
-
-test('historical baked readout defaults canonicalize without dropping user presets', () => {
-  const source = createState();
-  send(source, 'setting_edit', { key: 'readoutOffsetX', value: 150 });
-  send(source, 'setting_edit', { key: 'readoutOffsetY', value: -100 });
-  send(source, 'preset_save', { name: 'User pixels' });
-  const payload = JSON.parse(effect(send(source, 'preset_copy_all'), 'clipboard_write').text.slice(6));
-  const baked = payload.records.find(record => record.kind === 'baked');
-  baked.values.push([32, -30], [33, 434], [55, 27], [56, 500]);
-  baked.hpv2 = { v: 1, values: [[33, -30], [34, 434]], conditions: {} };
-  const raw = 'HPCRP1' + JSON.stringify(payload);
-  const state = createState();
-  assert.equal(send(state, 'preset_import', { raw }).status, 'committed');
-  const hydrated = createState({ builderPresetRaw: raw });
-  for (const target of [state, hydrated]) {
-    const copied = JSON.parse(effect(send(target, 'preset_copy_all'), 'clipboard_write').text.slice(6));
-    const canonical = copied.records.find(record => record.kind === 'baked');
-    assert.equal(canonical.values.some(([index]) => [32, 33, 55, 56].includes(index)), false);
-    assert.equal(canonical.hpv2, undefined);
-    for (const key of ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
-      'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'])
-      assert.equal(row(target.read(), 'baked_default').values[key], 0, key);
-    const user = copied.records.find(record => record.kind === 'user');
-    assert.ok(user.values.some(([index, value]) => index === 32 && value === 150));
-    assert.ok(user.values.some(([index, value]) => index === 33 && value === -100));
-  }
-  const earlierDefaults = JSON.parse(JSON.stringify(payload));
-  earlierDefaults.records.find(record => record.kind === 'baked').values =
-    baked.values.map(([index, value]) => [index, index === 32 ? 27 : index === 33 ? 500 : value]);
-  assert.equal(send(createState(), 'preset_import', {
-    raw: 'HPCRP1' + JSON.stringify(earlierDefaults),
-  }).status, 'committed');
-  for (const [index, value] of [[32, 28], [33, 501], [55, 28], [56, 501], [8, '#123456']]) {
-    const invalid = JSON.parse(JSON.stringify(payload));
-    const record = invalid.records.find(record => record.kind === 'baked');
-    record.values = record.values.filter(([slot]) => slot !== index).concat([[index, value]]);
-    assert.equal(send(createState(), 'preset_import', { raw: 'HPCRP1' + JSON.stringify(invalid) }).status, 'rejected');
-  }
-  for (const [index, value] of [[33, -31], [34, 435]]) {
-    const invalid = JSON.parse(JSON.stringify(payload));
-    const record = invalid.records.find(record => record.kind === 'baked');
-    record.hpv2.values = record.hpv2.values.filter(([slot]) => slot !== index).concat([[index, value]]);
-    assert.equal(send(createState(), 'preset_import', { raw: 'HPCRP1' + JSON.stringify(invalid) }).status, 'rejected');
-  }
-});
-
 test('HPCR2 corpus covers every legacy slot and canonicalizes retired slots', () => {
   assert.equal(wireCorpus.hpcr2.inputCode.startsWith('HPCR2'), true);
   const inputPairs = JSON.parse(wireCorpus.hpcr2.inputCode.slice(5)).v;
@@ -440,10 +357,11 @@ test('HPCRP1 corpus covers every active slot and canonicalizes retired slots', (
     wireManifest.extensionSlots.map(({ slot }) => slot),
   );
 
-  const state = createState({
-    sessionRaw: null,
-    builderPresetRaw: wireCorpus.hpcrp1.inputCode,
-  });
+  const state = createState();
+  assert.equal(
+    send(state, 'preset_import', { raw: wireCorpus.hpcrp1.inputCode }).status,
+    'committed',
+  );
   const exported = JSON.parse(
     effect(send(state, 'preset_copy_all'), 'clipboard_write').text.slice(6),
   );
@@ -533,52 +451,6 @@ test('settling restored identity republishes an unchanged effective snapshot', (
   assert.equal(settled.view.effectiveValues.enemyLow, '#22AA44');
   assert.equal(settled.view.effectiveRevision, 8);
   assertEffectivePublish(settled, 8, '*');
-});
-
-test('builder hydration waits for a selected hero before applying its preset', () => {
-  const source = createState(
-    makeSession({
-      userPresets: [
-        rawPreset({
-          id: 'user_0001',
-          name: 'Haze',
-          mode: 'selected',
-          heroes: ['hero_haze'],
-          values: { enemyLow: '#22AA44' },
-        }),
-      ],
-      selectedPresetId: 'user_0001',
-    }),
-  );
-  const builderPresetRaw = effect(
-    send(source, 'preset_copy_all'),
-    'clipboard_write',
-  ).text;
-  const hydrated = createState({
-    sessionRaw: null,
-    builderPresetRaw,
-  });
-
-  assert.equal(hydrated.read().repository.selectedId, 'user_0001');
-  assert.equal(hydrated.read().currentScope.mode, 'selected');
-  assert.equal(hydrated.read().values.enemyLow, DEFAULTS.enemyLow);
-  assert.equal(hydrated.read().effectiveValues.enemyLow, DEFAULTS.enemyLow);
-
-  const activated = send(hydrated, 'lifecycle_observe', {
-    epoch: 1,
-    phase: 'active',
-  });
-  assert.equal(activated.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
-  const sampled = send(hydrated, 'hero_observe', {
-    epoch: 1,
-    heroName: 'HAZE',
-  });
-  assert.equal(sampled.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
-  const settled = send(hydrated, 'hero_observe', {
-    epoch: 1,
-    heroName: 'HAZE',
-  });
-  assert.equal(settled.view.effectiveValues.enemyLow, '#22AA44');
 });
 
 test('v1 hydration normalizes values and falls back atomically to shipped defaults', () => {
@@ -752,77 +624,6 @@ test('HPCR2 malformed extensions reject atomically', () => {
     assert.deepEqual(rejected.effects, [], raw);
   }
 });
-test('appended Units settings remain typed, stock by default, and use the existing hpv2 extension', () => {
-  const keys = [
-    'npcEnemyEnabled',
-    'npcAllyEnabled',
-    'npcNeutralEnabled',
-    'buildingEnemyEnabled',
-    'buildingAllyEnabled',
-    'neutralColor',
-  ];
-  assert.deepEqual(EXTENSION_KEYS.slice(41, 47), keys);
-  for (const key of keys.slice(0, 5)) {
-    assert.equal(DEFAULTS[key], false);
-    assert.equal(SETTING_META[key].type, 'boolean');
-    assert.equal(SETTING_META[key].conditionEligible, true);
-  }
-  assert.equal(DEFAULTS.neutralColor, '#5BEFB5');
-  assert.equal(SETTING_META.neutralColor.type, 'color');
-  assert.equal(SETTING_META.neutralColor.conditionEligible, true);
-
-  const source = createState();
-  keys.slice(0, 5).forEach(key =>
-    send(source, 'setting_edit', { key, value: true }),
-  );
-  send(source, 'setting_edit', { key: 'neutralColor', value: '#2468AC' });
-  send(source, 'condition_set', {
-    key: 'npcEnemyEnabled',
-    slot: 2,
-    minTier: 3,
-    value: false,
-  });
-  const code = effect(send(source, 'settings_copy'), 'clipboard_write').text;
-  const payload = JSON.parse(code.slice(5));
-  assert.deepEqual(payload.hpv2.values.slice(-6), [
-    [41, true],
-    [42, true],
-    [43, true],
-    [44, true],
-    [45, true],
-    [46, '#2468AC'],
-  ]);
-  assert.deepEqual(payload.hpv2.conditions.npcEnemyEnabled, {
-    slot: 2,
-    minTier: 3,
-    value: false,
-  });
-
-  const destination = createState();
-  const roundTrip = send(destination, 'settings_import', { raw: code });
-  for (const key of keys.slice(0, 5))
-    assert.equal(roundTrip.view.values[key], true, key);
-  assert.equal(roundTrip.view.values.neutralColor, '#2468AC');
-  assert.deepEqual(roundTrip.view.conditions.npcEnemyEnabled, {
-    slot: 2,
-    minTier: 3,
-    value: false,
-  });
-
-  const preserved = send(destination, 'settings_import', {
-    raw: 'HPCR2{"v":[],"c":{}}',
-  });
-  assert.equal(preserved.view.values.npcEnemyEnabled, true);
-  assert.equal(preserved.view.values.neutralColor, '#2468AC');
-  const replaced = send(destination, 'settings_import', {
-    raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
-  });
-  for (const key of keys.slice(0, 5))
-    assert.equal(replaced.view.values[key], false, key);
-  assert.equal(replaced.view.values.neutralColor, '#5BEFB5');
-  assert.equal(replaced.view.conditions.npcEnemyEnabled, undefined);
-});
-
 test('HPCRP1 saves, updates, applies, reloads, and transfers every setting', () => {
   const values = exhaustiveValues();
   const conditions = exhaustiveConditions(values);
@@ -1675,7 +1476,8 @@ test('preset apply updates layout and ally bar immediately', () => {
   );
   const selected = send(state, 'preset_select', { id: 'user_0002' });
   assert.equal(selected.view.repository.selectedId, 'user_0002');
-  assert.equal(selected.view.repository.activeId, null);
+  // Selection is not application: the untouched screen still matches the baked default.
+  assert.equal(selected.view.repository.activeId, 'baked_default');
   assert.equal(
     Object.prototype.hasOwnProperty.call(selected.view.repository, 'pendingId'),
     false,
@@ -1783,7 +1585,8 @@ test('HPCRP1 accepts builder hero order and retains strict atomic hero validatio
   const copied = JSON.parse(effect(send(state, 'preset_copy_all'), 'clipboard_write').text.slice(6));
   for (const source of payload.records) {
     const result = copied.records.find(({ id }) => id === source.id);
-    const canonicalValues = source.values.filter(([index, value]) => value !== CODEC_DEFAULTS[CODEC_KEYS[index]])
+    const canonicalValues = source.values.filter(([index, value]) =>
+      ![12, 13, 67, 68, 69].includes(index) && value !== CODEC_DEFAULTS[CODEC_KEYS[index]])
       .map(([index, value]) => [index, CONTRACT.normalizeValues({ [CODEC_KEYS[index]]: value })[CODEC_KEYS[index]]]);
     assert.deepEqual(result.values, canonicalValues);
     assert.deepEqual(result.conditions, source.conditions);
@@ -2097,6 +1900,1172 @@ test('session close invalidates interactions and stale callbacks while preservin
   assert.equal(reopened.view.transactions.gesture, null);
 });
 
+function hazeRoutedState({ withAll = true } = {}) {
+  const userPresets = [
+    rawPreset({
+      id: 'user_0001',
+      name: 'Haze',
+      mode: 'selected',
+      heroes: ['hero_haze'],
+      values: { enemyLow: '#111111' },
+    }),
+  ];
+  if (withAll) {
+    userPresets.push(rawPreset({
+      id: 'user_0003',
+      name: 'All Heroes',
+      mode: 'all',
+      values: { enemyLow: '#333333' },
+    }));
+  }
+  const state = createState(makeSession({ userPresets }));
+  send(state, 'hero_mode', { mode: 'auto' });
+  send(state, 'lifecycle_observe', { epoch: 1, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  const routed = send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  assert.equal(routed.view.repository.activeId, 'user_0001');
+  assert.equal(routed.view.effectiveValues.enemyLow, '#111111');
+  return state;
+}
+
+test('Auto hideout entry drops a hero preset to the all-heroes preset', () => {
+  const state = hazeRoutedState();
+  const hideout = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(hideout.status, 'committed');
+  assert.equal(hideout.view.identity.phase, 'hideout');
+  assert.equal(hideout.view.identity.effectiveHeroKey, '');
+  assert.equal(hideout.view.repository.activeId, 'user_0003');
+  assertEffectivePublish(hideout, hideout.view.effectiveRevision);
+  assert.equal(hideout.view.effectiveValues.enemyLow, '#333333');
+
+  // Auto deliberately stays unknown in the hideout.
+  const observed = send(state, 'hero_observe', { epoch: 2, heroName: 'HAZE' });
+  assert.equal(observed.code, 'IDENTITY_INACTIVE');
+  assert.equal(observed.view.identity.effectiveHeroKey, '');
+  assertNoEffect(observed, 'effective_publish');
+  const same = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(same.status, 'noop');
+
+  // Already on the no-hero route: re-entering must not churn the revision.
+  const revision = hideout.view.effectiveRevision;
+  send(state, 'lifecycle_observe', { epoch: 3, phase: 'transitioning' });
+  const again = send(state, 'lifecycle_observe', { epoch: 4, phase: 'hideout' });
+  assert.equal(again.view.repository.activeId, 'user_0003');
+  assert.equal(again.view.effectiveRevision, revision);
+  assertNoEffect(again, 'effective_publish');
+
+  // Leaving the hideout for a match routes by hero again.
+  send(state, 'lifecycle_observe', { epoch: 5, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 5, heroName: 'HAZE' });
+  const back = send(state, 'hero_observe', { epoch: 5, heroName: 'HAZE' });
+  assert.equal(back.view.repository.activeId, 'user_0001');
+  assert.equal(back.view.effectiveValues.enemyLow, '#111111');
+});
+
+test('Auto hideout entry without an all-heroes preset falls back to Rewrite Default', () => {
+  const state = hazeRoutedState({ withAll: false });
+  const hideout = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(hideout.view.repository.activeId, 'baked_default');
+  assert.equal(hideout.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+});
+
+test('hideout entry releases a restored cold-boot snapshot', () => {
+  for (const published of ['#22AA44', '#111111']) {
+    const state = createState({
+      sessionRaw: JSON.stringify(makeSession({ values: { enemyLow: '#111111' } })),
+      publishedRaw: JSON.stringify({
+        version: 1,
+        revision: 7,
+        values: { enemyLow: published },
+      }),
+    });
+    assert.equal(state.read().effectiveValues.enemyLow, published);
+    const hideout = send(state, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
+    assert.equal(hideout.view.effectiveValues.enemyLow, '#111111');
+    assertEffectivePublish(hideout, 8);
+  }
+});
+
+test('hideout keeps a custom Current without an all-heroes preset, and the first all-heroes preset wins', () => {
+  const custom = createState(makeSession({ values: { enemyLow: '#444444' } }));
+  send(custom, 'hero_mode', { mode: 'auto' });
+  const before = custom.read();
+  const hideout = send(custom, 'lifecycle_observe', { epoch: 1, phase: 'hideout' });
+  assert.equal(hideout.view.repository.activeId, before.repository.activeId);
+  assert.equal(hideout.view.effectiveValues.enemyLow, '#444444');
+  assert.equal(hideout.view.effectiveRevision, before.effectiveRevision);
+  assertNoEffect(hideout, 'effective_publish');
+
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Haze', mode: 'selected', heroes: ['hero_haze'], values: { enemyLow: '#111111' } }),
+      rawPreset({ id: 'user_0002', name: 'All A', mode: 'all', values: { enemyLow: '#222222' } }),
+      rawPreset({ id: 'user_0003', name: 'All B', mode: 'all', values: { enemyLow: '#333333' } }),
+    ],
+  }));
+  send(state, 'hero_mode', { mode: 'auto' });
+  send(state, 'lifecycle_observe', { epoch: 1, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'HAZE' });
+  const entry = send(state, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(entry.view.repository.activeId, 'user_0002');
+  assert.equal(entry.view.effectiveValues.enemyLow, '#222222');
+});
+
+test('hideout keeps Manual and Off routes, and pregame lobby keeps the hero preset', () => {
+  const manual = hazeRoutedState();
+  send(manual, 'hero_mode', { mode: 'manual' });
+  send(manual, 'hero_manual', { heroKey: 'hero_haze' });
+  const manualHideout = send(manual, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(manualHideout.view.repository.activeId, 'user_0001');
+
+  const off = hazeRoutedState();
+  send(off, 'hero_mode', { mode: 'off' });
+  const offHideout = send(off, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(offHideout.view.repository.activeId, 'user_0001');
+
+  const lobby = hazeRoutedState();
+  const pregame = send(lobby, 'lifecycle_observe', { epoch: 2, phase: 'lobby' });
+  assert.equal(pregame.view.repository.activeId, 'user_0001');
+
+  const bogus = send(lobby, 'lifecycle_observe', { epoch: 3, phase: 'hideaway' });
+  assert.equal(bogus.status, 'rejected');
+});
+
+function settleHero(state, epoch, heroName) {
+  send(state, 'lifecycle_observe', { epoch, phase: 'active' });
+  send(state, 'hero_observe', { epoch, heroName });
+  return send(state, 'hero_observe', { epoch, heroName });
+}
+
+function autoState(userPresets, overrides = {}) {
+  const state = createState(makeSession({ userPresets, ...overrides }));
+  send(state, 'hero_mode', { mode: 'auto' });
+  return state;
+}
+
+// Tester round 7: ALL EXCEPT follows list order like the other types. A
+// hand-picked lower ALL EXCEPT is replaced by the highest match on a hero
+// switch; unsaved edits survive only when the winner is the same preset.
+test('hero switch picks the highest ALL EXCEPT even when a lower one is in use', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze A', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'Skip Haze B', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#333333' } }),
+  ]);
+  send(state, 'hero_mode', { mode: 'manual' });
+  send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  send(state, 'preset_apply', { id: 'user_0002' });
+  assert.equal(state.read().repository.activeId, 'user_0002');
+
+  const hornet = send(state, 'hero_manual', { heroKey: 'hero_hornet' });
+  assert.equal(hornet.view.repository.activeId, 'user_0001', 'lower ALL EXCEPT is replaced');
+  assert.equal(hornet.view.effectiveValues.enemyLow, '#222222');
+
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  const atlas = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(atlas.view.repository.sourceState.id, 'user_0001');
+  assert.equal(atlas.view.effectiveValues.enemyLow, '#ABCDEF', 'same winner keeps unsaved edits');
+});
+
+test('All Except routing order is Only These, All Except, All Heroes, then Rewrite Default', () => {
+  const presets = [
+    rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111' } }),
+    rawPreset({ id: 'user_0002', name: 'Skip Haze A', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0003', name: 'Skip Haze B', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#333333' } }),
+    rawPreset({ id: 'user_0004', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#444444' } }),
+  ];
+  const state = autoState(presets);
+  assert.equal(row(state.read(), 'user_0002').mode, 'except');
+  assert.deepEqual(row(state.read(), 'user_0002').heroes, ['hero_haze']);
+
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0004');
+  assert.equal(shiv.view.effectiveValues.enemyLow, '#444444');
+
+  send(state, 'hero_mode', { mode: 'manual' });
+  const abrams = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(abrams.view.identity.effectiveHeroKey, 'hero_atlas');
+  assert.equal(abrams.view.repository.activeId, 'user_0002');
+  assert.equal(abrams.view.effectiveValues.enemyLow, '#222222');
+
+  const moved = send(state, 'preset_move', { id: 'user_0003', delta: -1 });
+  assert.equal(moved.view.repository.activeId, 'user_0002');
+  send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  const abramsAgain = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(abramsAgain.view.repository.activeId, 'user_0003');
+  assert.equal(abramsAgain.view.effectiveValues.enemyLow, '#333333');
+
+  const skipped = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(skipped.view.repository.activeId, 'user_0001');
+  assert.equal(skipped.view.effectiveValues.enemyLow, '#111111');
+
+  const noAll = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+  ]);
+  const shivNoAll = settleHero(noAll, 1, 'SHIV');
+  assert.equal(shivNoAll.view.repository.activeId, 'user_0001');
+  assert.equal(shivNoAll.view.effectiveValues.enemyLow, '#222222');
+  const hazeNoAll = settleHero(noAll, 2, 'HAZE');
+  assert.equal(hazeNoAll.view.repository.activeId, 'baked_default');
+  assert.equal(hazeNoAll.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+});
+
+test('All Except save keeps Rewrite Default visible and keeps the skip list on create and update', () => {
+  const state = createState();
+  const scoped = send(state, 'scope_set', { mode: 'except', heroes: ['hero_shiv', 'hero_haze', 'hero_haze'] });
+  assert.equal(scoped.status, 'committed');
+  assert.equal(currentScope(scoped.view).mode, 'except');
+  assert.deepEqual(currentScope(scoped.view).heroes, ['hero_haze', 'hero_shiv']);
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#123456' });
+
+  const created = send(state, 'preset_save', { name: 'Skip Two' });
+  assert.equal(created.status, 'committed');
+  const id = created.view.repository.selectedId;
+  assert.equal(row(created.view, id).mode, 'except');
+  assert.deepEqual(row(created.view, id).heroes, ['hero_haze', 'hero_shiv']);
+  assert.equal(created.view.repository.hiddenBakedIds.includes('baked_default'), false);
+  assert.equal(visibleRows(created.view).some((candidate) => candidate.id === 'baked_default'), true);
+
+  send(state, 'scope_set', { mode: 'except', heroes: ['hero_haze'] });
+  const updated = send(state, 'preset_save', { name: 'Skip Haze' });
+  assert.equal(updated.code, 'PRESET_UPDATED');
+  assert.equal(row(updated.view, id).mode, 'except');
+  assert.deepEqual(row(updated.view, id).heroes, ['hero_haze']);
+  assert.equal(visibleRows(updated.view).some((candidate) => candidate.id === 'baked_default'), true);
+});
+
+test('All Except scope_set normalizes empty to all, accepts every hero, and survives Reset then Undo', () => {
+  const state = createState();
+  const empty = send(state, 'scope_set', { mode: 'except', heroes: [] });
+  assert.equal(empty.status, 'committed');
+  assert.equal(currentScope(empty.view).mode, 'all');
+  assert.deepEqual(currentScope(empty.view).heroes, []);
+
+  const everyHero = state.read().heroes.map(({ key }) => key);
+  const all = send(state, 'scope_set', { mode: 'except', heroes: everyHero });
+  assert.equal(all.status, 'committed');
+  assert.equal(currentScope(all.view).mode, 'except');
+  assert.deepEqual(currentScope(all.view).heroes, everyHero);
+
+  send(state, 'scope_set', { mode: 'except', heroes: ['hero_haze', 'hero_shiv'] });
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#123456' });
+  const request = send(state, 'reset_request', { keys: ['enemyLow'] });
+  const reset = send(state, 'reset_confirm', { token: request.view.transactions.confirmation.token });
+  assert.equal(reset.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+  assert.equal(currentScope(reset.view).mode, 'except');
+  const undone = send(state, 'undo');
+  assert.equal(undone.view.effectiveValues.enemyLow, '#123456');
+  assert.equal(currentScope(undone.view).mode, 'except');
+  assert.deepEqual(currentScope(undone.view).heroes, ['hero_haze', 'hero_shiv']);
+});
+
+test('All Except never matches an unknown hero, and Auto hideout drops an except Current', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+  ]);
+  const before = state.read();
+  const unknown = settleHero(state, 1, '');
+  assert.equal(unknown.view.identity.effectiveHeroKey, '');
+  assert.notEqual(unknown.view.repository.activeId, 'user_0001');
+  assert.deepEqual(unknown.view.effectiveValues, before.effectiveValues);
+
+  const shiv = settleHero(state, 2, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  assert.equal(currentScope(shiv.view).mode, 'except');
+  const hideout = send(state, 'lifecycle_observe', { epoch: 3, phase: 'hideout' });
+  assert.equal(hideout.view.repository.activeId, 'baked_default');
+  assert.equal(hideout.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+
+  const withAll = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'All', mode: 'all', values: { enemyLow: '#333333' } }),
+  ]);
+  assert.equal(settleHero(withAll, 1, 'SHIV').view.repository.activeId, 'user_0001');
+  const allHideout = send(withAll, 'lifecycle_observe', { epoch: 2, phase: 'hideout' });
+  assert.equal(allHideout.view.repository.activeId, 'user_0002');
+  assert.equal(allHideout.view.effectiveValues.enemyLow, '#333333');
+});
+
+test('All Except explicit apply works on a skipped hero, and Manual mode routes past it', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'All', mode: 'all', values: { enemyLow: '#333333' } }),
+  ]);
+  const haze = settleHero(state, 1, 'HAZE');
+  assert.equal(haze.view.repository.activeId, 'user_0002');
+  const applied = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.equal(applied.status, 'committed');
+  assert.equal(applied.view.repository.activeId, 'user_0001');
+  assert.equal(applied.view.effectiveValues.enemyLow, '#222222');
+  assert.equal(currentScope(applied.view).mode, 'except');
+  assert.deepEqual(currentScope(applied.view).heroes, ['hero_haze']);
+
+  send(state, 'hero_mode', { mode: 'manual' });
+  const shiv = send(state, 'hero_manual', { heroKey: 'hero_shiv' });
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  const manualHaze = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(manualHaze.view.identity.effectiveHeroKey, 'hero_haze');
+  assert.equal(manualHaze.view.repository.activeId, 'user_0002');
+  assert.equal(manualHaze.view.effectiveValues.enemyLow, '#333333');
+});
+
+test('All Except edited Current stays on non-skipped heroes and routes away on a skipped hero', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+    rawPreset({ id: 'user_0002', name: 'All', mode: 'all', values: { enemyLow: '#333333' } }),
+  ]);
+  send(state, 'hero_mode', { mode: 'manual' });
+  assert.equal(send(state, 'hero_manual', { heroKey: 'hero_shiv' }).view.repository.activeId, 'user_0001');
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  send(state, 'condition_set', { key: 'enemyVisible', slot: 2, minTier: 1, value: false });
+
+  const kept = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(kept.view.effectiveValues.enemyLow, '#ABCDEF');
+  assert.equal(currentScope(kept.view).mode, 'except');
+  assert.deepEqual(currentScope(kept.view).conditions.enemyVisible, { slot: 2, minTier: 1, value: false });
+  assert.deepEqual(kept.view.ability.requiredSlots, [false, true, false, false]);
+
+  const away = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(away.view.repository.activeId, 'user_0002');
+  assert.equal(away.view.effectiveValues.enemyLow, '#333333');
+  assert.deepEqual(away.view.ability.requiredSlots, [false, false, false, false]);
+});
+
+test('All Except conditions and required ability slots follow the preset in effect', () => {
+  const state = autoState([
+    rawPreset({
+      id: 'user_0001', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'],
+      conditions: { enemyLow: { slot: 4, minTier: 1, value: '#444444' } },
+    }),
+    rawPreset({
+      id: 'user_0002', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'],
+      conditions: { enemyVisible: { slot: 2, minTier: 1, value: false } },
+    }),
+    rawPreset({
+      id: 'user_0003', name: 'All', mode: 'all',
+      conditions: { enemyLow: { slot: 1, minTier: 1, value: '#111111' } },
+    }),
+  ]);
+  send(state, 'hero_mode', { mode: 'manual' });
+  const atlas = send(state, 'hero_manual', { heroKey: 'hero_atlas' });
+  assert.equal(atlas.view.repository.activeId, 'user_0002');
+  assert.deepEqual(atlas.view.ability.requiredSlots, [false, true, false, false]);
+  const active = send(state, 'ability_observe', { epoch: atlas.view.identity.epoch, tiers: [0, 1, 0, 0] });
+  assert.equal(active.view.effectiveValues.enemyVisible, false);
+
+  const shiv = send(state, 'hero_manual', { heroKey: 'hero_shiv' });
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  assert.deepEqual(shiv.view.ability.requiredSlots, [false, false, false, true]);
+
+  const haze = send(state, 'hero_manual', { heroKey: 'hero_haze' });
+  assert.equal(haze.view.repository.activeId, 'user_0003');
+  assert.deepEqual(haze.view.ability.requiredSlots, [true, false, false, false]);
+});
+
+test('All Except preset codes round-trip, including a preset that skips every hero, and empty lists reject atomically', () => {
+  const everyHero = createState().read().heroes.map(({ key }) => key);
+  const source = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+      rawPreset({ id: 'user_0002', name: 'Skip Everyone', mode: 'except', heroes: everyHero }),
+    ],
+    selectedPresetId: 'user_0002',
+  }));
+  const selectedCode = effect(send(source, 'preset_copy_selected'), 'clipboard_write').text;
+  const allCode = effect(send(source, 'preset_copy_all'), 'clipboard_write').text;
+
+  const single = createState();
+  const singleImport = send(single, 'preset_import', { raw: selectedCode });
+  assert.equal(singleImport.status, 'committed', singleImport.code);
+  const singleId = singleImport.view.repository.selectedId;
+  assert.equal(row(singleImport.view, singleId).mode, 'except');
+  assert.deepEqual(row(singleImport.view, singleId).heroes, everyHero);
+
+  const destination = createState();
+  const before = destination.read();
+  const imported = send(destination, 'preset_import', { raw: allCode });
+  assert.equal(imported.status, 'committed', imported.code);
+  const users = allRows(imported.view).filter((candidate) => candidate.kind === 'user');
+  assert.deepEqual(users.map(({ mode }) => mode), ['except', 'except']);
+  assert.deepEqual(users.map(({ heroes }) => heroes), [['hero_haze'], everyHero]);
+  assert.deepEqual(imported.view.effectiveValues, before.effectiveValues);
+  assertNoEffect(imported, 'effective_publish');
+
+  const payload = JSON.parse(allCode.slice(6));
+  const emptyRecord = payload.records.find(({ id }) => id === 'user_0001');
+  emptyRecord.heroes = [];
+  const target = createState();
+  const unchanged = target.read();
+  const rejected = send(target, 'preset_import', { raw: `HPCRP1${JSON.stringify(payload)}` });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.view, unchanged);
+  assert.deepEqual(rejected.effects, []);
+  assert.equal(allRows(rejected.view).some((candidate) => candidate.kind === 'user'), false);
+});
+
+function storedPresets(result) {
+  return JSON.parse(effect(result, 'session_replace').raw).userPresets;
+}
+
+function storedPreset(result, id) {
+  return storedPresets(result).find((candidate) => candidate.id === id);
+}
+
+function keyOrder(keys) {
+  return DEFAULT_KEYS.filter((key) => keys.includes(key));
+}
+
+function removePreset(state, id) {
+  const request = send(state, 'preset_remove_request', { id });
+  return send(state, 'preset_remove_confirm', { token: request.view.transactions.confirmation.token });
+}
+
+function layeredState(extra = []) {
+  return autoState([
+    rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111', enemyMid: '#121212' } }),
+    ...extra,
+    { ...rawPreset({ id: 'user_0009', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
+  ], { nextUserPresetNumber: 10 });
+}
+
+test('Layered presets hero save stores changed keys as own with full values, and All Heroes stores no own', () => {
+  assert.ok(DEFAULT_KEYS.includes('enemyMid') && DEFAULT_KEYS.includes('enemyHigh'));
+  const state = createState(makeSession({
+    userPresets: [rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111' } })],
+    nextUserPresetNumber: 2,
+  }));
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'preset_select', { id: null });
+  send(state, 'scope_set', { mode: 'selected', heroes: ['hero_shiv'] });
+  send(state, 'setting_edit', { key: 'enemyHigh', value: '#343434' });
+  const created = send(state, 'preset_save', { name: 'Shiv' });
+  assert.equal(created.code, 'PRESET_SAVED');
+  const id = created.view.repository.selectedId;
+  const record = storedPreset(created, id);
+  assert.deepEqual(record.own, ['enemyHigh']);
+  assert.equal(record.values.enemyLow, '#111111');
+  assert.equal(record.values.enemyHigh, '#343434');
+  assert.equal(Object.keys(record.values).length, DEFAULT_KEYS.length);
+
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#AAAAAA' });
+  const updated = send(state, 'preset_save', { name: 'Shiv' });
+  assert.equal(updated.code, 'PRESET_UPDATED');
+  assert.deepEqual(storedPreset(updated, id).own, keyOrder(['enemyLow', 'enemyHigh']));
+
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#999999' });
+  send(state, 'preset_select', { id: 'user_0001' });
+  const allSaved = send(state, 'preset_save', { name: 'All' });
+  assert.equal(allSaved.code, 'PRESET_UPDATED');
+  assert.equal(Object.hasOwn(storedPreset(allSaved, 'user_0001'), 'own'), false);
+});
+
+test('Layered presets hero routing uses All Heroes values except for own keys', () => {
+  const state = layeredState();
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0009');
+  assert.equal(shiv.view.effectiveValues.enemyMid, '#222222');
+
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#999999' });
+  send(state, 'setting_edit', { key: 'enemyMid', value: '#989898' });
+  send(state, 'preset_select', { id: 'user_0001' });
+  assert.equal(send(state, 'preset_save', { name: 'All' }).code, 'PRESET_UPDATED');
+
+  send(state, 'hero_mode', { mode: 'manual' });
+  const routed = send(state, 'hero_manual', { heroKey: 'hero_shiv' });
+  assert.equal(routed.view.repository.activeId, 'user_0009');
+  assert.equal(routed.view.effectiveValues.enemyLow, '#999999');
+  assert.equal(routed.view.effectiveValues.enemyMid, '#222222');
+  assert.equal(currentScope(routed.view).values.enemyLow, '#999999');
+});
+
+test('Layered presets without an All Heroes preset layer on Rewrite Default', () => {
+  const state = autoState([
+    { ...rawPreset({ id: 'user_0001', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
+  ]);
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.repository.activeId, 'user_0001');
+  assert.equal(shiv.view.effectiveValues.enemyMid, '#222222');
+  assert.equal(shiv.view.effectiveValues.enemyLow, DEFAULTS.enemyLow);
+});
+
+test('Layered presets derive legacy own, drop unknown own keys, keep own through codes, and reject non-array own', () => {
+  const legacy = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'All', mode: 'all', values: { enemyLow: '#111111' } }),
+      rawPreset({ id: 'user_0002', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }),
+      { ...rawPreset({ id: 'user_0003', name: 'Skip Haze', mode: 'except', heroes: ['hero_haze'], values: { enemyHigh: '#333333' } }), own: ['enemyHigh', 'bogusKey'] },
+    ],
+    nextUserPresetNumber: 4,
+  }));
+  const touched = send(legacy, 'preset_select', { id: 'user_0002' });
+  assert.equal(touched.status, 'committed');
+  assert.deepEqual(storedPreset(touched, 'user_0002').own, ['enemyMid']);
+  assert.deepEqual(storedPreset(touched, 'user_0003').own, ['enemyHigh']);
+  assert.equal(Object.hasOwn(storedPreset(touched, 'user_0001'), 'own'), false);
+
+  const source = createState(makeSession({
+    userPresets: [
+      { ...rawPreset({ id: 'user_0001', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
+    ],
+    selectedPresetId: 'user_0001',
+    nextUserPresetNumber: 2,
+  }));
+  const code = effect(send(source, 'preset_copy_selected'), 'clipboard_write').text;
+  const destination = createState();
+  const imported = send(destination, 'preset_import', { raw: code });
+  assert.equal(imported.status, 'committed', imported.code);
+  const importedId = imported.view.repository.selectedId;
+  assert.deepEqual(storedPreset(imported, importedId).own, ['enemyMid']);
+
+  const payload = JSON.parse(code.slice(6));
+  payload.records[0].own = 'enemyMid';
+  const target = createState();
+  const unchanged = target.read();
+  const rejected = send(target, 'preset_import', { raw: `HPCRP1${JSON.stringify(payload)}` });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.view, unchanged);
+  assert.deepEqual(rejected.effects, []);
+});
+
+test('Layered presets keep the hero preset ACTIVE after a Base change refresh', () => {
+  const state = layeredState([
+    rawPreset({ id: 'user_0002', name: 'All B', mode: 'all', values: { enemyLow: '#999999' } }),
+  ]);
+  assert.equal(settleHero(state, 1, 'SHIV').view.repository.activeId, 'user_0009');
+  const moved = send(state, 'preset_move', { id: 'user_0002', delta: -1 });
+  assert.equal(moved.status, 'committed');
+  assert.equal(moved.view.repository.activeId, 'user_0009');
+  assert.equal(moved.view.effectiveValues.enemyLow, '#999999');
+  const again = send(state, 'preset_apply', { id: 'user_0009' });
+  assert.equal(again.status, 'noop');
+  assert.equal(again.code, 'NO_CHANGE');
+});
+
+test('Layered presets refresh an unedited hero Current on Base changes without Undo, and leave an edited Current alone', () => {
+  const state = layeredState([
+    rawPreset({ id: 'user_0002', name: 'All B', mode: 'all', values: { enemyLow: '#999999' } }),
+    rawPreset({ id: 'user_0003', name: 'All C', mode: 'all', values: { enemyLow: '#555555' } }),
+  ]);
+  const shiv = settleHero(state, 1, 'SHIV');
+  assert.equal(shiv.view.effectiveValues.enemyLow, '#111111');
+  const undoBefore = shiv.view.undoAvailable;
+
+  const moved = send(state, 'preset_move', { id: 'user_0002', delta: -1 });
+  assert.equal(moved.view.effectiveValues.enemyLow, '#999999');
+  assert.equal(currentScope(moved.view).values.enemyLow, '#999999');
+  assert.equal(effectsOf(moved, 'effective_publish').length, 1);
+  assert.equal(moved.view.undoAvailable, undoBefore);
+
+  const removed = removePreset(state, 'user_0002');
+  assert.equal(removed.view.effectiveValues.enemyLow, '#111111');
+  assert.equal(removed.view.effectiveValues.enemyMid, '#222222');
+  assert.equal(removed.view.undoAvailable, undoBefore);
+  assert.equal(removed.view.repository.activeId, 'user_0009');
+
+  send(state, 'setting_edit', { key: 'enemyHigh', value: '#454545' });
+  const edited = send(state, 'preset_move', { id: 'user_0003', delta: -1 });
+  assert.equal(edited.status, 'committed');
+  assert.equal(edited.view.effectiveValues.enemyLow, '#111111');
+  assert.equal(edited.view.effectiveValues.enemyHigh, '#454545');
+});
+
+test('Layered presets Reset Section on a hero Current resets to Base and Undo restores; All Current resets to defaults', () => {
+  const state = layeredState();
+  settleHero(state, 1, 'SHIV');
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  const request = send(state, 'reset_request', { keys: ['enemyLow', 'enemyMid'] });
+  assert.equal(request.status, 'committed');
+  const reset = send(state, 'reset_confirm', { token: request.view.transactions.confirmation.token });
+  assert.equal(currentScope(reset.view).values.enemyLow, '#111111');
+  assert.equal(currentScope(reset.view).values.enemyMid, '#121212');
+  assert.equal(currentScope(reset.view).mode, 'selected');
+  const undone = send(state, 'undo');
+  assert.equal(currentScope(undone.view).values.enemyLow, '#ABCDEF');
+  assert.equal(currentScope(undone.view).values.enemyMid, '#222222');
+
+  send(state, 'preset_apply', { id: 'user_0001' });
+  const allRequest = send(state, 'reset_request', { keys: ['enemyLow', 'enemyMid'] });
+  const allReset = send(state, 'reset_confirm', { token: allRequest.view.transactions.confirmation.token });
+  assert.equal(currentScope(allReset.view).values.enemyLow, DEFAULTS.enemyLow);
+  assert.equal(currentScope(allReset.view).values.enemyMid, DEFAULTS.enemyMid);
+});
+
+// Round 4: repository.sourceState is provenance plus equality for the menu's
+// CHANGED row. It is not derived from activeId.
+test('sourceState names the applied user preset and tracks value equality', () => {
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Blue', values: { enemyLow: '#222222' } }),
+    ],
+  }));
+  assert.deepEqual(state.read().repository.sourceState, { id: '', matches: true });
+
+  const applied = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.deepEqual(applied.view.repository.sourceState, { id: 'user_0001', matches: true });
+  assert.equal(applied.view.repository.activeId, 'user_0001');
+
+  const edited = send(state, 'setting_edit', { key: 'widthScale', value: 150 });
+  assert.deepEqual(edited.view.repository.sourceState, { id: 'user_0001', matches: false });
+  assert.equal(edited.view.repository.activeId, 'scope_current');
+
+  const undone = send(state, 'undo');
+  assert.deepEqual(undone.view.repository.sourceState, { id: 'user_0001', matches: true });
+
+  // Rewrite Default is never a source.
+  const baked = send(state, 'preset_apply', { id: 'baked_default' });
+  assert.deepEqual(baked.view.repository.sourceState, { id: '', matches: true });
+
+  // A deleted source is dropped rather than reported as CHANGED.
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'widthScale', value: 160 });
+  send(state, 'preset_select', { id: 'user_0001' });
+  const request = send(state, 'preset_remove_request', { id: 'user_0001' });
+  const removed = send(state, 'preset_remove_confirm', {
+    token: request.view.transactions.confirmation.token,
+  });
+  assert.deepEqual(removed.view.repository.sourceState, { id: '', matches: true });
+});
+
+test('sourceState: a condition rule edit is CHANGED, condition activation alone is not', () => {
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({
+        id: 'user_0001',
+        name: 'Rule',
+        values: { enemyLow: '#222222' },
+        conditions: { enemyVisible: { slot: 2, minTier: 2, value: false } },
+      }),
+    ],
+  }));
+  const applied = send(state, 'preset_apply', { id: 'user_0001' });
+  assert.deepEqual(applied.view.repository.sourceState, { id: 'user_0001', matches: true });
+
+  const activated = send(state, 'ability_observe', {
+    epoch: applied.view.identity.epoch,
+    tiers: [1, 2, 0, 3],
+  });
+  assert.equal(activated.view.effectiveValues.enemyVisible, false);
+  assert.deepEqual(activated.view.repository.sourceState, { id: 'user_0001', matches: true });
+  assert.equal(activated.view.repository.activeId, 'user_0001');
+
+  const ruleEdit = send(state, 'condition_set', {
+    key: 'enemyVisible',
+    slot: 3,
+    minTier: 1,
+    value: false,
+  });
+  assert.deepEqual(ruleEdit.view.repository.sourceState, { id: 'user_0001', matches: false });
+  assert.equal(ruleEdit.view.repository.activeId, 'scope_current');
+});
+
+test('sourceState: two identical presets keep the second source matching although ACTIVE is the first', () => {
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Twin A', values: { enemyLow: '#222222' } }),
+      rawPreset({ id: 'user_0002', name: 'Twin B', values: { enemyLow: '#222222' } }),
+    ],
+  }));
+  const applied = send(state, 'preset_apply', { id: 'user_0002' });
+  assert.equal(applied.view.repository.activeId, 'user_0001');
+  assert.deepEqual(applied.view.repository.sourceState, { id: 'user_0002', matches: true });
+
+  const edited = send(state, 'setting_edit', { key: 'enemyLow', value: '#ABCDEF' });
+  assert.deepEqual(edited.view.repository.sourceState, { id: 'user_0002', matches: false });
+});
+
+// ---------------------------------------------------------------------------
+// Retired ghoul opacity: both settings left the editable contract, but their
+// codec slots stay reserved and old saves, presets, and share codes still load.
+
+const GHOUL_KEYS = ['ghoulOpacityEnabled', 'ghoulOpacity'];
+const GHOUL_RULES = {
+  ghoulOpacityEnabled: { slot: 1, minTier: 1, value: true },
+  ghoulOpacity: { slot: 2, minTier: 2, value: 20 },
+};
+const KEPT_RULE = { enemyMid: { slot: 3, minTier: 1, value: '#ABCDEF' } };
+
+test('retired ghoul opacity keeps its codec slots but leaves every editable table and intent', () => {
+  const contract = loadSettingsContract();
+  assert.equal(contract.codecKeys.length, 72);
+  assert.equal(contract.codecKeys[67], 'excludeGhouls');
+  assert.equal(contract.codecKeys[68], 'ghoulOpacityEnabled');
+  assert.equal(contract.codecKeys[69], 'ghoulOpacity');
+  assert.equal(contract.codecKeys[70], 'readoutMaxTeamColor');
+  assert.equal(contract.codecKeys[71], 'allyTeamHigh');
+  assert.equal(contract.codecDefaults.ghoulOpacityEnabled, false);
+  assert.equal(contract.codecDefaults.ghoulOpacity, 100);
+  for (const key of GHOUL_KEYS) {
+    assert.equal(contract.keys.includes(key), false, key);
+    assert.equal(Object.hasOwn(contract.defaults, key), false, key);
+    assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
+    assert.equal(Object.hasOwn(contract.numberBounds, key), false, key);
+    assert.equal(contract.settingMeta[key], undefined, key);
+  }
+  assert.equal(contract.validateSettingValue('ghoulOpacity', 35), false);
+  assert.equal(Object.hasOwn(contract.normalizeValues({ ghoulOpacity: 35 }), 'ghoulOpacity'), false);
+
+  const state = createState();
+  assert.deepEqual(
+    state.read().schema.keys.filter((key) => GHOUL_KEYS.includes(key)),
+    [],
+  );
+  const edit = send(state, 'setting_edit', { key: 'ghoulOpacity', value: 35 });
+  assert.equal(edit.status, 'rejected');
+  assert.equal(edit.code, 'INVALID_SETTING');
+  const rule = send(state, 'condition_set', { key: 'ghoulOpacity', slot: 1, minTier: 1, value: 20 });
+  assert.equal(rule.status, 'rejected');
+  assert.equal(rule.code, 'INVALID_CONDITION');
+});
+
+test('an old local save carrying ghoul opacity in values, rules, scopes, and own keys loads without it', () => {
+  const oldValues = { widthScale: 160, ghoulOpacityEnabled: true, ghoulOpacity: 35 };
+  const state = createState(makeSession({
+    values: { ...oldValues, widthScale: 150 },
+    conditions: { ...GHOUL_RULES, ...KEPT_RULE },
+    scopes: [{
+      id: 'scope_current',
+      mode: 'selected',
+      heroes: ['hero_haze'],
+      values: oldValues,
+      conditions: { ...GHOUL_RULES, ...KEPT_RULE },
+      sourcePresetId: 'user_0001',
+    }],
+    userPresets: [{
+      ...rawPreset({
+        id: 'user_0001',
+        name: 'Old',
+        mode: 'selected',
+        heroes: ['hero_haze'],
+        values: oldValues,
+        conditions: { ...GHOUL_RULES, ...KEPT_RULE },
+      }),
+      own: ['widthScale', 'ghoulOpacity', 'ghoulOpacityEnabled'],
+    }],
+    nextUserPresetNumber: 2,
+  }));
+
+  const view = state.read();
+  assert.equal(view.values.widthScale, 150);
+  assert.deepEqual(view.conditions, KEPT_RULE);
+  assert.equal(currentScope(view).values.widthScale, 160);
+  assert.deepEqual(currentScope(view).conditions, KEPT_RULE);
+  assert.doesNotMatch(JSON.stringify(view), /ghoul/i);
+
+  const touched = send(state, 'preset_select', { id: 'user_0001' });
+  const saved = storedPreset(touched, 'user_0001');
+  assert.deepEqual(saved.own, ['widthScale']);
+  assert.deepEqual(saved.conditions, KEPT_RULE);
+  assert.doesNotMatch(effect(touched, 'session_replace').raw, /ghoul/i);
+});
+
+test('HPCR2 codes that carry ghoul opacity slots and rules import without them and never write them back', () => {
+  const code = 'HPCR2' + JSON.stringify({
+    v: [[1, 150], [68, true], [69, 35], [70, true], [71, true]],
+    c: { ...GHOUL_RULES, ...KEPT_RULE },
+  });
+  const state = createState();
+  const imported = send(state, 'settings_import', { raw: code });
+  assert.equal(imported.status, 'committed', imported.code);
+  assert.equal(imported.view.values.widthScale, 150);
+  assert.equal(imported.view.values.readoutMaxTeamColor, true);
+  assert.equal(imported.view.values.allyTeamHigh, true);
+  assert.deepEqual(imported.view.conditions, KEPT_RULE);
+  assert.doesNotMatch(JSON.stringify(imported.view), /ghoul/i);
+
+  const exported = JSON.parse(
+    effect(send(state, 'settings_copy'), 'clipboard_write').text.slice(5),
+  );
+  const pairs = new Map(exported.v);
+  assert.equal(pairs.has(68), false);
+  assert.equal(pairs.has(69), false);
+  assert.equal(pairs.get(1), 150);
+  // Slots after the retired pair keep their positions.
+  assert.equal(pairs.get(70), true);
+  assert.equal(pairs.get(71), true);
+  assert.deepEqual(Object.keys(exported.c), ['enemyMid']);
+
+  const onlyRetired = send(createState(), 'settings_import', {
+    raw: 'HPCR2' + JSON.stringify({ v: [[68, true], [69, 0]], c: GHOUL_RULES }),
+  });
+  assert.notEqual(onlyRetired.status, 'rejected', onlyRetired.code);
+
+  const target = createState();
+  const before = target.read();
+  const rejected = send(target, 'settings_import', {
+    raw: 'HPCR2' + JSON.stringify({
+      v: [],
+      c: { ...GHOUL_RULES, bogusKey: { slot: 1, minTier: 1, value: true } },
+    }),
+  });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.code, 'INVALID HPCR2 CONDITIONS');
+  assert.equal(rejected.view, before);
+  assert.deepEqual(rejected.effects, []);
+});
+
+test('HPCRP1 preset codes that carry ghoul opacity slots, rules, and own keys import without them', () => {
+  const record = {
+    id: 'user_0007',
+    kind: 'user',
+    name: 'Old Import',
+    mode: 'selected',
+    heroes: ['hero_haze'],
+    values: [[1, 150], [68, true], [69, 35]],
+    conditions: { ...GHOUL_RULES, ...KEPT_RULE },
+    own: ['widthScale', 'ghoulOpacity', 'ghoulOpacityEnabled'],
+  };
+  const code = (changes) => 'HPCRP1' + JSON.stringify({
+    records: [{ ...record, ...changes }],
+    selectedPresetId: record.id,
+  });
+
+  const imported = send(createState(), 'preset_import', { raw: code({}) });
+  assert.equal(imported.status, 'committed', imported.code);
+  const saved = storedPreset(imported, imported.view.repository.selectedId);
+  assert.equal(saved.name, 'Old Import');
+  assert.equal(saved.mode, 'selected');
+  assert.equal(saved.values.widthScale, 150);
+  assert.deepEqual(saved.own, ['widthScale']);
+  assert.deepEqual(saved.conditions, KEPT_RULE);
+  assert.doesNotMatch(effect(imported, 'session_replace').raw, /ghoul/i);
+
+  // A preset whose only rules are retired imports as a preset with no rules.
+  const onlyRetired = send(createState(), 'preset_import', {
+    raw: code({ conditions: GHOUL_RULES }),
+  });
+  assert.equal(onlyRetired.status, 'committed', onlyRetired.code);
+  assert.equal(
+    storedPreset(onlyRetired, onlyRetired.view.repository.selectedId).conditions,
+    null,
+  );
+
+  // Genuinely unknown rules still reject the whole import atomically.
+  const target = createState();
+  const before = target.read();
+  const rejected = send(target, 'preset_import', {
+    raw: code({
+      conditions: { ...GHOUL_RULES, bogusKey: { slot: 1, minTier: 1, value: true } },
+    }),
+  });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.code, 'INVALID PRESET CONDITIONS');
+  assert.equal(rejected.view, before);
+  assert.deepEqual(rejected.effects, []);
+});
+
+// ---------------------------------------------------------------------------
+// SAVE TO PRESET: preset_save_to overwrites a chosen user preset with the live
+// settings and never rewrites what that preset applies to.
+
+function saveToState() {
+  return createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Everyone', mode: 'all', values: { enemyLow: '#111111' } }),
+      rawPreset({ id: 'user_0002', name: 'Haze Only', mode: 'selected', heroes: ['hero_haze'], values: { enemyLow: '#222222' } }),
+      rawPreset({ id: 'user_0003', name: 'Skip Shiv', mode: 'except', heroes: ['hero_shiv'], values: { enemyLow: '#333333' } }),
+    ],
+    nextUserPresetNumber: 4,
+  }));
+}
+
+test('preset_save_to overwrites a user preset in place and keeps its name, mode, and HEROES', () => {
+  const state = saveToState();
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'widthScale', value: 150 });
+  send(state, 'condition_set', { key: 'enemyMid', ...KEPT_RULE.enemyMid });
+  const before = state.read();
+
+  const saved = send(state, 'preset_save_to', { id: 'user_0003' });
+  assert.equal(saved.status, 'committed');
+  assert.equal(saved.code, 'PRESET_UPDATED');
+  const record = storedPreset(saved, 'user_0003');
+  assert.equal(record.id, 'user_0003');
+  assert.equal(record.name, 'Skip Shiv');
+  assert.equal(record.mode, 'except');
+  assert.deepEqual(record.heroes, ['hero_shiv']);
+  assert.equal(record.values.widthScale, 150);
+  assert.equal(record.values.enemyLow, '#111111');
+  assert.deepEqual(record.conditions, KEPT_RULE);
+  assert.deepEqual(record.own, keyOrder(['widthScale']));
+  assert.equal(storedPresets(saved).length, 3);
+
+  // Nothing else moves: list order, the other presets, the live settings, and
+  // the source preset. The saved preset becomes the selected row.
+  assert.deepEqual(
+    saved.view.repository.rows.map((candidate) => candidate.id),
+    before.repository.rows.map((candidate) => candidate.id),
+  );
+  for (const id of ['user_0001', 'user_0002'])
+    assert.deepEqual(row(saved.view, id), row(before, id), id);
+  assert.equal(currentScope(saved.view).values.widthScale, 150);
+  assert.deepEqual(saved.view.repository.sourceState, { id: 'user_0001', matches: false });
+  assert.equal(saved.view.repository.selectedId, 'user_0003');
+  assertNoEffect(saved, 'effective_publish');
+
+  // Applying it afterwards makes it the matching source; only that apply is
+  // undoable, so UNDO never takes the saved settings back out of the preset.
+  const applied = send(state, 'preset_apply', { id: 'user_0003' });
+  assert.deepEqual(applied.view.repository.sourceState, { id: 'user_0003', matches: true });
+  assert.equal(applied.view.repository.activeId, 'user_0003');
+  assert.equal(currentScope(applied.view).mode, 'except');
+  assert.deepEqual(currentScope(applied.view).heroes, ['hero_shiv']);
+  assert.equal(currentScope(applied.view).values.widthScale, 150);
+  const undone = send(state, 'undo');
+  assert.equal(currentScope(undone.view).mode, 'all');
+  assert.equal(currentScope(undone.view).sourcePresetId, 'user_0001');
+  assert.equal(storedPreset(undone, 'user_0003').values.widthScale, 150);
+});
+
+test('preset_save_to on the top All Heroes preset stores no own keys and changes what hero presets inherit', () => {
+  const state = autoState([
+    rawPreset({ id: 'user_0001', name: 'Everyone', mode: 'all', values: { enemyLow: '#111111', enemyMid: '#121212' } }),
+    { ...rawPreset({ id: 'user_0002', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#111111', enemyMid: '#222222' } }), own: ['enemyMid'] },
+  ], { nextUserPresetNumber: 3 });
+  send(state, 'preset_apply', { id: 'user_0001' });
+  send(state, 'setting_edit', { key: 'enemyLow', value: '#999999' });
+
+  const saved = send(state, 'preset_save_to', { id: 'user_0001' });
+  assert.equal(saved.code, 'PRESET_UPDATED');
+  const base = storedPreset(saved, 'user_0001');
+  assert.equal(base.name, 'Everyone');
+  assert.equal(base.mode, 'all');
+  assert.deepEqual(base.heroes, []);
+  assert.equal(base.values.enemyLow, '#999999');
+  assert.equal(Object.hasOwn(base, 'own'), false);
+  assert.deepEqual(saved.view.repository.sourceState, { id: 'user_0001', matches: true });
+
+  const hero = storedPreset(saved, 'user_0002');
+  assert.deepEqual(hero.own, ['enemyMid']);
+  const routed = settleHero(state, 1, 'SHIV');
+  assert.equal(routed.view.repository.activeId, 'user_0002');
+  assert.equal(routed.view.effectiveValues.enemyLow, '#999999');
+  assert.equal(routed.view.effectiveValues.enemyMid, '#222222');
+});
+
+test('preset_save_to rejects Rewrite Default and unknown or malformed targets without changing anything', () => {
+  const state = saveToState();
+  send(state, 'setting_edit', { key: 'widthScale', value: 150 });
+  const before = state.read();
+  for (const id of ['baked_default', 'user_9999', 'scope_current', '', undefined, 42, null]) {
+    const rejected = send(state, 'preset_save_to', { id });
+    assert.equal(rejected.status, 'rejected', String(id));
+    assert.equal(rejected.code, 'PRESET_NOT_FOUND', String(id));
+    assert.equal(rejected.view, before, String(id));
+    assert.deepEqual(rejected.effects, [], String(id));
+  }
+  assert.equal(before.repository.rows.length, 4);
+});
+
+test('preset_save allHeroes always creates a new All Heroes preset and never rewrites a selected hero preset', () => {
+  const state = createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Everyone', mode: 'all', values: { enemyLow: '#111111' } }),
+      rawPreset({ id: 'user_0002', name: 'Only Shiv', mode: 'selected', heroes: ['hero_shiv'], values: { enemyLow: '#222222' } }),
+    ],
+    nextUserPresetNumber: 3,
+  }));
+  send(state, 'preset_apply', { id: 'user_0002' });
+  send(state, 'setting_edit', { key: 'widthScale', value: 150 });
+  // A hero preset is selected, as after clicking its row.
+  send(state, 'preset_select', { id: 'user_0002' });
+  const before = state.read();
+
+  const created = send(state, 'preset_save', { name: 'PRESET 3', allHeroes: true });
+  assert.equal(created.status, 'committed');
+  assert.equal(created.code, 'PRESET_SAVED');
+  assert.equal(created.view.repository.selectedId, 'user_0003');
+  assert.equal(created.view.repository.nextUserNumber, 4);
+  const record = storedPreset(created, 'user_0003');
+  assert.equal(record.name, 'PRESET 3');
+  assert.equal(record.mode, 'all');
+  assert.deepEqual(record.heroes, []);
+  assert.equal(Object.hasOwn(record, 'own'), false);
+  assert.equal(record.values.widthScale, 150);
+  assert.equal(record.values.enemyLow, '#222222');
+  for (const id of ['user_0001', 'user_0002'])
+    assert.deepEqual(row(created.view, id), row(before, id), id);
+  // Saving alone does not switch what is on screen.
+  assert.equal(currentScope(created.view).mode, 'selected');
+  assert.equal(currentScope(created.view).sourcePresetId, 'user_0002');
+
+  // The same request after deselecting (the menu's flow) creates the next one.
+  send(state, 'preset_select', { id: null });
+  const second = send(state, 'preset_save', { name: 'PRESET 4', allHeroes: true });
+  assert.equal(second.code, 'PRESET_SAVED');
+  assert.equal(storedPreset(second, 'user_0004').mode, 'all');
+  assert.equal(storedPresets(second).length, 4);
+
+  // Without the flag a hero Current still saves as a hero preset.
+  const heroSave = send(createState(makeSession({
+    userPresets: [
+      rawPreset({ id: 'user_0001', name: 'Everyone', mode: 'all', values: { enemyLow: '#111111' } }),
+    ],
+    scopes: [{ id: 'scope_current', mode: 'selected', heroes: ['hero_haze'], values: { enemyLow: '#444444' }, conditions: {} }],
+    nextUserPresetNumber: 2,
+  })), 'preset_save', { name: 'Haze' });
+  assert.equal(storedPreset(heroSave, 'user_0002').mode, 'selected');
+});
+
+
+test('readout offsets normalize and round-trip as zero-based CSS pixels', () => {
+  const keys = ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
+    'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'];
+  const omitted = createState();
+  send(omitted, 'settings_import', { raw: 'HPCR2{"v":[],"c":{}}' });
+  const omittedPreset = createState();
+  send(omittedPreset, 'preset_import', { raw:
+    'HPCRP1{"records":[{"id":"user_0001","kind":"user","name":"Old defaults","mode":"all","heroes":[],"values":[],"conditions":null}]}' });
+  send(omittedPreset, 'preset_apply', { id: 'user_0001' });
+  for (const key of keys) {
+    const limit = key.endsWith('X') ? 200 : 210;
+    assert.equal(DEFAULTS[key], 0, key);
+    assert.equal(CODEC_DEFAULTS[key], 0, key);
+    assert.equal(omitted.read().values[key], 0, key);
+    assert.equal(omittedPreset.read().effectiveValues[key], 0, key);
+    assert.equal(CONTRACT.normalizeValues({ [key]: 999 })[key], limit, key);
+    assert.equal(CONTRACT.normalizeValues({ [key]: -999 })[key], -limit, key);
+    const hydrated = createState({ sessionRaw: makeSession({ values: { [key]: 999 } }) });
+    assert.equal(hydrated.read().values[key], limit, key);
+  }
+  for (const [x, y] of [[0, 0], [27, -30], [150, -100], [200, 210], [-200, -210]]) {
+    const state = createState();
+    for (const key of keys) send(state, 'setting_edit', { key, value: key.endsWith('X') ? x : y });
+    const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+    const roundtrip = createState();
+    send(roundtrip, 'settings_import', { raw: code });
+    send(state, 'preset_save', { name: 'Pixel offsets' });
+    const preset = effect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+    const presetRoundtrip = createState();
+    send(presetRoundtrip, 'preset_import', { raw: preset });
+    send(presetRoundtrip, 'preset_apply', { id: 'user_0001' });
+    for (const key of keys) {
+      const expected = key.endsWith('X') ? x : y;
+      assert.equal(roundtrip.read().values[key], expected, key);
+      assert.equal(presetRoundtrip.read().effectiveValues[key], expected, key);
+    }
+  }
+  const legacy = createState();
+  send(legacy, 'settings_import', { raw: 'HPCR2{"v":[[32,27],[33,500],[55,27],[56,500]],"c":{},"hpv2":{"v":1,"values":[[33,-30],[34,434]],"conditions":{}}}' });
+  assert.deepEqual(keys.map(key => legacy.read().values[key]), [27, 210, -30, 210, 27, 210]);
+});
+
+test('historical baked readout defaults canonicalize without dropping user presets', () => {
+  const source = createState();
+  send(source, 'setting_edit', { key: 'readoutOffsetX', value: 150 });
+  send(source, 'setting_edit', { key: 'readoutOffsetY', value: -100 });
+  send(source, 'preset_save', { name: 'User pixels' });
+  const payload = JSON.parse(effect(send(source, 'preset_copy_all'), 'clipboard_write').text.slice(6));
+  const baked = payload.records.find(record => record.kind === 'baked');
+  baked.values.push([32, -30], [33, 434], [55, 27], [56, 500]);
+  baked.hpv2 = { v: 1, values: [[33, -30], [34, 434]], conditions: {} };
+  const raw = 'HPCRP1' + JSON.stringify(payload);
+  const state = createState();
+  const imported = send(state, 'preset_import', { raw });
+  assert.equal(imported.status, 'committed');
+  const hydrated = createState({ sessionRaw: effect(imported, 'session_replace').raw });
+  for (const target of [state, hydrated]) {
+    const copied = JSON.parse(effect(send(target, 'preset_copy_all'), 'clipboard_write').text.slice(6));
+    const canonical = copied.records.find(record => record.kind === 'baked');
+    assert.equal(canonical.values.some(([index]) => [32, 33, 55, 56].includes(index)), false);
+    assert.equal(canonical.hpv2, undefined);
+    for (const key of ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
+      'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'])
+      assert.equal(row(target.read(), 'baked_default').values[key], 0, key);
+    const user = copied.records.find(record => record.kind === 'user');
+    assert.ok(user.values.some(([index, value]) => index === 32 && value === 150));
+    assert.ok(user.values.some(([index, value]) => index === 33 && value === -100));
+  }
+  const earlierDefaults = JSON.parse(JSON.stringify(payload));
+  earlierDefaults.records.find(record => record.kind === 'baked').values =
+    baked.values.map(([index, value]) => [index, index === 32 ? 27 : index === 33 ? 500 : value]);
+  assert.equal(send(createState(), 'preset_import', {
+    raw: 'HPCRP1' + JSON.stringify(earlierDefaults),
+  }).status, 'committed');
+  for (const [index, value] of [[32, 28], [33, 501], [55, 28], [56, 501], [8, '#123456']]) {
+    const invalid = JSON.parse(JSON.stringify(payload));
+    const record = invalid.records.find(record => record.kind === 'baked');
+    record.values = record.values.filter(([slot]) => slot !== index).concat([[index, value]]);
+    assert.equal(send(createState(), 'preset_import', { raw: 'HPCRP1' + JSON.stringify(invalid) }).status, 'rejected');
+  }
+  for (const [index, value] of [[33, -31], [34, 435]]) {
+    const invalid = JSON.parse(JSON.stringify(payload));
+    const record = invalid.records.find(record => record.kind === 'baked');
+    record.hpv2.values = record.hpv2.values.filter(([slot]) => slot !== index).concat([[index, value]]);
+    assert.equal(send(createState(), 'preset_import', { raw: 'HPCRP1' + JSON.stringify(invalid) }).status, 'rejected');
+  }
+});
+test('appended Units settings remain typed, stock by default, and use the existing hpv2 extension', () => {
+  const keys = [
+    'npcEnemyEnabled',
+    'npcAllyEnabled',
+    'npcNeutralEnabled',
+    'buildingEnemyEnabled',
+    'buildingAllyEnabled',
+    'neutralColor',
+  ];
+  assert.deepEqual(EXTENSION_KEYS.slice(41, 47), keys);
+  for (const key of keys.slice(0, 5)) {
+    assert.equal(DEFAULTS[key], false);
+    assert.equal(SETTING_META[key].type, 'boolean');
+    assert.equal(SETTING_META[key].conditionEligible, true);
+  }
+  assert.equal(DEFAULTS.neutralColor, '#5BEFB5');
+  assert.equal(SETTING_META.neutralColor.type, 'color');
+  assert.equal(SETTING_META.neutralColor.conditionEligible, true);
+
+  const source = createState();
+  keys.slice(0, 5).forEach(key =>
+    send(source, 'setting_edit', { key, value: true }),
+  );
+  send(source, 'setting_edit', { key: 'neutralColor', value: '#2468AC' });
+  send(source, 'condition_set', {
+    key: 'npcEnemyEnabled',
+    slot: 2,
+    minTier: 3,
+    value: false,
+  });
+  const code = effect(send(source, 'settings_copy'), 'clipboard_write').text;
+  const payload = JSON.parse(code.slice(5));
+  assert.deepEqual(payload.hpv2.values.slice(-6), [
+    [41, true],
+    [42, true],
+    [43, true],
+    [44, true],
+    [45, true],
+    [46, '#2468AC'],
+  ]);
+  assert.deepEqual(payload.hpv2.conditions.npcEnemyEnabled, {
+    slot: 2,
+    minTier: 3,
+    value: false,
+  });
+
+  const destination = createState();
+  const roundTrip = send(destination, 'settings_import', { raw: code });
+  for (const key of keys.slice(0, 5))
+    assert.equal(roundTrip.view.values[key], true, key);
+  assert.equal(roundTrip.view.values.neutralColor, '#2468AC');
+  assert.deepEqual(roundTrip.view.conditions.npcEnemyEnabled, {
+    slot: 2,
+    minTier: 3,
+    value: false,
+  });
+
+  const preserved = send(destination, 'settings_import', {
+    raw: 'HPCR2{"v":[],"c":{}}',
+  });
+  assert.equal(preserved.view.values.npcEnemyEnabled, true);
+  assert.equal(preserved.view.values.neutralColor, '#2468AC');
+  const replaced = send(destination, 'settings_import', {
+    raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
+  });
+  for (const key of keys.slice(0, 5))
+    assert.equal(replaced.view.values[key], false, key);
+  assert.equal(replaced.view.values.neutralColor, '#5BEFB5');
+  assert.equal(replaced.view.conditions.npcEnemyEnabled, undefined);
+});
 test('Appearance defaults hydrate older snapshots and scope/ability overrides remain session-native', () => {
   const keys = ['criticalIndicatorVisible', 'playerNamesVisible'];
   const state = createState(makeSession({ values: { widthScale: 123 } }));

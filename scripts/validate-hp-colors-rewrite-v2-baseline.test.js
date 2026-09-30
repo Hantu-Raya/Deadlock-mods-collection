@@ -970,13 +970,13 @@ test('v2 type and relation classification keeps unknowns stock and gives buildin
   }
 });
 
-test('v2 ghoul opacity works without an NPC gate and does not resize other NPCs', () => {
+test('v2 ignores retired ghoul opacity without altering ungated NPC geometry', () => {
   for (const npcClasses of [['creature'], ['CLASS_TROOPER']]) {
     const fixture = makeStatusFixture('enemy', {
       enemyColor: '#123456', ghoulOpacityEnabled: true, ghoulOpacity: 25,
       npcEnemyEnabled: false, widthScale: 230, positionX: 300,
     }, 1, '300', false, false, false, false, null, null, { kind: 'npc', npcClasses });
-    assert.equal(fixture.healthbar.style.opacity || '', npcClasses[0] === 'creature' ? '0.25' : '');
+    assert.equal(fixture.healthbar.style.opacity || '', '');
     assert.equal(fixture.fill.style.washColor, '#FD4949');
     assert.equal(fixture.healthbars.style.preTransformScale2d || '', '');
     assert.deepEqual(translation(fixture.healthbars.style.transform), [0, 0]);

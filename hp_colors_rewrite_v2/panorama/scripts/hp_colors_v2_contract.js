@@ -254,11 +254,22 @@
     "readoutMaxTeamColor",
     "allyTeamHigh",
   ];
+  // Retired codec slots keep their positions so every later slot and every old
+  // share code still lines up, but the key is no longer an editable setting.
   // Editable keys: live legacy codec slots, then the appended hpv2 extension slots.
   var RETIRED_CODEC_KEYS = {
     excludeBuildings: true,
     excludeBosses: true,
     excludeGhouls: true,
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: true,
+  };
+  // Retired keys that v2 once let players attach ability conditions to. Old
+  // saves and share codes may still carry rules for them; loaders drop those
+  // rules instead of rejecting the whole payload.
+  var RETIRED_CONDITION_KEYS = {
+    ghoulOpacityEnabled: true,
+    ghoulOpacity: true,
   };
   var DEFAULT_KEYS = CODEC_KEYS.filter(function (key) {
     return !RETIRED_CODEC_KEYS[key];
@@ -269,10 +280,7 @@
     var defaultKey = DEFAULT_KEYS[defaultIndex];
     DEFAULTS[defaultKey] = CODEC_DEFAULTS[defaultKey];
   }
-  DEFAULTS.enemyMode = "gradient";
   DEFAULTS.enemyLow = "#FD4949";
-  DEFAULTS.enemyMid = "#FF7B00";
-  DEFAULTS.enemyHigh = "#00FF00";
   DEFAULTS.allyLow = "#FFEFD7";
   DEFAULTS.allyMid = "#FFEFD7";
   DEFAULTS.allyHigh = "#FFEFD7";
@@ -286,7 +294,6 @@
     enemyEnabled: true,
     enemyVisible: true,
     enemyTeamHigh: true,
-    ghoulOpacityEnabled: true,
     allyEnabled: true,
     allyVisible: true,
     enemyStaminaColorEnabled: true,
@@ -377,7 +384,6 @@
     staminaOffsetX: [-300, 300],
     staminaOffsetY: [-200, 200],
     readoutSize: [72, 320],
-    ghoulOpacity: [0, 100],
     readoutOffsetX: [-200, 200],
     readoutOffsetY: [-210, 210],
     enemyPulseThreshold: [0, 100],
@@ -410,29 +416,11 @@
   };
 
   var NUMBER_STEPS = {
-    pickupBackgroundDarkness: 1,
-    pickupSize: 1,
-    pickupSpacing: 1,
-    pickupOffsetX: 1,
-    pickupOffsetY: 1,
     ultimateTimerSize: 5,
-    ultimateTimerDarkness: 1,
   };
 
-  function isObjectValue(value) {
-    var tag;
-    if (value === null || Object(value) !== value) return false;
-    tag = Object.prototype.toString.call(value);
-    return (
-      tag !== "[object Function]" &&
-      tag !== "[object AsyncFunction]" &&
-      tag !== "[object GeneratorFunction]" &&
-      tag !== "[object AsyncGeneratorFunction]"
-    );
-  }
-
   function freezeDeep(value) {
-    if (!value || !isObjectValue(value) || Object.isFrozen(value)) return value;
+    if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
     var keys = Object.keys(value);
     var index;
     for (index = 0; index < keys.length; index++) freezeDeep(value[keys[index]]);
@@ -440,7 +428,7 @@
   }
 
   function isStringValue(value) {
-    return Object(value) !== value && value === String(value);
+    return typeof value === "string";
   }
 
   function isBooleanValue(value) {
@@ -512,9 +500,9 @@
         100,
         fallback[key],
       );
-    if (key === "staminaHeight")
-      return clampDecimalNumber(value, 16, 90, fallback[key], 1);
     var bounds = NUMBER_BOUNDS[key];
+    if (key === "staminaHeight")
+      return clampDecimalNumber(value, bounds[0], bounds[1], fallback[key], 1);
     if (bounds)
       return clampNumber(
         value,
@@ -599,6 +587,7 @@
     keys: DEFAULT_KEYS,
     codecKeys: CODEC_KEYS,
     extensionKeys: HPV2_EXTENSION_KEYS,
+    retiredConditionKeys: RETIRED_CONDITION_KEYS,
     booleanKeys: BOOLEAN_KEYS,
     colorKeys: COLOR_KEYS,
     enumOptions: ENUM_OPTIONS,
