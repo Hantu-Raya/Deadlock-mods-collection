@@ -3,23 +3,27 @@
   "packageOrder": [
     "pak01 builder preset",
     "pak02 HP Colors Rewrite v2 support runtime",
-    "pak03 pinned QOLLOCK"
+    "pak47 pinned QOLLOCK 4.0.1"
   ],
-  "qollockAuthority": "installed pak03_dir.vpk",
+  "qollockAuthority": "pinned QOLLOCK 4.0.1 release pak47_dir.vpk (qollock-401.zip)",
   "refreshSwitch": "-RefreshFromInstalledQollock",
   "requiredSources": [
-    "panorama/layout/hud.xml",
     "panorama/layout/hud_escape_menu.xml",
     "panorama/scripts/qollock_hp_colors_bridge.js",
     "qollock-source.sha256"
   ],
   "requiredPinnedQollockAssets": [
+    "panorama/layout/hud_escape_menu.vxml_c",
     "panorama/layout/citadel_hud_top_bar.vxml_c",
     "panorama/scripts/core/ql_namespace.vjs_c",
     "panorama/scripts/core/ql_feature_registry.vjs_c",
-    "panorama/scripts/features/ql_feat_healthbar.vjs_c",
+    "panorama/scripts/manifests/ql_healthbar/manifest.vjs_c",
     "panorama/scripts/manifests/ql_color_warnings/manifest.vjs_c",
-    "panorama/scripts/core/ql_app.vjs_c"
+    "panorama/scripts/core/ql_app.vjs_c",
+    "panorama/scripts/ui/window.vjs_c",
+    "panorama/scripts/ql_settings.vjs_c",
+    "panorama/scripts/core/ql_persistence.vjs_c",
+    "panorama/scripts/core/ql_storage_bridge.vjs_c"
   ],
   "canonicalRewriteAssets": [
     "panorama/layout/hud_escape_menu.vxml_c",
@@ -52,15 +56,15 @@
     "panorama/images/hpv2/ultimate_progress.png",
     "panorama/images/hpv2/ultimate_progress.vtex",
     "pak01_dir.vpk",
-    "pak03_dir.vpk"
+    "pak47_dir.vpk",
+    "panorama/layout/hud.xml"
   ],
   "forbiddenBuildInputs": [
     "hp_colors_rewrite_v2_compiled",
     "pak01_dir.vpk",
-    "pak03_dir.vpk"
+    "pak47_dir.vpk"
   ],
   "requiredPackedAssets": [
-    "panorama/layout/hud.vxml_c",
     "panorama/layout/hud_escape_menu.vxml_c",
     "panorama/layout/unit_status_overlay_v2.vxml_c",
     "panorama/scripts/hp_colors_v2_contract.vjs_c",
@@ -105,6 +109,7 @@
     "FEATURES.md",
     "design.md",
     "qollock-source.sha256",
-    "pak02-contract.json"
+    "pak02-contract.json",
+    "panorama/layout/hud.vxml_c"
   ]
 }

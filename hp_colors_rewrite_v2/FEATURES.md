@@ -4,24 +4,36 @@
 
 The rewrite owns the live v2 healthbar renderer, a session-scoped send/read state module, ESC editor adapters, live settings transfer, transient hero identity, scoped settings, and preset save/application.
 
-The layout overrides are based on current stock files in `SteamDatabase/GameTracking-Deadlock/game/citadel/pak01_dir/panorama/layout`. The rewrite changes them only by adding its script/style includes and owned panels.
+The v2 overlay is rebased on the static stock tree shipped in Deadlock build 6722, using the supplied 6711/GameTracking master `245f2952f9` snapshot. It retains every engine-populated stock ID/class and adds only Rewrite-owned panels and script/style includes.
 
 ## Implemented feature set
 
 ### Healthbars and feedback
 
-- Enemy and optional ally fixed/gradient colors with shared thresholds.
-- Independent enemy and ally team-high colors.
-- Reversible enemy/ally visibility, dimensions, position, ghoul opacity, healing, damage-delta, shield-indicator, and ultimate-icon coloring.
-- Neutral-first classification; neutral and unclassified targets never enter enemy coloring.
-- Enemy/ally CSS-driven low-HP pulse and enemy-player-only static kill marker.
+- Enemy-player fixed/gradient colors, team-high endpoints, visibility/layout, healing, damage-delta, shield color, and pulse.
+- Enemy and friendly NPC gates and enemy/friendly building gates default off and work independently of player color toggles. Opted-in units reuse their relation palette, feedback, layout, pulse, and enemy pip-line settings; player-only extras stay off.
+- Known neutral NPCs remain stock unless `npcNeutralEnabled` is on; that gate changes only the fixed fill color. Bounty, tier art, stock labels, and other neutral presentation stay stock.
+- Ghoul opacity applies to classified creature NPCs even when their NPC color gate is off.
+- Unknown type/relation and contradictory enemy/friend ownership remain stock. Neutral facts take precedence over enemy/friend classes; team IDs alone never infer relation.
+
+Surface ownership is kept in one renderer decision: `player` has relation settings and player extras; `unit` has gated non-player bar presentation without HP text or accessories; `fill` has only the neutral fill; `opacity` has only ghoul opacity.
 
 ### HP readout and stock indicators
 
-- Current/max, percentage, and current-only HP formats.
-- Size, bounded placement, stock-derived or custom colors, and optional pulse-specific presentation.
-- Health-pip visibility and optional precise 10-HP calculation with manual `gameinfo.gi` copy/reset guidance.
-- Enemy-player level visibility and tier styling without writing engine-owned text.
+- HP/current formats temporarily move the engine's existing `UnitHealthbarValue` into the WindowRoot-level counter row, preserving the same panel and engine-updated text without parsing, sampling, or text writes. Percentage remains a custom, fill-derived counter; the health denominator is only the primary `UnitHealthbarInner`, never shield, armor, or deferred widths.
+- Exact maximum HP is unverified because the supplied tree exposes no max binding. Both `hp` and `current` therefore show the native current-only number; no maximum is inferred from pips or rounded fill.
+- Enemy and ally readouts are player-only. Adopted HP/current labels are visible at opacity `1`, regardless of stock damage/Show Health Value gates. Percentage returns the engine label to its original parent and suppresses it; **Show Health Text** off still hides enemy numbers, while ally readout off leaves the native label exactly stock. Inline styles, original pulse classes, and parent restore on release; the secondary shield value is untouched.
+- Readout colors, fonts, size, translation, and enemy text pulses use the selected native or percentage path. Player-level badge and enemy kill marker are player-only; health-line visibility can also apply to opted-in enemy NPCs/buildings.
+
+### Stock appearance
+
+OVERVIEW → APPEARANCE shares two stock-pass-through controls between enemy and ally players, independent of player color toggles. CRITICAL LABEL hides only the stock label when off; stock critical flashing, scaling, wash, margins, and Rewrite pulses remain unchanged. PLAYER NAMES hides player names when off; when on, spectator visibility remains game-owned.
+
+All unit-status healthbars are always rectangular without the outer container background (including players, NPCs, buildings, shields, and previews), even with the master toggle off. This intentional stock stylesheet deviation deletes the three healthbar mask declarations and all container background-color declarations from the replacement stylesheet, removing six otherwise-empty relation rules. The black inner backing and all other stock declarations remain. There is no shape setting or inline mask override.
+
+The label controls use existing session settings, scopes, ability conditions, presets, Reset Section, Undo, HPCR2 and HPCRP1. Defaults never force labels visible. Master-off, surface loss, replacement, retirement, and teardown release owned label classes and return label styling to stock. The owned HP readout is straight, at its existing stock right-side placement. `citadel_unit_status_show_critical_state` stays engine-owned.
+
+Ultimate progress art matches the 6722 ready icon: a black disk with an open white eye and progress ring, dimmed beneath the radial-clipped bright fill.
 
 ### Editor and settings
 
@@ -43,14 +55,12 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 
 Implemented source files:
 
-- `panorama/layout/unit_status_overlay_v2.xml` preserves v2's live-bar geometry and loads the color renderer.
-- `panorama/scripts/unit_status_v2_colors.js` discovers and observes the live v2 healthbar, centers the complete segment container, and gives the level badge and ultimate icon independent X/Y offsets with optional left-edge anchoring.
+- `panorama/layout/unit_status_overlay_v2.xml` preserves the new static stock tree and four script includes. The primary `UnitHealthbar` is selected separately from the sibling `UnitShieldbar`.
+- `panorama/scripts/unit_status_v2_colors.js` discovers the direct primary inner/fill, classifies unit kind separately from relation, and measures the 100×40 status / 76×18 outer / 69×12 inner frame.
 
 ### Data path
 
-Each probe reads its local healthbar panels directly. Health samples drive colors, readout, pulse, kill-marker geometry, local pip/level state, and width-dependent accessory alignment. Production emits no per-bar geometry diagnostics.
-
-Replacement panels increment the local generation and reset cached sampling and presentation state.
+The renderer reads each unit's local primary health layers and native current-HP label. Primary inner width drives fill percentage, pulse overlay, and marker math; engine layer widths and secondary shield values remain untouched. Replacement or reparented panels increment the local generation and reset cached sampling/presentation state.
 
 ### Diagnostic evidence
 
@@ -75,7 +85,7 @@ Menu startup resolves panels and creates controls before binding events or publi
 Implemented controls:
 
 - Master customization is enabled by default; bypass preserves configured values.
-- Global v1 width and height scaling.
+- Shared width and height scaling in the measured native v2 frame.
 - Enemy and ally enable/visibility controls.
 - Fixed or legacy-compatible low/mid/high gradient color modes.
 - Shared thresholds: low color holds through the low threshold, mid color is reached at the high threshold, and high color is reached at full health.
@@ -85,7 +95,7 @@ Implemented controls:
 
 `hp_colors_v2_state.js` owns one versioned same-session state payload and returns declarative same-session replacement, effective publication, and clipboard effects. `hp_colors_v2_menu.js` executes those effects and renders the returned immutable view. Changed controls publish immediately only when resolved effective values differ. While the master switch is enabled, the unchanged cached snapshot replays at 1-second hot, 3-second warm, then 8-second idle intervals because isolated late unit-status contexts can start after the Escape menu.
 
-The renderer classifies stock relation classes neutral-first, then enemy/friend. When customization yields color ownership, it writes the current base-game `unit_status.css` relation palette directly to the owned inline properties because clearing Panorama inline colors did not reliably trigger stock selector repainting in live Deadlock. The mirrored values cover team1, team2, neutral, enemy, and friend fill/ultimate colors plus stock healing, damage-delta, and bullet-shield colors; JavaScript constants identify their stock origin.
+The renderer classifies unit kind separately from stock relation classes, with neutral-first relation precedence. When customization releases color ownership, it mirrors the current base-game `unit_status_v2.css` palette into inline properties because clearing inline colors did not reliably trigger stock selector repainting in the pre-port live checks. The constants cover stock fill/ultimate, healing, damage-delta, and primary bullet-shield colors; the 6722 port still needs its own live release check.
 
 
 ## Milestone 4: feedback and shield-indicator colors
@@ -96,7 +106,7 @@ Implemented controls:
 - Separate enemy and ally recent-damage delta colors.
 - Separate enemy and ally shield-indicator colors.
 
-The local renderer uses the already cached v1 panels. It changes healing and delta `washColor` plus bullet-shield `backgroundColor`; the engine remains the sole owner of every layer's live width and timing. Disabled relations, neutral/other roles, and the master bypass clear these inline properties so stock styling resumes.
+The renderer uses cached primary-inner v2 panels. It changes healing and delta `washColor` plus primary bullet-shield `backgroundColor`; the engine remains the sole owner of every layer's live width and timing. Disabled color ownership, neutral/other roles, and master bypass restore the mirrored stock colors. The separate shield bar, deferred layer, and ratking armor stay engine-owned.
 
 ## Milestone 5: shared HSL color palette
 
@@ -110,30 +120,27 @@ Implemented controls:
 
 - Independent stock team-color endpoints for enemy and ally high health; unknown teams retain each relation's configured high color.
 - Full-ghoul-healthbar opacity applies independently of bar colors.
-- Horizontal and vertical translation of the complete healthbar stack. The unit stays fixed. One shared toggle makes the level badge and ultimate icon follow the bar's measured left edge or remain at their stock positions.
+- Horizontal and vertical translation of the complete healthbar stack. The unit stays fixed. Level and ultimate indicator gaps follow the measured scaled bar; one shared toggle controls whether they also follow bar translation.
 - Independent horizontal and vertical offsets for the level badge and ultimate icon. These offsets apply in both anchor modes.
 - One shared ultimate-ready icon rule: Follow Bar uses each customized relation's final bar color; Custom applies one color to enemy and ally icons even when their bar-color toggle is off.
 
-The renderer classifies relation, team, player, building, sentry, boss, and creature-class ghoul facts in the existing ancestry pass. Neutral classification remains authoritative. Building and boss facts restrict player-only level and kill-marker behavior. Sentry and minion facts select stock dimensions. Ghoul opacity applies one value to the cached `UnitHealthbarContainer` and `unit_info_bg`. Zero uses `opacity: 0.01` to preserve engine width updates. The slider and number entry stay disabled until custom ghoul opacity is enabled.
+The ancestry pass classifies explicit building, player, and known NPC facts before relation, with neutral facts first. Player-only level/readout/marker/stamina/ultimate behavior is restricted by `kind`; NPC/building palette gates remain independent of player gates, and ghoul opacity remains independently opt-in.
 
 The v1 implementation passed its focused automated and in-game checks before this port. Rewrite v2 still requires its own fresh-restart in-game smoke before parity can be claimed.
 
 ### In-game smoke test
 
-1. Run `powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_v2.ps1`.
-2. Ask the user to restart Deadlock with `-dev -tools`.
-3. Require enemy fixed/gradient colors, thresholds, visibility, width, height, healing, damage-delta, and bullet-shield colors to update real bars.
-4. Enable ally styling and require only friend bar, healing, damage-delta, and bullet-shield colors to update.
-5. Require neutral and unclassified bars to remain stock.
-6. Require late/replaced bars to receive the current snapshot.
-7. Enable team-high color on both teams; require the stock team color only above the high threshold and the configured high color for unknown-team bars.
-8. At 230% Bar Width, move Bar X Offset through `0`, `300`, and `-300` on ally and enemy bars. With indicator anchoring enabled, require the bar, level badge, and ultimate icon to move by the same distance. Test Y offsets and independent indicator offsets too.
-9. Disable indicator anchoring. Bar position changes must leave the indicators in place; width changes must still preserve their scaled bar-edge relationship. Test each indicator's X/Y controls independently.
-10. Test ultimate-icon Follow Bar and Custom modes on enemies and allies. Require shared Custom changes to update both relations even when bar coloring is off, while neutral, unclassified, and bypassed icons return to stock.
-11. Drag each native Hue, Saturation, and Lumen slider; require the slider value, canonical hex, and visible bars to update live, then require one Undo to restore the color from before that slider gesture.
-12. Exercise Reset Section confirmation, Cancel, already-default feedback, and Undo. Reset Layout after a negative X offset and require the bar to return immediately, without damage, another slider change, or a later layout update. Require Reset Section and Undo to stay hidden on Presets, return on settings pages, and Escape to dismiss the reset dialog or palette before closing the editor.
-13. With indicator anchoring enabled, test `800`, `2100`, and `4100` max HP at default and changed widths. Require the level badge and ultimate icon to keep their left-edge gap, an `18%` kill marker to remain visible, reset to use the current live width, and the console to contain no Rewrite exceptions.
-
+1. Build the source/package with `build_hp_colors_rewrite_v2.ps1 -SkipDeploy`. Deployment and addon replacement are separate actions; after an authorized replacement, fully restart Deadlock.
+2. Inspect a player, neutral camp, trooper/trooper boss, midboss, and building. Record actual `WorldUIRoot` kind/relation/team classes and verify the static primary `UnitHealthbar` and separate shield branch.
+3. With NPC, neutral, and building gates off, apply extreme player layout/color settings: non-player bars, bounty/tier art, stock indicators, and the secondary shield must remain stock.
+4. Enable each NPC/building gate independently and verify only its explicit type/relation changes; it must reuse that relation's palette without player-only accessories. Enable neutral fill and verify bounty, tier art, lines, and values remain stock. Confirm ghoul opacity works with its NPC color gate off.
+5. Compare enemy/ally HP/current native readouts with percentage counters, including `0`, missing/unbound text, same-percent current changes, Show Health Value/damage gates, runtime format switching, bypass, and ally stock visibility. Native locale grouping such as `2,990` stays engine-owned; max HP remains unverified.
+6. Check fixed/gradient thresholds, team endpoints, visibility, healing, delta, bullet shield, deferred/lagging damage, armor, pulses, and the new stock critical/assassinate/unkillable/rejuvenator/kill-streak indicators.
+7. At width 60/100/230%, height 60/100/160%, position extrema, and supported UI scales, verify measured origins, left-edge gaps, explicit-zero reset, counter/indicator alignment, and an 18% marker clamped to the inner health interval. Check readout `0/0` against the unrotated stock right-edge position for enemy/friend, then exercise X `±200` and Y `±210`, including percentage and enemy pulse modifiers.
+8. Verify enemy-player-only level tiers, marker, ultimate wash/timer priority, and stamina. Default stamina must keep native pips; custom boxes must restore texture/depleted behavior. NPC/building opt-ins must not acquire player accessories.
+9. Exercise late spawn, death/respawn, shield-only/midboss contexts, reparent/replacement/removal, spectator state, and reused panels. Open the stock healthbar preview and verify no Rewrite geometry, overlays, or palette leaks. Open the editor and test Units HSL/hex controls, scoped reset/Undo, transfer compatibility, and Escape lifecycle.
+10. Exercise APPEARANCE on enemy/ally players at normal and critical HP, with the critical-state convar on/off and in-eye spectator names suppressed. Verify always-rectangular low/full-HP edges, pips, and fill on players, NPCs, buildings, shields, and previews, including master-off and supported UI scales. Label defaults must return control to stock; label hiding must preserve critical motion and flashing.
+11. Record screenshots/debugger facts and console evidence. Automated tests do not establish visual rendering, exact maximum HP, precise line settings, or frame cost/FPS.
 
 ## Milestone 7: HP readout
 
@@ -142,29 +149,35 @@ Implemented controls:
 - Show or hide the enemy HP number.
 - Current/max HP, percentage, and current-only formats.
 - Font chooser with Default (`Retail Demo, Noto Sans, sans-serif`), Oracle (`VALVEOracle, Reaver, sans-serif`), and Pulp (`VALVEPulp, Noto Sans, sans-serif`). Runtime writes the expanded families because stock `sans`, `oracle`, and `block` are compile-time CSS aliases.
-- Text size plus direct horizontal (`-405px...405px`, default `-30px`) and portable vertical (`-35px...840px`, default `434px`) offsets.
-- Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds. Custom enables its own Fixed/Gradient choice. The always-editable shared threshold pair lives under Enemy → Bar and also drives ally bars and custom HP text. The white label is tinted through `washColor`, matching the bar and legacy rendering path instead of assigning a darker flat `color`.
-- Optional team coloring for only the maximum-HP value. Current HP and the separator keep the active text color. Unknown teams keep that same text color.
+- Text size plus horizontal (`-200...200`) and vertical (`-210...210`) readout offsets, both defaulting to `0`. Enemy, ally, and enemy pulse-modifier offsets are plain CSS pixels: +50 moves the text +50px. Text size and bar translation keep their existing renderer calibration candidate.
+- Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds. Custom enables its own Fixed/Gradient choice. The always-editable shared threshold pair lives under Enemy → Bar and also drives ally bars and custom HP text. Labels are tinted through `washColor`, matching the bar and legacy rendering path without replacing their base `color`.
+- Optional team coloring targets only maximum HP if a verified maximum source becomes available; current HP and any separator keep the active text color.
 
-The stock overlay exposes only `unit_healthbar_pip_label`, so the rewrite owns `hp_counter_anchor` plus separate current and maximum labels without changing stock fill geometry. Each live `UnitHealthbarContainer` owns its readout anchor. Maximum HP comes from the stock pip string and current HP from the existing shield-aware fill ratio. Percentage remains available when a maximum cannot be derived. Turning **Enemy Bar Colors** off restores only relation-owned colors. **Show HP Number** controls the readout. Neutral, ally, unclassified, and master-bypassed paths collapse and clear both owned labels. Pip-text changes and replacement counter panels invalidate local caches and reapply through the existing scan and paint loops.
+Both formats use the direct `WindowRoot` counter frame outside the small `UnitStatus`/`InfoHealthContainer` canvas. HP/current moves the existing engine label into `hp_counter_row`; XML keeps it in its stock position for initialization, and no new bound label is added. Sep 30 client.dll IDA inspection found that `sub_181CF8FF0` caches `UnitHealthbarValue` at `this+3624`, and `sub_181D0D7B0` calls `sub_18218FDD0` to set `health` on that cached label itself, not the root. Reparenting preserves the engine's pointer and updates; see the [layout contract](design.md#health-sampling-and-readout) for binding evidence and restoration rules.
 
-The readout anchor fills the live healthbar and centers both labels without moving the bar. The X and Y settings translate the label within that owner. The portable VPK does not mutate external game files or run console commands. Precise-pip calculation is session-scoped and shows a gameinfo.gi warning with copyable enable values when turned on and copyable defaults plus a deletion path when turned off.
+The frame covers 100% of the world-panel width and height, with zero top margin. At offsets `0/0`, the unrotated row matches stock label geometry: its top is 66px and its right edge is canvas center +40px (friend +30px); text grows leftward. The left-aligned half-width anchor provides the center reference, the right-aligned row has 4px padding, and the adopted label has zero margins and padding. Both custom labels stay collapsed without text writes in native mode. Percentage returns the engine label and retains the custom-counter path. Stock damage-wiggle and hidden/pre-game/spectate collapse rules remain. Both formats add plain pixel offsets to the unchanged native-pixel bar translation; no shipped-default subtraction or offset scaling remains.
 
-The focused VM regression covers all formats, shield-aware values, missing pip data, visibility/scope, size, offsets, fixed/gradient colors, team-high/custom color ownership, unchanged-write caching, and replacement replay.
+Known compatibility change: omitted readout slots in old HPCR2/HPCRP1 codes now use zero. Explicit legacy user values, including explicit old defaults (27/500 or -30/434), are clamped and read as CSS pixels; session and imported builder values follow the same bounds. No general migration or sentinel is added. New zero and in-range offsets round-trip unchanged. Only the canonical `baked_default` record accepts exact historical shipped offsets and resets them to current defaults, preserving old bundles and their user records; all other baked deviations still reject. The web builder was intentionally not updated, so local saves remain untouched. The `±200/±210` limits target the approximately 200×210 canvas suggested by the Sep 30 engine convars (window scale 2.0); exact CSS mapping, supported UI scales, and clipping still require live verification.
+
+The player name is drawn level (no stock `-4deg` tilt).
+
+The engine renders current HP itself through the native `UnitHealthbarValue` `{d:health}` binding; the renderer no longer parses that text. The supplied tree has no maximum binding, so exact max remains unknown and `hp` format displays current-only until a live exact source is proven. `precisePipsEnabled` remains in the codec for compatibility but has no menu consumer; the old pip string and unverified `gameinfo.gi` instructions are retired.
+
+Focused VM regressions cover native-label ownership and exact restoration, HP/current and percentage switching, no custom text writes in native mode, percentage, visibility/scope, colors, pulse, caching, and replacement replay.
 
 ## Milestone 8: health pips, enemy levels, and low-HP effects
 
 Implemented controls:
 
-- Enemy health-pip visibility while leaving the engine-owned pip text and geometry untouched.
-- Optional precise-pip parsing that interprets minor marks as 10 HP after the user configures the copied ConVars block in `gameinfo.gi`; disabling it shows the default values and reminds the user to remove unused custom entries.
+- Enemy pip-line visibility controls the stock `UnitHealthbarLines` panel for enemy players and opted-in enemy NPCs/buildings. The engine still owns generated line positions and opacity.
+- `precisePipsEnabled` remains a wire-compatibility setting only. The static tree has no verified max-HP binding, and current line panels are not a max source; no precise-pip calculation or manual ConVar copy instructions are advertised.
 - Enemy-player level visibility with engine-bound level text and custom tier boundaries at levels 11, 19, 27, and 35.
 - Enemy low-HP pulse with an inclusive threshold, 30–300 BPM speed, three intensity levels, optional fixed/gradient pulse color, and temporary non-culling bar hiding. Two independent toggles control HP-number pulse animation and pulse-time text modifiers. The modifier toggle enables independent text size plus horizontal and vertical offsets while the pulse is active, restoring normal geometry above the threshold; it does not enable text animation. Normal brightness pulse targets only `unit_healthbar_lagging`; custom Gradient keeps the base fill color and CSS-pulses a custom-color overlay across the live fill width, independent of health depth.
 - Ally low-HP pulse with an independent threshold, speed, intensity, and optional fixed color.
 
 Pulse animation is CSS-driven. BPM alone controls duration. Custom-gradient intensity changes both opacity endpoints—Subtle `0.15→0.45`, Medium `0.10→0.75`, and Intense `0→1`—so lower levels no longer converge on full custom-color replacement. The existing paint loop changes namespaced classes, duration, and the owned custom-color overlay only when pulse state, health width, or configuration changes; it does not animate brightness in JavaScript. Bypass, role changes, exclusions, removal, and panel replacement clear rewrite-owned pulse and level state so stock styling resumes. A dirty bar that becomes neutral or otherwise leaves rewrite color ownership executes that cleanup immediately without waiting for another configuration refresh, covering recycled world-panel contexts.
 
-The current stock layout retains the engine pip label but no level subtree, while stock CSS still defines `#unit_level_label`. The rewrite therefore adds one minimal circular `LevelContainer` and current engine `{i:player_level}` label to its stock-derived override. It never creates the obsolete `healthpips`/`pip_image` path.
+The new stock tree has `UnitHealthbarLines` but no `unit_healthbar_pip_label`, and it has no engine level subtree. Rewrite adds only the minimal circular `LevelContainer` with engine-bound `{i:player_level}` text. Its stock-position baseline is immediately left of the ultimate icon (`margin-left: -23px`, `margin-top: -14px`); zero level offsets preserve that baseline. It never creates the obsolete `healthpips`/`pip_image` path.
 
 ## Milestone 9: enemy-player kill marker
 
@@ -174,7 +187,7 @@ Implemented controls:
 - Place the marker at a canonical `5%–80%` health threshold.
 - Set marker width from `1px–100px` and choose an independent color.
 
-The marker is a rewrite-owned, non-interactive overlay directly under `UnitHealthbarContainer`. It never writes engine-owned fill widths. Runtime shows it only for visible enemy panels carrying the stock `player` class; allies, neutrals, non-player units, buildings, sentries, bosses, and boss barracks always remain marker-free. Geometry uses the cached live health-parent width, clamps the effective marker width to that surface, and skips unchanged visibility, position, width, and color writes. Bypass, hidden or pulse-hidden bars, role changes, removal, and panel replacement clear all marker-owned inline state.
+The marker is a passive overlay directly under primary `#UnitHealthbar`; the secondary shield branch has no marker. Runtime shows it only on a visible enemy player when the enemy relation gate allows it. Its threshold is clamped within the measured primary inner interval, including the inner X inset; the legacy width uses the unverified native display-unit mapping and is clamped to at least one native pixel.
 
 
 ## Milestone 10: rewrite-native live transfer
@@ -255,17 +268,23 @@ Focused regressions cover strict import validation, all slots, tier thresholds a
 
 ## Milestone 19: enemy stamina boxes
 
-Rewrite v2 can resize and reposition the three enemy stamina boxes independently of the healthbar. Width, height, horizontal offset, vertical offset, and optional custom color are preset-scoped settings exposed in both the in-game editor and HPv2 web builder. Custom color applies to filled interiors and every border; `PipEmpty` and transient depleted states keep a black interior. Ally and neutral stamina remain stock, and disabling Rewrite or enemy ownership clears every inline stamina style.
+Rewrite v2 can resize/reposition/recolor the three enemy-player stamina boxes independently of the healthbar. Stored defaults leave stock texture pips untouched; only non-default dimensions or custom color add the Rewrite box class. Custom color applies to filled interiors and borders; empty/depleted interiors stay black. NPCs, buildings, allies, and neutral stamina remain stock.
 
 The stamina and accessory controls use the versioned `hpv2` extension in HPCRP1 records and current HPCR2 settings codes. Older HPCRP1 records without the extension use default V2 settings; legacy HPCR2 imports preserve the destination's V2 settings. A fresh-restart in-game smoke remains required for live Panorama confirmation.
 
 ## Milestone 20: feedback rendering fixes
 
-The enemy pulse now animates both halves of the `current / maximum` HP readout. Ally custom pulse color has the same Fixed and Gradient modes as enemy pulse color, with Fixed replacing the active bar color and Gradient animating an overlay over the normal ally color. This V2-only mode is stored in the `hpv2` extension for both HPCRP1 and HPCR2.
+The enemy text pulse targets the adopted engine HP/current label or percentage counter according to the active format, and restores the original label's pulse classes and animation duration when ownership changes. Maximum HP remains unavailable. Ally custom pulse color has the same Fixed and Gradient modes as enemy pulse color; Fixed replaces the active bar color and Gradient animates an overlay over the normal ally color. This V2-only mode remains in the `hpv2` extension for HPCRP1 and HPCR2.
 
-Disabling enemy level display now reproduces v1 flow centering by shifting the ultimate indicator, healthbar, and HP readout left by half of the removed level badge's effective width. The existing enemy stamina page already provides width, height, two-axis position, and custom filled/border color controls while leaving ally and neutral stamina stock.
+Hiding the enemy-player level badge collapses only that out-of-flow badge. The stock `InfoHealthContainer` has no flow to recenter, so Rewrite does not shift the bar, ultimate icon, or readout when levels are hidden. Both readouts use the root-level frame's mirrored stock hidden states; adoption leaves other native info panels in place.
 
-Bar and HP-text offset ranges remain wider than the visible viewport by design. Bar width scales the complete live stack around the measured bar center; runtime never writes the engine-owned `width` or `max-width`. Anchored indicators follow X translation without multiplying it by width scale. Layout Reset writes zero translation explicitly instead of waiting for cleared-style recomputation. The existing health pass samples live width and updates alignment when width or configured layout changes. Production emits no geometry records.
+Bar and HP-text ranges remain wider than the visible viewport for compatibility. Bar width/height scale the measured primary outer surface around its full X/Y center; runtime never writes engine-owned width/height. Anchored player indicators preserve their measured gaps; bar translation uses the candidate native mapping and is never multiplied by scale. Layout Reset writes zero translation explicitly. The existing scan/health pass samples changed outer/inner dimensions and offsets; production emits no geometry records.
+
+## Milestone 21: ally HP text
+
+**Ally → HP TEXT** exposes the enemy HP-text controls for ally bars: visibility, format, size, font, Bar Color or Custom Fixed/Gradient low/mid/high colors, team-colored maximum HP, and horizontal/vertical offsets. Ally text is off by default and never changes enemy text. Bar Color follows the ally bar's colors and mode with the shared thresholds. Enemy pulse text modifiers stay enemy-only.
+
+The twelve `allyReadout*` settings remain appended to the versioned `hpv2` extension, and legacy codes without them use defaults. Ally readout is player-only: HP/current adopts the existing engine label into the root-level counter row, while percentage uses the custom counter. Ally text off restores the label's stock parent, inline styles and classes. Max remains unavailable until a live exact source is established. Fill sampling stays on the paint cadence when relation colors or an enabled player readout require it; neither readout path parses or samples the native number.
 
 ## Priority 8 runtime measurement baseline
 
@@ -291,9 +310,9 @@ Ordinary preset Apply updates existing rows instead of rebuilding their controls
 
 The normal wrapper builds standalone pak02 by default. With ShowRank Barebones pak89 installed, use `build_hp_colors_rewrite_v2.ps1 -ShowRankBarebones` to compose its Escape open/out handlers while preserving HP editor cancellation. This changes only the staged layout; the canonical runtime remains independent of ShowRank.
 
-The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned pak03 dependency. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock` when intentionally updating compatibility against a supplied pak03. Both wrappers accept `-SkipDeploy` for archive-only builds.
+The QOLLOCK wrapper copies the same canonical runtime, derives packed assets from its package contract, and preserves the pinned QOLLOCK 4.0.1 release `pak47_dir.vpk` (`qollock-401.zip`) dependency. It overrides only the Escape menu (QOLLOCK's menu plus the HP COLORS V2 button and editor) and the topbar (QOLLOCK's topbar plus pickup-timer includes); QOLLOCK's own `hud.xml` stays authoritative, so pak02 never ships a stale copy of it. Because pak02 replaces QOLLOCK's whole Escape menu, it must carry every QOLLOCK include and panel from that menu: since 4.0.1, QOLLOCK saves settings through `core/ql_storage_bridge.js` and the `#QOLStorageBridge` HTML panel in this layout, and a stale override leaves Save stuck until it times out. The build fails if the override is missing any `src`/`id` from the pinned menu. Use `build_hp_colors_rewrite_v2_qollock.ps1 -RefreshFromInstalledQollock -QollockPak <pakNN_dir.vpk>` whenever QOLLOCK changes its Escape menu. Both wrappers accept `-SkipDeploy` for archive-only builds.
 
-Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching pak03 and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
+Install only one pak02 variant and fully restart Deadlock. The normal archive contains standalone pak02 only; the QOLLOCK archive requires the matching QOLLOCK 4.0.1 release and does not bundle it. Barebones remains an opt-in build option, not an archive payload. The prior roughly 35-minute Barebones live capture had no logged style-write failures, and the user confirmed correct rendering. Automated release checks do not substitute for a fresh in-game check of the final packages.
 
 ## Third Eye compatibility
 

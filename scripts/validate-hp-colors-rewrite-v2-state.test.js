@@ -316,6 +316,89 @@ function assertEffectivePublish(result, revision, settingId) {
   return published;
 }
 
+test('readout offsets normalize and round-trip as zero-based CSS pixels', () => {
+  const keys = ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
+    'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'];
+  const omitted = createState();
+  send(omitted, 'settings_import', { raw: 'HPCR2{"v":[],"c":{}}' });
+  const omittedPreset = createState({ builderPresetRaw:
+    'HPCRP1{"records":[{"id":"user_0001","kind":"user","name":"Old defaults","mode":"all","heroes":[],"values":[],"conditions":null}],"selectedPresetId":"user_0001"}' });
+  for (const key of keys) {
+    const limit = key.endsWith('X') ? 200 : 210;
+    assert.equal(DEFAULTS[key], 0, key);
+    assert.equal(CODEC_DEFAULTS[key], 0, key);
+    assert.equal(omitted.read().values[key], 0, key);
+    assert.equal(omittedPreset.read().effectiveValues[key], 0, key);
+    assert.equal(CONTRACT.normalizeValues({ [key]: 999 })[key], limit, key);
+    assert.equal(CONTRACT.normalizeValues({ [key]: -999 })[key], -limit, key);
+    const hydrated = createState({ sessionRaw: makeSession({ values: { [key]: 999 } }) });
+    assert.equal(hydrated.read().values[key], limit, key);
+  }
+  for (const [x, y] of [[0, 0], [27, -30], [150, -100], [200, 210], [-200, -210]]) {
+    const state = createState();
+    for (const key of keys) send(state, 'setting_edit', { key, value: key.endsWith('X') ? x : y });
+    const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+    const roundtrip = createState();
+    send(roundtrip, 'settings_import', { raw: code });
+    send(state, 'preset_save', { name: 'Pixel offsets' });
+    const preset = effect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+    const presetRoundtrip = createState({ builderPresetRaw: preset });
+    for (const key of keys) {
+      const expected = key.endsWith('X') ? x : y;
+      assert.equal(roundtrip.read().values[key], expected, key);
+      assert.equal(presetRoundtrip.read().effectiveValues[key], expected, key);
+    }
+  }
+  const legacy = createState();
+  send(legacy, 'settings_import', { raw: 'HPCR2{"v":[[32,27],[33,500],[55,27],[56,500]],"c":{},"hpv2":{"v":1,"values":[[33,-30],[34,434]],"conditions":{}}}' });
+  assert.deepEqual(keys.map(key => legacy.read().values[key]), [27, 210, -30, 210, 27, 210]);
+});
+
+test('historical baked readout defaults canonicalize without dropping user presets', () => {
+  const source = createState();
+  send(source, 'setting_edit', { key: 'readoutOffsetX', value: 150 });
+  send(source, 'setting_edit', { key: 'readoutOffsetY', value: -100 });
+  send(source, 'preset_save', { name: 'User pixels' });
+  const payload = JSON.parse(effect(send(source, 'preset_copy_all'), 'clipboard_write').text.slice(6));
+  const baked = payload.records.find(record => record.kind === 'baked');
+  baked.values.push([32, -30], [33, 434], [55, 27], [56, 500]);
+  baked.hpv2 = { v: 1, values: [[33, -30], [34, 434]], conditions: {} };
+  const raw = 'HPCRP1' + JSON.stringify(payload);
+  const state = createState();
+  assert.equal(send(state, 'preset_import', { raw }).status, 'committed');
+  const hydrated = createState({ builderPresetRaw: raw });
+  for (const target of [state, hydrated]) {
+    const copied = JSON.parse(effect(send(target, 'preset_copy_all'), 'clipboard_write').text.slice(6));
+    const canonical = copied.records.find(record => record.kind === 'baked');
+    assert.equal(canonical.values.some(([index]) => [32, 33, 55, 56].includes(index)), false);
+    assert.equal(canonical.hpv2, undefined);
+    for (const key of ['readoutOffsetX', 'readoutOffsetY', 'allyReadoutOffsetX',
+      'allyReadoutOffsetY', 'enemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetY'])
+      assert.equal(row(target.read(), 'baked_default').values[key], 0, key);
+    const user = copied.records.find(record => record.kind === 'user');
+    assert.ok(user.values.some(([index, value]) => index === 32 && value === 150));
+    assert.ok(user.values.some(([index, value]) => index === 33 && value === -100));
+  }
+  const earlierDefaults = JSON.parse(JSON.stringify(payload));
+  earlierDefaults.records.find(record => record.kind === 'baked').values =
+    baked.values.map(([index, value]) => [index, index === 32 ? 27 : index === 33 ? 500 : value]);
+  assert.equal(send(createState(), 'preset_import', {
+    raw: 'HPCRP1' + JSON.stringify(earlierDefaults),
+  }).status, 'committed');
+  for (const [index, value] of [[32, 28], [33, 501], [55, 28], [56, 501], [8, '#123456']]) {
+    const invalid = JSON.parse(JSON.stringify(payload));
+    const record = invalid.records.find(record => record.kind === 'baked');
+    record.values = record.values.filter(([slot]) => slot !== index).concat([[index, value]]);
+    assert.equal(send(createState(), 'preset_import', { raw: 'HPCRP1' + JSON.stringify(invalid) }).status, 'rejected');
+  }
+  for (const [index, value] of [[33, -31], [34, 435]]) {
+    const invalid = JSON.parse(JSON.stringify(payload));
+    const record = invalid.records.find(record => record.kind === 'baked');
+    record.hpv2.values = record.hpv2.values.filter(([slot]) => slot !== index).concat([[index, value]]);
+    assert.equal(send(createState(), 'preset_import', { raw: 'HPCRP1' + JSON.stringify(invalid) }).status, 'rejected');
+  }
+});
+
 test('HPCR2 corpus covers every legacy slot and canonicalizes retired slots', () => {
   assert.equal(wireCorpus.hpcr2.inputCode.startsWith('HPCR2'), true);
   const inputPairs = JSON.parse(wireCorpus.hpcr2.inputCode.slice(5)).v;
@@ -669,6 +752,77 @@ test('HPCR2 malformed extensions reject atomically', () => {
     assert.deepEqual(rejected.effects, [], raw);
   }
 });
+test('appended Units settings remain typed, stock by default, and use the existing hpv2 extension', () => {
+  const keys = [
+    'npcEnemyEnabled',
+    'npcAllyEnabled',
+    'npcNeutralEnabled',
+    'buildingEnemyEnabled',
+    'buildingAllyEnabled',
+    'neutralColor',
+  ];
+  assert.deepEqual(EXTENSION_KEYS.slice(41, 47), keys);
+  for (const key of keys.slice(0, 5)) {
+    assert.equal(DEFAULTS[key], false);
+    assert.equal(SETTING_META[key].type, 'boolean');
+    assert.equal(SETTING_META[key].conditionEligible, true);
+  }
+  assert.equal(DEFAULTS.neutralColor, '#5BEFB5');
+  assert.equal(SETTING_META.neutralColor.type, 'color');
+  assert.equal(SETTING_META.neutralColor.conditionEligible, true);
+
+  const source = createState();
+  keys.slice(0, 5).forEach(key =>
+    send(source, 'setting_edit', { key, value: true }),
+  );
+  send(source, 'setting_edit', { key: 'neutralColor', value: '#2468AC' });
+  send(source, 'condition_set', {
+    key: 'npcEnemyEnabled',
+    slot: 2,
+    minTier: 3,
+    value: false,
+  });
+  const code = effect(send(source, 'settings_copy'), 'clipboard_write').text;
+  const payload = JSON.parse(code.slice(5));
+  assert.deepEqual(payload.hpv2.values.slice(-6), [
+    [41, true],
+    [42, true],
+    [43, true],
+    [44, true],
+    [45, true],
+    [46, '#2468AC'],
+  ]);
+  assert.deepEqual(payload.hpv2.conditions.npcEnemyEnabled, {
+    slot: 2,
+    minTier: 3,
+    value: false,
+  });
+
+  const destination = createState();
+  const roundTrip = send(destination, 'settings_import', { raw: code });
+  for (const key of keys.slice(0, 5))
+    assert.equal(roundTrip.view.values[key], true, key);
+  assert.equal(roundTrip.view.values.neutralColor, '#2468AC');
+  assert.deepEqual(roundTrip.view.conditions.npcEnemyEnabled, {
+    slot: 2,
+    minTier: 3,
+    value: false,
+  });
+
+  const preserved = send(destination, 'settings_import', {
+    raw: 'HPCR2{"v":[],"c":{}}',
+  });
+  assert.equal(preserved.view.values.npcEnemyEnabled, true);
+  assert.equal(preserved.view.values.neutralColor, '#2468AC');
+  const replaced = send(destination, 'settings_import', {
+    raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
+  });
+  for (const key of keys.slice(0, 5))
+    assert.equal(replaced.view.values[key], false, key);
+  assert.equal(replaced.view.values.neutralColor, '#5BEFB5');
+  assert.equal(replaced.view.conditions.npcEnemyEnabled, undefined);
+});
+
 test('HPCRP1 saves, updates, applies, reloads, and transfers every setting', () => {
   const values = exhaustiveValues();
   const conditions = exhaustiveConditions(values);
@@ -1629,7 +1783,9 @@ test('HPCRP1 accepts builder hero order and retains strict atomic hero validatio
   const copied = JSON.parse(effect(send(state, 'preset_copy_all'), 'clipboard_write').text.slice(6));
   for (const source of payload.records) {
     const result = copied.records.find(({ id }) => id === source.id);
-    assert.deepEqual(result.values, source.values);
+    const canonicalValues = source.values.filter(([index, value]) => value !== CODEC_DEFAULTS[CODEC_KEYS[index]])
+      .map(([index, value]) => [index, CONTRACT.normalizeValues({ [CODEC_KEYS[index]]: value })[CODEC_KEYS[index]]]);
+    assert.deepEqual(result.values, canonicalValues);
     assert.deepEqual(result.conditions, source.conditions);
     assert.deepEqual(result.hpv2, source.hpv2);
   }
@@ -1939,4 +2095,23 @@ test('session close invalidates interactions and stale callbacks while preservin
   assert.equal(reopened.view.undoAvailable, false);
   assert.equal(reopened.view.transactions.confirmation, null);
   assert.equal(reopened.view.transactions.gesture, null);
+});
+
+test('Appearance defaults hydrate older snapshots and scope/ability overrides remain session-native', () => {
+  const keys = ['criticalIndicatorVisible', 'playerNamesVisible'];
+  const state = createState(makeSession({ values: { widthScale: 123 } }));
+  for (const key of keys) assert.equal(state.read().values[key], true);
+  send(state, 'scope_set', { mode: 'selected', heroes: ['hero_haze'] });
+  for (const key of keys) {
+    send(state, 'setting_edit', { key, value: false });
+    assert.equal(state.read().effectiveValues[key], false);
+    send(state, 'condition_set', { key, slot: 2, minTier: 2, value: true });
+  }
+  send(state, 'ability_observe', { epoch: state.read().identity.epoch, tiers: [0, 2, 0, 0] });
+  for (const key of keys) assert.equal(state.read().effectiveValues[key], true);
+  send(state, 'ability_observe', { epoch: state.read().identity.epoch, tiers: [0, 1, 0, 0] });
+  for (const key of keys) assert.equal(state.read().effectiveValues[key], false);
+  send(state, 'scope_set', { mode: 'off', heroes: [] });
+  for (const key of keys) assert.equal(state.read().effectiveValues[key], true);
+  assert.equal(state.read().effectiveValues.widthScale, 123);
 });
