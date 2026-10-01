@@ -11,7 +11,7 @@ The layout overrides are based on current stock files in `SteamDatabase/GameTrac
 ### Healthbars and feedback
 
 - Enemy and optional ally fixed/gradient colors with shared thresholds.
-- Enemy team-high color plus independent structure, objective, and creature-class ghoul exclusions.
+- Independent enemy and ally team-high colors plus structure, objective, and creature-class ghoul exclusions.
 - Reversible enemy/ally visibility, dimensions, position, ghoul opacity, healing, damage-delta, shield-indicator, and ultimate-icon coloring.
 - Neutral-first classification; neutral and unclassified targets never enter enemy coloring.
 - Enemy/ally CSS-driven low-HP pulse and enemy-player-only static kill marker.
