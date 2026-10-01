@@ -162,19 +162,28 @@ function Update-AbilityBaselinesFromSteamTracking {
     }
 }
 
+# A freshly written 7 MB VData file can be briefly locked on Windows (virus
+# scan/indexer), and Python's open-for-write then fails with Errno 22. The
+# failure happens before the file is truncated, so re-running is safe.
 function Invoke-AbilityScript {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ScriptName,
         [Parameter(Mandatory = $true)]
-        [string]$InputFile
+        [string]$InputFile,
+        [int]$Attempts = 5
     )
 
     Write-Host "[transform] $ScriptName" -ForegroundColor Cyan
-    $proc = Start-Process -FilePath $python -ArgumentList $ScriptName, $InputFile -WorkingDirectory $modScripts -PassThru -Wait
-    if ($proc.ExitCode -ne 0) {
-        throw "$ScriptName failed with exit code $($proc.ExitCode)"
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        $proc = Start-Process -FilePath $python -ArgumentList $ScriptName, $InputFile -WorkingDirectory $modScripts -PassThru -Wait -NoNewWindow
+        if ($proc.ExitCode -eq 0) { return }
+        if ($attempt -lt $Attempts) {
+            Write-Host "  [retry] $ScriptName exited $($proc.ExitCode); retrying ($attempt/$Attempts)" -ForegroundColor Yellow
+            Start-Sleep -Seconds 1
+        }
     }
+    throw "$ScriptName failed with exit code $($proc.ExitCode) after $Attempts attempts"
 }
 
 function Test-AbilityBehaviorState {
@@ -208,7 +217,7 @@ function Invoke-AbilityCompiler {
     Write-Host "[compile] abilities" -ForegroundColor Cyan
     $compiledActive = Join-Path $modCompiled "scripts\abilities.vdata_c"
     $compiledPassive = Join-Path $modCompiled "scripts\abilities2.vdata_c"
-    Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $modSrc -RequiredOutputs @($compiledActive, $compiledPassive) -TimeoutSeconds 180
+    Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $modSrc -RequiredOutputs @($compiledActive, $compiledPassive) -TimeoutSeconds 180 -HiddenWindow
 }
 
 function Stage-And-Pack {
