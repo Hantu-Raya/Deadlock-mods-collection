@@ -4,10 +4,10 @@
 //
 // Each "launch" boots the shipped contract, state, storage, menu, and renderer
 // sources in Panorama VM mocks. The hidden CitadelHTMLPanel is replaced by a
-// fake Steam CEF page: SetURL("file://") commits a document and raises its
-// title, SetURL("javascript:...") percent-decodes and runs the code against a
-// localStorage backed by a disk Map, and every title change arrives later as
-// an HTMLTitle panel event. The disk Map outlives a launch, so a new launch is
+// fake HTTPS page: the actual hosted inline script handles URL fragments and
+// answers through document.title. localStorage is backed by a disk Map, and
+// every title change arrives later as an HTMLTitle panel event. The disk Map
+// outlives a launch, so a new launch is
 // a game restart and a launch that copies root attributes is a layout reload
 // inside one game process.
 //
@@ -39,6 +39,9 @@ const stateSource = read('panorama/scripts/hp_colors_v2_state.js');
 const storageSource = read('panorama/scripts/hp_colors_v2_storage.js');
 const menuSource = read('panorama/scripts/hp_colors_v2_menu.js');
 const rendererSource = read('panorama/scripts/unit_status_v2_colors.js');
+const PAGE_URL = 'https://hantu-raya.github.io/hpv2-store/';
+const pageSource = fs.readFileSync('D:/hpv2-store/index.html', 'utf8')
+  .match(/<script\b[^>]*>([\s\S]*?)<\/script>/i)[1];
 
 const KEY_CURRENT = 'hantu.hpcolors.v2/state';
 const KEY_PREVIOUS = 'hantu.hpcolors.v2/state.prev';
@@ -55,7 +58,7 @@ const PROCESS_ATTRS = [
   'hp_colors_v2_hydration',
 ];
 const TITLE_LIMIT = 4096;
-const DEFAULT_WIDTH = 100;
+const DEFAULT_WIDTH = 148;
 
 const transcript = [];
 
@@ -64,43 +67,42 @@ function createProfile(seed = {}) {
   return { disk, clock: 1_790_000_000_000 };
 }
 
-// The fake Steam page behind the hidden CitadelHTMLPanel.
+// The fake HTTPS page runs the real hosted script, not a protocol replica.
 function installCefBridge(harness, profile, panel, options = {}) {
   const opts = Object.assign({
     commit: true,
     navLatencySec: 0.8,
     replyLatencySec: 0.05,
-    // Live Deadlock delivers each HTMLTitle twice (console.log 2026-09-26:
-    // the echoed "Index of /" arrived after readiness and broke the first
-    // read). The echo lands after the page has already answered.
     echoLatencySec: 0.12,
     duplicateReplies: false,
-    quotaChars: Infinity,
-    // (title) => true drops that title and its echo, like a lost HTMLTitle.
-    dropTitle: null,
-    // Titles longer than this arrive cut short, like a capped title channel.
-    titleLimit: TITLE_LIMIT,
-    // Seconds after navigation when the panel's about:blank placeholder
-    // raises its own title before file:// commits (live console.log
-    // 2026-09-26 05:36/05:43: "ready" from it, then every read unanswered).
-    placeholderSec: null,
-    // Live console.log 2026-09-26 06:18: a script sent while file:// was
-    // still loading aborted the load and the panel landed on http://error/.
-    abortLoadOnScript: true,
-    // The first N loads end at http://error/ on their own.
-    failNavigations: 0,
-    // Loads of this exact address always end on http://error/.
-    failUrl: null,
-    // Each HTMLURLChanged also arrives twice, like HTMLTitle.
     duplicateUrlEvents: false,
-    // The first load reports http://error/ this long before it commits file:.
-    strayErrorSec: null,
+    quotaChars: Infinity,
+    dropTitle: null,
+    titleLimit: TITLE_LIMIT,
+    deadUntilSec: 0,
+    blankAtSec: null,
+    failLoad: false,
+    readyHref: null,
   }, options);
-  const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [], urls: [] };
+  const installedAt = harness.now;
+  const stats = {
+    navigations: 0, pageLoads: 0, reads: 0, writes: 0, deletes: 0,
+    titles: [], urls: [], requests: [], keyAccesses: [],
+  };
   let page = null;
+  let hashchange = null;
 
   function deliver(title) {
-    const cut = String(title).slice(0, opts.titleLimit);
+    let text = String(title);
+    if (text.startsWith('HPV2S1:')) {
+      const message = JSON.parse(text.slice(7));
+      if (message.o === 'ready') {
+        if (Object.hasOwn(opts, 'protocolVersion')) message.v = opts.protocolVersion;
+        if (opts.readyHref !== null) message.h = opts.readyHref;
+        text = `HPV2S1:${JSON.stringify(message)}`;
+      }
+    }
+    const cut = text.slice(0, opts.titleLimit);
     if (opts.dropTitle && opts.dropTitle(cut)) {
       stats.dropped = (stats.dropped || 0) + 1;
       return;
@@ -119,71 +121,78 @@ function installCefBridge(harness, profile, panel, options = {}) {
   function usedChars(extraKey, extraValue) {
     let total = 0;
     for (const [key, value] of profile.disk) {
-      if (key === extraKey) continue;
-      total += key.length + value.length;
+      if (key !== extraKey) total += key.length + value.length;
     }
-    return total + (extraKey ? extraKey.length + String(extraValue).length : 0);
+    return total + extraKey.length + String(extraValue).length;
   }
 
-  function newPage(href = 'file:///') {
-    const denied = () => { throw new Error('Access is denied for this document.'); };
-    const localStorage = href.startsWith('file:') ? {
-      getItem: (key) => (profile.disk.has(key) ? profile.disk.get(key) : null),
+  function urlEvent(href) {
+    if (typeof panel.events.HTMLURLChanged !== 'function') return;
+    panel.events.HTMLURLChanged(panel, href);
+    if (opts.duplicateUrlEvents) panel.events.HTMLURLChanged(panel, href);
+  }
+
+  function observeRequest(href) {
+    const message = JSON.parse(decodeURIComponent(new URL(href).hash.slice(1)));
+    stats.requests.push(message);
+    if (message.o === 'r') stats.reads += 1;
+    if (message.o === 'w') stats.writes += 1;
+    if (message.o === 'd') stats.deletes += 1;
+  }
+
+  function commit(href) {
+    stats.pageLoads += 1;
+    const localStorage = {
+      getItem: (key) => {
+        stats.keyAccesses.push(key);
+        return profile.disk.has(key) ? profile.disk.get(key) : null;
+      },
       setItem: (key, value) => {
+        stats.keyAccesses.push(key);
         if (usedChars(key, value) > opts.quotaChars) throw new Error('QuotaExceededError');
         profile.disk.set(key, String(value));
       },
-      removeItem: (key) => { profile.disk.delete(key); },
-    } : { getItem: denied, setItem: denied, removeItem: denied };
-    const context = { JSON, Math, String, localStorage, location: { href } };
-    context.window = context;
-    context.document = {
-      set title(value) { deliver(value); },
-      get title() { return ''; },
+      removeItem: (key) => { stats.keyAccesses.push(key); profile.disk.delete(key); },
     };
-    return vm.createContext(context);
+    const context = {
+      JSON, Math, String, Number, decodeURIComponent, localStorage,
+      location: { href, hash: new URL(href).hash },
+      addEventListener: (event, callback) => { if (event === 'hashchange') hashchange = callback; },
+      document: { set title(value) { deliver(value); } },
+    };
+    context.window = context;
+    page = vm.createContext(context);
+    urlEvent(href);
+    observeRequest(href);
+    vm.runInContext(pageSource, page, { filename: 'hpv2-store/index.html' });
   }
 
-  let loading = null;
-  function commit(href, title) {
-    page = newPage(href);
-    if (typeof panel.events.HTMLURLChanged === 'function') {
-      panel.events.HTMLURLChanged(panel, href);
-      if (opts.duplicateUrlEvents) panel.events.HTMLURLChanged(panel, href);
-    }
-    deliver(title);
-  }
-
+  if (opts.blankAtSec !== null)
+    harness.scheduler.schedule(opts.blankAtSec, () => urlEvent('about:blank'));
   panel.SetURL = (url) => {
     const text = String(url);
-    if (text.startsWith('javascript:')) {
-      if (loading && opts.abortLoadOnScript) {
-        harness.scheduler.cancel(loading);
-        loading = null;
-        stats.aborted = (stats.aborted || 0) + 1;
-        harness.scheduler.schedule(0.05, () => commit('http://error/', 'http://error/'));
+    assert.ok(text.startsWith(`${PAGE_URL}#`), 'transport must use the hosted HTTPS page');
+    stats.urls.push(text);
+    if ((harness.now - installedAt) / 1000 < opts.deadUntilSec) {
+      stats.dropped = (stats.dropped || 0) + 1;
+      return;
+    }
+    if (page) {
+      const previous = page.location.hash;
+      page.location.href = text;
+      page.location.hash = new URL(text).hash;
+      urlEvent(text);
+      if (previous !== page.location.hash) {
+        observeRequest(text);
+        hashchange();
       }
-      if (!page) return;
-      const code = decodeURIComponent(text.slice('javascript:'.length));
-      if (code.includes('__hpv2s.r(')) stats.reads += 1;
-      if (code.includes('__hpv2s.w(')) stats.writes += 1;
-      if (code.includes('__hpv2s.d(')) stats.deletes += 1;
-      vm.runInContext(code, page);
       return;
     }
     stats.navigations += 1;
-    stats.urls.push(text);
-    page = null;
-    if (opts.placeholderSec !== null)
-      harness.scheduler.schedule(opts.placeholderSec, () => commit('about:blank', 'about:blank'));
     if (!opts.commit) return;
-    if (opts.strayErrorSec !== null && stats.navigations === 1)
-      harness.scheduler.schedule(opts.strayErrorSec, () => panel.events.HTMLURLChanged(panel, 'http://error/'));
-    const failed = stats.navigations <= opts.failNavigations || text === opts.failUrl;
-    loading = harness.scheduler.schedule(opts.navLatencySec, () => {
-      loading = null;
-      if (failed) commit('http://error/', 'http://error/');
-      else commit(text === 'file://' ? 'file:///' : text, 'Index of /');
+    harness.scheduler.schedule(opts.navLatencySec, () => {
+      if (opts.failLoad) urlEvent('about:blank');
+      else commit(text);
     });
   };
   return stats;
@@ -198,6 +207,9 @@ function installLayoutPanels(harness, layout) {
       childReadCounts: harness.childReadCounts,
     }));
   }
+  const shape = harness.root.FindChildTraverse('HPColorsStaminaShape');
+  if (shape) for (const option of ['arrow', 'circle', 'box'])
+    shape.AddOption(harness.root.FindChildTraverse(option));
 }
 
 function launch(profile, options = {}) {
@@ -251,6 +263,7 @@ function record(fixture, extra = {}) {
     bridge: fixture.bridge
       ? {
         navigations: fixture.bridge.navigations,
+        pageLoads: fixture.bridge.pageLoads,
         reads: fixture.bridge.reads,
         writes: fixture.bridge.writes,
         deletes: fixture.bridge.deletes,
@@ -464,7 +477,7 @@ test('unreadable or future-schema saves stay read-only and are never replaced by
 test('a bridge that never becomes ready boots on defaults without writing', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'no page commit', bridge: { commit: false } });
-  fixture.run(45000);
+  fixture.run(75000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   assert.equal(fixture.renderer().enabled, true);
   assert.equal(fixture.renderer().widthScale, DEFAULT_WIDTH);
@@ -474,6 +487,36 @@ test('a bridge that never becomes ready boots on defaults without writing', () =
   fixture.run(3000);
   assert.equal(profile.disk.has(KEY_CURRENT), false);
   record(fixture);
+});
+
+for (const [label, bridge] of [
+  ['ignores navigation for 17 s', { deadUntilSec: 17 }],
+  // A surface-created URL event must not stop resending the lost hello.
+  ['loses the first navigation, then raises about:blank at 5 s', { deadUntilSec: 5, blankAtSec: 5 }],
+]) test(`a page surface that ${label} at launch still restores and saves`, () => {
+  const profile = createProfile();
+  const seed = launch(profile, { label: `${label} seed` });
+  seed.run(2000);
+  openEditor(seed);
+  setWidth(seed, 150);
+  closeEditor(seed);
+  seed.run(3000);
+
+  const late = launch(profile, { label, bridge });
+  late.run(4000);
+  assert.equal(late.renderer().enabled, false, 'bars stay stock while the save is still loading');
+  late.run(31000);
+  assert.ok(late.bridge.dropped > 0, 'early navigations were lost');
+  assert.equal(late.attr('hp_colors_v2_hydration'), 'done');
+  assert.equal(late.renderer().widthScale, 150);
+  assert.equal(late.status(), 'SAVED ON THIS PC');
+
+  openEditor(late);
+  setWidth(late, 170);
+  closeEditor(late);
+  late.run(3000);
+  assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 170);
+  record(late, { droppedNavigations: late.bridge.dropped });
 });
 
 test('Forget clears only v2 keys, keeps live settings, and saves again after the next edit', () => {
@@ -550,7 +593,7 @@ test('an old builder pak01 layout still boots and tells the player to delete it'
     omitStorageScript: true,
   });
   fixture.run(4000);
-  assert.equal(fixture.status(), 'UPDATE PRESET FILE');
+  assert.equal(fixture.status(), 'OLD PRESET VPK');
   assert.equal(fixture.renderer().enabled, true);
   openEditor(fixture);
   assert.ok(fixture.harness.logs.some((line) => line.includes('delete pak01_dir.vpk')));
@@ -673,84 +716,88 @@ test('a lost save acknowledgement is retried by the editor without rotating the 
   record(fixture);
 });
 
-// Live console.log 2026-09-26 05:36, 05:43 and 06:18: the first script went
-// into the panel's about:blank placeholder while file:// was still loading;
-// the load then failed to http://error/ (or the reads vanished with the
-// placeholder). Scripts now wait for a loaded file:// document.
-test('no script reaches the page until file:// has loaded, so the load is never aborted', () => {
-  const factory = loadStorageCodec();
-  const profile = createProfile({
-    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 205 }), 1),
-  });
-  const fixture = launch(profile, {
-    label: 'placeholder during load',
-    bridge: { placeholderSec: 0.1, navLatencySec: 0.8 },
-  });
-  fixture.run(20000);
-  assert.equal(fixture.bridge.aborted, undefined, 'the file:// load was never interrupted');
-  assert.equal(fixture.renderer().widthScale, 205);
-  assert.equal(fixture.status(), 'SAVED ON THIS PC');
-  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/C:\/ \(load 1\)/);
-  record(fixture);
-});
-
-test('when both addresses end on http://error/, saving is unavailable and the save is kept', () => {
-  const factory = loadStorageCodec();
-  const record0 = factory.codec.encodeRecord(savedBody({ widthScale: 212 }), 1);
+test('offline page load leaves storage unavailable without touching the save', () => {
+  const record0 = loadStorageCodec().codec.encodeRecord(savedBody({ widthScale: 212 }), 1);
   const profile = createProfile({ [KEY_CURRENT]: record0 });
-  const fixture = launch(profile, { label: 'both loads fail', bridge: { failNavigations: 2 } });
-  fixture.run(30000);
-  assert.deepEqual(fixture.bridge.urls, ['file:///C:/', 'file://']);
+  const fixture = launch(profile, { label: 'offline HTTPS page', bridge: { failLoad: true } });
+  fixture.run(35000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
-  assert.match(fixture.harness.logs.join('\n'), /bridge unavailable: load_failed/);
+  assert.match(fixture.harness.logs.join('\n'), /bridge unavailable: .*load|bridge unavailable: .*timeout/);
   assert.equal(profile.disk.get(KEY_CURRENT), record0);
+  assert.equal(fixture.bridge.writes, 0);
   record(fixture);
 });
 
-test('if the C: listing never loads, bare file:// still reaches the same save', () => {
-  const factory = loadStorageCodec();
-  const profile = createProfile({
-    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 214 }), 1),
+for (const protocolVersion of [999, undefined])
+  test(`page protocol version ${protocolVersion} is unavailable with no writes`, () => {
+    const profile = createProfile();
+    const fixture = launch(profile, { bridge: { protocolVersion } });
+    fixture.run(35000);
+    assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+    assert.match(fixture.harness.logs.join('\n'), /protocol_version/);
+    openEditor(fixture);
+    setWidth(fixture, 190);
+    closeEditor(fixture);
+    fixture.run(5000);
+    assert.equal(fixture.bridge.reads, 0);
+    assert.equal(fixture.bridge.writes, 0);
+    assert.equal(profile.disk.has(KEY_CURRENT), false);
+    record(fixture);
   });
-  const fixture = launch(profile, { label: 'file:///C:/ always fails', bridge: { failUrl: 'file:///C:/' } });
-  fixture.run(20000);
-  assert.equal(fixture.renderer().widthScale, 214);
-  assert.equal(fixture.status(), 'SAVED ON THIS PC');
-  assert.match(fixture.harness.logs.join('\n'), /bridge ready at file:\/\/\/ \(load 2/);
-  record(fixture);
-});
 
-test('doubled URL events move to the next address once', () => {
-  const factory = loadStorageCodec();
-  const profile = createProfile({
-    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 216 }), 1),
+for (const readyHref of [
+  'http://hantu-raya.github.io/hpv2-store/',
+  'https://other.example/hpv2-store/',
+  'https://hantu-raya.github.io/hpv2-store/evil',
+  'https://hantu-raya.github.io/hpv2-store/?redirect=1',
+  'file:///C:/',
+])
+  test(`hello from ${readyHref} is ignored without reads or writes`, () => {
+    const profile = createProfile();
+    const fixture = launch(profile, { bridge: { readyHref } });
+    fixture.run(35000);
+    assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+    openEditor(fixture);
+    setWidth(fixture, 190);
+    closeEditor(fixture);
+    fixture.run(5000);
+    assert.equal(fixture.bridge.reads, 0);
+    assert.equal(fixture.bridge.writes, 0);
+    assert.equal(profile.disk.has(KEY_CURRENT), false);
+    record(fixture);
   });
-  const fixture = launch(profile, {
-    label: 'doubled URL events',
-    bridge: { failNavigations: 1, duplicateUrlEvents: true },
-  });
-  fixture.run(20000);
-  assert.deepEqual(fixture.bridge.urls, ['file:///C:/', 'file://']);
-  assert.equal(fixture.renderer().widthScale, 216);
-  assert.equal(fixture.status(), 'SAVED ON THIS PC');
-  record(fixture);
-});
 
-test('a load that reports an error and then commits keeps its page', () => {
-  const factory = loadStorageCodec();
-  const profile = createProfile({
-    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody({ widthScale: 217 }), 1),
-  });
-  const fixture = launch(profile, { label: 'error then commit', bridge: { strayErrorSec: 0.3 } });
-  fixture.run(10000);
-  assert.deepEqual(fixture.bridge.urls, ['file:///C:/']);
+test('20+KB saves use unique fragments, one page load, and read chunks across a restart', () => {
+  const profile = createProfile();
+  const fixture = launch(profile, { label: '20+KB chunked save',
+    bridge: { duplicateReplies: true, duplicateUrlEvents: true } });
+  fixture.run(2000);
   openEditor(fixture);
-  setWidth(fixture, 196);
+  setWidth(fixture, 176);
+  for (let index = 0; index < 96; index += 1)
+    createPreset(fixture, `Chunked ${index} ${'名'.repeat(25)}`);
   closeEditor(fixture);
-  fixture.run(8000);
-  assert.equal(storedEditedWidth(profile), 196);
+  fixture.run(10000);
+  assert.ok(profile.disk.get(KEY_CURRENT).length > 20000);
   assert.equal(fixture.status(), 'SAVED ON THIS PC');
-  record(fixture);
+  assert.ok(fixture.bridge.writes > 6);
+  assert.equal(fixture.bridge.pageLoads, 1);
+  assert.equal(new Set(fixture.bridge.requests.map((request) => request.i)).size,
+    fixture.bridge.requests.length, 'every message, including chunks, gets a unique id');
+  assert.ok(fixture.bridge.keyAccesses.every((key) => [KEY_CURRENT, KEY_PREVIOUS].includes(key)));
+  const body = storedRecord(profile).body;
+  record(fixture, { savedRecordChars: profile.disk.get(KEY_CURRENT).length });
+  const restarted = launch(profile, { label: '20+KB chunked restore' });
+  restarted.run(10000);
+  assert.equal(restarted.status(), 'SAVED ON THIS PC');
+  assert.equal(restarted.renderer().widthScale, 176);
+  assert.equal(menuState(restarted).userPresets.length, 96);
+  assert.deepEqual(JSON.parse(storedRecord(profile).body).userPresets,
+    JSON.parse(body).userPresets, 'all preset records survive chunked storage unchanged');
+  assert.ok(restarted.bridge.reads > 6);
+  assert.equal(restarted.bridge.pageLoads, 1);
+  assertOtherModsUntouched(profile);
+  record(restarted);
 });
 
 test('saves from the first local-save build (schema 1) still restore and upgrade', () => {
@@ -769,7 +816,7 @@ test('saves from the first local-save build (schema 1) still restore and upgrade
   closeEditor(fixture);
   fixture.run(8000);
   const stored = profile.disk.get(KEY_CURRENT).split('.')[2];
-  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 2);
+  assert.equal(JSON.parse(Buffer.from(stored, 'base64').toString('utf8')).s, 4);
   assert.equal(storedEditedWidth(profile), 200);
   record(fixture);
 });
@@ -784,16 +831,58 @@ test('saves keep only non-default values, and a restart fills the rest', () => {
   closeEditor(first);
   first.run(4000);
   const body = JSON.parse(storedRecord(profile).body);
-  assert.deepEqual(Object.keys(body.values), ['widthScale']);
-  assert.deepEqual(Object.keys(body.userPresets[0].values), ['widthScale']);
+  const changedFromFrozen = ['widthScale', 'heightScale', 'positionY', 'readoutFont',
+    'readoutOffsetX', 'readoutOffsetY', 'ultOffsetX', 'ultOffsetY', 'levelOffsetX',
+    'levelOffsetY', 'enemyPipColorEnabled', 'enemyPipColor'];
+  assert.deepEqual(Object.keys(body.values), changedFromFrozen);
+  assert.deepEqual(Object.keys(body.userPresets[0].values), changedFromFrozen);
   assert.ok(profile.disk.get(KEY_CURRENT).length < 3000, 'a typical save is one chunk');
 
   const restart = launch(profile, { label: 'sparse restore' });
   restart.run(6000);
   assert.equal(restart.renderer().widthScale, 210);
-  assert.equal(restart.renderer().heightScale, 100, 'omitted values restore to defaults');
+  assert.equal(restart.renderer().heightScale, 80, 'new defaults are explicit against the frozen baseline');
   assert.equal(menuState(restart).userPresets[0].values.enemyLow, '#FD4949');
   record(restart, { recordChars: profile.disk.get(KEY_CURRENT).length });
+});
+
+test('6722 Units, Appearance and bar-relative readout settings persist through a real editor restart', () => {
+  const profile = createProfile();
+  const first = launch(profile, { label: '6722 settings save' });
+  first.run(2000);
+  openEditor(first);
+  panelById(first.harness, 'HPColorsCategoryUnits').events.onactivate();
+  panelById(first.harness, 'HPColorsNpcEnemyToggle').events.onactivate();
+  panelById(first.harness, 'HPColorsCategoryOverview').events.onactivate();
+  panelById(first.harness, 'HPColorsTab2').events.onactivate();
+  panelById(first.harness, 'HPColorsPlayerNamesToggle').events.onactivate();
+  const x = panelById(first.harness, 'HPColorsReadoutOffsetXEntry');
+  const y = panelById(first.harness, 'HPColorsReadoutOffsetYEntry');
+  x.text = '197'; // 197% of 76 px rounds to 150 stored px.
+  x.events.ontextentrysubmit();
+  y.text = '-556'; // -556% of 18 px rounds to -100 stored px.
+  y.events.ontextentrysubmit();
+  createPreset(first, '6722 saved');
+  closeEditor(first);
+  first.run(4000);
+  const body = JSON.parse(storedRecord(profile).body);
+  assert.equal(body.values.npcEnemyEnabled, true);
+  assert.equal(body.values.playerNamesVisible, false);
+  assert.equal(body.values.readoutOffsetX, 150);
+  assert.equal(body.values.readoutOffsetY, -100);
+  assert.equal(Object.hasOwn(body.values, 'healthbarMaskEnabled'), false);
+  assert.equal(Object.hasOwn(body.values, 'ghoulOpacity'), false);
+  const restart = launch(profile, { label: '6722 settings restore' });
+  restart.run(6000);
+  const restored = restart.renderer();
+  assert.equal(restored.npcEnemyEnabled, true);
+  assert.equal(restored.playerNamesVisible, false);
+  assert.equal(restored.readoutOffsetX, 150);
+  assert.equal(restored.readoutOffsetY, -100);
+  assert.equal(restored.allyReadoutOffsetX, 0);
+  assert.equal(restored.enemyPulseReadoutOffsetY, 0);
+  assert.equal(menuState(restart).userPresets[0].values.readoutOffsetX, 150);
+  record(restart, { portSettings: body.values });
 });
 
 test('an unreadable reply title is logged and the stored save is left untouched', () => {
@@ -902,17 +991,21 @@ test('audit 3: Forget stays forgotten through automatic hero routing', () => {
   record(fixture);
 });
 
-test('audit 5: a lost first page title still gets the page injected', () => {
-  const profile = createProfile({
-    [KEY_CURRENT]: loadStorageCodec().codec.encodeRecord(savedBody({ widthScale: 215 }), 1),
-  });
+test('a lost ready hello fails closed without a write', () => {
+  const record0 = loadStorageCodec().codec.encodeRecord(savedBody({ widthScale: 215 }), 1);
+  const profile = createProfile({ [KEY_CURRENT]: record0 });
   const fixture = launch(profile, {
-    label: 'audit 5 lost first title',
-    bridge: { dropTitle: dropFirst((title) => title === 'Index of /') },
+    label: 'lost ready title',
+    bridge: { dropTitle: (title) => title.includes('"o":"ready"') },
   });
-  fixture.run(20000);
-  assert.equal(fixture.renderer().widthScale, 215);
-  assert.equal(fixture.status(), 'SAVED ON THIS PC');
+  fixture.run(35000);
+  assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
+  openEditor(fixture);
+  setWidth(fixture, 190);
+  closeEditor(fixture);
+  fixture.run(5000);
+  assert.equal(fixture.bridge.writes, 0);
+  assert.equal(profile.disk.get(KEY_CURRENT), record0);
   record(fixture);
 });
 
@@ -963,7 +1056,7 @@ test('an All Except preset keeps its mode and skipped heroes through a restart',
   record(second);
 });
 
-test('a save without any All Except preset or scope is written with envelope schema 2', () => {
+test('a save without any All Except preset or scope is written with envelope schema 4', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'schema 2 write' });
   fixture.run(2000);
@@ -972,12 +1065,12 @@ test('a save without any All Except preset or scope is written with envelope sch
   closeEditor(fixture);
   fixture.run(4000);
   assert.equal(storedRecord(profile).kind, 'valid');
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   assert.equal(storedEditedWidth(profile), 175);
   record(fixture);
 });
 
-test('a schema 2 save still restores and the next save stays schema 2', () => {
+test('a schema 2 save still restores and the next save upgrades to schema 4', () => {
   const profile = createProfile({
     [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 2, t: 1, b: JSON.parse(savedBody({ widthScale: 165 })) }),
   });
@@ -989,12 +1082,12 @@ test('a schema 2 save still restores and the next save stays schema 2', () => {
   setWidth(fixture, 185);
   closeEditor(fixture);
   fixture.run(8000);
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   assert.equal(storedEditedWidth(profile), 185);
   record(fixture);
 });
 
-test('an All Except Current scope saves as schema 3, and returning to All Heroes saves schema 2', () => {
+test('an All Except Current scope saves as schema 4 before and after returning to All Heroes', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'except scope schema' });
   fixture.run(2000);
@@ -1007,7 +1100,7 @@ test('an All Except Current scope saves as schema 3, and returning to All Heroes
   fixture.run(4000);
   const current = JSON.parse(storedRecord(profile).body).scopes.find((scope) => scope.id === 'scope_current');
   assert.equal(current.mode, 'except');
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 4);
 
   openEditor(fixture);
   panelById(fixture.harness, 'HPColorsCurrentScopeAll').events.onactivate();
@@ -1015,11 +1108,11 @@ test('an All Except Current scope saves as schema 3, and returning to All Heroes
   fixture.run(4000);
   const body = JSON.parse(storedRecord(profile).body);
   assert.ok(!(body.scopes || []).some((scope) => scope.mode === 'except'));
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   record(fixture);
 });
 
-test('deleting the All Except preset keeps schema 3 until Current returns to All Heroes', () => {
+test('deleting the All Except preset keeps schema 4 when Current returns to All Heroes', () => {
   const profile = createProfile({
     [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: exceptBody({ widthScale: 140 }) }),
   });
@@ -1029,7 +1122,7 @@ test('deleting the All Except preset keeps schema 3 until Current returns to All
   setWidth(fixture, 150);
   closeEditor(fixture);
   fixture.run(8000);
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 4);
 
   openEditor(fixture);
   const rowIndex = Array.from({ length: 64 }, (_, index) => index).find((index) => {
@@ -1042,7 +1135,7 @@ test('deleting the All Except preset keeps schema 3 until Current returns to All
   closeEditor(fixture);
   fixture.run(8000);
   assert.equal(JSON.parse(storedRecord(profile).body).userPresets.some((row) => row.mode === 'except'), false);
-  assert.equal(storedSchema(profile), 3);
+  assert.equal(storedSchema(profile), 4);
 
   openEditor(fixture);
   panelById(fixture.harness, 'HPColorsCurrentScopeAll').events.onactivate();
@@ -1051,14 +1144,14 @@ test('deleting the All Except preset keeps schema 3 until Current returns to All
   const body = JSON.parse(storedRecord(profile).body);
   assert.equal((body.userPresets || []).some((row) => row.mode === 'except'), false);
   assert.equal((body.scopes || []).some((scope) => scope.mode === 'except'), false);
-  assert.equal(storedSchema(profile), 2);
+  assert.equal(storedSchema(profile), 4);
   record(fixture);
 });
 
-test('a schema 4 save is read-only and never overwritten', () => {
-  const future = rawRecord({ m: 'HPV2STORE', s: 4, t: 1, b: exceptBody({ widthScale: 150 }) });
+test('a schema 5 save is read-only and never overwritten', () => {
+  const future = rawRecord({ m: 'HPV2STORE', s: 5, t: 1, b: exceptBody({ widthScale: 150 }) });
   const profile = createProfile({ [KEY_CURRENT]: future });
-  const fixture = launch(profile, { label: 'schema 4 read-only' });
+  const fixture = launch(profile, { label: 'schema 5 read-only' });
   fixture.run(8000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   openEditor(fixture);
@@ -1073,7 +1166,7 @@ test('a schema 4 save is read-only and never overwritten', () => {
 // A save this build cannot read (for example one written by a newer build)
 // must still be removable on purpose; otherwise a downgraded player is stuck.
 test('a save this build cannot read can be cleared after confirming, then saving resumes', () => {
-  const future = rawRecord({ m: 'HPV2STORE', s: 4, t: 1, b: exceptBody({ widthScale: 150 }) });
+  const future = rawRecord({ m: 'HPV2STORE', s: 5, t: 1, b: exceptBody({ widthScale: 150 }) });
   const profile = createProfile({ [KEY_CURRENT]: future, [KEY_PREVIOUS]: future });
   const fixture = launch(profile, { label: 'clear unreadable save' });
   fixture.run(8000);
@@ -1239,4 +1332,178 @@ test('header chip names the preset the current settings belong to', () => {
   fresh.run(8000);
   assert.equal(fresh.status(), 'SAVED ON THIS PC');
   assert.equal(fresh.chip(), 'NOT SAVED TO A PRESET');
+});
+
+test('round schema-3 restart drops saved formats without losing names geometry scopes or hero own', () => {
+  const values = {
+    readoutFormat: 'percent', allyReadoutFormat: 'current',
+    precisePipsEnabled: true, readoutMaxTeamColor: true, allyReadoutMaxTeamColor: true,
+    enemyNameColorEnabled: true, enemyNameColor: '#123456',
+    allyNameColorEnabled: true, allyNameColor: '#ABCDEF',
+    nameSize: 40, nameOffsetX: -170, nameOffsetY: 160,
+    widthScale: 60, heightScale: 60, positionX: -1200, positionY: 1100,
+    accessoryAnchorEnabled: false, ultOffsetX: -2300, ultOffsetY: 2200,
+    levelOffsetX: 2100, levelOffsetY: -2000, staminaOffsetX: -900, staminaOffsetY: 800,
+    readoutOffsetX: -100, readoutOffsetY: 90, allyReadoutOffsetX: 80, allyReadoutOffsetY: -70,
+    enemyPulseReadoutOffsetX: -60, enemyPulseReadoutOffsetY: 50,
+  };
+  const body = exceptBody(values);
+  body.conditions = { readoutFormat: { slot: 1, minTier: 1, value: 'current' },
+    allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' },
+    precisePipsEnabled: { slot: 1, minTier: 1, value: true },
+    readoutMaxTeamColor: { slot: 1, minTier: 1, value: true },
+    allyReadoutMaxTeamColor: { slot: 1, minTier: 1, value: true } };
+  body.userPresets[0].values = values;
+  body.userPresets[0].conditions = body.conditions;
+  body.userPresets[0].own = ['readoutFormat', 'allyReadoutFormat', 'precisePipsEnabled',
+    'readoutMaxTeamColor', 'allyReadoutMaxTeamColor', 'nameSize', 'positionX'];
+  // This geometry/retirement fixture has an explicit historical stock base;
+  // fallback-default pinning is covered separately.
+  body.userPresets.push({ id: 'user_0002', name: 'Frozen base', mode: 'all',
+    heroes: [], values: {}, conditions: null });
+  const oldRecord = rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body });
+  const profile = createProfile({ [KEY_CURRENT]: oldRecord });
+  const first = launch(profile, { label: 'round saved format restore' });
+  first.run(8000);
+  const restored = menuState(first);
+  assert.equal(Object.hasOwn(restored.values, 'readoutFormat'), false);
+  assert.equal(Object.hasOwn(restored.conditions, 'allyReadoutFormat'), false);
+  const retiredKeys = ['readoutFormat', 'allyReadoutFormat', 'precisePipsEnabled',
+    'readoutMaxTeamColor', 'allyReadoutMaxTeamColor'];
+  for (const key of retiredKeys) {
+    assert.equal(Object.hasOwn(restored.values, key), false, key);
+    assert.equal(Object.hasOwn(restored.conditions, key), false, key);
+    assert.equal(Object.hasOwn(restored.userPresets[0].values, key), false, key);
+    assert.equal(Object.hasOwn(restored.userPresets[0].conditions || {}, key), false, key);
+    for (const scope of restored.scopes) {
+      assert.equal(Object.hasOwn(scope.values, key), false, key);
+      assert.equal(Object.hasOwn(scope.conditions || {}, key), false, key);
+    }
+  }
+  assert.deepEqual(restored.userPresets[0].own, ['positionX', 'nameSize']);
+  for (const [key, value] of Object.entries(values)) {
+    if (retiredKeys.includes(key)) continue;
+    const expected = /^(readout|allyReadout|enemyPulseReadout)Offset[XY]$/.test(key)
+      ? Math.round(value / 0.6) : value;
+    assert.equal(restored.userPresets[0].values[key], expected, key);
+  }
+  openEditor(first);
+  assert.equal(panelById(first.harness, 'HPColorsNativeFormatNotice').BHasClass('Active'), true);
+  setWidth(first, 65);
+  closeEditor(first);
+  first.run(8000);
+  assert.equal(storedSchema(profile), 4);
+  assert.equal(JSON.parse(storedRecord(profile).body).userPresets[0].mode, 'except');
+  const second = launch(profile, { label: 'round normalized restart' });
+  second.run(8000);
+  openEditor(second);
+  assert.equal(panelById(second.harness, 'HPColorsNativeFormatNotice').BHasClass('Active'), false);
+  const preset = menuState(second).userPresets[0];
+  for (const [key, value] of Object.entries(values)) {
+    if (retiredKeys.includes(key)) continue;
+    const expected = /^(readout|allyReadout|enemyPulseReadout)Offset[XY]$/.test(key)
+      ? Math.round(value / 0.6) : value;
+    assert.equal(preset.values[key], expected, key);
+  }
+  for (const [key, value] of Object.entries(THIRD_EYE_KEYS)) assert.equal(profile.disk.get(key), value);
+  record(first);
+  record(second);
+});
+
+test('schema 3 stamina migration and explicit shapes survive sparse saves and real menu restarts', () => {
+  for (const [initialValues, expectedShape] of [
+    [{}, 'arrow'],
+    [{ staminaWidth: 150 }, 'box'],
+    [{ staminaHeight: 60 }, 'box'],
+    [{ enemyStaminaColorEnabled: true }, 'box'],
+    [{ staminaOffsetX: 20 }, 'arrow'],
+    [{ staminaWidth: 150, enemyStaminaColorEnabled: true, staminaShape: 'arrow' }, 'arrow'],
+    [{ staminaWidth: 150, staminaShape: 'circle' }, 'circle'],
+    [{ staminaShape: 'box' }, 'box'],
+  ]) {
+    const values = { ...initialValues, enemyPipColorEnabled: true, enemyPipColor: '#123456',
+      allyPipColorEnabled: true, allyPipColor: '#ABCDEF', pipOpacity: 42 };
+    const body = exceptBody(values);
+    body.userPresets[0].values = { ...values };
+    body.userPresets[0].conditions = { pipOpacity: { slot: 1, minTier: 1, value: 70 } };
+    const profile = createProfile({
+      [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }),
+    });
+    const first = launch(profile, { label: 'shape migration ' + expectedShape });
+    first.run(8000);
+    assert.equal(menuState(first).values.staminaShape, expectedShape);
+    assert.equal(menuState(first).userPresets[0].values.staminaShape, expectedShape);
+    openEditor(first);
+    setWidth(first, 205);
+    closeEditor(first);
+    first.run(8000);
+    assert.equal(storedSchema(profile), 4, 'All Except keeps the durable schema');
+    const persisted = JSON.parse(storedRecord(profile).body);
+    if (initialValues.staminaShape === 'arrow') {
+      assert.equal(persisted.values.staminaShape, 'arrow', 'explicit default defeats derived box migration');
+      assert.equal(persisted.userPresets[0].values.staminaShape, 'arrow');
+    }
+    assert.equal(persisted.values.enemyPipColor, '#123456');
+    assert.equal(persisted.values.allyPipColor, '#ABCDEF');
+    assert.equal(persisted.values.pipOpacity, 42);
+    record(first);
+    const restarted = launch(profile, { label: 'shape restart ' + expectedShape });
+    restarted.run(8000);
+    assert.equal(menuState(restarted).values.staminaShape, expectedShape);
+    assert.equal(menuState(restarted).userPresets[0].values.staminaShape, expectedShape);
+    assert.deepEqual(menuState(restarted).userPresets[0].conditions.pipOpacity,
+      { slot: 1, minTier: 1, value: 70 });
+    assertOtherModsUntouched(profile);
+    record(restarted);
+  }
+});
+
+test('schema four marks scaled offsets and schema three retains old offset semantics', () => {
+  const codec = loadStorageCodec().codec;
+  const body = JSON.stringify({ version: 1, offsetVersion: 2, values: { widthScale: 60, readoutOffsetX: 333 } });
+  const record = codec.encodeRecord(body, 1);
+  const envelope = JSON.parse(Buffer.from(record.split('.')[2], 'base64url').toString());
+  assert.equal(envelope.s, 4);
+  assert.equal(JSON.parse(codec.classifyRecord(record).body).offsetVersion, 2);
+  const old = { m: 'HPV2STORE', s: 3, t: 1, b: { version: 1, values: { widthScale: 60, readoutOffsetX: 200 } } };
+  const payload = Buffer.from(JSON.stringify(old)).toString('base64url');
+  assert.equal(codec.classifyRecord(`HPV2S1.${codec.checksum(payload)}.${payload}`).kind, 'valid');
+});
+
+test('schema three offset migration preserves base scopes presets and conditions through schema four restart', () => {
+  const values = { widthScale: 60, heightScale: 60, readoutOffsetX: 200,
+    readoutOffsetY: 210, allyReadoutOffsetX: -200, allyReadoutOffsetY: -210,
+    enemyPulseReadoutOffsetX: 120, enemyPulseReadoutOffsetY: -120 };
+  const conditions = { readoutOffsetX: { slot: 1, minTier: 1, value: -180 } };
+  const body = { version: 1, values, conditions,
+    scopes: [{ id: 'scope_current', mode: 'all', heroes: [], values, conditions }],
+    userPresets: [{ id: 'user_0001', name: 'Historical', mode: 'all', heroes: [], values, conditions }] };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 3, t: 1, b: body }) });
+  const first = launch(profile, { label: 'historical offsets schema 3' });
+  first.run(8000);
+  const restored = menuState(first);
+  for (const row of [restored, restored.scopes[0], restored.userPresets[0]]) {
+    assert.equal(row.values.readoutOffsetX, 333);
+    assert.equal(row.values.readoutOffsetY, 350);
+    assert.equal(row.values.allyReadoutOffsetX, -333);
+    assert.equal(row.values.allyReadoutOffsetY, -350);
+    assert.equal(row.values.enemyPulseReadoutOffsetX, 200);
+    assert.equal(row.values.enemyPulseReadoutOffsetY, -200);
+    assert.equal(row.values.readoutFont, 'default');
+    assert.equal(row.values.staminaShape, 'arrow');
+    assert.equal(row.conditions.readoutOffsetX.value, -300);
+  }
+  openEditor(first);
+  setWidth(first, 70);
+  closeEditor(first);
+  first.run(8000);
+  assert.equal(storedSchema(profile), 4);
+  const second = launch(profile, { label: 'migrated offsets schema 4 restart' });
+  second.run(8000);
+  assert.equal(menuState(second).scopes[0].values.readoutOffsetX, 333);
+  assert.equal(menuState(second).userPresets[0].values.readoutOffsetY, 350);
+  assert.equal(menuState(second).values.staminaShape, 'arrow');
+  assertOtherModsUntouched(profile);
+  record(first);
+  record(second);
 });

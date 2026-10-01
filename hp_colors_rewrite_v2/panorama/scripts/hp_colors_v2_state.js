@@ -21,10 +21,12 @@
   var HERO_DATA = [
     ["hero_atlas", "Abrams"],
     ["hero_fencer", "Apollo"],
+    ["hero_baba", "Baba"],
     ["hero_bebop", "Bebop"],
     ["hero_punkgoat", "Billy"],
     ["hero_nano", "Calico"],
     ["hero_unicorn", "Celeste"],
+    ["hero_deadpack", "Deadman Danny"],
     ["hero_drifter", "Drifter"],
     ["hero_dynamo", "Dynamo"],
     ["hero_necro", "Graves"],
@@ -40,18 +42,22 @@
     ["hero_vampirebat", "Mina"],
     ["hero_mirage", "Mirage"],
     ["hero_krill", "Mo & Krill"],
+    ["hero_nurse", "Nurse Harrow"],
     ["hero_bookworm", "Paige"],
     ["hero_chrono", "Paradox"],
     ["hero_synth", "Pocket"],
+    ["hero_ratking", "Rat King"],
     ["hero_familiar", "Rem"],
     ["hero_gigawatt", "Seven"],
     ["hero_shiv", "Shiv"],
     ["hero_magician", "Sinclair"],
     ["hero_werewolf", "Silver"],
+    ["hero_chessmaster", "Solomon"],
     ["hero_doorman", "The Doorman"],
     ["hero_viper", "Vyper"],
     ["hero_viscous", "Viscous"],
     ["hero_hornet", "Vindicta"],
+    ["hero_artist", "Violet"],
     ["hero_priest", "Venator"],
     ["hero_frank", "Victor"],
     ["hero_warden", "Warden"],
@@ -74,6 +80,7 @@
   delete $.HPColorsV2ContractFactory;
   var DEFAULTS = settingsContract.defaults;
   var CODEC_DEFAULTS = settingsContract.codecDefaults;
+  var SPARSE_DEFAULTS = settingsContract.sparseDefaults;
   var DEFAULT_KEYS = settingsContract.keys;
   var CODEC_KEYS = settingsContract.codecKeys;
   var EXTENSION_KEYS = settingsContract.extensionKeys;
@@ -534,7 +541,14 @@
     for (index = 0; index < keys.length; index++) {
       var key = keys[index];
       if (!Object.prototype.hasOwnProperty.call(DEFAULTS, key)) continue;
-      if (normalized[key] !== CODEC_DEFAULTS[key])
+      if (
+        normalized[key] !== CODEC_DEFAULTS[key] ||
+        (key === "staminaShape" &&
+          normalized[key] === "arrow" &&
+          (normalized.staminaWidth !== 110 ||
+            normalized.staminaHeight !== 44.8 ||
+            normalized.enemyStaminaColorEnabled))
+      )
         pairs.push([index, normalized[key]]);
     }
     return pairs;
@@ -601,6 +615,52 @@
   }
 
 
+  // Pre-v2 offsets were absolute CSS pixels; convert once using each record's
+  // own bar dimensions. Ultimate/level offsets already scaled in old builds.
+  function migrateReadoutOffsets(values, conditions, legacyOnly) {
+    var keys = ["readoutOffsetX", "readoutOffsetY", "allyReadoutOffsetX",
+      "allyReadoutOffsetY", "enemyPulseReadoutOffsetX", "enemyPulseReadoutOffsetY"];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (legacyOnly && EXTENSION_KEY_SET[key]) continue;
+      var horizontal = key.charAt(key.length - 1) === "X";
+      var scale = values[horizontal ? "widthScale" : "heightScale"] / 100;
+      var oldLimit = horizontal ? 200 : 210;
+      var oldValue = Math.max(-oldLimit, Math.min(oldLimit, values[key]));
+      values[key] = normalizeValue(key, Math.round(oldValue / scale), values);
+      if (conditions && conditions[key]) {
+        var oldCondition = Math.max(-oldLimit, Math.min(oldLimit, conditions[key].value));
+        conditions[key].value = normalizeValue(key, Math.round(oldCondition / scale), values);
+      }
+    }
+    return values;
+  }
+
+  function restoreSparseRecord(record, migrate) {
+    record.values = normalizeValues(record.values, SPARSE_DEFAULTS);
+    if (migrate) migrateReadoutOffsets(record.values, record.conditions);
+  }
+
+  function hasAllHeroesBase(records) {
+    var rows = Array.isArray(records) ? records : [];
+    for (var i = 0; i < rows.length; i++)
+      if (rows[i] && rows[i].mode === HERO_SCOPE_ALL) return true;
+    return false;
+  }
+
+  // Old explicit ownership inherited the old shipped fallback. Pin only the
+  // changed fallback keys, retaining live inheritance from an All Heroes base.
+  function pinFrozenFallback(record) {
+    if (!record || !scopeUsesHeroes(record.mode) || !Array.isArray(record.own)) return;
+    var own = normalizeOwnKeys(record.own);
+    for (var i = 0; i < DEFAULT_KEYS.length; i++) {
+      var key = DEFAULT_KEYS[i];
+      if (SPARSE_DEFAULTS[key] === DEFAULTS[key] || own.indexOf(key) >= 0) continue;
+      record.values[key] = SPARSE_DEFAULTS[key];
+      own.push(key);
+    }
+    record.own = normalizeOwnKeys(own);
+  }
   function deserializePresetExtension(source) {
     if (source === undefined)
       return { values: normalizeValues({}, CODEC_DEFAULTS), conditions: null };
@@ -616,7 +676,7 @@
     }
     if (
       fieldCount !== 3 ||
-      source.v !== 1 ||
+      (source.v !== 1 && source.v !== 2) ||
       !Array.isArray(source.values) ||
       !source.conditions ||
       !isObjectValue(source.conditions) ||
@@ -639,16 +699,20 @@
       )
         return { error: "INVALID HPV2 PRESET VALUE PAIR" };
       seen[pair[0]] = true;
-      changed[EXTENSION_KEYS[pair[0]]] = pair[1];
+      var extensionKey = EXTENSION_KEYS[pair[0]];
+      if (Object.prototype.hasOwnProperty.call(DEFAULTS, extensionKey))
+        changed[extensionKey] = pair[1];
     }
     var valueError = validateImportedValues(changed);
     if (valueError) return { error: valueError };
-    var conditions = filterConditions(source.conditions, true);
-    if (!conditionsAreValid(source.conditions, conditions, true))
+    var sourceConditions = dropRetiredConditions(source.conditions);
+    var conditions = filterConditions(sourceConditions, true);
+    if (!conditionsAreValid(sourceConditions, conditions, true))
       return { error: "INVALID HPV2 PRESET CONDITIONS" };
     return {
       values: normalizeValues(changed, CODEC_DEFAULTS),
       conditions: nullableConditions(conditions, true),
+      offsetVersion: source.v,
     };
   }
 
@@ -793,15 +857,42 @@
       values: canonicalValuePairs(values, CODEC_KEYS),
       conditions: nullableFilteredConditions(conditions, false),
     };
-    if (extensionValues.length || extensionConditions) {
-      record.hpv2 = {
-        v: 1,
-        values: extensionValues,
-        conditions: extensionConditions || {},
-      };
-    }
+    record.hpv2 = {
+      v: 2,
+      values: extensionValues,
+      conditions: extensionConditions || {},
+    };
     if (preset.own) record.own = preset.own.slice(0);
     return record;
+  }
+
+  // Only the canonical baked record may carry historical shipped readout offsets.
+  function normalizeBakedReadoutOffsets(values, source) {
+    var baseline = source.hpv2 && source.hpv2.v === 2 ? DEFAULTS : SPARSE_DEFAULTS;
+    var historical = {
+      readoutOffsetX: [27, -30],
+      readoutOffsetY: [500, 434],
+      enemyPulseReadoutOffsetX: [27],
+      enemyPulseReadoutOffsetY: [500],
+      allyReadoutOffsetX: [-30],
+      allyReadoutOffsetY: [434],
+    };
+    var groups = [
+      { pairs: source.values, keys: CODEC_KEYS },
+      { pairs: source.hpv2 ? source.hpv2.values : [], keys: EXTENSION_KEYS },
+    ];
+    for (var groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+      var group = groups[groupIndex];
+      for (var pairIndex = 0; pairIndex < group.pairs.length; pairIndex++) {
+        var pair = group.pairs[pairIndex];
+        var key = group.keys[pair[0]];
+        if (!Object.prototype.hasOwnProperty.call(historical, key)) continue;
+        if (pair[1] !== baseline[key] && historical[key].indexOf(pair[1]) < 0)
+          return false;
+        values[key] = baseline[key];
+      }
+    }
+    return true;
   }
 
   function parsePresetTransfer(raw) {
@@ -850,6 +941,7 @@
         extensionValueIndex++
       ) {
         var extensionKey = EXTENSION_KEYS[extensionValueIndex];
+        if (!Object.prototype.hasOwnProperty.call(DEFAULTS, extensionKey)) continue;
         decoded.values[extensionKey] = extension.values[extensionKey];
       }
       var heroes = normalizeHeroSelection(source.heroes);
@@ -872,15 +964,20 @@
       if (!presetConditionsAreValid(sourceConditions, conditions))
         return { error: "INVALID PRESET CONDITIONS" };
       conditions = mergeConditions(conditions, extension.conditions);
+      if (extension.offsetVersion !== 2)
+        migrateReadoutOffsets(decoded.values, conditions);
       if (kind === "baked") {
+        if (!normalizeBakedReadoutOffsets(decoded.values, source))
+          return { error: "INVALID BAKED PRESET" };
         if (
           id !== DEFAULT_PRESET_ID ||
           mode !== HERO_SCOPE_OFF ||
-          JSON.stringify(decoded.values) !== JSON.stringify(DEFAULTS) ||
+          JSON.stringify(decoded.values) !== JSON.stringify(extension.offsetVersion === 2 ? DEFAULTS : SPARSE_DEFAULTS) ||
           JSON.stringify(heroes) !== "[]" ||
           JSON.stringify(conditions) !== "null"
         )
           return { error: "INVALID BAKED PRESET" };
+        decoded.values = copyValues(DEFAULTS);
       } else if (
         !/^user_\d{4,}$/.test(id) ||
         (mode !== HERO_SCOPE_ALL && !scopeUsesHeroes(mode)) ||
@@ -904,6 +1001,7 @@
         mode: mode,
         heroes: heroes,
         conditions: conditions,
+        offsetVersion: extension.offsetVersion,
       });
     }
     var hidden = [];
@@ -947,6 +1045,7 @@
     return freezeDeep({
       keys: DEFAULT_KEYS.slice(0),
       defaults: defaults,
+      sparseDefaults: copyValues(SPARSE_DEFAULTS),
       settings: settings,
     });
   }
@@ -985,6 +1084,26 @@
     if (!published || published.version !== 1 || !published.values)
       published = null;
     if (!data || data.version !== 1 || !data.values) data = null;
+    if (data) {
+      data = JSON.parse(JSON.stringify(data));
+      var migrate = data.offsetVersion !== 2;
+      if (migrate && published) {
+        published = JSON.parse(JSON.stringify(published));
+        restoreSparseRecord(published, true);
+      }
+      restoreSparseRecord(data, migrate);
+      var lists = [data.scopes, data.userPresets];
+      for (var list = 0; list < lists.length; list++) {
+        var rows = Array.isArray(lists[list]) ? lists[list] : [];
+        for (var row = 0; row < rows.length; row++)
+          if (rows[row] && isObjectValue(rows[row])) restoreSparseRecord(rows[row], migrate);
+      }
+      if (migrate && !hasAllHeroesBase(data.userPresets)) {
+        var oldPresets = Array.isArray(data.userPresets) ? data.userPresets : [];
+        for (var oldIndex = 0; oldIndex < oldPresets.length; oldIndex++)
+          pinFrozenFallback(oldPresets[oldIndex]);
+      }
+    }
     var values = normalizeValues(data && data.values);
     var isMenuState = !!(
       data &&
@@ -1291,6 +1410,7 @@
     function sessionRaw() {
       return JSON.stringify({
         version: 1,
+        offsetVersion: 2,
         values: state.values,
         conditions: state.conditions,
         scopes: state.scopes,
@@ -2050,6 +2170,15 @@
       }, { settingId: key, code: "GESTURE_COMMITTED" });
     }
 
+    // Restores a parsed values/conditions(/scopes) snapshot into the editor.
+    function restoreSnapshot(previous) {
+      state.values = normalizeValues(previous.values);
+      state.conditions = normalizeConditions(previous.conditions);
+      if (Array.isArray(previous.scopes))
+        state.scopes = normalizeScopes(previous.scopes);
+      state.restoredEffectivePending = false;
+    }
+
     function handleGestureCancel(intent) {
       var key = String(intent.key || "");
       if (!state.gesture || state.gesture.key !== key)
@@ -2061,13 +2190,7 @@
         previous = null;
       }
       return commit("gesture_cancel", function () {
-        if (previous) {
-          state.values = normalizeValues(previous.values);
-          state.conditions = normalizeConditions(previous.conditions);
-          if (Array.isArray(previous.scopes))
-            state.scopes = normalizeScopes(previous.scopes);
-          state.restoredEffectivePending = false;
-        }
+        if (previous) restoreSnapshot(previous);
         state.gesture = null;
         return true;
       }, { code: "GESTURE_CANCELED" });
@@ -2084,16 +2207,19 @@
       }
       return commit("undo", function () {
         state.history.pop();
-        if (Array.isArray(previous.scopes)) {
-          state.values = normalizeValues(previous.values);
-          state.conditions = normalizeConditions(previous.conditions);
-          state.scopes = normalizeScopes(previous.scopes);
-          state.restoredEffectivePending = false;
-        } else {
-          replaceBase(previous.values, previous.conditions, false);
-        }
+        if (Array.isArray(previous.scopes)) restoreSnapshot(previous);
+        else replaceBase(previous.values, previous.conditions, false);
         return true;
       }, { settingId: "*" });
+    }
+
+    function cancelConfirmation(kind, action, intent) {
+      var token = String(intent.token || "");
+      if (!validConfirmation(kind, token)) return reject(action, "INVALID_CONFIRMATION");
+      return commit(action, function () {
+        state.confirmation = null;
+        return true;
+      }, { code: "CONFIRMATION_CANCELED" });
     }
 
     function handleResetRequest(intent) {
@@ -2150,12 +2276,7 @@
     }
 
     function handleResetCancel(intent) {
-      var token = String(intent.token || "");
-      if (!validConfirmation("reset", token)) return reject("reset_cancel", "INVALID_CONFIRMATION");
-      return commit("reset_cancel", function () {
-        state.confirmation = null;
-        return true;
-      }, { code: "CONFIRMATION_CANCELED" });
+      return cancelConfirmation("reset", "reset_cancel", intent);
     }
 
     function handleHeroMode(intent) {
@@ -2570,13 +2691,7 @@
     }
 
     function handlePresetRemoveCancel(intent) {
-      var token = String(intent.token || "");
-      if (!validConfirmation("preset_remove", token))
-        return reject("preset_remove_cancel", "INVALID_CONFIRMATION");
-      return commit("preset_remove_cancel", function () {
-        state.confirmation = null;
-        return true;
-      }, { code: "CONFIRMATION_CANCELED" });
+      return cancelConfirmation("preset_remove", "preset_remove_cancel", intent);
     }
 
     function handlePresetRestoreBaked() {
@@ -2592,7 +2707,7 @@
         v: canonicalRecordValues(editableValues()),
         c: filterConditions(editableConditions(), false),
         hpv2: {
-          v: 1,
+          v: 2,
           values: canonicalValuePairs(editableValues(), EXTENSION_KEYS),
           conditions: filterConditions(editableConditions(), true),
         },
@@ -2620,10 +2735,13 @@
           extensionIndex++
         ) {
           var extensionKey = EXTENSION_KEYS[extensionIndex];
+          if (!Object.prototype.hasOwnProperty.call(DEFAULTS, extensionKey)) continue;
           importedValues[extensionKey] = extensionValues[extensionKey];
           if (Object.prototype.hasOwnProperty.call(extensionConditions, extensionKey))
             importedConditions[extensionKey] = extensionConditions[extensionKey];
         }
+        if (!parsed.extension || parsed.extension.offsetVersion !== 2)
+          migrateReadoutOffsets(importedValues, importedConditions, !parsed.extension);
         return replaceEditor(importedValues, importedConditions, true);
       }, { settingId: "*" });
     }
@@ -2665,8 +2783,10 @@
         ? parsed.hiddenBakedPresetIds.slice(0)
         : state.hiddenBakedPresetIds.slice(0);
       var index;
+      var hasBase = hasAllHeroesBase(state.userPresets) || hasAllHeroesBase(parsed.records);
       for (index = 0; index < parsed.records.length; index++) {
         var source = parsed.records[index];
+        if (!hasBase && source.offsetVersion !== 2) pinFrozenFallback(source);
         if (source.kind === "baked") {
           if (source.name === "Rewrite Default") delete nextOverrides[source.id];
           else nextOverrides[source.id] = source.name;

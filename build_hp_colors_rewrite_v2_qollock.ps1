@@ -3,6 +3,8 @@ param(
     [switch]$SkipDeploy,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = '',
+    # QOLLOCK 4.0.3 package to regenerate the Escape menu from; the release zip ships pak03.
+    [string]$QollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk',
     [switch]$SkipPanoramaTests
 )
 
@@ -13,7 +15,7 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
-# QOLLOCK 4.0.0 (addons\pak47_dir.vpk) layout, pin, contract and bridge.
+# QOLLOCK 4.0.3 release layout, pin, contract and bridge.
 $supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
 $bridgeSrc = $supportSrc
 $compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'
@@ -30,7 +32,7 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
-$qollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak47_dir.vpk'
+
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'
@@ -67,7 +69,8 @@ $canonicalFiles = @(
 )
 # QOLLOCK keeps its own hud.xml; pak02 overrides only the Escape menu and topbar.
 $supportFiles = @(
-    'panorama\layout\hud_escape_menu.xml'
+    'panorama\layout\hud_escape_menu.xml',
+    'panorama\scripts\qollock_hp_colors_bridge.js'
 )
 $bridgeFile = 'panorama\scripts\qollock_hp_colors_bridge.js'
 
@@ -186,6 +189,7 @@ Assert-PackedVpkAssets `
     -Tree $qollockTree `
     -Label 'Pinned QOLLOCK' `
     -Required @($assetContract.requiredPinnedQollockAssets)
+Write-Host "  Pinned QOLLOCK asset contract OK -> $(@($assetContract.requiredPinnedQollockAssets).Count) required assets" -ForegroundColor Green
 
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 QOLLOCK source..." -ForegroundColor Cyan
 & node $timerValidator $canonicalSrc
@@ -217,7 +221,23 @@ try {
     foreach ($relativePath in $supportFiles) {
         Copy-StagedFile -RelativePath $relativePath -SourceRoot $supportSrc -DestinationRoot $stageSource -Label 'QOLLOCK compatibility'
     }
-    Copy-StagedFile -RelativePath $bridgeFile -SourceRoot $bridgeSrc -DestinationRoot $stageSource -Label 'QOLLOCK bridge'
+    # Fail if the Escape-menu override dropped anything the pinned QOLLOCK menu loads.
+    # A stale override silently disables QOLLOCK features that live in this context
+    # (4.0.1 moved settings saving to ql_storage_bridge + #QOLStorageBridge here).
+    $pinnedRoot = Join-Path $buildRoot 'pinned_qollock'
+    & $Source2ViewerPath -i $qollockPak -o $pinnedRoot -d -f 'panorama/layout/hud_escape_menu.vxml_c'
+    if ($LASTEXITCODE -ne 0) { throw 'Pinned QOLLOCK Escape-menu decompilation failed' }
+    $pinnedEscape = [System.IO.File]::ReadAllText((Join-Path $pinnedRoot 'panorama\layout\hud_escape_menu.xml'))
+    $supportEscape = [System.IO.File]::ReadAllText((Join-Path $supportSrc 'panorama\layout\hud_escape_menu.xml'))
+    $missingFromOverride = @(
+        [regex]::Matches($pinnedEscape, '(?:src|id)="[^"]+"') |
+            ForEach-Object { $_.Value } |
+            Sort-Object -Unique |
+            Where-Object { -not $supportEscape.Contains($_) }
+    )
+    if ($missingFromOverride.Count -gt 0) {
+        throw "pak02 Escape menu is stale against pinned QOLLOCK; rerun with -RefreshFromInstalledQollock. Missing: $($missingFromOverride -join ', ')"
+    }
     # Preserve the pinned QOLLOCK topbar panels while sharing canonical timer hooks.
     & $Source2ViewerPath -i $qollockPak -o $stageSource -d -f 'panorama/layout/citadel_hud_top_bar.vxml_c'
     if ($LASTEXITCODE -ne 0) { throw 'Pinned QOLLOCK topbar decompilation failed' }
@@ -301,6 +321,7 @@ Assert-PackedVpkAssets `
     -Label 'HP Colors Rewrite v2 QOLLOCK pak02' `
     -Required $expectedPackedAssets `
     -Forbidden @($assetContract.forbiddenPackedAssets)
+Write-Host "  pak02 asset contract OK -> $($expectedPackedAssets.Count) required assets; forbidden assets absent" -ForegroundColor Green
 Write-Host "  Packed OK -> $vpkOut" -ForegroundColor Green
 
 if ($SkipDeploy) {

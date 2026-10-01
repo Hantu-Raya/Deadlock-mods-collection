@@ -17,14 +17,16 @@ const statePath = path.join(sourceRoot, 'scripts', 'hp_colors_v2_state.js');
 const read = (file) => fs.readFileSync(file, 'utf8');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
-function bootState() {
+function bootState(fresh = false) {
   const context = { $: {} };
   vm.runInNewContext(read(contractPath), context, { filename: contractPath });
   const contract = context.$.HPColorsV2ContractFactory.create();
   vm.runInNewContext(read(statePath), context, { filename: statePath });
   return {
     contract,
-    state: context.$.HPColorsV2StateFactory.create(),
+    state: context.$.HPColorsV2StateFactory.create(fresh ? null : {
+      version: 1, offsetVersion: 2, values: contract.sparseDefaults,
+    }),
   };
 }
 
@@ -74,6 +76,40 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
+  assert.equal(contract.extensionKeys.length, 67);
+  assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
+    'npcEnemyEnabled',
+    'npcAllyEnabled',
+    'npcNeutralEnabled',
+    'buildingEnemyEnabled',
+    'buildingAllyEnabled',
+    'neutralColor',
+  ]);
+  assert.deepEqual(plain(contract.extensionKeys).slice(47, 49), [
+    'criticalIndicatorVisible', 'playerNamesVisible',
+  ]);
+  for (const key of contract.extensionKeys.slice(47, 49)) {
+    assert.equal(contract.defaults[key], true);
+    assert.equal(contract.booleanKeys[key], true);
+    assert.equal(contract.settingMeta[key].conditionEligible, true);
+    assert.equal(contract.validateSettingValue(key, false), true);
+    assert.equal(contract.validateSettingValue(key, 'false'), false);
+    assert.equal(contract.validateSettingValue(key, 0), false);
+  }
+  for (const key of [
+    'npcEnemyEnabled',
+    'npcAllyEnabled',
+    'npcNeutralEnabled',
+    'buildingEnemyEnabled',
+    'buildingAllyEnabled',
+  ]) {
+    assert.equal(contract.defaults[key], false);
+    assert.equal(contract.booleanKeys[key], true);
+    assert.equal(contract.settingMeta[key].conditionEligible, true);
+  }
+  assert.equal(contract.defaults.neutralColor, '#5BEFB5');
+  assert.equal(contract.colorKeys.neutralColor, true);
+  assert.equal(contract.settingMeta.neutralColor.type, 'color');
   assert.deepEqual(plain(contract.extensionKeys).slice(0, 12), [
     'staminaWidth',
     'staminaHeight',
@@ -96,14 +132,14 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.defaults.enemyStaminaColor, '#FD4949');
   assert.equal(contract.defaults.allyPulseColorMode, 'fixed');
   assert.equal(contract.defaults.accessoryAnchorEnabled, true);
-  assert.equal(contract.defaults.ultOffsetX, 0);
-  assert.equal(contract.defaults.ultOffsetY, 0);
-  assert.equal(contract.defaults.levelOffsetX, 0);
-  assert.equal(contract.defaults.levelOffsetY, 0);
+  assert.equal(contract.defaults.ultOffsetX, 74);
+  assert.equal(contract.defaults.ultOffsetY, 48);
+  assert.equal(contract.defaults.levelOffsetX, 74);
+  assert.equal(contract.defaults.levelOffsetY, 48);
 });
 
 test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapshot', () => {
-  const { state } = bootState();
+  const { state } = bootState(true);
   assert.equal(state.read().values.enemyMode, 'gradient');
   assert.equal(state.read().values.enemyLow, '#FD4949');
 
@@ -112,7 +148,11 @@ test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapsh
   const payload = JSON.parse(copied.slice(5));
   assert.equal(payload.v.some(([index]) => index === 7), false);
   assert.ok(payload.v.some(([index, value]) => index === 8 && value === '#FD4949'));
-  assert.deepEqual(payload.hpv2, { v: 1, values: [], conditions: {} });
+  assert.equal(payload.hpv2.v, 2);
+  assert.equal(state.read().values.widthScale, 148);
+  assert.equal(state.read().values.heightScale, 80);
+  assert.equal(state.read().values.readoutOffsetX, 18);
+  assert.equal(state.read().values.ultOffsetY, 48);
 
   const imported = send(state, 'settings_import', {
     raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
@@ -132,6 +172,12 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   send(state, 'setting_edit', { key: 'enemyStaminaColorEnabled', value: true });
   send(state, 'setting_edit', { key: 'enemyStaminaColor', value: '#123456' });
   send(state, 'setting_edit', { key: 'allyPulseColorMode', value: 'gradient' });
+  send(state, 'setting_edit', { key: 'npcEnemyEnabled', value: true });
+  send(state, 'setting_edit', { key: 'npcAllyEnabled', value: true });
+  send(state, 'setting_edit', { key: 'npcNeutralEnabled', value: true });
+  send(state, 'setting_edit', { key: 'buildingEnemyEnabled', value: true });
+  send(state, 'setting_edit', { key: 'buildingAllyEnabled', value: true });
+  send(state, 'setting_edit', { key: 'neutralColor', value: '#2468AC' });
   send(state, 'condition_set', {
     key: 'staminaWidth',
     slot: 4,
@@ -143,6 +189,15 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   const settingsPayload = JSON.parse(settingsCode.slice(5));
   assert.deepEqual(Object.keys(settingsPayload).sort(), ['c', 'hpv2', 'v']);
   assert.equal(settingsPayload.v.some(([index]) => index >= 72), false);
+  assert.deepEqual(settingsPayload.hpv2.values.slice(-7), [
+    [41, true],
+    [42, true],
+    [43, true],
+    [44, true],
+    [45, true],
+    [46, '#2468AC'],
+    [61, 'arrow'],
+  ]);
   assert.deepEqual(settingsPayload.hpv2.conditions, {
     staminaWidth: { slot: 4, minTier: 3, value: 180 },
   });
@@ -153,6 +208,15 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   assert.equal(imported.view.values.enemyStaminaColorEnabled, true);
   assert.equal(imported.view.values.enemyStaminaColor, '#123456');
   assert.equal(imported.view.values.allyPulseColorMode, 'gradient');
+  for (const key of [
+    'npcEnemyEnabled',
+    'npcAllyEnabled',
+    'npcNeutralEnabled',
+    'buildingEnemyEnabled',
+    'buildingAllyEnabled',
+  ])
+    assert.equal(imported.view.values[key], true);
+  assert.equal(imported.view.values.neutralColor, '#2468AC');
   assert.deepEqual(plain(imported.view.conditions.staminaWidth), {
     slot: 4,
     minTier: 3,
@@ -163,7 +227,7 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   const presetCode = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
   const presetPayload = JSON.parse(presetCode.slice(6));
   assert.deepEqual(presetPayload.records[0].hpv2, {
-    v: 1,
+    v: 2,
     values: [
       [0, 150],
       [1, 52.5],
@@ -172,6 +236,13 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
       [4, true],
       [5, '#123456'],
       [6, 'gradient'],
+      [41, true],
+      [42, true],
+      [43, true],
+      [44, true],
+      [45, true],
+      [46, '#2468AC'],
+      [61, 'arrow'],
     ],
     conditions: {
       staminaWidth: { slot: 4, minTier: 3, value: 180 },
@@ -184,8 +255,197 @@ test('v2-only settings stay preset-scoped while legacy HPCR2 preserves extension
   send(destination, 'preset_apply', { id: presetPayload.records[0].id });
   assert.equal(destination.read().effectiveValues.staminaWidth, 150);
   assert.equal(destination.read().effectiveValues.enemyStaminaColor, '#123456');
+  assert.equal(destination.read().effectiveValues.staminaShape, 'arrow');
   assert.equal(
     destination.read().effectiveValues.allyPulseColorMode,
     'gradient',
   );
+  assert.equal(destination.read().effectiveValues.npcEnemyEnabled, true);
+  assert.equal(destination.read().effectiveValues.buildingAllyEnabled, true);
+  assert.equal(destination.read().effectiveValues.neutralColor, '#2468AC');
+});
+
+test('Appearance appended booleans round-trip conditions without changing protocol envelopes', () => {
+  const keys = ['criticalIndicatorVisible', 'playerNamesVisible'];
+  const { state } = bootState();
+  for (const key of keys) {
+    assert.equal(state.read().values[key], true);
+    send(state, 'setting_edit', { key, value: false });
+    send(state, 'condition_set', { key, slot: 1, minTier: 2, value: true });
+  }
+  const code = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  const payload = JSON.parse(code.slice(5));
+  assert.deepEqual(Object.keys(payload).sort(), ['c', 'hpv2', 'v']);
+  assert.equal(payload.hpv2.v, 2);
+  assert.deepEqual(payload.hpv2.values, [[47, false], [48, false]]);
+  const destination = bootState().state;
+  const imported = send(destination, 'settings_import', { raw: code });
+  assert.equal(imported.outcome.status, 'committed');
+  for (const key of keys) {
+    assert.equal(destination.read().values[key], false);
+    assert.deepEqual(plain(destination.read().conditions[key]), { slot: 1, minTier: 2, value: true });
+  }
+  send(destination, 'settings_import', { raw: 'HPCR2{"v":[],"c":{}}' });
+  for (const key of keys) assert.equal(destination.read().values[key], false);
+  send(state, 'preset_save', { name: 'Appearance' });
+  const presetCode = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const presetPayload = JSON.parse(presetCode.slice(6));
+  send(destination, 'preset_import', { raw: presetCode });
+  send(destination, 'preset_apply', { id: presetPayload.records[0].id });
+  for (const key of keys) {
+    assert.equal(destination.read().values[key], false);
+    assert.deepEqual(plain(destination.read().conditions[key]), { slot: 1, minTier: 2, value: true });
+  }
+  for (const invalid of ['false', 0, 1]) {
+    const rejected = send(destination, 'settings_import', {
+      raw: 'HPCR2' + JSON.stringify({ v: [], c: {}, hpv2: { v: 1, values: [[47, invalid]], conditions: {} } }),
+    });
+    assert.equal(rejected.outcome.status, 'rejected');
+    assert.equal(destination.read().values.criticalIndicatorVisible, false);
+  }
+  const fresh = bootState().state;
+  send(fresh, 'settings_import', {
+    raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
+  });
+  for (const key of keys) assert.equal(fresh.read().values[key], true);
+});
+
+test('Appearance imports reject non-boolean values/conditions atomically in both codecs', () => {
+  const source = bootState().state;
+  send(source, 'preset_save', { name: 'Stock appearance' });
+  const template = JSON.parse(oneEffect(send(source, 'preset_copy_selected'), 'clipboard_write').text.slice(6));
+  for (const [index, key] of ['criticalIndicatorVisible', 'playerNamesVisible'].entries()) {
+    for (const invalid of ['false', 0, 1]) {
+      for (const condition of [false, true]) {
+        const extension = { v: 1, values: [], conditions: {} };
+        if (condition) extension.conditions[key] = { slot: 1, minTier: 1, value: invalid };
+        else extension.values = [[47 + index, invalid]];
+        const preset = plain(template);
+        preset.records[0].hpv2 = extension;
+        for (const [type, raw] of [
+          ['settings_import', 'HPCR2' + JSON.stringify({ v: [], c: {}, hpv2: extension })],
+          ['preset_import', 'HPCRP1' + JSON.stringify(preset)],
+        ]) {
+          const destination = bootState().state;
+          const before = JSON.stringify(destination.read());
+          assert.equal(send(destination, type, { raw }).outcome.status, 'rejected');
+          assert.equal(JSON.stringify(destination.read()), before);
+        }
+      }
+    }
+  }
+  delete template.records[0].hpv2;
+  const older = bootState().state;
+  assert.equal(send(older, 'preset_import', { raw: 'HPCRP1' + JSON.stringify(template) }).outcome.status, 'committed');
+  send(older, 'preset_apply', { id: template.records[0].id });
+  for (const key of ['criticalIndicatorVisible', 'playerNamesVisible'])
+    assert.equal(older.read().effectiveValues[key], true);
+});
+
+test('round native format retirement preserves slots and appends independent name settings', () => {
+  const { contract, state } = bootState();
+  assert.equal(contract.codecKeys[29], 'readoutFormat');
+  assert.equal(contract.extensionKeys[30], 'allyReadoutFormat');
+  assert.equal(contract.codecKeys[40], 'precisePipsEnabled');
+  assert.equal(contract.codecKeys[70], 'readoutMaxTeamColor');
+  assert.equal(contract.extensionKeys[40], 'allyReadoutMaxTeamColor');
+  for (const key of ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor']) {
+    assert.equal(contract.keys.includes(key), false, key);
+    assert.equal(Object.hasOwn(contract.defaults, key), false, key);
+    assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
+    assert.equal(contract.settingMeta[key], undefined, key);
+  }
+  assert.equal(contract.extensionKeys.length, 67);
+  assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
+    'enemyPipColorEnabled', 'enemyPipColor',
+    'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
+    'readoutOutlineWidth', 'allyReadoutOutlineWidth', 'nameOutlineWidth',
+    'hudHealthColorMode', 'hudHealthColor',
+  ]);
+  assert.equal(contract.keys.includes('readoutFormat'), false);
+  assert.equal(contract.keys.includes('allyReadoutFormat'), false);
+  const imported = send(state, 'settings_import', { raw: 'HPCR2' + JSON.stringify({
+    v: [[29, 'percent'], [40, true], [70, true]],
+    c: { readoutFormat: { slot: 1, minTier: 1, value: 'current' },
+      precisePipsEnabled: { slot: 1, minTier: 1, value: true },
+      readoutMaxTeamColor: { slot: 1, minTier: 1, value: true } },
+    hpv2: { v: 1, values: [[30, 'current'], [40, true], [53, 40], [54, -200]],
+      conditions: { allyReadoutFormat: { slot: 1, minTier: 1, value: 'percent' },
+        allyReadoutMaxTeamColor: { slot: 1, minTier: 1, value: true } } },
+  }) });
+  assert.notEqual(imported.outcome.kind, 'error');
+  assert.equal(imported.view.values.nameSize, 40);
+  assert.equal(imported.view.values.nameOffsetX, -200);
+  assert.equal(Object.hasOwn(imported.view.values, 'readoutFormat'), false);
+  for (const key of ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor']) {
+    assert.equal(Object.hasOwn(imported.view.values, key), false, key);
+    assert.equal(Object.hasOwn(imported.view.conditions, key), false, key);
+  }
+});
+
+test('round name settings and raw geometry survive both codecs; retired rules drop atomically', () => {
+  const { state } = bootState();
+  const values = {
+    enemyNameColorEnabled: true, enemyNameColor: '#123456',
+    allyNameColorEnabled: true, allyNameColor: '#ABCDEF',
+    nameSize: 40, nameOffsetX: -170, nameOffsetY: 160,
+    widthScale: 60, heightScale: 60, positionX: -1200, positionY: 1100,
+    ultOffsetX: -2300, ultOffsetY: 2200, levelOffsetX: 2100, levelOffsetY: -2000,
+    staminaOffsetX: -900, staminaOffsetY: 800,
+    readoutOffsetX: -100, readoutOffsetY: 90,
+    allyReadoutOffsetX: 80, allyReadoutOffsetY: -70,
+    enemyPulseReadoutOffsetX: -60, enemyPulseReadoutOffsetY: 50,
+  };
+  for (const [key, value] of Object.entries(values)) send(state, 'setting_edit', { key, value });
+  send(state, 'condition_set', { key: 'nameSize', slot: 4, minTier: 3, value: 30 });
+  const settings = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  const copy = bootState().state;
+  assert.equal(send(copy, 'settings_import', { raw: settings }).outcome.status, 'committed');
+  for (const [key, value] of Object.entries(values)) assert.equal(copy.read().values[key], value, key);
+  send(state, 'preset_save', { name: 'Names and geometry' });
+  const preset = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const bundle = JSON.parse(preset.slice(6));
+  bundle.records[0].values.push([29, 'percent']);
+  bundle.records[0].conditions = { readoutFormat: { slot: 1, minTier: 1, value: 'current' } };
+  bundle.records[0].hpv2.values.push([30, 'current']);
+  bundle.records[0].hpv2.conditions.allyReadoutFormat = { slot: 1, minTier: 1, value: 'percent' };
+  const destination = bootState().state;
+  assert.equal(send(destination, 'preset_import', { raw: 'HPCRP1' + JSON.stringify(bundle) }).outcome.status, 'committed');
+  send(destination, 'preset_apply', { id: bundle.records[0].id });
+  for (const [key, value] of Object.entries(values)) assert.equal(destination.read().effectiveValues[key], value, key);
+  assert.equal(Object.hasOwn(destination.read().conditions, 'allyReadoutFormat'), false);
+  const before = plain(destination.read());
+  bundle.records[0].hpv2.conditions.unknownSetting = { slot: 1, minTier: 1, value: true };
+  assert.equal(send(destination, 'preset_import', { raw: 'HPCRP1' + JSON.stringify(bundle) }).outcome.status, 'rejected');
+  assert.deepEqual(plain(destination.read().values), before.values);
+});
+
+test('follow-up pip colors and stamina shape append six typed extension slots', () => {
+  const { contract } = bootState();
+  const defaults = {
+    enemyPipColorEnabled: false, enemyPipColor: '#500202',
+    allyPipColorEnabled: false, allyPipColor: '#042517',
+    pipOpacity: 100, staminaShape: 'arrow',
+    readoutOutlineWidth: 5, allyReadoutOutlineWidth: 5, nameOutlineWidth: 5,
+    hudHealthColorMode: 'off', hudHealthColor: '#FFFF00',
+  };
+  assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
+  for (const [key, value] of Object.entries(defaults)) {
+    assert.equal(contract.sparseDefaults[key], value, key);
+    assert.equal(contract.codecDefaults[key], value, key);
+    assert.equal(contract.settingMeta[key].conditionEligible, true, key);
+  }
+  assert.equal(contract.defaults.enemyPipColorEnabled, true);
+  assert.equal(contract.defaults.enemyPipColor, '#000000');
+  assert.equal(contract.defaults.staminaShape, 'arrow');
+  assert.deepEqual(plain(contract.enumOptions.staminaShape), ['arrow', 'circle', 'box']);
+  assert.equal(contract.validateSettingValue('staminaShape', 'triangle'), false);
+  assert.equal(contract.normalizeValues({ pipOpacity: -1 }).pipOpacity, 0);
+  assert.equal(contract.normalizeValues({ pipOpacity: 101 }).pipOpacity, 100);
+  assert.equal(contract.normalizeValues({}).pipOpacity, 100, 'old sparse saves retain stock line opacity');
+  for (const prefix of ['enemy', 'ally']) {
+    assert.equal(contract.booleanKeys[prefix + 'PipColorEnabled'], true);
+    assert.equal(contract.colorKeys[prefix + 'PipColor'], true);
+    assert.equal(contract.normalizeValues({ [prefix + 'PipColor']: 'aabbcc' })[prefix + 'PipColor'], '#AABBCC');
+  }
 });

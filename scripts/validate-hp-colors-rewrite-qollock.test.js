@@ -125,6 +125,103 @@ test('package layout refresh retains QOL healthbars and injects each owned asset
   );
 });
 
+const packageEscape403 = [
+  '<!-- xml reconstructed by Source 2 Viewer 19.2.0.0 -->',
+  '<root>',
+  '  <styles>',
+  '    <include src="s2r://panorama/styles/ql_settings.vcss_c" />',
+  '  </styles>',
+  '  <scripts>',
+  '    <include src="s2r://panorama/scripts/ql_settings_persistence.vjs_c" />',
+  '    <include src="s2r://panorama/scripts/core/ql_persistence.vjs_c" />',
+  '    <include src="s2r://panorama/scripts/core/ql_storage_bridge.vjs_c" />',
+  '    <include src="s2r://panorama/scripts/ql_settings.vjs_c" />',
+  '  </scripts>',
+  '  <CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">',
+  '    <Panel id="EscapeBackground" onactivate="if ($.IsModSettingsOpen &amp;&amp; $.IsModSettingsOpen()) { $.ForceCloseModSettings(true); } else { CitadelResumePlaying(); }" />',
+  '    <Panel id="SettingsWindow">',
+  '      <Button id="CloseBtn" onactivate="if ($.ForceCloseModSettings) { $.ForceCloseModSettings(); } else { $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel()); }"><Label text="X" /></Button>',
+  '      <Panel id="SettingsList" onload="if ($.BuildUI) { $.BuildUI(); }" />',
+  '    </Panel>',
+  '    <Button id="matchmakingLeaveQueue" class="nav_menu_item primary leavequeue" onactivate="CitadelLeaveMatchmaking()" />',
+  '    <Button id="newgame" onactivate="CitadelShowPlayPage()" />',
+  '    <Button id="watchgame" onactivate="CitadelShowWatchPage( true )" />',
+  '    <Button id="guides" onactivate="CitadelShowTrainingPage()" />',
+  '    <Button id="changehero" onactivate="CitadelEscapeMenuChangeHero()" />',
+  '    <Panel class="SettingsRow"><Button id="ModSettingsBtn" onactivate="if ($.ToggleSettingsWindow) { $.ToggleSettingsWindow(); }"><Label text="QOL LOCK" /></Button></Panel>',
+  '    <CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()" text="#menu_resume" />',
+  '    <CitadelHTMLPanel id="QOLStorageBridge" class="QOLStorageBridge" hittest="false" acceptsfocus="false" />',
+  '  </CitadelHudEscapeMenu>',
+  '</root>',
+].join('\n');
+
+test('4.0.3 Escape composition preserves QOLLOCK assets and nested-cancel/resume semantics', () => {
+  const canonical = read(path.join(root, 'hp_colors_rewrite_v2/panorama/layout/hud_escape_menu.xml'));
+  const escape = buildEscapeMenu(packageEscape403, canonical, 'b'.repeat(64));
+  for (const token of packageEscape403.match(/(?:src|id)="[^"]+"/g)) {
+    assert.ok(escape.includes(token), token);
+  }
+  for (const id of ['HPColorsMenuButton', 'HPColorsEditorRoot', 'HPColorsV2StoreWrap']) {
+    assert.equal((escape.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, id);
+  }
+  assert.match(escape, /onload="\$\.HPColorsMenuBoot\(\)"/);
+  assert.match(escape, /class="nav_menu_item primary leavequeue"/);
+  assert.doesNotMatch(escape, /<Button id="EscapeButton"/);
+  for (const [tagName, id, eventName] of [
+    ['CitadelHudEscapeMenu', null, 'oncancel'],
+    ['Panel', 'EscapeBackground', 'onactivate'],
+    ['Button', 'CloseBtn', 'onactivate'],
+    ['CitadelBindingButton', 'EscapeButton', 'onactivate'],
+  ]) {
+    const tag = escape.match(new RegExp(`<${tagName}\\b${id ? `[^>]*id="${id}"` : ''}[^>]*>`))[0];
+    const handler = tag.match(new RegExp(`${eventName}="([^"]*)"`))[1]
+      .replaceAll('&amp;', '&').replaceAll('&apos;', "'");
+    for (const consumed of [true, false]) {
+      for (const qolOpen of [true, false]) {
+        const calls = [];
+        vm.runInNewContext(handler, {
+          $: {
+            HPColorsMenuCancel: () => { calls.push('cancel'); return consumed; },
+            IsModSettingsOpen: () => qolOpen,
+            ForceCloseModSettings: (backdrop) => calls.push(backdrop ? 'qol-backdrop' : 'qol-close'),
+          },
+          CitadelResumePlaying: () => calls.push('resume'),
+        });
+        assert.deepEqual(calls, consumed ? ['cancel'] : [
+          'cancel',
+          id === 'CloseBtn' ? 'qol-close' : id === 'EscapeBackground' && qolOpen ? 'qol-backdrop' : 'resume',
+        ], `${id || tagName} consumed=${consumed} qolOpen=${qolOpen}`);
+      }
+    }
+  }
+  const binding = '<CitadelBindingButton id="EscapeButton"';
+  assert.throws(() => buildEscapeMenu(packageEscape403.replace(binding, `<CitadelBindingButton id="EscapeButton" onactivate="CitadelResumePlaying()" />\n${binding}`), canonical, 'b'.repeat(64)), /Escape resume binding: expected exactly one match, found 2/);
+  assert.throws(() => buildEscapeMenu(packageEscape403.replace(binding, '<CitadelBindingButton id="OtherButton"'), canonical, 'b'.repeat(64)), /Escape resume binding: expected exactly one match, found 0/);
+  const legacyWrapper = '<Button id="EscapeButton" onactivate="CitadelResumePlaying()">';
+  const legacy = packageEscape403.replace(
+    /<CitadelBindingButton id="EscapeButton"[^>]*\/>/,
+    (tag) => `${legacyWrapper}${tag}</Button>`,
+  );
+  const escape401 = buildEscapeMenu(legacy, canonical, 'a'.repeat(64), 'pak47');
+  assert.match(escape401, /<Button id="EscapeButton" onactivate="if \(\$\.HPColorsMenuCancel/);
+  assert.throws(() => buildEscapeMenu(legacy.replace(legacyWrapper, `${legacyWrapper}${legacyWrapper}`), canonical, 'a'.repeat(64)), /Escape resume button: expected exactly one match, found 2/);
+});
+
+test('v2 compatibility pin and generated menu target the QOLLOCK 4.0.3 pak03 release', () => {
+  const v2Support = path.join(root, 'hp_colors_rewrite_v2_qollock');
+  const contract = JSON.parse(read(path.join(v2Support, 'pak02-contract.json')));
+  assert.equal(contract.packageOrder[1], 'pak03 pinned QOLLOCK 4.0.3 (qollock_403_30september.zip)');
+  assert.equal(contract.qollockAuthority, 'pinned QOLLOCK 4.0.3 release pak03_dir.vpk (qollock_403_30september.zip)');
+  assert.match(read(path.join(v2Support, 'qollock-source.sha256')), /^b242cd7b74dee59bdd58629fa45c2c83a957c911c3ef79153ffe37d6e29033af\s+.*\/qollock-403\/pak03_dir\.vpk\s*$/);
+  const escape = read(path.join(v2Support, 'panorama/layout/hud_escape_menu.xml'));
+  assert.match(escape, /Generated from pak03 SHA-256 b242cd7b/);
+  assert.doesNotMatch(escape, /<Button id="EscapeButton"/);
+  for (const asset of ['core/ql_persistence.vjs_c', 'core/ql_storage_bridge.vjs_c', 'ql_settings_persistence.vjs_c']) {
+    assert.ok(escape.includes(`s2r://panorama/scripts/${asset}`), asset);
+  }
+  assert.match(escape, /<CitadelHTMLPanel id="QOLStorageBridge"/);
+});
+
 
 
 

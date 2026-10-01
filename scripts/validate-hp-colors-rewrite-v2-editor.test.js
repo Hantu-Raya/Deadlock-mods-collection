@@ -40,6 +40,11 @@ const stateSource = fs.readFileSync(
   'utf8',
 );
 const MENU_STATE_ATTR = 'hp_colors_v2_menu_state';
+const contractContext = vm.createContext({ $: {} });
+vm.runInContext(contractSource, contractContext);
+const shippedDefaults = JSON.parse(JSON.stringify(
+  contractContext.$.HPColorsV2ContractFactory.create().defaults,
+));
 const CONFIG_ATTR = 'hp_colors_v2_config';
 const ENEMY_BAR_DEFAULTS = {
   enemyEnabled: true,
@@ -66,6 +71,22 @@ function installLayoutPanels(harness) {
       childReadCounts: harness.childReadCounts,
     }));
   }
+  const native = harness.root.FindChildTraverse('HPColorsNativePicker');
+  if (native) {
+    const hex = native.add(new MockPanel('HexValue'));
+    const dispatch = harness.$.DispatchEvent;
+    harness.$.DispatchEvent = (...args) => {
+      if (args[0] === 'TextEntryChanged' && args[1] === hex) {
+        const rgb = hex.text.replace('#', '').match(/../g).map((byte) => parseInt(byte, 16));
+        if (native.events.CitadelColorPickerColorChanged)
+          native.events.CitadelColorPickerColorChanged(...rgb);
+      }
+      return dispatch(...args);
+    };
+  }
+  const shape = harness.root.FindChildTraverse('HPColorsStaminaShape');
+  if (shape) for (const option of ['arrow', 'circle', 'box'])
+    shape.AddOption(harness.root.FindChildTraverse(option));
 }
 
 function bootMenu(menuState, options = {}) {
@@ -91,6 +112,16 @@ function bootMenu(menuState, options = {}) {
   runHpColorsSourcesInVm(stateSource, menuSource, harness, {
     settingsContractSource: contractSource,
   });
+  if (options.stateReadCounter) {
+    const factory = harness.$.HPColorsV2StateFactory;
+    harness.$.HPColorsV2StateFactory = { create(config) {
+      const instance = factory.create(config);
+      return { send: instance.send, read() {
+        options.stateReadCounter.count++;
+        return instance.read();
+      } };
+    } };
+  }
   harness.$.HPColorsMenuBoot();
   return { harness, identityTree };
 }
@@ -116,7 +147,7 @@ function selectEnemyBar(fixture) {
 function selectStamina(fixture) {
   panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
   panel(fixture, 'HPColorsTab2').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY STAMINA');
+  assert.equal(panel(fixture, 'HPColorsSettingsStamina').BHasClass('Active'), true);
 }
 
 function selectOverviewLayout(fixture) {
@@ -291,6 +322,42 @@ test('width slider preserves the legacy 230 percent maximum', () => {
   assert.equal(slider.value, 230);
 });
 
+test('movement slider windows preserve full typed bounds and pip opacity visibility', () => {
+  const fixture = bootMenu({ version: 1, values: { enemyPipColorEnabled: false }, scopes: [] });
+  openEditor(fixture);
+  for (const base of ['Position', 'StaminaOffset', 'UltOffset', 'LevelOffset']) {
+    for (const axis of ['X', 'Y']) {
+      const key = `${base[0].toLowerCase()}${base.slice(1)}${axis}`;
+      const slider = panel(fixture, `HPColors${base}${axis}Slider`);
+      const entry = panel(fixture, `HPColors${base}${axis}Entry`);
+      const percent = base === 'UltOffset' || base === 'LevelOffset';
+      const displayScale = percent ? 100 / (axis === 'X' ? 76 : 18) : 1;
+      const limit = axis === 'X' ? 30 : 20;
+      assert.ok(Math.abs(slider.min + limit * displayScale) < 1e-10, key);
+      assert.ok(Math.abs(slider.max - limit * displayScale) < 1e-10, key);
+      for (const direction of [-1, 1]) {
+        slider.events.onmousedown();
+        slider.value = direction * limit * displayScale;
+        slider.events.onvaluechanged();
+        slider.events.onmouseup();
+        assert.equal(readMenuState(fixture).values[key], direction * limit * 10, key);
+        entry.text = String(direction * 150 * displayScale);
+        entry.events.ontextentrysubmit();
+        assert.equal(readMenuState(fixture).values[key], direction * 1500, key);
+        const displayed = Math.round(direction * 150 * displayScale * 10) / 10;
+        assert.equal(entry.text, String(displayed), key);
+        assert.ok(Math.abs(slider.value - direction * limit * displayScale) < 1e-10, key);
+        assert.equal(readConfig(fixture).values[key], direction * 1500, key);
+      }
+    }
+  }
+  assert.equal(readMenuState(fixture).values.enemyPipColorEnabled, false);
+  assert.equal(readMenuState(fixture).values.allyPipColorEnabled, false);
+  assert.equal(panel(fixture, 'HPColorsPipOpacityRow').BHasClass('FeatureOff'), false);
+  panel(fixture, 'HPColorsPipsVisibleToggle').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPipOpacityRow').BHasClass('FeatureOff'), true);
+});
+
 test('reset request opens confirmation without mutation, history, or dispatch', () => {
   const fixture = bootMenu({
     version: 1,
@@ -443,8 +510,8 @@ test('stamina section reset publishes defaults immediately', () => {
   const resetConfig = readConfig(fixture);
   assert.equal(resetState.values.staminaWidth, 110);
   assert.equal(resetState.values.staminaHeight, 44.8);
-  assert.equal(resetState.values.staminaOffsetX, 0);
-  assert.equal(resetState.values.staminaOffsetY, 0);
+  assert.equal(resetState.values.staminaOffsetX, 0, 'offset belongs to STAMINA');
+  assert.equal(resetState.values.staminaOffsetY, 0, 'offset belongs to STAMINA');
   assert.equal(resetState.values.enemyStaminaColorEnabled, false);
   assert.equal(resetState.values.enemyStaminaColor, '#FD4949');
   assert.equal(resetConfig.revision, beforeConfig.revision + 1);
@@ -475,10 +542,10 @@ test('overview layout reset applies negative X immediately despite a late slider
 
   const resetState = readMenuState(fixture);
   const resetConfig = readConfig(fixture);
-  assert.equal(resetState.values.widthScale, 100);
-  assert.equal(resetState.values.heightScale, 100);
+  assert.equal(resetState.values.widthScale, 148);
+  assert.equal(resetState.values.heightScale, 80);
   assert.equal(resetState.values.positionX, 0);
-  assert.equal(resetState.values.positionY, 0);
+  assert.equal(resetState.values.positionY, -38);
   assert.equal(slider.value, 0);
   assert.equal(entry.text, '0');
   assert.equal(resetConfig.revision, beforeConfig.revision + 1);
@@ -723,6 +790,49 @@ function currentScope(fixture) {
   assert.ok(current);
   return current;
 }
+
+test('HEROES picker lists, searches and selects new retail heroes by stable key', () => {
+  const heroes = [
+    ['hero_baba', 'Baba'],
+    ['hero_deadpack', 'Deadman Danny'],
+    ['hero_nurse', 'Nurse Harrow'],
+    ['hero_ratking', 'Rat King'],
+    ['hero_chessmaster', 'Solomon'],
+    ['hero_artist', 'Violet'],
+  ];
+  for (const [key, name] of heroes) {
+    const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+    openPresetsForm(fixture);
+    const option = scopeOption(fixture, key);
+    assert.equal(option.GetChild(0).text, name);
+    for (const [mode, control, summary, selectedClass] of [
+      ['selected', 'HPColorsCurrentScopeSelected', 'ONLY THESE', 'Selected'],
+      ['except', 'HPColorsCurrentScopeExcept', 'ALL EXCEPT', 'Skipped'],
+    ]) {
+      panel(fixture, 'HPColorsCurrentScopeAll').events.onactivate();
+      panel(fixture, control).events.onactivate();
+      const search = panel(fixture, 'HPColorsScopeSearch');
+      for (const query of [name.toLowerCase(), key]) {
+        search.text = query;
+        search.events.ontextentrychange();
+        assert.equal(option.BHasClass('FilteredOut'), false);
+        assert.equal(scopeOption(fixture, 'hero_haze').BHasClass('FilteredOut'), true);
+      }
+      search.text = 'no matching hero';
+      search.events.ontextentrychange();
+      assert.equal(option.BHasClass('FilteredOut'), true);
+      search.text = '';
+      search.events.ontextentrychange();
+      option.events.onactivate();
+      assert.equal(currentScope(fixture).mode, mode);
+      assert.deepEqual(currentScope(fixture).heroes, [key]);
+      assert.equal(option.BHasClass(selectedClass), true);
+      assert.equal(panel(fixture, 'HPColorsCurrentScopeSummary').text, `${summary} — ${name}`);
+      option.events.onactivate();
+      assert.deepEqual(currentScope(fixture).heroes, []);
+    }
+  }
+});
 
 test('scope switch offers All Except with its own picker wording', () => {
   const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
@@ -1082,7 +1192,7 @@ test('retired builder layout without the fifth rail button still shows its warni
     },
   );
 
-  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'UPDATE PRESET FILE');
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'OLD PRESET VPK');
   openEditor(fixture);
   selectEnemyBar(fixture);
 });
@@ -1169,26 +1279,110 @@ test('color picker closes from its backdrop and condition swatches accept clicks
   );
 });
 
-test('More Precise HP Text toggle shows its state after clicks and Undo', () => {
-  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+function nativeColor(fixture, r, g, b) {
+  panel(fixture, 'HPColorsNativePicker').events.CitadelColorPickerColorChanged(r, g, b);
+}
+
+test('native picker seed is inert, RGB previews live, and each session has one Undo', () => {
+  const fixture = bootMenu();
   openEditor(fixture);
-  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
-  panel(fixture, 'HPColorsTab0').events.onactivate();
-  const toggle = panel(fixture, 'HPColorsPrecisePipsToggle');
-  const dialog = panel(fixture, 'HPColorsPrecisePipsDialog');
-  assert.equal(toggle.BHasClass('Checked'), false);
-
-  toggle.events.onactivate();
-  assert.equal(toggle.BHasClass('Checked'), true);
-  assert.equal(dialog.BHasClass('Open'), true);
-  panel(fixture, 'HPColorsPrecisePipsCloseButton').events.onactivate();
-
+  const before = readConfig(fixture).values.enemyLow;
+  const count = configDispatches(fixture).length;
+  panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsNativePicker').FindChildTraverse('HexValue').text, before.slice(1));
+  assert.equal(configDispatches(fixture).length, count);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+  nativeColor(fixture, 16, 32, 48);
+  assert.equal(readConfig(fixture).values.enemyLow, '#102030');
+  nativeColor(fixture, 0, 255, 1);
+  assert.equal(readConfig(fixture).values.enemyLow, '#00FF01');
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
+  nativeColor(fixture, 255, 255, 255);
+  panel(fixture, 'HPColorsPickerBackdrop').events.onactivate();
   panel(fixture, 'HPColorsUndoButton').events.onactivate();
-  assert.equal(toggle.BHasClass('Checked'), false);
+  assert.equal(readConfig(fixture).values.enemyLow, '#00FF01');
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.enemyLow, before);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+});
 
-  toggle.events.onactivate();
-  toggle.events.onactivate();
-  assert.equal(toggle.BHasClass('Checked'), false);
+test('native picker Escape restores opening color without Undo and returns focus', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  const before = readConfig(fixture).values.enemyLow;
+  const swatch = panel(fixture, 'HPColorsEnemyLowSwatch');
+  swatch.events.onactivate();
+  nativeColor(fixture, 1, 2, 3);
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.equal(readConfig(fixture).values.enemyLow, before);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+  assert.equal(swatch.focused, true);
+});
+
+test('native construction failure keeps hex-only picker editing available and logs once', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    const native = harness.root.FindChildTraverse('HPColorsNativePicker');
+    if (native) native.RemoveAndDeleteChildren();
+  } });
+  openEditor(fixture);
+  const swatch = panel(fixture, 'HPColorsEnemyLowSwatch');
+  swatch.events.onactivate();
+  const hex = panel(fixture, 'HPColorsPickerHex');
+  hex.text = '#2468AC';
+  hex.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.enemyLow, '#2468AC');
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  swatch.events.onactivate();
+  assert.equal(fixture.harness.logs.filter((line) => /native color picker/i.test(line)).length, 1);
+});
+
+test('invalid native picker falls back without blocking boot or recording opening as Undo', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    harness.root.FindChildTraverse('HPColorsNativePicker').valid = false;
+  } });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsEnemyLowSwatch').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+  const hex = panel(fixture, 'HPColorsPickerHex');
+  hex.text = '#ABCDEF';
+  hex.events.ontextentrysubmit();
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.equal(readConfig(fixture).values.enemyLow, shippedDefaults.enemyLow);
+  assert.equal(panel(fixture, 'HPColorsUndoButton').enabled, false);
+});
+
+test('native condition picker changes only its draft and Escape restores that draft', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    harness.root.FindChildTraverse('HPColorsEnemyLowRow').AddClass('HPColorsSettingRow');
+    harness.root.FindChildTraverse('HPColorsEnemyLowSwatch')
+      .SetParent(harness.root.FindChildTraverse('HPColorsEnemyLowRow'));
+  } });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCondition_enemyLow').events.onactivate();
+  const before = readConfig(fixture);
+  const draft = panel(fixture, 'HPColorsConditionColorEntry').text;
+  panel(fixture, 'HPColorsConditionColorSwatch').events.onactivate();
+  nativeColor(fixture, 12, 34, 56);
+  assert.equal(panel(fixture, 'HPColorsConditionColorEntry').text, '#0C2238');
+  assert.deepEqual(readConfig(fixture), before);
+  fixture.harness.$.HPColorsMenuCancel();
+  assert.equal(panel(fixture, 'HPColorsConditionColorEntry').text, draft);
+  panel(fixture, 'HPColorsConditionColorSwatch').events.onactivate();
+  nativeColor(fixture, 65, 43, 21);
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsConditionColorEntry').text, '#412B15');
+  assert.deepEqual(readConfig(fixture), before);
+  panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
+  assert.equal(readMenuState(fixture).conditions.enemyLow.value, '#412B15');
+});
+
+test('native 6722 readout retires the pip-derived manual config workflow', () => {
+  const fixture = bootMenu({ version: 1, values: { precisePipsEnabled: true }, scopes: [] });
+  openEditor(fixture);
+  assert.equal(fixture.harness.root.FindChildTraverse('HPColorsPrecisePipsToggle'), null);
+  assert.equal(fixture.harness.root.FindChildTraverse('HPColorsPrecisePipsDialog'), null);
+  assert.equal(readConfig(fixture).values.precisePipsEnabled, undefined, 'retired legacy value is dropped on load');
 });
 
 test('sync contains panel API failures and keeps control events enabled', () => {
@@ -1211,6 +1405,88 @@ test('sync contains panel API failures and keeps control events enabled', () => 
   panel(fixture, 'HPColorsMasterToggle').events.onactivate();
 
   assert.equal(readMenuState(fixture).values.enabled, false);
+});
+
+test('unchanged warm sync avoids panel traversal and redundant writes', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  const entry = panel(fixture, 'HPColorsWidthEntry');
+  const before = { ...fixture.harness.operationCounts };
+  for (let index = 0; index < 3; index++) entry.events.oncancel();
+  for (const counter of ['findTraversals', 'textWrites', 'styleWrites', 'classWrites']) {
+    assert.equal(fixture.harness.operationCounts[counter], before[counter], counter);
+  }
+});
+
+test('old-layout sync does not rescan absent Appearance and pip-opacity controls', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    harness.root.FindChildTraverse('HPColorsV2Store').DeleteAsync();
+    for (const child of harness.root.Children()) {
+      if (/^HPColors(?:Name|EnemyName|AllyName|PipOpacity)/.test(child.id))
+        child.DeleteAsync();
+    }
+  } });
+  openEditor(fixture);
+  const entry = panel(fixture, 'HPColorsWidthEntry');
+  const before = { ...fixture.harness.findCounts };
+  for (let index = 0; index < 3; index++) entry.events.oncancel();
+  for (const id of Object.keys(fixture.harness.findCounts)) {
+    if (/^HPColors(?:Name|EnemyName|AllyName|PipOpacity)/.test(id))
+      assert.equal(fixture.harness.findCounts[id], before[id], id);
+  }
+  assert.equal(panel(fixture, 'HPColorsLiveStatus').text, 'OLD PRESET VPK');
+});
+
+test('sync reacquires an invalid cached control without changing the settings', () => {
+  for (const legacy of [false, true]) {
+    const fixture = bootMenu(undefined, { beforeBoot(harness) {
+      if (legacy) harness.root.FindChildTraverse('HPColorsV2Store').DeleteAsync();
+    } });
+    openEditor(fixture);
+    const before = readConfig(fixture);
+    const entry = panel(fixture, 'HPColorsWidthEntry');
+    const swatch = panel(fixture, 'HPColorsEnemyLowSwatch');
+    swatch.DeleteAsync();
+    const replacement = fixture.harness.root.add(new MockPanel('HPColorsEnemyLowSwatch'));
+    entry.events.oncancel();
+    assert.equal(replacement.style.backgroundColor, before.values.enemyLow);
+    assert.deepEqual(readConfig(fixture), before);
+  }
+});
+
+test('condition indicator sync shares one settings snapshot for all configured rows', () => {
+  const stateReadCounter = { count: 0 };
+  const controls = [
+    ['widthScale', 'HPColorsWidth', 'HPColorsWidthScaleRow', 200],
+    ['heightScale', 'HPColorsHeight', 'HPColorsHeightScaleRow', 130],
+    ['positionX', 'HPColorsPositionX', 'HPColorsPositionXRow', 10],
+    ['positionY', 'HPColorsPositionY', 'HPColorsPositionYRow', 10],
+    ['lowThreshold', 'HPColorsSharedLowThreshold', 'HPColorsSharedLowThresholdRow', 10],
+    ['highThreshold', 'HPColorsSharedHighThreshold', 'HPColorsSharedHighThresholdRow', 90],
+  ];
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [], conditions:
+    Object.fromEntries(controls.map(([key, , , value]) =>
+      [key, { slot: 1, minTier: 1, value }])) }, {
+    stateReadCounter,
+    beforeBoot(harness) {
+      for (const [, base, rowId] of controls) {
+        const row = harness.root.FindChildTraverse(rowId);
+        row.AddClass('HPColorsSettingRow');
+        harness.root.FindChildTraverse(base + 'SliderHost').SetParent(row);
+        harness.root.FindChildTraverse(base + 'Entry').SetParent(row);
+      }
+    },
+  });
+  openEditor(fixture);
+  const entry = panel(fixture, 'HPColorsWidthEntry');
+  stateReadCounter.count = 0;
+  entry.events.oncancel();
+  assert.ok(stateReadCounter.count <= 6, `sync read state ${stateReadCounter.count} times`);
+  for (const [key] of controls) {
+    const indicator = panel(fixture, 'HPColorsCondition_' + key);
+    assert.equal(indicator.BHasClass('Configured'), true, key);
+    assert.equal(indicator.BHasClass('Unavailable'), true, key);
+  }
 });
 
 test('effect pages live under their healthbar categories', () => {
@@ -1244,10 +1520,10 @@ test('effect pages live under their healthbar categories', () => {
   panel(fixture, 'HPColorsTab0').events.onactivate();
   assert.equal(
     panel(fixture, 'HPColorsPageTitle').text,
-    'HEALTH PIPS & PLAYER LEVEL',
+    'HEALTH LINES & LEVEL',
   );
-  panel(fixture, 'HPColorsTab2').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'ENEMY STAMINA');
+  panel(fixture, 'HPColorsTab3').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'TOPBAR PICKUP TIMERS');
 });
 
 test('every setting key has one tab owner and its controls live in that XML page', () => {
@@ -1274,13 +1550,13 @@ test('every setting key has one tab owner and its controls live in that XML page
     addControl(color.key, `${color.base}Swatch`);
     addControl(color.key, `${color.base}Hex`);
   }
-  addControl('precisePipsEnabled', 'HPColorsPrecisePipsToggle');
+  addControl('staminaShape', 'HPColorsStaminaShape');
 
   const pageAncestry = panelAncestryById(layoutSource);
   const tabs = categories.flatMap((category) => category.tabs);
   assert.deepEqual(
     [...categories].map((category) => category.name),
-    ['GENERAL', 'ENEMY', 'ALLY', 'INDICATORS', 'PRESETS'],
+    ['GENERAL', 'ENEMY', 'ALLY', 'INDICATORS', 'UNITS', 'PRESETS'],
   );
   for (const category of categories)
     assert.ok(category.tabs.length <= 6, `${category.name} must fit six tab slots`);
@@ -1535,9 +1811,12 @@ test('Layered presets reset confirmation names the All Heroes settings', () => {
 });
 
 function twoPresetState(values = {}) {
+  // Start on today's Rewrite Default; sparse saved presets still restore the
+  // frozen stock baseline, so applying them is a real, undoable transition.
   return {
     version: 1,
-    values,
+    offsetVersion: 2,
+    values: { ...shippedDefaults, ...values },
     scopes: [],
     userPresets: [
       {
@@ -2716,8 +2995,11 @@ test('an old save carrying ghoul opacity boots, publishes no ghoul keys, and the
 
 function saveToPresetState() {
   return {
+    // Match today's baked preset so the first row click does not need a
+    // discard confirmation before exercising SAVE TO PRESET.
     version: 1,
-    values: {},
+    offsetVersion: 2,
+    values: shippedDefaults,
     scopes: [],
     userPresets: [
       {
@@ -3205,7 +3487,7 @@ test('the SAVE TO PRESET button glows while the settings on screen are not saved
 
   // Untouched defaults match Rewrite Default: no glow. Any edit glows as a
   // reminder, UNDO back to defaults clears it, and NEW PRESET saves it away.
-  const none = bootMenu({ version: 1, values: {}, scopes: [] });
+  const none = bootMenu({ version: 1, offsetVersion: 2, values: shippedDefaults, scopes: [] });
   openEditor(none);
   assert.equal(glows(none), false);
   setWidthWithoutGesture(none, 150);
@@ -3439,4 +3721,739 @@ test('the SAVE TO PRESET CSS animates only opacity and uses no shadows or clippi
   assert.ok(properties.length >= 2);
   assert.deepEqual(Array.from(new Set(properties)), ['opacity']);
   assert.match(css, new RegExp(`animation-name:\\s*${pulse[1]}\\s*;`));
+});
+
+
+test('all readout sliders preserve the stock zero and physical canvas windows in percent', () => {
+  const fixture = bootMenu({ version: 1, values: {
+    widthScale: 100, heightScale: 100, readoutOffsetX: 0, readoutOffsetY: 0,
+  }, scopes: [] });
+  openEditor(fixture);
+  for (const [base, key, limit] of [
+    ['HPColorsReadoutOffsetX', 'readoutOffsetX', 200],
+    ['HPColorsReadoutOffsetY', 'readoutOffsetY', 210],
+    ['HPColorsAllyReadoutOffsetX', 'allyReadoutOffsetX', 200],
+    ['HPColorsAllyReadoutOffsetY', 'allyReadoutOffsetY', 210],
+    ['HPColorsEnemyPulseReadoutOffsetX', 'enemyPulseReadoutOffsetX', 200],
+    ['HPColorsEnemyPulseReadoutOffsetY', 'enemyPulseReadoutOffsetY', 210],
+  ]) {
+    const slider = panel(fixture, base + 'Slider');
+    const entry = panel(fixture, base + 'Entry');
+    const scale = 100 / (/X$/.test(key) ? 76 : 18);
+    assert.equal(slider.min, -limit * scale, key);
+    assert.equal(slider.max, limit * scale, key);
+    assert.equal(slider.value, 0, key);
+    assert.equal(entry.text, '0', key);
+  }
+});
+
+
+test('Units pages expose independent gates, neutral native/hex, and scoped reset/Undo', () => {
+  const fixture = bootMenu({ version: 1, values: {}, scopes: [] });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryUnits').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSettingsNpc').BHasClass('Active'), true);
+  const initial = readConfig(fixture);
+  for (const key of [
+    'npcEnemyEnabled',
+    'npcAllyEnabled',
+    'npcNeutralEnabled',
+    'buildingEnemyEnabled',
+    'buildingAllyEnabled',
+  ])
+    assert.equal(initial.values[key], false, key);
+
+  panel(fixture, 'HPColorsNpcEnemyToggle').events.onactivate();
+  panel(fixture, 'HPColorsNpcAllyToggle').events.onactivate();
+  assert.equal(readConfig(fixture).values.npcEnemyEnabled, true);
+  assert.equal(readConfig(fixture).values.npcAllyEnabled, true);
+  assert.equal(readConfig(fixture).values.enemyEnabled, true);
+  assert.equal(readConfig(fixture).values.allyEnabled, false);
+
+  panel(fixture, 'HPColorsTab1').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSettingsNeutral').BHasClass('Active'), true);
+  const neutralRow = panel(fixture, 'HPColorsNeutralColorRow');
+  assert.equal(neutralRow.BHasClass('Disabled'), true);
+  assert.equal(panel(fixture, 'HPColorsNeutralColorHex').text, '#5BEFB5');
+  panel(fixture, 'HPColorsNpcNeutralToggle').events.onactivate();
+  assert.equal(neutralRow.BHasClass('Disabled'), false);
+
+  panel(fixture, 'HPColorsNeutralColorSwatch').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPickerRoot').BHasClass('Open'), true);
+  nativeColor(fixture, 32, 64, 96);
+  assert.notEqual(readConfig(fixture).values.neutralColor, '#5BEFB5');
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  const neutralHex = panel(fixture, 'HPColorsNeutralColorHex');
+  neutralHex.text = '#2468AC';
+  neutralHex.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.neutralColor, '#2468AC');
+
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSettingsBuildings').BHasClass('Active'), true);
+  panel(fixture, 'HPColorsBuildingEnemyToggle').events.onactivate();
+  panel(fixture, 'HPColorsBuildingAllyToggle').events.onactivate();
+  assert.equal(readConfig(fixture).values.buildingEnemyEnabled, true);
+  assert.equal(readConfig(fixture).values.buildingAllyEnabled, true);
+  assert.equal(readConfig(fixture).values.allyEnabled, false);
+
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  requestReset(fixture);
+  confirmReset(fixture);
+  const reset = readConfig(fixture).values;
+  assert.equal(reset.npcEnemyEnabled, false);
+  assert.equal(reset.npcAllyEnabled, false);
+  assert.equal(reset.npcNeutralEnabled, true);
+  assert.equal(reset.neutralColor, '#2468AC');
+  assert.equal(reset.buildingEnemyEnabled, true);
+  assert.equal(reset.buildingAllyEnabled, true);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.npcEnemyEnabled, true);
+  assert.equal(readConfig(fixture).values.npcAllyEnabled, true);
+});
+
+
+test('a missing Units color control keeps menu boot retryable', () => {
+  const fixture = bootMenu(
+    { version: 1, values: {}, scopes: [] },
+    {
+      beforeBoot(harness) {
+        harness.root.FindChildTraverse('HPColorsNeutralColorHex').DeleteAsync();
+      },
+    },
+  );
+  assert.equal(
+    typeof fixture.harness.root.FindChildTraverse('HPColorsMenuButton').events.onactivate,
+    'undefined',
+  );
+  fixture.harness.root.add(new MockPanel('HPColorsNeutralColorHex', {
+    findCounts: fixture.harness.findCounts,
+    childReadCounts: fixture.harness.childReadCounts,
+  }));
+  fixture.harness.$.HPColorsMenuBoot();
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryUnits').events.onactivate();
+  panel(fixture, 'HPColorsTab1').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSettingsNeutral').BHasClass('Active'), true);
+});
+
+
+test('Appearance toggles publish exact keys and reset/Undo only their section', () => {
+  const keys = ['criticalIndicatorVisible', 'playerNamesVisible'];
+  const ids = ['HPColorsCriticalIndicatorToggle', 'HPColorsPlayerNamesToggle'];
+  const fixture = bootMenu({ version: 1, values: { widthScale: 123 }, scopes: [] });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsPageTitle').text, 'NAME & APPEARANCE');
+  assert.equal(panel(fixture, 'HPColorsSettingsOverviewAppearance').BHasClass('Active'), true);
+  for (let index = 0; index < keys.length; index++) {
+    const before = readConfig(fixture);
+    const dispatches = configDispatches(fixture).length;
+    panel(fixture, ids[index]).events.onactivate();
+    const after = readConfig(fixture);
+    assert.equal(after.values[keys[index]], false);
+    assert.deepEqual(after.values, { ...before.values, [keys[index]]: false });
+    assert.equal(configDispatches(fixture).length, dispatches + 1);
+    assert.deepEqual(Object.keys(after).sort(), ['magic_word', 'revision', 'values', 'version']);
+  }
+  requestReset(fixture);
+  confirmReset(fixture);
+  for (const key of keys) assert.equal(readConfig(fixture).values[key], true);
+  assert.equal(readConfig(fixture).values.widthScale, 123);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  for (const key of keys) assert.equal(readConfig(fixture).values[key], false);
+  assert.equal(readConfig(fixture).values.widthScale, 123);
+});
+
+
+test('each required Appearance panel supports explicit boot retry without duplicates', () => {
+  for (const id of ['HPColorsSettingsOverviewAppearance', 'HPColorsCriticalIndicatorToggle',
+    'HPColorsPlayerNamesToggle']) {
+    const fixture = bootMenu(undefined, {
+      beforeBoot(harness) { harness.root.FindChildTraverse(id).DeleteAsync(); },
+    });
+    assert.equal(configDispatches(fixture).length, 0, id);
+    assert.equal(fixture.harness.scheduler.jobs.length, 0, id);
+    fixture.harness.root.add(new MockPanel(id));
+    fixture.harness.$.HPColorsMenuBoot();
+    const dispatches = configDispatches(fixture).length;
+    const jobs = fixture.harness.scheduler.jobs.length;
+    fixture.harness.$.HPColorsMenuBoot();
+    assert.equal(configDispatches(fixture).length, dispatches, id);
+    assert.equal(fixture.harness.scheduler.jobs.length, jobs, id);
+    openEditor(fixture);
+    panel(fixture, 'HPColorsTab2').events.onactivate();
+    panel(fixture, 'HPColorsCriticalIndicatorToggle').events.onactivate();
+    assert.equal(readConfig(fixture).values.criticalIndicatorVisible, false, id);
+  }
+});
+
+test('restored editor has twenty tabs and retains CSS-pixel legacy input', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  let tabs = 0;
+  for (const rail of ['Overview', 'Enemy', 'Ally', 'Readout', 'Presets', 'Units']) {
+    panel(fixture, 'HPColorsCategory' + rail).events.onactivate();
+    for (let index = 0; index < 6; index++) {
+      const tab = panel(fixture, 'HPColorsTab' + index);
+      if (!tab.BHasClass('Available')) continue;
+      tabs++;
+    }
+  }
+  assert.equal(tabs, 20);
+  selectOverviewLayout(fixture);
+  const entry = panel(fixture, 'HPColorsPositionXEntry');
+  entry.text = '-12.3';
+  entry.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.positionX, -123);
+  assert.equal(entry.text, '-12.3');
+  const slider = panel(fixture, 'HPColorsPositionXSlider');
+  assert.equal(slider.min, -30);
+  assert.equal(slider.max, 30);
+  assert.equal(slider.increment, 0.1);
+  slider.events.onmousedown();
+  slider.value = -15.6;
+  slider.events.onvaluechanged();
+  slider.events.onmouseup();
+  assert.equal(readConfig(fixture).values.positionX, -156);
+  assert.equal(entry.text, '-15.6');
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.positionX, -123);
+  selectEnemyBar(fixture);
+  assert.equal(panel(fixture, 'HPColorsEnemyTeamHighRow').BHasClass('FeatureOff'), false);
+  assert.match(layoutSource, /RESET PAGE/);
+});
+
+test('layout reset captures only its five keys in one Undo', () => {
+  const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
+  const keys = categories[0].tabs[1].keys;
+  assert.equal(keys.length, 5);
+  const values = Object.fromEntries(keys.map(key => [key, key === 'accessoryAnchorEnabled' ? false :
+    /Scale$/.test(key) ? 60 : -10]));
+  const fixture = bootMenu({ version: 1, offsetVersion: 2, values: {
+    ...values, enemyPulseReadoutOffsetX: 55, pickupOffsetX: 66,
+  }, scopes: [] });
+  openEditor(fixture);
+  selectOverviewLayout(fixture);
+  requestReset(fixture);
+  selectEnemyBar(fixture);
+  confirmReset(fixture);
+  const after = readConfig(fixture).values;
+  const shippedLayout = { widthScale: 148, heightScale: 80, positionX: 0,
+    positionY: -38, accessoryAnchorEnabled: true };
+  for (const key of keys) assert.equal(after[key], shippedLayout[key], key);
+  assert.equal(after.enemyPulseReadoutOffsetX, 55);
+  assert.equal(after.pickupOffsetX, 66);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  for (const key of keys) assert.equal(readConfig(fixture).values[key], values[key], key);
+});
+
+test('always-visible tuning never unhides feature-off rows or hides ready-icon color', () => {
+  const fixture = bootMenu({ version: 1, values: {
+    readoutVisible: false, enemyPulseEnabled: false, pickupTimersEnabled: false,
+    ultimateTimerEnabled: false, playerNamesVisible: false, enemyKillMarkerWidth: 8,
+  }, conditions: { enemyKillMarkerWidth: { slot: 1, minTier: 1, value: 4 } }, scopes: [] });
+  openEditor(fixture);
+  for (const id of ['HPColorsReadoutSizeRow', 'HPColorsEnemyPulseReadoutSizeRow',
+    'HPColorsPickupSizeRow', 'HPColorsNameSizeRow'])
+    assert.equal(panel(fixture, id).BHasClass('FeatureOff'), true, id);
+  assert.equal(panel(fixture, 'HPColorsUltModeRow').BHasClass('FeatureOff'), false);
+  assert.equal(panel(fixture, 'HPColorsEnemyKillMarkerWidthRow').BHasClass('FeatureOff'), true);
+});
+
+test('round legacy position condition editor converts CSS pixels in both directions', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    const row = harness.root.FindChildTraverse('HPColorsPositionXRow');
+    row.AddClass('HPColorsSettingRow');
+    harness.root.FindChildTraverse('HPColorsPositionXSliderHost').SetParent(row);
+    harness.root.FindChildTraverse('HPColorsPositionXEntry').SetParent(row);
+  } });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCondition_positionX').events.onactivate();
+  const entry = panel(fixture, 'HPColorsConditionNumberEntry');
+  entry.text = '-12.3';
+  entry.events.ontextentrysubmit();
+  assert.equal(entry.text, '-12.3');
+  assert.equal(panel(fixture, 'HPColorsConditionNumberSlider').value, -12.3);
+  panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
+  assert.equal(readMenuState(fixture).conditions.positionX.value, -123);
+});
+
+test('review regression blank scaled entry leaves the raw value revision and Undo unchanged', () => {
+  const fixture = bootMenu({ version: 1, values: { positionX: -123 }, scopes: [] });
+  openEditor(fixture);
+  const before = readConfig(fixture);
+  const raw = fixture.harness.root.GetAttributeString(MENU_STATE_ATTR, '');
+  const entry = panel(fixture, 'HPColorsPositionXEntry');
+  entry.text = '';
+  entry.events.ontextentrysubmit();
+  assert.deepEqual(readConfig(fixture), before);
+  assert.equal(fixture.harness.root.GetAttributeString(MENU_STATE_ATTR, ''), raw);
+  assert.equal(entry.text, '-12.3');
+});
+
+test('review regression old four-rail feedback and stamina pages remain reachable and active', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    harness.root.FindChildTraverse('HPColorsV2Store').DeleteAsync();
+    for (const id of ['HPColorsSettingsEnemyFeedback', 'HPColorsSettingsAllyFeedback',
+      'HPColorsSettingsStamina']) harness.root.add(new MockPanel(id));
+  } });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryEnemy').events.onactivate();
+  panel(fixture, 'HPColorsTab1').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSettingsEnemyFeedback').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsSettingsEnemyBar').BHasClass('Active'), false);
+  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSettingsStamina').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsSettingsEnemyFeedback').BHasClass('Active'), false);
+});
+
+test('follow-up pages expose every editable key once without heading-only or Advanced rows', () => {
+  const categories = JSON.parse(JSON.stringify(extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS')));
+  assert.deepEqual(categories.map(category => category.name), ['GENERAL', 'ENEMY', 'ALLY', 'INDICATORS', 'UNITS', 'PRESETS']);
+  const keys = categories.flatMap(category => category.tabs.flatMap(tab => tab.keys));
+  const context = vm.createContext({ $: {} });
+  vm.runInContext(contractSource, context);
+  const contract = context.$.HPColorsV2ContractFactory.create();
+  assert.deepEqual([...keys].sort(), Array.from(contract.keys).sort());
+  assert.equal(new Set(keys).size, keys.length);
+  const indicators = categories.find(category => category.name === 'INDICATORS');
+  assert.deepEqual(indicators.tabs.find(tab => tab.name === 'STAMINA').keys, [
+    'staminaShape', 'staminaWidth', 'staminaHeight', 'staminaOffsetX', 'staminaOffsetY',
+    'enemyStaminaColorEnabled', 'enemyStaminaColor',
+  ]);
+  const expected = [
+    ['GENERAL', 'MASTER', 'HPColorsSettingsOverviewStatus', ['enabled', 'lowThreshold', 'highThreshold']],
+    ['GENERAL', 'LAYOUT', 'HPColorsSettingsOverviewLayout', ['widthScale', 'heightScale', 'positionX', 'positionY', 'accessoryAnchorEnabled']],
+    ['GENERAL', 'NAME & APPEARANCE', 'HPColorsSettingsOverviewAppearance', ['criticalIndicatorVisible', 'playerNamesVisible', 'enemyNameColorEnabled', 'enemyNameColor', 'allyNameColorEnabled', 'allyNameColor', 'nameSize', 'nameOutlineWidth', 'nameOffsetX', 'nameOffsetY', 'hudHealthColorMode', 'hudHealthColor']],
+    ['ENEMY', 'BAR', 'HPColorsSettingsEnemyBar', ['enemyEnabled', 'enemyVisible', 'enemyMode', 'enemyLow', 'enemyMid', 'enemyHigh', 'enemyTeamHigh']],
+    ['ENEMY', 'HEAL & SHIELD', 'HPColorsSettingsEnemyFeedback', ['enemyHealing', 'enemyDelta', 'enemyBulletShield']],
+    ['ENEMY', 'HP TEXT', 'HPColorsSettingsReadoutNumber', ['readoutVisible', 'readoutSize', 'readoutOutlineWidth', 'readoutFont', 'readoutColorMode', 'readoutMode', 'readoutLow', 'readoutMid', 'readoutHigh', 'readoutOffsetX', 'readoutOffsetY']],
+    ['ALLY', 'BAR', 'HPColorsSettingsAllyBar', ['allyEnabled', 'allyVisible', 'allyMode', 'allyLow', 'allyMid', 'allyHigh', 'allyTeamHigh']],
+    ['ALLY', 'HEAL & SHIELD', 'HPColorsSettingsAllyFeedback', ['allyHealing', 'allyDelta', 'allyBulletShield']],
+    ['ALLY', 'HP TEXT', 'HPColorsSettingsAllyReadout', ['allyReadoutVisible', 'allyReadoutSize', 'allyReadoutOutlineWidth', 'allyReadoutFont', 'allyReadoutColorMode', 'allyReadoutMode', 'allyReadoutLow', 'allyReadoutMid', 'allyReadoutHigh', 'allyReadoutOffsetX', 'allyReadoutOffsetY']],
+    ['INDICATORS', 'PIPS & LEVEL', 'HPColorsSettingsReadoutLevels', ['pipsVisible', 'enemyPipColorEnabled', 'enemyPipColor', 'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'levelsVisible', 'levelOffsetX', 'levelOffsetY']],
+    ['INDICATORS', 'ULTIMATE', 'HPColorsSettingsUltimateTimer', ['ultMode', 'ultCustom', 'ultimateTimerColorMode', 'ultimateTimerUnavailableColor', 'ultimateTimerAvailableColor', 'ultimateTimerEnabled', 'ultimateTimerSize', 'ultimateTimerDarkness', 'ultOffsetX', 'ultOffsetY']],
+    ['UNITS', 'NPCS', 'HPColorsSettingsNpc', ['npcEnemyEnabled', 'npcAllyEnabled']],
+    ['UNITS', 'NEUTRALS', 'HPColorsSettingsNeutral', ['npcNeutralEnabled', 'neutralColor']],
+    ['UNITS', 'BUILDINGS', 'HPColorsSettingsBuildings', ['buildingEnemyEnabled', 'buildingAllyEnabled']],
+    ['PRESETS', 'LIBRARY', 'HPColorsSettingsOverviewHero', []],
+  ];
+  for (const [categoryName, tabName, pageId, pageKeys] of expected) {
+    const tab = categories.find(category => category.name === categoryName).tabs.find(tab => tab.name === tabName);
+    assert.ok(tab, categoryName + '/' + tabName);
+    assert.equal(tab.pageId, pageId);
+    assert.deepEqual(Array.from(tab.keys), pageKeys, categoryName + '/' + tabName);
+  }
+  assert.deepEqual(Array.from(extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_BUTTON_IDS')), [
+    'HPColorsCategoryOverview', 'HPColorsCategoryEnemy', 'HPColorsCategoryAlly',
+    'HPColorsCategoryReadout', 'HPColorsCategoryUnits', 'HPColorsCategoryPresets',
+  ]);
+  const railIds = Array.from(layoutSource.matchAll(/id="(HPColorsCategory(?:Overview|Enemy|Ally|Readout|Units|Presets))"/g), match => match[1]);
+  assert.deepEqual(railIds, ['HPColorsCategoryOverview', 'HPColorsCategoryEnemy', 'HPColorsCategoryAlly', 'HPColorsCategoryReadout', 'HPColorsCategoryUnits', 'HPColorsCategoryPresets']);
+  assert.doesNotMatch(layoutSource + canonicalMenuSource + menuStyleSource, /AdvancedToggle|ADVANCED_KEYS|advancedOpen|syncAdvancedRows|bindAdvancedControls|HPColorsAdvancedRow|HPColorsGroupRow/);
+  for (const match of layoutSource.matchAll(/<Panel\b[^>]*class="[^"]*\bHPColorsSettingRow\b[^"]*"[^>]*>/g)) {
+    let depth = 1;
+    const tags = /<\/?Panel\b[^>]*>/g;
+    tags.lastIndex = match.index + match[0].length;
+    let end;
+    while (depth && (end = tags.exec(layoutSource))) {
+      if (end[0].startsWith('</')) depth--;
+      else if (!end[0].endsWith('/>')) depth++;
+    }
+    assert.match(layoutSource.slice(match.index, tags.lastIndex), /<(Button|TextEntry|DropDown)\b|SliderHost/, match[0]);
+  }
+});
+
+test('pip controls publish team colors and opacity, and stamina dropdown resets only its own page', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryReadout').events.onactivate();
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  for (const [prefix, color] of [['Enemy', '#123456'], ['Ally', '#ABCDEF']]) {
+    const key = prefix.toLowerCase() + 'PipColor';
+    const row = panel(fixture, 'HPColors' + prefix + 'PipColorRow');
+    assert.equal(row.BHasClass('Disabled'), true, prefix);
+    panel(fixture, 'HPColors' + prefix + 'PipColorToggle').events.onactivate();
+    assert.equal(readConfig(fixture).values[key + 'Enabled'], true);
+    assert.equal(row.BHasClass('Disabled'), false, prefix);
+    const entry = panel(fixture, 'HPColors' + prefix + 'PipColorHex');
+    entry.text = color;
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], color);
+    panel(fixture, 'HPColors' + prefix + 'PipColorSwatch').events.onactivate();
+    assert.equal(panel(fixture, 'HPColorsPickerRoot').BHasClass('Open'), true);
+    panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  }
+  const opacity = panel(fixture, 'HPColorsPipOpacityEntry');
+  opacity.text = '42';
+  opacity.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.pipOpacity, 42);
+  assert.equal(panel(fixture, 'HPColorsPipOpacitySlider').min, 0);
+  assert.equal(panel(fixture, 'HPColorsPipOpacitySlider').max, 100);
+  selectStamina(fixture);
+  const shape = panel(fixture, 'HPColorsStaminaShape');
+  assert.equal(shape.GetSelected().id, 'arrow');
+  for (const value of ['circle', 'box', 'arrow']) {
+    shape.SetSelected(value);
+    shape.events.oninputsubmit();
+    assert.equal(readConfig(fixture).values.staminaShape, value);
+    assert.equal(shape.GetSelected().id, value);
+  }
+  shape.SetSelected('circle');
+  shape.events.oninputsubmit();
+  const offset = panel(fixture, 'HPColorsStaminaOffsetXEntry');
+  offset.text = '-12.3';
+  offset.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.staminaOffsetX, -123);
+  requestReset(fixture);
+  confirmReset(fixture);
+  assert.equal(readConfig(fixture).values.staminaShape, 'arrow');
+  assert.equal(shape.GetSelected().id, 'arrow');
+  assert.equal(readConfig(fixture).values.staminaOffsetX, 0);
+  assert.equal(readConfig(fixture).values.pipOpacity, 42, 'PIPS page is not reset by STAMINA');
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.staminaShape, 'circle');
+  assert.equal(shape.GetSelected().id, 'circle');
+  assert.equal(readConfig(fixture).values.staminaOffsetX, -123);
+});
+
+test('bar-relative percent offsets use stable display and consistent typed slider values', () => {
+  const fixture = bootMenu({ version: 1, values: { widthScale: 100, heightScale: 100 }, scopes: [] });
+  openEditor(fixture);
+  for (const base of ['ReadoutOffset', 'AllyReadoutOffset', 'EnemyPulseReadoutOffset', 'UltOffset', 'LevelOffset']) {
+    for (const axis of ['X', 'Y']) {
+      const key = base[0].toLowerCase() + base.slice(1) + axis;
+      const raw = base === 'UltOffset' || base === 'LevelOffset';
+      const size = axis === 'X' ? 76 : 18;
+      const scale = (raw ? 10 : 100) / size;
+      const slider = panel(fixture, `HPColors${base}${axis}Slider`);
+      const entry = panel(fixture, `HPColors${base}${axis}Entry`);
+      const limit = raw ? (axis === 'X' ? 300 : 200) : (axis === 'X' ? 200 : 210);
+      assert.equal(slider.min, -limit * scale, key);
+      assert.equal(slider.max, limit * scale, key);
+      assert.equal(slider.increment, scale, key);
+      entry.text = '50';
+      entry.events.ontextentrysubmit();
+      assert.equal(readConfig(fixture).values[key], size * (raw ? 5 : 0.5), key);
+      slider.value = -26 * scale;
+      slider.events.onvaluechanged();
+      assert.equal(readConfig(fixture).values[key], -26, key);
+      const bound = raw ? limit : (axis === 'X' ? 334 : 350);
+      for (const value of [-bound, -limit, -26, -1, 0, 1, 26, 74, limit, bound]) {
+        entry.text = String(value * scale);
+        entry.events.ontextentrysubmit();
+        const decimals = raw ? 10 : 1;
+        assert.equal(entry.text, String(Math.round(value * scale * decimals) / decimals), key);
+        assert.ok(slider.value >= slider.min && slider.value <= slider.max, key + ' track clamp');
+        const before = readConfig(fixture).values[key];
+        entry.events.ontextentrysubmit();
+        entry.events.onblur();
+        assert.equal(readConfig(fixture).values[key], before, key + ' display round trip');
+      }
+      const rowStart = layoutSource.indexOf(`id="HPColors${base}${axis}Row"`);
+      const nextRow = layoutSource.indexOf('class="HPColorsSettingRow', rowStart + 80);
+      assert.match(layoutSource.slice(rowStart, nextRow === -1 ? undefined : nextRow),
+        /text="%" class="HPColorsUnitLabel"/, key + ' percent unit');
+    }
+  }
+});
+
+test('text outline sliders publish half steps, register conditions, gate rows and reset their page', () => {
+  const cases = [
+    ['readoutOutlineWidth', 'HPColorsReadoutOutlineWidth', 'Enemy', 2, 'readoutVisible'],
+    ['allyReadoutOutlineWidth', 'HPColorsAllyReadoutOutlineWidth', 'Ally', 2, 'allyReadoutVisible'],
+    ['nameOutlineWidth', 'HPColorsNameOutlineWidth', 'Overview', 2, 'playerNamesVisible'],
+  ];
+  for (const [key, base, category, tab, visibilityKey] of cases) {
+    const fixture = bootMenu(undefined, { beforeBoot(harness) {
+      const row = harness.root.FindChildTraverse(base + 'Row');
+      assert.ok(row, base + ' row exists');
+      row.AddClass('HPColorsSettingRow');
+      harness.root.FindChildTraverse(base + 'SliderHost').SetParent(row);
+      harness.root.FindChildTraverse(base + 'Entry').SetParent(row);
+    } });
+    openEditor(fixture);
+    panel(fixture, 'HPColorsCategory' + category).events.onactivate();
+    panel(fixture, 'HPColorsTab' + tab).events.onactivate();
+    const slider = panel(fixture, base + 'Slider');
+    assert.equal(slider.min, 0, key);
+    assert.equal(slider.max, 10, key);
+    assert.equal(slider.increment, 0.5, key);
+    assert.equal(readConfig(fixture).values[key], 5, key);
+    slider.events.onmousedown();
+    slider.value = 2.5;
+    slider.events.onvaluechanged();
+    slider.events.onmouseup();
+    assert.equal(readConfig(fixture).values[key], 2.5, key);
+    panel(fixture, 'HPColorsCondition_' + key).events.onactivate();
+    assert.equal(panel(fixture, 'HPColorsConditionNumberSlider').increment, 0.5, key);
+    panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+    requestReset(fixture);
+    confirmReset(fixture);
+    assert.equal(readConfig(fixture).values[key], 5, key);
+    const hidden = bootMenu({ version: 1, values: { [visibilityKey]: false }, scopes: [] });
+    assert.equal(panel(hidden, base + 'Row').BHasClass('FeatureOff'), true, key);
+  }
+});
+
+test('bar-relative percent conditions use the same display rounding and stored units', () => {
+  const fixture = bootMenu(undefined, { beforeBoot(harness) {
+    for (const base of ['ReadoutOffsetX', 'UltOffsetX']) {
+      const row = harness.root.FindChildTraverse('HPColors' + base + 'Row');
+      row.AddClass('HPColorsSettingRow');
+      harness.root.FindChildTraverse('HPColors' + base + 'SliderHost').SetParent(row);
+      harness.root.FindChildTraverse('HPColors' + base + 'Entry').SetParent(row);
+    }
+  } });
+  openEditor(fixture);
+  for (const [key, typed, stored, shown] of [
+    ['readoutOffsetX', 50, 38, '50'],
+    ['readoutOffsetX', 26 / 76 * 100, 26, '34'],
+    ['ultOffsetX', 74 / 760 * 100, 74, '9.7'],
+  ]) {
+    panel(fixture, 'HPColorsCondition_' + key).events.onactivate();
+    if (key === 'readoutOffsetX')
+      assert.equal(panel(fixture, 'HPColorsConditionNumberSlider').max, 334 * (100 / 76));
+    const entry = panel(fixture, 'HPColorsConditionNumberEntry');
+    entry.text = String(typed);
+    entry.events.ontextentrysubmit();
+    assert.equal(entry.text, shown);
+    assert.equal(panel(fixture, 'HPColorsConditionNumberSlider').value, Number(shown));
+    entry.events.ontextentrysubmit();
+    panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
+    assert.equal(readMenuState(fixture).conditions[key].value, stored);
+  }
+});
+
+function hudWashFixture(values = {}, options = {}) {
+  let health;
+  const fixture = bootMenu({ version: 1, offsetVersion: 2, values, scopes: options.scopes || [],
+    conditions: options.conditions || {}, userPresets: options.userPresets || [] }, { beforeBoot(harness, identityTree) {
+    const add = (parent, id, classes = []) => parent.add(new MockPanel(id, {
+      classes, style: { washColor: '' }, findCounts: harness.findCounts,
+    }));
+    const container = add(identityTree.hud, 'health_and_abilities_container', ['team1', 'friend']);
+    const content = add(container, 'HealthBarContent');
+    const bars = add(content, 'hud_health_bars');
+    const line = add(bars, 'line', ['health_bar_line']);
+    const border = add(line, 'border', ['health_bar_border']);
+    const bar = add(border, 'health_bar', ['large_progress_bar']);
+    const left = add(bar, 'health_bar_Left', ['ProgressBarLeft']);
+    if (options.stockColor) left.style.washColor = options.stockColor;
+    left.styleWrites.length = 0;
+    const untouched = ['health_bar_Middle', 'health_bar_Right', 'pending_incoming_damage',
+      'heal', 'shield', 'ratking_armor'].map(id => add(bar, id));
+    const overhead = add(identityTree.hud, 'health_bar_Left', ['ProgressBarLeft']);
+    health = { container, bar, left, untouched: [...untouched, overhead] };
+    if (!options.legacy) {
+      for (const [rowId, ids] of [
+        ['HPColorsHudHealthColorModeRow', ['HPColorsHudHealthColorModeOff', 'HPColorsHudHealthColorModeTeam', 'HPColorsHudHealthColorModeCustom']],
+        ['HPColorsHudHealthColorRow', ['HPColorsHudHealthColorSwatch', 'HPColorsHudHealthColorHex']],
+      ]) {
+        const row = harness.root.FindChildTraverse(rowId);
+        if (row) {
+          row.AddClass('HPColorsSettingRow');
+          for (const id of ids) harness.root.FindChildTraverse(id).SetParent(row);
+        }
+      }
+    }
+    if (options.legacy) {
+      for (const id of ['HPColorsV2Store', 'HPColorsHudHealthColorModeRow',
+        'HPColorsHudHealthColorModeOff', 'HPColorsHudHealthColorModeTeam', 'HPColorsHudHealthColorModeCustom',
+        'HPColorsHudHealthColorRow', 'HPColorsHudHealthColorSwatch', 'HPColorsHudHealthColorHex'])
+        harness.root.FindChildTraverse(id)?.DeleteAsync();
+    }
+  } });
+  return { ...fixture, health };
+}
+
+test('HUD wash modes own only local ProgressBarLeft, detect team changes and skip unchanged writes', () => {
+  const fixture = hudWashFixture();
+  const { left, container, untouched } = fixture.health;
+  openEditor(fixture);
+  assert.deepEqual(left.styleWrites, [], 'OFF never writes stock styling');
+  assert.equal(readConfig(fixture).values.hudHealthColorMode, 'off');
+  panel(fixture, 'HPColorsHudHealthColorModeTeam').events.onactivate();
+  assert.equal(left.style.washColor, '#E7B659');
+  fixture.harness.scheduler.runFor(4000);
+  assert.equal(left.styleWrites.length, 1, 'cadence does not repeat native writes');
+  container.RemoveClass('team1');
+  container.AddClass('team2');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '#5B79E6');
+  container.RemoveClass('team2');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '', 'unknown TEAM releases CSS ownership');
+  panel(fixture, 'HPColorsHudHealthColorModeCustom').events.onactivate();
+  assert.equal(left.style.washColor, '#FFFF00');
+  const hex = panel(fixture, 'HPColorsHudHealthColorHex');
+  hex.text = '#123456';
+  hex.events.ontextentrysubmit();
+  assert.equal(left.style.washColor, '#123456');
+  panel(fixture, 'HPColorsMasterToggle').events.onactivate();
+  assert.equal(left.style.washColor, '');
+  panel(fixture, 'HPColorsMasterToggle').events.onactivate();
+  assert.equal(left.style.washColor, '#123456');
+  fixture.harness.root.SetAttributeString('hp_colors_v2_hydration', 'pending');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '');
+  const released = left.styleWrites.length;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.styleWrites.length, released);
+  fixture.harness.root.SetAttributeString('hp_colors_v2_hydration', 'done');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '#123456');
+  panel(fixture, 'HPColorsHudHealthColorModeOff').events.onactivate();
+  assert.equal(left.style.washColor, '');
+  for (const part of untouched) assert.deepEqual(part.styleWrites, [], part.id);
+});
+
+test('HUD wash re-resolves replaced/detached panels, contains native failures and supports legacy layout', () => {
+  for (const legacy of [false, true]) {
+    const fixture = hudWashFixture({ hudHealthColorMode: 'custom', hudHealthColor: '#2468AC' }, { legacy });
+    const { left, bar } = fixture.health;
+    assert.equal(left.style.washColor, '#2468AC');
+    left.SetParent(fixture.harness.root);
+    const replacement = bar.add(new MockPanel('health_bar_Left', { style: { washColor: '' } }));
+    fixture.harness.scheduler.runFor(2000);
+    assert.equal(left.style.washColor, '', 'detached valid panel releases ownership');
+    assert.equal(replacement.style.washColor, '#2468AC');
+    const count = replacement.styleWrites.length;
+    fixture.harness.$.HPColorsMenuBoot();
+    fixture.harness.scheduler.runFor(2000);
+    assert.equal(replacement.styleWrites.length, count, 'idempotent boot and cached writes');
+    replacement.DeleteAsync();
+    const next = bar.add(new MockPanel('health_bar_Left', { style: { washColor: '' } }));
+    fixture.harness.scheduler.runFor(2000);
+    assert.equal(next.style.washColor, '#2468AC');
+  }
+  const off = hudWashFixture({ enabled: false, hudHealthColorMode: 'team' });
+  off.harness.scheduler.runFor(2000);
+  assert.deepEqual(off.health.left.styleWrites, [], 'master-off never-owned leaves stock untouched');
+  const untouched = hudWashFixture({}, { stockColor: '#112233' });
+  untouched.harness.scheduler.runFor(2000);
+  assert.equal(untouched.health.left.style.washColor, '#112233');
+  assert.deepEqual(untouched.health.left.styleWrites, [], 'OFF must not clear another owner');
+});
+
+test('HUD wash custom row stays visible, dimmed and inert except in CUSTOM; picker, reset and Undo work', () => {
+  const fixture = hudWashFixture();
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryOverview').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  const row = panel(fixture, 'HPColorsHudHealthColorRow');
+  const hex = panel(fixture, 'HPColorsHudHealthColorHex');
+  const swatch = panel(fixture, 'HPColorsHudHealthColorSwatch');
+  for (const mode of ['Off', 'Team', 'Custom']) {
+    panel(fixture, 'HPColorsHudHealthColorMode' + mode).events.onactivate();
+    const active = mode === 'Custom';
+    assert.equal(row.BHasClass('Disabled'), !active);
+    assert.equal(row.BHasClass('FeatureOff'), false);
+    assert.equal(row.enabled, active, 'entire color row follows CUSTOM, including its condition marker');
+    assert.equal(hex.enabled, active);
+    assert.equal(swatch.enabled, active);
+    if (!active) {
+      hex.text = '#112233';
+      hex.events.ontextentrysubmit();
+      swatch.events.onactivate();
+      assert.equal(readConfig(fixture).values.hudHealthColor, '#FFFF00');
+      assert.equal(panel(fixture, 'HPColorsPickerRoot').BHasClass('Open'), false);
+    }
+  }
+  panel(fixture, 'HPColorsCondition_hudHealthColorMode').events.onactivate();
+  assert.deepEqual(panel(fixture, 'HPColorsConditionEnumOptions').Children().map(child => child.id),
+    ['HPColorsConditionOption_off', 'HPColorsConditionOption_team', 'HPColorsConditionOption_custom']);
+  panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+  panel(fixture, 'HPColorsCondition_hudHealthColor').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsConditionColorRow').BHasClass('Active'), true);
+  panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+  swatch.events.onactivate();
+  nativeColor(fixture, 18, 52, 86);
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  assert.equal(fixture.health.left.style.washColor, '#123456');
+  requestReset(fixture);
+  confirmReset(fixture);
+  assert.equal(readConfig(fixture).values.hudHealthColorMode, 'off');
+  assert.equal(readConfig(fixture).values.hudHealthColor, '#FFFF00');
+  assert.equal(fixture.health.left.style.washColor, '');
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.hudHealthColorMode, 'custom');
+  assert.equal(fixture.health.left.style.washColor, '#123456');
+});
+
+test('HUD wash uses effective hero scope and ability conditions rather than editor values', () => {
+  const selected = { id: 'user_0001', name: 'Shiv HUD', mode: 'selected', heroes: ['hero_shiv'],
+    values: { hudHealthColorMode: 'custom', hudHealthColor: '#123456' }, own: ['hudHealthColorMode', 'hudHealthColor'],
+    conditions: { hudHealthColor: { slot: 1, minTier: 2, value: '#ABCDEF' } } };
+  const fixture = hudWashFixture({ hudHealthColorMode: 'off' }, { userPresets: [selected] });
+  const signatureRoot = fixture.identityTree.hud.add(new MockPanel('hud_signature'));
+  const abilities = signatureRoot.add(new MockPanel('hud_abilities'));
+  const slots = abilities.add(new MockPanel('abilities'));
+  const signature = slots.add(new MockPanel('slot_signature_1', { classes: ['Tier2'] }));
+  fixture.harness.scheduler.runFor(4000);
+  assert.equal(readConfig(fixture).values.hudHealthColor, '#ABCDEF');
+  assert.equal(fixture.health.left.style.washColor, '#ABCDEF');
+  signature.RemoveClass('Tier2');
+  signature.AddClass('Tier1');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(fixture.health.left.style.washColor, '#123456');
+  fixture.identityTree.setHeroName('HAZE');
+  fixture.harness.scheduler.runFor(3000);
+  assert.equal(fixture.health.left.style.washColor, '');
+});
+
+test('HUD wash stale identity callbacks cannot paint, and cached lookups survive team-only updates', () => {
+  const fixture = hudWashFixture({ hudHealthColorMode: 'team' });
+  const stale = fixture.harness.scheduler.jobs.find(job => job.delay === 0).fn;
+  fixture.harness.scheduler.runFor(4000);
+  const { container, left } = fixture.health;
+  const finds = Object.fromEntries(['health_and_abilities_container', 'hud_health_bars', 'health_bar', 'health_bar_Left']
+    .map(id => [id, fixture.harness.findCounts[id] || 0]));
+  const count = left.styleWrites.length;
+  container.RemoveClass('team1');
+  container.AddClass('team2');
+  stale();
+  assert.equal(left.styleWrites.length, count, 'retired generation must be inert');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '#5B79E6');
+  for (const [id, before] of Object.entries(finds))
+    assert.equal(fixture.harness.findCounts[id] || 0, before, id + ' cached lookup');
+  container.AddClass('team1');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '', 'conflicting team facts are unknown');
+});
+
+test('HUD wash retries rejected native writes and clears only after successful ownership', () => {
+  const fixture = hudWashFixture();
+  let color = '';
+  let reject = true;
+  let writes = 0;
+  fixture.health.left.style = { get washColor() { return color; }, set washColor(value) {
+    if (reject) throw new Error('native style unavailable');
+    writes++;
+    color = value ? value + 'FF' : '';
+  } };
+  openEditor(fixture);
+  panel(fixture, 'HPColorsHudHealthColorModeCustom').events.onactivate();
+  assert.equal(color, '');
+  reject = false;
+  fixture.harness.scheduler.runFor(4000);
+  assert.equal(color, '#FFFF00FF');
+  const count = writes;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(writes, count, 'cache does not compare normalized native reads');
+  reject = true;
+  panel(fixture, 'HPColorsHudHealthColorModeOff').events.onactivate();
+  assert.equal(color, '#FFFF00FF');
+  reject = false;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(color, '', 'failed release stays retryable');
+  const released = writes;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(writes, released);
+  fixture.harness.root.SetAttributeString('hp_colors_v2_hydration', 'pending');
+  panel(fixture, 'HPColorsHudHealthColorModeCustom').events.onactivate();
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(writes, released, 'pending and never-owned performs no clear or paint');
 });
