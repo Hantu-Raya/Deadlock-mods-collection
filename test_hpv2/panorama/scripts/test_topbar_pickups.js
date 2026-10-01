@@ -6,39 +6,6 @@
   if (context.HPV2PickupStop) context.HPV2PickupStop();
   var stopped = false;
   var topBar = context.BHasClass("HPV2PickupTopBar") ? context : null;
-  var profile = context.HPV2Profile;
-  var telemetryContext = "";
-  if (topBar) {
-    try { telemetryContext = typeof context.id === "string" ? context.id : ""; }
-    catch (ignored) {}
-  }
-  var telemetry = topBar ? {
-    since: Date.now(), lastReportAt: 0, active: false,
-    counts: {
-      accepted: 0, envelopeRejected: 0, orderRejected: 0, recordRejected: 0,
-      invalidRaw: 0, parseErrors: 0, receiveErrors: 0, tombstones: 0,
-      expiredRecords: 0, duplicateSourceNameChecks: 0, duplicateRowNameChecks: 0,
-      sequenceGaps: 0
-    },
-    queueToHudMs: { samples: 0, sum: 0, max: 0 }
-  } : null;
-  if (telemetry) telemetry.lastReportAt = telemetry.since;
-  function telemetryCount(name, amount) {
-    if (!telemetry) return;
-    telemetry.counts[name] += amount === undefined ? 1 : amount;
-    telemetry.active = true;
-  }
-  function reportTelemetry(now, final) {
-    if (!telemetry || !telemetry.active || (!final && now - telemetry.lastReportAt < 30000)) return;
-    telemetry.lastReportAt = now;
-    try {
-      $.Msg("[test_hpv2][telemetry-v1] " + JSON.stringify({
-        role: "hud", context: telemetryContext, source: "",
-        since: telemetry.since, at: now, final: !!final,
-        counts: telemetry.counts, queueToHudMs: telemetry.queueToHudMs
-      }));
-    } catch (ignored) {}
-  }
   var rows = [];
   var progressTickPending = false;
   var sourceId = "";
@@ -101,7 +68,6 @@
 
   function receiveUltimates(message, now) {
     if (!context.BAscendantHasClass("CLASS_PLAYER") || context.BAscendantHasClass("LocalPlayer")) {
-      profile.count("ultimateIneligibleSkips");
       if (ultimateName || context.BHasClass("HPV2UltimateActive")) clearUltimate();
       return;
     }
@@ -130,8 +96,7 @@
     if (ultimateAngle !== angle) {
       ultimateFill.style.clip = "radial(50% 50%, 0deg, " + angle + "deg)";
       ultimateAngle = angle;
-      profile.count("ultimateClipWrites");
-    } else profile.count("ultimateUnchangedSkips");
+    }
     if (!ultimateName) {
       context.AddClass("HPV2UltimateActive");
       ultimateOverlay.style.visibility = "visible";
@@ -187,15 +152,12 @@
     { className: "survival_pickup", image: "powerup_survival", color: "#7BBA1D", background: "#253809" }
   ];
 
-  function valid(panel) {
-    profile.count("validCalls");
-    return panel && panel.IsValid();
-  }
+  function valid(panel) { return panel && panel.IsValid(); }
 
   function readName(panel) {
     if (!valid(panel) || typeof panel.text !== "string") return "";
     var name = panel.text;
-    return name.trim() && name !== "{s:name}" && name !== "{s:player_name}" ? name.trim().toUpperCase() : "";
+    return name === "{s:name}" || name === "{s:player_name}" ? "" : name.trim().toUpperCase();
   }
 
   function snapshotRoot() {
@@ -212,11 +174,8 @@
     if (!name) clipCaptures = [];
     if (!sourceId || !context.HPV2QueuePickup) return;
     var now = Date.now();
-    var changed = name !== lastPublishedName || mask !== lastPublishedMask || progressDirty;
-    if (!changed && now >= lastPublishedAt && now - lastPublishedAt < 6000) {
-      profile.count("publicationCacheHits");
-      return;
-    }
+    if (name === lastPublishedName && mask === lastPublishedMask && !progressDirty &&
+        now >= lastPublishedAt && now - lastPublishedAt < 6000) return;
     // Same-context handoff; serialize only at the sibling boundary.
     context.HPV2QueuePickup(name ? {
       name: name, mask: mask, at: now,
@@ -261,7 +220,6 @@
     // Sliding native samples catch refreshes and pauses without assuming a duration.
     try {
       if (!valid(capture.border)) capture.border = panel.FindChildTraverse("StatusEffectsBorder");
-      profile.count("nativeClipSamples");
       var angle = valid(capture.border) ? parseNativeClip(String(capture.border.style.clip || "")) : null;
       if (angle === null) throw new Error("Native radial unavailable");
       var point = { angle: angle, at: now };
@@ -298,7 +256,6 @@
   function sampleUnit() {
     // Stale or missing control always permits scanning.
     if (!scanEnabled && Date.now() >= gateReceivedAt && Date.now() - gateReceivedAt < 15000) {
-      profile.count("scanGateSkips");
       publish("", 0);
       return;
     }
@@ -308,8 +265,6 @@
       publish("", 0);
       return;
     }
-    profile.start();
-    profile.count("playerScans");
     if (sourceId !== world.id) {
       if (sourceId) publish("", 0);
       sourceId = world.id;
@@ -323,7 +278,6 @@
     var name = readName(namePanel);
     var now = Date.now();
     if (name && name === localPlayerName && now >= gateReceivedAt && now - gateReceivedAt < 15000) {
-      profile.count("localPlayerScanSkips");
       clipCaptures.length = 0;
       if (lastPublishedName) publish("", 0);
       return;
@@ -342,8 +296,6 @@
     var mask = 0;
     for (var bit = 0; bit < pickups.length; bit++) {
       var matches = container.FindChildrenWithClassTraverse(pickups[bit].className);
-      profile.count("pickupClassSearches");
-      profile.count("pickupMatches", matches.length);
       for (var match = 0; match < matches.length; match++) {
         if (valid(matches[match]) && matches[match].visible !== false) {
           mask |= 1 << bit;
@@ -365,25 +317,8 @@
   function receiveSnapshot(raw) {
     if (stopped || !valid(context)) return false;
     try {
-      if (typeof raw !== "string" || raw.length > 4096) {
-        telemetryCount("invalidRaw");
-        return false;
-      }
-      if (!mayContainSnapshot(raw, !!topBar)) {
-        profile.count(topBar ? "hudMessagesSkipped" : "worldMessagesSkipped");
-        profile.count(topBar ? "hudCharsSkipped" : "worldCharsSkipped", raw.length);
-        return false;
-      }
-      var message;
-      try {
-        message = JSON.parse(raw);
-        profile.count("parsedMessages");
-        profile.count("parsedChars", raw.length);
-      } catch (error) {
-        telemetryCount("parseErrors");
-        $.Msg("[test_hpv2][pickup-receive-error] " + String(error));
-        return false;
-      }
+      if (typeof raw !== "string" || raw.length > 4096 || !mayContainSnapshot(raw, !!topBar)) return false;
+      var message = JSON.parse(raw);
       var now = Date.now();
       if (!topBar) {
         if (message && message.magic_word === "HPV2_ULTIMATE_SNAPSHOT") {
@@ -407,7 +342,6 @@
           localPlayerName = message.localName.trim().toUpperCase();
           gateReceivedAt = message.at;
         }
-        profile.count("worldMessages");
         return false;
       }
       if (!message || message.magic_word !== "HPV2_PICKUP_SNAPSHOT") return false;
@@ -415,16 +349,10 @@
           typeof message.instance !== "string" || message.instance.length > 200 ||
           !Number.isSafeInteger(message.seq) || message.seq < 1 ||
           typeof message.at !== "number" || !isFinite(message.at) ||
-          message.at < sessionStartedAt || message.at > now || now - message.at > ttl) {
-        telemetryCount("envelopeRejected");
-        return false;
-      }
+          message.at < sessionStartedAt || message.at > now || now - message.at > ttl) return false;
       var previous = receivedRecords[message.source];
       if (previous && (message.at < previous.sentAt ||
-          (message.instance === previous.instance && message.seq <= previous.seq))) {
-        telemetryCount("orderRejected");
-        return false;
-      }
+          (message.instance === previous.instance && message.seq <= previous.seq))) return false;
       var record = message.record;
       if (record !== null && (!record || typeof record.name !== "string" ||
           !record.name.trim() || record.name.length > 256 ||
@@ -432,32 +360,18 @@
           typeof record.at !== "number" || !isFinite(record.at) ||
           record.at < sessionStartedAt || record.at > message.at || now - record.at > ttl ||
           (previous && record.at < previous.at) ||
-          !validProgress(record.progress, record.mask, record.at))) {
-        telemetryCount("recordRejected");
-        return false;
-      }
-      if (previous && message.instance === previous.instance && message.seq > previous.seq + 1)
-        telemetryCount("sequenceGaps", message.seq - previous.seq - 1);
+          !validProgress(record.progress, record.mask, record.at))) return false;
       receivedRecords[message.source] = {
         name: record ? record.name.trim().toUpperCase() : "",
         mask: record ? record.mask : 0, at: record ? record.at : message.at,
         sentAt: message.at, instance: message.instance, seq: message.seq,
         progress: record ? record.progress : null
       };
-      telemetryCount("accepted");
-      if (record === null) telemetryCount("tombstones");
-      if (telemetry) {
-        var queueToHud = now - message.at;
-        telemetry.queueToHudMs.samples++;
-        telemetry.queueToHudMs.sum += queueToHud;
-        if (queueToHud > telemetry.queueToHudMs.max) telemetry.queueToHudMs.max = queueToHud;
-      }
       var next = receivedRecords[message.source];
       // Use cached rows here; discovery and stale cleanup remain on the slow tick.
       updatePause(now);
       renderRows(next.name, previous ? previous.name : "");
     } catch (error) {
-      telemetryCount("receiveErrors");
       $.Msg("[test_hpv2][pickup-receive-error] " + String(error));
     }
     return false;
@@ -469,15 +383,11 @@
     var now = Date.now();
     for (var key in records) {
       var record = records[key];
-      profile.count("recordVisits");
       if (record.at > now || now - record.at > ttl) {
-        telemetryCount("expiredRecords");
         delete records[key];
         continue;
       }
       if (!record.name || (affectedName !== undefined && record.name !== affectedName && record.name !== previousName)) continue;
-      profile.count("groupedRecords");
-      if (units[record.name]) telemetryCount("duplicateSourceNameChecks");
       units[record.name] = units[record.name] ? -1 : record;
     }
     return units;
@@ -487,30 +397,23 @@
     var next = [];
     localPlayerLabels.length = 0;
     var labels = topBar.FindChildrenWithClassTraverse("PlayerName");
-    profile.count("topbarLabels", labels.length);
     for (var index = 0; index < labels.length; index++) {
       var label = labels[index];
       if (!valid(label)) continue;
       var owner = label.GetParent();
-      while (valid(owner) && owner !== topBar && owner.paneltype !== "CitadelHudTopBarPlayer") {
-        owner = owner.GetParent();
-      }
+      while (valid(owner) && owner !== topBar && owner.paneltype !== "CitadelHudTopBarPlayer") owner = owner.GetParent();
       if (!valid(owner) || owner === topBar) continue;
-      if (owner.BHasClass("SpectatorTarget")) profile.count("spectatorTargetRows");
       if (owner.BHasClass("LocalPlayer")) {
         localPlayerLabels.push(label);
-        profile.count("localPlayerRowSkips");
         continue;
       }
       var ultimate = owner.FindChildTraverse("UltimateStatus");
-      profile.count("ultimateSearches");
       if (!valid(ultimate)) continue;
       var row = null;
       for (var old = 0; old < rows.length; old++) {
         if (rows[old].label === label && rows[old].ultimate === ultimate) row = rows[old];
       }
       next.push(row || { label: label, ultimate: ultimate, container: null, icons: [], rings: [], progressModels: [], mask: -1 });
-      profile.count(row ? "rowReuses" : "newRows");
     }
     for (var previous = 0; previous < rows.length; previous++) {
       if (next.indexOf(rows[previous]) < 0) render(rows[previous], 0);
@@ -520,7 +423,6 @@
 
   function updatePause(now) {
     var next = valid(pausePanel) && pausePanel.BAscendantHasClass("gameIsPaused");
-    if (!!next !== paused) profile.count(next ? "pauseStarts" : "pauseEnds");
     if (next && !paused) pauseIntervals.push({ start: now, end: null });
     else if (!next && paused) pauseIntervals[pauseIntervals.length - 1].end = now;
     paused = !!next;
@@ -539,13 +441,8 @@
   }
 
   function rowUnavailable(row, now, name) {
-    var dead = !!name && row.label.BAscendantHasClass("Dead");
-    var disconnected = !!name && !dead && row.label.BAscendantHasClass("Disconnected");
-    var blocked = !name || dead || disconnected;
+    var blocked = !name || row.label.BAscendantHasClass("Dead") || row.label.BAscendantHasClass("Disconnected");
     var renamed = row.name !== undefined && row.name !== name;
-    if (renamed) profile.count("rowRenames");
-    if (blocked && !row.blocked) profile.count(!name ? "emptyNameBlocks" : dead ? "deathBlocks" : "disconnectBlocks");
-    if (!blocked && row.blocked) profile.count("rowRecoveries");
     if (blocked || row.blocked || renamed) row.acceptAfter = now;
     row.blocked = blocked;
     row.name = name;
@@ -555,7 +452,6 @@
   function paintProgress(ring, progress, now) {
     var angle = progressAngle(progress, now, pauseIntervals);
     ring.style.clip = "radial(50% 50%, 0deg, " + angle + "deg)";
-    profile.count("clipWrites");
     return progress.rate > 0 && angle < 0;
   }
 
@@ -578,8 +474,7 @@
         if (!(row.mask & (1 << bit)) || !progress || progress.rate <= 0 ||
             row.progressEnded[bit] || !valid(row.rings[bit])) continue;
         try {
-          var running = paintProgress(row.rings[bit], progress, now);
-          row.progressEnded[bit] = !running;
+          row.progressEnded[bit] = !paintProgress(row.rings[bit], progress, now);
         } catch (error) {
           row.progressModels[bit] = null;
           $.Msg("[test_hpv2][topbar-progress-error] " + String(error));
@@ -594,11 +489,7 @@
 
   function renderProgress(row, bit, progress) {
     var ring = row.rings[bit];
-    if (!valid(ring)) return;
-    if (row.progressModels[bit] === progress) {
-      profile.count("progressCacheHits");
-      return;
-    }
+    if (!valid(ring) || row.progressModels[bit] === progress) return;
     row.progressModels[bit] = progress;
     row.progressEnded[bit] = false;
     ring.style.visibility = progress ? "visible" : "collapse";
@@ -622,7 +513,6 @@
     for (var check = 0; check < row.icons.length; check++)
       complete = complete && valid(row.icons[check]) && valid(row.rings[check]);
     if (!complete) {
-      profile.count("indicatorRebuilds");
       row.container = row.container || $.CreatePanel("Panel", parent, "HPV2PickupIndicators");
       row.container.hittest = false;
       row.container.hittestchildren = false;
@@ -679,8 +569,7 @@
       row.mask = -1;
     }
     if (row.mask !== mask) {
-      profile.count("maskChanges");
-      row.container.style.visibility = mask ? "visible" : "collapse";
+      row.container.style.visibility = "visible";
       for (var bit = 0; bit < row.icons.length; bit++) {
         row.icons[bit].style.visibility = mask & (1 << bit) ? "visible" : "collapse";
       }
@@ -688,7 +577,7 @@
     for (var index = 0; index < row.icons.length; index++)
       renderProgress(row, index, mask & (1 << index) && progress ? progress[index] : null);
     row.mask = mask;
-    if (mask && !progressTickPending) {
+    if (!progressTickPending) {
       progressTickPending = true;
       $.Schedule(1, progressTick);
     }
@@ -704,14 +593,11 @@
     }
     for (var index = 0; index < rows.length; index++) {
       var name = rows[index].renderName = readName(rows[index].label);
-      var previousCount = counts[name] || 0;
-      if (previousCount) telemetryCount("duplicateRowNameChecks");
-      counts[name] = previousCount + 1;
+      counts[name] = (counts[name] || 0) + 1;
     }
     for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       var row = rows[rowIndex];
       var player = row.renderName;
-      profile.count("rowVisits");
       if (affectedName !== undefined && player !== affectedName && player !== previousName) continue;
       var unit = player && counts[player] === 1 ? units[player] : null;
       var blocked = rowUnavailable(row, now, player);
@@ -733,7 +619,6 @@
       !topBar.BAscendantHasClass("connectedToHideout") &&
       !topBar.BAscendantHasClass("gamemode_streetbrawl");
     if (seconds !== null && lastGameTime !== null && seconds < lastGameTime) {
-      profile.count("clockResets");
       sessionStartedAt = Date.now();
       receivedRecords = Object.create(null);
       renderRows();
@@ -745,7 +630,6 @@
       if (readName(rows[index].label) === localName) localName = "";
     }
     if (localName.length > 256) localName = "";
-    profile.count(localName ? "localIdentityReady" : "localIdentityUnavailable");
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
       magic_word: "HPV2_PICKUP_SCAN_GATE", scan: scan, localName: localName, since: sessionStartedAt, at: Date.now()
     }));
@@ -756,7 +640,6 @@
     if (listener !== null) {
       try { $.UnregisterForUnhandledEvent("ClientUI_FireOutput", listener); }
       catch (error) {
-        telemetryCount("receiveErrors");
         $.Msg("[test_hpv2][pickup-receive-error] " + String(error));
       }
       listener = null;
@@ -768,8 +651,6 @@
       try { publish("", 0); } catch (ignored) {}
       try { clearUltimate(); } catch (ignored) {}
     }
-    if (topBar) reportTelemetry(Date.now(), true);
-    profile.flush(true);
   };
 
   function tick() {
@@ -797,37 +678,11 @@
         try { render(rows[clear], 0); } catch (ignored) {}
       }
     }
-    if (topBar) reportTelemetry(Date.now(), false);
     $.Schedule(topBar ? 5 : 3, tick);
   }
 
-  readName = profile.wrap("readName", readName);
-  snapshotRoot = profile.wrap("snapshotRoot", snapshotRoot);
-  publish = profile.wrap("publish", publish);
-  parseNativeClip = profile.wrap("parseNativeClip", parseNativeClip);
-  fitProgress = profile.wrap("fitProgress", fitProgress);
-  captureNativeClip = profile.wrap("captureNativeClip", captureNativeClip);
-  validProgress = profile.wrap("validProgress", validProgress);
-  sampleUnit = profile.wrap("sampleUnit", sampleUnit);
-  receiveSnapshot = profile.wrap("receiveSnapshot", receiveSnapshot);
-  readUnits = profile.wrap("readUnits", readUnits);
-  findRows = profile.wrap("findRows", findRows);
-  updatePause = profile.wrap("updatePause", updatePause);
-  progressAngle = profile.wrap("progressAngle", progressAngle);
-  rowUnavailable = profile.wrap("rowUnavailable", rowUnavailable);
-  paintProgress = profile.wrap("paintProgress", paintProgress);
-  progressTick = profile.wrap("progressTick", progressTick);
-  renderProgress = profile.wrap("renderProgress", renderProgress);
-  render = profile.wrap("render", render);
-  renderRows = profile.wrap("renderRows", renderRows);
-  publishScanGate = profile.wrap("publishScanGate", publishScanGate);
-  ultimateTick = profile.wrap("ultimateTick", ultimateTick);
-  receiveUltimates = profile.wrap("receiveUltimates", receiveUltimates);
-  tick = profile.wrap("tick", tick);
-
   try { listener = $.RegisterForUnhandledEvent("ClientUI_FireOutput", receiveSnapshot); }
   catch (error) {
-    telemetryCount("receiveErrors");
     $.Msg("[test_hpv2][pickup-receive-error] " + String(error));
   }
 

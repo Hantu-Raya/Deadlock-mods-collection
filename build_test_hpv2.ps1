@@ -19,7 +19,6 @@ $viewer = Get-RepoToolPath -ToolName 'Source2Viewer-CLI.exe' -Candidates @(
     (Join-Path $root '.tmp\source2viewer-cli\Source2Viewer-CLI.exe')
 )
 $assets = @(
-    'panorama/scripts/test_pickup_profile.vjs_c',
     'panorama/layout/unit_status_overlay_v2.vxml_c',
     'panorama/layout/citadel_hud_top_bar.vxml_c',
     'panorama/styles/test_world_ultimate.vcss_c',
@@ -27,10 +26,6 @@ $assets = @(
     'panorama/scripts/test_topbar_pickups.vjs_c',
     'panorama/scripts/test_event_bridge.vjs_c'
 )
-& node --check (Join-Path $root 'test_hpv2\panorama\scripts\test_pickup_profile.js')
-if ($LASTEXITCODE -ne 0) { throw 'Pickup profiler syntax check failed' }
-& node (Join-Path $root 'test_hpv2\scripts\validate-profile.js')
-if ($LASTEXITCODE -ne 0) { throw 'Pickup profiler arithmetic check failed' }
 & node (Join-Path $root 'test_hpv2\scripts\validate-message-filter.js')
 if ($LASTEXITCODE -ne 0) { throw 'Pickup message filter check failed' }
 & node (Join-Path $root 'test_hpv2\scripts\validate-record-grouping.js')

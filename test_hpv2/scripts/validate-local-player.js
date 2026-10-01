@@ -19,13 +19,13 @@ assert.equal(unique(["ALICE"]), true);
 assert.equal(unique([]), false);
 assert.equal(unique(["ALICE", "BOB"]), false);
 const seed = source.match(/if \(localName\) counts\[localName\] = \(counts\[localName\] \|\| 0\) \+ 1;/)[0];
-const countBody = source.slice(source.indexOf("      var previousCount = counts[name]"), source.indexOf("\n    }", source.indexOf("      var previousCount = counts[name]")));
-const countsFor = new Function("locals", "others", "telemetryCount",
+const countBody = source.match(/counts\[name\] = \(counts\[name\] \|\| 0\) \+ 1;/)[0];
+const countsFor = new Function("locals", "others",
   "var counts = Object.create(null); for (var localName of locals) {" + seed + "}\nfor (var name of others) {" + countBody + "} return counts;");
-const duplicates = countsFor(["ALICE"], ["ALICE", "BOB"], () => {});
+const duplicates = countsFor(["ALICE"], ["ALICE", "BOB"]);
 assert.equal(duplicates.ALICE, 2, "Excluded local row must still prevent same-name misattribution");
 assert.equal(duplicates.BOB, 1);
-assert.equal(countsFor(["ALICE", "BOB"], ["BOB"], () => {}).BOB, 2);
+assert.equal(countsFor(["ALICE", "BOB"], ["BOB"]).BOB, 2);
 const gateStart = source.indexOf('if (message && message.magic_word === "HPV2_PICKUP_SCAN_GATE"');
 const gateCondition = source.slice(gateStart + 4, source.indexOf(") {", gateStart));
 const accept = new Function("message", "now", "sessionStartedAt", "gateReceivedAt", "return " + gateCondition + ";");
