@@ -1,3 +1,4 @@
+param([switch]$SkipDeploy)
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -204,7 +205,7 @@ Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $closureSrc -RequiredO
     $compileLayout,
     $compileTimerStyle,
     $compileClaimStyle
-) -TimeoutSeconds 120
+) -TimeoutSeconds 120 -HiddenWindow
 Copy-Item -Path $closureCompiled -Destination $modCompiled -Recurse -Force
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
@@ -223,6 +224,10 @@ Assert-PackedVpkAssets -Tree $packedTree -Label 'Buff Timer VPK' -Required @(
 )
 $vpkSize = (Get-Item $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
+if ($SkipDeploy) {
+    Write-Host "  SkipDeploy specified; packaged VPK assertions passed. Skipping deployment." -ForegroundColor Yellow
+    return
+}
 
 # [4/4] Deploy
 Write-Host "`n[4/4] Deploying to Deadlock addons..." -ForegroundColor Cyan

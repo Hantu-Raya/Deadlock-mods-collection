@@ -6,6 +6,7 @@
   const TICK_FAST = 0.1;
   const TICK_NORM = 1;
   const LOOP_GATE_DELAY_MS = 30000;
+  const LOOP_INVALID_RETRY_MS = 1000;
   const REJUV_ICON_SRC = "s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg";
   const NEUTRAL_BOT_ICON_SRC = "s2r://panorama/images/npcs/neutral_bot_psd.vtex";
   const NEUTRAL_TRANSITION_MS = 220;
@@ -42,8 +43,10 @@
   const PLAYER_STATE_STALE_MS = 6000;
   const PLAYER_STATE_PRUNE_INTERVAL_MS = 3000;
   const BUTTON_CACHE_TTL = 800;
+  const REJUV_PANEL_RETRY_MS = 5000;
   const LINGER_DURATION = 5;
-  const LINGER_LABEL_SIZE = 24;
+  const LINGER_FONT_MIN = 10;
+  const LINGER_FONT_MAX = 32;
   const MINIMAP_SNAPSHOT_INTERVAL_HOT_MS = 250;
   const MINIMAP_SNAPSHOT_INTERVAL_NORMAL_MS = 500;
   const MINIMAP_SNAPSHOT_INTERVAL_IDLE_MS = 750;
@@ -51,6 +54,7 @@
   const CHAT_RETRY_DELAYS = [0.01, 0.03, 0.06, 0.1, 0.15, 0.25];
   const CHAT_ALL_LABEL = "To (ALL):";
   const CHAT_SEND_COOLDOWN_MS = 300;
+  const CHAT_INTENT_TIMEOUT_MS = 2000;
   const WATCHDOG_GRACE_MS = 15000;
   const RIFT_FIRST_SPAWN = 720;
   const RIFT_INTERVAL = 420;
@@ -115,7 +119,12 @@
     linger: 0, pretrack: 0, monitor: 0, prune: 0, objective: 0
   };
   const _nearestTargets = [];
-  const _minimapSnapshot = { players: [], powerupSpawns: [], riftMarkerSeen: false, riftWarningActive: false };
+  const _minimapSnapshot = {
+    players: [],
+    powerupSpawns: [],
+    riftMarkerSeen: false,
+    riftWarningActive: false
+  };
   const _minimapReferenceSize = { width: 1512, height: 862 };
   let hnd = null;
   let running = false;
@@ -145,8 +154,8 @@
   };
   let knownSpawnPos = null;
   let _gameTimePanel = null;
-  let _tCache = 0;
-  let _tCacheTs = 0;
+  let _tCache = -1;
+  let _tCacheTs = -Infinity;
   let _snapshotTs = 0;
   let _mapButtonCache = null;
   let _mapButtonCacheTs = 0;
@@ -160,7 +169,12 @@
   let _lowTimeCacheCleared = false;
   let _generation = 0;
   let _nextLoopDueMs = 0;
+  let _watchdogHnd = null;
+  let _rejuvResolveTs = -Infinity;
+  let _rejuvReboundPending = false;
   let _lastTimerChatMs = 0;
+  let _chatIntentToken = 0;
+  let _chatIntentInFlight = null;
   let _riftObservedSpawn = 0;
   let _riftMarkerSeen = false;
   let _riftWarningActive = false;
@@ -196,12 +210,10 @@
     if (!card?.IsValid?.()) return;
     const nextActive = !!active;
     const nextBuffActive = !!buffActive;
-    if (WRITE_CACHE["miniActive"] !== nextActive) {
-      setPanelClass(card, "active", nextActive);
+    if (WRITE_CACHE["miniActive"] !== nextActive && setPanelClass(card, "active", nextActive)) {
       WRITE_CACHE["miniActive"] = nextActive;
     }
-    if (WRITE_CACHE["miniBuffActive"] !== nextBuffActive) {
-      setPanelClass(card, "buff-active", nextBuffActive);
+    if (WRITE_CACHE["miniBuffActive"] !== nextBuffActive && setPanelClass(card, "buff-active", nextBuffActive)) {
       WRITE_CACHE["miniBuffActive"] = nextBuffActive;
     }
   }
@@ -254,23 +266,38 @@
     const capMs = riftHot ? 250 : 500;
     return Math.min(baseMs, minimapMs, capMs);
   }
+  function scheduleLoopAt(gen, delayMs) {
+    _nextLoopDueMs = Date.now() + delayMs;
+    hnd = $.Schedule(delayMs / 1000, () => loop(gen));
+  }
   function scheduleLoop(gen, baseTickMs, minimapIntervalMs, riftHot) {
     const delayMs = baseTickMs === LOOP_GATE_DELAY_MS
       ? LOOP_GATE_DELAY_MS
       : computeAdaptiveLoopDelayMs(baseTickMs, minimapIntervalMs, riftHot);
-    _nextLoopDueMs = Date.now() + delayMs;
-    hnd = $.Schedule(delayMs / 1000, () => loop(gen));
+    scheduleLoopAt(gen, delayMs);
   }
   function watchdogTick(gen) {
     if (gen !== _generation) return;
+    _watchdogHnd = null;
     const nowMs = Date.now();
     if (_nextLoopDueMs > 0 && nowMs > _nextLoopDueMs + WATCHDOG_GRACE_MS) {
-      $.Msg("[BT-WATCHDOG] Main loop missed scheduled heartbeat, restarting");
+      dbgPing("watchdog:missed-heartbeat", { generation: gen });
       reset(1);
       boot();
       return;
     }
-    $.Schedule(5, () => watchdogTick(gen));
+    _watchdogHnd = $.Schedule(5, () => watchdogTick(gen));
+  }
+  function startGeneration() {
+    if (_watchdogHnd) {
+      try { $.CancelScheduled(_watchdogHnd); } catch {}
+      _watchdogHnd = null;
+    }
+    _generation++;
+    const gen = _generation;
+    loop(gen);
+    watchdogTick(gen);
+    return gen;
   }
   function reset(f) {
     _generation++;
@@ -278,6 +305,11 @@
       try { $.CancelScheduled(hnd); } catch {}
       hnd = null;
     }
+    if (_watchdogHnd) {
+      try { $.CancelScheduled(_watchdogHnd); } catch {}
+      _watchdogHnd = null;
+    }
+    clearPendingChatIntent(undefined, true);
     if (!f) return;
     idx = 0;
     counter = 0;
@@ -318,40 +350,43 @@
     const buffClip = "rect(0%,100%,100%,100%)";
     resetClipPanel(UI.buffLabClip, buffClip);
   }
-  function gTime(nowMs = 0) {
-    const n = nowMs || Date.now();
-    if (n - _tCacheTs < 200) return _tCache;
-    let t = 0;
+  function gTime(nowMs = Date.now()) {
+    const n = Number.isFinite(nowMs) ? nowMs : Date.now();
+    if (_tCache >= 0 && n - _tCacheTs < 200) return _tCache;
+    let t = -1;
     if (_gameTimePanel?.IsValid?.()) {
       try { t = parseSec(_gameTimePanel.text); } catch {}
     }
-    if (!t) {
+    if (t < 0) {
       try {
         let tb = UI.topBar;
         if (!panelValid(tb) && panelValid(UI.root)) {
           tb = UI.root.FindChildTraverse("TopBar");
           UI.topBar = tb;
         }
-        if (tb) {
+        if (panelValid(tb)) {
           const a = tb.FindChildrenWithClassTraverse("GameTime");
-          if (a?.[0]?.text) {
-            _gameTimePanel = a[0];
-            t = parseSec(a[0].text);
+          if (a?.[0]) {
+            const parsed = parseSec(a[0].text);
+            if (parsed >= 0) {
+              _gameTimePanel = a[0];
+              t = parsed;
+            }
           }
         }
       } catch {}
     }
-    if (t > 0) {
+    if (t >= 0) {
       _tCache = t;
       _tCacheTs = n;
     }
     return t;
   }
   function parseSec(t) {
-    if (!t) return 0;
+    if (t === null || t === undefined) return -1;
     const s = String(t);
+    if (s.indexOf(":") < 0 || !/[0-9]/.test(s)) return -1;
     const ci = s.indexOf(":");
-    if (ci < 0) return 0;
     let mm = 0;
     let ss = 0;
     let c;
@@ -401,35 +436,85 @@
     if (!isFinite(n) || n <= 0 || n > cap) return fallback;
     return n;
   }
+  const _lingerMarkerOffset = { x: 0, y: 0 };
+  const _lingerMapOffset = { x: 0, y: 0 };
+  // Sums layout offsets from panel up to (excluding) ancestor. Returns false when the chain never reaches it.
+  function offsetWithinAncestor(panel, ancestor, out) {
+    out.x = 0;
+    out.y = 0;
+    if (!panel || !ancestor) return false;
+    let p = panel;
+    for (let depth = 0; depth < 12 && p; depth++) {
+      if (p === ancestor) return true;
+      const x = safeMapCoord(p.actualxoffset);
+      const y = safeMapCoord(p.actualyoffset);
+      if (x === null || y === null) return false;
+      out.x += x;
+      out.y += y;
+      try { p = typeof p["GetParent"] === "function" ? p["GetParent"]() : null; } catch { return false; }
+    }
+    return p === ancestor;
+  }
   function computeLingerLabelPosition(btn, container, minimap) {
     // Active glow panels expand content bounds; layout bounds remain anchored to the minimap.
-    const containerWidth = safePanelExtent(container?.actuallayoutwidth || container?.contentwidth, 404, 8192);
-    const containerHeight = safePanelExtent(container?.actuallayoutheight || container?.contentheight, 404, 8192);
+    const containerLayoutWidth = Number(container?.actuallayoutwidth);
+    const containerLayoutHeight = Number(container?.actuallayoutheight);
+    const containerWidth = safePanelExtent(containerLayoutWidth || container?.contentwidth, 404, 8192);
+    const containerHeight = safePanelExtent(containerLayoutHeight || container?.contentheight, 404, 8192);
     const minimapWidth = Number(minimap?.actuallayoutwidth || minimap?.contentwidth);
     const minimapHeight = Number(minimap?.actuallayoutheight || minimap?.contentheight);
-    const minimapSize = isFinite(minimapWidth) && minimapWidth > 0 && minimapWidth <= 8192
-      && isFinite(minimapHeight) && minimapHeight > 0 && minimapHeight <= 8192
+    const hasMinimapSize = isFinite(minimapWidth) && minimapWidth > 0 && minimapWidth <= 8192
+      && isFinite(minimapHeight) && minimapHeight > 0 && minimapHeight <= 8192;
+    const minimapSize = hasMinimapSize
       ? resolveMinimapReferenceSize(minimap)
       : { width: containerWidth, height: containerHeight };
     const buttonWidth = safePanelExtent(btn?.actuallayoutwidth || btn?.contentwidth, 32, 512);
     const buttonHeight = safePanelExtent(btn?.actuallayoutheight || btn?.contentheight, 32, 512);
-    const rawX = safeMapCoord(btn?.actualxoffset) || 0;
-    const rawY = safeMapCoord(btn?.actualyoffset) || 0;
-    let centerXPct = (rawX + buttonWidth * 0.5) / minimapSize.width * 100;
-    let centerYPct = (rawY + buttonHeight * 0.5) / minimapSize.height * 100;
-    try {
-      if (minimap?.["BHasClass"]?.("invert_map")) {
+    let inverted = false;
+    try { inverted = !!minimap?.["BHasClass"]?.("invert_map"); } catch {}
+    let centerXPct;
+    let centerYPct;
+    if (hasMinimapSize && containerLayoutWidth > 0 && containerLayoutHeight > 0) {
+      // Since the 2026-09-29 HUD the 360px hud_minimap sits centred in the 420px container, so place the marker
+      // inside hud_minimap first (mirrored there for invert_map, which flips that box), then add its offset.
+      // Broken parent chains fall back to treating the marker as a direct hud_minimap child.
+      const marker = _lingerMarkerOffset;
+      const map = _lingerMapOffset;
+      if (!offsetWithinAncestor(btn, minimap, marker)) {
+        marker.x = safeMapCoord(btn?.actualxoffset) || 0;
+        marker.y = safeMapCoord(btn?.actualyoffset) || 0;
+      }
+      if (!offsetWithinAncestor(minimap, container, map)) {
+        map.x = safeMapCoord(minimap.actualxoffset) || 0;
+        map.y = safeMapCoord(minimap.actualyoffset) || 0;
+      }
+      const left = inverted ? minimapSize.width - marker.x - buttonWidth : marker.x;
+      const top = inverted ? minimapSize.height - marker.y - buttonHeight : marker.y;
+      centerXPct = (map.x + left + buttonWidth * 0.5) / containerWidth * 100;
+      centerYPct = (map.y + top + buttonHeight * 0.5) / containerHeight * 100;
+    } else {
+      // Without live layout sizes, map the marker's minimap fraction straight onto the container.
+      centerXPct = ((safeMapCoord(btn?.actualxoffset) || 0) + buttonWidth * 0.5) / minimapSize.width * 100;
+      centerYPct = ((safeMapCoord(btn?.actualyoffset) || 0) + buttonHeight * 0.5) / minimapSize.height * 100;
+      if (inverted) {
         centerXPct = 100 - centerXPct;
         centerYPct = 100 - centerYPct;
       }
-    } catch {}
-    const labelWidthPct = LINGER_LABEL_SIZE / containerWidth * 100;
-    const labelHeightPct = LINGER_LABEL_SIZE / containerHeight * 100;
+    }
+    // The label takes the marker's size so '?' covers the enemy icon at every minimap scale.
+    const labelWidthPct = buttonWidth / containerWidth * 100;
+    const labelHeightPct = buttonHeight / containerHeight * 100;
+    const uiScale = Number(container?.actualuiscale_y);
+    const layoutHeight = buttonHeight / (isFinite(uiScale) && uiScale > 0 ? uiScale : 1);
+    const fontSize = Math.max(LINGER_FONT_MIN, Math.min(LINGER_FONT_MAX, Math.round(layoutHeight * 0.9)));
     const leftPct = centerXPct - labelWidthPct * 0.5;
     const topPct = centerYPct - labelHeightPct * 0.5;
     return {
       x: Math.round(Math.max(0, Math.min(100 - labelWidthPct, leftPct)) * 1000) / 1000,
-      y: Math.round(Math.max(0, Math.min(100 - labelHeightPct, topPct)) * 1000) / 1000
+      y: Math.round(Math.max(0, Math.min(100 - labelHeightPct, topPct)) * 1000) / 1000,
+      w: Math.round(labelWidthPct * 1000) / 1000,
+      h: Math.round(labelHeightPct * 1000) / 1000,
+      fontSize: fontSize
     };
   }
   function panelValid(panel) {
@@ -437,12 +522,17 @@
     return false;
   }
   function setPanelClass(panel, className, enabled) {
-    if (!panel?.IsValid?.()) return;
+    if (!panelValid(panel)) return false;
     const shouldHave = !!enabled;
     let hasClass = false;
     try { hasClass = !!panel.BHasClass?.(className); } catch { hasClass = false; }
-    if (hasClass !== shouldHave) {
-      try { panel.SetHasClass(className, shouldHave); } catch {}
+    if (hasClass === shouldHave) return true;
+    try {
+      if (typeof panel.SetHasClass !== "function") return false;
+      panel.SetHasClass(className, shouldHave);
+      return true;
+    } catch {
+      return false;
     }
   }
   function resetClipPanel(panel, clip) {
@@ -573,6 +663,7 @@
     try {
       buttons = mm.FindChildrenWithClassTraverse("map_button");
     } catch {
+      if (forceFresh) return null;
       return hasUsableMapButtonCache(_mapButtonCache) ? _mapButtonCache : null;
     }
     _mapButtonCache = buttons || [];
@@ -599,9 +690,7 @@
       return _minimapSnapshot;
     }
     const buttons = getCachedMapButtons(mm, now, !!forceFresh);
-    if (!buttons) {
-      return _minimapSnapshot;
-    }
+    if (!buttons) return _minimapSnapshot;
     if (!buttons.length) {
       clearMinimapSnapshot(now);
       return _minimapSnapshot;
@@ -616,15 +705,10 @@
     const mmH = mmGeom.height;
     const playerSeenToken = ++_playerSeenToken;
 
-    try {
-      for (let i = 0, len = buttons.length; i < len; i++) {
-        const btn = buttons[i];
-        if (!btn?.IsValid?.() || !btn.BHasClass?.("map_button")) continue;
-        if (btn.BHasClass("capture_point")) {
-          riftMarkerSeen = true;
-          if (btn.BHasClass("koth_warning")) riftWarningActive = true;
-        }
-
+    for (let i = 0, len = buttons.length; i < len; i++) {
+      const btn = buttons[i];
+      try {
+        if (!btn?.IsValid?.()) continue;
         if (btn.BHasClass("player")) {
           let entry = _minimapSnapshot.players[playerCount];
           if (!entry) {
@@ -645,7 +729,6 @@
           playerCount++;
           continue;
         }
-
         if (btn.BHasClass("powerup_spawn")) {
           let entry = _minimapSnapshot.powerupSpawns[powerupCount];
           if (!entry) {
@@ -665,9 +748,15 @@
           entry.isActive = btn.BHasClass("active");
           entry.type = type;
           powerupCount++;
+          continue;
         }
-      }
-    } catch {}
+        if (btn.BHasClass("capture_point")) {
+          riftMarkerSeen = true;
+          if (btn.BHasClass("koth_warning")) riftWarningActive = true;
+          continue;
+        }
+      } catch {}
+    }
 
     _minimapSnapshot.players.length = playerCount;
     _minimapSnapshot.powerupSpawns.length = powerupCount;
@@ -762,26 +851,79 @@
     if (!snap?.players?.length) return;
     _nearestTargets.length = 2;
 
-    const leftTarget = getNearestTarget(0);
-    leftTarget.x = knownSpawnPos.left.x;
-    leftTarget.y = knownSpawnPos.left.y;
-    leftTarget.minAllyDist = Infinity;
-    leftTarget.minEnemyDist = Infinity;
-    const rightTarget = getNearestTarget(1);
-    rightTarget.x = knownSpawnPos.right.x;
-    rightTarget.y = knownSpawnPos.right.y;
-    rightTarget.minAllyDist = Infinity;
-    rightTarget.minEnemyDist = Infinity;
+    const leftTarget = knownSpawnPos.left ? getNearestTarget(0) : null;
+    const rightTarget = knownSpawnPos.right ? getNearestTarget(1) : null;
+    _nearestTargets[0] = leftTarget;
+    _nearestTargets[1] = rightTarget;
+    if (!leftTarget && !rightTarget) return;
+    if (leftTarget) {
+      leftTarget.x = knownSpawnPos.left.x;
+      leftTarget.y = knownSpawnPos.left.y;
+      leftTarget.minAllyDist = Infinity;
+      leftTarget.minEnemyDist = Infinity;
+    }
+    if (rightTarget) {
+      rightTarget.x = knownSpawnPos.right.x;
+      rightTarget.y = knownSpawnPos.right.y;
+      rightTarget.minAllyDist = Infinity;
+      rightTarget.minEnemyDist = Infinity;
+    }
 
     computeNearestForTargets(snap.players, _nearestTargets, 2, nowMs, false);
-    if (leftTarget.minAllyDist < pretrackData.left.minAlly) pretrackData.left.minAlly = leftTarget.minAllyDist;
-    if (leftTarget.minEnemyDist < pretrackData.left.minEnemy) pretrackData.left.minEnemy = leftTarget.minEnemyDist;
-    if (rightTarget.minAllyDist < pretrackData.right.minAlly) pretrackData.right.minAlly = rightTarget.minAllyDist;
-    if (rightTarget.minEnemyDist < pretrackData.right.minEnemy) pretrackData.right.minEnemy = rightTarget.minEnemyDist;
+    if (leftTarget) {
+      if (leftTarget.minAllyDist < pretrackData.left.minAlly) pretrackData.left.minAlly = leftTarget.minAllyDist;
+      if (leftTarget.minEnemyDist < pretrackData.left.minEnemy) pretrackData.left.minEnemy = leftTarget.minEnemyDist;
+    }
+    if (rightTarget) {
+      if (rightTarget.minAllyDist < pretrackData.right.minAlly) pretrackData.right.minAlly = rightTarget.minAllyDist;
+      if (rightTarget.minEnemyDist < pretrackData.right.minEnemy) pretrackData.right.minEnemy = rightTarget.minEnemyDist;
+    }
   }
 
-  function doScan() {
+  function resolveRejuvChargePanels(nowMs) {
+    const now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    const friendlyWasValid = panelValid(UI.rejuvFriendly);
+    const enemyWasValid = panelValid(UI.rejuvEnemy);
+    if (friendlyWasValid && enemyWasValid) return false;
+    if (now - _rejuvResolveTs < REJUV_PANEL_RETRY_MS) return false;
+    _rejuvResolveTs = now;
+    let topBar = UI.topBar;
+    if (!panelValid(topBar) && panelValid(UI.root)) {
+      try {
+        topBar = UI.root.FindChildTraverse("TopBar");
+        UI.topBar = topBar;
+      } catch {
+        topBar = null;
+      }
+    }
+    if (!panelValid(topBar)) return false;
+    let charges;
+    try { charges = topBar.FindChildTraverse("RejuvenatorCharges"); } catch { return false; }
+    if (!panelValid(charges)) return false;
+    let friendly = null;
+    let enemy = null;
+    try { friendly = charges.FindChildTraverse("RejuvenatorFriendly"); } catch {}
+    try { enemy = charges.FindChildTraverse("RejuvenatorEnemy"); } catch {}
+    let rebound = false;
+    if (panelValid(friendly)) {
+      rebound = !friendlyWasValid || UI.rejuvFriendly !== friendly;
+      UI.rejuvFriendly = friendly;
+    } else {
+      UI.rejuvFriendly = null;
+    }
+    if (panelValid(enemy)) {
+      rebound = !enemyWasValid || UI.rejuvEnemy !== enemy || rebound;
+      UI.rejuvEnemy = enemy;
+    } else {
+      UI.rejuvEnemy = null;
+    }
+    if (rebound) _rejuvReboundPending = true;
+    return rebound;
+  }
+
+  function doScan(nowMs) {
     if (!running) return;
+    resolveRejuvChargePanels(nowMs);
     let found = false;
     for (let i = 0; i < 2 && !found; i++) {
       const p = i === 0 ? UI.rejuvFriendly : UI.rejuvEnemy;
@@ -802,6 +944,11 @@
           }
         }
       } catch {}
+    }
+    if (_rejuvReboundPending) {
+      lastFound = found;
+      _rejuvReboundPending = false;
+      return;
     }
     if (spawnWait && found && !lastFound) {
       claimCnt++;
@@ -874,30 +1021,10 @@
 
   function startPhaseAuto(now) {
     spawnWait = false;
-    if (claimCnt === 0) {
-      idx = 0;
-      phaseStart = now;
-      counter = 0;
-      showSpawn();
-      return;
-    }
-    let c = 0;
-    for (let i = 0; i < 4; i++) {
-      if (now < c + SEQ[i].d) {
-        idx = i;
-        phaseStart = c;
-        counter = c + SEQ[i].d - now;
-        setRejuvPhaseDisplay(formatTime(counter, "pad"), SEQ[i].n, i);
-        return;
-      }
-      c += SEQ[i].d;
-    }
-    const ld = SEQ[3].d;
-    const w = (now - c) % BRIDGE_DUR % ld;
-    idx = 3;
-    phaseStart = now - w;
-    counter = ld - w;
-    setRejuvPhaseDisplay(formatTime(counter, "pad"), "3", 3);
+    idx = 0;
+    phaseStart = now;
+    counter = 0;
+    showSpawn();
   }
 
   function setImg(i) {
@@ -1036,21 +1163,20 @@
 
   function setObjectiveCardsActive(active) {
     const enabled = !!active;
-    if (WRITE_CACHE["riftActive"] !== enabled) {
-      setPanelClass(UI.riftCard, "active", enabled);
+    if (WRITE_CACHE["riftActive"] !== enabled && setPanelClass(UI.riftCard, "active", enabled)) {
       WRITE_CACHE["riftActive"] = enabled;
     }
-    if (WRITE_CACHE["urnActive"] !== enabled) {
-      setPanelClass(UI.urnCard, "active", enabled);
+    if (WRITE_CACHE["urnActive"] !== enabled && setPanelClass(UI.urnCard, "active", enabled)) {
       WRITE_CACHE["urnActive"] = enabled;
     }
   }
 
   function setObjectiveCardClass(cacheKey, panel, className, enabled) {
     const next = !!enabled;
-    if (WRITE_CACHE[cacheKey] === next) return;
-    setPanelClass(panel, className, next);
+    if (WRITE_CACHE[cacheKey] === next) return true;
+    if (!setPanelClass(panel, className, next)) return false;
     WRITE_CACHE[cacheKey] = next;
+    return true;
   }
 
   function observeRiftMarker(markerSeen, warningActive, now) {
@@ -1122,7 +1248,9 @@
   }
   function computeUrnRemaining(now) {
     if (now <= URN_FIRST_SPAWN) return URN_FIRST_SPAWN - now;
-    return URN_INTERVAL - ((now - URN_FIRST_SPAWN) % URN_INTERVAL);
+    const elapsed = now - URN_FIRST_SPAWN;
+    const elapsedInCycle = elapsed % URN_INTERVAL;
+    return elapsedInCycle === 0 ? 0 : URN_INTERVAL - elapsedInCycle;
   }
 
   function computeUrnState(now) {
@@ -1328,7 +1456,7 @@
       let leftGlowType = null;
       let rightGlowType = null;
       for (let i = 0, len = powerups.length; i < len; i++) {
-        const base = i === 0 ? 0 : 1;
+        const base = powerups[i].x < 50 ? 0 : 1;
         const side = inverted ? 1 - base : base;
         powerups[i].side = side;
         if (side === 0) leftGlowType = powerups[i].type;
@@ -1337,20 +1465,21 @@
       writeSideGlow(0, leftGlowType, false);
       writeSideGlow(1, rightGlowType, false);
 
-      const p0 = powerups[0];
-      const p1 = powerups[1] || p0;
-      knownSpawnPos = inverted
-        ? { left: { x: p1.x, y: p1.y }, right: { x: p0.x, y: p0.y } }
-        : { left: { x: p0.x, y: p0.y }, right: { x: p1.x, y: p1.y } };
+      const nextKnownSpawnPos = knownSpawnPos
+        ? { left: knownSpawnPos.left, right: knownSpawnPos.right }
+        : { left: null, right: null };
+      for (let i = 0, len = powerups.length; i < len; i++) {
+        const powerup = powerups[i];
+        const key = powerup.side === 0 ? "left" : "right";
+        nextKnownSpawnPos[key] = { x: powerup.x, y: powerup.y };
+      }
+      knownSpawnPos = nextKnownSpawnPos;
 
       if (pretrackActive) {
-        const ptL = inverted ? pretrackData.right : pretrackData.left;
-        const ptR = inverted ? pretrackData.left : pretrackData.right;
-        powerups[0].minAllyDist = ptL.minAlly;
-        powerups[0].minEnemyDist = ptL.minEnemy;
-        if (powerups[1]) {
-          powerups[1].minAllyDist = ptR.minAlly;
-          powerups[1].minEnemyDist = ptR.minEnemy;
+        for (let i = 0, len = powerups.length; i < len; i++) {
+          const pretrack = powerups[i].side === 0 ? pretrackData.left : pretrackData.right;
+          powerups[i].minAllyDist = pretrack.minAlly;
+          powerups[i].minEnemyDist = pretrack.minEnemy;
         }
         pretrackActive = false;
       }
@@ -1415,7 +1544,8 @@
     try {
       const container = UI.minimapContainer;
       if (!container?.IsValid?.()) return;
-      const mm = UI["minimap"];
+      // Dotted access only: Closure ADVANCED renames UI.minimap, so a quoted-key read is undefined in production.
+      const mm = findMinimap();
       const lingerPosition = computeLingerLabelPosition(btn, container, mm);
       const qId = "LingerQ_" + enemyId;
       qLabel = container.FindChildTraverse(qId);
@@ -1426,6 +1556,9 @@
         qLabel.text = "?";
       }
       qLabel.style.position = lingerPosition.x + "% " + lingerPosition.y + "% 0px";
+      qLabel.style.width = lingerPosition.w + "%";
+      qLabel.style.height = lingerPosition.h + "%";
+      qLabel.style.fontSize = lingerPosition.fontSize + "px";
 
       const state = {
         hideHandle: null,
@@ -1516,7 +1649,7 @@
         ps.x = pl.xPct;
         ps.y = pl.yPct;
         if (pl.isDead) {
-          ps.deadTs = now;
+          if (ps.deadTs === 0) ps.deadTs = now;
           removeLinger(id, true);
           continue;
         }
@@ -1572,6 +1705,50 @@
     }
   }
 
+  /** @param {number=} token @param {boolean=} closeUi @return {boolean} */
+  function clearPendingChatIntent(token, closeUi) {
+    const pending = _chatIntentInFlight;
+    if (!pending || (token !== undefined && pending.token !== token)) return false;
+    if (closeUi) {
+      clearPendingChatText(pending);
+      if (pending.input) closeChatUi(pending.input);
+    }
+    if (pending.timeoutHandle) {
+      try { $.CancelScheduled(pending.timeoutHandle); } catch {}
+    }
+    _chatIntentInFlight = null;
+    return true;
+  }
+
+  function clearPendingChatText(pending) {
+    if (!panelValid(pending?.input)) return;
+    try {
+      if (pending.input.text === pending.message) pending.input.text = "";
+    } catch {}
+  }
+
+  function expirePendingChatIntent(token) {
+    const pending = _chatIntentInFlight;
+    if (!pending || pending.token !== token || Date.now() < pending.expiresAt) return;
+    clearPendingChatText(pending);
+    if (pending.input) closeChatUi(pending.input);
+    clearPendingChatIntent(token);
+  }
+
+  function isCurrentChatIntent(token, generation) {
+    const pending = _chatIntentInFlight;
+    if (!pending || pending.token !== token) return false;
+    if (generation !== _generation || pending.generation !== _generation) {
+      clearPendingChatIntent(token);
+      return false;
+    }
+    if (Date.now() >= pending.expiresAt) {
+      expirePendingChatIntent(token);
+      return false;
+    }
+    return true;
+  }
+
   const TeamChatIntent = {
     sanitize: function (message) {
       return String(message || "").replace(/["\r\n;]/g, " ").replace(/\s+/g, " ").trim();
@@ -1580,41 +1757,80 @@
       return Number(nowMs) - Number(lastSendMs || 0) >= Number(cooldownMs || 0);
     },
     isTeamTarget: function (label) {
-      if (!label?.IsValid?.()) return false;
-      const text = String(label.text || "").trim();
-      if (!text || text === "#citadel_chat_placeholder") return false;
-      return text !== CHAT_ALL_LABEL && text.indexOf("(ALL)") === -1;
+      try {
+        if (!panelValid(label)) return false;
+        const text = String(label.text || "").trim();
+        if (!text || text === CHAT_ALL_LABEL || text === "#citadel_chat_placeholder") return false;
+        return text.indexOf("(ALL)") === -1;
+      } catch {
+        return false;
+      }
     },
-    submit: function (input, message) {
-      return submitWithMinimalFocus(input, message);
+    submit: function (input, message, generation, token, label, targetText) {
+      return submitWithMinimalFocus(input, message, generation, token, label, targetText);
     },
-    retry: function (message, attempt, readyStreak) {
+    retry: function (message, attempt, readyStreak, generation, token) {
+      if (!isCurrentChatIntent(token, generation)) return;
       const resolved = resolveChatPanels();
       const input = UI.chatInput;
       const label = UI.chatTargetLabel;
-      if (!resolved || !input?.IsValid?.() || !TeamChatIntent.isTeamTarget(label)) {
+      if (!resolved || !panelValid(input) || !TeamChatIntent.isTeamTarget(label)) {
         if (attempt >= CHAT_RETRY_DELAYS.length - 1) {
           if (DEBUG_PING_TIMER) dbgPing("send:not-ready", { attempt, label: label?.text || "" });
+          clearPendingChatIntent(token);
           return;
         }
-        $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => TeamChatIntent.retry(message, attempt + 1, 0));
+        $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => TeamChatIntent.retry(message, attempt + 1, 0, generation, token));
         return;
       }
       if (readyStreak < 1 && attempt < CHAT_RETRY_DELAYS.length - 1) {
-        $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => TeamChatIntent.retry(message, attempt + 1, readyStreak + 1));
+        $.Schedule(CHAT_RETRY_DELAYS[attempt + 1], () => TeamChatIntent.retry(message, attempt + 1, readyStreak + 1, generation, token));
         return;
       }
-      TeamChatIntent.submit(input, message);
+      const targetText = String(label.text || "").trim();
+      if (!TeamChatIntent.submit(input, message, generation, token, label, targetText)) {
+        clearPendingChatIntent(token);
+      }
     },
     send: function (message, wallNowMs) {
-      if (!TeamChatIntent.canSend(wallNowMs, _lastTimerChatMs, CHAT_SEND_COOLDOWN_MS)) return false;
+      const now = Number.isFinite(wallNowMs) ? wallNowMs : Date.now();
+      if (_chatIntentInFlight) {
+        const pending = _chatIntentInFlight;
+        if (pending.generation !== _generation || now >= pending.expiresAt) {
+          clearPendingChatText(pending);
+          if (pending.input) closeChatUi(pending.input);
+          clearPendingChatIntent(pending.token);
+        } else {
+          return false;
+        }
+      }
+      if (!TeamChatIntent.canSend(now, _lastTimerChatMs, CHAT_SEND_COOLDOWN_MS)) return false;
       const safe = TeamChatIntent.sanitize(message);
       if (!safe) return false;
-      _lastTimerChatMs = wallNowMs;
+      const generation = _generation;
+      const token = ++_chatIntentToken;
+      _lastTimerChatMs = now;
       UI.chatInput = null;
       UI.chatTargetLabel = null;
-      try { $.DispatchEvent("CitadelConCommand", "say_chat_team"); } catch {}
-      $.Schedule(CHAT_RETRY_DELAYS[0], () => TeamChatIntent.retry(safe, 0, 0));
+      _chatIntentInFlight = {
+        token,
+        generation,
+        expiresAt: now + CHAT_INTENT_TIMEOUT_MS,
+        timeoutHandle: null,
+        input: null,
+        message: safe,
+      };
+      try {
+        _chatIntentInFlight.timeoutHandle = $.Schedule(
+          CHAT_INTENT_TIMEOUT_MS / 1000,
+          () => expirePendingChatIntent(token)
+        );
+        $.DispatchEvent("CitadelConCommand", "say_chat_team");
+        $.Schedule(CHAT_RETRY_DELAYS[0], () => TeamChatIntent.retry(safe, 0, 0, generation, token));
+      } catch {
+        clearPendingChatIntent(token);
+        return false;
+      }
       return true;
     }
   };
@@ -1625,18 +1841,58 @@
     TeamChatIntent.send(message, Date.now());
   }
 
-  function submitWithMinimalFocus(chatInput, message) {
+  function submitWithMinimalFocus(chatInput, message, generation, token, targetLabel, targetText) {
+    if (!isCurrentChatIntent(token, generation) || !panelValid(chatInput) || !TeamChatIntent.isTeamTarget(targetLabel)) return false;
+    try {
+      if (String(chatInput.text || "")) return false;
+    } catch {
+      return false;
+    }
+    const pending = _chatIntentInFlight;
+    if (!pending || pending.token !== token) return false;
+    pending.input = chatInput;
+    pending.message = message;
     try { $.DispatchEvent("SetInputFocus", chatInput); } catch {}
     try {
       chatInput.text = message;
       $.Schedule(0, () => {
+        if (!isCurrentChatIntent(token, generation)) {
+          try {
+            if (panelValid(chatInput) && chatInput.text === message) chatInput.text = "";
+          } catch {}
+          closeChatUi(chatInput);
+          clearPendingChatIntent(token);
+          return;
+        }
+        const resolved = resolveChatPanels();
+        let currentTargetText = "";
+        try { currentTargetText = String(targetLabel?.text || "").trim(); } catch {}
+        if (
+          !resolved ||
+          !panelValid(chatInput) ||
+          UI.chatInput !== chatInput ||
+          UI.chatTargetLabel !== targetLabel ||
+          !TeamChatIntent.isTeamTarget(targetLabel) ||
+          currentTargetText !== targetText
+        ) {
+          try {
+            if (panelValid(chatInput) && chatInput.text === message) chatInput.text = "";
+          } catch {}
+          closeChatUi(chatInput);
+          clearPendingChatIntent(token);
+          return;
+        }
         try { $.DispatchEvent("CitadelChatInputSubmitted", chatInput); } catch {}
-        try { chatInput.text = ""; } catch {}
+        try {
+          if (chatInput.text === message) chatInput.text = "";
+        } catch {}
         closeChatUi(chatInput);
+        clearPendingChatIntent(token);
       });
       return true;
     } catch {
       closeChatUi(chatInput);
+      clearPendingChatIntent(token);
       return false;
     }
   }
@@ -1735,7 +1991,7 @@
     }
 
     if (isDue("claim", realNowMs, 100)) updateClaims(realNowMs);
-    if (isDue("scan", realNowMs, 3000)) doScan();
+    if (isDue("scan", realNowMs, spawnWait ? 250 : 3000)) doScan(realNowMs);
 
     const objectiveIntervalMs = _riftHot ? 250 : 1000;
     if (isDue("objective", realNowMs, objectiveIntervalMs)) {
@@ -1780,29 +2036,39 @@
     if (gen !== _generation) return;
     const rn = Date.now();
     const now = gTime(rn);
+    if (now < 0) {
+      if (!running) {
+        scheduleLoopAt(gen, LOOP_INVALID_RETRY_MS);
+      } else {
+        scheduleLoop(gen, tick * 1000, getMinimapWorkInterval(rn), _riftHot);
+      }
+      return;
+    }
     maybeClearNeutralCachesForLowGameTime(now);
 
     if (!running) {
-      if (rn - lastGateChk >= 30000) {
+      if (lastGlobalSec < 0 || rn - lastGateChk >= 30000) {
         lastGateChk = rn;
         if (!isHideout()) startRun(now);
       }
-      scheduleLoop(gen, LOOP_GATE_DELAY_MS, 0, false);
-      return;
+      if (!running) {
+        scheduleLoop(gen, LOOP_GATE_DELAY_MS, 0, false);
+        return;
+      }
     }
 
     if (rn - lastRunChk >= 60000) {
       lastRunChk = rn;
       if (isHideout()) {
         reset(1);
-        loop(_generation);
+        startGeneration();
         return;
       }
     }
 
     if (lastGlobalSec >= 0 && (now + 5 < lastGlobalSec || (lastGlobalSec > 30 && now <= 2))) {
       reset(1);
-      loop(_generation);
+      startGeneration();
       return;
     }
 
@@ -1839,10 +2105,7 @@
 
     if (!UI.rLab || !UI.rNum || !UI.rImg || !UI.buffLab) return $.Schedule(0.5, boot);
     reset(1);
-    _generation++;
-    const gen = _generation;
-    loop(gen);
-    watchdogTick(gen);
+    startGeneration();
 
   }
   // TEST_EXPORTS_BEGIN
@@ -1858,6 +2121,89 @@
     module.exports.__test.computeAdaptiveLoopDelayMs = computeAdaptiveLoopDelayMs;
     module.exports.__test.maybeClearNeutralCachesForLowGameTime = maybeClearNeutralCachesForLowGameTime;
     module.exports.__test.scanPowerups = scanPowerups;
+    module.exports.__test.parseSec = parseSec;
+    module.exports.__test.gTime = gTime;
+    module.exports.__test.boot = boot;
+    module.exports.__test.watchdogTick = watchdogTick;
+    module.exports.__test.runTimerLane = runTimerLane;
+    module.exports.__test.doScan = doScan;
+    module.exports.__test.collectMinimapSnapshot = collectMinimapSnapshot;
+    module.exports.__test.checkEnemyLinger = checkEnemyLinger;
+    module.exports.__test.computeNearestForTargets = computeNearestForTargets;
+    module.exports.__test.setClockTestPanel = function (panel) {
+      _gameTimePanel = panel;
+      _tCache = -1;
+      _tCacheTs = -Infinity;
+    };
+    module.exports.__test.setMiniCardTestPanel = function (panel) {
+      UI.rejuvMiniCard = panel;
+      delete WRITE_CACHE["miniActive"];
+      delete WRITE_CACHE["miniBuffActive"];
+    };
+    module.exports.__test.setMinimapTestUi = function (minimap) {
+      UI.minimap = minimap;
+      _mapButtonCache = null;
+      _mapButtonCacheTs = 0;
+      _snapshotTs = 0;
+    };
+    module.exports.__test.setPowerupTestState = function (patch) {
+      if (!patch) return;
+      knownSpawnPos = patch.knownSpawnPos || null;
+      pretrackActive = !!patch.pretrackActive;
+      const data = patch.pretrackData || {};
+      pretrackData = {
+        left: Object.assign({ minAlly: Infinity, minEnemy: Infinity }, data.left),
+        right: Object.assign({ minAlly: Infinity, minEnemy: Infinity }, data.right)
+      };
+      trackedPowerups.length = 0;
+      monitoringActive = false;
+    };
+    module.exports.__test.getPowerupTestState = function () {
+      return {
+        knownSpawnPos: knownSpawnPos && {
+          left: knownSpawnPos.left && { x: knownSpawnPos.left.x, y: knownSpawnPos.left.y },
+          right: knownSpawnPos.right && { x: knownSpawnPos.right.x, y: knownSpawnPos.right.y }
+        },
+        tracked: trackedPowerups.map((powerup) => ({
+          side: powerup.side,
+          minAllyDist: powerup.minAllyDist,
+          minEnemyDist: powerup.minEnemyDist
+        }))
+      };
+    };
+    module.exports.__test.setRejuvTestState = function (patch) {
+      if (!patch) return;
+      running = !!patch.running;
+      spawnWait = !!patch.spawnWait;
+      claimCnt = Number(patch.claimCnt) || 0;
+      lastFound = !!patch.lastFound;
+      UI.rejuvFriendly = patch.rejuvFriendly || null;
+      UI.rejuvEnemy = patch.rejuvEnemy || null;
+      UI.topBar = patch.topBar || null;
+      UI.root = patch.root || null;
+      _rejuvResolveTs = -Infinity;
+      _rejuvReboundPending = false;
+      LAST_TICK.scan = 0;
+    };
+    module.exports.__test.getRejuvTestState = function () {
+      return { running, spawnWait, claimCnt, lastFound, resolveTs: _rejuvResolveTs };
+    };
+    module.exports.__test.setPlayerStateTest = function (id, state) {
+      _playerState = Object.create(null);
+      _playerState[id] = Object.assign(
+        { x: 0, y: 0, deadTs: 0, wasActive: true, team: 0, lastSeenMs: 0, seenToken: 0 },
+        state
+      );
+    };
+    module.exports.__test.getPlayerStateTest = function (id) {
+      const state = _playerState[id];
+      return state && Object.assign({}, state);
+    };
+    module.exports.__test.setPanelClass = setPanelClass;
+    module.exports.__test.setMiniCardState = setMiniCardState;
+    module.exports.__test.isChatIntentInFlight = function () {
+      return !!_chatIntentInFlight;
+    };
     module.exports.__test.setGlowTestUi = function (minimap, glowPanels) {
       UI.minimap = minimap;
       for (let i = 0; i < SIDES.length; i++) {
@@ -1870,9 +2216,20 @@
       if (patch && Number.isFinite(patch.generation)) _generation = patch.generation;
       if (patch && Number.isFinite(patch.playerSeenToken)) _playerSeenToken = patch.playerSeenToken;
       if (patch && patch.lowTimeCleared !== undefined) _lowTimeCacheCleared = !!patch.lowTimeCleared;
+      if (patch && patch.running !== undefined) running = !!patch.running;
+      if (patch && Number.isFinite(patch.lastGlobalSec)) lastGlobalSec = patch.lastGlobalSec;
+      if (patch && Number.isFinite(patch.lastGateChk)) lastGateChk = patch.lastGateChk;
+      if (patch && Number.isFinite(patch.nextLoopDueMs)) _nextLoopDueMs = patch.nextLoopDueMs;
     };
     module.exports.__test.getLoopTestState = function () {
-      return { generation: _generation, playerSeenToken: _playerSeenToken, lowTimeCleared: _lowTimeCacheCleared };
+      return {
+        generation: _generation,
+        playerSeenToken: _playerSeenToken,
+        lowTimeCleared: _lowTimeCacheCleared,
+        running,
+        lastGlobalSec,
+        nextLoopDueMs: _nextLoopDueMs
+      };
     };
     module.exports.__test.setObjectiveTestState = function (patch) {
       running = !!patch?.running;
@@ -1881,6 +2238,11 @@
       UI.urnCard = patch?.urnCard || null;
       WRITE_CACHE["riftActive"] = null;
       WRITE_CACHE["urnActive"] = null;
+    };
+    module.exports.__test.setChatTestGeneration = function (generation) {
+      const next = Number(generation) || 0;
+      if (next !== _generation) clearPendingChatIntent(undefined, true);
+      _generation = next;
     };
     module.exports.__test.setLingerTestUi = function (container, minimap) {
       UI.minimapContainer = container;
