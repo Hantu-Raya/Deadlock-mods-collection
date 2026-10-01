@@ -21,6 +21,28 @@ Package ownership: the Rewrite v2 runtime is pak02 and the generic preset builde
 - The saved body is `sessionRaw` without `effectiveRevision` and with only values differing from the frozen 974128a sparse baseline, not the new shipped defaults. Preserve that baseline for saves, codes, presets, and missing-stamina-shape derivation so old data keeps its look. Saves throttle at 1.5 s, flush on editor close, skip unchanged bodies, retry failures with backoff (status SAVE RETRYING, then SAVE UNAVAILABLE), and keep one active plus one replaceable pending write. After Forget, only a deliberate edit (not `AUTOMATIC_INTENTS`) creates a save again.
 - Root attrs `hp_colors_v2_store_status`, `hp_colors_v2_store_ack`, and `hp_colors_v2_hydration` carry process evidence across ESC layout reloads. Renderers keep bars stock while hydration is `pending`.
 
+### Changing the hosted page
+
+The page is part of the save contract but ships outside pak02. `scripts/validate-hp-colors-rewrite-v2-storage.test.js` (and so the build wrapper) runs the local `D:/hpv2-store/index.html`, not the live page, so green tests do not prove what players load.
+
+1. Edit only `D:/hpv2-store/index.html` and keep its `README.md` (protocol table, snippets, limits) in step.
+2. A request/reply format change bumps `VERSION` in the page and `PAGE_VERSION` in `hp_colors_v2_storage.js` together; the old mod must fail closed against the new page and vice versa.
+3. Run the storage suite, then commit and push `Hantu-Raya/hpv2-store`.
+4. Before deploying pak02, confirm the live page matches: `curl -s https://hantu-raya.github.io/hpv2-store/ | diff --strip-trailing-cr - D:/hpv2-store/index.html` prints nothing, and `gh api repos/Hantu-Raya/hpv2-store/pages/builds/latest --jq .status` is `built`.
+5. Then build, deploy, fully restart, and check `[store] bridge ready at https://…` in `console.log`. Allow 10 minutes of Pages caching before calling a mismatch a bug.
+
+Never ship a pak02 that expects a page version that is not live yet. Pushing to that repo publishes immediately; it needs the user's go-ahead like any release.
+
+### When saving is unavailable
+
+Read the `[store]` lines in `game/citadel/console.log` before changing timing or retries. On 2026-10-01 two timing fixes (cbf38d9, 790775c) chased a missing page when the real cause was the new `https://` gate.
+
+- Only `page event about:blank` after each request means the panel rejected the address. Check the `SetURL` gate in the current `citadel/bin/win64/client.dll` (find the `"https://"`/`"about:blank"` references or decompile with IDA) before touching mod code.
+- `ready_timeout` with no page event at all, or `protocol_version`, points at the network, the Pages deploy, or a version mismatch.
+- Suspect a game update before a recent mod change: compare `steamapps/appmanifest_1422450.acf` `LastUpdated` and `client.dll` mtime with when saving last worked. An A/B build of the previous mod commit settles it in one launch (the HUD wash change was wrongly suspected that way).
+- Steam client updates are separate (`d:/steam/logs/bootstrap_log.txt`); its CEF policy did not change on 2026-10-01.
+- QOLLOCK hit the same gate. The matching fixes are civo7/QOLLOCK#61 and Predi-i/qollock-updates#1; their bridge page and keys are separate from ours.
+
 ## Source ownership
 
 ```text
