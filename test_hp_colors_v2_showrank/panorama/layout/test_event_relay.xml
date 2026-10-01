@@ -1,0 +1,6 @@
+<root>
+  <scripts>
+    <include src="s2r://panorama/scripts/test_event_bridge.vjs_c" />
+  </scripts>
+  <Panel class="HPV2BridgeRelay" hittest="false" hittestchildren="false" style="width: 0px; height: 0px;" />
+</root>
