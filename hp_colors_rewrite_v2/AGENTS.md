@@ -41,7 +41,8 @@ Read the `[store]` lines in `game/citadel/console.log` before changing timing or
 - `ready_timeout` with no page event at all, or `protocol_version`, points at the network, the Pages deploy, or a version mismatch.
 - Suspect a game update before a recent mod change: compare `steamapps/appmanifest_1422450.acf` `LastUpdated` and `client.dll` mtime with when saving last worked. An A/B build of the previous mod commit settles it in one launch (the HUD wash change was wrongly suspected that way).
 - Steam client updates are separate (`d:/steam/logs/bootstrap_log.txt`); its CEF policy did not change on 2026-10-01.
-- QOLLOCK hit the same gate. The matching fixes are civo7/QOLLOCK#61 and Predi-i/qollock-updates#1; their bridge page and keys are separate from ours.
+- The QOLLOCK compatibility lane pins QOLLOCK 4.0.3 `pak03_dir.vpk` from `qollock_403_30september.zip`. It conflicts with any other pak03, including this repo's abilities pak03. Preserve every pinned Escape-menu include/panel, especially persistence scripts and `#QOLStorageBridge`; QOLLOCK owns `hud.xml`, while the wrapper composes its topbar with HPv2 pickup-timer includes. See `FEATURES.md` for refresh/install rules.
+- The shipped QOLLOCK 4.0.3 package still uses `javascript:` saving, blocked by the 2026-10-01 gate until [civo7/QOLLOCK#61](https://github.com/civo7/QOLLOCK/pull/61) and [Predi-i/qollock-updates#1](https://github.com/Predi-i/qollock-updates/pull/1) ship. HPv2 saving is independent; the bridge page and keys are separate. Do not copy unreleased upstream storage changes into the pinned compatibility package.
 
 ## Source ownership
 
