@@ -79,6 +79,9 @@
 							<CitadelAvatarImage id="SelfImage" />
 							<Panel id="ProfileInfo">
 								<CitadelUserName id="SelfName" />
+								<Panel id="ProfileStatsCommunityRankHost" hittest="false">
+									<Image id="ProfileStatsCommunityRankImage" visible="false" hittest="false" scaling="stretch-to-fit-preserve-aspect" />
+								</Panel>
 								<Panel class="SteamInfo">
 									<Button id="ViewSteamProfile" onmouseout="UIHideTextTooltip();" onmouseover="UIShowTextTooltip( #Citadel_Profile_ViewSteamProfile );">
 										<Image src="s2r://panorama/images/profile/icon_steam_psd.vtex" />
