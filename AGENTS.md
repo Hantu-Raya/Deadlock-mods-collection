@@ -183,23 +183,6 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 - **Domain docs**: multi-context layout; for HP Colors work read `hp_colors/CONTEXT.md` and ADRs when present. See `docs/agents/domain.md`.
 
-## Agentmemory
-
-Save durable repo facts, architecture notes, workflow lessons, and debugging lessons with agentmemory.
-
-- When exposed directly: `memory_save` for facts/architecture/workflows/decisions (comma-separated `concepts` and `files`); `memory_lesson_save` for lessons (comma-separated `tags`, plus `project`, `context`, `confidence`, `content`). Verify with `memory_recall` or the latest memories.
-- Otherwise use the local REST MCP bridge:
-
-  ```powershell
-  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_save","arguments":{"type":"architecture","concepts":"concept one, concept two","files":"path/file.ext","content":"Memory content to save."}}'
-  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_lesson_save","arguments":{"project":"F:\\Users\\FoxOS_User\\Desktop\\Deadlock-mods-collection","tags":"tag one, tag two","confidence":0.9,"context":"When this lesson applies","content":"Lesson content to save."}}'
-  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_recall","arguments":{"query":"search terms","limit":10}}'
-  Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3111/agentmemory/memories?latest=true"
-  ```
-
-- Optional graph seeding: `POST http://127.0.0.1:3111/agentmemory/graph/extract` with an `observations` array after a successful save; stats at `GET http://127.0.0.1:3111/agentmemory/graph/stats`.
-- Viewer: `http://localhost:3113`. Desktop shortcuts call `C:\Users\Administrator\.agentmemory\Start-Agentmemory.ps1` / `Stop-Agentmemory.ps1`. Codex MCP uses `C:\Users\Administrator\.agentmemory\codex-agentmemory-mcp-proxy.mjs` to reach the `3111` bridge.
-
 ## Context-mode and Reasoning
 
 - This repo uses context-mode MCP. Use `ctx_batch_execute` for analysis producing more than 20 lines of output and `ctx_search` for follow-ups; never pipe large outputs into context directly.
