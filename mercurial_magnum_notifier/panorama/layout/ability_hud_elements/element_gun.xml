@@ -55,7 +55,11 @@
 			<Image id="MercurialMagnumNotifier" class="mercurial_magnum_notifier" src="s2r://panorama/images/mercurial_magnum/upgrade_ethereal_bullets.vtex" hittest="false" style="visibility: collapse; opacity: 0;" />
 			<Image id="SplitShotNotifier" class="split_shot_notifier" src="s2r://panorama/images/split_shot/upgrade_split_shot.vtex" hittest="false" style="visibility: collapse; opacity: 0;" />
 			<Image id="BloodTributeNotifier" class="blood_tribute_notifier" src="s2r://panorama/images/blood_tribute/upgrade_blood_tribute.vtex" hittest="false" style="visibility: collapse; opacity: 0;" />
-			<Panel id="parry_unavailable" />
+			<Label id="auto_fire_indicator" text="#Citadel_Hud_AutoFire" />
+			<Panel id="parry_unavailable">
+				<Panel id="ParryImage" />
+				<Panel id="ParryCooldownBorder" />
+			</Panel>
 			<Panel id="reticle_status">
 				<CircularProgressBar id="reticle_status_progress_bar_bg" />
 				<CircularProgressBar id="attack_delayed_progress_bar" />
