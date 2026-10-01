@@ -3307,7 +3307,7 @@ test('new pip and shape keys support Current scope, ability conditions, transfer
 test('outline widths append stock baselines and round-trip settings, presets, scopes and saves', () => {
   const keys = ['readoutOutlineWidth', 'allyReadoutOutlineWidth', 'nameOutlineWidth'];
   assert.equal(createState().read().values.staminaShape, 'arrow');
-  assert.deepEqual(EXTENSION_KEYS.slice(62), keys);
+  assert.deepEqual(EXTENSION_KEYS.slice(62, 65), keys);
   for (const [values, expected] of [
     [{}, 'arrow'], [{ staminaWidth: 150 }, 'box'],
     [{ staminaShape: 'box' }, 'box'], [{ staminaWidth: 150, staminaShape: 'arrow' }, 'arrow'],
@@ -3449,4 +3449,85 @@ test('old published hydration snapshots migrate once alongside their session', (
     publishedRaw: { ...source, revision: 8 } });
   assert.equal(modern.read().effectiveValues.readoutOffsetX, 200);
   assert.equal(modern.read().effectiveValues.readoutOffsetY, 210);
+});
+
+test('HUD health wash appends typed OFF baselines without changing historical wire bytes', () => {
+  assert.deepEqual(EXTENSION_KEYS.slice(65), ['hudHealthColorMode', 'hudHealthColor']);
+  for (const defaults of [DEFAULTS, CONTRACT.sparseDefaults, CODEC_DEFAULTS]) {
+    assert.equal(defaults.hudHealthColorMode, 'off');
+    assert.equal(defaults.hudHealthColor, '#FFFF00');
+  }
+  assert.deepEqual(SETTING_META.hudHealthColorMode.options, ['off', 'team', 'custom']);
+  assert.equal(SETTING_META.hudHealthColorMode.conditionEligible, true);
+  assert.equal(SETTING_META.hudHealthColor.type, 'color');
+  assert.equal(SETTING_META.hudHealthColor.conditionEligible, true);
+  assert.equal(CONTRACT.normalizeValue('hudHealthColorMode', 'bad'), 'off');
+  assert.equal(CONTRACT.normalizeValue('hudHealthColor', 'bad'), '#FFFF00');
+  for (const raw of [undefined, makeSession(), { version: 1, values: {} }])
+    assert.equal(createState(raw).read().values.hudHealthColorMode, 'off');
+  for (const raw of ['HPCR2[]', 'HPCR2{"v":[],"c":{}}',
+    'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
+    'HPCR2{"v":[],"c":{},"hpv2":{"v":2,"values":[[64,2]],"conditions":{}}}']) {
+    const state = createState();
+    assert.equal(send(state, 'settings_import', { raw }).status, 'committed');
+    assert.equal(state.read().values.hudHealthColorMode, 'off');
+  }
+  const old = createState({ version: 1, offsetVersion: 2, values: CONTRACT.sparseDefaults });
+  assert.equal(effect(send(old, 'settings_copy'), 'clipboard_write').text,
+    'HPCR2{"v":[[8,"#FD4949"],[20,"#FFEFD7"],[21,"#FFEFD7"],[22,"#FFEFD7"]],"c":{},"hpv2":{"v":2,"values":[],"conditions":{}}}');
+  send(old, 'preset_import', { raw: wireCorpus.hpcrp1.inputCode });
+  assert.equal(row(old.read(), wireCorpus.hpcrp1.selectedPresetId).values.hudHealthColorMode, 'off');
+  for (const pair of [[65, 'bad'], [66, '#GGGGGG']]) {
+    const rejected = send(old, 'settings_import', { raw: 'HPCR2' + JSON.stringify({
+      v: [], c: {}, hpv2: { v: 2, values: [pair], conditions: {} },
+    }) });
+    assert.equal(rejected.status, 'rejected');
+  }
+});
+
+test('HUD health wash supports conditions, hero scopes, Undo, page reset and both transfer formats', () => {
+  const state = createState();
+  const entries = [['hudHealthColorMode', 'team', 'custom'], ['hudHealthColor', '#123456', '#ABCDEF']];
+  for (const [key, value, conditional] of entries) {
+    assert.equal(send(state, 'setting_edit', { key, value }).status, 'committed');
+    assert.equal(send(state, 'condition_set', { key, slot: 1, minTier: 2, value: conditional }).status, 'committed');
+  }
+  send(state, 'lifecycle_observe', { epoch: 1, phase: 'active' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'SHIV' });
+  send(state, 'hero_observe', { epoch: 1, heroName: 'SHIV' });
+  send(state, 'ability_observe', { epoch: 1, tiers: [2, -1, -1, -1] });
+  assert.equal(state.read().effectiveValues.hudHealthColorMode, 'custom');
+  assert.equal(state.read().effectiveValues.hudHealthColor, '#ABCDEF');
+  const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.deepEqual(JSON.parse(code.slice(5)).hpv2.values, [
+    ...expectedPairs(state.read().values, EXTENSION_KEYS.slice(0, 65), CODEC_DEFAULTS),
+    [65, 'team'], [66, '#123456'],
+  ]);
+  const restored = createState();
+  const imported = send(restored, 'settings_import', { raw: code });
+  const saved = createState({ sessionRaw: effect(imported, 'session_replace').raw });
+  for (const [key, value] of entries) {
+    assert.equal(saved.read().values[key], value);
+    assert.deepEqual(saved.read().conditions[key], state.read().conditions[key]);
+  }
+  send(state, 'preset_save', { name: 'HUD wash' });
+  const presetCode = effect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  assert.equal(send(restored, 'preset_import', { raw: presetCode }).status, 'committed');
+  for (const [key, value] of entries) {
+    assert.equal(row(restored.read(), 'user_0001').values[key], value);
+    assert.deepEqual(row(restored.read(), 'user_0001').conditions[key], state.read().conditions[key]);
+  }
+  send(state, 'scope_set', { mode: 'selected', heroes: ['hero_shiv'] });
+  send(state, 'setting_edit', { key: 'hudHealthColor', value: '#112233' });
+  assert.equal(currentScope(state.read()).values.hudHealthColor, '#112233');
+  send(state, 'undo');
+  assert.equal(currentScope(state.read()).values.hudHealthColor, '#123456');
+  const reset = send(state, 'reset_request', { keys: entries.map(([key]) => key) });
+  send(state, 'reset_confirm', { token: reset.view.transactions.confirmation.token });
+  assert.equal(currentScope(state.read()).values.hudHealthColorMode, 'team', 'hero reset uses All Heroes Base');
+  assert.equal(currentScope(state.read()).values.hudHealthColor, '#123456');
+  const resetGlobal = send(restored, 'reset_request', { keys: entries.map(([key]) => key) });
+  send(restored, 'reset_confirm', { token: resetGlobal.view.transactions.confirmation.token });
+  assert.equal(restored.read().values.hudHealthColorMode, 'off');
+  assert.equal(restored.read().values.hudHealthColor, '#FFFF00');
 });

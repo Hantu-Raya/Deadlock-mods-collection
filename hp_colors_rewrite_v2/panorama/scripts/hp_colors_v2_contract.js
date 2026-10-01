@@ -142,6 +142,8 @@
     readoutOutlineWidth: 5,
     allyReadoutOutlineWidth: 5,
     nameOutlineWidth: 5,
+    hudHealthColorMode: "off",
+    hudHealthColor: "#FFFF00",
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -210,6 +212,8 @@
     "readoutOutlineWidth",
     "allyReadoutOutlineWidth",
     "nameOutlineWidth",
+    "hudHealthColorMode",
+    "hudHealthColor",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -421,6 +425,7 @@
     allyNameColor: true,
     enemyPipColor: true,
     allyPipColor: true,
+    hudHealthColor: true,
   };
 
   var ENUM_OPTIONS = {
@@ -437,6 +442,7 @@
     allyReadoutColorMode: ["bar", "custom"],
     allyReadoutMode: ["fixed", "gradient"],
     staminaShape: ["arrow", "circle", "box"],
+    hudHealthColorMode: ["off", "team", "custom"],
   };
 
   var NUMBER_BOUNDS = {

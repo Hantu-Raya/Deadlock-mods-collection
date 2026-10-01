@@ -4025,7 +4025,7 @@ test('follow-up pages expose every editable key once without heading-only or Adv
   const expected = [
     ['GENERAL', 'MASTER', 'HPColorsSettingsOverviewStatus', ['enabled', 'lowThreshold', 'highThreshold']],
     ['GENERAL', 'LAYOUT', 'HPColorsSettingsOverviewLayout', ['widthScale', 'heightScale', 'positionX', 'positionY', 'accessoryAnchorEnabled']],
-    ['GENERAL', 'NAME & APPEARANCE', 'HPColorsSettingsOverviewAppearance', ['criticalIndicatorVisible', 'playerNamesVisible', 'enemyNameColorEnabled', 'enemyNameColor', 'allyNameColorEnabled', 'allyNameColor', 'nameSize', 'nameOutlineWidth', 'nameOffsetX', 'nameOffsetY']],
+    ['GENERAL', 'NAME & APPEARANCE', 'HPColorsSettingsOverviewAppearance', ['criticalIndicatorVisible', 'playerNamesVisible', 'enemyNameColorEnabled', 'enemyNameColor', 'allyNameColorEnabled', 'allyNameColor', 'nameSize', 'nameOutlineWidth', 'nameOffsetX', 'nameOffsetY', 'hudHealthColorMode', 'hudHealthColor']],
     ['ENEMY', 'BAR', 'HPColorsSettingsEnemyBar', ['enemyEnabled', 'enemyVisible', 'enemyMode', 'enemyLow', 'enemyMid', 'enemyHigh', 'enemyTeamHigh']],
     ['ENEMY', 'HEAL & SHIELD', 'HPColorsSettingsEnemyFeedback', ['enemyHealing', 'enemyDelta', 'enemyBulletShield']],
     ['ENEMY', 'HP TEXT', 'HPColorsSettingsReadoutNumber', ['readoutVisible', 'readoutSize', 'readoutOutlineWidth', 'readoutFont', 'readoutColorMode', 'readoutMode', 'readoutLow', 'readoutMid', 'readoutHigh', 'readoutOffsetX', 'readoutOffsetY']],
@@ -4224,4 +4224,236 @@ test('bar-relative percent conditions use the same display rounding and stored u
     panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
     assert.equal(readMenuState(fixture).conditions[key].value, stored);
   }
+});
+
+function hudWashFixture(values = {}, options = {}) {
+  let health;
+  const fixture = bootMenu({ version: 1, offsetVersion: 2, values, scopes: options.scopes || [],
+    conditions: options.conditions || {}, userPresets: options.userPresets || [] }, { beforeBoot(harness, identityTree) {
+    const add = (parent, id, classes = []) => parent.add(new MockPanel(id, {
+      classes, style: { washColor: '' }, findCounts: harness.findCounts,
+    }));
+    const container = add(identityTree.hud, 'health_and_abilities_container', ['team1', 'friend']);
+    const content = add(container, 'HealthBarContent');
+    const bars = add(content, 'hud_health_bars');
+    const line = add(bars, 'line', ['health_bar_line']);
+    const border = add(line, 'border', ['health_bar_border']);
+    const bar = add(border, 'health_bar', ['large_progress_bar']);
+    const left = add(bar, 'health_bar_Left', ['ProgressBarLeft']);
+    if (options.stockColor) left.style.washColor = options.stockColor;
+    left.styleWrites.length = 0;
+    const untouched = ['health_bar_Middle', 'health_bar_Right', 'pending_incoming_damage',
+      'heal', 'shield', 'ratking_armor'].map(id => add(bar, id));
+    const overhead = add(identityTree.hud, 'health_bar_Left', ['ProgressBarLeft']);
+    health = { container, bar, left, untouched: [...untouched, overhead] };
+    if (!options.legacy) {
+      for (const [rowId, ids] of [
+        ['HPColorsHudHealthColorModeRow', ['HPColorsHudHealthColorModeOff', 'HPColorsHudHealthColorModeTeam', 'HPColorsHudHealthColorModeCustom']],
+        ['HPColorsHudHealthColorRow', ['HPColorsHudHealthColorSwatch', 'HPColorsHudHealthColorHex']],
+      ]) {
+        const row = harness.root.FindChildTraverse(rowId);
+        if (row) {
+          row.AddClass('HPColorsSettingRow');
+          for (const id of ids) harness.root.FindChildTraverse(id).SetParent(row);
+        }
+      }
+    }
+    if (options.legacy) {
+      for (const id of ['HPColorsV2Store', 'HPColorsHudHealthColorModeRow',
+        'HPColorsHudHealthColorModeOff', 'HPColorsHudHealthColorModeTeam', 'HPColorsHudHealthColorModeCustom',
+        'HPColorsHudHealthColorRow', 'HPColorsHudHealthColorSwatch', 'HPColorsHudHealthColorHex'])
+        harness.root.FindChildTraverse(id)?.DeleteAsync();
+    }
+  } });
+  return { ...fixture, health };
+}
+
+test('HUD wash modes own only local ProgressBarLeft, detect team changes and skip unchanged writes', () => {
+  const fixture = hudWashFixture();
+  const { left, container, untouched } = fixture.health;
+  openEditor(fixture);
+  assert.deepEqual(left.styleWrites, [], 'OFF never writes stock styling');
+  assert.equal(readConfig(fixture).values.hudHealthColorMode, 'off');
+  panel(fixture, 'HPColorsHudHealthColorModeTeam').events.onactivate();
+  assert.equal(left.style.washColor, '#E7B659');
+  fixture.harness.scheduler.runFor(4000);
+  assert.equal(left.styleWrites.length, 1, 'cadence does not repeat native writes');
+  container.RemoveClass('team1');
+  container.AddClass('team2');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '#5B79E6');
+  container.RemoveClass('team2');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '', 'unknown TEAM releases CSS ownership');
+  panel(fixture, 'HPColorsHudHealthColorModeCustom').events.onactivate();
+  assert.equal(left.style.washColor, '#FFFF00');
+  const hex = panel(fixture, 'HPColorsHudHealthColorHex');
+  hex.text = '#123456';
+  hex.events.ontextentrysubmit();
+  assert.equal(left.style.washColor, '#123456');
+  panel(fixture, 'HPColorsMasterToggle').events.onactivate();
+  assert.equal(left.style.washColor, '');
+  panel(fixture, 'HPColorsMasterToggle').events.onactivate();
+  assert.equal(left.style.washColor, '#123456');
+  fixture.harness.root.SetAttributeString('hp_colors_v2_hydration', 'pending');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '');
+  const released = left.styleWrites.length;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.styleWrites.length, released);
+  fixture.harness.root.SetAttributeString('hp_colors_v2_hydration', 'done');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '#123456');
+  panel(fixture, 'HPColorsHudHealthColorModeOff').events.onactivate();
+  assert.equal(left.style.washColor, '');
+  for (const part of untouched) assert.deepEqual(part.styleWrites, [], part.id);
+});
+
+test('HUD wash re-resolves replaced/detached panels, contains native failures and supports legacy layout', () => {
+  for (const legacy of [false, true]) {
+    const fixture = hudWashFixture({ hudHealthColorMode: 'custom', hudHealthColor: '#2468AC' }, { legacy });
+    const { left, bar } = fixture.health;
+    assert.equal(left.style.washColor, '#2468AC');
+    left.SetParent(fixture.harness.root);
+    const replacement = bar.add(new MockPanel('health_bar_Left', { style: { washColor: '' } }));
+    fixture.harness.scheduler.runFor(2000);
+    assert.equal(left.style.washColor, '', 'detached valid panel releases ownership');
+    assert.equal(replacement.style.washColor, '#2468AC');
+    const count = replacement.styleWrites.length;
+    fixture.harness.$.HPColorsMenuBoot();
+    fixture.harness.scheduler.runFor(2000);
+    assert.equal(replacement.styleWrites.length, count, 'idempotent boot and cached writes');
+    replacement.DeleteAsync();
+    const next = bar.add(new MockPanel('health_bar_Left', { style: { washColor: '' } }));
+    fixture.harness.scheduler.runFor(2000);
+    assert.equal(next.style.washColor, '#2468AC');
+  }
+  const off = hudWashFixture({ enabled: false, hudHealthColorMode: 'team' });
+  off.harness.scheduler.runFor(2000);
+  assert.deepEqual(off.health.left.styleWrites, [], 'master-off never-owned leaves stock untouched');
+  const untouched = hudWashFixture({}, { stockColor: '#112233' });
+  untouched.harness.scheduler.runFor(2000);
+  assert.equal(untouched.health.left.style.washColor, '#112233');
+  assert.deepEqual(untouched.health.left.styleWrites, [], 'OFF must not clear another owner');
+});
+
+test('HUD wash custom row stays visible, dimmed and inert except in CUSTOM; picker, reset and Undo work', () => {
+  const fixture = hudWashFixture();
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryOverview').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  const row = panel(fixture, 'HPColorsHudHealthColorRow');
+  const hex = panel(fixture, 'HPColorsHudHealthColorHex');
+  const swatch = panel(fixture, 'HPColorsHudHealthColorSwatch');
+  for (const mode of ['Off', 'Team', 'Custom']) {
+    panel(fixture, 'HPColorsHudHealthColorMode' + mode).events.onactivate();
+    const active = mode === 'Custom';
+    assert.equal(row.BHasClass('Disabled'), !active);
+    assert.equal(row.BHasClass('FeatureOff'), false);
+    assert.equal(row.enabled, active, 'entire color row follows CUSTOM, including its condition marker');
+    assert.equal(hex.enabled, active);
+    assert.equal(swatch.enabled, active);
+    if (!active) {
+      hex.text = '#112233';
+      hex.events.ontextentrysubmit();
+      swatch.events.onactivate();
+      assert.equal(readConfig(fixture).values.hudHealthColor, '#FFFF00');
+      assert.equal(panel(fixture, 'HPColorsPickerRoot').BHasClass('Open'), false);
+    }
+  }
+  panel(fixture, 'HPColorsCondition_hudHealthColorMode').events.onactivate();
+  assert.deepEqual(panel(fixture, 'HPColorsConditionEnumOptions').Children().map(child => child.id),
+    ['HPColorsConditionOption_off', 'HPColorsConditionOption_team', 'HPColorsConditionOption_custom']);
+  panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+  panel(fixture, 'HPColorsCondition_hudHealthColor').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsConditionColorRow').BHasClass('Active'), true);
+  panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+  swatch.events.onactivate();
+  nativeColor(fixture, 18, 52, 86);
+  panel(fixture, 'HPColorsPickerDone').events.onactivate();
+  assert.equal(fixture.health.left.style.washColor, '#123456');
+  requestReset(fixture);
+  confirmReset(fixture);
+  assert.equal(readConfig(fixture).values.hudHealthColorMode, 'off');
+  assert.equal(readConfig(fixture).values.hudHealthColor, '#FFFF00');
+  assert.equal(fixture.health.left.style.washColor, '');
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.hudHealthColorMode, 'custom');
+  assert.equal(fixture.health.left.style.washColor, '#123456');
+});
+
+test('HUD wash uses effective hero scope and ability conditions rather than editor values', () => {
+  const selected = { id: 'user_0001', name: 'Shiv HUD', mode: 'selected', heroes: ['hero_shiv'],
+    values: { hudHealthColorMode: 'custom', hudHealthColor: '#123456' }, own: ['hudHealthColorMode', 'hudHealthColor'],
+    conditions: { hudHealthColor: { slot: 1, minTier: 2, value: '#ABCDEF' } } };
+  const fixture = hudWashFixture({ hudHealthColorMode: 'off' }, { userPresets: [selected] });
+  const signatureRoot = fixture.identityTree.hud.add(new MockPanel('hud_signature'));
+  const abilities = signatureRoot.add(new MockPanel('hud_abilities'));
+  const slots = abilities.add(new MockPanel('abilities'));
+  const signature = slots.add(new MockPanel('slot_signature_1', { classes: ['Tier2'] }));
+  fixture.harness.scheduler.runFor(4000);
+  assert.equal(readConfig(fixture).values.hudHealthColor, '#ABCDEF');
+  assert.equal(fixture.health.left.style.washColor, '#ABCDEF');
+  signature.RemoveClass('Tier2');
+  signature.AddClass('Tier1');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(fixture.health.left.style.washColor, '#123456');
+  fixture.identityTree.setHeroName('HAZE');
+  fixture.harness.scheduler.runFor(3000);
+  assert.equal(fixture.health.left.style.washColor, '');
+});
+
+test('HUD wash stale identity callbacks cannot paint, and cached lookups survive team-only updates', () => {
+  const fixture = hudWashFixture({ hudHealthColorMode: 'team' });
+  const stale = fixture.harness.scheduler.jobs.find(job => job.delay === 0).fn;
+  fixture.harness.scheduler.runFor(4000);
+  const { container, left } = fixture.health;
+  const finds = Object.fromEntries(['health_and_abilities_container', 'hud_health_bars', 'health_bar', 'health_bar_Left']
+    .map(id => [id, fixture.harness.findCounts[id] || 0]));
+  const count = left.styleWrites.length;
+  container.RemoveClass('team1');
+  container.AddClass('team2');
+  stale();
+  assert.equal(left.styleWrites.length, count, 'retired generation must be inert');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '#5B79E6');
+  for (const [id, before] of Object.entries(finds))
+    assert.equal(fixture.harness.findCounts[id] || 0, before, id + ' cached lookup');
+  container.AddClass('team1');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(left.style.washColor, '', 'conflicting team facts are unknown');
+});
+
+test('HUD wash retries rejected native writes and clears only after successful ownership', () => {
+  const fixture = hudWashFixture();
+  let color = '';
+  let reject = true;
+  let writes = 0;
+  fixture.health.left.style = { get washColor() { return color; }, set washColor(value) {
+    if (reject) throw new Error('native style unavailable');
+    writes++;
+    color = value ? value + 'FF' : '';
+  } };
+  openEditor(fixture);
+  panel(fixture, 'HPColorsHudHealthColorModeCustom').events.onactivate();
+  assert.equal(color, '');
+  reject = false;
+  fixture.harness.scheduler.runFor(4000);
+  assert.equal(color, '#FFFF00FF');
+  const count = writes;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(writes, count, 'cache does not compare normalized native reads');
+  reject = true;
+  panel(fixture, 'HPColorsHudHealthColorModeOff').events.onactivate();
+  assert.equal(color, '#FFFF00FF');
+  reject = false;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(color, '', 'failed release stays retryable');
+  const released = writes;
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(writes, released);
+  fixture.harness.root.SetAttributeString('hp_colors_v2_hydration', 'pending');
+  panel(fixture, 'HPColorsHudHealthColorModeCustom').events.onactivate();
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(writes, released, 'pending and never-owned performs no clear or paint');
 });

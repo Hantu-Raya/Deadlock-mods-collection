@@ -76,7 +76,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 65);
+  assert.equal(contract.extensionKeys.length, 67);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -355,11 +355,12 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 65);
+  assert.equal(contract.extensionKeys.length, 67);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
     'readoutOutlineWidth', 'allyReadoutOutlineWidth', 'nameOutlineWidth',
+    'hudHealthColorMode', 'hudHealthColor',
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -426,6 +427,7 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
     allyPipColorEnabled: false, allyPipColor: '#042517',
     pipOpacity: 100, staminaShape: 'arrow',
     readoutOutlineWidth: 5, allyReadoutOutlineWidth: 5, nameOutlineWidth: 5,
+    hudHealthColorMode: 'off', hudHealthColor: '#FFFF00',
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {

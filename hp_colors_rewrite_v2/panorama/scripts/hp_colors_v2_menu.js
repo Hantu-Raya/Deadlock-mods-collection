@@ -102,7 +102,9 @@
             "nameSize",
             "nameOutlineWidth",
             "nameOffsetX",
-            "nameOffsetY"
+            "nameOffsetY",
+            "hudHealthColorMode",
+            "hudHealthColor"
           ]
         }
       ]
@@ -440,6 +442,7 @@
     pickupSurvivalColor: "PICKUP SURVIVAL COLOR",
     pickupGlyphColor: "PICKUP GLYPH COLOR",
     neutralColor: "NEUTRAL FILL COLOR",
+    hudHealthColor: "OWN HUD HEALTH COLOR",
   };
 
   var TOGGLE_CONTROLS = [
@@ -503,7 +506,12 @@
     { id: "HPColorsPickupTimersToggle", key: "pickupTimersEnabled" },
     { id: "HPColorsUltimateTimerToggle", key: "ultimateTimerEnabled" },
   ];
+  var HUD_TEAM1_COLOR = "#E7B659";
+  var HUD_TEAM2_COLOR = "#5B79E6";
   var MODE_CONTROLS = [
+    { id: "HPColorsHudHealthColorModeOff", key: "hudHealthColorMode", value: "off" },
+    { id: "HPColorsHudHealthColorModeTeam", key: "hudHealthColorMode", value: "team" },
+    { id: "HPColorsHudHealthColorModeCustom", key: "hudHealthColorMode", value: "custom" },
     { id: "HPColorsEnemyModeFixed", key: "enemyMode", value: "fixed" },
     {
       id: "HPColorsEnemyModeGradient",
@@ -847,6 +855,7 @@
     },
   ];
   var COLOR_CONTROLS = [
+    { base: "HPColorsHudHealthColor", key: "hudHealthColor" },
     {base: "HPColorsEnemyPipColor", key: "enemyPipColor"},
     {base: "HPColorsAllyPipColor", key: "allyPipColor"},
 
@@ -945,6 +954,8 @@
     "pipOpacity": "HPColorsPipOpacityRow",
     "staminaShape": "HPColorsStaminaShapeRow",
 
+    "hudHealthColorMode": "HPColorsHudHealthColorModeRow",
+    "hudHealthColor": "HPColorsHudHealthColorRow",
     "enemyNameColorEnabled": "HPColorsEnemyNameColorEnableRow",
     "allyNameColorEnabled": "HPColorsAllyNameColorEnableRow",
     "enabled": "HPColorsEnabledRow",
@@ -1102,6 +1113,7 @@
   var lastClipboardCopied = null;
   var storage = null;
   var hydration = { phase: "idle", raw: null };
+  var hudHealthWash = { hud: null, container: null, bars: null, bar: null, left: null, color: "" };
   var persist = {
     gate: "unknown",
     ackHash: "",
@@ -1172,6 +1184,7 @@
         var payload = serializeChange(effect.revision, effect.values);
         writeRootAttribute(CONFIG_ATTR, payload);
         serializedReplayPayload = payload;
+        paintHudHealthWash(effect.values);
         dispatchChange(payload);
         refreshSnapshotReplay();
       } else if (effect.type === "clipboard_write") {
@@ -1569,6 +1582,76 @@
           : findChild(identity.root, "Hud");
     }
     return true;
+  }
+
+  function hudWashDescendant(panel, ancestor) {
+    if (!isValid(panel) || !isValid(ancestor)) return false;
+    try {
+      for (var depth = 0; panel && depth < 24; depth++) {
+        panel = panel.GetParent();
+        if (panel === ancestor) return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  function releaseHudHealthWash() {
+    if (!hudHealthWash.color) return;
+    try {
+      if (isValid(hudHealthWash.left)) hudHealthWash.left.style["washColor"] = "";
+      hudHealthWash.color = "";
+    } catch {}
+  }
+
+  function resolveHudHealthWash() {
+    resolveIdentityRoot();
+    var hud = identity.hud;
+    if (hudHealthWash.hud === hud &&
+      hudWashDescendant(hudHealthWash.container, hud) &&
+      hudWashDescendant(hudHealthWash.bars, hudHealthWash.container) &&
+      hudWashDescendant(hudHealthWash.bar, hudHealthWash.bars) &&
+      isValid(hudHealthWash.left)) {
+      try {
+        if (hudHealthWash.left.GetParent() === hudHealthWash.bar) return true;
+      } catch {}
+    }
+    releaseHudHealthWash();
+    hudHealthWash.hud = hud;
+    hudHealthWash.container = findChild(hud, "health_and_abilities_container");
+    hudHealthWash.bars = findChild(hudHealthWash.container, "hud_health_bars");
+    hudHealthWash.bar = findChild(hudHealthWash.bars, "health_bar");
+    hudHealthWash.left = findChild(hudHealthWash.bar, "health_bar_Left");
+    hudHealthWash.color = "";
+    try {
+      return isValid(hudHealthWash.left) && hudHealthWash.left.GetParent() === hudHealthWash.bar;
+    } catch {
+      return false;
+    }
+  }
+
+  function paintHudHealthWash(values) {
+    if (!values || !values.enabled || values.hudHealthColorMode === "off" ||
+      readRootAttribute(HYDRATION_ATTR) === "pending") {
+      releaseHudHealthWash();
+      return;
+    }
+    if (!resolveHudHealthWash()) return;
+    var color = "";
+    if (values.hudHealthColorMode === "custom") color = values.hudHealthColor;
+    else if (values.hudHealthColorMode === "team") {
+      var team1 = panelHasClass(hudHealthWash.container, "team1");
+      var team2 = panelHasClass(hudHealthWash.container, "team2");
+      if (team1 !== team2) color = team1 ? HUD_TEAM1_COLOR : HUD_TEAM2_COLOR;
+    }
+    if (!color) {
+      releaseHudHealthWash();
+      return;
+    }
+    if (hudHealthWash.color === color) return;
+    try {
+      hudHealthWash.left.style["washColor"] = color;
+      hudHealthWash.color = color;
+    } catch {}
   }
 
   function clearAbilityPanelRefs() {
@@ -1977,6 +2060,7 @@
       refreshEditorAfterIdentityChange(lifecycleResult);
       renderIdentity();
       sampleAbilityTiers();
+      paintHudHealthWash(state.view && state.view.effectiveValues);
       restartIdentityWatch();
       return;
     }
@@ -1994,6 +2078,7 @@
     }
     renderIdentity();
     sampleAbilityTiers();
+    paintHudHealthWash(state.view && state.view.effectiveValues);
     scheduleIdentityTick(generation, identityPollDelay());
   }
 
@@ -4345,7 +4430,7 @@
 
   function bindEntryCommit(entry, key) {
     function commitEntry() {
-      if (syncingControls) return;
+      if (syncingControls || (COLOR_KEYS[key] && entry.enabled === false)) return;
       var value = entry.text;
       if ((LEGACY_DISPLAY_KEYS[key] || BAR_PERCENT_KEYS[key]) && String(value).replace(/^\s+|\s+$/g, "") !== "")
         value = Number(value) / displayScale(key);
@@ -4406,6 +4491,7 @@
     if (!isValid(swatch) || !isValid(entry)) return;
     registerConditionControl(swatch, key);
     setPanelEvent(swatch, "onactivate", function () {
+      if (swatch.enabled === false) return;
       openPicker(key, swatch);
     });
     bindEntryCommit(entry, key);
@@ -4915,6 +5001,8 @@
   }
 
   function syncControlDependencies(values) {
+    syncDependentRow("HPColorsHudHealthColorRow", values.hudHealthColorMode === "custom", "HPColorsHudHealthColorSwatch", "HPColorsHudHealthColorHex");
+    setEnabled(controlPanel("HPColorsHudHealthColorRow"), values.hudHealthColorMode === "custom");
     syncDependentRow("HPColorsEnemyPipColorRow", values.pipsVisible && values.enemyPipColorEnabled, "HPColorsEnemyPipColorSwatch", "HPColorsEnemyPipColorHex");
     syncDependentRow("HPColorsAllyPipColorRow", values.pipsVisible && values.allyPipColorEnabled, "HPColorsAllyPipColorSwatch", "HPColorsAllyPipColorHex");
     syncDependentRow("HPColorsEnemyNameColorRow", values.enemyNameColorEnabled, "HPColorsEnemyNameColorSwatch", "HPColorsEnemyNameColorHex");
