@@ -109,7 +109,9 @@ if (-not (Test-Path -LiteralPath $compressedScript)) {
     throw "Compressed script target was not created: $compressedScript"
 }
 
-node recent_purchase\scripts\validate-team-chat-intent.js
+$queueCostCheck = Join-Path $modSrc 'scripts\validate-queue-costs.js'
+& node $queueCostCheck $sourceScript
+if ($LASTEXITCODE -ne 0) { throw "Queue cost check failed on readable source (exit $LASTEXITCODE)" }
 
 $closureExterns = New-RecentPurchaseClosureExterns -Path (Join-Path $stagingSrc 'closure-externs.js')
 $closureArgs = @(
@@ -139,6 +141,8 @@ $scriptInfo = Assert-ClosureOutput -Path $compressedScript -MinBytes 1024 -Requi
     'Need '
 )
 Remove-Item -LiteralPath $closureExterns -Force
+& node $queueCostCheck $compressedScript
+if ($LASTEXITCODE -ne 0) { throw "Queue cost check failed on Closure output (exit $LASTEXITCODE)" }
 Write-Host "  Closure ADVANCED OK -> $compressedScript ($([math]::Round($sourceInfo.Length / 1KB, 1)) KB -> $([math]::Round($scriptInfo.Length / 1KB, 1)) KB)" -ForegroundColor Green
 
 # -- Step 2: Compile --------------------------------------------------------------
@@ -154,7 +158,7 @@ Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOu
 $vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut
 Assert-PackedVpkAssets -Tree $vpkTree `
     -Required @('recent_purchase_queue_costs.vjs_c') `
-    -Forbidden @('validate-team-chat-intent.vjs_c') `
+    -Forbidden @('validate-queue-costs.vjs_c') `
     -Label 'recent_purchase VPK'
 $vpkSize = (Get-Item -LiteralPath $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
