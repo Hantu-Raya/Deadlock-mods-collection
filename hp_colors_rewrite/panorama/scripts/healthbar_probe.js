@@ -1318,11 +1318,9 @@
     var low = role === "enemy" ? config.enemyLow : config.allyLow;
     var mid = role === "enemy" ? config.enemyMid : config.allyMid;
     var high = role === "enemy" ? config.enemyHigh : config.allyHigh;
-    if (
-      (role === "enemy" && config.enemyTeamHigh) ||
-      (role === "ally" && config.allyTeamHigh)
-    )
-      high = teamHighColor(bar.team, high);
+    var teamHighEnabled =
+      role === "enemy" ? config.enemyTeamHigh : config.allyTeamHigh;
+    if (teamHighEnabled) high = teamHighColor(bar.team, high);
     var healing =
       colorsEnabled
         ? role === "enemy"
