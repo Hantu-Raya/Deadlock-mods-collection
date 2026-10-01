@@ -368,11 +368,27 @@ Use `-SkipDeploy -SkipPanoramaTests` for compile-only builds without mocked Pano
 
 ## Durable local save
 
-Settings, Current scopes, user presets, conditions, and repository metadata save automatically on this PC and return after a game restart. A hidden `CitadelHTMLPanel` opens `file://`; its localStorage lives in Steam's CEF profile. Only `hantu.hpcolors.v2/state` and `hantu.hpcolors.v2/state.prev` are touched, so Third Eye and QOLLOCK saves on the same origin are unaffected. Saves write schema 4, read schemas 1–3 with one-time HP-text offset migration, and store sparse values against the frozen 974128a defaults. They wait 1.5 seconds after changes, flush when the editor closes, skip unchanged state, and retain the previous valid record as backup.
+Settings, Current scopes, user presets, conditions, and repository metadata save automatically on this PC and return after a game restart. A hidden `CitadelHTMLPanel` loads [the hosted storage page](https://hantu-raya.github.io/hpv2-store/) once; its localStorage lives in Steam's CEF profile under that HTTPS origin, not on GitHub. Requests use URL fragments (`#` + `encodeURIComponent(JSON)`), each with a unique id; the page handles `hashchange` without reloading and replies through `HPV2S1:` titles. Fragments are never sent to the server. Only `hantu.hpcolors.v2/state` and `hantu.hpcolors.v2/state.prev` are touched; Third Eye and QOLLOCK no longer share this origin.
+
+Deadlock's 2026-10-01 update restricts `CitadelHTMLPanel.SetURL` to case-insensitive `https://` URLs; other schemes become `about:blank`. The September 30 build had no such check. There is no script-execution method, so the former `file://` page and `javascript:` injection cannot work. Its old saves are unreachable from the new origin: the first HTTPS launch starts without a save. `HTMLTitle` and `HTMLURLChanged` still fire.
+
+The bridge requires page protocol version 1 and the exact hosted address; missing or mismatched versions fail closed. Hello is resent every 8 seconds until a trusted page event, with a 30-second readiness deadline. Offline or failed page loading reports SAVE UNAVAILABLE without writing. GitHub Pages serves the page with `max-age=600`, so updates can take up to ten minutes to reach clients. Protocol changes must bump the version and account for older clients and cached pages rather than weakening the version check.
+
+The record codec, keys, read/write gate, previous-record rotation, and retries are unchanged. Saves write schema 4 and read schemas 1–3 with one-time HP-text offset migration, storing sparse values against the frozen 974128a defaults. They wait 1.5 seconds after changes, flush when the editor closes, skip unchanged state, and retain the previous valid record as backup.
 
 Cold boot keeps healthbars stock until saved state is restored. An unreadable, corrupt, or newer-format record pauses saving for that run rather than overwriting data; failed writes retry automatically. The header chip reports LOADING, SAVING, SAVED, SAVE RETRYING, SAVE CLEARED, SAVE TOO LARGE, SAVE UNAVAILABLE, or OLD PRESET VPK. The Preset Library's bottom **SAVED ON THIS PC** strip holds **CLEAR PC SAVE**; confirm it twice to delete only the two v2 keys while keeping current settings. Automatic routing does not recreate a forgotten save; the next deliberate edit does.
 
 The web-builder pak01 seed is retired. HPCR2/HPCRP1 codes remain the sharing and off-PC backup path; clearing Steam's browser cache, reinstalling Steam, or moving PCs loses the local save.
+
+### Live saving smoke
+
+The HTTPS probe proved 30 KB URLs, one page load, and localStorage persistence across a full restart (`.scratch/hpv2_probe/launch1_console.log` and `launch2_console.log`). Commit `058d51e` removed the temporary probe; `621c7ad` moved production storage to HTTPS. Probe evidence is not a smoke test of the final editor/package.
+
+1. After an authorized pak02 replacement, fully restart Deadlock with network access and no old builder pak01. Open HP COLORS and check that LOADING resolves without errors; on the first HTTPS launch, expect no old `file://` save.
+2. Change a setting, create a named preset with a hero scope and ability condition, and wait for SAVED. Close the editor to exercise the flush. Record the header state and console evidence without exposing saved payloads.
+3. Fully exit and restart Deadlock. Verify the setting, preset, scope, and condition return, then check resolved rendering after hero identity settles. Separate this evidence from the probe and VM results.
+4. Exercise an offline launch without clearing browser data: if the page cannot load, expect SAVE UNAVAILABLE and no overwrite. Restore connectivity and restart; verify the saved state returns.
+5. With a disposable save or an HPCR2/HPCRP1 backup, confirm CLEAR PC SAVE twice. Restart and verify it is absent; automatic routing must not recreate it, while the next deliberate edit saves again. In compatibility packages, verify Third Eye/QOLLOCK settings survive.
 
 ## October 1 native/layout/editor round
 

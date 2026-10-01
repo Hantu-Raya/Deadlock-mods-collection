@@ -126,6 +126,18 @@ Live changes share one Undo gesture per picker session; Escape restores the open
 
 Native picker event handling, seeding, Undo, cancellation, draft isolation and fallback are VM-tested only; native rendering and interaction still require in-game confirmation.
 
+## Durable save transport
+
+Deadlock's 2026-10-01 update restricts `CitadelHTMLPanel.SetURL` (client.dll RVA `0x2228950`) to case-insensitive `https://` URLs; other schemes become `about:blank`. The Sep 30 build had no such check. No script-execution method exists, although `HTMLTitle` and `HTMLURLChanged` still fire. The former `file://` localStorage page and `javascript:` injection no longer work.
+
+The hidden panel loads [the hosted storage page](https://hantu-raya.github.io/hpv2-store/) once. Each request uses `#` + `encodeURIComponent(JSON.stringify(request))` with a unique id; the page handles `hashchange` without reloading. Fragments are not sent to the server. Replies remain `HPV2S1:` titles. Readiness requires the expected HTTPS page and page protocol version 1; missing or mismatched versions fail closed. Hello is resent every 8 seconds within a 30-second readiness deadline; an offline page leaves saving unavailable.
+
+Storage remains localStorage in Steam's CEF profile, not a cloud save. The keys `hantu.hpcolors.v2/state` and `hantu.hpcolors.v2/state.prev`, record codec, schemas, validated-read write gate, checksum-guarded previous-record rotation, and request/save retries are unchanged. Pre-update `file://` saves are unreachable from the new origin, so the first HTTPS launch starts with no save. Third Eye and QOLLOCK keys no longer share this origin.
+
+The page source is `D:/hpv2-store/index.html` in `Hantu-Raya/hpv2-store`, outside the VPK. GitHub Pages serves it with `max-age=600`, so updates can take up to 10 minutes to reach clients. Protocol changes must bump the version, fail closed on mismatch, and account for older cached pages and runtimes.
+
+Live probes demonstrated 30 KB request URLs, one page load, and localStorage persistence across restart (`.scratch/hpv2_probe/launch1_console.log` and `launch2_console.log`). The temporary probe was removed in `058d51e`; `621c7ad` replaces the production transport. This evidence does not establish every menu save/recovery scenario.
+
 ## Package
 
 The normal production package contains the wrapper's exact 14 compiled assets:
