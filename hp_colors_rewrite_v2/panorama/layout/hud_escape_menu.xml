@@ -1161,7 +1161,6 @@
     </Panel>
     <Panel id="HPColorsV2StoreWrap" class="HPColorsV2StoreWrap" hittest="false" hittestchildren="false">
       <CitadelHTMLPanel id="HPColorsV2Store" class="HPColorsV2Store" hittest="false" acceptsfocus="false" />
-      <CitadelHTMLPanel id="HPColorsV2Probe" class="HPColorsV2Store" hittest="false" acceptsfocus="false" />
     </Panel>
   </CitadelHudEscapeMenu>
 </root>
