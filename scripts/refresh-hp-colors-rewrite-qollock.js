@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function replaceOnce(text, pattern, replacement, label) {
-  const matches = text.match(pattern);
+  const matches = text.match(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`));
   if (!matches || matches.length !== 1) {
     fail(`${label}: expected exactly one match, found ${matches ? matches.length : 0}`);
   }
@@ -184,11 +184,13 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     'QOLLOCK settings row',
   );
   if (isV2) {
-    // QOLLOCK's close and resume buttons also close an open editor subdialog
-    // (or prompt to save) before leaving the menu.
+    // Keep QOLLOCK's handlers behind HP editor cancellation. Since 4.0.3,
+    // Resume is the binding alone; 4.0.1 also wraps it in a Button.
     for (const [pattern, label] of [
+      ...(/<Button id="EscapeButton"[^>]*>/.test(xml)
+        ? [[/<Button id="EscapeButton"[^>]*>/, 'Escape resume button']]
+        : []),
       [/<Button id="CloseBtn"[^>]*>/, 'QOLLOCK close button'],
-      [/<Button id="EscapeButton"[^>]*>/, 'Escape resume button'],
       [/<CitadelBindingButton id="EscapeButton"[^>]*>/, 'Escape resume binding'],
     ]) {
       xml = replaceOnce(xml, pattern, (tag) => prefixHandler(
