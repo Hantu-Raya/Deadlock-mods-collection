@@ -1,10 +1,10 @@
 {
   "format": "hp-colors-rewrite-wire-corpus",
   "version": 1,
-  "manifestSha256": "0d1ebce0137b9ccb94d47862f7a450169ecb34fabc49ece7eda4a260a0dc17be",
+  "manifestSha256": "19c4e53c6d8d475ac272124f7b9cc77876b660bb73ef594ac0b2db990fb013e8",
   "hpcr2": {
-    "inputCode": "HPCR2{\"v\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[12,true],[13,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[67,true],[68,true],[69,0],[70,true],[71,true]],\"c\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}}}",
-    "canonicalCode": "HPCR2{\"v\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[70,true],[71,true]],\"c\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}}}",
+    "inputCode": "HPCR2{\"v\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[12,true],[13,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[67,true],[68,true],[69,0],[70,true],[71,true]],\"c\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-200},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}}}",
+    "canonicalCode": "HPCR2{\"v\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[30,72],[31,\"oracle\"],[32,-333],[33,-58],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-333],[56,-58],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[70,true],[71,true]],\"c\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-333},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-58},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-333},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-58},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":2,\"values\":[],\"conditions\":{}}}",
     "activeValues": {
       "enabled": false,
       "widthScale": 60,
@@ -33,11 +33,10 @@
       "ultMode": "custom",
       "ultCustom": "#DB9744",
       "readoutVisible": false,
-      "readoutFormat": "percent",
       "readoutSize": 72,
       "readoutFont": "oracle",
-      "readoutOffsetX": -405,
-      "readoutOffsetY": -35,
+      "readoutOffsetX": -333,
+      "readoutOffsetY": -58,
       "readoutColorMode": "custom",
       "readoutMode": "gradient",
       "readoutLow": "#1907E3",
@@ -59,8 +58,8 @@
       "enemyPulseReadout": true,
       "enemyPulseReadoutModifiers": true,
       "enemyPulseReadoutSize": 72,
-      "enemyPulseReadoutOffsetX": -405,
-      "enemyPulseReadoutOffsetY": -35,
+      "enemyPulseReadoutOffsetX": -333,
+      "enemyPulseReadoutOffsetY": -58,
       "allyPulseEnabled": true,
       "allyPulseThreshold": 0,
       "allyPulseBpm": 30,
@@ -72,7 +71,71 @@
       "enemyKillMarkerWidth": 1,
       "enemyKillMarkerColor": "#3B29F5",
       "readoutMaxTeamColor": true,
-      "allyTeamHigh": true
+      "allyTeamHigh": true,
+      "staminaWidth": 110,
+      "staminaHeight": 44.8,
+      "staminaOffsetX": 0,
+      "staminaOffsetY": 0,
+      "enemyStaminaColorEnabled": false,
+      "enemyStaminaColor": "#FD4949",
+      "allyPulseColorMode": "fixed",
+      "accessoryAnchorEnabled": true,
+      "ultOffsetX": 0,
+      "ultOffsetY": 0,
+      "levelOffsetX": 0,
+      "levelOffsetY": 0,
+      "pickupTimersEnabled": true,
+      "pickupGunColor": "#EC9719",
+      "pickupMovementColor": "#6E65EA",
+      "pickupSpiritColor": "#CE90FF",
+      "pickupSurvivalColor": "#7BBA1D",
+      "pickupBackgroundDarkness": 70,
+      "pickupGlyphColor": "#10130D",
+      "pickupSize": 22,
+      "pickupSpacing": 1,
+      "pickupOffsetX": 0,
+      "pickupOffsetY": 0,
+      "ultimateTimerEnabled": true,
+      "ultimateTimerSize": 100,
+      "ultimateTimerDarkness": 99,
+      "ultimateTimerColorMode": "follow",
+      "ultimateTimerUnavailableColor": "#E16161",
+      "ultimateTimerAvailableColor": "#7BBA1D",
+      "allyReadoutVisible": false,
+      "allyReadoutSize": 145,
+      "allyReadoutFont": "default",
+      "allyReadoutOffsetX": 0,
+      "allyReadoutOffsetY": 0,
+      "allyReadoutColorMode": "bar",
+      "allyReadoutMode": "fixed",
+      "allyReadoutLow": "#E16161",
+      "allyReadoutMid": "#FF7B00",
+      "allyReadoutHigh": "#FFFFFF",
+      "allyReadoutMaxTeamColor": false,
+      "npcEnemyEnabled": false,
+      "npcAllyEnabled": false,
+      "npcNeutralEnabled": false,
+      "buildingEnemyEnabled": false,
+      "buildingAllyEnabled": false,
+      "neutralColor": "#5BEFB5",
+      "criticalIndicatorVisible": true,
+      "playerNamesVisible": true,
+      "enemyNameColorEnabled": false,
+      "enemyNameColor": "#FF6A6A",
+      "allyNameColorEnabled": false,
+      "allyNameColor": "#FFFFFF",
+      "nameSize": 14,
+      "nameOffsetX": 0,
+      "nameOffsetY": 0,
+      "enemyPipColorEnabled": false,
+      "enemyPipColor": "#500202",
+      "allyPipColorEnabled": false,
+      "allyPipColor": "#042517",
+      "pipOpacity": 100,
+      "staminaShape": "arrow",
+      "readoutOutlineWidth": 5,
+      "allyReadoutOutlineWidth": 5,
+      "nameOutlineWidth": 5
     },
     "conditions": {
       "enabled": {
@@ -210,11 +273,6 @@
         "minTier": 3,
         "value": false
       },
-      "readoutFormat": {
-        "slot": 4,
-        "minTier": 1,
-        "value": "percent"
-      },
       "readoutSize": {
         "slot": 1,
         "minTier": 2,
@@ -228,12 +286,12 @@
       "readoutOffsetX": {
         "slot": 3,
         "minTier": 1,
-        "value": -405
+        "value": -333
       },
       "readoutOffsetY": {
         "slot": 4,
         "minTier": 2,
-        "value": -35
+        "value": -58
       },
       "readoutColorMode": {
         "slot": 1,
@@ -338,12 +396,12 @@
       "enemyPulseReadoutOffsetX": {
         "slot": 2,
         "minTier": 3,
-        "value": -405
+        "value": -333
       },
       "enemyPulseReadoutOffsetY": {
         "slot": 3,
         "minTier": 1,
-        "value": -35
+        "value": -58
       },
       "allyPulseEnabled": {
         "slot": 4,
@@ -405,11 +463,80 @@
         "minTier": 3,
         "value": true
       }
-    }
+    },
+    "historicalActiveValues": {
+      "enabled": false,
+      "widthScale": 60,
+      "heightScale": 60,
+      "positionX": -300,
+      "positionY": -200,
+      "enemyEnabled": false,
+      "enemyVisible": false,
+      "enemyMode": "fixed",
+      "enemyLow": "#3D709F",
+      "enemyMid": "#60B606",
+      "enemyHigh": "#83FB6D",
+      "enemyTeamHigh": true,
+      "enemyHealing": "#111109",
+      "enemyDelta": "#345670",
+      "enemyBulletShield": "#579BD7",
+      "allyEnabled": true,
+      "allyVisible": false,
+      "allyMode": "gradient",
+      "allyLow": "#E4B173",
+      "allyMid": "#07F6DA",
+      "allyHigh": "#2B3C41",
+      "allyHealing": "#4E81A8",
+      "allyDelta": "#71C70F",
+      "allyBulletShield": "#950C76",
+      "ultMode": "custom",
+      "ultCustom": "#DB9744",
+      "readoutVisible": false,
+      "readoutSize": 72,
+      "readoutFont": "oracle",
+      "readoutOffsetX": -200,
+      "readoutOffsetY": -35,
+      "readoutColorMode": "custom",
+      "readoutMode": "gradient",
+      "readoutLow": "#1907E3",
+      "readoutMid": "#3C4D4A",
+      "readoutHigh": "#5F92B1",
+      "pipsVisible": false,
+      "precisePipsEnabled": true,
+      "levelsVisible": false,
+      "lowThreshold": 0,
+      "highThreshold": 1,
+      "enemyPulseEnabled": false,
+      "enemyPulseThreshold": 0,
+      "enemyPulseBpm": 30,
+      "enemyPulseIntensity": 0,
+      "enemyPulseColorEnabled": true,
+      "enemyPulseColorMode": "fixed",
+      "enemyPulseColor": "#06D385",
+      "enemyPulseHideBar": true,
+      "enemyPulseReadout": true,
+      "enemyPulseReadoutModifiers": true,
+      "enemyPulseReadoutSize": 72,
+      "enemyPulseReadoutOffsetX": -200,
+      "enemyPulseReadoutOffsetY": -35,
+      "allyPulseEnabled": true,
+      "allyPulseThreshold": 0,
+      "allyPulseBpm": 30,
+      "allyPulseIntensity": 0,
+      "allyPulseColorEnabled": true,
+      "allyPulseColor": "#AE1459",
+      "enemyKillMarkerEnabled": true,
+      "enemyKillMarkerThreshold": 5,
+      "enemyKillMarkerWidth": 1,
+      "enemyKillMarkerColor": "#3B29F5",
+      "readoutMaxTeamColor": true,
+      "allyTeamHigh": true
+    },
+    "historicalCanonicalCode": "HPCR2{\"v\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[30,72],[31,\"oracle\"],[32,-200],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-200],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[70,true],[71,true]],\"c\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-200},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}}}"
   },
   "hpcrp1": {
-    "inputCode": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Rewrite Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[[8,\"#FD4949\"],[20,\"#FFEFD7\"],[21,\"#FFEFD7\"],[22,\"#FFEFD7\"],[32,-30],[33,434]],\"conditions\":null},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Exhaustive Wire\",\"mode\":\"selected\",\"heroes\":[\"hero_haze\"],\"values\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[12,true],[13,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[67,true],[68,true],[69,0],[70,true],[71,true]],\"conditions\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":1,\"values\":[[0,40],[1,16],[2,-300],[3,-200],[4,true],[5,\"#D3A06A\"],[6,\"gradient\"],[7,false],[8,-300],[9,-200],[10,300],[11,200]],\"conditions\":{\"staminaWidth\":{\"slot\":2,\"minTier\":1,\"value\":40},\"staminaHeight\":{\"slot\":3,\"minTier\":2,\"value\":16},\"staminaOffsetX\":{\"slot\":4,\"minTier\":3,\"value\":-300},\"staminaOffsetY\":{\"slot\":1,\"minTier\":1,\"value\":-200},\"enemyStaminaColorEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyStaminaColor\":{\"slot\":3,\"minTier\":3,\"value\":\"#D3A06A\"},\"allyPulseColorMode\":{\"slot\":4,\"minTier\":1,\"value\":\"gradient\"},\"accessoryAnchorEnabled\":{\"slot\":1,\"minTier\":2,\"value\":false},\"ultOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-300},\"ultOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"levelOffsetX\":{\"slot\":4,\"minTier\":2,\"value\":300},\"levelOffsetY\":{\"slot\":1,\"minTier\":3,\"value\":200}}}}],\"hiddenBakedPresetIds\":[],\"selectedPresetId\":\"user_0001\"}",
-    "canonicalCode": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Rewrite Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[[8,\"#FD4949\"],[20,\"#FFEFD7\"],[21,\"#FFEFD7\"],[22,\"#FFEFD7\"],[32,-30],[33,434]],\"conditions\":null},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Exhaustive Wire\",\"mode\":\"selected\",\"heroes\":[\"hero_haze\"],\"values\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[70,true],[71,true]],\"conditions\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-405},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-405},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":1,\"values\":[[0,40],[1,16],[2,-300],[3,-200],[4,true],[5,\"#D3A06A\"],[6,\"gradient\"],[7,false],[8,-300],[9,-200],[10,300],[11,200]],\"conditions\":{\"staminaWidth\":{\"slot\":2,\"minTier\":1,\"value\":40},\"staminaHeight\":{\"slot\":3,\"minTier\":2,\"value\":16},\"staminaOffsetX\":{\"slot\":4,\"minTier\":3,\"value\":-300},\"staminaOffsetY\":{\"slot\":1,\"minTier\":1,\"value\":-200},\"enemyStaminaColorEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyStaminaColor\":{\"slot\":3,\"minTier\":3,\"value\":\"#D3A06A\"},\"allyPulseColorMode\":{\"slot\":4,\"minTier\":1,\"value\":\"gradient\"},\"accessoryAnchorEnabled\":{\"slot\":1,\"minTier\":2,\"value\":false},\"ultOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-300},\"ultOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"levelOffsetX\":{\"slot\":4,\"minTier\":2,\"value\":300},\"levelOffsetY\":{\"slot\":1,\"minTier\":3,\"value\":200}}},\"own\":[\"enabled\",\"widthScale\",\"heightScale\",\"positionX\",\"positionY\",\"enemyEnabled\",\"enemyVisible\",\"enemyMode\",\"enemyLow\",\"enemyMid\",\"enemyHigh\",\"enemyTeamHigh\",\"enemyHealing\",\"enemyDelta\",\"enemyBulletShield\",\"allyEnabled\",\"allyVisible\",\"allyMode\",\"allyLow\",\"allyMid\",\"allyHigh\",\"allyHealing\",\"allyDelta\",\"allyBulletShield\",\"ultMode\",\"ultCustom\",\"readoutVisible\",\"readoutFormat\",\"readoutSize\",\"readoutFont\",\"readoutOffsetX\",\"readoutOffsetY\",\"readoutColorMode\",\"readoutMode\",\"readoutLow\",\"readoutMid\",\"readoutHigh\",\"pipsVisible\",\"precisePipsEnabled\",\"levelsVisible\",\"lowThreshold\",\"highThreshold\",\"enemyPulseEnabled\",\"enemyPulseThreshold\",\"enemyPulseBpm\",\"enemyPulseIntensity\",\"enemyPulseColorEnabled\",\"enemyPulseColorMode\",\"enemyPulseColor\",\"enemyPulseHideBar\",\"enemyPulseReadout\",\"enemyPulseReadoutModifiers\",\"enemyPulseReadoutSize\",\"enemyPulseReadoutOffsetX\",\"enemyPulseReadoutOffsetY\",\"allyPulseEnabled\",\"allyPulseThreshold\",\"allyPulseBpm\",\"allyPulseIntensity\",\"allyPulseColorEnabled\",\"allyPulseColor\",\"enemyKillMarkerEnabled\",\"enemyKillMarkerThreshold\",\"enemyKillMarkerWidth\",\"enemyKillMarkerColor\",\"readoutMaxTeamColor\",\"allyTeamHigh\",\"staminaWidth\",\"staminaHeight\",\"staminaOffsetX\",\"staminaOffsetY\",\"enemyStaminaColorEnabled\",\"enemyStaminaColor\",\"allyPulseColorMode\",\"accessoryAnchorEnabled\",\"ultOffsetX\",\"ultOffsetY\",\"levelOffsetX\",\"levelOffsetY\"]}],\"hiddenBakedPresetIds\":[],\"selectedPresetId\":\"user_0001\"}",
+    "inputCode": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Rewrite Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[[8,\"#FD4949\"],[20,\"#FFEFD7\"],[21,\"#FFEFD7\"],[22,\"#FFEFD7\"],[32,-30],[33,434]],\"conditions\":null},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Exhaustive Wire\",\"mode\":\"selected\",\"heroes\":[\"hero_haze\"],\"values\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[12,true],[13,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[29,\"percent\"],[30,72],[31,\"oracle\"],[32,-405],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-405],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[67,true],[68,true],[69,0],[70,true],[71,true]],\"conditions\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutFormat\":{\"slot\":4,\"minTier\":1,\"value\":\"percent\"},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-200},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"ghoulOpacityEnabled\":{\"slot\":2,\"minTier\":3,\"value\":true},\"ghoulOpacity\":{\"slot\":3,\"minTier\":1,\"value\":0},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":1,\"values\":[[0,40],[1,16],[2,-300],[3,-200],[4,true],[5,\"#D3A06A\"],[6,\"gradient\"],[7,false],[8,-300],[9,-200],[10,300],[11,200]],\"conditions\":{\"staminaWidth\":{\"slot\":2,\"minTier\":1,\"value\":40},\"staminaHeight\":{\"slot\":3,\"minTier\":2,\"value\":16},\"staminaOffsetX\":{\"slot\":4,\"minTier\":3,\"value\":-300},\"staminaOffsetY\":{\"slot\":1,\"minTier\":1,\"value\":-200},\"enemyStaminaColorEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyStaminaColor\":{\"slot\":3,\"minTier\":3,\"value\":\"#D3A06A\"},\"allyPulseColorMode\":{\"slot\":4,\"minTier\":1,\"value\":\"gradient\"},\"accessoryAnchorEnabled\":{\"slot\":1,\"minTier\":2,\"value\":false},\"ultOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-300},\"ultOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"levelOffsetX\":{\"slot\":4,\"minTier\":2,\"value\":300},\"levelOffsetY\":{\"slot\":1,\"minTier\":3,\"value\":200}}}}],\"hiddenBakedPresetIds\":[],\"selectedPresetId\":\"user_0001\"}",
+    "canonicalCode": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Rewrite Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[[1,148],[2,80],[4,-38],[8,\"#FD4949\"],[20,\"#FFEFD7\"],[21,\"#FFEFD7\"],[22,\"#FFEFD7\"],[31,\"oracle\"],[32,18],[33,14]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[8,74],[9,48],[10,74],[11,48],[56,true],[57,\"#000000\"]],\"conditions\":{}}},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Exhaustive Wire\",\"mode\":\"selected\",\"heroes\":[\"hero_haze\"],\"values\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[30,72],[31,\"oracle\"],[32,-333],[33,-58],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-333],[56,-58],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[70,true],[71,true]],\"conditions\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-333},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-58},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-333},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-58},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":2,\"values\":[[0,40],[1,16],[2,-300],[3,-200],[4,true],[5,\"#D3A06A\"],[6,\"gradient\"],[7,false],[8,-300],[9,-200],[10,300],[11,200],[61,\"box\"]],\"conditions\":{\"staminaWidth\":{\"slot\":2,\"minTier\":1,\"value\":40},\"staminaHeight\":{\"slot\":3,\"minTier\":2,\"value\":16},\"staminaOffsetX\":{\"slot\":4,\"minTier\":3,\"value\":-300},\"staminaOffsetY\":{\"slot\":1,\"minTier\":1,\"value\":-200},\"enemyStaminaColorEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyStaminaColor\":{\"slot\":3,\"minTier\":3,\"value\":\"#D3A06A\"},\"allyPulseColorMode\":{\"slot\":4,\"minTier\":1,\"value\":\"gradient\"},\"accessoryAnchorEnabled\":{\"slot\":1,\"minTier\":2,\"value\":false},\"ultOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-300},\"ultOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"levelOffsetX\":{\"slot\":4,\"minTier\":2,\"value\":300},\"levelOffsetY\":{\"slot\":1,\"minTier\":3,\"value\":200}}},\"own\":[\"enabled\",\"widthScale\",\"heightScale\",\"positionX\",\"positionY\",\"enemyEnabled\",\"enemyVisible\",\"enemyMode\",\"enemyLow\",\"enemyMid\",\"enemyHigh\",\"enemyTeamHigh\",\"enemyHealing\",\"enemyDelta\",\"enemyBulletShield\",\"allyEnabled\",\"allyVisible\",\"allyMode\",\"allyLow\",\"allyMid\",\"allyHigh\",\"allyHealing\",\"allyDelta\",\"allyBulletShield\",\"ultMode\",\"ultCustom\",\"readoutVisible\",\"readoutSize\",\"readoutOffsetX\",\"readoutOffsetY\",\"readoutColorMode\",\"readoutMode\",\"readoutLow\",\"readoutMid\",\"readoutHigh\",\"pipsVisible\",\"precisePipsEnabled\",\"levelsVisible\",\"lowThreshold\",\"highThreshold\",\"enemyPulseEnabled\",\"enemyPulseThreshold\",\"enemyPulseBpm\",\"enemyPulseIntensity\",\"enemyPulseColorEnabled\",\"enemyPulseColorMode\",\"enemyPulseColor\",\"enemyPulseHideBar\",\"enemyPulseReadout\",\"enemyPulseReadoutModifiers\",\"enemyPulseReadoutSize\",\"enemyPulseReadoutOffsetX\",\"enemyPulseReadoutOffsetY\",\"allyPulseEnabled\",\"allyPulseThreshold\",\"allyPulseBpm\",\"allyPulseIntensity\",\"allyPulseColorEnabled\",\"allyPulseColor\",\"enemyKillMarkerEnabled\",\"enemyKillMarkerThreshold\",\"enemyKillMarkerWidth\",\"enemyKillMarkerColor\",\"readoutMaxTeamColor\",\"allyTeamHigh\",\"staminaWidth\",\"staminaHeight\",\"staminaOffsetX\",\"staminaOffsetY\",\"enemyStaminaColorEnabled\",\"enemyStaminaColor\",\"allyPulseColorMode\",\"accessoryAnchorEnabled\",\"ultOffsetX\",\"ultOffsetY\",\"levelOffsetX\",\"levelOffsetY\",\"enemyPipColorEnabled\",\"enemyPipColor\",\"staminaShape\"]}],\"hiddenBakedPresetIds\":[],\"selectedPresetId\":\"user_0001\"}",
     "selectedPresetId": "user_0001",
     "activeValues": {
       "enabled": false,
@@ -439,11 +566,10 @@
       "ultMode": "custom",
       "ultCustom": "#DB9744",
       "readoutVisible": false,
-      "readoutFormat": "percent",
       "readoutSize": 72,
       "readoutFont": "oracle",
-      "readoutOffsetX": -405,
-      "readoutOffsetY": -35,
+      "readoutOffsetX": -333,
+      "readoutOffsetY": -58,
       "readoutColorMode": "custom",
       "readoutMode": "gradient",
       "readoutLow": "#1907E3",
@@ -465,8 +591,8 @@
       "enemyPulseReadout": true,
       "enemyPulseReadoutModifiers": true,
       "enemyPulseReadoutSize": 72,
-      "enemyPulseReadoutOffsetX": -405,
-      "enemyPulseReadoutOffsetY": -35,
+      "enemyPulseReadoutOffsetX": -333,
+      "enemyPulseReadoutOffsetY": -58,
       "allyPulseEnabled": true,
       "allyPulseThreshold": 0,
       "allyPulseBpm": 30,
@@ -490,7 +616,59 @@
       "ultOffsetX": -300,
       "ultOffsetY": -200,
       "levelOffsetX": 300,
-      "levelOffsetY": 200
+      "levelOffsetY": 200,
+      "pickupTimersEnabled": true,
+      "pickupGunColor": "#EC9719",
+      "pickupMovementColor": "#6E65EA",
+      "pickupSpiritColor": "#CE90FF",
+      "pickupSurvivalColor": "#7BBA1D",
+      "pickupBackgroundDarkness": 70,
+      "pickupGlyphColor": "#10130D",
+      "pickupSize": 22,
+      "pickupSpacing": 1,
+      "pickupOffsetX": 0,
+      "pickupOffsetY": 0,
+      "ultimateTimerEnabled": true,
+      "ultimateTimerSize": 100,
+      "ultimateTimerDarkness": 99,
+      "ultimateTimerColorMode": "follow",
+      "ultimateTimerUnavailableColor": "#E16161",
+      "ultimateTimerAvailableColor": "#7BBA1D",
+      "allyReadoutVisible": false,
+      "allyReadoutSize": 145,
+      "allyReadoutFont": "default",
+      "allyReadoutOffsetX": 0,
+      "allyReadoutOffsetY": 0,
+      "allyReadoutColorMode": "bar",
+      "allyReadoutMode": "fixed",
+      "allyReadoutLow": "#E16161",
+      "allyReadoutMid": "#FF7B00",
+      "allyReadoutHigh": "#FFFFFF",
+      "allyReadoutMaxTeamColor": false,
+      "npcEnemyEnabled": false,
+      "npcAllyEnabled": false,
+      "npcNeutralEnabled": false,
+      "buildingEnemyEnabled": false,
+      "buildingAllyEnabled": false,
+      "neutralColor": "#5BEFB5",
+      "criticalIndicatorVisible": true,
+      "playerNamesVisible": true,
+      "enemyNameColorEnabled": false,
+      "enemyNameColor": "#FF6A6A",
+      "allyNameColorEnabled": false,
+      "allyNameColor": "#FFFFFF",
+      "nameSize": 14,
+      "nameOffsetX": 0,
+      "nameOffsetY": 0,
+      "enemyPipColorEnabled": false,
+      "enemyPipColor": "#500202",
+      "allyPipColorEnabled": false,
+      "allyPipColor": "#042517",
+      "pipOpacity": 100,
+      "staminaShape": "box",
+      "readoutOutlineWidth": 5,
+      "allyReadoutOutlineWidth": 5,
+      "nameOutlineWidth": 5
     },
     "conditions": {
       "enabled": {
@@ -628,11 +806,6 @@
         "minTier": 3,
         "value": false
       },
-      "readoutFormat": {
-        "slot": 4,
-        "minTier": 1,
-        "value": "percent"
-      },
       "readoutSize": {
         "slot": 1,
         "minTier": 2,
@@ -646,12 +819,12 @@
       "readoutOffsetX": {
         "slot": 3,
         "minTier": 1,
-        "value": -405
+        "value": -333
       },
       "readoutOffsetY": {
         "slot": 4,
         "minTier": 2,
-        "value": -35
+        "value": -58
       },
       "readoutColorMode": {
         "slot": 1,
@@ -756,12 +929,12 @@
       "enemyPulseReadoutOffsetX": {
         "slot": 2,
         "minTier": 3,
-        "value": -405
+        "value": -333
       },
       "enemyPulseReadoutOffsetY": {
         "slot": 3,
         "minTier": 1,
-        "value": -35
+        "value": -58
       },
       "allyPulseEnabled": {
         "slot": 4,
@@ -822,68 +995,90 @@
         "slot": 1,
         "minTier": 3,
         "value": true
-      },
-      "staminaWidth": {
-        "slot": 2,
-        "minTier": 1,
-        "value": 40
-      },
-      "staminaHeight": {
-        "slot": 3,
-        "minTier": 2,
-        "value": 16
-      },
-      "staminaOffsetX": {
-        "slot": 4,
-        "minTier": 3,
-        "value": -300
-      },
-      "staminaOffsetY": {
-        "slot": 1,
-        "minTier": 1,
-        "value": -200
-      },
-      "enemyStaminaColorEnabled": {
-        "slot": 2,
-        "minTier": 2,
-        "value": true
-      },
-      "enemyStaminaColor": {
-        "slot": 3,
-        "minTier": 3,
-        "value": "#D3A06A"
-      },
-      "allyPulseColorMode": {
-        "slot": 4,
-        "minTier": 1,
-        "value": "gradient"
-      },
-      "accessoryAnchorEnabled": {
-        "slot": 1,
-        "minTier": 2,
-        "value": false
-      },
-      "ultOffsetX": {
-        "slot": 2,
-        "minTier": 3,
-        "value": -300
-      },
-      "ultOffsetY": {
-        "slot": 3,
-        "minTier": 1,
-        "value": -200
-      },
-      "levelOffsetX": {
-        "slot": 4,
-        "minTier": 2,
-        "value": 300
-      },
-      "levelOffsetY": {
-        "slot": 1,
-        "minTier": 3,
-        "value": 200
       }
-    }
+    },
+    "historicalActiveValues": {
+      "enabled": false,
+      "widthScale": 60,
+      "heightScale": 60,
+      "positionX": -300,
+      "positionY": -200,
+      "enemyEnabled": false,
+      "enemyVisible": false,
+      "enemyMode": "fixed",
+      "enemyLow": "#3D709F",
+      "enemyMid": "#60B606",
+      "enemyHigh": "#83FB6D",
+      "enemyTeamHigh": true,
+      "enemyHealing": "#111109",
+      "enemyDelta": "#345670",
+      "enemyBulletShield": "#579BD7",
+      "allyEnabled": true,
+      "allyVisible": false,
+      "allyMode": "gradient",
+      "allyLow": "#E4B173",
+      "allyMid": "#07F6DA",
+      "allyHigh": "#2B3C41",
+      "allyHealing": "#4E81A8",
+      "allyDelta": "#71C70F",
+      "allyBulletShield": "#950C76",
+      "ultMode": "custom",
+      "ultCustom": "#DB9744",
+      "readoutVisible": false,
+      "readoutFormat": "percent",
+      "readoutSize": 72,
+      "readoutFont": "oracle",
+      "readoutOffsetX": -200,
+      "readoutOffsetY": -35,
+      "readoutColorMode": "custom",
+      "readoutMode": "gradient",
+      "readoutLow": "#1907E3",
+      "readoutMid": "#3C4D4A",
+      "readoutHigh": "#5F92B1",
+      "pipsVisible": false,
+      "precisePipsEnabled": true,
+      "levelsVisible": false,
+      "lowThreshold": 0,
+      "highThreshold": 1,
+      "enemyPulseEnabled": false,
+      "enemyPulseThreshold": 0,
+      "enemyPulseBpm": 30,
+      "enemyPulseIntensity": 0,
+      "enemyPulseColorEnabled": true,
+      "enemyPulseColorMode": "fixed",
+      "enemyPulseColor": "#06D385",
+      "enemyPulseHideBar": true,
+      "enemyPulseReadout": true,
+      "enemyPulseReadoutModifiers": true,
+      "enemyPulseReadoutSize": 72,
+      "enemyPulseReadoutOffsetX": -200,
+      "enemyPulseReadoutOffsetY": -35,
+      "allyPulseEnabled": true,
+      "allyPulseThreshold": 0,
+      "allyPulseBpm": 30,
+      "allyPulseIntensity": 0,
+      "allyPulseColorEnabled": true,
+      "allyPulseColor": "#AE1459",
+      "enemyKillMarkerEnabled": true,
+      "enemyKillMarkerThreshold": 5,
+      "enemyKillMarkerWidth": 1,
+      "enemyKillMarkerColor": "#3B29F5",
+      "readoutMaxTeamColor": true,
+      "allyTeamHigh": true,
+      "staminaWidth": 40,
+      "staminaHeight": 16,
+      "staminaOffsetX": -300,
+      "staminaOffsetY": -200,
+      "enemyStaminaColorEnabled": true,
+      "enemyStaminaColor": "#D3A06A",
+      "allyPulseColorMode": "gradient",
+      "accessoryAnchorEnabled": false,
+      "ultOffsetX": -300,
+      "ultOffsetY": -200,
+      "levelOffsetX": 300,
+      "levelOffsetY": 200
+    },
+    "historicalCanonicalCode": "HPCRP1{\"records\":[{\"id\":\"baked_default\",\"kind\":\"baked\",\"name\":\"Rewrite Default\",\"mode\":\"off\",\"heroes\":[],\"values\":[[8,\"#FD4949\"],[20,\"#FFEFD7\"],[21,\"#FFEFD7\"],[22,\"#FFEFD7\"]],\"conditions\":null},{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Exhaustive Wire\",\"mode\":\"selected\",\"heroes\":[\"hero_haze\"],\"values\":[[0,false],[1,60],[2,60],[3,-300],[4,-200],[5,false],[6,false],[7,\"fixed\"],[8,\"#3D709F\"],[9,\"#60B606\"],[10,\"#83FB6D\"],[11,true],[14,\"#111109\"],[15,\"#345670\"],[16,\"#579BD7\"],[17,true],[18,false],[19,\"gradient\"],[20,\"#E4B173\"],[21,\"#07F6DA\"],[22,\"#2B3C41\"],[23,\"#4E81A8\"],[24,\"#71C70F\"],[25,\"#950C76\"],[26,\"custom\"],[27,\"#DB9744\"],[28,false],[30,72],[31,\"oracle\"],[32,-200],[33,-35],[34,\"custom\"],[35,\"gradient\"],[36,\"#1907E3\"],[37,\"#3C4D4A\"],[38,\"#5F92B1\"],[39,false],[40,true],[41,false],[42,0],[43,1],[44,false],[45,0],[46,30],[47,0],[48,true],[49,\"fixed\"],[50,\"#06D385\"],[51,true],[52,true],[53,true],[54,72],[55,-200],[56,-35],[57,true],[58,0],[59,30],[60,0],[61,true],[62,\"#AE1459\"],[63,true],[64,5],[65,1],[66,\"#3B29F5\"],[70,true],[71,true]],\"conditions\":{\"enabled\":{\"slot\":1,\"minTier\":1,\"value\":false},\"widthScale\":{\"slot\":2,\"minTier\":2,\"value\":60},\"heightScale\":{\"slot\":3,\"minTier\":3,\"value\":60},\"positionX\":{\"slot\":4,\"minTier\":1,\"value\":-300},\"positionY\":{\"slot\":1,\"minTier\":2,\"value\":-200},\"enemyEnabled\":{\"slot\":2,\"minTier\":3,\"value\":false},\"enemyVisible\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyMode\":{\"slot\":4,\"minTier\":2,\"value\":\"fixed\"},\"enemyLow\":{\"slot\":1,\"minTier\":3,\"value\":\"#3D709F\"},\"enemyMid\":{\"slot\":2,\"minTier\":1,\"value\":\"#60B606\"},\"enemyHigh\":{\"slot\":3,\"minTier\":2,\"value\":\"#83FB6D\"},\"enemyTeamHigh\":{\"slot\":4,\"minTier\":3,\"value\":true},\"enemyHealing\":{\"slot\":1,\"minTier\":1,\"value\":\"#111109\"},\"enemyDelta\":{\"slot\":2,\"minTier\":2,\"value\":\"#345670\"},\"enemyBulletShield\":{\"slot\":3,\"minTier\":3,\"value\":\"#579BD7\"},\"allyEnabled\":{\"slot\":4,\"minTier\":1,\"value\":true},\"allyVisible\":{\"slot\":1,\"minTier\":2,\"value\":false},\"allyMode\":{\"slot\":2,\"minTier\":3,\"value\":\"gradient\"},\"allyLow\":{\"slot\":3,\"minTier\":1,\"value\":\"#E4B173\"},\"allyMid\":{\"slot\":4,\"minTier\":2,\"value\":\"#07F6DA\"},\"allyHigh\":{\"slot\":1,\"minTier\":3,\"value\":\"#2B3C41\"},\"allyHealing\":{\"slot\":2,\"minTier\":1,\"value\":\"#4E81A8\"},\"allyDelta\":{\"slot\":3,\"minTier\":2,\"value\":\"#71C70F\"},\"allyBulletShield\":{\"slot\":4,\"minTier\":3,\"value\":\"#950C76\"},\"ultMode\":{\"slot\":1,\"minTier\":1,\"value\":\"custom\"},\"ultCustom\":{\"slot\":2,\"minTier\":2,\"value\":\"#DB9744\"},\"readoutVisible\":{\"slot\":3,\"minTier\":3,\"value\":false},\"readoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"readoutFont\":{\"slot\":2,\"minTier\":3,\"value\":\"oracle\"},\"readoutOffsetX\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"readoutOffsetY\":{\"slot\":4,\"minTier\":2,\"value\":-35},\"readoutColorMode\":{\"slot\":1,\"minTier\":3,\"value\":\"custom\"},\"readoutMode\":{\"slot\":2,\"minTier\":1,\"value\":\"gradient\"},\"readoutLow\":{\"slot\":3,\"minTier\":2,\"value\":\"#1907E3\"},\"readoutMid\":{\"slot\":4,\"minTier\":3,\"value\":\"#3C4D4A\"},\"readoutHigh\":{\"slot\":1,\"minTier\":1,\"value\":\"#5F92B1\"},\"pipsVisible\":{\"slot\":2,\"minTier\":2,\"value\":false},\"levelsVisible\":{\"slot\":4,\"minTier\":1,\"value\":false},\"lowThreshold\":{\"slot\":1,\"minTier\":2,\"value\":0},\"highThreshold\":{\"slot\":2,\"minTier\":3,\"value\":100},\"enemyPulseEnabled\":{\"slot\":3,\"minTier\":1,\"value\":false},\"enemyPulseThreshold\":{\"slot\":4,\"minTier\":2,\"value\":0},\"enemyPulseBpm\":{\"slot\":1,\"minTier\":3,\"value\":30},\"enemyPulseIntensity\":{\"slot\":2,\"minTier\":1,\"value\":0},\"enemyPulseColorEnabled\":{\"slot\":3,\"minTier\":2,\"value\":true},\"enemyPulseColorMode\":{\"slot\":4,\"minTier\":3,\"value\":\"fixed\"},\"enemyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#06D385\"},\"enemyPulseHideBar\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyPulseReadout\":{\"slot\":3,\"minTier\":3,\"value\":true},\"enemyPulseReadoutModifiers\":{\"slot\":4,\"minTier\":1,\"value\":true},\"enemyPulseReadoutSize\":{\"slot\":1,\"minTier\":2,\"value\":72},\"enemyPulseReadoutOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-200},\"enemyPulseReadoutOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-35},\"allyPulseEnabled\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyPulseThreshold\":{\"slot\":1,\"minTier\":3,\"value\":0},\"allyPulseBpm\":{\"slot\":2,\"minTier\":1,\"value\":30},\"allyPulseIntensity\":{\"slot\":3,\"minTier\":2,\"value\":0},\"allyPulseColorEnabled\":{\"slot\":4,\"minTier\":3,\"value\":true},\"allyPulseColor\":{\"slot\":1,\"minTier\":1,\"value\":\"#AE1459\"},\"enemyKillMarkerEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyKillMarkerThreshold\":{\"slot\":3,\"minTier\":3,\"value\":5},\"enemyKillMarkerWidth\":{\"slot\":4,\"minTier\":1,\"value\":1},\"enemyKillMarkerColor\":{\"slot\":1,\"minTier\":2,\"value\":\"#3B29F5\"},\"readoutMaxTeamColor\":{\"slot\":4,\"minTier\":2,\"value\":true},\"allyTeamHigh\":{\"slot\":1,\"minTier\":3,\"value\":true}},\"hpv2\":{\"v\":1,\"values\":[[0,40],[1,16],[2,-300],[3,-200],[4,true],[5,\"#D3A06A\"],[6,\"gradient\"],[7,false],[8,-300],[9,-200],[10,300],[11,200],[61,\"box\"]],\"conditions\":{\"staminaWidth\":{\"slot\":2,\"minTier\":1,\"value\":40},\"staminaHeight\":{\"slot\":3,\"minTier\":2,\"value\":16},\"staminaOffsetX\":{\"slot\":4,\"minTier\":3,\"value\":-300},\"staminaOffsetY\":{\"slot\":1,\"minTier\":1,\"value\":-200},\"enemyStaminaColorEnabled\":{\"slot\":2,\"minTier\":2,\"value\":true},\"enemyStaminaColor\":{\"slot\":3,\"minTier\":3,\"value\":\"#D3A06A\"},\"allyPulseColorMode\":{\"slot\":4,\"minTier\":1,\"value\":\"gradient\"},\"accessoryAnchorEnabled\":{\"slot\":1,\"minTier\":2,\"value\":false},\"ultOffsetX\":{\"slot\":2,\"minTier\":3,\"value\":-300},\"ultOffsetY\":{\"slot\":3,\"minTier\":1,\"value\":-200},\"levelOffsetX\":{\"slot\":4,\"minTier\":2,\"value\":300},\"levelOffsetY\":{\"slot\":1,\"minTier\":3,\"value\":200}}},\"own\":[\"enabled\",\"widthScale\",\"heightScale\",\"positionX\",\"positionY\",\"enemyEnabled\",\"enemyVisible\",\"enemyMode\",\"enemyLow\",\"enemyMid\",\"enemyHigh\",\"enemyTeamHigh\",\"enemyHealing\",\"enemyDelta\",\"enemyBulletShield\",\"allyEnabled\",\"allyVisible\",\"allyMode\",\"allyLow\",\"allyMid\",\"allyHigh\",\"allyHealing\",\"allyDelta\",\"allyBulletShield\",\"ultMode\",\"ultCustom\",\"readoutVisible\",\"readoutSize\",\"readoutFont\",\"readoutOffsetX\",\"readoutOffsetY\",\"readoutColorMode\",\"readoutMode\",\"readoutLow\",\"readoutMid\",\"readoutHigh\",\"pipsVisible\",\"precisePipsEnabled\",\"levelsVisible\",\"lowThreshold\",\"highThreshold\",\"enemyPulseEnabled\",\"enemyPulseThreshold\",\"enemyPulseBpm\",\"enemyPulseIntensity\",\"enemyPulseColorEnabled\",\"enemyPulseColorMode\",\"enemyPulseColor\",\"enemyPulseHideBar\",\"enemyPulseReadout\",\"enemyPulseReadoutModifiers\",\"enemyPulseReadoutSize\",\"enemyPulseReadoutOffsetX\",\"enemyPulseReadoutOffsetY\",\"allyPulseEnabled\",\"allyPulseThreshold\",\"allyPulseBpm\",\"allyPulseIntensity\",\"allyPulseColorEnabled\",\"allyPulseColor\",\"enemyKillMarkerEnabled\",\"enemyKillMarkerThreshold\",\"enemyKillMarkerWidth\",\"enemyKillMarkerColor\",\"readoutMaxTeamColor\",\"allyTeamHigh\",\"staminaWidth\",\"staminaHeight\",\"staminaOffsetX\",\"staminaOffsetY\",\"enemyStaminaColorEnabled\",\"enemyStaminaColor\",\"allyPulseColorMode\",\"accessoryAnchorEnabled\",\"ultOffsetX\",\"ultOffsetY\",\"levelOffsetX\",\"levelOffsetY\",\"staminaShape\"]}],\"hiddenBakedPresetIds\":[],\"selectedPresetId\":\"user_0001\"}"
   },
   "malformed": [
     {
@@ -1001,7 +1196,7 @@
     {
       "id": "preset-invalid-extension-version",
       "protocol": "HPCRP1",
-      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[],\"conditions\":{}}}]}",
+      "code": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Test\",\"mode\":\"all\",\"heroes\":[],\"values\":[],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[],\"conditions\":{}}}]}",
       "gameError": "INVALID HPV2 PRESET EXTENSION",
       "builderError": "INVALID HPV2 PRESET EXTENSION"
     },

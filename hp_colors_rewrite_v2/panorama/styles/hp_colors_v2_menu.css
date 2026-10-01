@@ -649,8 +649,8 @@ Slider.HPColorsSlider.HorizontalSlider #SliderThumb {
 }
 
 .HPColorsPickerPanel {
-  width: 340px;
-  height: 380px;
+  width: 440px;
+  height: fit-children;
   padding: 18px 20px;
   horizontal-align: center;
   vertical-align: center;
@@ -681,85 +681,9 @@ Slider.HPColorsSlider.HorizontalSlider #SliderThumb {
 }
 
 
-.HPColorsPickerSliderRow {
-  width: 100%;
-  height: 60px;
-  flow-children: right;
-  border-bottom: 1px solid #ffefd70d;
-}
-
-.HPColorsPickerSliderName,
-.HPColorsPickerSliderValue {
-  vertical-align: center;
-  font-family: oracle;
-  font-size: 12px;
-  font-weight: bold;
-  color: #ffefd799;
-}
-
-.HPColorsPickerSliderName {
-  width: 82px;
-  letter-spacing: 1px;
-}
-
-.HPColorsPickerSliderValue {
-  width: 48px;
-  text-align: right;
-  color: #ffefd7;
-}
-
-.HPColorsPickerSliderHost {
-  width: 170px;
-  height: 30px;
-  vertical-align: center;
-  overflow: noclip;
-}
-
-.HPColorsPickerSlider {
-  width: 100%;
-  height: 16px;
-  vertical-align: center;
-  overflow: noclip;
-}
-
-.HPColorsPickerSlider.HorizontalSlider #SliderTrack {
-  width: 100%;
-  height: 8px;
-  padding: 0px;
-  vertical-align: center;
-  background-color: #303532;
-  border: 1px solid #ffefd71f;
-  border-radius: 999px;
-}
-
-
-.HPColorsPickerSlider.HorizontalSlider #SliderTrackProgress {
-  height: 8px;
-  vertical-align: center;
-  background-color: #00000000;
-  box-shadow: none;
-}
-
-.HPColorsPickerSlider.HorizontalSlider .SliderThumb,
-Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
-  width: 15px;
-  height: 15px;
-  vertical-align: center;
-  background-color: #ffefd7;
-  border: 2px solid #10130d;
-  border-radius: 2px;
-  box-shadow: fill #000000cc 0px 0px 5px 0px;
-  transform: rotateZ(45deg);
-  transition-property: border, box-shadow, pre-transform-scale2d, background-color;
-  transition-duration: 0.1s;
-}
-
-.HPColorsPickerSlider.HorizontalSlider:hover .SliderThumb,
-.HPColorsPickerSlider.HorizontalSlider:focus .SliderThumb,
-.HPColorsPickerSlider.HorizontalSlider:active .SliderThumb {
-  border: 2px solid #5fe69e;
-  box-shadow: fill #5fe69eb3 0px 0px 8px 0px;
-  pre-transform-scale2d: 1.18;
+.HPColorsNativePicker {
+  horizontal-align: center;
+  margin-top: 12px;
 }
 
 .HPColorsPickerHelp {
@@ -1109,78 +1033,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 /* EXIT keeps a 12px gap after REVIEW PRESETS in the exit prompt. */
 .HPColorsTransferDialogActions .HPColorsSecondaryAction.HPColorsExitDiscardButton {
   margin-left: 12px;
-}
-
-.HPColorsPrecisePipsDialog {
-  width: 100%;
-  height: 100%;
-  visibility: collapse;
-  opacity: 0;
-  z-index: 50;
-  transition-property: opacity;
-  transition-duration: 0.1s;
-}
-
-.HPColorsPrecisePipsDialog.Open {
-  visibility: visible;
-  opacity: 1;
-}
-
-.HPColorsPrecisePipsDialogBackdrop {
-  width: 100%;
-  height: 100%;
-  background-color: #050605d9;
-}
-
-.HPColorsPrecisePipsDialogPanel {
-  width: 560px;
-  padding: 24px;
-  horizontal-align: center;
-  vertical-align: center;
-  flow-children: down;
-  background-color: gradient(linear, 0% 0%, 100% 100%, from(#20251d), to(#0d100c));
-  border: 1px solid #d8a84980;
-  box-shadow: #000000cc 0px 14px 38px 0px;
-}
-
-.HPColorsPrecisePipsDialogTitle {
-  font-family: oracle;
-  font-size: 22px;
-  font-weight: bold;
-  letter-spacing: 1px;
-  color: #ffefd7;
-}
-
-.HPColorsPrecisePipsDialogMessage {
-  width: 100%;
-  margin-top: 12px;
-  font-family: oracle;
-  font-size: 15px;
-  color: #e7c77d;
-  white-space: normal;
-}
-
-.HPColorsPrecisePipsDialogCommands {
-  width: 100%;
-  margin-top: 16px;
-  padding: 12px;
-  background-color: #070907;
-  border: 1px solid #ffefd726;
-  font-family: monospace;
-  font-size: 14px;
-  color: #d9e8dd;
-  white-space: normal;
-}
-
-.HPColorsPrecisePipsDialogActions {
-  margin-top: 18px;
-  horizontal-align: center;
-  flow-children: right;
-}
-
-.HPColorsPrecisePipsDialogActions .HPColorsPrimaryAction {
-  margin-left: 0px;
-  margin-right: 12px;
 }
 
 .HPColorsPresetWorkspace {
@@ -1942,12 +1794,6 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
   opacity: 1;
 }
 
-/* Same box as a condition button, never shown: keeps toggles lined up on
-   rows whose setting can't have conditions. */
-.HPColorsSettingRow:hover .HPColorsConditionIndicator.HPColorsConditionSpacer {
-  opacity: 0;
-}
-
 .HPColorsConditionIndicator Label {
   horizontal-align: center;
   vertical-align: center;
@@ -2237,4 +2083,22 @@ Slider.HPColorsPickerSlider.HorizontalSlider #SliderThumb {
 
 .HPColorsConditionRemove.Disabled {
   visibility: collapse;
+}
+
+.HPColorsSettingsPage .FeatureOff {
+  visibility: collapse;
+}
+
+.HPColorsStaminaShape {
+  width: 240px;
+  vertical-align: center;
+}
+
+.HPColorsNativeFormatNotice {
+  visibility: collapse;
+  white-space: normal;
+}
+
+.HPColorsNativeFormatNotice.Active {
+  visibility: visible;
 }

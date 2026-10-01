@@ -1,7 +1,6 @@
 (function () {
   "use strict";
   var VERSION = 2;
-  var EVENT_CHANNEL = "ClientUI_FireOutput";
   var CONFIG_MAGIC = "HP_COLORS_V2_CONFIG";
   var CONFIG_ATTR = "hp_colors_v2_config";
 
@@ -44,8 +43,8 @@
     readoutFormat: "hp",
     readoutSize: 145,
     readoutFont: "default",
-    readoutOffsetX: 27,
-    readoutOffsetY: 500,
+    readoutOffsetX: 0,
+    readoutOffsetY: 0,
     readoutColorMode: "bar",
     readoutMode: "fixed",
     readoutLow: "#E16161",
@@ -67,8 +66,8 @@
     enemyPulseReadout: false,
     enemyPulseReadoutModifiers: false,
     enemyPulseReadoutSize: 145,
-    enemyPulseReadoutOffsetX: 27,
-    enemyPulseReadoutOffsetY: 500,
+    enemyPulseReadoutOffsetX: 0,
+    enemyPulseReadoutOffsetY: 0,
     allyPulseEnabled: false,
     allyPulseThreshold: 25,
     allyPulseBpm: 75,
@@ -111,14 +110,40 @@
     allyReadoutFormat: "hp",
     allyReadoutSize: 145,
     allyReadoutFont: "default",
-    allyReadoutOffsetX: -30,
-    allyReadoutOffsetY: 434,
+    allyReadoutOffsetX: 0,
+    allyReadoutOffsetY: 0,
     allyReadoutColorMode: "bar",
     allyReadoutMode: "fixed",
     allyReadoutLow: "#E16161",
     allyReadoutMid: "#FF7B00",
     allyReadoutHigh: "#FFFFFF",
     allyReadoutMaxTeamColor: false,
+    npcEnemyEnabled: false,
+    npcAllyEnabled: false,
+    npcNeutralEnabled: false,
+    buildingEnemyEnabled: false,
+    buildingAllyEnabled: false,
+    neutralColor: "#5BEFB5",
+    criticalIndicatorVisible: true,
+    playerNamesVisible: true,
+    enemyNameColorEnabled: false,
+    enemyNameColor: "#FF6A6A",
+    allyNameColorEnabled: false,
+    allyNameColor: "#FFFFFF",
+    nameSize: 14,
+    nameOffsetX: 0,
+    nameOffsetY: 0,
+    enemyPipColorEnabled: false,
+    enemyPipColor: "#500202",
+    allyPipColorEnabled: false,
+    allyPipColor: "#042517",
+    pipOpacity: 100,
+    staminaShape: "arrow",
+    readoutOutlineWidth: 5,
+    allyReadoutOutlineWidth: 5,
+    nameOutlineWidth: 5,
+    hudHealthColorMode: "off",
+    hudHealthColor: "#FFFF00",
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -163,6 +188,32 @@
     "allyReadoutMid",
     "allyReadoutHigh",
     "allyReadoutMaxTeamColor",
+    "npcEnemyEnabled",
+    "npcAllyEnabled",
+    "npcNeutralEnabled",
+    "buildingEnemyEnabled",
+    "buildingAllyEnabled",
+    "neutralColor",
+    "criticalIndicatorVisible",
+    "playerNamesVisible",
+    "enemyNameColorEnabled",
+    "enemyNameColor",
+    "allyNameColorEnabled",
+    "allyNameColor",
+    "nameSize",
+    "nameOffsetX",
+    "nameOffsetY",
+    "enemyPipColorEnabled",
+    "enemyPipColor",
+    "allyPipColorEnabled",
+    "allyPipColor",
+    "pipOpacity",
+    "staminaShape",
+    "readoutOutlineWidth",
+    "allyReadoutOutlineWidth",
+    "nameOutlineWidth",
+    "hudHealthColorMode",
+    "hudHealthColor",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -247,6 +298,9 @@
     excludeGhouls: true,
     ghoulOpacityEnabled: true,
     ghoulOpacity: true,
+    readoutFormat: true,
+    precisePipsEnabled: true,
+    readoutMaxTeamColor: true,
   };
   // Retired keys that v2 once let players attach ability conditions to. Old
   // saves and share codes may still carry rules for them; loaders drop those
@@ -254,10 +308,21 @@
   var RETIRED_CONDITION_KEYS = {
     ghoulOpacityEnabled: true,
     ghoulOpacity: true,
+    readoutFormat: true,
+    allyReadoutFormat: true,
+    precisePipsEnabled: true,
+    readoutMaxTeamColor: true,
+    allyReadoutMaxTeamColor: true,
+  };
+  var RETIRED_EXTENSION_KEYS = {
+    allyReadoutFormat: true,
+    allyReadoutMaxTeamColor: true,
   };
   var DEFAULT_KEYS = CODEC_KEYS.filter(function (key) {
     return !RETIRED_CODEC_KEYS[key];
-  }).concat(HPV2_EXTENSION_KEYS);
+  }).concat(HPV2_EXTENSION_KEYS.filter(function (key) {
+    return !RETIRED_EXTENSION_KEYS[key];
+  }));
   var DEFAULTS = {};
   var defaultIndex;
   for (defaultIndex = 0; defaultIndex < DEFAULT_KEYS.length; defaultIndex++) {
@@ -268,11 +333,31 @@
   DEFAULTS.allyLow = "#FFEFD7";
   DEFAULTS.allyMid = "#FFEFD7";
   DEFAULTS.allyHigh = "#FFEFD7";
-  DEFAULTS.readoutOffsetX = -30;
-  DEFAULTS.readoutOffsetY = 434;
+  DEFAULTS.readoutOffsetX = 0;
+  DEFAULTS.readoutOffsetY = 0;
+  // Durable sparse records use the shipped baseline at 974128a forever.
+  // Wire pairs separately retain CODEC_DEFAULTS, their original slot baseline.
+  var SPARSE_DEFAULTS = copyValues(DEFAULTS);
+  DEFAULTS.widthScale = 148;
+  DEFAULTS.heightScale = 80;
+  DEFAULTS.positionY = -38;
+  DEFAULTS.readoutFont = "oracle";
+  DEFAULTS.readoutOffsetX = 18;
+  DEFAULTS.readoutOffsetY = 14;
+  DEFAULTS.enemyPipColorEnabled = true;
+  DEFAULTS.enemyPipColor = "#000000";
+  DEFAULTS.ultOffsetX = 74;
+  DEFAULTS.levelOffsetX = 74;
+  // Nearest integer raw offset: anchor compensation 38 / 0.8 = 47.5.
+  DEFAULTS.ultOffsetY = 48;
+  DEFAULTS.levelOffsetY = 48;
 
   var BOOLEAN_KEYS = {
     enabled: true,
+    criticalIndicatorVisible: true,
+    playerNamesVisible: true,
+    enemyNameColorEnabled: true,
+    allyNameColorEnabled: true,
     enemyEnabled: true,
     enemyVisible: true,
     enemyTeamHigh: true,
@@ -281,7 +366,6 @@
     enemyStaminaColorEnabled: true,
     readoutVisible: true,
     pipsVisible: true,
-    precisePipsEnabled: true,
     levelsVisible: true,
     enemyPulseEnabled: true,
     enemyPulseColorEnabled: true,
@@ -291,13 +375,18 @@
     enemyKillMarkerEnabled: true,
     allyPulseEnabled: true,
     allyPulseColorEnabled: true,
-    readoutMaxTeamColor: true,
     allyTeamHigh: true,
     accessoryAnchorEnabled: true,
     pickupTimersEnabled: true,
     ultimateTimerEnabled: true,
     allyReadoutVisible: true,
-    allyReadoutMaxTeamColor: true,
+    npcEnemyEnabled: true,
+    npcAllyEnabled: true,
+    npcNeutralEnabled: true,
+    buildingEnemyEnabled: true,
+    buildingAllyEnabled: true,
+    enemyPipColorEnabled: true,
+    allyPipColorEnabled: true,
   };
 
   var COLOR_KEYS = {
@@ -331,6 +420,12 @@
     allyReadoutLow: true,
     allyReadoutMid: true,
     allyReadoutHigh: true,
+    neutralColor: true,
+    enemyNameColor: true,
+    allyNameColor: true,
+    enemyPipColor: true,
+    allyPipColor: true,
+    hudHealthColor: true,
   };
 
   var ENUM_OPTIONS = {
@@ -338,35 +433,35 @@
     allyMode: ["fixed", "gradient"],
     ultMode: ["follow", "custom"],
     ultimateTimerColorMode: ["follow", "fixed", "gradient"],
-    readoutFormat: ["hp", "percent", "current"],
     readoutFont: ["default", "oracle", "pulp"],
     readoutColorMode: ["bar", "custom"],
     readoutMode: ["fixed", "gradient"],
     enemyPulseColorMode: ["fixed", "gradient"],
     allyPulseColorMode: ["fixed", "gradient"],
-    allyReadoutFormat: ["hp", "percent", "current"],
     allyReadoutFont: ["default", "oracle", "pulp"],
     allyReadoutColorMode: ["bar", "custom"],
     allyReadoutMode: ["fixed", "gradient"],
+    staminaShape: ["arrow", "circle", "box"],
+    hudHealthColorMode: ["off", "team", "custom"],
   };
 
   var NUMBER_BOUNDS = {
     widthScale: [60, 230],
     heightScale: [60, 160],
-    positionX: [-300, 300],
-    positionY: [-200, 200],
+    positionX: [-2000, 2000],
+    positionY: [-2100, 2100],
     staminaWidth: [40, 220],
     staminaHeight: [16, 90],
-    staminaOffsetX: [-300, 300],
-    staminaOffsetY: [-200, 200],
+    staminaOffsetX: [-2000, 2000],
+    staminaOffsetY: [-2100, 2100],
     readoutSize: [72, 320],
-    readoutOffsetX: [-405, 405],
-    readoutOffsetY: [-35, 840],
+    readoutOffsetX: [-334, 334],
+    readoutOffsetY: [-350, 350],
     enemyPulseThreshold: [0, 100],
     enemyPulseBpm: [30, 300],
     enemyPulseReadoutSize: [72, 320],
-    enemyPulseReadoutOffsetX: [-405, 405],
-    enemyPulseReadoutOffsetY: [-35, 840],
+    enemyPulseReadoutOffsetX: [-334, 334],
+    enemyPulseReadoutOffsetY: [-350, 350],
     allyPulseThreshold: [0, 100],
     allyPulseBpm: [30, 300],
     enemyKillMarkerThreshold: [5, 80],
@@ -375,10 +470,10 @@
     enemyPulseIntensity: [0, 2],
     allyPulseIntensity: [0, 2],
     highThreshold: [1, 100],
-    ultOffsetX: [-300, 300],
-    ultOffsetY: [-200, 200],
-    levelOffsetX: [-300, 300],
-    levelOffsetY: [-200, 200],
+    ultOffsetX: [-3334, 3334],
+    ultOffsetY: [-3500, 3500],
+    levelOffsetX: [-3334, 3334],
+    levelOffsetY: [-3500, 3500],
     pickupBackgroundDarkness: [0, 100],
     pickupSize: [12, 64],
     pickupSpacing: [0, 16],
@@ -387,12 +482,22 @@
     ultimateTimerSize: [25, 200],
     ultimateTimerDarkness: [0, 100],
     allyReadoutSize: [72, 320],
-    allyReadoutOffsetX: [-405, 405],
-    allyReadoutOffsetY: [-35, 840],
+    allyReadoutOffsetX: [-334, 334],
+    allyReadoutOffsetY: [-350, 350],
+    nameSize: [8, 40],
+    nameOffsetX: [-200, 200],
+    nameOffsetY: [-210, 210],
+    pipOpacity: [0, 100],
+    readoutOutlineWidth: [0, 10],
+    allyReadoutOutlineWidth: [0, 10],
+    nameOutlineWidth: [0, 10],
   };
 
   var NUMBER_STEPS = {
     ultimateTimerSize: 5,
+    readoutOutlineWidth: 0.5,
+    allyReadoutOutlineWidth: 0.5,
+    nameOutlineWidth: 0.5,
   };
 
   function freezeDeep(value) {
@@ -502,6 +607,14 @@
           : fallback[key];
       values[key] = normalizeValue(key, value, values, fallback);
     }
+    if (fallback !== DEFAULTS &&
+        (!source || !Object.prototype.hasOwnProperty.call(source, "staminaShape")))
+      values.staminaShape =
+        values.staminaWidth !== 110 ||
+        values.staminaHeight !== 44.8 ||
+        values.enemyStaminaColorEnabled
+          ? "box"
+          : "arrow";
     values.lowThreshold = clampNumber(
       values.lowThreshold,
       0,
@@ -544,7 +657,7 @@
     SETTING_META[settingMetaKey] = {
       type: settingType,
       color: !!COLOR_KEYS[settingMetaKey],
-      conditionEligible: settingMetaKey !== "precisePipsEnabled",
+      conditionEligible: true,
       min: settingBounds ? settingBounds[0] : null,
       max: settingBounds ? settingBounds[1] : null,
       options: ENUM_OPTIONS[settingMetaKey]
@@ -555,11 +668,11 @@
 
   var CONTRACT = freezeDeep({
     version: VERSION,
-    eventChannel: EVENT_CHANNEL,
     magicWord: CONFIG_MAGIC,
     configAttribute: CONFIG_ATTR,
     defaults: DEFAULTS,
     codecDefaults: CODEC_DEFAULTS,
+    sparseDefaults: SPARSE_DEFAULTS,
     keys: DEFAULT_KEYS,
     codecKeys: CODEC_KEYS,
     extensionKeys: HPV2_EXTENSION_KEYS,
@@ -568,7 +681,6 @@
     colorKeys: COLOR_KEYS,
     enumOptions: ENUM_OPTIONS,
     numberBounds: NUMBER_BOUNDS,
-    numberSteps: NUMBER_STEPS,
     settingMeta: SETTING_META,
     copyValues: copyValues,
     normalizeColor: normalizeColor,

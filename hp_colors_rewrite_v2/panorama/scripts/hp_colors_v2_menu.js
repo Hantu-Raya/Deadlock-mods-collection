@@ -40,14 +40,6 @@
   var SAVE_TO_FEEDBACK_SEC = 3;
   var SAVE_TO_EMPTY_TEXT = "No presets yet. NEW PRESET saves your settings as one.";
   var PRESET_GONE_TEXT = "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.";
-  var PRECISE_PIPS_ENABLE_TEXT =
-    '"citadel_unit_status_health_per_minor_pip" "10"\n' +
-    '"citadel_unit_status_health_per_pip" "10"\n' +
-    '"citadel_unit_status_minor_pip_per_major_pip" "10"';
-  var PRECISE_PIPS_RESET_TEXT =
-    '"citadel_unit_status_health_per_minor_pip" "100"\n' +
-    '"citadel_unit_status_health_per_pip" "100"\n' +
-    '"citadel_unit_status_minor_pip_per_major_pip" "5"';
   var REPLAY_HOT_SEC = 1;
   var REPLAY_WARM_SEC = 3;
   var REPLAY_IDLE_SEC = 8;
@@ -74,20 +66,48 @@
         {
           name: "MASTER",
           title: "MASTER SWITCH & THRESHOLDS",
-          description:
-            "Turn HP Colors on or off, then set the shared low and high HP thresholds that every enemy, ally, and HP-text color rule uses.",
+          description: "Turn HP Colors on or off, then set the shared low and high HP thresholds that every enemy, ally, and HP-text color rule uses.",
           pageId: "HPColorsSettingsOverviewStatus",
-          keys: ["enabled", "lowThreshold", "highThreshold"],
+          keys: [
+            "enabled",
+            "lowThreshold",
+            "highThreshold"
+          ]
         },
         {
           name: "LAYOUT",
           title: "BAR LAYOUT",
-          description:
-            "Resize and move the whole healthbar stack; anchoring makes the ultimate icon and level badge follow the bar's X/Y offsets.",
+          description: "Bar/name/stamina movement uses CSS pixels. HP text, ultimate and level offsets use % of bar width/height and follow bar size. Anchoring additionally follows bar translation. RESET PAGE returns hero Current to Base, otherwise defaults.",
           pageId: "HPColorsSettingsOverviewLayout",
-          keys: ["widthScale", "heightScale", "positionX", "positionY", "accessoryAnchorEnabled"],
+          keys: [
+            "widthScale",
+            "heightScale",
+            "positionX",
+            "positionY",
+            "accessoryAnchorEnabled"
+          ]
         },
-      ],
+        {
+          name: "NAME & APPEARANCE",
+          title: "NAME & APPEARANCE",
+          description: "Style engine-owned player names without changing text or spectator visibility. Stock brightness 0.8 and spectator alpha remain.",
+          pageId: "HPColorsSettingsOverviewAppearance",
+          keys: [
+            "criticalIndicatorVisible",
+            "playerNamesVisible",
+            "enemyNameColorEnabled",
+            "enemyNameColor",
+            "allyNameColorEnabled",
+            "allyNameColor",
+            "nameSize",
+            "nameOutlineWidth",
+            "nameOffsetX",
+            "nameOffsetY",
+            "hudHealthColorMode",
+            "hudHealthColor"
+          ]
+        }
+      ]
     },
     {
       name: "ENEMY",
@@ -95,8 +115,7 @@
         {
           name: "BAR",
           title: "ENEMY BAR",
-          description:
-            "Turn enemy bar colors on, show or hide enemy bars, and pick fixed or gradient low/mid/high colors.",
+          description: "Turn enemy bar colors on, show or hide enemy bars, and pick fixed or gradient low/mid/high colors.",
           pageId: "HPColorsSettingsEnemyBar",
           keys: [
             "enemyEnabled",
@@ -105,43 +124,43 @@
             "enemyLow",
             "enemyMid",
             "enemyHigh",
-            "enemyTeamHigh",
-          ],
+            "enemyTeamHigh"
+          ]
         },
         {
           name: "HEAL & SHIELD",
-          title: "ENEMY HEALING, DAMAGE & SHIELD",
-          description:
-            "Choose the colors for healing, recent damage, and bullet shields on enemy bars.",
+          title: "ENEMY HEAL & SHIELD",
+          description: "Set healing, recent-damage, and shield colors.",
           pageId: "HPColorsSettingsEnemyFeedback",
-          keys: ["enemyHealing", "enemyDelta", "enemyBulletShield"],
+          keys: [
+            "enemyHealing",
+            "enemyDelta",
+            "enemyBulletShield"
+          ]
         },
         {
           name: "HP TEXT",
           title: "ENEMY HP TEXT",
-          description:
-            "Show enemy HP as current and maximum, percentage, or current only, then set its size, font, colors, and position.",
+          description: "Show the engine current HP number on enemy players, then set its size, font, colors, and position. Maximum HP is not exposed.",
           pageId: "HPColorsSettingsReadoutNumber",
           keys: [
             "readoutVisible",
-            "readoutFormat",
             "readoutSize",
+            "readoutOutlineWidth",
             "readoutFont",
             "readoutColorMode",
             "readoutMode",
             "readoutLow",
             "readoutMid",
             "readoutHigh",
-            "readoutMaxTeamColor",
             "readoutOffsetX",
-            "readoutOffsetY",
-          ],
+            "readoutOffsetY"
+          ]
         },
         {
           name: "PULSE",
           title: "ENEMY PULSE",
-          description:
-            "Make enemy bars pulse at a low-HP threshold, and choose what the bar and HP text do while pulsing.",
+          description: "Make enemy bars pulse at a low-HP threshold, and choose what the bar and HP text do while pulsing.",
           pageId: "HPColorsSettingsEnemyPulse",
           keys: [
             "enemyPulseEnabled",
@@ -156,23 +175,22 @@
             "enemyPulseReadoutModifiers",
             "enemyPulseReadoutSize",
             "enemyPulseReadoutOffsetX",
-            "enemyPulseReadoutOffsetY",
-          ],
+            "enemyPulseReadoutOffsetY"
+          ]
         },
         {
           name: "KILL MARKER",
           title: "ENEMY KILL MARKER",
-          description:
-            "Show a marker line on enemy player bars at the HP threshold you choose, then set its width and color.",
+          description: "Show a marker line on enemy player bars at the HP threshold you choose, then set its width and color.",
           pageId: "HPColorsSettingsEnemyKillMarker",
           keys: [
             "enemyKillMarkerEnabled",
             "enemyKillMarkerThreshold",
             "enemyKillMarkerWidth",
-            "enemyKillMarkerColor",
-          ],
-        },
-      ],
+            "enemyKillMarkerColor"
+          ]
+        }
+      ]
     },
     {
       name: "ALLY",
@@ -180,8 +198,7 @@
         {
           name: "BAR",
           title: "ALLY BAR",
-          description:
-            "Turn ally bar colors on, show or hide ally bars, and pick fixed or gradient low/mid/high colors using the shared thresholds.",
+          description: "Turn ally bar colors on, show or hide ally bars, and pick fixed or gradient low/mid/high colors using the shared thresholds.",
           pageId: "HPColorsSettingsAllyBar",
           keys: [
             "allyEnabled",
@@ -190,43 +207,43 @@
             "allyLow",
             "allyMid",
             "allyHigh",
-            "allyTeamHigh",
-          ],
+            "allyTeamHigh"
+          ]
         },
         {
           name: "HEAL & SHIELD",
-          title: "ALLY HEALING, DAMAGE & SHIELD",
-          description:
-            "Choose the colors for healing, recent damage, and bullet shields on ally bars.",
+          title: "ALLY HEAL & SHIELD",
+          description: "Set healing, recent-damage, and shield colors.",
           pageId: "HPColorsSettingsAllyFeedback",
-          keys: ["allyHealing", "allyDelta", "allyBulletShield"],
+          keys: [
+            "allyHealing",
+            "allyDelta",
+            "allyBulletShield"
+          ]
         },
         {
           name: "HP TEXT",
           title: "ALLY HP TEXT",
-          description:
-            "Show ally HP as current and maximum, percentage, or current only, then set its size, font, colors, and position.",
+          description: "Show the engine current HP number on ally players, then set its size, font, colors, and position. Maximum HP is not exposed.",
           pageId: "HPColorsSettingsAllyReadout",
           keys: [
             "allyReadoutVisible",
-            "allyReadoutFormat",
             "allyReadoutSize",
+            "allyReadoutOutlineWidth",
             "allyReadoutFont",
             "allyReadoutColorMode",
             "allyReadoutMode",
             "allyReadoutLow",
             "allyReadoutMid",
             "allyReadoutHigh",
-            "allyReadoutMaxTeamColor",
             "allyReadoutOffsetX",
-            "allyReadoutOffsetY",
-          ],
+            "allyReadoutOffsetY"
+          ]
         },
         {
           name: "PULSE",
           title: "ALLY PULSE",
-          description:
-            "Make ally bars pulse at a low-HP threshold, with optional fixed or gradient pulse colors.",
+          description: "Make ally bars pulse at a low-HP threshold, with optional fixed or gradient pulse colors.",
           pageId: "HPColorsSettingsAllyPulse",
           keys: [
             "allyPulseEnabled",
@@ -235,33 +252,35 @@
             "allyPulseIntensity",
             "allyPulseColorEnabled",
             "allyPulseColor",
-            "allyPulseColorMode",
-          ],
-        },
-      ],
+            "allyPulseColorMode"
+          ]
+        }
+      ]
     },
     {
       name: "INDICATORS",
       tabs: [
         {
           name: "PIPS & LEVEL",
-          title: "HEALTH PIPS & PLAYER LEVEL",
-          description:
-            "Show or hide health pips and enemy level badges, move the level badge, and make HP numbers more precise.",
+          title: "HEALTH LINES & LEVEL",
+          description: "Show lines on enemy-player and opted-in enemy NPC/building bars. The level badge appears on enemy players only.",
           pageId: "HPColorsSettingsReadoutLevels",
           keys: [
             "pipsVisible",
-            "precisePipsEnabled",
+            "enemyPipColorEnabled",
+            "enemyPipColor",
+            "allyPipColorEnabled",
+            "allyPipColor",
+            "pipOpacity",
             "levelsVisible",
             "levelOffsetX",
-            "levelOffsetY",
-          ],
+            "levelOffsetY"
+          ]
         },
         {
           name: "ULTIMATE",
           title: "ULTIMATE ICON & COOLDOWN",
-          description:
-            "Color, scale, darken, and move the ultimate icon on healthbars, and show cooldown progress with your own ready/unavailable colors.",
+          description: "Color, scale, darken, and style the ultimate icon on healthbars, and show cooldown progress with your own ready/unavailable colors.",
           pageId: "HPColorsSettingsUltimateTimer",
           keys: [
             "ultMode",
@@ -273,29 +292,28 @@
             "ultimateTimerSize",
             "ultimateTimerDarkness",
             "ultOffsetX",
-            "ultOffsetY",
-          ],
+            "ultOffsetY"
+          ]
         },
         {
           name: "STAMINA",
           title: "ENEMY STAMINA",
-          description:
-            "Resize, move, and recolor the enemy stamina boxes without touching ally or neutral stamina.",
+          description: "Choose enemy stamina pip shape, size, position, and color.",
           pageId: "HPColorsSettingsStamina",
           keys: [
+            "staminaShape",
             "staminaWidth",
             "staminaHeight",
             "staminaOffsetX",
             "staminaOffsetY",
             "enemyStaminaColorEnabled",
-            "enemyStaminaColor",
-          ],
+            "enemyStaminaColor"
+          ]
         },
         {
           name: "PICKUP TIMERS",
           title: "TOPBAR PICKUP TIMERS",
-          description:
-            "Show and style the gun, movement, spirit, and survival pickup timers beside the topbar ultimate icons.",
+          description: "Show and style the gun, movement, spirit, and survival pickup timers beside the topbar ultimate icons.",
           pageId: "HPColorsSettingsPickupTimers",
           keys: [
             "pickupTimersEnabled",
@@ -308,10 +326,45 @@
             "pickupSize",
             "pickupSpacing",
             "pickupOffsetX",
-            "pickupOffsetY",
-          ],
+            "pickupOffsetY"
+          ]
+        }
+      ]
+    },
+    {
+      name: "UNITS",
+      tabs: [
+        {
+          name: "NPCS",
+          title: "NPCS",
+          description: "Opt in these unit bars to custom colors.",
+          pageId: "HPColorsSettingsNpc",
+          keys: [
+            "npcEnemyEnabled",
+            "npcAllyEnabled"
+          ]
         },
-      ],
+        {
+          name: "NEUTRALS",
+          title: "NEUTRALS",
+          description: "Opt in these unit bars to custom colors.",
+          pageId: "HPColorsSettingsNeutral",
+          keys: [
+            "npcNeutralEnabled",
+            "neutralColor"
+          ]
+        },
+        {
+          name: "BUILDINGS",
+          title: "BUILDINGS",
+          description: "Opt in these unit bars to custom colors.",
+          pageId: "HPColorsSettingsBuildings",
+          keys: [
+            "buildingEnemyEnabled",
+            "buildingAllyEnabled"
+          ]
+        }
+      ]
     },
     {
       name: "PRESETS",
@@ -319,23 +372,46 @@
         {
           name: "LIBRARY",
           title: "PRESET LIBRARY",
-          description:
-            "Save your settings as presets. Choose HEROES to load them automatically.",
+          description: "Save your settings as presets. Choose HEROES to load them automatically.",
           pageId: "HPColorsSettingsOverviewHero",
-          keys: [],
-        },
-      ],
-    },
+          keys: []
+        }
+      ]
+    }
   ];
+
+  var LEGACY_PAGE_IDS = [
+    ["HPColorsSettingsOverviewStatus", "HPColorsSettingsOverviewLayout"],
+    ["HPColorsSettingsEnemyBar", "HPColorsSettingsEnemyFeedback", "HPColorsSettingsReadoutNumber", "HPColorsSettingsEnemyPulse", "HPColorsSettingsEnemyKillMarker"],
+    ["HPColorsSettingsAllyBar", "HPColorsSettingsAllyFeedback", "HPColorsSettingsAllyReadout", "HPColorsSettingsAllyPulse"],
+    ["HPColorsSettingsReadoutLevels", "HPColorsSettingsUltimateTimer", "HPColorsSettingsStamina", "HPColorsSettingsPickupTimers"]
+  ];
+  var navigationCategories = CATEGORY_DEFS;
+
+  function legacyCategories() {
+    var result = [];
+    for (var group = 0; group < LEGACY_PAGE_IDS.length; group++) {
+      var tabs = CATEGORY_DEFS[group].tabs.filter(function (tab) {
+        return LEGACY_PAGE_IDS[group].indexOf(tab.pageId) >= 0 && isValid(find(tab.pageId));
+      });
+      result.push({ name: CATEGORY_DEFS[group].name, tabs: tabs });
+    }
+    return result;
+  }
 
   var CATEGORY_BUTTON_IDS = [
     "HPColorsCategoryOverview",
     "HPColorsCategoryEnemy",
     "HPColorsCategoryAlly",
     "HPColorsCategoryReadout",
+    "HPColorsCategoryUnits",
     "HPColorsCategoryPresets",
   ];
   var COLOR_TITLES = {
+    enemyPipColor: "ENEMY PIP COLOR",
+    allyPipColor: "ALLY PIP COLOR",
+    enemyNameColor: "ENEMY NAME COLOR",
+    allyNameColor: "ALLY NAME COLOR",
     enemyLow: "ENEMY LOW",
     enemyMid: "ENEMY MID",
     enemyHigh: "ENEMY HIGH",
@@ -365,10 +441,24 @@
     pickupSpiritColor: "PICKUP SPIRIT COLOR",
     pickupSurvivalColor: "PICKUP SURVIVAL COLOR",
     pickupGlyphColor: "PICKUP GLYPH COLOR",
+    neutralColor: "NEUTRAL FILL COLOR",
+    hudHealthColor: "OWN HUD HEALTH COLOR",
   };
 
   var TOGGLE_CONTROLS = [
+    {id: "HPColorsEnemyPipColorToggle", key: "enemyPipColorEnabled"},
+    {id: "HPColorsAllyPipColorToggle", key: "allyPipColorEnabled"},
+
+    { id: "HPColorsEnemyNameColorToggle", key: "enemyNameColorEnabled" },
+    { id: "HPColorsAllyNameColorToggle", key: "allyNameColorEnabled" },
     { id: "HPColorsMasterToggle", key: "enabled" },
+    { id: "HPColorsCriticalIndicatorToggle", key: "criticalIndicatorVisible" },
+    { id: "HPColorsPlayerNamesToggle", key: "playerNamesVisible" },
+    { id: "HPColorsNpcEnemyToggle", key: "npcEnemyEnabled" },
+    { id: "HPColorsNpcAllyToggle", key: "npcAllyEnabled" },
+    { id: "HPColorsNpcNeutralToggle", key: "npcNeutralEnabled" },
+    { id: "HPColorsBuildingEnemyToggle", key: "buildingEnemyEnabled" },
+    { id: "HPColorsBuildingAllyToggle", key: "buildingAllyEnabled" },
     { id: "HPColorsEnemyToggle", key: "enemyEnabled" },
     { id: "HPColorsEnemyVisibleToggle", key: "enemyVisible" },
     { id: "HPColorsAllyToggle", key: "allyEnabled" },
@@ -376,15 +466,7 @@
     { id: "HPColorsEnemyTeamHighToggle", key: "enemyTeamHigh" },
     { id: "HPColorsAllyTeamHighToggle", key: "allyTeamHigh" },
     { id: "HPColorsReadoutToggle", key: "readoutVisible" },
-    {
-      id: "HPColorsReadoutMaxTeamColorToggle",
-      key: "readoutMaxTeamColor",
-    },
     { id: "HPColorsAllyReadoutToggle", key: "allyReadoutVisible" },
-    {
-      id: "HPColorsAllyReadoutMaxTeamColorToggle",
-      key: "allyReadoutMaxTeamColor",
-    },
     { id: "HPColorsPipsVisibleToggle", key: "pipsVisible" },
     { id: "HPColorsLevelsVisibleToggle", key: "levelsVisible" },
     {
@@ -424,7 +506,12 @@
     { id: "HPColorsPickupTimersToggle", key: "pickupTimersEnabled" },
     { id: "HPColorsUltimateTimerToggle", key: "ultimateTimerEnabled" },
   ];
+  var HUD_TEAM1_COLOR = "#E7B659";
+  var HUD_TEAM2_COLOR = "#5B79E6";
   var MODE_CONTROLS = [
+    { id: "HPColorsHudHealthColorModeOff", key: "hudHealthColorMode", value: "off" },
+    { id: "HPColorsHudHealthColorModeTeam", key: "hudHealthColorMode", value: "team" },
+    { id: "HPColorsHudHealthColorModeCustom", key: "hudHealthColorMode", value: "custom" },
     { id: "HPColorsEnemyModeFixed", key: "enemyMode", value: "fixed" },
     {
       id: "HPColorsEnemyModeGradient",
@@ -504,17 +591,6 @@
       key: "allyPulseIntensity",
       value: 2,
     },
-    { id: "HPColorsReadoutFormatHP", key: "readoutFormat", value: "hp" },
-    {
-      id: "HPColorsReadoutFormatPercent",
-      key: "readoutFormat",
-      value: "percent",
-    },
-    {
-      id: "HPColorsReadoutFormatCurrent",
-      key: "readoutFormat",
-      value: "current",
-    },
     {
       id: "HPColorsReadoutFontDefault",
       key: "readoutFont",
@@ -549,17 +625,6 @@
       id: "HPColorsReadoutModeGradient",
       key: "readoutMode",
       value: "gradient",
-    },
-    { id: "HPColorsAllyReadoutFormatHP", key: "allyReadoutFormat", value: "hp" },
-    {
-      id: "HPColorsAllyReadoutFormatPercent",
-      key: "allyReadoutFormat",
-      value: "percent",
-    },
-    {
-      id: "HPColorsAllyReadoutFormatCurrent",
-      key: "allyReadoutFormat",
-      value: "current",
     },
     {
       id: "HPColorsAllyReadoutFontDefault",
@@ -598,23 +663,31 @@
     },
   ];
   var SLIDER_CONTROLS = [
+    {base: "HPColorsPipOpacity", key: "pipOpacity", min: 0, max: 100},
+
+    { base: "HPColorsNameSize", key: "nameSize", min: 8, max: 40 },
+    { base: "HPColorsNameOutlineWidth", key: "nameOutlineWidth", min: 0, max: 10, increment: 0.5 },
+    { base: "HPColorsNameOffsetX", key: "nameOffsetX", min: -200, max: 200 },
+    { base: "HPColorsNameOffsetY", key: "nameOffsetY", min: -210, max: 210 },
     { base: "HPColorsWidth", key: "widthScale", min: 60, max: 230 },
     { base: "HPColorsHeight", key: "heightScale", min: 60, max: 160 },
-    { base: "HPColorsPositionX", key: "positionX", min: -300, max: 300 },
-    { base: "HPColorsPositionY", key: "positionY", min: -200, max: 200 },
-    { base: "HPColorsUltOffsetX", key: "ultOffsetX", min: -300, max: 300 },
-    { base: "HPColorsUltOffsetY", key: "ultOffsetY", min: -200, max: 200 },
+    { base: "HPColorsPositionX", key: "positionX", min: -2000, max: 2000, displayScale: 0.1 },
+    { base: "HPColorsPositionY", key: "positionY", min: -2100, max: 2100, displayScale: 0.1 },
+    { base: "HPColorsUltOffsetX", key: "ultOffsetX", min: -3334, max: 3334, displayScale: 0.1 },
+    { base: "HPColorsUltOffsetY", key: "ultOffsetY", min: -3500, max: 3500, displayScale: 0.1 },
     {
       base: "HPColorsLevelOffsetX",
       key: "levelOffsetX",
-      min: -300,
-      max: 300,
+      min: -3334,
+      max: 3334,
+      displayScale: 0.1,
     },
     {
       base: "HPColorsLevelOffsetY",
       key: "levelOffsetY",
-      min: -200,
-      max: 200,
+      min: -3500,
+      max: 3500,
+      displayScale: 0.1,
     },
     { base: "HPColorsStaminaWidth", key: "staminaWidth", min: 40, max: 220 },
     {
@@ -627,27 +700,30 @@
     {
       base: "HPColorsStaminaOffsetX",
       key: "staminaOffsetX",
-      min: -300,
-      max: 300,
+      min: -2000,
+      max: 2000,
+      displayScale: 0.1,
     },
     {
       base: "HPColorsStaminaOffsetY",
       key: "staminaOffsetY",
-      min: -200,
-      max: 200,
+      min: -2100,
+      max: 2100,
+      displayScale: 0.1,
     },
     { base: "HPColorsReadoutSize", key: "readoutSize", min: 72, max: 320 },
+    { base: "HPColorsReadoutOutlineWidth", key: "readoutOutlineWidth", min: 0, max: 10, increment: 0.5 },
     {
       base: "HPColorsReadoutOffsetX",
       key: "readoutOffsetX",
-      min: -405,
-      max: 405,
+      min: -334,
+      max: 334,
     },
     {
       base: "HPColorsReadoutOffsetY",
       key: "readoutOffsetY",
-      min: -35,
-      max: 840,
+      min: -350,
+      max: 350,
     },
     {
       base: "HPColorsAllyReadoutSize",
@@ -655,17 +731,18 @@
       min: 72,
       max: 320,
     },
+    { base: "HPColorsAllyReadoutOutlineWidth", key: "allyReadoutOutlineWidth", min: 0, max: 10, increment: 0.5 },
     {
       base: "HPColorsAllyReadoutOffsetX",
       key: "allyReadoutOffsetX",
-      min: -405,
-      max: 405,
+      min: -334,
+      max: 334,
     },
     {
       base: "HPColorsAllyReadoutOffsetY",
       key: "allyReadoutOffsetY",
-      min: -35,
-      max: 840,
+      min: -350,
+      max: 350,
     },
     {
       base: "HPColorsSharedLowThreshold",
@@ -700,14 +777,14 @@
     {
       base: "HPColorsEnemyPulseReadoutOffsetX",
       key: "enemyPulseReadoutOffsetX",
-      min: -405,
-      max: 405,
+      min: -334,
+      max: 334,
     },
     {
       base: "HPColorsEnemyPulseReadoutOffsetY",
       key: "enemyPulseReadoutOffsetY",
-      min: -35,
-      max: 840,
+      min: -350,
+      max: 350,
     },
     {
       base: "HPColorsAllyPulseThreshold",
@@ -778,6 +855,12 @@
     },
   ];
   var COLOR_CONTROLS = [
+    { base: "HPColorsHudHealthColor", key: "hudHealthColor" },
+    {base: "HPColorsEnemyPipColor", key: "enemyPipColor"},
+    {base: "HPColorsAllyPipColor", key: "allyPipColor"},
+
+    { base: "HPColorsEnemyNameColor", key: "enemyNameColor" },
+    { base: "HPColorsAllyNameColor", key: "allyNameColor" },
     { base: "HPColorsEnemyLow", key: "enemyLow" },
     { base: "HPColorsEnemyMid", key: "enemyMid" },
     { base: "HPColorsEnemyHigh", key: "enemyHigh" },
@@ -814,6 +897,7 @@
     { base: "HPColorsPickupSpiritColor", key: "pickupSpiritColor" },
     { base: "HPColorsPickupSurvivalColor", key: "pickupSurvivalColor" },
     { base: "HPColorsPickupGlyphColor", key: "pickupGlyphColor" },
+    { base: "HPColorsNeutralColor", key: "neutralColor" },
   ];
   var COLOR_KEYS = {};
   for (var colorControlIndex = 0; colorControlIndex < COLOR_CONTROLS.length; colorControlIndex++)
@@ -838,17 +922,16 @@
     "presetTransferDialog presetTransferInput presetTransferFeedback " +
     "presetTransferConfirmButton presetTransferCloseButton " +
     "headerCategory liveStatus pageEyebrow pageTitle " +
-    "pageDescription precisePipsToggle precisePipsDialog " +
-    "precisePipsDialogTitle precisePipsDialogMessage " +
-    "precisePipsDialogCommands precisePipsCopyLabel precisePipsCopyButton " +
-    "precisePipsCloseButton pickerRoot pickerPanel pickerBackdrop " +
-    "pickerDone pickerHueHost pickerSaturationHost pickerLumenHost"
+    "pageDescription npcEnemyToggle npcAllyToggle npcNeutralToggle " +
+    "buildingEnemyToggle buildingAllyToggle neutralColorRow " +
+    "neutralColorSwatch neutralColorHex pickerRoot pickerPanel pickerBackdrop " +
+    "pickerDone " +
+    "criticalIndicatorToggle playerNamesToggle"
   ).split(" ");
   // Save UI panels stay optional: an old builder pak01 layout lacks them, and
   // the editor must still boot there to show the stale-layout warning.
   var OPTIONAL_UI_PANEL_KEYS = (
-    "supporterTicker pickerTitle pickerPreview pickerHex pickerHueValue " +
-    "pickerSaturationValue pickerLightnessValue storeForgetButton " +
+    "supporterTicker pickerTitle pickerPreview pickerHex nativePicker storeForgetButton " +
     "storeForgetLabel presetHiddenRow currentScopeExcept scopeDialogTitle " +
     "scopeDialogMessage presetScopeHelp presetGuide presetGuideToggleLabel " +
     "presetGuideToggle presetGuideText " +
@@ -860,12 +943,160 @@
   ).split(" ");
   var UI_PANEL_ID_OVERRIDES = {
     resetButton: "HPColorsResetSectionButton",
-    pickerHueHost: "HPColorsPickerHueSliderHost",
-    pickerSaturationHost: "HPColorsPickerSaturationSliderHost",
-    pickerLumenHost: "HPColorsPickerLumenSliderHost",
   };
   var context = $.GetContextPanel();
   var DEFAULTS = {};
+  var SETTING_ROW_IDS = {
+    "enemyPipColorEnabled": "HPColorsEnemyPipColorEnabledRow",
+    "enemyPipColor": "HPColorsEnemyPipColorRow",
+    "allyPipColorEnabled": "HPColorsAllyPipColorEnabledRow",
+    "allyPipColor": "HPColorsAllyPipColorRow",
+    "pipOpacity": "HPColorsPipOpacityRow",
+    "staminaShape": "HPColorsStaminaShapeRow",
+
+    "hudHealthColorMode": "HPColorsHudHealthColorModeRow",
+    "hudHealthColor": "HPColorsHudHealthColorRow",
+    "enemyNameColorEnabled": "HPColorsEnemyNameColorEnableRow",
+    "allyNameColorEnabled": "HPColorsAllyNameColorEnableRow",
+    "enabled": "HPColorsEnabledRow",
+    "criticalIndicatorVisible": "HPColorsCriticalIndicatorVisibleRow",
+    "playerNamesVisible": "HPColorsPlayerNamesVisibleRow",
+    "npcEnemyEnabled": "HPColorsNpcEnemyEnabledRow",
+    "npcAllyEnabled": "HPColorsNpcAllyEnabledRow",
+    "npcNeutralEnabled": "HPColorsNpcNeutralEnabledRow",
+    "buildingEnemyEnabled": "HPColorsBuildingEnemyEnabledRow",
+    "buildingAllyEnabled": "HPColorsBuildingAllyEnabledRow",
+    "enemyEnabled": "HPColorsEnemyEnabledRow",
+    "enemyVisible": "HPColorsEnemyVisibleRow",
+    "allyEnabled": "HPColorsAllyEnabledRow",
+    "allyVisible": "HPColorsAllyVisibleRow",
+    "enemyTeamHigh": "HPColorsEnemyTeamHighRow",
+    "allyTeamHigh": "HPColorsAllyTeamHighRow",
+    "readoutVisible": "HPColorsReadoutVisibleRow",
+    "allyReadoutVisible": "HPColorsAllyReadoutVisibleRow",
+    "pipsVisible": "HPColorsPipsVisibleRow",
+    "levelsVisible": "HPColorsLevelsVisibleRow",
+    "accessoryAnchorEnabled": "HPColorsAccessoryAnchorEnabledRow",
+    "enemyStaminaColorEnabled": "HPColorsEnemyStaminaColorEnabledRow",
+    "enemyKillMarkerEnabled": "HPColorsEnemyKillMarkerEnabledRow",
+    "enemyPulseEnabled": "HPColorsEnemyPulseEnabledRow",
+    "enemyPulseColorEnabled": "HPColorsEnemyPulseColorEnabledRow",
+    "enemyPulseHideBar": "HPColorsEnemyPulseHideBarRow",
+    "enemyPulseReadout": "HPColorsEnemyPulseReadoutRow",
+    "enemyPulseReadoutModifiers": "HPColorsEnemyPulseReadoutModifiersRow",
+    "allyPulseEnabled": "HPColorsAllyPulseEnabledRow",
+    "allyPulseColorEnabled": "HPColorsAllyPulseColorEnabledRow",
+    "pickupTimersEnabled": "HPColorsPickupTimersEnabledRow",
+    "ultimateTimerEnabled": "HPColorsUltimateTimerEnabledRow",
+    "enemyMode": "HPColorsEnemyModeRow",
+    "allyMode": "HPColorsAllyModeRow",
+    "ultMode": "HPColorsUltModeRow",
+    "ultimateTimerColorMode": "HPColorsUltimateTimerColorModeRow",
+    "enemyPulseColorMode": "HPColorsEnemyPulseColorModeRow",
+    "allyPulseColorMode": "HPColorsAllyPulseColorModeRow",
+    "enemyPulseIntensity": "HPColorsEnemyPulseIntensityRow",
+    "allyPulseIntensity": "HPColorsAllyPulseIntensityRow",
+    "readoutFont": "HPColorsReadoutFontRow",
+    "readoutColorMode": "HPColorsReadoutColorModeRow",
+    "readoutMode": "HPColorsReadoutModeRow",
+    "allyReadoutFont": "HPColorsAllyReadoutFontRow",
+    "allyReadoutColorMode": "HPColorsAllyReadoutColorModeRow",
+    "allyReadoutMode": "HPColorsAllyReadoutModeRow",
+    "nameSize": "HPColorsNameSizeRow",
+    "nameOutlineWidth": "HPColorsNameOutlineWidthRow",
+    "nameOffsetX": "HPColorsNameOffsetXRow",
+    "nameOffsetY": "HPColorsNameOffsetYRow",
+    "widthScale": "HPColorsWidthScaleRow",
+    "heightScale": "HPColorsHeightScaleRow",
+    "positionX": "HPColorsPositionXRow",
+    "positionY": "HPColorsPositionYRow",
+    "ultOffsetX": "HPColorsUltOffsetXRow",
+    "ultOffsetY": "HPColorsUltOffsetYRow",
+    "levelOffsetX": "HPColorsLevelOffsetXRow",
+    "levelOffsetY": "HPColorsLevelOffsetYRow",
+    "staminaWidth": "HPColorsStaminaWidthRow",
+    "staminaHeight": "HPColorsStaminaHeightRow",
+    "staminaOffsetX": "HPColorsStaminaOffsetXRow",
+    "staminaOffsetY": "HPColorsStaminaOffsetYRow",
+    "readoutSize": "HPColorsReadoutSizeRow",
+    "readoutOutlineWidth": "HPColorsReadoutOutlineWidthRow",
+    "readoutOffsetX": "HPColorsReadoutOffsetXRow",
+    "readoutOffsetY": "HPColorsReadoutOffsetYRow",
+    "allyReadoutSize": "HPColorsAllyReadoutSizeRow",
+    "allyReadoutOutlineWidth": "HPColorsAllyReadoutOutlineWidthRow",
+    "allyReadoutOffsetX": "HPColorsAllyReadoutOffsetXRow",
+    "allyReadoutOffsetY": "HPColorsAllyReadoutOffsetYRow",
+    "lowThreshold": "HPColorsSharedLowThresholdRow",
+    "highThreshold": "HPColorsSharedHighThresholdRow",
+    "enemyPulseThreshold": "HPColorsEnemyPulseThresholdRow",
+    "enemyPulseBpm": "HPColorsEnemyPulseBpmRow",
+    "enemyPulseReadoutSize": "HPColorsEnemyPulseReadoutSizeRow",
+    "enemyPulseReadoutOffsetX": "HPColorsEnemyPulseReadoutOffsetXRow",
+    "enemyPulseReadoutOffsetY": "HPColorsEnemyPulseReadoutOffsetYRow",
+    "allyPulseThreshold": "HPColorsAllyPulseThresholdRow",
+    "allyPulseBpm": "HPColorsAllyPulseBpmRow",
+    "enemyKillMarkerThreshold": "HPColorsEnemyKillMarkerThresholdRow",
+    "enemyKillMarkerWidth": "HPColorsEnemyKillMarkerWidthRow",
+    "pickupBackgroundDarkness": "HPColorsPickupBackgroundDarknessRow",
+    "pickupSize": "HPColorsPickupSizeRow",
+    "pickupSpacing": "HPColorsPickupSpacingRow",
+    "pickupOffsetX": "HPColorsPickupOffsetXRow",
+    "pickupOffsetY": "HPColorsPickupOffsetYRow",
+    "ultimateTimerSize": "HPColorsUltimateTimerSizeRow",
+    "ultimateTimerDarkness": "HPColorsUltimateTimerDarknessRow",
+    "enemyNameColor": "HPColorsEnemyNameColorRow",
+    "allyNameColor": "HPColorsAllyNameColorRow",
+    "enemyLow": "HPColorsEnemyLowRow",
+    "enemyMid": "HPColorsEnemyMidRow",
+    "enemyHigh": "HPColorsEnemyHighRow",
+    "enemyHealing": "HPColorsEnemyHealingRow",
+    "enemyDelta": "HPColorsEnemyDeltaRow",
+    "enemyBulletShield": "HPColorsEnemyBulletShieldRow",
+    "enemyStaminaColor": "HPColorsEnemyStaminaColorRow",
+    "ultCustom": "HPColorsUltCustomRow",
+    "ultimateTimerUnavailableColor": "HPColorsUltimateTimerUnavailableColorRow",
+    "ultimateTimerAvailableColor": "HPColorsUltimateTimerAvailableColorRow",
+    "allyLow": "HPColorsAllyLowRow",
+    "allyMid": "HPColorsAllyMidRow",
+    "allyHigh": "HPColorsAllyHighRow",
+    "allyHealing": "HPColorsAllyHealingRow",
+    "allyDelta": "HPColorsAllyDeltaRow",
+    "allyBulletShield": "HPColorsAllyBulletShieldRow",
+    "enemyKillMarkerColor": "HPColorsEnemyKillMarkerColorRow",
+    "enemyPulseColor": "HPColorsEnemyPulseColorRow",
+    "allyPulseColor": "HPColorsAllyPulseColorRow",
+    "readoutLow": "HPColorsReadoutLowRow",
+    "readoutMid": "HPColorsReadoutMidRow",
+    "readoutHigh": "HPColorsReadoutHighRow",
+    "allyReadoutLow": "HPColorsAllyReadoutLowRow",
+    "allyReadoutMid": "HPColorsAllyReadoutMidRow",
+    "allyReadoutHigh": "HPColorsAllyReadoutHighRow",
+    "pickupGunColor": "HPColorsPickupGunColorRow",
+    "pickupMovementColor": "HPColorsPickupMovementColorRow",
+    "pickupSpiritColor": "HPColorsPickupSpiritColorRow",
+    "pickupSurvivalColor": "HPColorsPickupSurvivalColorRow",
+    "pickupGlyphColor": "HPColorsPickupGlyphColorRow",
+    "neutralColor": "HPColorsNeutralColorRow"
+  };
+  var formatNoticePending = false;
+  var LEGACY_DISPLAY_KEYS = {};
+  for (var displayIndex = 0; displayIndex < SLIDER_CONTROLS.length; displayIndex++) {
+    var displayControl = SLIDER_CONTROLS[displayIndex];
+    if (displayControl.displayScale) LEGACY_DISPLAY_KEYS[displayControl.key] = displayControl.displayScale;
+  }
+  var BAR_PERCENT_KEYS = {
+    readoutOffsetX: 100 / 76, readoutOffsetY: 100 / 18,
+    allyReadoutOffsetX: 100 / 76, allyReadoutOffsetY: 100 / 18,
+    enemyPulseReadoutOffsetX: 100 / 76, enemyPulseReadoutOffsetY: 100 / 18,
+    ultOffsetX: 10 / 76, ultOffsetY: 10 / 18,
+    levelOffsetX: 10 / 76, levelOffsetY: 10 / 18
+  };
+  function displayScale(key) { return BAR_PERCENT_KEYS[key] || LEGACY_DISPLAY_KEYS[key] || 1; }
+  function displayNumber(key, value) {
+    // Whole % preserves integer px; tenths preserve integer raw (0.1 px) offsets.
+    var precision = BAR_PERCENT_KEYS[key] && !LEGACY_DISPLAY_KEYS[key] ? 1 : 10;
+    return Math.round(value * displayScale(key) * precision) / precision;
+  }
   var state = {
     booted: false,
     open: false,
@@ -882,6 +1113,7 @@
   var lastClipboardCopied = null;
   var storage = null;
   var hydration = { phase: "idle", raw: null };
+  var hudHealthWash = { hud: null, container: null, bars: null, bar: null, left: null, color: "" };
   var persist = {
     gate: "unknown",
     ackHash: "",
@@ -952,6 +1184,7 @@
         var payload = serializeChange(effect.revision, effect.values);
         writeRootAttribute(CONFIG_ATTR, payload);
         serializedReplayPayload = payload;
+        paintHudHealthWash(effect.values);
         dispatchChange(payload);
         refreshSnapshotReplay();
       } else if (effect.type === "clipboard_write") {
@@ -1002,27 +1235,20 @@
 
   var picker = {
     key: "",
-    hue: 0,
-    saturation: 0,
-    lightness: 100,
+    color: "#FFFFFF",
+    openingColor: "#FFFFFF",
     returnPanel: null,
     condition: false,
   };
   var pickerGestureActive = false;
-  var pickerPartCache = {};
+  var pickerSeeding = false;
+  var nativePickerHex = null;
+  var nativePickerWarningLogged = false;
   var ui = {
     categoryButtons: [],
     tabButtons: [],
     tabLabels: [],
     settingsPages: [],
-    precisePipsToggle: null,
-    precisePipsDialog: null,
-    precisePipsDialogTitle: null,
-    precisePipsDialogMessage: null,
-    precisePipsDialogCommands: null,
-    precisePipsCopyLabel: null,
-    precisePipsCopyButton: null,
-    precisePipsCloseButton: null,
     heroIdentity: null,
     currentScopeAll: null,
     currentScopeSelected: null,
@@ -1180,6 +1406,9 @@
 
   function controlPanel(id) {
     var panel = controlPanels[id];
+    // A retired pak01 layout cannot supply the missing newer controls. Resolve
+    // those absences once per boot; explicit setup retries reset this cache.
+    if (panel === null && navigationCategories !== CATEGORY_DEFS) return null;
     if (!isValid(panel)) {
       panel = find(id);
       controlPanels[id] = panel;
@@ -1353,6 +1582,76 @@
           : findChild(identity.root, "Hud");
     }
     return true;
+  }
+
+  function hudWashDescendant(panel, ancestor) {
+    if (!isValid(panel) || !isValid(ancestor)) return false;
+    try {
+      for (var depth = 0; panel && depth < 24; depth++) {
+        panel = panel.GetParent();
+        if (panel === ancestor) return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  function releaseHudHealthWash() {
+    if (!hudHealthWash.color) return;
+    try {
+      if (isValid(hudHealthWash.left)) hudHealthWash.left.style["washColor"] = "";
+      hudHealthWash.color = "";
+    } catch {}
+  }
+
+  function resolveHudHealthWash() {
+    resolveIdentityRoot();
+    var hud = identity.hud;
+    if (hudHealthWash.hud === hud &&
+      hudWashDescendant(hudHealthWash.container, hud) &&
+      hudWashDescendant(hudHealthWash.bars, hudHealthWash.container) &&
+      hudWashDescendant(hudHealthWash.bar, hudHealthWash.bars) &&
+      isValid(hudHealthWash.left)) {
+      try {
+        if (hudHealthWash.left.GetParent() === hudHealthWash.bar) return true;
+      } catch {}
+    }
+    releaseHudHealthWash();
+    hudHealthWash.hud = hud;
+    hudHealthWash.container = findChild(hud, "health_and_abilities_container");
+    hudHealthWash.bars = findChild(hudHealthWash.container, "hud_health_bars");
+    hudHealthWash.bar = findChild(hudHealthWash.bars, "health_bar");
+    hudHealthWash.left = findChild(hudHealthWash.bar, "health_bar_Left");
+    hudHealthWash.color = "";
+    try {
+      return isValid(hudHealthWash.left) && hudHealthWash.left.GetParent() === hudHealthWash.bar;
+    } catch {
+      return false;
+    }
+  }
+
+  function paintHudHealthWash(values) {
+    if (!values || !values.enabled || values.hudHealthColorMode === "off" ||
+      readRootAttribute(HYDRATION_ATTR) === "pending") {
+      releaseHudHealthWash();
+      return;
+    }
+    if (!resolveHudHealthWash()) return;
+    var color = "";
+    if (values.hudHealthColorMode === "custom") color = values.hudHealthColor;
+    else if (values.hudHealthColorMode === "team") {
+      var team1 = panelHasClass(hudHealthWash.container, "team1");
+      var team2 = panelHasClass(hudHealthWash.container, "team2");
+      if (team1 !== team2) color = team1 ? HUD_TEAM1_COLOR : HUD_TEAM2_COLOR;
+    }
+    if (!color) {
+      releaseHudHealthWash();
+      return;
+    }
+    if (hudHealthWash.color === color) return;
+    try {
+      hudHealthWash.left.style["washColor"] = color;
+      hudHealthWash.color = color;
+    } catch {}
   }
 
   function clearAbilityPanelRefs() {
@@ -1671,8 +1970,8 @@
     return "TRANSITIONING";
   }
 
-  function renderIdentity() {
-    var view = currentView();
+  function renderIdentity(view) {
+    if (!view) view = currentView();
     if (!view || !view.identity) return;
     var identityView = view.identity;
     var signature =
@@ -1761,6 +2060,7 @@
       refreshEditorAfterIdentityChange(lifecycleResult);
       renderIdentity();
       sampleAbilityTiers();
+      paintHudHealthWash(state.view && state.view.effectiveValues);
       restartIdentityWatch();
       return;
     }
@@ -1778,6 +2078,7 @@
     }
     renderIdentity();
     sampleAbilityTiers();
+    paintHudHealthWash(state.view && state.view.effectiveValues);
     scheduleIdentityTick(generation, identityPollDelay());
   }
 
@@ -1880,8 +2181,8 @@
     }
   }
 
-  function renderCurrentScope() {
-    var view = currentView();
+  function renderCurrentScope(view) {
+    if (!view) view = currentView();
     var row = view && view.currentScope ? view.currentScope : null;
     var mode =
       row && scopeUsesHeroes(row.mode)
@@ -1947,7 +2248,6 @@
       : ui.currentScopeSelected;
     closeTransferDialog();
     closePicker();
-    closePrecisePipsDialog();
     if (isValid(ui.scopeSearch)) ui.scopeSearch.text = "";
     filterScopeHeroOptions();
     renderCurrentScope();
@@ -3216,7 +3516,6 @@
     closeTransferDialog();
     closePresetTransferDialog();
     closeScopeDialog();
-    closePrecisePipsDialog();
     closePicker();
     disarmSaveTo();
     renderSaveToOptions();
@@ -3316,47 +3615,6 @@
 
 
 
-  function closePrecisePipsDialog() {
-    setClass(ui.precisePipsDialog, "Open", false);
-    focus(ui.precisePipsToggle);
-  }
-
-  function openPrecisePipsDialog(enabled) {
-    setText(
-      ui.precisePipsDialogTitle,
-      enabled ? "TURN ON MORE PRECISE HP TEXT" : "UNDO THE GAME FILE CHANGE",
-    );
-    setText(
-      ui.precisePipsDialogMessage,
-      enabled
-        ? "One more step: open Deadlock\\game\\citadel\\gameinfo.gi, find the ConVars block, paste these 3 lines inside it, then fully restart Deadlock. HP Colors cannot edit that file for you. Without these lines, HP numbers will be wrong."
-        : "If you added the 3 lines to gameinfo.gi, delete them or paste these normal values over them, then fully restart Deadlock.",
-    );
-    setText(
-      ui.precisePipsDialogCommands,
-      enabled ? PRECISE_PIPS_ENABLE_TEXT : PRECISE_PIPS_RESET_TEXT,
-    );
-    setText(ui.precisePipsCopyLabel, "COPY");
-    setClass(ui.precisePipsDialog, "Open", true);
-    focus(ui.precisePipsDialog);
-  }
-
-  function copyPrecisePipsText() {
-    var text =
-      state.values.precisePipsEnabled
-        ? PRECISE_PIPS_ENABLE_TEXT
-        : PRECISE_PIPS_RESET_TEXT;
-    var copied = dispatchCopy(text);
-    setText(ui.precisePipsCopyLabel, copied ? "COPIED" : "COPY FAILED");
-  }
-
-  function togglePrecisePips() {
-    if (syncingControls) return;
-    var enabled = !state.values.precisePipsEnabled;
-    sendState({ type: "setting_edit", key: "precisePipsEnabled", value: enabled });
-    syncControls();
-    openPrecisePipsDialog(enabled);
-  }
   function setTransferFeedback(message, isError) {
     setText(ui.transferFeedback, message);
     setClass(ui.transferDialog, "Error", !!isError);
@@ -3387,7 +3645,6 @@
   function openTransferDialog() {
     transferRequest += 1;
     closePicker();
-    closePrecisePipsDialog();
     setText(ui.transferInput, "");
     setClass(ui.transferDialog, "Open", true);
     setTransferFeedback(
@@ -3465,68 +3722,6 @@
     return /^#[0-9A-F]{6}$/.test(raw) ? raw : fallback;
   }
 
-  function hexToHsl(hex) {
-    var value = parseInt(normalizeColor(hex, "#FFFFFF").slice(1), 16);
-    var red = ((value >> 16) & 255) / 255;
-    var green = ((value >> 8) & 255) / 255;
-    var blue = (value & 255) / 255;
-    var max = Math.max(red, green, blue);
-    var min = Math.min(red, green, blue);
-    var delta = max - min;
-    var lightness = (max + min) / 2;
-    var hue = 0;
-    var saturation = 0;
-    if (delta) {
-      saturation =
-        delta / Math.max(0.0001, 1 - Math.abs(2 * lightness - 1));
-      if (max === red) hue = 60 * (((green - blue) / delta) % 6);
-      else if (max === green) hue = 60 * ((blue - red) / delta + 2);
-      else hue = 60 * ((red - green) / delta + 4);
-      if (hue < 0) hue += 360;
-    }
-    return {
-      hue: Math.round(hue) % 360,
-      saturation: Math.round(saturation * 100),
-      lightness: Math.round(lightness * 100),
-    };
-  }
-
-  function hslToHex(hue, saturation, lightness) {
-    var h = ((Number(hue) % 360) + 360) % 360;
-    var s = Math.max(0, Math.min(100, Number(saturation))) / 100;
-    var l = Math.max(0, Math.min(100, Number(lightness))) / 100;
-    var chroma = (1 - Math.abs(2 * l - 1)) * s;
-    var section = h / 60;
-    var second = chroma * (1 - Math.abs((section % 2) - 1));
-    var red = 0;
-    var green = 0;
-    var blue = 0;
-    if (section < 1) {
-      red = chroma;
-      green = second;
-    } else if (section < 2) {
-      red = second;
-      green = chroma;
-    } else if (section < 3) {
-      green = chroma;
-      blue = second;
-    } else if (section < 4) {
-      green = second;
-      blue = chroma;
-    } else if (section < 5) {
-      red = second;
-      blue = chroma;
-    } else {
-      red = chroma;
-      blue = second;
-    }
-    var match = l - chroma / 2;
-    var packed =
-      (Math.round((red + match) * 255) << 16) |
-      (Math.round((green + match) * 255) << 8) |
-      Math.round((blue + match) * 255);
-    return "#" + ((1 << 24) | packed).toString(16).slice(1).toUpperCase();
-  }
 
 
   function presetDisplayName(preset) {
@@ -3615,15 +3810,15 @@
     return $.HPColorsV2StorageFactory.codec.checksum(String(text));
   }
 
-  // Shipped defaults, read once through the state seam; hydration may need
-  // them before the menu's own state instance exists.
+  // Frozen sparse baseline, read once through the state seam; hydration may
+  // need it before the menu's own state instance exists.
   var shippedDefaults = null;
   function storeDefaults() {
     if (!shippedDefaults)
       shippedDefaults = $.HPColorsV2StateFactory.create({
         sessionRaw: null,
         publishedRaw: null,
-      }).read().schema.defaults;
+      }).read().schema.sparseDefaults;
     return shippedDefaults;
   }
   function dropDefaults(values, defaults) {
@@ -3636,13 +3831,18 @@
       )
         sparse[key] = values[key];
     }
+    if (values.staminaShape === "arrow" &&
+        (values.staminaWidth !== undefined && values.staminaWidth !== defaults.staminaWidth ||
+         values.staminaHeight !== undefined && values.staminaHeight !== defaults.staminaHeight ||
+         values.enemyStaminaColorEnabled === true))
+      sparse.staminaShape = "arrow";
     return sparse;
   }
 
   // What the store keeps: the session without effectiveRevision (it moves
   // with hero and ability transitions that change no setting) and with only
-  // non-default values. Hydration refills defaults through normalizeValues,
-  // so a value left at default follows the shipped default in later builds.
+  // non-baseline values. Hydration refills the frozen sparse baseline, so
+  // omitted values keep their look when shipped defaults change.
   function durableBody(raw) {
     var data = null;
     try {
@@ -3891,7 +4091,7 @@
   }
 
   function storeStatusText() {
-    if (persist.legacyLayout) return "UPDATE PRESET FILE";
+    if (persist.legacyLayout) return "OLD PRESET VPK";
     if (hydration.phase === "pending" || persist.gate === "checking") return "LOADING";
     if (persist.gate !== "open") return "SAVE UNAVAILABLE";
     if (persist.lastError === "too_large") return "SAVE TOO LARGE";
@@ -3942,7 +4142,6 @@
   function renderStoreStatus() {
     var storeText = storeStatusText();
     var warning =
-      storeText === "UPDATE PRESET FILE" ||
       storeText === "SAVE UNAVAILABLE" ||
       storeText === "SAVE RETRYING" ||
       storeText === "SAVE TOO LARGE";
@@ -4050,7 +4249,7 @@
   }
 
   function requestSectionReset() {
-    var category = CATEGORY_DEFS[state.categoryIndex];
+    var category = navigationCategories[state.categoryIndex];
     var tab = category && category.tabs[state.tabIndex];
     if (!tab || !tab.keys.length) {
       showResetFeedback("NO SETTINGS TO RESET");
@@ -4148,7 +4347,6 @@
 
   function registerConditionControl(panel, key, min, max, option, increment) {
     if (
-      key === "precisePipsEnabled" ||
       !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
       !isValid(panel)
     )
@@ -4232,8 +4430,11 @@
 
   function bindEntryCommit(entry, key) {
     function commitEntry() {
-      if (syncingControls) return;
-      commitValue(key, entry.text);
+      if (syncingControls || (COLOR_KEYS[key] && entry.enabled === false)) return;
+      var value = entry.text;
+      if ((LEGACY_DISPLAY_KEYS[key] || BAR_PERCENT_KEYS[key]) && String(value).replace(/^\s+|\s+$/g, "") !== "")
+        value = Number(value) / displayScale(key);
+      commitValue(key, value);
       try {
         $.DispatchEvent("DropInputFocus", entry);
       } catch {}
@@ -4248,27 +4449,35 @@
     var entry = controlPanel(entryId);
     if (!isValid(slider) || !isValid(entry)) return;
     registerConditionControl(slider, key, min, max, undefined, increment);
+    // Keep condition bounds full-sized; only the movement track uses the legacy window.
+    if (LEGACY_DISPLAY_KEYS[key]) {
+      max = /X$/.test(key) ? 300 : 200;
+      min = -max;
+    } else if (BAR_PERCENT_KEYS[key]) {
+      max = /X$/.test(key) ? 200 : 210;
+      min = -max;
+    }
     var gestureBefore = "";
 
     try {
-      slider.min = min;
-      slider.max = max;
-      slider.increment = increment || 1;
+      slider.min = min * displayScale(key);
+      slider.max = max * displayScale(key);
+      slider.increment = (increment || 1) * displayScale(key);
     } catch {}
 
     setPanelEvent(slider, "onmousedown", function () {
       gestureBefore = key;
-      sendState({ type: "gesture_begin", key: key, value: slider.value });
+      sendState({ type: "gesture_begin", key: key, value: slider.value / displayScale(key) });
     });
     setPanelEvent(slider, "onvaluechanged", function () {
       if (syncingControls) return;
       if (gestureBefore)
-        sendState({ type: "gesture_update", key: key, value: slider.value });
-      else commitValue(key, slider.value);
+        sendState({ type: "gesture_update", key: key, value: slider.value / displayScale(key) });
+      else commitValue(key, slider.value / displayScale(key));
     });
     setPanelEvent(slider, "onmouseup", function () {
       if (gestureBefore)
-        sendState({ type: "gesture_end", key: key, value: slider.value });
+        sendState({ type: "gesture_end", key: key, value: slider.value / displayScale(key) });
       gestureBefore = "";
       syncControls();
     });
@@ -4282,6 +4491,7 @@
     if (!isValid(swatch) || !isValid(entry)) return;
     registerConditionControl(swatch, key);
     setPanelEvent(swatch, "onactivate", function () {
+      if (swatch.enabled === false) return;
       openPicker(key, swatch);
     });
     bindEntryCommit(entry, key);
@@ -4386,17 +4596,17 @@
     } else if (control.type === "number") {
       if (isValid(ui.conditionNumberSlider)) {
         try {
-          if (ui.conditionNumberSlider.min !== control.min)
-            ui.conditionNumberSlider.min = control.min;
-          if (ui.conditionNumberSlider.max !== control.max)
-            ui.conditionNumberSlider.max = control.max;
-          var increment = control.increment || 1;
+          if (ui.conditionNumberSlider.min !== control.min * displayScale(conditionDraft.key))
+            ui.conditionNumberSlider.min = control.min * displayScale(conditionDraft.key);
+          if (ui.conditionNumberSlider.max !== control.max * displayScale(conditionDraft.key))
+            ui.conditionNumberSlider.max = control.max * displayScale(conditionDraft.key);
+          var increment = (control.increment || 1) * displayScale(conditionDraft.key);
           if (ui.conditionNumberSlider.increment !== increment)
             ui.conditionNumberSlider.increment = increment;
         } catch {}
-        setSliderValue(ui.conditionNumberSlider, conditionDraft.value);
+        setSliderValue(ui.conditionNumberSlider, displayNumber(conditionDraft.key, conditionDraft.value));
       }
-      setText(ui.conditionNumberEntry, String(conditionDraft.value));
+      setText(ui.conditionNumberEntry, String(displayNumber(conditionDraft.key, conditionDraft.value)));
     } else if (control.type === "color") {
       setText(ui.conditionColorEntry, conditionDraft.value);
       setBackgroundColor(ui.conditionColorSwatch, conditionDraft.value);
@@ -4423,16 +4633,17 @@
     );
   }
 
-  function syncConditionIndicators() {
-    var activeConditions = state.conditions;
+  function syncConditionIndicators(view) {
+    if (!view) view = currentView();
+    if (!view) return;
+    var scope = view.currentScope || view;
+    var activeConditions = scope.conditions;
     for (var key in conditionControls) {
       if (!Object.prototype.hasOwnProperty.call(conditionControls, key))
         continue;
       var control = conditionControls[key];
       var activeRule = activeConditions[key];
-      var meaningful =
-        !!activeRule &&
-        !conditionValueMatchesSetting(key, activeRule.value);
+      var meaningful = !!activeRule && activeRule.value !== scope.values[key];
       var tier = meaningful
         ? ability.observedTiers[activeRule.slot - 1]
         : -1;
@@ -4574,7 +4785,7 @@
       var control = conditionControls[conditionDraft.key];
       var increment = control ? control.increment : 1;
       conditionDraft.value = clampNumber(
-        ui.conditionNumberSlider.value,
+        ui.conditionNumberSlider.value / displayScale(conditionDraft.key),
         control.min,
         control.max,
         state.values[conditionDraft.key],
@@ -4586,7 +4797,7 @@
       var control = conditionControls[conditionDraft.key];
       if (!control || control.type !== "number") return;
       conditionDraft.value = clampNumber(
-        ui.conditionNumberEntry.text,
+        Number(ui.conditionNumberEntry.text) / displayScale(conditionDraft.key),
         control.min,
         control.max,
         state.values[conditionDraft.key],
@@ -4641,8 +4852,13 @@
   }
 
   function setSlider(control, value) {
-    setSliderValue(controlPanel(control.base + "Slider"), value);
-    setText(controlPanel(control.base + "Entry"), String(value));
+    var slider = controlPanel(control.base + "Slider");
+    var entryValue = displayNumber(control.key, value);
+    var displayValue = entryValue;
+    if ((LEGACY_DISPLAY_KEYS[control.key] || BAR_PERCENT_KEYS[control.key]) && isValid(slider))
+      displayValue = Math.max(slider.min, Math.min(slider.max, displayValue));
+    setSliderValue(slider, displayValue);
+    setText(controlPanel(control.base + "Entry"), String(entryValue));
   }
 
   function setColor(control, value) {
@@ -4650,194 +4866,79 @@
     setText(controlPanel(control.base + "Hex"), value);
   }
 
-  var PICKER_HUE_TRACK =
-    "gradient(linear, 0% 0%, 100% 0%, from(#FF0000), color-stop(0.1667, #FFFF00), color-stop(0.3333, #00FF00), color-stop(0.5, #00FFFF), color-stop(0.6667, #0000FF), color-stop(0.8333, #FF00FF), to(#FF0000))";
-
-  function pickerColor() {
-    return hslToHex(picker.hue, picker.saturation, picker.lightness);
-  }
-
-  function pickerHueGradient() {
-    return PICKER_HUE_TRACK;
-  }
-
-  function pickerSaturationGradient() {
-    return (
-      "gradient(linear, 0% 0%, 100% 0%, from(" +
-      hslToHex(picker.hue, 0, picker.lightness) +
-      "), to(" +
-      hslToHex(picker.hue, 100, picker.lightness) +
-      "))"
-    );
-  }
-
-  function pickerLumenGradient() {
-    return (
-      "gradient(linear, 0% 0%, 100% 0%, from(#000000), color-stop(0.5, " +
-      hslToHex(picker.hue, picker.saturation, 50) +
-      "), to(#FFFFFF))"
-    );
-  }
-
-  // Thumb and track panels per slider; a slider that is re-resolved or a
-  // child that went invalid starts a fresh lookup.
-  function pickerParts(component, slider) {
-    var parts = pickerPartCache[component];
-    if (!parts || parts.slider !== slider) {
-      parts = { slider: slider, thumb: null, track: null, trackKey: "" };
-      pickerPartCache[component] = parts;
-    }
-    return parts;
-  }
-
-  // trackKey names the inputs of the gradient last written to the track, so
-  // an unchanged track is neither rebuilt nor compared again.
-  function setPickerTrack(component, slider, trackKey, gradientFor) {
-    if (!isValid(slider) || !slider.FindChildTraverse) return;
-    try {
-      var parts = pickerParts(component, slider);
-      if (!isValid(parts.track)) {
-        parts.track = slider.FindChildTraverse("SliderTrack");
-        parts.trackKey = "";
-      }
-      var track = parts.track;
-      if (!isValid(track) || parts.trackKey === trackKey) return;
-      var gradient = gradientFor();
-      if (track.style.backgroundColor !== gradient)
-        track.style.backgroundColor = gradient;
-      parts.trackKey = trackKey;
-    } catch {}
-  }
-
-  function setPickerThumb(component, slider, color, lightness) {
-    if (!isValid(slider) || !slider.FindChildTraverse) return;
-    try {
-      var parts = pickerParts(component, slider);
-      if (!isValid(parts.thumb))
-        parts.thumb = slider.FindChildTraverse("SliderThumb");
-      var thumb = parts.thumb;
-      if (!isValid(thumb) || !thumb.style) return;
-      if (thumb.style.backgroundColor !== color)
-        thumb.style.backgroundColor = color;
-      var border = lightness < 35 ? "#FFEFD7" : "#10130D";
-      if (thumb.style.borderColor !== border)
-        thumb.style.borderColor = border;
-    } catch {}
-  }
-
   function syncPicker() {
     if (!picker.key || !isValid(ui.pickerRoot)) return;
-    var color = pickerColor();
     setText(ui.pickerTitle, COLOR_TITLES[picker.key] || "COLOR");
-    setText(ui.pickerHex, color);
-    setText(ui.pickerHueValue, picker.hue + "°");
-    setText(ui.pickerSaturationValue, picker.saturation + "%");
-    setText(ui.pickerLightnessValue, picker.lightness + "%");
-    setBackgroundColor(ui.pickerPreview, color);
-    setSliderValue(ui.pickerHueSlider, picker.hue);
-    setSliderValue(ui.pickerSaturationSlider, picker.saturation);
-    setSliderValue(ui.pickerLumenSlider, picker.lightness);
-
-    setPickerThumb("hue", ui.pickerHueSlider, color, picker.lightness);
-    setPickerThumb("saturation", ui.pickerSaturationSlider, color, picker.lightness);
-    setPickerThumb("lightness", ui.pickerLumenSlider, color, picker.lightness);
-
-    setPickerTrack("hue", ui.pickerHueSlider, "", pickerHueGradient);
-    setPickerTrack(
-      "saturation",
-      ui.pickerSaturationSlider,
-      picker.hue + "|" + picker.lightness,
-      pickerSaturationGradient,
-    );
-    setPickerTrack(
-      "lightness",
-      ui.pickerLumenSlider,
-      picker.hue + "|" + picker.saturation,
-      pickerLumenGradient,
-    );
+    setText(ui.pickerHex, picker.color);
+    setBackgroundColor(ui.pickerPreview, picker.color);
   }
 
-  function bindPickerSlider(slider, component) {
-    if (!isValid(slider)) return;
+  function seedNativePicker() {
+    if (!isValid(nativePickerHex)) return;
+    pickerSeeding = true;
     try {
-      slider.increment = 1;
-    } catch {}
-    setPanelEvent(slider, "onmousedown", function () {
-      if (picker.condition || !picker.key) return;
-      if (pickerGestureActive)
-        sendState({ type: "gesture_cancel", key: picker.key });
-      var result = sendState({
-        type: "gesture_begin",
-        key: picker.key,
-        value: pickerColor(),
-      });
-      pickerGestureActive = stateAccepted(result);
-    });
-    setPanelEvent(slider, "onvaluechanged", function () {
-      if (syncingControls || !picker.key) return;
-      var max = component === "hue" ? 359 : 100;
-      picker[component] = clampNumber(
-        slider.value,
-        0,
-        max,
-        picker[component],
-      );
-      var color = pickerColor();
-      if (picker.condition) {
-        conditionDraft.value = color;
-        syncPicker();
-        renderConditionEditor();
-        return;
-      }
-      if (pickerGestureActive) {
-        sendState({ type: "gesture_update", key: picker.key, value: color });
-        syncPicker();
-      } else {
-        commitValue(picker.key, color);
-      }
-    });
-    setPanelEvent(slider, "onmouseup", function () {
-      if (picker.condition) {
-        renderConditionEditor();
-        return;
-      }
-      if (pickerGestureActive)
-        sendState({
-          type: "gesture_end",
-          key: picker.key,
-          value: pickerColor(),
-        });
-      pickerGestureActive = false;
-      syncControls();
-    });
+      nativePickerHex.text = picker.color.slice(1);
+      $.DispatchEvent("TextEntryChanged", nativePickerHex);
+    } finally {
+      pickerSeeding = false;
+    }
   }
 
-  function closePicker() {
+  function changePickerColor(color) {
+    if (pickerSeeding || !picker.key || color === picker.color) return;
+    if (!picker.condition && !pickerGestureActive) {
+      pickerGestureActive = stateAccepted(sendState({
+        type: "gesture_begin", key: picker.key, value: picker.openingColor,
+      }));
+      if (!pickerGestureActive) return;
+    }
+    picker.color = color;
+    if (picker.condition) {
+      conditionDraft.value = color;
+      renderConditionEditor();
+    } else {
+      sendState({ type: "gesture_update", key: picker.key, value: color });
+    }
+    syncPicker();
+  }
+
+  function cancelPicker() {
+    closePicker(true);
+  }
+
+  function closePicker(cancel) {
     if (!picker.key) return;
     var wasCondition = picker.condition;
     if (pickerGestureActive) {
-      sendState({ type: "gesture_cancel", key: picker.key });
+      sendState({
+        type: cancel === true ? "gesture_cancel" : "gesture_end",
+        key: picker.key,
+        value: picker.color,
+      });
       pickerGestureActive = false;
     }
+    if (wasCondition && cancel === true)
+      conditionDraft.value = picker.openingColor;
     picker.key = "";
     picker.condition = false;
     setClass(ui.pickerRoot, "Open", false);
     focus(picker.returnPanel);
     if (wasCondition && conditionDraft.key) renderConditionEditor();
     picker.returnPanel = null;
+    syncControls();
   }
 
   function showPicker(key, returnPanel, condition, hex) {
+    closePicker();
     picker.key = key;
     picker.returnPanel = returnPanel;
     picker.condition = condition;
-    var hsl = hexToHsl(hex);
-    picker.hue = hsl.hue;
-    picker.saturation = hsl.saturation;
-    picker.lightness = hsl.lightness;
+    picker.color = normalizeColor(hex, "#FFFFFF");
+    picker.openingColor = picker.color;
     setClass(ui.pickerRoot, "Open", true);
     syncPicker();
-    focus(ui.pickerHueSlider);
+    seedNativePicker();
+    focus(isValid(nativePickerHex) ? nativePickerHex : ui.pickerHex);
   }
 
   function openPicker(key, returnPanel) {
@@ -4850,11 +4951,15 @@
       var control = TOGGLE_CONTROLS[index];
       setToggle(control, values[control.key]);
     }
-    // Own click handler (opens the gameinfo.gi pop-up), so not in TOGGLE_CONTROLS.
-    setClass(ui.precisePipsToggle, "Checked", !!values.precisePipsEnabled);
   }
 
   function syncModeControls(values) {
+    var shape = controlPanel("HPColorsStaminaShape");
+    if (isValid(shape) && shape["SetSelected"]) {
+      var selected = shape["GetSelected"] && shape["GetSelected"]();
+      if (!isValid(selected) || selected.id !== values.staminaShape)
+        shape["SetSelected"](values.staminaShape);
+    }
     for (var index = 0; index < MODE_CONTROLS.length; index++) {
       var control = MODE_CONTROLS[index];
       setClass(
@@ -4879,6 +4984,16 @@
     }
   }
 
+  function syncPulseColorRows(base, active) {
+    syncDependentRow(
+      base + "ModeRow",
+      active,
+      base + "ModeFixed",
+      base + "ModeGradient",
+    );
+    setClass(controlPanel(base + "Row"), "Active", active);
+  }
+
   function syncDependentRow(rowId, active, firstControlId, secondControlId) {
     setClass(controlPanel(rowId), "Disabled", !active);
     setEnabled(controlPanel(firstControlId), active);
@@ -4886,6 +5001,12 @@
   }
 
   function syncControlDependencies(values) {
+    syncDependentRow("HPColorsHudHealthColorRow", values.hudHealthColorMode === "custom", "HPColorsHudHealthColorSwatch", "HPColorsHudHealthColorHex");
+    setEnabled(controlPanel("HPColorsHudHealthColorRow"), values.hudHealthColorMode === "custom");
+    syncDependentRow("HPColorsEnemyPipColorRow", values.pipsVisible && values.enemyPipColorEnabled, "HPColorsEnemyPipColorSwatch", "HPColorsEnemyPipColorHex");
+    syncDependentRow("HPColorsAllyPipColorRow", values.pipsVisible && values.allyPipColorEnabled, "HPColorsAllyPipColorSwatch", "HPColorsAllyPipColorHex");
+    syncDependentRow("HPColorsEnemyNameColorRow", values.enemyNameColorEnabled, "HPColorsEnemyNameColorSwatch", "HPColorsEnemyNameColorHex");
+    syncDependentRow("HPColorsAllyNameColorRow", values.allyNameColorEnabled, "HPColorsAllyNameColorSwatch", "HPColorsAllyNameColorHex");
     var enemyStaminaColorActive = values.enemyStaminaColorEnabled;
     syncDependentRow(
       "HPColorsEnemyStaminaColorRow",
@@ -4913,20 +5034,17 @@
       "HPColorsEnemyKillMarkerColorSwatch",
       "HPColorsEnemyKillMarkerColorHex",
     );
+    syncDependentRow(
+      "HPColorsNeutralColorRow",
+      values.npcNeutralEnabled,
+      "HPColorsNeutralColorSwatch",
+      "HPColorsNeutralColorHex",
+    );
 
     var enemyPulseActive = values.enemyPulseEnabled;
-    var enemyPulseColorActive =
-      enemyPulseActive && values.enemyPulseColorEnabled;
-    syncDependentRow(
-      "HPColorsEnemyPulseColorModeRow",
-      enemyPulseColorActive,
-      "HPColorsEnemyPulseColorModeFixed",
-      "HPColorsEnemyPulseColorModeGradient",
-    );
-    setClass(
-      controlPanel("HPColorsEnemyPulseColorRow"),
-      "Active",
-      enemyPulseColorActive,
+    syncPulseColorRows(
+      "HPColorsEnemyPulseColor",
+      enemyPulseActive && values.enemyPulseColorEnabled,
     );
 
     var enemyPulseReadoutModifiersActive =
@@ -4950,18 +5068,9 @@
       "HPColorsEnemyPulseReadoutOffsetYEntry",
     );
 
-    var allyPulseColorActive =
-      values.allyPulseEnabled && values.allyPulseColorEnabled;
-    syncDependentRow(
-      "HPColorsAllyPulseColorModeRow",
-      allyPulseColorActive,
-      "HPColorsAllyPulseColorModeFixed",
-      "HPColorsAllyPulseColorModeGradient",
-    );
-    setClass(
-      controlPanel("HPColorsAllyPulseColorRow"),
-      "Active",
-      allyPulseColorActive,
+    syncPulseColorRows(
+      "HPColorsAllyPulseColor",
+      values.allyPulseEnabled && values.allyPulseColorEnabled,
     );
 
     syncReadoutColorRows("HPColorsReadout", values.readoutColorMode);
@@ -4996,9 +5105,34 @@
     );
   }
 
+  function featureRowEnabled(key, values) {
+    if (key === "enemyPipColor") return values.pipsVisible && values.enemyPipColorEnabled;
+    if (key === "allyPipColor") return values.pipsVisible && values.allyPipColorEnabled;
+    if (key === "enemyPipColorEnabled" || key === "allyPipColorEnabled") return values.pipsVisible;
+    if (key === "pipOpacity") return values.pipsVisible;
+    if (key === "levelOffsetX" || key === "levelOffsetY") return values.levelsVisible;
+    if (/^(enemyName|allyName|nameSize|nameOutlineWidth|nameOffset)/.test(key)) return values.playerNamesVisible;
+    if (/^allyReadout/.test(key) && key !== "allyReadoutVisible") return values.allyReadoutVisible;
+    if (/^readout/.test(key) && key !== "readoutVisible") return values.readoutVisible;
+    if (/^enemyPulse/.test(key) && key !== "enemyPulseEnabled") return values.enemyPulseEnabled;
+    if (/^allyPulse/.test(key) && key !== "allyPulseEnabled") return values.allyPulseEnabled;
+    if (/^enemyKillMarker/.test(key) && key !== "enemyKillMarkerEnabled") return values.enemyKillMarkerEnabled;
+    if (/^pickup/.test(key) && key !== "pickupTimersEnabled") return values.pickupTimersEnabled;
+    if (/^ultimateTimer/.test(key) && key !== "ultimateTimerEnabled") return values.ultimateTimerEnabled;
+    return true;
+  }
+
+  function syncFeatureRows(values) {
+    for (var key in SETTING_ROW_IDS) {
+      if (!Object.prototype.hasOwnProperty.call(SETTING_ROW_IDS, key)) continue;
+      setClass(controlPanel(SETTING_ROW_IDS[key]), "FeatureOff", !featureRowEnabled(key, values));
+    }
+  }
+
   function syncControls() {
     var view = currentView();
-    var values = state.values;
+    var scope = view && (view.currentScope || view);
+    var values = scope ? scope.values : {};
     syncingControls = true;
     try {
       syncToggleControls(values);
@@ -5006,20 +5140,21 @@
       syncControlDependencies(values);
       syncSliderControls(values);
       syncColorControls(values);
+      syncFeatureRows(values);
       setEnabled(ui.undoButton, !!(view && view.undoAvailable));
       syncPicker();
-      syncConditionIndicators();
+      syncConditionIndicators(view);
     } finally {
       syncingControls = false;
     }
-    renderIdentity();
-    renderCurrentScope();
+    renderIdentity(view);
+    renderCurrentScope(view);
     refreshPresetActivity(view);
   }
 
 
   function renderNavigation() {
-    var category = CATEGORY_DEFS[state.categoryIndex];
+    var category = navigationCategories[state.categoryIndex];
     if (!category) return;
 
     setText(ui.headerCategory, category.name);
@@ -5042,10 +5177,11 @@
       setText(ui.tabLabels[tabIndex], tab ? tab.name : "");
     }
 
+    if (!category.tabs[state.tabIndex]) state.tabIndex = 0;
     var activeTab = category.tabs[state.tabIndex];
     if (!activeTab) return;
     // UNDO stays reachable on the preset page because row clicks and EDIT
-    // replace what is on screen; only RESET SECTION hides there.
+    // replace what is on screen; only RESET PAGE hides there.
     var presetPageActive =
       activeTab.pageId === "HPColorsSettingsOverviewHero";
     setClass(ui.undoButton, "HPColorsFooterActionHidden", false);
@@ -5073,7 +5209,7 @@
   }
 
   function selectCategory(index) {
-    if (index < 0 || index >= CATEGORY_DEFS.length) return;
+    if (index < 0 || index >= navigationCategories.length) return;
     if (state.categoryIndex === index && state.tabIndex === 0) return;
     closePicker();
     state.categoryIndex = index;
@@ -5082,7 +5218,7 @@
   }
 
   function selectTab(index) {
-    var category = CATEGORY_DEFS[state.categoryIndex];
+    var category = navigationCategories[state.categoryIndex];
     if (!category || index < 0 || index >= category.tabs.length) return;
     if (state.tabIndex === index) return;
     closePicker();
@@ -5238,6 +5374,9 @@
     sendState({ type: "session_open" });
     state.open = true;
     state.peeking = false;
+    var showFormatNotice = formatNoticePending && !readRootAttribute("hp_colors_v2_native_format_notice_seen");
+    setClass(find("HPColorsNativeFormatNotice"), "Active", showFormatNotice);
+    if (showFormatNotice) writeRootAttribute("hp_colors_v2_native_format_notice_seen", "1");
     showResetFeedback("");
     renderPresetOptions();
     syncPresetSaveForm(true);
@@ -5260,7 +5399,7 @@
       return true;
     }
     if (picker.key) {
-      closePicker();
+      cancelPicker();
       return true;
     }
     if (
@@ -5290,13 +5429,6 @@
       ui.transferDialog.BHasClass("Open")
     ) {
       closeTransferDialog();
-      return true;
-    }
-    if (
-      isValid(ui.precisePipsDialog) &&
-      ui.precisePipsDialog.BHasClass("Open")
-    ) {
-      closePrecisePipsDialog();
       return true;
     }
     if (state.open) return requestCloseEditor();
@@ -5360,20 +5492,34 @@
       ui.tabButtons.push(find("HPColorsTab" + tabIndex));
       ui.tabLabels.push(find("HPColorsTabLabel" + tabIndex));
     }
-    for (var groupIndex = 0; groupIndex < CATEGORY_DEFS.length; groupIndex++) {
-      var tabs = CATEGORY_DEFS[groupIndex].tabs;
-      for (var pageIndex = 0; pageIndex < tabs.length; pageIndex++)
-        ui.settingsPages.push(find(tabs[pageIndex].pageId));
+    var legacyLayout = detectLegacyLayout(find(STORE_PANEL_ID));
+    navigationCategories = legacyLayout ? legacyCategories() : CATEGORY_DEFS;
+    for (var groupIndex = 0; groupIndex < navigationCategories.length; groupIndex++) {
+      var tabs = navigationCategories[groupIndex].tabs;
+      for (var pageIndex = 0; pageIndex < tabs.length; pageIndex++) {
+        var pageId = tabs[pageIndex].pageId;
+        ui.settingsPages.push(find(pageId));
+      }
     }
 
     var requiredPanels = [ui.escapeRoot, ui.absoluteRoot];
-    for (var keyIndex = 0; keyIndex < REQUIRED_UI_PANEL_KEYS.length; keyIndex++)
-      requiredPanels.push(ui[REQUIRED_UI_PANEL_KEYS[keyIndex]]);
-    var legacyLayout = detectLegacyLayout(find(STORE_PANEL_ID));
+    for (var keyIndex = 0; keyIndex < REQUIRED_UI_PANEL_KEYS.length; keyIndex++) {
+      var key = REQUIRED_UI_PANEL_KEYS[keyIndex];
+      if (legacyLayout && /^(npc|building|neutralColor|criticalIndicator|playerNames)/.test(key))
+        continue;
+      requiredPanels.push(ui[key]);
+    }
+    if (!legacyLayout) {
+      for (var nameIndex = 0; nameIndex < 2; nameIndex++) {
+        var nameBase = nameIndex ? "HPColorsAllyNameColor" : "HPColorsEnemyNameColor";
+        requiredPanels.push(find(nameBase + "Toggle"), find(nameBase + "Swatch"), find(nameBase + "Hex"));
+      }
+      requiredPanels.push(find("HPColorsNameSizeEntry"), find("HPColorsNameOffsetXEntry"), find("HPColorsNameOffsetYEntry"));
+    }
     // Retired builder layouts have only the original four rail buttons; keep
     // them bootable so the header can explain that the old pak01 must be removed.
     var categoryButtons = legacyLayout
-      ? ui.categoryButtons.slice(0, CATEGORY_BUTTON_IDS.length - 1)
+      ? ui.categoryButtons.slice(0, 4)
       : ui.categoryButtons;
     return (
       panelsAreValid(requiredPanels) &&
@@ -5407,52 +5553,23 @@
     return slider;
   }
 
-  function createPickerSliders() {
-    ui.pickerHueSlider = createSlider(
-      "HPColorsPickerHueSliderHost",
-      "HPColorsPickerHueSlider",
-      0,
-      359,
-    );
-    ui.pickerSaturationSlider = createSlider(
-      "HPColorsPickerSaturationSliderHost",
-      "HPColorsPickerSaturationSlider",
-      0,
-      100,
-    );
-    ui.pickerLumenSlider = createSlider(
-      "HPColorsPickerLumenSliderHost",
-      "HPColorsPickerLumenSlider",
-      0,
-      100,
-    );
-    var sliders = [
-      ui.pickerHueSlider,
-      ui.pickerSaturationSlider,
-      ui.pickerLumenSlider,
-    ];
-    for (var index = 0; index < sliders.length; index++) {
-      if (!isValid(sliders[index])) return false;
-      sliders[index].AddClass("HPColorsPickerSlider");
-    }
-    return true;
-  }
 
 
   function createSliders() {
+    var legacyLayout = navigationCategories !== CATEGORY_DEFS;
     for (var index = 0; index < SLIDER_CONTROLS.length; index++) {
       var control = SLIDER_CONTROLS[index];
       var sliderId = control.base + "Slider";
       var slider = createSlider(
         sliderId + "Host",
         sliderId,
-        control.min,
-        control.max,
-        control.increment,
+        control.min * displayScale(control.key),
+        control.max * displayScale(control.key),
+        (control.increment || 1) * displayScale(control.key),
       );
       controlPanels[sliderId] = slider;
       controlPanels[control.base + "Entry"] = find(control.base + "Entry");
-      if (!isValid(slider)) return false;
+      if (!isValid(slider) && !(legacyLayout && (/^name/.test(control.key) || control.key === "pipOpacity"))) return false;
     }
     ui.conditionNumberSlider = createSlider(
       "HPColorsConditionNumberSliderHost",
@@ -5461,19 +5578,53 @@
       100,
     );
     controlPanels.HPColorsConditionNumberSlider = ui.conditionNumberSlider;
-    return isValid(ui.conditionNumberSlider) && createPickerSliders();
+    return isValid(ui.conditionNumberSlider);
   }
 
   function bindPickerControls() {
-    setPanelEvent(ui.pickerDone, "onactivate", closePicker);
-    setPanelEvent(ui.pickerBackdrop, "onactivate", closePicker);
-    setPanelEvent(ui.pickerPanel, "oncancel", closePicker);
-    bindPickerSlider(ui.pickerHueSlider, "hue");
-    bindPickerSlider(ui.pickerSaturationSlider, "saturation");
-    bindPickerSlider(ui.pickerLumenSlider, "lightness");
+    setPanelEvent(ui.pickerDone, "onactivate", function () { closePicker(); });
+    setPanelEvent(ui.pickerBackdrop, "onactivate", function () { closePicker(); });
+    setPanelEvent(ui.pickerPanel, "oncancel", cancelPicker);
+    var commitHex = function () {
+      changePickerColor(normalizeColor(ui.pickerHex.text, picker.color));
+      syncPicker();
+      seedNativePicker();
+    };
+    setPanelEvent(ui.pickerHex, "ontextentrysubmit", commitHex);
+    setPanelEvent(ui.pickerHex, "onfocuslost", commitHex);
+    try {
+      nativePickerHex = isValid(ui.nativePicker)
+        ? ui.nativePicker.FindChildTraverse("HexValue") : null;
+      if (!isValid(nativePickerHex)) throw new Error("missing HexValue");
+      $.RegisterEventHandler("CitadelColorPickerColorChanged", ui.nativePicker,
+        function (red, green, blue) {
+          var channels = [red, green, blue];
+          var color = "#";
+          for (var index = 0; index < channels.length; index++) {
+            var byte = Number(channels[index]);
+            if (!isFinite(byte) || byte < 0 || byte > 255 || Math.floor(byte) !== byte) return;
+            color += ("0" + byte.toString(16)).slice(-2).toUpperCase();
+          }
+          changePickerColor(color);
+        });
+    } catch {
+      nativePickerHex = null;
+      if (isValid(ui.nativePicker)) ui.nativePicker.visible = false;
+      if (!nativePickerWarningLogged) {
+        nativePickerWarningLogged = true;
+        $.Msg("[HP Colors Rewrite] native color picker unavailable; using hex entry");
+      }
+    }
   }
 
   function bindControls() {
+    var shape = controlPanel("HPColorsStaminaShape");
+    registerConditionControl(shape, "staminaShape");
+    setPanelEvent(shape, "oninputsubmit", function () {
+      if (syncingControls || !isValid(shape) || !shape["GetSelected"]) return;
+      var selected = shape["GetSelected"]();
+      if (isValid(selected)) commitValue("staminaShape", selected.id);
+    });
     for (var index = 0; index < TOGGLE_CONTROLS.length; index++) {
       var toggle = TOGGLE_CONTROLS[index];
       bindToggle(toggle.id, toggle.key);
@@ -5482,7 +5633,6 @@
       var mode = MODE_CONTROLS[index];
       bindMode(mode.id, mode.key, mode.value);
     }
-    setPanelEvent(ui.precisePipsToggle, "onactivate", togglePrecisePips);
     for (index = 0; index < SLIDER_CONTROLS.length; index++) {
       var slider = SLIDER_CONTROLS[index];
       bindSlider(
@@ -5589,9 +5739,6 @@
       bindTab(tabIndex);
     bindControls();
     bindPickerControls();
-    setPanelEvent(ui.precisePipsCopyButton, "onactivate", copyPrecisePipsText);
-    setPanelEvent(ui.precisePipsCloseButton, "onactivate", closePrecisePipsDialog);
-    setPanelEvent(ui.precisePipsDialog, "oncancel", closePrecisePipsDialog);
   }
 
   function requestOpen() {
@@ -5603,6 +5750,12 @@
   }
 
   function setHydrationDone(raw) {
+    if (raw) {
+      try {
+        var saved = typeof raw === "string" ? JSON.parse(raw) : raw;
+        formatNoticePending = /"(?:readoutFormat|allyReadoutFormat)"\s*:\s*"(?:percent|current)"/.test(JSON.stringify(saved));
+      } catch {}
+    }
     hydration = { phase: "done", raw: raw };
     writeRootAttribute(HYDRATION_ATTR, "done");
   }
