@@ -14,7 +14,7 @@
 			<Panel id="Menu" hittest="false">
 				<Panel id="ContextualMenu">
 					<Panel class="MatchmakingOptions OptionGroup">
-						<Button id="matchmakingLeaveQueue" class="nav_menu_item primary endsession" onactivate="CitadelLeaveMatchmaking()">
+						<Button id="matchmakingLeaveQueue" class="nav_menu_item primary leavequeue" onactivate="CitadelLeaveMatchmaking()">
 							<Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
 						</Button>
 						<Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
