@@ -95,7 +95,12 @@ function installCefBridge(harness, profile, panel, options = {}) {
     duplicateUrlEvents: false,
     // The first load reports http://error/ this long before it commits file:.
     strayErrorSec: null,
+    // Navigations requested before this many seconds vanish without any URL
+    // event, like a browser surface Steam has not created yet (live
+    // console.log 2026-10-01 09:10: +map launch, no URL event in 20 s).
+    deadUntilSec: 0,
   }, options);
+  const installedAt = harness.now;
   const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [], urls: [] };
   let page = null;
 
@@ -169,6 +174,10 @@ function installCefBridge(harness, profile, panel, options = {}) {
       if (code.includes('__hpv2s.w(')) stats.writes += 1;
       if (code.includes('__hpv2s.d(')) stats.deletes += 1;
       vm.runInContext(code, page);
+      return;
+    }
+    if ((harness.now - installedAt) / 1000 < opts.deadUntilSec) {
+      stats.dropped = (stats.dropped || 0) + 1;
       return;
     }
     stats.navigations += 1;
@@ -467,7 +476,7 @@ test('unreadable or future-schema saves stay read-only and are never replaced by
 test('a bridge that never becomes ready boots on defaults without writing', () => {
   const profile = createProfile();
   const fixture = launch(profile, { label: 'no page commit', bridge: { commit: false } });
-  fixture.run(45000);
+  fixture.run(75000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   assert.equal(fixture.renderer().enabled, true);
   assert.equal(fixture.renderer().widthScale, DEFAULT_WIDTH);
@@ -477,6 +486,32 @@ test('a bridge that never becomes ready boots on defaults without writing', () =
   fixture.run(3000);
   assert.equal(profile.disk.has(KEY_CURRENT), false);
   record(fixture);
+});
+
+test('a page surface that ignores navigation for 25 s at launch still restores and saves', () => {
+  const profile = createProfile();
+  const seed = launch(profile, { label: 'late surface seed' });
+  seed.run(2000);
+  openEditor(seed);
+  setWidth(seed, 150);
+  closeEditor(seed);
+  seed.run(3000);
+
+  const late = launch(profile, { label: 'late surface', bridge: { deadUntilSec: 25 } });
+  late.run(20000);
+  assert.equal(late.renderer().enabled, false, 'bars stay stock while the save is still loading');
+  late.run(15000);
+  assert.ok(late.bridge.dropped > 0, 'early navigations were lost');
+  assert.equal(late.attr('hp_colors_v2_hydration'), 'done');
+  assert.equal(late.renderer().widthScale, 150);
+  assert.equal(late.status(), 'SAVED ON THIS PC');
+
+  openEditor(late);
+  setWidth(late, 170);
+  closeEditor(late);
+  late.run(3000);
+  assert.equal(JSON.parse(storedRecord(profile).body).values.widthScale, 170);
+  record(late, { droppedNavigations: late.bridge.dropped });
 });
 
 test('Forget clears only v2 keys, keeps live settings, and saves again after the next edit', () => {
