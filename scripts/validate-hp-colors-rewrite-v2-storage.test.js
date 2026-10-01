@@ -99,8 +99,13 @@ function installCefBridge(harness, profile, panel, options = {}) {
     // event, like a browser surface Steam has not created yet (live
     // console.log 2026-10-01 09:10: +map launch, no URL event in 20 s).
     deadUntilSec: 0,
+    // The surface, once created, raises its own about:blank this many
+    // seconds after launch, after the first navigation was already lost.
+    blankAtSec: null,
   }, options);
   const installedAt = harness.now;
+  if (opts.blankAtSec !== null)
+    harness.scheduler.schedule(opts.blankAtSec, () => commit('about:blank', 'about:blank'));
   const stats = { navigations: 0, reads: 0, writes: 0, deletes: 0, titles: [], urls: [] };
   let page = null;
 
@@ -488,19 +493,24 @@ test('a bridge that never becomes ready boots on defaults without writing', () =
   record(fixture);
 });
 
-test('a page surface that ignores navigation for 25 s at launch still restores and saves', () => {
+for (const [label, bridge] of [
+  ['ignores navigation for 25 s', { deadUntilSec: 25 }],
+  // Live console.log 2026-10-01 09:16: some URL event arrived early (no
+  // re-send was logged), yet the save never loaded within 60 s.
+  ['loses the first navigation, then raises about:blank at 5 s', { deadUntilSec: 5, blankAtSec: 5 }],
+]) test(`a page surface that ${label} at launch still restores and saves`, () => {
   const profile = createProfile();
-  const seed = launch(profile, { label: 'late surface seed' });
+  const seed = launch(profile, { label: `${label} seed` });
   seed.run(2000);
   openEditor(seed);
   setWidth(seed, 150);
   closeEditor(seed);
   seed.run(3000);
 
-  const late = launch(profile, { label: 'late surface', bridge: { deadUntilSec: 25 } });
-  late.run(20000);
+  const late = launch(profile, { label, bridge });
+  late.run(4000);
   assert.equal(late.renderer().enabled, false, 'bars stay stock while the save is still loading');
-  late.run(15000);
+  late.run(31000);
   assert.ok(late.bridge.dropped > 0, 'early navigations were lost');
   assert.equal(late.attr('hp_colors_v2_hydration'), 'done');
   assert.equal(late.renderer().widthScale, 150);

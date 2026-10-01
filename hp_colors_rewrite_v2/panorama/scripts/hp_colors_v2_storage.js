@@ -284,6 +284,7 @@
     var renavigateTimer = null;
     var urlSeen = false;
     var lateLogged = false;
+    var urlEventsLogged = 0;
     var serial = 0;
     var active = null;
     var queue = [];
@@ -495,8 +496,17 @@
         log("late page event after giving up: " + url.slice(0, 40));
       }
       if (ready || unavailable) return;
-      urlSeen = true;
-      renavigateTimer = clearTimer(renavigateTimer);
+      if (urlEventsLogged < 6) {
+        urlEventsLogged += 1;
+        log("page event " + (url.slice(0, 40) || "(empty)") + " (load " + navigations + ")");
+      }
+      // A freshly created surface raises its own about:blank; the address
+      // sent before it existed may be lost, so only a real page stops the
+      // re-sends (live console.log 2026-10-01 09:16).
+      if (url && url !== "about:blank") {
+        urlSeen = true;
+        renavigateTimer = clearTimer(renavigateTimer);
+      }
       pageUrl = url;
       if (isStoragePage(url)) {
         // A late commit wins over a pending move to the next address.
