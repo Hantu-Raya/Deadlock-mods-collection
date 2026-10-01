@@ -12,3 +12,10 @@
     vertical-align: top;
     ui-scale: 105%;
 }
+
+/* The stock under-reticle status strip (margin-top 230px) overlaps the raised
+   passive bar; sit it just below the bar instead. */
+#StatusEffects.under_reticle
+{
+    margin-top: 370px;
+}

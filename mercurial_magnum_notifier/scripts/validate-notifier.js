@@ -1031,5 +1031,45 @@ function createHarness(initialCooling, itemsOwned = true) {
   );
 }
 
+{
+  const h = createHarness(false);
+  h.step(0.05);
+  h.ammo.valid = false;
+  const ammoSiblings = h.ammo.parent.children;
+  ammoSiblings.splice(ammoSiblings.indexOf(h.ammo), 1);
+  const initialAmmoLookups = h.gun.findClassCalls;
+  for (let tick = 0; tick < 9; tick += 1) h.step(0.05);
+  assert.ok(
+    h.gun.findClassCalls - initialAmmoLookups <= 1,
+    "a missing ammo label is retried at the discovery cadence, not every hot poll",
+  );
+
+  const replacementAmmo = h.ammo.parent.add(
+    new MockPanel("", ["weapon_ammo"], "20"),
+  );
+  h.bloodToggle.classes.add("toggled_on");
+  h.step(0.55);
+  assert.equal(
+    replacementAmmo.classes.has("BloodTributeAmmoGlow"),
+    true,
+    "the bounded retry adopts and renders a replacement ammo label",
+  );
+}
+
+{
+  const h = createHarness(false);
+  h.step(0.05);
+  h.splitNotifier.SetHasClass = () => {
+    throw new Error("panel destroyed mid-write");
+  };
+  h.splitItem.classes.add("cooling_down");
+  assert.throws(() => h.step(0.05), /panel destroyed mid-write/);
+  assert.equal(
+    h.nextDelay(),
+    0.05,
+    "a throwing panel write must not end the polling loop",
+  );
+}
+
 
 console.log("Mercurial Magnum notifier validation passed.");
