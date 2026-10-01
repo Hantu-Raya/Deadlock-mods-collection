@@ -2537,3 +2537,25 @@ test('round name ownership keeps spectator alpha and native text, then restores 
       assert.equal(nonplayer.namePanel.style[property], value, kind + ' ' + property);
   }
 });
+
+test('player name outline room preserves content width and centered position and restores stock', () => {
+  const original = { padding: '0px 2px', maxWidth: '170px', overflow: 'clip' };
+  const fixture = makeStatusFixture('enemy', { nameOffsetX: 10, nameSize: 40 }, 1,
+    '300', false, false, false, true, null, null, { nameStyle: original });
+  fixture.windowRoot.actuallayoutwidth = 200;
+  fixture.windowRoot.actuallayoutheight = 210;
+  fixture.namePanel.actuallayoutwidth = 80;
+  fixture.namePanel.actuallayoutheight = 50;
+  for (const outline of [0, 0.5, 5, 10]) {
+    dispatchColorSnapshot(fixture, outline + 2, { nameOffsetX: 10, nameSize: 40, nameOutlineWidth: outline });
+    const room = Math.max(2, Math.ceil(outline));
+    assert.equal(fixture.namePanel.style.padding, '0px ' + room + 'px');
+    assert.equal(fixture.namePanel.style.maxWidth, 166 + 2 * room + 'px', 'same stock 166px text content limit');
+    assert.equal(fixture.namePanel.style.overflow, 'noclip');
+    assert.equal(fixture.namePanel.style.marginLeft, '20px', 'symmetric room cannot bias the text center');
+    assert.equal(fixture.namePanel.style.marginTop || '', '', 'horizontal guard leaves vertical placement alone');
+  }
+  dispatchColorSnapshot(fixture, 20, { enabled: false });
+  for (const [property, value] of Object.entries(original))
+    assert.equal(fixture.namePanel.style[property], value, property);
+});
