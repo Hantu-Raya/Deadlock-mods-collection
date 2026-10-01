@@ -3,22 +3,17 @@
 
   // Durable storage for HP Colors v2.
   //
-  // Panorama has no writable disk API. A hidden CitadelHTMLPanel is a Steam
-  // Chromium view, and a `file://` document there has a real localStorage that
-  // Steam keeps in its CEF profile across game restarts. Panorama drives the
-  // page with SetURL("javascript:...") and the page answers by setting its
-  // title, which arrives here through the HTMLTitle panel event.
+  // Panorama has no writable disk API. A hidden CitadelHTMLPanel opens an
+  // HTTPS page whose localStorage stays in Steam's CEF profile across game
+  // restarts. Requests live only in its URL fragment (never sent to the
+  // server); the page replies through HTMLTitle. Fragment changes keep one
+  // loaded document alive. The page protocol must match before any reads or
+  // writes; an offline or incompatible page leaves saving unavailable.
   //
-  // The `file://` origin is shared with every other Steam page and mod, so every
-  // key lives under one namespace owned by this mod. Changing a key orphans
-  // saved data: treat these strings as data, not configuration.
-
-  // Every file: URL shares one localStorage origin ("file://"), so both
-  // addresses reach the same save. Live console.log 2026-09-26: bare file://
-  // ended on http://error/ in three runs in a row (06:18, 06:28, 06:33) while
-  // file:///C:/ loaded first time, so the C: listing goes first; bare file://
-  // stays as the fallback for clients without a C: drive (Proton/Linux).
-  var PAGE_URLS = ["file:///C:/", "file://"];
+  // Keys are durable data, not configuration. The hosted page touches only
+  // this mod's current and previous keys.
+  var PAGE_URL = "https://hantu-raya.github.io/hpv2-store/";
+  var PAGE_VERSION = 1;
   var KEY_CURRENT = "hantu.hpcolors.v2/state";
   var KEY_PREVIOUS = "hantu.hpcolors.v2/state.prev";
   var TITLE_PREFIX = "HPV2S1:";
@@ -34,18 +29,13 @@
   var MAX_CHUNKS = 64;
   var TITLE_MAX_CHARS = 4096;
 
-  // A lost reply fails the request; the editor's save retry is the only
-  // retry layer. Earlier "lost titles" were replies from the about:blank
-  // placeholder, not a lossy channel (live console.log 2026-09-26).
-  // Live console.log 2026-10-01 09:10: on a +map launch the page raised no
-  // URL event at all within 20 s, so saving stayed off for the whole match.
   // A navigation sent before Steam creates the browser surface can vanish
-  // silently; it is asked again until any page event shows the surface.
-  var READY_TIMEOUT_SEC = 60;
+  // silently. Re-send hello until a real page event arrives, bounded by the
+  // readiness timeout. Lost read replies get one retry; save retry belongs
+  // to the editor.
+  var READY_TIMEOUT_SEC = 30;
   var RENAVIGATE_SEC = 8;
   var EXCHANGE_TIMEOUT_SEC = 5;
-  // Injects anyway if the loaded listing raises no title in this time.
-  var INJECT_FALLBACK_SEC = 2;
 
   var BASE64_ALPHABET =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -65,8 +55,7 @@
   // -- Record codec (pure) --
   //
   // A record is `HPV2S1.<fnv1a32 of payload>.<base64url payload>`. Base64url
-  // keeps the payload inert inside a javascript: URL, which the browser
-  // percent-decodes, and inside a JSON title.
+  // keeps the payload inert inside URL fragments and JSON title replies.
 
   function utf8Bytes(text) {
     var escaped = encodeURIComponent(text);
@@ -193,54 +182,14 @@
     };
   }
 
-  // -- Page script --
+  // -- Hosted page protocol --
   //
-  // Installed once per document on one namespaced object. Only one request
-  // is ever in flight, so the page keeps one staging buffer and one read
-  // snapshot. A commit moves the current record to the previous key only
-  // when its checksum matches `e`, the record Panorama fully validated;
-  // otherwise the existing backup is kept. The hello carries the page
-  // address so Panorama can reject the placeholder document the panel shows
-  // before `file://` commits.
-  function pageScript() {
-    return (
-      "(function(w){if(w.__hpv2s&&w.__hpv2s.v===3){w.__hpv2s.hello();return;}" +
-      "var s={v:3,q:0};" +
-      "function send(m){m.q=++s.q;try{w.document.title='" +
-      TITLE_PREFIX +
-      "'+JSON.stringify(m);}catch(e){}}" +
-      "function sum(t){var h=0x811c9dc5;for(var i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return('0000000'+h.toString(16)).slice(-8);}" +
-      "function ok(v){if(typeof v!=='string')return false;var p=v.split('.');return p.length===3&&p[0]==='" +
-      RECORD_TAG +
-      "'&&sum(p[2])===p[1];}" +
-      "s.hello=function(){send({i:'ready',o:'ready',ok:true,h:''+w.location.href});};" +
-      "s.w=function(id,k,pk,p,n,c,e){try{" +
-      "if(s.si!==id){s.si=id;s.st={c:0,a:[]};}" +
-      "var b=s.st;if(b.a[p]===undefined){b.a[p]=c;b.c++;}" +
-      "if(b.c<n){send({i:id,o:'w',ok:true,p:p,n:n});return;}" +
-      "var v=b.a.join('');s.si=null;s.st=null;" +
-      "if(!ok(v)){send({i:id,o:'w',ok:false,e:'checksum'});return;}" +
-      "var L=w.localStorage,cur=L.getItem(k);" +
-      "if(e&&cur!==null&&cur!==v&&cur.split('.')[1]===e&&ok(cur))L.setItem(pk,cur);" +
-      "L.setItem(k,v);send({i:id,o:'w',ok:true,p:p,n:n,d:1});" +
-      "}catch(x){s.si=null;s.st=null;send({i:id,o:'w',ok:false,e:''+x});}};" +
-      "s.r=function(id,k,p,z){try{" +
-      "if(s.ri!==id){s.ri=id;s.rv=w.localStorage.getItem(k);}var v=s.rv;" +
-      "if(v===null){send({i:id,o:'r',ok:true,x:0,p:p});return;}" +
-      "var n=Math.max(1,Math.ceil(v.length/z));" +
-      "send({i:id,o:'r',ok:true,x:1,p:p,n:n,v:v.slice(p*z,(p+1)*z)});" +
-      "}catch(x){s.ri=null;send({i:id,o:'r',ok:false,e:''+x});}};" +
-      "s.d=function(id,ks){try{for(var i=0;i<ks.length;i++)w.localStorage.removeItem(ks[i]);" +
-      "send({i:id,o:'d',ok:true});}catch(x){send({i:id,o:'d',ok:false,e:''+x});}};" +
-      "w.__hpv2s=s;s.hello();})(window);void(0);"
-    );
-  }
-
-  // Only the committed file:// document has storage. The panel shows an
-  // about:blank placeholder first, and a script sent there while file:// is
-  // still loading can abort that load (live: the page ended at http://error/).
+  // Fragment = encodeURIComponent(JSON.stringify(request)). Every exchange
+  // has a unique `i`; `r` identifies one logical read/write across chunks.
+  // Readiness requires our latest hello id, page version, and exact HTTPS
+  // document address (with only its fragment allowed to vary).
   function isStoragePage(href) {
-    return typeof href === "string" && href.indexOf("file:") === 0;
+    return typeof href === "string" && href.split("#")[0] === PAGE_URL;
   }
 
   // -- Bridge --
@@ -274,12 +223,8 @@
     var started = false;
     var ready = false;
     var unavailable = false;
-    var pageUrl = "";
-    var injected = false;
-    var navigations = 0;
+    var helloId = "";
     var readyTimer = null;
-    var injectTimer = null;
-    var navigateTimer = null;
     var exchangeTimer = null;
     var renavigateTimer = null;
     var urlSeen = false;
@@ -299,16 +244,15 @@
 
     function clearAllTimers() {
       readyTimer = clearTimer(readyTimer);
-      injectTimer = clearTimer(injectTimer);
-      navigateTimer = clearTimer(navigateTimer);
+      helloId = "";
       exchangeTimer = clearTimer(exchangeTimer);
       renavigateTimer = clearTimer(renavigateTimer);
     }
 
-    function run(code) {
+    function send(message) {
       if (!isValid(panel)) return false;
       try {
-        panel.SetURL("javascript:" + code + ";void(0);");
+        panel.SetURL(PAGE_URL + "#" + encodeURIComponent(JSON.stringify(message)));
         return true;
       } catch (error) {
         log("SetURL threw: " + String(error));
@@ -330,20 +274,25 @@
       settle(request, { ok: false, error: code });
     }
 
-    function exchangeCode(request) {
-      var args = JSON.stringify(request.id);
-      if (request.op === "read")
-        return "window.__hpv2s&&window.__hpv2s.r(" + args + "," +
-          JSON.stringify(request.key) + "," + request.part + "," + CHUNK_CHARS + ")";
-      if (request.op === "write")
-        return "window.__hpv2s&&window.__hpv2s.w(" + args + "," +
-          JSON.stringify(KEY_CURRENT) + "," + JSON.stringify(KEY_PREVIOUS) + "," +
-          request.part + "," + request.total + "," +
-          JSON.stringify(
-            request.record.slice(request.part * CHUNK_CHARS, (request.part + 1) * CHUNK_CHARS),
-          ) + "," + JSON.stringify(trustedSum) + ")";
-      return "window.__hpv2s&&window.__hpv2s.d(" + args + "," +
-        JSON.stringify([KEY_PREVIOUS, KEY_CURRENT]) + ")";
+    function exchangeMessage(request) {
+      request.messageId = "h" + String(++serial);
+      var message = {
+        "i": request.messageId,
+        "r": request.id,
+        "p": request.part,
+      };
+      if (request.op === "read") {
+        message["o"] = "r";
+        message["k"] = request.key;
+      } else if (request.op === "write") {
+        message["o"] = "w";
+        message["n"] = request.total;
+        message["v"] = request.record.slice(
+          request.part * CHUNK_CHARS, (request.part + 1) * CHUNK_CHARS,
+        );
+        message["e"] = trustedSum;
+      } else message["o"] = "d";
+      return message;
     }
 
     function transmit(request) {
@@ -353,7 +302,7 @@
         log("no reply to " + request.op + " part " + request.part);
         fail(request, "timeout");
       });
-      if (!run(exchangeCode(request))) fail(request, "send_failed");
+      if (!send(exchangeMessage(request))) fail(request, "send_failed");
     }
 
     function advance(request) {
@@ -425,7 +374,7 @@
 
     function onReply(message) {
       var request = active;
-      if (!request || message.i !== request.id) return;
+      if (!request || message.i !== request.messageId) return;
       if (message.ok !== true)
         return fail(request, "page:" + String(message.e || "error").slice(0, 120));
       if (request.op === "read" && message.o === "r") onRead(request, message);
@@ -435,102 +384,63 @@
 
     // -- Page lifecycle --
 
-    function onReady(href) {
-      if (ready) return;
-      if (!isStoragePage(href)) {
-        log("ignored hello from placeholder page " + String(href).slice(0, 40));
+    function onReady(message) {
+      if (ready || unavailable || message.i !== helloId) return;
+      if (!isStoragePage(message.h)) {
+        log("ignored hello from untrusted page " + String(message.h).slice(0, 80));
+        return;
+      }
+      if (message.v !== PAGE_VERSION || message.ok !== true) {
+        markUnavailable("protocol_version (hosted page missing or incompatible)");
         return;
       }
       ready = true;
       readyTimer = clearTimer(readyTimer);
-      injectTimer = clearTimer(injectTimer);
-      log("bridge ready at " + String(href).slice(0, 40) + " (load " + navigations + ")");
+      renavigateTimer = clearTimer(renavigateTimer);
+      log("bridge ready at " + PAGE_URL);
       pump();
     }
 
-    // Installs the page object once, only into a loaded file:// document: a
-    // script sent while the load is pending can abort it to http://error/.
-    function inject() {
-      injectTimer = clearTimer(injectTimer);
-      if (ready || unavailable || injected || !isStoragePage(pageUrl)) return;
-      injected = true;
-      if (!run(pageScript())) markUnavailable("inject");
-    }
-
     function navigate() {
-      navigateTimer = null;
-      if (ready || unavailable || navigations >= PAGE_URLS.length) return;
-      pageUrl = "";
-      injected = false;
-      navigations += 1;
-      try {
-        panel.SetURL(PAGE_URLS[navigations - 1]);
-      } catch {
+      if (ready || unavailable) return;
+      helloId = "h" + String(++serial);
+      if (!send({ "o": "hello", "i": helloId })) {
         markUnavailable("navigate");
         return;
       }
       if (!urlSeen) renavigateTimer = schedule(RENAVIGATE_SEC, renavigate);
     }
 
-    // Re-sends the same address while the surface has raised no event; a
-    // load already under way would have reported its URL by now.
     function renavigate() {
       renavigateTimer = null;
       if (ready || unavailable || urlSeen) return;
-      log("no page event yet; asking again (load " + navigations + ")");
-      try {
-        panel.SetURL(PAGE_URLS[navigations - 1]);
-      } catch {
-        markUnavailable("navigate");
-        return;
-      }
-      renavigateTimer = schedule(RENAVIGATE_SEC, renavigate);
+      log("no page event yet; asking HTTPS page again");
+      navigate();
     }
 
-    // Each address is loaded once; a load that ends anywhere but file: moves
-    // on to the next address.
     function onUrl(panelOrUrl, eventUrl) {
       var url = String(arguments.length > 1 ? eventUrl : panelOrUrl || "");
       if (unavailable && !lateLogged) {
         lateLogged = true;
-        log("late page event after giving up: " + url.slice(0, 40));
+        log("late page event after giving up: " + url.slice(0, 80));
       }
       if (ready || unavailable) return;
       if (urlEventsLogged < 6) {
         urlEventsLogged += 1;
-        log("page event " + (url.slice(0, 40) || "(empty)") + " (load " + navigations + ")");
+        log("page event " + (url.slice(0, 80) || "(empty)"));
       }
-      // A freshly created surface raises its own about:blank; the address
-      // sent before it existed may be lost, so only a real page stops the
-      // re-sends (live console.log 2026-10-01 09:16).
-      if (url && url !== "about:blank") {
+      // Only our HTTPS page proves the browser accepted a navigation.
+      // A surface-created blank event must not cancel lost-navigation retry.
+      if (isStoragePage(url)) {
         urlSeen = true;
         renavigateTimer = clearTimer(renavigateTimer);
       }
-      pageUrl = url;
-      if (isStoragePage(url)) {
-        // A late commit wins over a pending move to the next address.
-        navigateTimer = clearTimer(navigateTimer);
-        // The listing's title triggers the inject; this covers a lost title.
-        injectTimer = clearTimer(injectTimer);
-        injectTimer = schedule(INJECT_FALLBACK_SEC, inject);
-        return;
-      }
-      // A repeated error event for the same load changes nothing.
-      if (!url || url === "about:blank" || navigateTimer !== null) return;
-      log("page load failed at " + url.slice(0, 40) + " (load " + navigations + ")");
-      if (navigations < PAGE_URLS.length) navigateTimer = schedule(1, navigate);
-      else markUnavailable("load_failed");
     }
 
     function onTitle(panelOrTitle, eventTitle) {
       var title = arguments.length > 1 ? eventTitle : panelOrTitle;
       if (typeof title !== "string" || !title) return;
-      if (title.indexOf(TITLE_PREFIX) !== 0) {
-        // A plain title means a document finished loading.
-        inject();
-        return;
-      }
+      if (title.indexOf(TITLE_PREFIX) !== 0) return;
       var message = null;
       if (title.length <= TITLE_MAX_CHARS) {
         try {
@@ -541,7 +451,7 @@
         log("ignored unreadable reply title (" + title.length + " chars)");
         return;
       }
-      if (message.o === "ready" && message.i === "ready") onReady(message.h);
+      if (message.o === "ready") onReady(message);
       else onReply(message);
     }
 
@@ -576,7 +486,7 @@
       }
       readyTimer = schedule(READY_TIMEOUT_SEC, function () {
         readyTimer = null;
-        if (!ready) markUnavailable("ready_timeout");
+        if (!ready) markUnavailable("ready_timeout (HTTPS page offline or failed to load)");
       });
       navigate();
       return !unavailable;
