@@ -1558,8 +1558,8 @@ test('native label canvas compensation releases exactly on adoption, resize and 
     if (property !== 'marginRight') assert.equal(fixture.health.style[property], value, property);
   fixture.update({ allyReadoutVisible: true });
   assert.equal(fixture.health.GetParent(), fixture.row);
-  assert.equal(fixture.health.style.marginRight, nativeReadoutStock.marginRight,
-    'measured stock compensation does not follow the adopted label');
+  assert.equal(fixture.health.style.marginRight, '-5px',
+    'adopted outline guard replaces canvas compensation, then restores it on release');
   fixture.update({ allyReadoutVisible: false });
   assert.equal(fixture.health.GetParent(), fixture.info);
   assert.equal(fixture.health.style.marginRight, '120px');
@@ -1570,7 +1570,7 @@ test('native label canvas compensation releases exactly on adoption, resize and 
   fixture.harness.scheduler.runByDelay(1);
   assertNativeStock(fixture.health);
   assert.equal(replacement.GetParent(), fixture.row);
-  assert.equal(replacement.style.marginRight, nativeReadoutStock.marginRight);
+  assert.equal(replacement.style.marginRight, '-5px');
   fixture.health.DeleteAsync(); // The engine retires the replaced native binding.
   fixture.update({ allyReadoutVisible: false });
   assert.equal(replacement.style.marginRight, '120px');
@@ -1691,4 +1691,71 @@ test('custom pip ownership handles late lines and restores captured inline style
   assert.equal(replacement.style.washColor, '#778899');
   assert.equal(replacement.style.opacity, '0.7');
   assert.equal(container.style.opacity, '');
+});
+
+test('CRITICAL uses brightness-only feedback on owned bars, not a geometry animation', () => {
+  const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
+  const stock = css.split('/* Rewrite-owned additions')[0];
+  const owned = css.slice(stock.length);
+  const animation = owned.match(/\.enemy\.health_critical \.ShowCriticalState\.HPColorsRewriteBarLines #UnitHealthbarsContainer[\s\S]*?\{([^}]*)\}/);
+  assert.ok(animation, 'owned critical state must override the stock stack animation');
+  assert.match(animation[1], /pre-transform-scale2d:\s*1;/);
+  const name = animation[1].match(/animation-name:\s*([\w]+);/)[1];
+  const frames = owned.slice(owned.indexOf("@keyframes '" + name + "'")).split('\n}\n')[0];
+  assert.match(frames, /brightness:\s*2/);
+  assert.doesNotMatch(frames, /pre-transform-scale2d|transform:|margin|height|width/);
+  assert.match(owned, /\.player\.health_critical \.ShowCriticalState\.HPColorsRewriteBarLines \.UnitHealthbarContainer[\s\S]*?\{[^}]*margin-left:\s*17px;/);
+  assert.match(stock, /#CriticalIndicator\s*\{[^}]*ignore-parent-flow:\s*true;[^}]*margin-top:\s*84px;/);
+  assert.match(stock, /@keyframes 'healthCritFlash3'[\s\S]*pre-transform-scale2d:\s*1\.15;[\s\S]*transform:\s*rotateY/);
+
+  const values = { ...accessoryValues, positionX: 100, positionY: -380 };
+  const fixture = makeOwnershipFixture(['player', 'enemy'], values, parts => measuredGeometry(parts, 2, 3));
+  fixture.window.AddClass('ShowCriticalState');
+  const normal = accessoryResult(fixture);
+  fixture.world.AddClass('health_critical');
+  paintReadout(fixture);
+  assert.deepEqual(accessoryResult(fixture), normal, 'bar, readout, marker and accessories keep their geometry');
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), true);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteHideCritical'), false, 'stock label may show');
+  fixture.update({ ...values, criticalIndicatorVisible: false });
+  assert.deepEqual(accessoryResult(fixture), normal);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteHideCritical'), true);
+  fixture.update({ ...values, enabled: false });
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), false, 'master off selects untouched stock animation');
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteHideCritical'), false);
+});
+
+test('native HP and pulse text reserve local outline room without moving the glyphs or row', () => {
+  for (const [relation, prefix] of [['enemy', 'readout'], ['friend', 'allyReadout']]) {
+    const values = { readoutVisible: true, allyReadoutVisible: true, readoutSize: 400,
+      allyReadoutSize: 400, enemyPulseEnabled: true, enemyPulseThreshold: 100,
+      enemyPulseReadout: true, enemyPulseReadoutModifiers: true };
+    const fixture = makeOwnershipFixture(['player', relation], values, parts => {
+      prepareNativeReadout(parts);
+      parts.health.style.padding = '4px';
+      parts.health.style.overflow = 'clip';
+    });
+    const rowPosition = [fixture.row.style.marginRight, fixture.row.style.marginTop];
+    for (const outline of [0, 0.5, 5, 10]) {
+      fixture.update({ ...values, [prefix + 'OutlineWidth']: outline });
+      const room = Math.ceil(outline);
+      assert.equal(fixture.health.style.padding, '0px ' + room + 'px');
+      assert.equal(fixture.health.style.overflow, 'noclip');
+      assert.equal(fixture.health.style.marginLeft, -room + 'px');
+      assert.equal(fixture.health.style.marginRight, -room + 'px');
+      assert.equal(room + Number.parseFloat(fixture.health.style.marginLeft), 0, 'glyph left stays fixed');
+      assert.equal(2 * room + Number.parseFloat(fixture.health.style.marginLeft) +
+        Number.parseFloat(fixture.health.style.marginRight), 0, 'fit-children contribution stays fixed');
+      assert.deepEqual([fixture.row.style.marginRight, fixture.row.style.marginTop], rowPosition);
+      if (relation === 'enemy') assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), true);
+      const writes = fixture.health.styleWrites.length;
+      paintReadout(fixture);
+      assert.equal(fixture.health.styleWrites.length, writes, 'unchanged padding and margins are cached');
+    }
+    fixture.update({ ...values, enabled: false });
+    assertNativeStock(fixture.health);
+    assert.equal(fixture.health.style.padding, '4px');
+    assert.equal(fixture.health.style.overflow, 'clip');
+    assert.equal(fixture.health.GetParent(), fixture.info);
+  }
 });

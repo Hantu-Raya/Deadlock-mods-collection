@@ -144,11 +144,12 @@
   ];
   var NATIVE_READOUT_STYLES = [
     "visibility", "opacity", "washColor", "fontSize", "fontFamily", "animationDuration", "textShadow",
+    "padding", "marginLeft", "marginRight", "overflow",
   ];
   var NATIVE_READOUT_CLASSES = [
     "HPColorsRewritePulse", "HPColorsRewritePulseSubtle", "HPColorsRewritePulseIntense",
   ];
-  var NAME_STYLES = ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop", "textShadow"];
+  var NAME_STYLES = ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop", "textShadow", "padding", "maxWidth", "overflow"];
   var READOUT_FIELDS = ["Visible", "Size", "Font", "OffsetX", "OffsetY",
     "ColorMode", "Mode", "Low", "Mid", "High", "OutlineWidth"];
   // Role -> config key per readout field; enemy keys predate the ally copy.
@@ -1346,6 +1347,18 @@
       setStyle(bar.parts.healthValue, "fontFamily", fontFamily, bar.applied, "nativeReadoutfontFamily");
       applyTextOutline(bar.parts.healthValue, config[keys.OutlineWidth], "#10130D",
         (bar.panelBaseline || {}).healthValue, bar.applied, "nativeReadouttextShadow");
+      // noclip on parents does not enlarge the label's own glyph/shadow box.
+      // Equal negative margins cancel padding in the fit-children row, keeping
+      // the native text position and the row's measured/clamped bounds intact.
+      var outlineRoom = Math.ceil(config[keys.OutlineWidth]);
+      setStyle(bar.parts.healthValue, "padding", "0px " + outlineRoom + "px",
+        bar.applied, "nativeReadoutpadding");
+      setStyle(bar.parts.healthValue, "marginLeft", pixels(-outlineRoom),
+        bar.applied, "nativeReadoutmarginLeft");
+      setStyle(bar.parts.healthValue, "marginRight", pixels(-outlineRoom),
+        bar.applied, "nativeReadoutmarginRight");
+      setStyle(bar.parts.healthValue, "overflow", "noclip",
+        bar.applied, "nativeReadoutoverflow");
     } else if (!keys) {
       restoreNativeReadout(bar);
     }
@@ -1473,6 +1486,13 @@
     var parts = bar.parts || {};
     var oldParts = previousParts || {};
     var oldBaseline = previousBaseline || {};
+    var healthValue = retainPanelBaseline(
+      parts.healthValue, oldParts.healthValue, oldBaseline.healthValue, NATIVE_READOUT_STYLES,
+    );
+    // Canvas compensation is our own inline margin, not the label's native
+    // baseline. Preserve the pre-rebase value when capturing a generation.
+    if (bar.stockHealthRebase && bar.stockHealthRebase.panel === parts.healthValue)
+      healthValue.marginRight = bar.stockHealthRebase.marginRight;
     return {
       name: retainPanelBaseline(parts.name, oldParts.name, oldBaseline.name, NAME_STYLES),
       primary: retainPanelBaseline(
@@ -1505,12 +1525,7 @@
         oldBaseline.ultBackground,
         ["opacity"],
       ),
-      healthValue: retainPanelBaseline(
-        parts.healthValue,
-        oldParts.healthValue,
-        oldBaseline.healthValue,
-        NATIVE_READOUT_STYLES,
-      ),
+      healthValue: healthValue,
       healthValuePulseClasses:
         parts.healthValue === oldParts.healthValue && oldBaseline.healthValuePulseClasses
           ? oldBaseline.healthValuePulseClasses
@@ -1552,6 +1567,15 @@
     var baseline = (bar.panelBaseline || {}).name;
     applyTextOutline(panel, config.nameOutlineWidth, "#10130Dee",
       baseline, bar.applied, "nametextShadow");
+    var outlineRoom = Math.max(2, Math.ceil(config.nameOutlineWidth));
+    setStyle(panel, "padding", "0px " + outlineRoom + "px", bar.applied, "namepadding");
+    // Symmetric padding preserves the center. Expand the stock width limit by
+    // the added guard so increasing outline strength cannot shrink the name.
+    var maxWidth = Number.parseFloat(baselineStyle(baseline, "maxWidth"));
+    if (!Number.isFinite(maxWidth)) maxWidth = 170;
+    setStyle(panel, "maxWidth", pixels(maxWidth + 2 * (outlineRoom - 2)),
+      bar.applied, "namemaxWidth");
+    setStyle(panel, "overflow", "noclip", bar.applied, "nameoverflow");
     var enemy = bar.role === "enemy";
     var colorEnabled = enemy ? config.enemyNameColorEnabled : config.allyNameColorEnabled;
     var color = colorEnabled ? (enemy ? config.enemyNameColor : config.allyNameColor) : "";
