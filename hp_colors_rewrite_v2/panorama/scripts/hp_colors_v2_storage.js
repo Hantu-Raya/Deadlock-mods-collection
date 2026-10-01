@@ -37,7 +37,12 @@
   // A lost reply fails the request; the editor's save retry is the only
   // retry layer. Earlier "lost titles" were replies from the about:blank
   // placeholder, not a lossy channel (live console.log 2026-09-26).
-  var READY_TIMEOUT_SEC = 20;
+  // Live console.log 2026-10-01 09:10: on a +map launch the page raised no
+  // URL event at all within 20 s, so saving stayed off for the whole match.
+  // A navigation sent before Steam creates the browser surface can vanish
+  // silently; it is asked again until any page event shows the surface.
+  var READY_TIMEOUT_SEC = 60;
+  var RENAVIGATE_SEC = 8;
   var EXCHANGE_TIMEOUT_SEC = 5;
   // Injects anyway if the loaded listing raises no title in this time.
   var INJECT_FALLBACK_SEC = 2;
@@ -276,6 +281,9 @@
     var injectTimer = null;
     var navigateTimer = null;
     var exchangeTimer = null;
+    var renavigateTimer = null;
+    var urlSeen = false;
+    var lateLogged = false;
     var serial = 0;
     var active = null;
     var queue = [];
@@ -293,6 +301,7 @@
       injectTimer = clearTimer(injectTimer);
       navigateTimer = clearTimer(navigateTimer);
       exchangeTimer = clearTimer(exchangeTimer);
+      renavigateTimer = clearTimer(renavigateTimer);
     }
 
     function run(code) {
@@ -457,14 +466,37 @@
         panel.SetURL(PAGE_URLS[navigations - 1]);
       } catch {
         markUnavailable("navigate");
+        return;
       }
+      if (!urlSeen) renavigateTimer = schedule(RENAVIGATE_SEC, renavigate);
+    }
+
+    // Re-sends the same address while the surface has raised no event; a
+    // load already under way would have reported its URL by now.
+    function renavigate() {
+      renavigateTimer = null;
+      if (ready || unavailable || urlSeen) return;
+      log("no page event yet; asking again (load " + navigations + ")");
+      try {
+        panel.SetURL(PAGE_URLS[navigations - 1]);
+      } catch {
+        markUnavailable("navigate");
+        return;
+      }
+      renavigateTimer = schedule(RENAVIGATE_SEC, renavigate);
     }
 
     // Each address is loaded once; a load that ends anywhere but file: moves
     // on to the next address.
     function onUrl(panelOrUrl, eventUrl) {
-      if (ready || unavailable) return;
       var url = String(arguments.length > 1 ? eventUrl : panelOrUrl || "");
+      if (unavailable && !lateLogged) {
+        lateLogged = true;
+        log("late page event after giving up: " + url.slice(0, 40));
+      }
+      if (ready || unavailable) return;
+      urlSeen = true;
+      renavigateTimer = clearTimer(renavigateTimer);
       pageUrl = url;
       if (isStoragePage(url)) {
         // A late commit wins over a pending move to the next address.
