@@ -77729,7 +77729,7 @@
 		m_bStartTrained = true
 		m_iMaxLevel = 1
 		m_eAbilityActivation = "CITADEL_ABILITY_ACTIVATION_PRESS"
-		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_BREAK_INVISIBILITY | CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NOT_SILENCABLE"
+		m_AbilityBehaviorsBits = "CITADEL_ABILITY_BEHAVIOR_DONT_BREAK_INVISIBILITY | CITADEL_ABILITY_BEHAVIOR_CHANNELLED | CITADEL_ABILITY_BEHAVIOR_NOT_SILENCABLE | CITADEL_ABILITY_BEHAVIOR_CANNOT_CANCEL_DURING_CHANNEL"
 		m_vTeleportOffset = [ 180, 0, 0 ]
 		m_vStartingOffset = [ 0, 130, -30 ]
 		m_flMinPushIntoWallDot = 0.5
@@ -77752,6 +77752,20 @@
 		m_ExitTunnelSound = soundevent:"MoKrill.Burrow.Modifier.Start"
 		m_EnterParticle = resource_name:"particles/abilities/digger/digger_burrow_start.vpcf"
 		m_ExitParticle = resource_name:"particles/abilities/digger/digger_burrow_start.vpcf"
+		m_HudSharedStyle = resource_name:"panorama/styles/ability_hud_elements/abilities_mokrill.vcss"
+		m_HUDPanel = 
+		{
+			m_vecHUDElements = 
+			[
+				{
+					m_eType = "CITADEL_ABILITY_HUD_ELEMENT_TYPE_PROGRESS"
+					m_strContext = "channel"
+					m_Layout = "file://{resources}/layout/ability_hud_elements/element_progress_bar_text.vxml"
+					m_Style = resource_name:"panorama/styles/ability_hud_elements/abilities_mokrill.vcss"
+					m_bReverseProgress = true
+				},
+			]
+		}
 	}
 	ability_melee_digger = 
 	{
@@ -183337,6 +183351,7 @@
 			]
 			m_eModifierDisplayLocaiton = "MODIFIER_DISPLAY_BOTTOM_LEFT"
 			m_eHudDisplayLocation = "DISPLAY_HUD_NONE"
+			m_sLocalizationName = "upgrade_non_player_bonus_sacrifice"
 		}
 		m_CastTargetEffect = resource_name:"particles/upgrades/cultist_sacrifice_cast.vpcf"
 		m_strCastSound = soundevent:"Mods.Weapon.CultistSacrifice.Cast"
@@ -187728,7 +187743,7 @@
 					},
 					{
 						m_strPropertyName = "BuildUpPerShot"
-						m_strBonus = "0.3"
+						m_strBonus = "-0.2"
 					},
 				]
 			}
@@ -197421,6 +197436,7 @@
 					_my_subclass_name = "modifier_item_bleeding_bullets_damageovertime"
 					m_strSmallIconCssClass = "bleeding_dot"
 					m_strParticleEffect = resource_name:"particles/weapon_fx/burning_bullets_tgt.vpcf"
+					m_sLocalizationName = "modifier_item_burning_bullets_damageovertime"
 					m_sAmbientLoopingSound = soundevent:"StatusEffects.Bleeding"
 					m_vecAutoRegisterModifierValueFromAbilityPropertyName = 
 					[
@@ -197476,7 +197492,7 @@
 					},
 					{
 						m_strPropertyName = "BuildUpPerShot"
-						m_strBonus = "0.72"
+						m_strBonus = "-0.48"
 					},
 					{
 						m_strPropertyName = "HealAmpReceivePenaltyPercent"
@@ -263198,6 +263214,12 @@
 			m_strHintText = "modifier_citadel_root"
 			m_eHudDisplayLocation = "DISPLAY_HUD_CENTER"
 			m_strParticleEffect = resource_name:"particles/abilities/priest/priest_snaptrap_root.vpcf"
+		}
+		m_UntargetableModifier = subclass:
+		{
+			_my_subclass_name = "modifier_untargetable"
+			_class = "modifier_base"
+			m_nEnabledStateMask = "MODIFIER_STATE_IGNORED_BY_NPC_TARGETING"
 		}
 		m_strDestroyedSound = soundevent:"Priest.Trap.Destroy"
 		m_flHorizontalSpawnOffset = -40.0

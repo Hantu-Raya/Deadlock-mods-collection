@@ -15,6 +15,7 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root "vpk cli\vpkeditcli.exe")
 )
 $addons = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
+$stockPak01 = Join-Path (Split-Path $addons -Parent) "pak01_dir.vpk"
 $python = (Get-Command py.exe -ErrorAction SilentlyContinue).Source
 $sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
 $dateTag = Get-Date -Format 'MM_dd'
@@ -213,11 +214,25 @@ function Test-AbilityBehaviorState {
 }
 
 function Invoke-AbilityCompiler {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$InputFile,
+        [Parameter(Mandatory = $true)]
+        [string]$CompiledSource
+    )
+
     if (Test-Path $modCompiled) { Remove-Item -Recurse -Force $modCompiled }
     Write-Host "[compile] abilities" -ForegroundColor Cyan
     $compiledActive = Join-Path $modCompiled "scripts\abilities.vdata_c"
     $compiledPassive = Join-Path $modCompiled "scripts\abilities2.vdata_c"
     Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $modSrc -RequiredOutputs @($compiledActive, $compiledPassive) -TimeoutSeconds 180 -HiddenWindow
+
+    # The Dota compiler emits no RERL for Deadlock icons; without it the game
+    # loads ~560 ability/item icon textures on first HUD use instead of with the VData.
+    & $python (Join-Path $modScripts "inject_stock_external_refs.py") $CompiledSource (Join-Path $modScripts $InputFile) $stockVData
+    if ($LASTEXITCODE -ne 0) {
+        throw "External reference injection failed for $InputFile"
+    }
 }
 
 function Stage-And-Pack {
@@ -275,6 +290,15 @@ $inputBaselines = @{}
 $baselineDir = Join-Path ([System.IO.Path]::GetTempPath()) ("deadlock_abilities_baseline_" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $baselineDir -Force | Out-Null
 
+if (-not (Test-Path -LiteralPath $stockPak01)) {
+    throw "Stock Deadlock pak01_dir.vpk not found: $stockPak01"
+}
+$stockVData = Join-Path $baselineDir "stock_abilities.vdata_c"
+& $vpkeditcli --no-progress --extract "scripts/abilities.vdata_c" --output $stockVData $stockPak01 | Out-Null
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $stockVData)) {
+    throw "Failed to extract stock scripts/abilities.vdata_c from $stockPak01"
+}
+
 foreach ($inputFile in $inputFiles) {
     $inputPath = Join-Path $modScripts $inputFile
     Remove-RootIncludeBlock -InputPath $inputPath
@@ -293,7 +317,7 @@ foreach ($spec in $pakSpecs) {
         Write-Host "[transform] skip for $($spec.InputFile)" -ForegroundColor Cyan
     }
     Test-AbilityBehaviorState -InputFile $spec.InputFile -BehaviorState $spec.BehaviorState
-    Invoke-AbilityCompiler
+    Invoke-AbilityCompiler -InputFile $spec.InputFile -CompiledSource $spec.CompiledSource
     Stage-And-Pack -StageDir $spec.StageDir -CompiledSource $spec.CompiledSource -VpkOut $spec.VpkOut
 }
 

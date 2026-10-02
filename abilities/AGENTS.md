@@ -15,6 +15,7 @@ behavior bits / targeting metadata for quick-cast-style behavior.
 | `scripts/active.py` | Removes passive flags and injects quick-cast behavior bits / targeting location for named abilities. |
 | `scripts/active_no_behavior.py` | Imports `active.py` but disables/removes the behavior-bit injection path. |
 | `scripts/passive.py` | Adds passive flags (shows in passive area) |
+| `scripts/inject_stock_external_refs.py` | Build step: copies the stock RERL (icon texture refs) into each compiled `vdata_c`; fails if source icons differ from the installed game. |
 | `scripts/active.bat` | Windows wrapper for active.py |
 | `scripts/active_no_behavior.bat` | Windows wrapper for active_no_behavior.py |
 | `scripts/passive.bat` | Windows wrapper for passive.py |
@@ -73,4 +74,6 @@ checkouts.
 - If `py` is missing, resolve a real Python install before retrying the build; do not keep rerunning the same failing command.
 - The Python transforms mutate their input VData when no output argument is provided. Work from the wrapper flow or a disposable copy if you need to preserve a baseline.
 - `_include` block must be removed before processing (restored after).
+- The Dota resourcecompiler emits no RERL block for Deadlock icons (DATA is otherwise identical to stock apart from stripped `_editor`). Without it, ~560 ability/item icon textures load on first HUD use instead of with the VData, a likely hitch source. The wrapper extracts stock `scripts/abilities.vdata_c` from `citadel/pak01_dir.vpk` and injects its RERL after every compile.
+- An injection failure saying icons differ means the baseline no longer matches the installed game: rerun with `-RefreshFromSteamTracking`. A stale baseline also desyncs client ability data from the server.
 - Scripts in `.gitignore` but tracked from before ignore was added.
