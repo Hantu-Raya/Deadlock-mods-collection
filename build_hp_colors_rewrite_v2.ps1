@@ -2,6 +2,8 @@
 param(
     [switch]$SkipDeploy,
     [switch]$ShowRankBarebones,
+    # Dependency pak89 to verify; defaults to the installed addon, else the repo build.
+    [string]$ShowRankBarebonesPak = '',
     [switch]$SkipPanoramaTests
 )
 
@@ -98,9 +100,14 @@ foreach ($validator in $validators) {
 }
 if ($ShowRankBarebones) {
     $barebonesLayout = Join-Path $root 'showrank_barebones\panorama\layout\hud_escape_menu.xml'
-    $barebonesPak = Join-Path (Split-Path $vpkDest -Parent) 'pak89_dir.vpk'
+    $barebonesPak = $ShowRankBarebonesPak
+    if ([string]::IsNullOrWhiteSpace($barebonesPak)) {
+        $barebonesPak = Join-Path (Split-Path $vpkDest -Parent) 'pak89_dir.vpk'
+        if (-not (Test-Path -LiteralPath $barebonesPak)) { $barebonesPak = Join-Path $root 'showrank_barebones_dir.vpk' }
+    }
     Require-Path -Path $barebonesLayout -Label 'ShowRank Barebones Escape layout'
-    Require-Path -Path $barebonesPak -Label 'Installed ShowRank Barebones pak89'
+    Require-Path -Path $barebonesPak -Label 'ShowRank Barebones pak89 (install it or build build_showrank_barebones.ps1)'
+    Write-Host "  ShowRank Barebones dependency -> $barebonesPak" -ForegroundColor Cyan
     $barebonesTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $barebonesPak -Source2ViewerPath $viewer
     Assert-PackedVpkAssets -Tree $barebonesTree -Label 'ShowRank Barebones dependency' -Required @(
         'panorama/scripts/showrank_barebones.vjs_c',

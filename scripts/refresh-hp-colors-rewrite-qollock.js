@@ -57,7 +57,7 @@ function extractElementById(xml, tagName, id) {
 function setAttribute(tag, name, value, label) {
   const pattern = new RegExp(`\\s${name}="[^"]*"`);
   if (pattern.test(tag)) return tag.replace(pattern, ` ${name}="${value}"`);
-  return replaceOnce(tag, />$/, ` ${name}="${value}">`, label);
+  return replaceOnce(tag, /\s*(\/?)>$/, (_, slash) => ` ${name}="${value}"${slash ? ' />' : '>'}`, label);
 }
 
 function prefixHandler(tag, name, prefix, label) {
@@ -145,6 +145,18 @@ function buildEscapeMenu(sourceXml, canonicalXml, packageHash, sourceLabel = 'pa
     `\n\t\t<include src="s2r://panorama/styles/${styleAsset}" />`,
     'Escape-menu style anchor',
   );
+  if (isV2) {
+    const nativePickerStyle = 's2r://panorama/styles/citadel_ui_color_picker.vcss_c';
+    if (!sourceXml.includes(nativePickerStyle)) {
+      xml = insertAfter(
+        xml,
+        /^\s*<include src="s2r:\/\/panorama\/styles\/hp_colors_v2_menu\.vcss_c" \/>/m,
+        `\n\t\t<include src="${nativePickerStyle}" />`,
+        'native picker style anchor',
+      );
+    }
+    requireMatchCount(xml, /s2r:\/\/panorama\/styles\/citadel_ui_color_picker\.vcss_c/g, 1, 'native picker stylesheet');
+  }
   const hpStorePanel = extractElementById(canonicalXml, 'Panel', storePanelId);
   const scriptIncludes = scriptAssets
     .concat('qollock_hp_colors_bridge.vjs_c')

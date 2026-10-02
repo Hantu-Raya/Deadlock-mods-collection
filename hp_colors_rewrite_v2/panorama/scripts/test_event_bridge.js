@@ -26,7 +26,8 @@
 
   function queueSnapshot(record) {
     if (!relay || !relay.IsValid()) {
-      if (root.type !== "Panel" || context.type !== "ClientUIDialogPanel")
+      if ((root.paneltype || root.type) !== "Panel" ||
+          (context.paneltype || context.type) !== "ClientUIDialogPanel")
         throw new Error("Expected ClientUIDialogPanel with a plain Panel parent");
       relay = $.CreatePanel("Panel", root, "HPV2EventRelay");
       relay.AddClass("HPV2BridgeRelay");

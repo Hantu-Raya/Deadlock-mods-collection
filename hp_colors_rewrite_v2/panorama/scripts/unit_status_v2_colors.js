@@ -21,6 +21,25 @@
   var LEVEL_BASE_MARGIN_TOP = 67.5;
   var UNIT_INFO_BASE_MARGIN_LEFT = 50;
   var UNIT_INFO_BASE_MARGIN_TOP = 67;
+  // Stock #CriticalIndicator and #AssassinateIndicator: center-aligned with
+  // margin-right 30 / margin-top 86, so their centers sit at canvas center
+  // -15px, 21.5px left of the 79x18 player bar center. CRITICAL is 50x~16
+  // (center 11px below the bar's bottom edge); ASSASSINATE's 8px label about
+  // 40x10 (8px below). The renderer translates their owned full-canvas
+  // anchors (never their margins, which relayout the world panel) and adds
+  // the user's unscaled X/Y offsets, keeping the label inside the canvas.
+  var STATUS_TAG_BAR_DX = -21.5;
+  var STATUS_TAG_BAR_HALF_HEIGHT = 9;
+  var STATUS_TAGS = [
+    { part: "critical", anchor: "criticalAnchor", gap: 11, halfWidth: 25, halfHeight: 8,
+      offsetX: "criticalOffsetX", offsetY: "criticalOffsetY" },
+    { part: "assassinate", anchor: "assassinateAnchor", gap: 8, halfWidth: 20, halfHeight: 5,
+      offsetX: "assassinateOffsetX", offsetY: "assassinateOffsetY" },
+  ];
+  // Written explicitly on release: a null inline write may not clear in game.
+  var STATUS_TAG_STOCK_TRANSFORM = "translate3d(0px, 0px, 0px)";
+  var STATUS_TAG_STOCK_SCALE = "1";
+  var STATUS_TAG_TOP = 86;
   // Accessory panels rebased onto the full canvas; property names are
   // precomputed so the per-tick rebase allocates nothing.
   var STOCK_ACCESSORIES = [
@@ -103,7 +122,8 @@
     { minimum: 35, color: "#8b0000" },
   ];
   var KIND_FACTS = {
-    building: ["building", "CLASS_DESTROYABLE_BUILDING"],
+    building: ["building", "CLASS_DESTROYABLE_BUILDING", "boss_tier1",
+      "boss_tier2", "boss_tier3", "boss_barracks", "barracks"],
     player: ["player", "CLASS_PLAYER"],
     npc: [
       "creature",
@@ -114,9 +134,6 @@
       "neutral_normal",
       "neutral_strong",
       "neutral_vault",
-      "boss_tier1",
-      "boss_tier2",
-      "boss_tier3",
       "midboss",
     ],
   };
@@ -149,7 +166,19 @@
   var NATIVE_READOUT_CLASSES = [
     "HPColorsRewritePulse", "HPColorsRewritePulseSubtle", "HPColorsRewritePulseIntense",
   ];
-  var NAME_STYLES = ["color", "fontSize", "maxHeight", "height", "marginLeft", "marginTop", "textShadow", "padding", "maxWidth", "overflow"];
+  var NAME_STYLES = ["color", "fontSize", "maxHeight", "height", "transform", "textShadow", "padding", "maxWidth", "overflow", "horizontalAlign", "textAlign"];
+  // Each option names the direction text extends from its anchor: LEFT keeps
+  // the right edge fixed (q = 1, panel right-aligned) so longer text grows
+  // left; RIGHT keeps the left edge fixed. q is the edge fraction at anchor.
+  var ALIGN_FRACTION = { left: 1, center: 0.5, right: 0 };
+  var PANEL_ALIGN = { left: "right", center: "center", right: "left" };
+  // HP-text point relative to the visual bar center, in UnitStatus CSS px:
+  // the earlier right-anchored row edge (canvas center +40, ally +30, top 66)
+  // minus the 6.5px player bar inset and the 74px bar center.
+  var READOUT_ENEMY_GAP = 33.5;
+  var READOUT_ALLY_GAP = 23.5;
+  var READOUT_RISE = 8;
+  var READOUT_ROW_PADDING = 4;
   var READOUT_FIELDS = ["Visible", "Size", "Font", "OffsetX", "OffsetY",
     "ColorMode", "Mode", "Low", "Mid", "High", "OutlineWidth"];
   // Role -> config key per readout field; enemy keys predate the ally copy.
@@ -555,6 +584,8 @@
     var ultBackground = directChild(unitInfo, "unit_info_bg");
     var counterContainer = directChild(windowRoot, "hp_counter_container");
     var counterRow = findWithin(counterContainer, "hp_counter_row");
+    var criticalAnchor = directChild(windowRoot, "HPV2CriticalAnchor");
+    var assassinateAnchor = directChild(windowRoot, "HPV2AssassinateAnchor");
     return {
       windowRoot: windowRoot,
       healthbars: healthbars,
@@ -563,10 +594,15 @@
       infoHealth: infoHealth,
       unitStatus: unitStatus,
       name: directChild(windowRoot, "name"),
+      criticalAnchor: criticalAnchor,
+      critical: directChild(criticalAnchor, "CriticalIndicator"),
+      assassinateAnchor: assassinateAnchor,
+      assassinate: directChild(assassinateAnchor, "AssassinateIndicator"),
       fill: directChild(inner, "unit_healthbar_lagging"),
       healing: directChild(inner, "unit_healthbar_healing"),
       delta: directChild(inner, "unit_healthbar_delta"),
       bulletShield: directChild(inner, "unit_healthbar_bullet_shield"),
+      armor: directChild(inner, "unit_healthbar_ratking_armor"),
       pulseOverlay: directChild(inner, "hp_colors_pulse_overlay"),
       pipLines: directChild(primary, "UnitHealthbarLines"),
       killMarker: directChild(primary, "hp_colors_kill_marker"),
@@ -870,6 +906,7 @@
   }
 
   function visibleHealthFraction(fill, innerWidth) {
+    if (!isValid(fill)) return 0;
     if (innerWidth <= 0) return 0;
     var width = cssLayout(fill, "actuallayoutwidth", "x");
     var fraction = Number.isFinite(width) && width >= 0
@@ -917,6 +954,34 @@
     if (inlineWidth !== null) fraction = Math.min(fraction, inlineWidth);
     return Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
   }
+  // Right edge of a visible shield/armor layer as a fraction of the inner bar,
+  // or -1 when absent. The fill (z-index 3) covers anything left of its edge.
+  function healthLayerRight(panel, innerWidth) {
+    if (!hasClass(panel, "HasHealth") ||
+        readHealthSignal(panel, "visibility", true) === "collapse" ||
+        readHealthSignal(panel, "visible", false) === "false") return -1;
+    var length = visibleHealthFraction(panel, innerWidth);
+    if (!(length > 0)) return -1;
+    var x = cssLayout(panel, "actualxoffset", "x");
+    var left = Number.isFinite(x) && x > 0 ? x / innerWidth : 0;
+    var clip = /^rect\s*\(\s*([^)]*)\)$/i.exec(readHealthSignal(panel, "clip", true));
+    if (clip) {
+      var edges = clip[1].trim().split(clip[1].indexOf(",") >= 0 ? /\s*,\s*/ : /\s+/);
+      var clipLeft = edges.length === 4
+        ? healthLengthFraction(edges[3], cssLayout(panel, "actuallayoutwidth", "x")) : null;
+      if (clipLeft !== null) left += clipLeft;
+    }
+    return left + length;
+  }
+
+  // Shield and armor shrink the HP share of the bar only beyond the fill edge,
+  // whether drawn after the fill or behind it from x=0.
+  function correctedHealthFraction(fill, shieldRight, armorRight) {
+    var excluded = Math.max(0, Math.min(1, Math.max(shieldRight, armorRight)) - fill);
+    var fraction = fill / Math.max(fill, 1 - excluded);
+    return Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
+  }
+
 
   function sampleHealthPercent(bar, rebased) {
     sampleBarGeometry(bar, rebased);
@@ -932,6 +997,9 @@
     var previousFillWidth = bar.sampleFillWidth;
     var fillChanged = !sampled || fillWidth !== previousFillWidth;
     var overlayPercent = Math.round(fraction * 10000) / 100;
+    fraction = correctedHealthFraction(fraction,
+      healthLayerRight(bar.parts.bulletShield, innerWidth),
+      healthLayerRight(bar.parts.armor, innerWidth));
     var overlayChanged =
       !sampled || overlayPercent !== bar.pulseOverlayPercent;
     bar.healthSampled = true;
@@ -1336,8 +1404,8 @@
       fontSize = pixels(nativePx(size));
       fontFamily = READOUT_FONTS[config[keys.Font]] || DEFAULT_READOUT_FONT;
       bar.readoutPosition = {
-        x: nativePx(config.positionX) + offsetX * config.widthScale / 100,
-        y: nativePx(config.positionY) + offsetY * config.heightScale / 100,
+        x: offsetX * config.widthScale / 100,
+        y: offsetY * config.heightScale / 100,
       };
     }
     if (keys && adoptNativeReadout(bar)) {
@@ -1373,8 +1441,9 @@
     setStyle(parts.counterAnchor, "width", "", bar.applied, "readoutAnchorWidth");
     setStyle(parts.counterAnchor, "height", "", bar.applied, "readoutAnchorHeight");
     setStyle(parts.counterAnchor, "transform", "", bar.applied, "readoutTransform");
-    setStyle(parts.counterRow, "marginRight", "", bar.applied, "readoutRight");
-    setStyle(parts.counterRow, "marginTop", "", bar.applied, "readoutTop");
+    setStyle(parts.counterRow, "transform", "", bar.applied, "readoutRowTransform");
+    // Explicit stylesheet value: a null alignment write may not clear in game.
+    setStyle(parts.counterRow, "horizontalAlign", "right", bar.applied, "readoutAlign");
   }
 
   function positionReadout(bar) {
@@ -1382,8 +1451,8 @@
     var parts = bar.parts || {};
     if (!position || !isValid(parts.counterContainer) ||
         !isValid(parts.counterAnchor) || !isValid(parts.counterRow)) return false;
-    // actuallayout* are window pixels; margins and sizes are CSS pixels.
-    // The 6722 world panel renders at window scale 2 (400x420 for 200x210).
+    // actuallayout* are window pixels; transforms and sizes are CSS pixels.
+    // The world panel renders at window scale 2 (400x420 for 200x210).
     var width = cssLayout(parts.counterContainer, "actuallayoutwidth", "x");
     var height = cssLayout(parts.counterContainer, "actuallayoutheight", "y");
     var rowWidth = cssLayout(parts.counterRow, "actuallayoutwidth", "x");
@@ -1395,30 +1464,68 @@
       bar.readoutSample = null;
       return false;
     }
-    // The row is right-aligned, so a wider or narrower engine number grows
-    // left in layout at once; only the left-edge clamp depends on rowWidth.
-    var right = Math.max(0, Math.min(Math.max(0, width - rowWidth),
-      width / 2 - (bar.role === "ally" ? 30 : 40) - position.x));
-    var top = Math.max(0, Math.min(Math.max(0, height - rowHeight), 66 + position.y));
+    var align = config.hpTextAlign === "right" || config.hpTextAlign === "center"
+      ? config.hpTextAlign : "left";
+    var q = ALIGN_FRACTION[align];
+    visualBarRect(bar, width);
+    var visual = bar.visualRect;
+    // The row edge sits right of the bar center by the earlier right-anchored
+    // gap (40/30px canvas edge minus the 6.5px player inset), 8px above it.
+    var gap = bar.role === "ally" ? READOUT_ALLY_GAP : READOUT_ENEMY_GAP;
+    var pointX = visual.centerX + gap;
+    var pointY = visual.centerY - READOUT_RISE;
+    // The unmeasured fallback is already canvas-relative.
+    if (bar.geometryReady) {
+      pointX = windowCss(parts, pointX, "x");
+      pointY = windowCss(parts, pointY, "y");
+    }
+    // Every mode keeps the text (inside the row padding) at the same point;
+    // LEFT (the default) reproduces the earlier right-anchored row edge exactly.
+    var anchor = pointX + position.x + 2 * (q - 1) * READOUT_ROW_PADDING;
+    // Native alignment grows the row from the anchor, so text width matters
+    // only once the row would cross a canvas edge.
+    var low = q * rowWidth;
+    var high = width - (1 - q) * rowWidth;
+    if (high < low) anchor = low;
+    else if (anchor < low) anchor = low;
+    else if (anchor > high) anchor = high;
+    var shift = anchor - q * width;
+    var top = Math.max(0, Math.min(Math.max(0, height - rowHeight), pointY + position.y));
     var sample = bar.readoutSample;
     var changed = !sample || sample.width !== width || sample.height !== height ||
       sample.rowWidth !== rowWidth || sample.rowHeight !== rowHeight ||
-      sample.right !== right || sample.top !== top;
+      sample.shift !== shift || sample.top !== top || sample.align !== align;
     if (changed) {
       sample = bar.readoutSample = {
         width: width, height: height, rowWidth: rowWidth, rowHeight: rowHeight,
-        right: right, top: top,
+        shift: shift, top: top, align: align,
         widthPx: pixels(width), heightPx: pixels(height),
-        rightPx: pixels(right), topPx: pixels(top),
+        transform: "translate3d(" + pixels(shift) + ", " + pixels(top) + ", 0px)",
       };
     }
     // Cached native readback also retries rejected writes and repairs drift.
     setStyle(parts.counterAnchor, "width", sample.widthPx, bar.applied, "readoutAnchorWidth");
     setStyle(parts.counterAnchor, "height", sample.heightPx, bar.applied, "readoutAnchorHeight");
     setStyle(parts.counterAnchor, "transform", "", bar.applied, "readoutTransform");
-    setStyle(parts.counterRow, "marginRight", sample.rightPx, bar.applied, "readoutRight");
-    setStyle(parts.counterRow, "marginTop", sample.topPx, bar.applied, "readoutTop");
+    setStyle(parts.counterRow, "horizontalAlign", PANEL_ALIGN[align], bar.applied, "readoutAlign");
+    setStyle(parts.counterRow, "transform", sample.transform, bar.applied, "readoutRowTransform");
     return changed;
+  }
+
+  // Bar geometry is UnitStatus-local CSS px; the counter row is WindowRoot CSS px.
+  // They differ only under stock UnitStatus ui-scale (180% objectives, 80% neutrals).
+  function windowCss(parts, value, axis) {
+    try {
+      var key = "actualuiscale_" + axis;
+      var windowScale = Number(parts.windowRoot[key]);
+      var ratio = Number(parts.unitStatus[key]) / windowScale;
+      if (!(windowScale > 0) || !(ratio > 0) || ratio === 1) return value;
+      var offset = axis === "x" ? "actualxoffset" : "actualyoffset";
+      var origin = (Number(parts.unitStatus[offset]) || 0) + (Number(parts.infoHealth[offset]) || 0);
+      return origin / windowScale + value * ratio;
+    } catch {
+      return value;
+    }
   }
 
   function cssLayout(panel, property, axis) {
@@ -1541,11 +1648,20 @@
     var restored = true;
     for (var index = 0; index < NAME_STYLES.length; index++) {
       var property = NAME_STYLES[index];
-      var value = baselineStyle(baseline, property);
+      var value = nameBaselineStyle(baseline, property);
       setStyle(bar.parts.name, property, value, bar.applied, "name" + property);
       if (bar.applied["name" + property] !== value) restored = false;
     }
     bar.nameOwned = !restored;
+  }
+
+  // Clearing an inline alignment (null) does not reliably return the panel to
+  // its stylesheet value in game: a name moved LEFT stayed left after CENTER.
+  // Stock #name has no inline alignment and is centered both ways, so restore
+  // that value explicitly instead of a captured (possibly owned) inline one.
+  var NAME_STOCK_ALIGN = { horizontalAlign: "center", textAlign: "center" };
+  function nameBaselineStyle(baseline, property) {
+    return NAME_STOCK_ALIGN[property] || baselineStyle(baseline, property);
   }
 
   function applyTextOutline(panel, width, color, baseline, cache, key) {
@@ -1558,8 +1674,12 @@
 
   function applyPlayerName(bar) {
     var panel = bar.parts.name;
+    var enemy = bar.role === "enemy";
+    var colorEnabled = enemy ? config.enemyNameColorEnabled : config.allyNameColorEnabled;
+    var aligned = config.nameAlign === "left" || config.nameAlign === "right";
     if (!config.enabled || bar.surface !== "player" || !config.playerNamesVisible ||
-        !isValid(panel)) {
+        !isValid(panel) || (!aligned && !config.nameOffsetX && !config.nameOffsetY &&
+          !colorEnabled && config.nameSize === 14 && config.nameOutlineWidth === 5)) {
       clearPlayerNameOwnership(bar);
       return;
     }
@@ -1576,8 +1696,6 @@
     setStyle(panel, "maxWidth", pixels(maxWidth + 2 * (outlineRoom - 2)),
       bar.applied, "namemaxWidth");
     setStyle(panel, "overflow", "noclip", bar.applied, "nameoverflow");
-    var enemy = bar.role === "enemy";
-    var colorEnabled = enemy ? config.enemyNameColorEnabled : config.allyNameColorEnabled;
     var color = colorEnabled ? (enemy ? config.enemyNameColor : config.allyNameColor) : "";
     // Stock spectator color uses hexadecimal alpha 80, not 80 percent.
     if (color && bar.spectating) color += "80";
@@ -1590,18 +1708,49 @@
       baselineStyle(baseline, "maxHeight"), bar.applied, "namemaxHeight");
     setStyle(panel, "height", sized ? "fit-children" : baselineStyle(baseline, "height"),
       bar.applied, "nameheight");
-    var width = cssLayout(bar.parts.windowRoot, "actuallayoutwidth", "x");
-    var height = cssLayout(bar.parts.windowRoot, "actuallayoutheight", "y");
+    setStyle(panel, "horizontalAlign", aligned ? PANEL_ALIGN[config.nameAlign] :
+      nameBaselineStyle(baseline, "horizontalAlign"), bar.applied, "namehorizontalAlign");
+    setStyle(panel, "textAlign", aligned ? PANEL_ALIGN[config.nameAlign] :
+      nameBaselineStyle(baseline, "textAlign"), bar.applied, "nametextAlign");
+    if (!aligned && !config.nameOffsetX && !config.nameOffsetY) {
+      setStyle(panel, "transform", baselineStyle(baseline, "transform"),
+        bar.applied, "nametransform");
+      return;
+    }
+    var windowWidth = cssLayout(bar.parts.windowRoot, "actuallayoutwidth", "x");
+    var windowHeight = cssLayout(bar.parts.windowRoot, "actuallayoutheight", "y");
     var nameWidth = cssLayout(panel, "actuallayoutwidth", "x");
     var nameHeight = cssLayout(panel, "actuallayoutheight", "y");
-    if (!(width > 0 && height > 0 && nameWidth > 0 && nameHeight > 0)) return;
-    var reach = Math.max(0, (width - nameWidth) / 2);
-    var x = Math.max(-reach, Math.min(reach, config.nameOffsetX));
-    var top = Math.max(0, Math.min(Math.max(0, height - nameHeight), 47 + config.nameOffsetY));
-    setStyle(panel, "marginLeft", x ? pixels(x * 2) : baselineStyle(baseline, "marginLeft"),
-      bar.applied, "namemarginLeft");
-    setStyle(panel, "marginTop", top !== 47 ? pixels(top) : baselineStyle(baseline, "marginTop"),
-      bar.applied, "namemarginTop");
+    if (windowWidth > 0 && windowHeight > 0 && nameWidth > 0 && nameHeight > 0) {
+      bar.nameWindowWidth = windowWidth;
+      bar.nameWindowHeight = windowHeight;
+      bar.nameWidth = nameWidth;
+      bar.nameHeight = nameHeight;
+      bar.nameDimensions = true;
+    } else {
+      if (!bar.nameDimensions) return;
+      windowWidth = bar.nameWindowWidth;
+      windowHeight = bar.nameWindowHeight;
+      nameWidth = bar.nameWidth;
+      nameHeight = bar.nameHeight;
+    }
+    // The name's padded edge (LEFT/RIGHT) or center stays at the canvas center
+    // plus the X offset; alignment only chooses which way longer names grow.
+    var align = config.nameAlign === "left" || config.nameAlign === "right"
+      ? config.nameAlign : "center";
+    var q = ALIGN_FRACTION[align];
+    var anchor = windowWidth / 2 + config.nameOffsetX + (2 * q - 1) * outlineRoom;
+    var low = q * nameWidth;
+    var high = windowWidth - (1 - q) * nameWidth;
+    if (high < low) anchor = (windowWidth - nameWidth) / 2 + q * nameWidth;
+    else if (anchor < low) anchor = low;
+    else if (anchor > high) anchor = high;
+    var x = anchor - q * windowWidth;
+    var top = Math.max(0, Math.min(Math.max(0, windowHeight - nameHeight),
+      47 + config.nameOffsetY));
+    setStyle(panel, "transform", x || top !== 47
+      ? "translate3d(" + pixels(x) + ", " + pixels(top - 47) + ", 0px)"
+      : baselineStyle(baseline, "transform"), bar.applied, "nametransform");
   }
 
   function clearStaminaOwnership() {
@@ -1652,6 +1801,8 @@
       );
       setStyle(staminaSurface.icons[index], "washColor",
         baselineStyle(baseline, "washColor"), cache, "washColor");
+      setStyle(staminaSurface.icons[index], "backgroundSize",
+        baselineStyle(baseline, "backgroundSize"), cache, "backgroundSize");
     }
     setOwnedClass(
       staminaSurface.container,
@@ -1724,6 +1875,7 @@
         captureStyleBaseline(icon, [
           "width",
           "height",
+          "backgroundSize",
           "backgroundColor",
           "borderColor",
           "washColor",
@@ -1761,11 +1913,11 @@
     var transformOwned =
       config.staminaOffsetX !== 0 || config.staminaOffsetY !== 0;
     var transform = transformOwned
-      ? "translateX(" +
+      ? "translate3d(" +
         String(nativePx(config.staminaOffsetX)) +
-        "px) translateY(" +
+        "px, " +
         String(nativePx(config.staminaOffsetY)) +
-        "px)"
+        "px, 0px)"
       : baselineStyle(staminaSurface.containerBaseline, "transform");
     var color = colorOwned ? config.enemyStaminaColor : "";
     setStyle(
@@ -1790,8 +1942,8 @@
       setStyle(
         staminaSurface.icons[index],
         "width",
-        widthOwned
-          ? pixels(nativePx(config.staminaWidth))
+        widthOwned || (!shaped && heightOwned)
+          ? pixels(shaped ? nativePx(config.staminaWidth) : 8 * config.staminaWidth / 110)
           : baselineStyle(baseline, "width"),
         cache,
         "width",
@@ -1799,12 +1951,15 @@
       setStyle(
         staminaSurface.icons[index],
         "height",
-        heightOwned
-          ? pixels(nativePx(config.staminaHeight))
+        heightOwned || (!shaped && widthOwned)
+          ? pixels(shaped ? nativePx(config.staminaHeight) : 12 * config.staminaHeight / 44.8)
           : baselineStyle(baseline, "height"),
         cache,
         "height",
       );
+      setStyle(staminaSurface.icons[index], "backgroundSize",
+        !shaped && (widthOwned || heightOwned) ? "100% 100%" :
+          baselineStyle(baseline, "backgroundSize"), cache, "backgroundSize");
       var empty = false;
       if (colorOwned || shaped) {
         var parent = staminaSurface.iconParents[index];
@@ -2129,7 +2284,7 @@
     bar.nativeReadoutPulseOwned = active;
   }
 
-  function clearPulse(bar) {
+  function clearPulse(bar, keepReadout) {
     if (
       !bar.pulseActive &&
       !bar.colorPulseActive &&
@@ -2170,7 +2325,8 @@
     clearOwnedStyle(overlay, "washColor", applied, "colorPulseWashColor");
     clearOwnedStyle(overlay, "width", applied, "colorPulseWidth");
     clearOwnedStyle(overlay, "visibility", applied, "colorPulseVisibility");
-    syncNativeReadoutPulse(bar, false, false, false, "");
+    // keepReadout: the caller re-syncs native text pulse; clearing it here would restart its animation.
+    if (!keepReadout) syncNativeReadoutPulse(bar, false, false, false, "");
     bar.pulseActive = false;
     bar.colorPulseActive = false;
     bar.pulseReadoutActive = false;
@@ -2189,7 +2345,11 @@
     overlayWidth,
   ) {
     if (!shouldPulse) {
-      clearPulse(bar);
+      if (bar.pulseActive || bar.colorPulseActive) clearPulse(bar, true);
+      syncNativeReadoutPulse(bar, !!readoutActive && nativeReadoutEnabled(bar),
+        intensity === 0, intensity === 2, duration);
+      bar.pulseReadoutActive = !!readoutActive;
+      bar.pulseDuration = readoutActive ? duration : "";
       return false;
     }
     var applied = bar.applied;
@@ -2270,17 +2430,40 @@
   }
 
 
-  function barTransformOrigin(bar) {
-    if (bar.stackWidth <= 0 || bar.stackHeight <= 0) return "50% 50%";
-    var x = ((bar.primaryX + bar.primaryWidth / 2) / bar.stackWidth) * 100;
-    var y = ((bar.primaryY + bar.primaryHeight / 2) / bar.stackHeight) * 100;
-    return (
-      String(Math.round(x * 100) / 100) +
-      "% " +
-      String(Math.round(y * 100) / 100) +
-      "%"
-    );
+  // Use the stack-centre origin so pre-scale is independent of whether Panorama
+  // honors transformOrigin. Compensate before the position transform.
+  // Sampled bounds have already been normalized by each panel's own axis scale.
+  function visualBarRect(bar, fallbackWidth) {
+    var sx = config.widthScale / 100;
+    var sy = config.heightScale / 100;
+    var cx = bar.geometryReady
+      ? bar.primaryX + bar.primaryWidth / 2
+      : (fallbackWidth || bar.canvasWidth || 200) / 2 +
+        (bar.kind === "player" ? 6.5 : 0);
+    var cy = bar.geometryReady ? bar.primaryY + bar.primaryHeight / 2 : 74;
+    var compensationX = bar.geometryReady ? (cx - bar.stackWidth / 2) * (1 - sx) : 0;
+    var compensationY = bar.geometryReady ? (cy - bar.stackHeight / 2) * (1 - sy) : 0;
+    var tx = nativePx(config.positionX) + compensationX;
+    var ty = nativePx(config.positionY) + compensationY;
+    var centerX = bar.geometryReady
+      ? bar.stackX + bar.stackWidth / 2 + (cx - bar.stackWidth / 2) * sx + tx
+      : cx + tx;
+    var centerY = bar.geometryReady
+      ? bar.stackY + bar.stackHeight / 2 + (cy - bar.stackHeight / 2) * sy + ty
+      : cy + ty;
+    var width = (bar.primaryWidth || 0) * sx;
+    var height = (bar.primaryHeight || 0) * sy;
+    var visual = bar.visualRect;
+    visual.left = centerX - width / 2;
+    visual.top = centerY - height / 2;
+    visual.width = width;
+    visual.height = height;
+    visual.centerX = centerX;
+    visual.centerY = centerY;
+    visual.translateX = tx;
+    visual.translateY = ty;
   }
+
 
   function accessoryMargin(baseline, delta) {
     return pixels(baseline + delta);
@@ -2315,12 +2498,14 @@
     var scaleY = config.heightScale / 100;
     var scaleActive = scaleX !== 1 || scaleY !== 1;
     var scale = String(scaleX) + ", " + String(scaleY);
+    visualBarRect(bar);
+    var visual = bar.visualRect;
     var transform =
-      "translateX(" +
-      String(nativePx(config.positionX)) +
-      "px) translateY(" +
-      String(nativePx(config.positionY)) +
-      "px)";
+      "translate3d(" +
+      String(visual.translateX) +
+      "px, " +
+      String(visual.translateY) +
+      "px, 0px)";
     setStyle(
       bar.parts.healthbars,
       "preTransformScale2d",
@@ -2334,7 +2519,7 @@
       bar.parts.healthbars,
       "transformOrigin",
       scaleActive
-        ? barTransformOrigin(bar)
+        ? "50% 50%"
         : bar.stockTransformOrigin || "50% 40.48%",
       bar.applied,
       "barTransformOrigin",
@@ -2347,6 +2532,7 @@
       "barTransform",
     );
 
+    applyStatusTagGeometry(bar, bar.surface === "player");
     if (bar.surface !== "player") {
       bar.geometryChanged = false;
       return;
@@ -2371,15 +2557,13 @@
     );
     if (levelValid) {
       var levelCenterX =
-        scaledBarLeft -
+        (anchor ? visual.left : scaledBarLeft) -
         (stockBarLeft - bar.levelAnchorCenterX) +
-        (anchor ? nativePx(config.positionX) : 0) +
-        nativePx(config.levelOffsetX) * scaleX;
+        nativePx(config.levelOffsetX) * (anchor ? 1 : scaleX);
       var levelCenterY =
-        stockBarCenterY -
-        (stockBarCenterY - bar.levelAnchorCenterY) * scaleY +
-        (anchor ? nativePx(config.positionY) : 0) +
-        nativePx(config.levelOffsetY) * scaleY;
+        (anchor ? visual.centerY : stockBarCenterY) -
+        (stockBarCenterY - bar.levelAnchorCenterY) * (anchor ? 1 : scaleY) +
+        nativePx(config.levelOffsetY) * (anchor ? 1 : scaleY);
       setStyle(
         bar.parts.levelContainer,
         "marginLeft",
@@ -2403,15 +2587,13 @@
     }
     if (unitInfoValid) {
       var unitInfoCenterX =
-        scaledBarLeft -
+        (anchor ? visual.left : scaledBarLeft) -
         (stockBarLeft - bar.unitInfoAnchorCenterX) +
-        (anchor ? nativePx(config.positionX) : 0) +
-        nativePx(config.ultOffsetX) * scaleX;
+        nativePx(config.ultOffsetX) * (anchor ? 1 : scaleX);
       var unitInfoCenterY =
-        stockBarCenterY -
-        (stockBarCenterY - bar.unitInfoAnchorCenterY) * scaleY +
-        (anchor ? nativePx(config.positionY) : 0) +
-        nativePx(config.ultOffsetY) * scaleY;
+        (anchor ? visual.centerY : stockBarCenterY) -
+        (stockBarCenterY - bar.unitInfoAnchorCenterY) * (anchor ? 1 : scaleY) +
+        nativePx(config.ultOffsetY) * (anchor ? 1 : scaleY);
       setStyle(
         bar.parts.unitInfo,
         "marginLeft",
@@ -2436,15 +2618,56 @@
     bar.geometryChanged = false;
   }
 
+  // Stock CRITICAL/ASSASSINATE sit below the player bar. Their own animation
+  // owns the stock panel's transform, so translate the owned full-canvas
+  // anchor around it (no layout pass), scale the stock panel uniformly
+  // without distortion, then add the user's unscaled X/Y offsets. The label
+  // stays inside the world canvas: outside it the engine stops drawing it.
+  function applyStatusTagGeometry(bar, active) {
+    var scaleX = config.widthScale / 100;
+    var scaleY = config.heightScale / 100;
+    var scale = active ? Math.round(Math.sqrt(scaleX * scaleY) * 100) / 100 : 1;
+    var width = bar.canvasWidth > 0 ? bar.canvasWidth : 200;
+    var height = bar.canvasHeight > 0 ? bar.canvasHeight : 210;
+    for (var index = 0; index < STATUS_TAGS.length; index++) {
+      var tag = STATUS_TAGS[index];
+      var transform = STATUS_TAG_STOCK_TRANSFORM;
+      if (active) {
+        var centerX = width / 2 - 15;
+        var centerY = STATUS_TAG_TOP + tag.halfHeight;
+        var dx = nativePx(config.positionX) + STATUS_TAG_BAR_DX * (scaleX - 1) +
+          config[tag.offsetX];
+        var dy = nativePx(config.positionY) + STATUS_TAG_BAR_HALF_HEIGHT * (scaleY - 1) +
+          tag.gap * (scale - 1) + config[tag.offsetY];
+        var reachX = tag.halfWidth * scale;
+        var reachY = tag.halfHeight * scale;
+        dx = Math.max(reachX - centerX, Math.min(width - reachX - centerX, dx));
+        dy = Math.max(reachY - centerY, Math.min(height - reachY - centerY, dy));
+        dx = Math.round(dx * 100) / 100;
+        dy = Math.round(dy * 100) / 100;
+        if (dx || dy) transform = "translate3d(" + pixels(dx) + ", " + pixels(dy) + ", 0px)";
+      }
+      setStyle(bar.parts[tag.anchor], "transform", transform,
+        bar.applied, tag.part + "AnchorTransform");
+      setStyle(bar.parts[tag.part], "preTransformScale2d", scale !== 1 ? String(scale) :
+        STATUS_TAG_STOCK_SCALE, bar.applied, tag.part + "Scale");
+    }
+  }
+
 
   // [part, property, cache key] for every geometry style the bar owns; the
-  // first four are shared by every surface, the accessory entries add the
-  // bar field holding their rebased margin and its stock fallback.
+  // first four are shared by every surface, status tags restore explicit
+  // stylesheet values, and the accessory entries add the bar field holding
+  // their rebased margin and its stock fallback.
   var GEOMETRY_STYLES = [
     ["healthbars", "preTransformScale2d", "barPreTransformScale2d"],
     ["healthbars", "transformOrigin", "barTransformOrigin"],
     ["healthbars", "transform", "barTransform"],
     ["infoHealth", "transformOrigin", "infoStockOrigin"],
+    ["criticalAnchor", "transform", "criticalAnchorTransform"],
+    ["critical", "preTransformScale2d", "criticalScale"],
+    ["assassinateAnchor", "transform", "assassinateAnchorTransform"],
+    ["assassinate", "preTransformScale2d", "assassinateScale"],
     ["levelContainer", "marginLeft", "levelAnchorMarginLeft", "levelAnchorBaseLeft", LEVEL_BASE_MARGIN_LEFT],
     ["levelContainer", "marginTop", "levelAnchorMarginTop", "levelAnchorBaseTop", LEVEL_BASE_MARGIN_TOP],
     ["unitInfo", "marginLeft", "unitInfoAnchorMarginLeft", "unitInfoAnchorBaseLeft", UNIT_INFO_BASE_MARGIN_LEFT],
@@ -2459,6 +2682,10 @@
       if (entry.length > 3) {
         var base = bar[entry[3]];
         value = pixels(base === undefined ? entry[4] : base);
+      } else if (entry[0] === "criticalAnchor" || entry[0] === "assassinateAnchor") {
+        value = STATUS_TAG_STOCK_TRANSFORM;
+      } else if (entry[0] === "critical" || entry[0] === "assassinate") {
+        value = STATUS_TAG_STOCK_SCALE;
       } else if (entry[1] === "transformOrigin") {
         value = bar.stockTransformOrigin || "50% 40.48%";
       } else {
@@ -2609,10 +2836,13 @@
       pulseEnabled &&
       bar.lastWidthPercent >= 0 &&
       bar.lastWidthPercent <= pulseThreshold;
-    var enemyReadoutPulse =
-      playerSurface && role === "enemy" && shouldPulse && !!readoutKeys;
-    var pulseReadoutAnimationActive =
-      enemyReadoutPulse && config.enemyPulseReadout;
+    var textShouldPulse = playerSurface &&
+      (role === "enemy" ? config.enemyPulseEnabled : config.allyPulseEnabled) &&
+      bar.lastWidthPercent >= 0 && bar.lastWidthPercent <= pulseThreshold &&
+      !!readoutKeys;
+    var enemyReadoutPulse = role === "enemy" && textShouldPulse;
+    var pulseReadoutAnimationActive = textShouldPulse &&
+      (role === "enemy" ? config.enemyPulseReadout : config.allyPulseReadout);
     var pulseReadoutModifiersActive =
       enemyReadoutPulse && config.enemyPulseReadoutModifiers;
     var pulseIntensity =
@@ -2871,7 +3101,9 @@
   // Per-panel samples; cleared on creation and whenever the part set changes.
   function resetBarSamples(bar) {
     bar.readoutPosition = null;
+    bar.nameDimensions = null;
     bar.readoutSample = null;
+    bar.visualRect = {};
     bar.kind = "unknown";
     bar.role = "other";
     bar.ambiguousRelation = false;
@@ -3005,11 +3237,11 @@
     rebaseStockGeometry(bar);
     applyPipColors(bar);
     var changed = positionReadout(bar);
-    applyPlayerName(bar);
     if (healthRefreshEnabled(bar)) {
       sampleHealthPercent(bar, true);
       changed = bar.healthPresentationChanged || changed;
     }
+    applyPlayerName(bar);
     reconcileAccessoryCenters(bar);
     if (!bar.dirty && (layoutStyleDrift(bar) || appearanceStyleDrift(bar)))
       bar.dirty = true;

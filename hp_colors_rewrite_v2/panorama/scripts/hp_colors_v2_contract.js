@@ -144,6 +144,13 @@
     nameOutlineWidth: 5,
     hudHealthColorMode: "off",
     hudHealthColor: "#FFFF00",
+    allyPulseReadout: false,
+    nameAlign: "center",
+    hpTextAlign: "left",
+    criticalOffsetX: 0,
+    criticalOffsetY: 0,
+    assassinateOffsetX: 0,
+    assassinateOffsetY: 0,
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -214,6 +221,13 @@
     "nameOutlineWidth",
     "hudHealthColorMode",
     "hudHealthColor",
+    "allyPulseReadout",
+    "nameAlign",
+    "hpTextAlign",
+    "criticalOffsetX",
+    "criticalOffsetY",
+    "assassinateOffsetX",
+    "assassinateOffsetY",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -348,9 +362,9 @@
   DEFAULTS.enemyPipColor = "#000000";
   DEFAULTS.ultOffsetX = 74;
   DEFAULTS.levelOffsetX = 74;
-  // Nearest integer raw offset: anchor compensation 38 / 0.8 = 47.5.
-  DEFAULTS.ultOffsetY = 48;
-  DEFAULTS.levelOffsetY = 48;
+  // Tuned anchored vertical position displays as -16.1% with the shipped bar.
+  DEFAULTS.ultOffsetY = -29;
+  DEFAULTS.levelOffsetY = -29;
 
   var BOOLEAN_KEYS = {
     enabled: true,
@@ -387,6 +401,7 @@
     buildingAllyEnabled: true,
     enemyPipColorEnabled: true,
     allyPipColorEnabled: true,
+    allyPulseReadout: true,
   };
 
   var COLOR_KEYS = {
@@ -434,6 +449,8 @@
     ultMode: ["follow", "custom"],
     ultimateTimerColorMode: ["follow", "fixed", "gradient"],
     readoutFont: ["default", "oracle", "pulp"],
+    nameAlign: ["left", "center", "right"],
+    hpTextAlign: ["left", "center", "right"],
     readoutColorMode: ["bar", "custom"],
     readoutMode: ["fixed", "gradient"],
     enemyPulseColorMode: ["fixed", "gradient"],
@@ -487,6 +504,10 @@
     nameSize: [8, 40],
     nameOffsetX: [-200, 200],
     nameOffsetY: [-210, 210],
+    criticalOffsetX: [-200, 200],
+    criticalOffsetY: [-210, 210],
+    assassinateOffsetX: [-200, 200],
+    assassinateOffsetY: [-210, 210],
     pipOpacity: [0, 100],
     readoutOutlineWidth: [0, 10],
     allyReadoutOutlineWidth: [0, 10],
