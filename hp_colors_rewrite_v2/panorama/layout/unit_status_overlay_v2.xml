@@ -99,11 +99,15 @@
 		</Panel>
 		<Panel id="StaminaContainer" />
 		<Panel id="RejuvenatorActive" />
-		<Panel id="CriticalIndicator">
-			<Label text="#Citadel_Hud_Critical" />
+		<Panel id="HPV2CriticalAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+			<Panel id="CriticalIndicator">
+				<Label text="#Citadel_Hud_Critical" />
+			</Panel>
 		</Panel>
-		<Panel id="AssassinateIndicator">
-			<Label text="#Citadel_Hud_Assassinate" />
+		<Panel id="HPV2AssassinateAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+			<Panel id="AssassinateIndicator">
+				<Label text="#Citadel_Hud_Assassinate" />
+			</Panel>
 		</Panel>
 		<Panel id="UnkillableIndicator">
 			<Label text="#Citadel_Hud_Unkillable" />

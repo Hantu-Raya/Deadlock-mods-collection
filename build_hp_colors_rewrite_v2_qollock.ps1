@@ -3,7 +3,7 @@ param(
     [switch]$SkipDeploy,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = '',
-    # QOLLOCK 4.0.3 package to regenerate the Escape menu from; the release zip ships pak03.
+    # QOLLOCK 4.0.3 (1 October hotfix) package to regenerate the Escape menu from; the release zip ships pak03.
     [string]$QollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk',
     [switch]$SkipPanoramaTests
 )
@@ -15,7 +15,7 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
-# QOLLOCK 4.0.3 release layout, pin, contract and bridge.
+# QOLLOCK 4.0.3 1 October hotfix release layout, pin, contract and bridge.
 $supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
 $bridgeSrc = $supportSrc
 $compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'
@@ -322,6 +322,27 @@ Assert-PackedVpkAssets `
     -Required $expectedPackedAssets `
     -Forbidden @($assetContract.forbiddenPackedAssets)
 Write-Host "  pak02 asset contract OK -> $($expectedPackedAssets.Count) required assets; forbidden assets absent" -ForegroundColor Green
+
+# Every s2r include in the composed Escape menu must resolve against pak02,
+# the pinned QOLLOCK pak or stock pak01; one missing include is a fatal
+# "Unable to load layout file" at game startup.
+$stockPak = Join-Path (Split-Path -Parent (Split-Path -Parent $vpkDest)) 'pak01_dir.vpk'
+Require-Path -Path $stockPak -Label 'Deadlock stock pak01'
+$knownAssets = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($line in @($vpkTree) + @($qollockTree) + @(Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $stockPak -Source2ViewerPath $Source2ViewerPath)) {
+    [void]$knownAssets.Add(($line -split '\s+')[0].Replace('\', '/'))
+}
+$composedEscapeMenu = Get-Content -LiteralPath (Join-Path $supportSrc 'panorama\layout\hud_escape_menu.xml') -Raw
+$unresolvedIncludes = @(
+    [regex]::Matches($composedEscapeMenu, 's2r://([^"]+)') |
+        ForEach-Object { $_.Groups[1].Value } |
+        Where-Object { -not ($knownAssets.Contains($_) -or $knownAssets.Contains("${_}_c")) } |
+        Sort-Object -Unique
+)
+if ($unresolvedIncludes.Count -gt 0) {
+    throw "Composed Escape menu includes assets absent from pak02, pinned QOLLOCK and stock pak01: $($unresolvedIncludes -join ', ')"
+}
+Write-Host "  Escape-menu includes OK -> all resolve against pak02, pinned QOLLOCK or stock" -ForegroundColor Green
 Write-Host "  Packed OK -> $vpkOut" -ForegroundColor Green
 
 if ($SkipDeploy) {

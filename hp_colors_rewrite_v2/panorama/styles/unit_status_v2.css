@@ -121,7 +121,7 @@
 
 .unit_info_panel
 {
-	width: 22px;
+	width: 20px;
 	height: width-percentage(100%);
 	vertical-align: middle;
 	horizontal-align: left;
@@ -191,6 +191,7 @@
 	background-image: url("s2r://panorama/images/hud/world_space/hero_info_panel_ultready_bg_psd.vtex");
 	background-image: url("s2r://panorama/images/hud/icons/icon_ultimate_blk.vsvg");
 	background-size: 100%;
+	background-position: center;
 	visibility: collapse;
 	brightness: 2;
 }
@@ -260,21 +261,20 @@
 	margin-left: 0px;
 	horizontal-align: center;
 	height: 18px;
-	width: 76px;
+	width: 79px;
 	vertical-align: top;
 	margin-bottom: 0px;
 }
 
 .player .UnitHealthbarContainer
 {
-	margin-left: 17px;
+	margin-left: 13px;
 }
 
 .player.health_critical .ShowCriticalState .UnitHealthbarContainer
 {
 	margin-left: 20px;
 }
-
 
 .UnitHealthbarContainer.health_total_sm
 {
@@ -286,7 +286,7 @@
 	height: 12px;
 	width: 69px;
 	margin-top: 3.5px;
-	margin-left: 4px;
+	margin-left: 6px;
 	background-color: black;
 }
 
@@ -762,8 +762,7 @@
 	max-width: 100%;
 	width: 0%;
 	height: 100%;
-	background-color: #c8a165;
-	box-shadow: inset DropshadowColor 0px 8px 5px 0px;
+	background-color: #c7a674;
 }
 
 #state_container
@@ -845,14 +844,27 @@
 	font-family: oracle;
 	vertical-align: top;
 	animation: none;
-	text-shadow: 0px 0px 0px 5.0 offBlack&ee;
+	text-shadow: 0px 0px 0px 4.0 offBlack&ee;
 	padding: 0px 2px;
-	brightness: 0.8;
+	brightness: 0.7;
 	max-width: 170px;
 	max-height: 20px;
 	transform: rotateZ(-4deg);
 	visibility: collapse;
 	text-overflow: shrink;
+	transition-property: opacity;
+	transition-duration: 0.4s;
+	transition-timing-function: ease-in-out;
+}
+
+.NameFading #name
+{
+	opacity: 0.8;
+}
+
+.NameFaded #name
+{
+	opacity: 0;
 }
 
 .neutral_normal
@@ -892,6 +904,11 @@
 	wash-color: red;
 }
 
+.midboss #name
+{
+	visibility: collapse;
+}
+
 .team_neutral.weak_to_viewer #name
 {
 	wash-color: shardColor&90;
@@ -925,7 +942,17 @@
 	visibility: visible;
 }
 
+.HideName #name
+{
+	visibility: collapse;
+}
+
 .player.beingSpectatedInEye #name
+{
+	visibility: collapse;
+}
+
+.player.HideName #name
 {
 	visibility: collapse;
 }
@@ -1059,7 +1086,7 @@
 {
 	horizontal-align: center;
 	ignore-parent-flow: true;
-	margin-top: 84px;
+	margin-top: 86px;
 	margin-left: 0px;
 	background-image: url("s2r://panorama/images/hud/healthbar/critical_text_png.vtex");
 	background-size: contain;
@@ -1222,8 +1249,12 @@
 	flow-children: right;
 	vertical-align: top;
 	horizontal-align: center;
-	margin-top: 8px;
-	margin-right: 5px;
+	margin-top: 9px;
+}
+
+.HideName #StaminaContainer
+{
+	margin-top: 28px;
 }
 
 .enemy #StaminaContainer
@@ -1523,7 +1554,6 @@
 }
 
 
-
 /* Rewrite-owned additions for the static v2 tree; stock preview has no WindowRoot. */
 .WindowRoot
 {
@@ -1551,6 +1581,24 @@
 	transform-origin: 50% 40.48%;
 	animation-name: none;
 	transition-property: none;
+}
+
+/* Stock's compact frame starts at y=65; the full-canvas leaf starts at 65
+   inside ui-scale. Restore its top with 65 - 65*s: +13 at .8, -52 at 1.8.
+   Center alignment preserves the compact frame's horizontal center. */
+.neutral_normal .WindowRoot #UnitStatus,
+.neutral_weak .WindowRoot #UnitStatus
+{
+	margin-top: 13px;
+}
+
+.boss_tier1 .WindowRoot #UnitStatus,
+.boss_tier2 .WindowRoot #UnitStatus,
+.boss_barracks .WindowRoot #UnitStatus,
+.building .WindowRoot #UnitStatus,
+.midboss .WindowRoot #UnitStatus
+{
+	margin-top: -52px;
 }
 
 .WindowRoot #InfoHealthContainer
@@ -1603,7 +1651,7 @@
 .player.health_critical .ShowCriticalState.HPColorsRewriteBarLines .UnitHealthbarContainer,
 .player.health_critical .ShowCriticalState .WindowRoot.HPColorsRewriteBarLines .UnitHealthbarContainer
 {
-	margin-left: 17px;
+	margin-left: 13px;
 }
 
 @keyframes 'HPColorsRewriteCriticalFlash'
@@ -1682,11 +1730,12 @@
 	padding: 0px;
 	transform: none;
 	white-space: nowrap;
+	text-overflow: clip;
 	overflow: noclip;
 }
 
-/* Stationary full-canvas frame. The renderer positions the measured row at
-   the stock right edge and saturates offsets at the visible canvas edges. */
+/* Stationary full-canvas frame. The renderer anchors the row's aligned edge
+   beside the visual bar and saturates offsets at the visible canvas edges. */
 .WindowRoot #hp_counter_container
 {
 	width: 100%;
@@ -1725,9 +1774,10 @@
 	overflow: noclip;
 }
 
-/* Right-aligned so the number grows left like stock. These defaults already
-   match the 200px canvas at zero offset (edge = center +40px, ally +30px), so
-   the first frame and digit changes never jump before the renderer measures. */
+/* LEFT (grow left) is the default HP TEXT ALIGN: the row's right edge sits at canvas
+   center +40px (ally +30px), so the number grows left and the first frame
+   matches before the renderer measures. The renderer sets horizontal-align
+   for CENTER/RIGHT and shifts the row by a width-independent amount. */
 .WindowRoot #hp_counter_row
 {
 	width: fit-children;
@@ -1735,8 +1785,8 @@
 	flow-children: right;
 	horizontal-align: right;
 	vertical-align: top;
-	margin-top: 66px;
-	margin-right: 60px;
+	margin: 0px;
+	transform: translate3d(-60px, 66px, 0px);
 	padding: 4px;
 	overflow: noclip;
 }
@@ -1744,8 +1794,9 @@
 .friend .WindowRoot #hp_counter_row,
 .WindowRoot.friend #hp_counter_row
 {
-	margin-right: 70px;
+	transform: translate3d(-70px, 66px, 0px);
 }
+
 
 
 .WindowRoot #unit_level_label.NP_playerlevel
@@ -1958,5 +2009,17 @@
 .WindowRoot #name
 {
 	transform: none;
+}
+
+/* Stationary full-canvas wrappers around the stock CRITICAL/ASSASSINATE
+   panels. The stock panels keep their own margins and TagGroove1 transform;
+   the renderer moves the wrapper with translate3d so offset edits never
+   relayout the world panel (margin edits jumped and vanished until redraw). */
+.HPV2StatusTagAnchor
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	overflow: noclip;
 }
 

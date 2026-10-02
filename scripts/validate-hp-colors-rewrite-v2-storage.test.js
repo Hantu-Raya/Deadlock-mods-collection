@@ -583,9 +583,9 @@ test('a warm layout reload keeps the session, skips the read, and still saves ed
 });
 
 test('an old builder pak01 layout still boots and tells the player to delete it', () => {
-  const legacyLayout = layoutSource
-    .replace(/\s*<Panel id="HPColorsV2StoreWrap"[\s\S]*?<\/Panel>/, '\n    <Panel id="HPColorsRewritePresetStore" />')
-    .replace(/\s*<include src="s2r:\/\/panorama\/scripts\/hp_colors_v2_storage\.vjs_c" \/>/, '');
+  const legacyLayout = fs.readFileSync(
+    path.join(repoRoot, 'hp_colors_rewrite/panorama/layout/hud_escape_menu.xml'), 'utf8',
+  );
   const profile = createProfile();
   const fixture = launch(profile, {
     label: 'stale pak01 layout',
@@ -836,14 +836,43 @@ test('saves keep only non-default values, and a restart fills the rest', () => {
     'levelOffsetY', 'enemyPipColorEnabled', 'enemyPipColor'];
   assert.deepEqual(Object.keys(body.values), changedFromFrozen);
   assert.deepEqual(Object.keys(body.userPresets[0].values), changedFromFrozen);
+  assert.equal(body.values.ultOffsetY, -29);
+  assert.equal(body.values.levelOffsetY, -29);
+  assert.equal(Object.hasOwn(body.values, 'nameAlign'), false);
   assert.ok(profile.disk.get(KEY_CURRENT).length < 3000, 'a typical save is one chunk');
 
   const restart = launch(profile, { label: 'sparse restore' });
   restart.run(6000);
   assert.equal(restart.renderer().widthScale, 210);
   assert.equal(restart.renderer().heightScale, 80, 'new defaults are explicit against the frozen baseline');
+  assert.equal(restart.renderer().ultOffsetY, -29);
+  assert.equal(restart.renderer().levelOffsetY, -29);
+  assert.equal(restart.renderer().nameAlign, 'center');
   assert.equal(menuState(restart).userPresets[0].values.enemyLow, '#FD4949');
   record(restart, { recordChars: profile.disk.get(KEY_CURRENT).length });
+});
+
+test('name alignment and explicit accessory offsets survive schema-4 saves and restarts', () => {
+  const factory = loadStorageCodec();
+  const values = { nameAlign: 'right', ultOffsetY: 48, levelOffsetY: 48 };
+  const profile = createProfile({
+    [KEY_CURRENT]: factory.codec.encodeRecord(savedBody(values), 1),
+  });
+  const first = launch(profile, { label: 'name alignment restore' });
+  first.run(8000);
+  for (const [key, value] of Object.entries(values)) assert.equal(first.renderer()[key], value, key);
+  openEditor(first);
+  setWidth(first, 175);
+  closeEditor(first);
+  first.run(8000);
+  assert.equal(storedSchema(profile), 4);
+  const body = JSON.parse(storedRecord(profile).body);
+  for (const [key, value] of Object.entries(values)) assert.equal(body.values[key], value, key);
+  const restart = launch(profile, { label: 'name alignment saved restart' });
+  restart.run(8000);
+  for (const [key, value] of Object.entries(values)) assert.equal(restart.renderer()[key], value, key);
+  record(first);
+  record(restart);
 });
 
 test('6722 Units, Appearance and bar-relative readout settings persist through a real editor restart', () => {
@@ -1148,10 +1177,10 @@ test('deleting the All Except preset keeps schema 4 when Current returns to All 
   record(fixture);
 });
 
-test('a schema 5 save is read-only and never overwritten', () => {
-  const future = rawRecord({ m: 'HPV2STORE', s: 5, t: 1, b: exceptBody({ widthScale: 150 }) });
+test('a schema 6 save is read-only and never overwritten', () => {
+  const future = rawRecord({ m: 'HPV2STORE', s: 6, t: 1, b: exceptBody({ widthScale: 150 }) });
   const profile = createProfile({ [KEY_CURRENT]: future });
-  const fixture = launch(profile, { label: 'schema 5 read-only' });
+  const fixture = launch(profile, { label: 'schema 6 read-only' });
   fixture.run(8000);
   assert.equal(fixture.status(), 'SAVE UNAVAILABLE');
   openEditor(fixture);
@@ -1166,7 +1195,7 @@ test('a schema 5 save is read-only and never overwritten', () => {
 // A save this build cannot read (for example one written by a newer build)
 // must still be removable on purpose; otherwise a downgraded player is stuck.
 test('a save this build cannot read can be cleared after confirming, then saving resumes', () => {
-  const future = rawRecord({ m: 'HPV2STORE', s: 5, t: 1, b: exceptBody({ widthScale: 150 }) });
+  const future = rawRecord({ m: 'HPV2STORE', s: 6, t: 1, b: exceptBody({ widthScale: 150 }) });
   const profile = createProfile({ [KEY_CURRENT]: future, [KEY_PREVIOUS]: future });
   const fixture = launch(profile, { label: 'clear unreadable save' });
   fixture.run(8000);
@@ -1503,6 +1532,65 @@ test('schema three offset migration preserves base scopes presets and conditions
   assert.equal(menuState(second).scopes[0].values.readoutOffsetX, 333);
   assert.equal(menuState(second).userPresets[0].values.readoutOffsetY, 350);
   assert.equal(menuState(second).values.staminaShape, 'arrow');
+  assertOtherModsUntouched(profile);
+  record(first);
+  record(second);
+});
+
+test('schema-five saves keep offsets unchanged and re-save as schema four', () => {
+  const values = { widthScale: 148, readoutOffsetX: 18, allyReadoutOffsetX: -10,
+    enemyPulseReadoutOffsetX: 20, hpTextAlign: 'left' };
+  const conditions = { allyReadoutOffsetX: { slot: 1, minTier: 1, value: 10 } };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 5, t: 1,
+    b: { version: 1, offsetVersion: 3, values, conditions } }) });
+  const first = launch(profile, { label: 'schema 5 compatibility' });
+  first.run(8000);
+  for (const [key, value] of Object.entries(values)) assert.equal(menuState(first).values[key], value, key);
+  assert.equal(menuState(first).conditions.allyReadoutOffsetX.value, 10);
+  openEditor(first);
+  setWidth(first, 150);
+  closeEditor(first);
+  first.run(8000);
+  assert.equal(storedSchema(profile), 4);
+  const second = launch(profile, { label: 'schema 4 rewrite restart' });
+  second.run(8000);
+  for (const [key, value] of Object.entries(values))
+    assert.equal(menuState(second).values[key], key === 'widthScale' ? 150 : value, key);
+  assert.equal(menuState(second).conditions.allyReadoutOffsetX.value, 10);
+  record(first);
+  record(second);
+});
+
+test('obsolete local metadata and settings are ignored on load and omitted from saves', () => {
+  const metadataKey = 'gameSettingsBackup';
+  const enabledKey = 'trooperColorEnabled';
+  const colorKey = 'trooperColor';
+  const body = { version: 1, offsetVersion: 3,
+    values: { widthScale: 150, [enabledKey]: true, [colorKey]: '#123456' },
+    [metadataKey]: { custom: 'false', enemy: '#123456', delta: '#654321',
+      owned: { custom: 'true', enemy: '#FD4949', delta: '#FD4949' } } };
+  const profile = createProfile({ [KEY_CURRENT]: rawRecord({ m: 'HPV2STORE', s: 5, t: 1, b: body }) });
+  const first = launch(profile, { label: 'obsolete fields hydrate' });
+  first.run(8000);
+  assert.equal(menuState(first).values.widthScale, 150);
+  assert.equal(Object.hasOwn(menuState(first), metadataKey), false);
+  for (const key of [enabledKey, colorKey])
+    assert.equal(Object.hasOwn(menuState(first).values, key), false);
+  openEditor(first);
+  setWidth(first, 175);
+  closeEditor(first);
+  first.run(8000);
+  const saved = JSON.parse(storedRecord(profile).body);
+  assert.equal(saved.values.widthScale, 175);
+  assert.equal(Object.hasOwn(saved, metadataKey), false);
+  for (const key of [enabledKey, colorKey])
+    assert.equal(Object.hasOwn(saved.values, key), false);
+  const second = launch(profile, { label: 'obsolete fields removed restart' });
+  second.run(8000);
+  assert.equal(menuState(second).values.widthScale, 175);
+  assert.equal(Object.hasOwn(menuState(second), metadataKey), false);
+  for (const key of [enabledKey, colorKey])
+    assert.equal(Object.hasOwn(menuState(second).values, key), false);
   assertOtherModsUntouched(profile);
   record(first);
   record(second);

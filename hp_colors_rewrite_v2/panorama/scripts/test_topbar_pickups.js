@@ -45,6 +45,9 @@
   var effectsPanel = null;
   var statusContainer = null;
   var clipCaptures = [];
+  var nativePickupStyles = [];
+  var nativePickupSeen = [];
+  var clipWarningShown = false;
   var progressDirty = false;
   var lastPublishedName = null;
   var lastPublishedMask = -1;
@@ -388,6 +391,51 @@
     }
     return successful;
   }
+
+  // Own only the inline properties we change; leave engine radial clips intact.
+  function setNativePickupStyle(panel, property, value) {
+    if (!valid(panel) || !panel.style) return false;
+    var entry = null;
+    for (var index = 0; index < nativePickupStyles.length; index++) {
+      var candidate = nativePickupStyles[index];
+      if (candidate.panel === panel && candidate.property === property) entry = candidate;
+    }
+    if (!entry) {
+      entry = { panel: panel, property: property, baseline: panel.style[property], cache: {} };
+      nativePickupStyles.push(entry);
+    }
+    nativePickupSeen.push(entry);
+    return setCachedStyle(panel, property, value, entry.cache, property);
+  }
+
+  function restoreNativePickupStyles(all) {
+    for (var index = nativePickupStyles.length - 1; index >= 0; index--) {
+      var entry = nativePickupStyles[index];
+      if (!all && nativePickupSeen.indexOf(entry) >= 0) continue;
+      if (valid(entry.panel) && !setCachedStyle(
+        entry.panel, entry.property, entry.baseline, entry.cache, entry.property
+      )) continue;
+      nativePickupStyles.splice(index, 1);
+    }
+  }
+
+  function styleNativePickup(panel, bit) {
+    var size = config.pickupSize;
+    setNativePickupStyle(panel, "width", size + "px");
+    setNativePickupStyle(panel, "height", size + "px");
+    setNativePickupStyle(panel, "margin", "0px " + config.pickupSpacing + "px");
+    setNativePickupStyle(panel, "transform",
+      "translateX(" + config.pickupOffsetX + "px) translateY(" + config.pickupOffsetY + "px)");
+    var inner = panel.FindChildTraverse("StatusEffectInner");
+    var border = panel.FindChildTraverse("StatusEffectsBorder");
+    setNativePickupStyle(inner, "washColor", pickupBackground(bit));
+    setNativePickupStyle(border, "washColor", pickupColor(bit));
+    var glyphs = panel.FindChildrenWithClassTraverse("statusEffectImage");
+    var image = panel.FindChildTraverse("StatusEffectImage");
+    if (valid(image)) glyphs.push(image);
+    for (var index = 0; index < glyphs.length; index++)
+      setNativePickupStyle(glyphs[index], "washColor", config.pickupGlyphColor);
+  }
   function valid(panel) { return panel && panel.IsValid(); }
 
   function readName(panel) {
@@ -471,7 +519,10 @@
       capture.count = 0;
       capture.first = capture.previous = null;
       progressDirty = true;
-      $.Msg("[test_hpv2][pickup-clip-error] " + String(error));
+      if (!clipWarningShown) {
+        clipWarningShown = true;
+        $.Msg("[test_hpv2][pickup-clip-error] " + String(error));
+      }
     }
   }
 
@@ -489,7 +540,7 @@
     return true;
   }
 
-  function sampleUnit() {
+  function sampleUnitPickups() {
     if (!pickupTimersEnabled()) {
       clipCaptures.length = 0;
       if (lastPublishedName) publish("", 0);
@@ -539,14 +590,20 @@
       var matches = container.FindChildrenWithClassTraverse(pickups[bit].className);
       for (var match = 0; match < matches.length; match++) {
         if (valid(matches[match]) && matches[match].visible !== false) {
+          if (!(mask & (1 << bit))) captureNativeClip(matches[match], bit, name);
           mask |= 1 << bit;
-          captureNativeClip(matches[match], bit, name);
-          break;
+          styleNativePickup(matches[match], bit);
         }
       }
       if (!(mask & (1 << bit))) clipCaptures[bit] = null;
     }
     publish(name, mask);
+  }
+
+  function sampleUnit() {
+    nativePickupSeen = [];
+    try { sampleUnitPickups(); }
+    finally { restoreNativePickupStyles(false); }
   }
 
   function mayContainSnapshot(raw, isHud) {
@@ -704,7 +761,8 @@
       var label = labels[index];
       if (!valid(label)) continue;
       var owner = label.GetParent();
-      while (valid(owner) && owner !== topBar && owner.paneltype !== "CitadelHudTopBarPlayer") owner = owner.GetParent();
+      while (valid(owner) && owner !== topBar &&
+        (owner.paneltype || owner.type) !== "CitadelHudTopBarPlayer") owner = owner.GetParent();
       if (!valid(owner) || owner === topBar) continue;
       if (owner.BHasClass("LocalPlayer")) {
         localPlayerLabels.push(label);
@@ -992,6 +1050,7 @@
     }
     if (!ultimateTimerEnabled()) clearUltimate();
     else if (ultimateName) applyUltimateStyles(ultimateAngle);
+    sampleUnit();
     return true;
   }
 
@@ -1029,6 +1088,7 @@
     if (!topBar) {
       try { publish("", 0); } catch {}
       try { clearUltimate(); } catch {}
+      try { restoreNativePickupStyles(true); } catch {}
     }
   };
 

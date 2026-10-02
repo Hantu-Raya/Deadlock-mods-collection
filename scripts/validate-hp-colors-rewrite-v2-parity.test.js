@@ -76,7 +76,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 67);
+  assert.equal(contract.extensionKeys.length, 74);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -133,9 +133,9 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.defaults.allyPulseColorMode, 'fixed');
   assert.equal(contract.defaults.accessoryAnchorEnabled, true);
   assert.equal(contract.defaults.ultOffsetX, 74);
-  assert.equal(contract.defaults.ultOffsetY, 48);
+  assert.equal(contract.defaults.ultOffsetY, -29);
   assert.equal(contract.defaults.levelOffsetX, 74);
-  assert.equal(contract.defaults.levelOffsetY, 48);
+  assert.equal(contract.defaults.levelOffsetY, -29);
 });
 
 test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapshot', () => {
@@ -152,7 +152,7 @@ test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapsh
   assert.equal(state.read().values.widthScale, 148);
   assert.equal(state.read().values.heightScale, 80);
   assert.equal(state.read().values.readoutOffsetX, 18);
-  assert.equal(state.read().values.ultOffsetY, 48);
+  assert.equal(state.read().values.ultOffsetY, -29);
 
   const imported = send(state, 'settings_import', {
     raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
@@ -355,12 +355,15 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 67);
+  assert.equal(contract.extensionKeys.length, 74);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
     'readoutOutlineWidth', 'allyReadoutOutlineWidth', 'nameOutlineWidth',
     'hudHealthColorMode', 'hudHealthColor',
+    'allyPulseReadout',
+    'nameAlign', 'hpTextAlign',
+    'criticalOffsetX', 'criticalOffsetY', 'assassinateOffsetX', 'assassinateOffsetY',
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -380,6 +383,42 @@ test('round native format retirement preserves slots and appends independent nam
   for (const key of ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor']) {
     assert.equal(Object.hasOwn(imported.view.values, key), false, key);
     assert.equal(Object.hasOwn(imported.view.conditions, key), false, key);
+  }
+});
+
+test('name alignment slot validates and round-trips values and conditions in both codecs', () => {
+  const { contract, state } = bootState();
+  const values = { nameAlign: 'left', hpTextAlign: 'center' };
+  assert.deepEqual(plain(contract.extensionKeys.slice(68, 70)), Object.keys(values));
+  for (const [key, value] of Object.entries(values)) {
+    assert.equal(contract.defaults[key], key === 'hpTextAlign' ? 'left' : 'center');
+    assert.equal(contract.sparseDefaults[key], key === 'hpTextAlign' ? 'left' : 'center');
+    assert.deepEqual(plain(contract.enumOptions[key]), ['left', 'center', 'right']);
+    assert.equal(contract.validateSettingValue(key, 'invalid'), false);
+    send(state, 'setting_edit', { key, value });
+    send(state, 'condition_set', { key, slot: 1, minTier: 2, value: 'center' });
+  }
+  const code = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  const payload = JSON.parse(code.slice(5));
+  assert.equal(payload.hpv2.v, 2);
+  assert.deepEqual(payload.hpv2.values.slice(-2), [[68, 'left'], [69, 'center']]);
+  const destination = bootState().state;
+  assert.equal(send(destination, 'settings_import', { raw: code }).outcome.status, 'committed');
+  for (const [key, value] of Object.entries(values)) {
+    assert.equal(destination.read().values[key], value);
+    assert.deepEqual(plain(destination.read().conditions[key]), { slot: 1, minTier: 2, value: 'center' });
+  }
+  values.nameAlign = 'right';
+  values.hpTextAlign = 'center';
+  send(state, 'setting_edit', { key: 'nameAlign', value: 'right' });
+  send(state, 'preset_save', { name: 'Aligned name' });
+  const presetCode = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const presetPayload = JSON.parse(presetCode.slice(6));
+  assert.equal(send(destination, 'preset_import', { raw: presetCode }).outcome.status, 'committed');
+  send(destination, 'preset_apply', { id: presetPayload.records[0].id });
+  for (const [key, value] of Object.entries(values)) {
+    assert.equal(destination.read().currentScope.values[key], value);
+    assert.deepEqual(plain(destination.read().currentScope.conditions[key]), { slot: 1, minTier: 2, value: 'center' });
   }
 });
 
@@ -420,7 +459,7 @@ test('round name settings and raw geometry survive both codecs; retired rules dr
   assert.deepEqual(plain(destination.read().values), before.values);
 });
 
-test('follow-up pip colors and stamina shape append six typed extension slots', () => {
+test('follow-up controls append typed extension slots with frozen sparse defaults', () => {
   const { contract } = bootState();
   const defaults = {
     enemyPipColorEnabled: false, enemyPipColor: '#500202',
@@ -428,6 +467,9 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
     pipOpacity: 100, staminaShape: 'arrow',
     readoutOutlineWidth: 5, allyReadoutOutlineWidth: 5, nameOutlineWidth: 5,
     hudHealthColorMode: 'off', hudHealthColor: '#FFFF00',
+    allyPulseReadout: false,
+    nameAlign: 'center', hpTextAlign: 'left',
+    criticalOffsetX: 0, criticalOffsetY: 0, assassinateOffsetX: 0, assassinateOffsetY: 0,
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {

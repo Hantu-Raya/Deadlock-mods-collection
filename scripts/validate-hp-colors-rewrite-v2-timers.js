@@ -1,6 +1,6 @@
 "use strict";
 
-// Exercise real state and pure timer functions. No Panorama panels or API mocks.
+// Exercise real state, timer arithmetic, and minimal native-panel/relay VM fixtures.
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -8,12 +8,15 @@ const vm = require("node:vm");
 const repoRoot = path.resolve(__dirname, "..");
 const sourceRoot = path.resolve(process.argv[2] || path.join(repoRoot, "hp_colors_rewrite_v2"));
 const plain = value => JSON.parse(JSON.stringify(value));
+let timersContract;
 
 function load(root) {
   const context = { $: {} };
   for (const name of ["hp_colors_v2_contract.js", "hp_colors_v2_state.js"]) {
     const filename = path.join(root, "panorama/scripts", name);
     vm.runInNewContext(fs.readFileSync(filename, "utf8"), context, { filename });
+    if (name === "hp_colors_v2_contract.js")
+      timersContract = context.$.HPColorsV2ContractFactory.create();
   }
   return context.$.HPColorsV2StateFactory;
 }
@@ -168,8 +171,11 @@ const unchangedPayload = JSON.parse(
 // Fresh defaults must be explicit against the frozen wire baseline.
 assert.deepEqual(unchangedPayload.hpv2, {
   v: 2,
-  values: [[8, 74], [9, 48], [10, 74], [11, 48],
-    [56, true], [57, "#000000"]],
+  values: plain(timersContract.extensionKeys
+    .map((key, index) => [index, timersContract.defaults[key]])
+    .filter(([index, value]) => value !== undefined &&
+      Object.prototype.hasOwnProperty.call(timersContract.defaults, timersContract.extensionKeys[index]) &&
+      value !== timersContract.codecDefaults[timersContract.extensionKeys[index]])),
   conditions: {},
 });
 const freshRoundtrip = factory.create();
@@ -185,6 +191,156 @@ function pure(name) {
   assert.ok(match, `Missing timer function ${name}`);
   return new Function("return (" + match[0] + ");")();
 }
+
+// Native pickup ownership uses the existing sample cadence and exact inline baselines.
+const nativeFunctions = [
+  "setCachedStyle", "pickupColor", "pickupBackground", "setNativePickupStyle",
+  "restoreNativePickupStyles", "styleNativePickup", "sampleUnitPickups", "sampleUnit",
+  "findRows",
+].map(name => {
+  const match = timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"));
+  assert.ok(match, `Missing native timer function ${name}`);
+  return match[0];
+}).join("\n");
+let nativeWrites = 0;
+function nativePanel(styles = {}) {
+  const baseline = { ...styles };
+  return {
+    baseline,
+    style: new Proxy({ ...styles }, {
+      set(target, key, value) { nativeWrites++; target[key] = value; return true; },
+    }),
+    IsValid: () => true,
+  };
+}
+const nativeInner = nativePanel({ washColor: "#135724" });
+const nativeBorder = nativePanel({ washColor: "#AAAAAA", clip: "radial(50% 50%, 0deg, -180deg)" });
+const nativeGlyph = nativePanel({ washColor: "#BBBBBB" });
+const nativeImage = nativePanel({ washColor: "#CCCCCC" });
+const nativeIcon = nativePanel({
+  width: "30px", height: "31px", margin: "1px", transform: "translateX(2px)",
+});
+nativeIcon.visible = true;
+nativeIcon.FindChildTraverse = id => ({
+  StatusEffectInner: nativeInner, StatusEffectsBorder: nativeBorder, StatusEffectImage: nativeImage,
+})[id];
+nativeIcon.FindChildrenWithClassTraverse = () => [nativeGlyph];
+let nativePresent = true;
+const nativeContainer = {
+  IsValid: () => true,
+  FindChildrenWithClassTraverse: name => nativePresent && name === "gunpower_pickup" ? [nativeIcon] : [],
+};
+const nativeEffects = { IsValid: () => true, FindChildTraverse: () => nativeContainer };
+const nativeName = { IsValid: () => true, text: "PLAYER" };
+const nativeContext = {
+  id: "world_player", IsValid: () => true, BHasClass: () => true,
+  FindChildTraverse: id => id === "name" ? nativeName : nativeEffects,
+};
+const nativeSandbox = {
+  config: {
+    enabled: true, pickupTimersEnabled: true, pickupSize: 40, pickupSpacing: 3,
+    pickupOffsetX: 4, pickupOffsetY: -5, pickupGunColor: "#80A0C0",
+    pickupBackgroundDarkness: 50, pickupGlyphColor: "#FFFFFF",
+  },
+  context: nativeContext, nativePickupStyles: [], nativePickupSeen: [],
+  pickups: [{ className: "gunpower_pickup", configKey: "pickupGunColor" }],
+  clipCaptures: [], lastPublishedName: null, sourceId: "", namePanel: null,
+  effectsPanel: null, statusContainer: null, scanEnabled: true, gateReceivedAt: 0,
+  localPlayerName: "", valid: panel => !!panel && panel.IsValid(),
+  readName: panel => panel.text, pickupTimersEnabled() {
+    return this.config.enabled && this.config.pickupTimersEnabled;
+  },
+  captureNativeClip() {}, publish() {}, rows: [], localPlayerLabels: [],
+  render() {},
+};
+// VM globals, rather than method receivers, match Panorama's helper invocation.
+nativeSandbox.pickupTimersEnabled = () => nativeSandbox.config.enabled && nativeSandbox.config.pickupTimersEnabled;
+vm.createContext(nativeSandbox);
+vm.runInContext(nativeFunctions, nativeSandbox);
+nativeSandbox.sampleUnit();
+assert.equal(nativeIcon.style.width, "40px");
+assert.equal(nativeIcon.style.margin, "0px 3px");
+assert.equal(nativeIcon.style.transform, "translateX(4px) translateY(-5px)");
+assert.equal(nativeInner.style.washColor, "#405060");
+assert.equal(nativeBorder.style.washColor, "#80A0C0");
+assert.equal(nativeGlyph.style.washColor, "#FFFFFF");
+assert.equal(nativeImage.style.washColor, "#FFFFFF");
+assert.equal(nativeBorder.style.clip, nativeBorder.baseline.clip);
+const stableWrites = nativeWrites;
+nativeSandbox.sampleUnit();
+assert.equal(nativeWrites, stableWrites, "unchanged samples perform no native writes");
+function assertNativeRestored() {
+  for (const panel of [nativeIcon, nativeInner, nativeBorder, nativeGlyph, nativeImage])
+    assert.deepEqual({ ...panel.style }, panel.baseline);
+  assert.equal(nativeSandbox.nativePickupStyles.length, 0);
+}
+nativeSandbox.config.pickupTimersEnabled = false;
+nativeSandbox.sampleUnit();
+assertNativeRestored();
+nativeSandbox.config.pickupTimersEnabled = true;
+nativeSandbox.sampleUnit();
+nativeSandbox.config.enabled = false;
+nativeSandbox.sampleUnit();
+assertNativeRestored();
+nativeSandbox.config.enabled = true;
+nativeSandbox.sampleUnit();
+nativePresent = false;
+nativeSandbox.sampleUnit();
+assertNativeRestored();
+nativePresent = true;
+nativeSandbox.sampleUnit();
+nativeSandbox.scanEnabled = false;
+nativeSandbox.gateReceivedAt = Date.now();
+nativeSandbox.sampleUnit();
+assertNativeRestored();
+nativeSandbox.scanEnabled = true;
+nativeSandbox.localPlayerName = "PLAYER";
+nativeSandbox.sampleUnit();
+assertNativeRestored();
+
+// Both engine panel-type surfaces discover the unchanged 6726 PlayerName/UltimateStatus IDs.
+for (const typeKey of ["paneltype", "type"]) {
+  const ultimate = { IsValid: () => true };
+  const owner = {
+    [typeKey]: "CitadelHudTopBarPlayer", IsValid: () => true,
+    BHasClass: () => false, FindChildTraverse: id => id === "UltimateStatus" ? ultimate : null,
+  };
+  const label = { IsValid: () => true, GetParent: () => owner };
+  nativeSandbox.topBar = { FindChildrenWithClassTraverse: () => [label] };
+  nativeSandbox.rows = [];
+  nativeSandbox.findRows();
+  assert.equal(nativeSandbox.rows.length, 1);
+  assert.equal(nativeSandbox.rows[0].ultimate, ultimate);
+}
+
+// Sibling relay must accept paneltype-only panels just as row discovery does.
+const bridgeSource = fs.readFileSync(path.join(sourceRoot, "panorama/scripts/test_event_bridge.js"), "utf8");
+const relayRoot = { id: "world_player", paneltype: "Panel", IsValid: () => true };
+const relayContext = {
+  paneltype: "ClientUIDialogPanel", IsValid: () => true,
+  BHasClass: () => false, GetParent: () => relayRoot,
+};
+let relayRaw = "";
+let relayActivations = 0;
+const relayPanel = {
+  IsValid: () => true, AddClass() {}, BLoadLayout: () => true,
+  SetAttributeString: (key, value) => { relayRaw = value; },
+};
+vm.runInNewContext(bridgeSource, { $: {
+  GetContextPanel: () => relayContext, CreatePanel: () => relayPanel,
+  DispatchEvent: () => { relayActivations++; }, Msg: message => assert.fail(message),
+} });
+relayContext.HPV2QueuePickup({ name: "PLAYER", mask: 1 });
+assert.equal(relayActivations, 1);
+assert.equal(JSON.parse(relayRaw).source, "world_player");
+
+const topbarLayout = fs.readFileSync(path.join(sourceRoot, "panorama/layout/citadel_hud_top_bar.xml"), "utf8");
+assert.match(topbarLayout, /classes="gDetailView gShopOpen gScoreboardOpen gStreetBrawl gPVE"/);
+assert.match(topbarLayout, /id="MidbossTimerLabel" class="midbossTimerLabel" text="\{s:midboss_timer\}"/);
+// Attribute order differs in wrapper-merged (QOLLOCK) topbars.
+assert.match(topbarLayout, /<CitadelHudTopBar\b[^>]*\bclass="(?:[^"]* )?HPV2PickupTopBar(?: [^"]*)?"/);
+assert.match(topbarLayout, /scripts\/test_topbar_pickups\.vjs_c/);
+assert.doesNotMatch(topbarLayout, /citadel_hud_game_announcements/);
 // Sparse pickup combinations must split around the ultimate, not by pickup type.
 const pickupSlot = pure("pickupSlot");
 assert.deepEqual([0, 1, 2, 3].map(index => pickupSlot(15, index)), [-2, -1, 1, 2]);
@@ -240,4 +396,4 @@ assert.equal(ultimateProgressColor(180, colorSettings).toUpperCase(), "#806080")
 assert.equal(ultimateProgressColor(360, colorSettings).toUpperCase(), "#E080A0");
 colorSettings.ultimateTimerColorMode = "follow";
 assert.equal(ultimateProgressColor(180, colorSettings), "#FFFFFF");
-console.log("PASS: timer section reset/undo, save/update/apply, conditions, session and HPCRP1 roundtrips, legacy compatibility, native progress, fixed/gradient availability colors and stale/duplicate rejection. No Panorama mocks.");
+console.log("PASS: timer state/codec roundtrips, native progress/colors and freshness, native pickup styling/cache/restore, panel-type discovery and sibling relay.");

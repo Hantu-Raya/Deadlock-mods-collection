@@ -676,7 +676,7 @@
     }
     if (
       fieldCount !== 3 ||
-      (source.v !== 1 && source.v !== 2) ||
+      (source.v !== 1 && source.v !== 2 && source.v !== 3) ||
       !Array.isArray(source.values) ||
       !source.conditions ||
       !isObjectValue(source.conditions) ||
@@ -712,7 +712,9 @@
     return {
       values: normalizeValues(changed, CODEC_DEFAULTS),
       conditions: nullableConditions(conditions, true),
-      offsetVersion: source.v,
+      // v3 came only from the withdrawn centered-HP-text test build; its
+      // offsets are read as bar-relative v2 values without conversion.
+      offsetVersion: source.v === 3 ? 2 : source.v,
     };
   }
 
@@ -868,7 +870,7 @@
 
   // Only the canonical baked record may carry historical shipped readout offsets.
   function normalizeBakedReadoutOffsets(values, source) {
-    var baseline = source.hpv2 && source.hpv2.v === 2 ? DEFAULTS : SPARSE_DEFAULTS;
+    var baseline = source.hpv2 && source.hpv2.v >= 2 ? DEFAULTS : SPARSE_DEFAULTS;
     var historical = {
       readoutOffsetX: [27, -30],
       readoutOffsetY: [500, 434],
@@ -1086,7 +1088,7 @@
     if (!data || data.version !== 1 || !data.values) data = null;
     if (data) {
       data = JSON.parse(JSON.stringify(data));
-      var migrate = data.offsetVersion !== 2;
+      var migrate = data.offsetVersion !== 2 && data.offsetVersion !== 3;
       if (migrate && published) {
         published = JSON.parse(JSON.stringify(published));
         restoreSparseRecord(published, true);
