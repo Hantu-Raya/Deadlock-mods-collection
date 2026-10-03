@@ -146,11 +146,12 @@ const XML_REWRITE_OWNED_IDS = new Set([
   'LevelContainer',
   'hp_colors_pulse_overlay',
   'hp_colors_kill_marker',
+  'HPV2PipGrid',
   'HPV2UltimateOverlay',
   'hp_counter_container',
 ]);
 // Owned passive wrappers: compared as if their stock children sat in place.
-const XML_REWRITE_WRAPPER_IDS = new Set(['HPV2CriticalAnchor', 'HPV2AssassinateAnchor']);
+const XML_REWRITE_WRAPPER_IDS = new Set(['HPV2MotionFrame', 'HPV2NameAnchor', 'HPV2CriticalAnchor', 'HPV2AssassinateAnchor']);
 
 function parseXmlStructure(source) {
   const roots = [];
@@ -490,7 +491,7 @@ function makeStatusFixture(
       findCounts: harness.findCounts,
       operationCounts: harness.operationCounts,
     }));
-    siblingWindow.add(new MockPanel('name', {
+    siblingWindow.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', {
       text: 'Sibling enemy',
       findCounts: harness.findCounts,
       operationCounts: harness.operationCounts,
@@ -629,7 +630,7 @@ function makeStatusFixture(
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
-  const namePanel = windowRoot.add(new MockPanel('name', {
+  const namePanel = windowRoot.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', {
     text: 'Enemy',
     style: fixtureOptions.nameStyle || {},
     findCounts: harness.findCounts,
@@ -862,7 +863,8 @@ function makeStatusFixture(
   }
   root.SetAttributeString('hp_colors_v2_config', makeSnapshot(revision, values));
   harness.contextPanel = unitStatus;
-  const context = createVmContext(harness, { includeGameUI: false });
+  const context = createVmContext(harness, { includeGameUI: false,
+    globals: { Math: Object.assign(Object.create(Math), { random: () => 0 }) } });
   if (fixtureOptions.withoutMsg) delete context.$.Msg;
   runInVm(read(contractPath), context, contractPath);
   runInVm(read(colorConsumerPath), context, colorConsumerPath);
@@ -908,14 +910,16 @@ test('v2 preserves the frozen static stock tree and adds only passive owned pane
   }
   verifyOwned(layout);
   const window = layout[0].children.find(node => node.attributes.class === 'WindowRoot');
-  const status = window.children.find(node => node.attributes.id === 'UnitStatus');
+  const motion = window.children.find(node => node.attributes.id === 'HPV2MotionFrame');
+  assert.equal(motion.attributes.hittest, 'false');
+  const status = motion.children.find(node => node.attributes.id === 'UnitStatus');
   const info = status.children.find(node => node.attributes.id === 'InfoHealthContainer');
   const level = info.children.find(node => node.attributes.id === 'LevelContainer');
   const label = level.children.find(node => node.attributes.id === 'unit_level_label');
   assert.match(level.attributes.style, /visibility:\s*collapse/);
   assert.equal(label.attributes.text, '{i:player_level}');
   assert.doesNotMatch(label.attributes.style || '', /visibility:\s*collapse/);
-  const container = window.children.find(node => node.attributes.id === 'hp_counter_container');
+  const container = motion.children.find(node => node.attributes.id === 'hp_counter_container');
   const anchor = container.children.find(node => node.attributes.id === 'hp_counter_anchor');
   const row = anchor.children.find(node => node.attributes.id === 'hp_counter_row');
   assert.doesNotMatch(read(layoutPath), /hp_counter_slot/);
@@ -1172,12 +1176,12 @@ test('v2 visible clipping drives enemy fill, readout, ultimate and pulse coverag
   assert.equal(fixture.counter.text, '');
   for (const panel of [fixture.fill, fixture.healthValue, fixture.ult, fixture.ultOverlay])
     assert.equal(panel.style.washColor, '#FF0000', panel.id);
-  assert.equal(fixture.pulseOverlay.style.width, '12%');
+  assert.equal(fixture.pulseOverlay.style.clip, 'rect(0%, 12%, 100%, 0%)');
 
   fixture.fill.style.clip = 'rect(0%, 12.5%, 100%, 0%)';
   fixture.harness.scheduler.runNext();
   assert.equal(fixture.counter.text, '');
-  assert.equal(fixture.pulseOverlay.style.width, '12.5%');
+  assert.equal(fixture.pulseOverlay.style.clip, 'rect(0%, 12.5%, 100%, 0%)');
 });
 
 test('v2 samples the exact live decimal clip while layout width stays full', () => {
@@ -1190,14 +1194,14 @@ test('v2 samples the exact live decimal clip while layout width stays full', () 
     fillStyle: { clip: 'rect( 0.0%, 77.710846%, 100.0%, 0.0%)' },
   });
   assert.equal(fixture.counter.text, '');
-  assert.equal(fixture.pulseOverlay.style.width, '77.71%');
+  assert.equal(fixture.pulseOverlay.style.clip, 'rect(0%, 77.71%, 100%, 0%)');
   assert.equal(fixture.fill.actuallayoutwidth, 69);
   fixture.fill.style.clip = 'rect( 0.0% 77.710846% 100.0% 0.0% )';
   fixture.harness.scheduler.runNext();
   assert.equal(fixture.counter.text, '');
   fixture.fill.style.clip = 'rect(0%, , 77%, 100%, 0%)';
   fixture.harness.scheduler.runNext();
-  assert.equal(fixture.pulseOverlay.style.width, '100%', 'malformed clips are ignored');
+  assert.equal(fixture.pulseOverlay.style.clip, 'rect(0%, 100%, 100%, 0%)', 'malformed clips are ignored');
 });
 
 test('v2 uses the minimum available health signal and preserves layout-width sampling', () => {
@@ -1235,11 +1239,11 @@ test('v2 uses the minimum available health signal and preserves layout-width sam
       fixture.fill.actualxoffset = entry.x;
       fixture.harness.scheduler.runNext();
     }
-    assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), entry.expected, JSON.stringify(entry));
-    assert.equal(fixture.pulseOverlay.style.width, `${entry.expected}%`, JSON.stringify(entry));
+    assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), entry.expected, JSON.stringify(entry));
+    assert.equal(fixture.pulseOverlay.style.clip, `rect(0%, ${entry.expected}%, 100%, 0%)`, JSON.stringify(entry));
     fixture.fill.style.clip = 'rect(0%, 8%, 100%, 0%)';
     fixture.harness.scheduler.runNext();
-    assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), Math.min(entry.expected, 8));
+    assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), Math.min(entry.expected, 8));
   }
 });
 
@@ -1318,9 +1322,9 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
   fixture.inner.actualyoffset = 9;
   scale(fixture.fill, 34.5, 12);
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50);
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 50);
   assert.equal(fixture.fill.style.washColor, '#FFFF00');
-  assert.equal(fixture.pulseOverlay.style.width, '50%');
+  assert.equal(fixture.pulseOverlay.style.clip, 'rect(0%, 50%, 100%, 0%)');
   assert.equal(fixture.killMarker.style.width, '1px');
   assert.equal(fixture.killMarker.style.marginLeft, '37.5px');
   assert.equal(fixture.unitShieldbarValue.text, '9999');
@@ -1328,21 +1332,21 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
 
   fixture.fill.actualxoffset = -17.25; // -8.625 CSS px.
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 37);
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 37);
   fixture.fill.actualxoffset = 0;
   fixture.fill.style.clip = 'rect(0px, 17.25px, 12px, 0px)';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50, 'clip lengths compare with CSS fill width, not raw window width');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 50, 'clip lengths compare with CSS fill width, not raw window width');
   fixture.fill.style.clip = 'rect(0px, 8.625px, 12px, 0px)';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 25, 'CSS clip fraction retains the minimum-signal policy');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 25, 'CSS clip fraction retains the minimum-signal policy');
   fixture.fill.style.clip = 'rect(0%, 12%, 100%, 0%)';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 12, 'percentage clips are scale-independent');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 12, 'percentage clips are scale-independent');
   fixture.fill.style.clip = '';
   fixture.fill.style.width = '17.25px';
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 25, 'inline width remains CSS px');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 25, 'inline width remains CSS px');
   fixture.fill.style.width = '';
 
   fixture.inner.actuallayoutwidth = 0;
@@ -1355,7 +1359,7 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
     get() { throw new Error('layout not available yet'); },
   });
   assert.doesNotThrow(() => fixture.harness.scheduler.runByDelay(1));
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 0, 'missing width cannot be mistaken for full health');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 0, 'missing width cannot be mistaken for full health');
   Object.defineProperty(fixture.fill, 'actuallayoutwidth', nativeWidth);
   fixture.fill.actuallayoutwidth = 34.5;
   fixture.inner.actualxoffset = 3.5;
@@ -1364,14 +1368,14 @@ test('v2 normalizes health and marker measurements without converting CSS clip l
     panel.actualuiscale_y = NaN;
   }
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50, 'invalid scale falls back to 1 per panel');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 50, 'invalid scale falls back to 1 per panel');
   assert.equal(fixture.killMarker.style.marginLeft, '37.5px');
   for (const panel of [fixture.inner, fixture.fill]) {
     delete panel.actualuiscale_x;
     delete panel.actualuiscale_y;
   }
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.width)), 50, 'missing scale falls back to 1');
+  assert.equal(Math.floor(parseFloat(fixture.pulseOverlay.style.clip.split(",")[1])), 50, 'missing scale falls back to 1');
   assert.equal(fixture.healthValue.text, '300');
 });
 
@@ -1427,7 +1431,7 @@ test('v2 uses only primary inner width and does not confuse the shield-bar dupli
   assert.equal(fixture.secondaryShieldFill.style.washColor, undefined);
   assert.equal(fixture.unitShieldbarValue.text, '9999');
   assert.equal(fixture.unitShieldbarValue.style.visibility, 'visible');
-  assert.equal(fixture.pulseOverlay.style.width, '50%');
+  assert.equal(fixture.pulseOverlay.style.clip, 'rect(0%, 50%, 100%, 0%)');
   assert.equal(fixture.killMarker.GetParent(), fixture.healthbar);
   assert.equal(fixture.killMarker.style.visibility, 'visible');
   assert.equal(fixture.killMarker.style.width, '10px');
@@ -1463,7 +1467,7 @@ test('v2 ally health text is opt-in, independently styled, and native labels res
   assert.equal(fixture.healthValue.style.fontSize, '20px');
   assert.equal(fixture.healthValue.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
   assert.equal(fixture.counterAnchor.style.transform, '');
-  assert.deepEqual(readoutTranslation(fixture.counterRow), [-58, 186]);
+  assert.deepEqual(readoutTranslation(fixture.counterRow), [-48, 186]);
   assert.equal(fixture.healthValue.GetParent(), fixture.counterRow);
 
   fixture.fill.actuallayoutwidth = 6.9;
@@ -1510,6 +1514,24 @@ test('v2 retries one incomplete live bar without polling complete bars', () => {
     fixture.harness.scheduler.jobs.some((job) => job.delay === 0.05),
     false,
   );
+});
+
+test('v2 retained stale parts retry cannot erase the replacement job', () => {
+  const fixture = makeStatusFixture('enemy', { enemyColor: '#123456' });
+  const { scheduler } = fixture.harness;
+  fixture.fill.DeleteAsync();
+  scheduler.runByDelay(1);
+  const stale = scheduler.jobs.find(job => job.delay === 0.05);
+  assert.ok(stale);
+  fixture.pulseOverlay.DeleteAsync();
+  scheduler.runByDelay(1);
+  const current = scheduler.jobs.find(job => job.delay === 0.05);
+  assert.ok(current && current !== stale, 'changed parts replace the pending retry');
+  assert.equal(scheduler.jobs.includes(stale), false);
+  stale.fn(); // A canceled callback may already have escaped cancellation.
+  fixture.unitStatus.valid = false;
+  scheduler.runByDelay(1);
+  assert.equal(scheduler.jobs.includes(current), false, 'teardown still cancels the replacement retry');
 });
 
 test('v2 ignores an out-of-line retired bar decoy and uses the static primary bar', () => {
@@ -1827,7 +1849,8 @@ test('v2 stock-scale default and pulse readouts use zero-based CSS pixel offsets
   ]) {
     const fixture = makeStatusFixture(entry.role, entry.values);
     assert.equal(fixture.counterAnchor.style.transform, '', entry.role);
-    const edge = measuredReadoutCenterX(fixture) + (entry.role === 'ally' ? 23.5 : 33.5);
+    // One gap for both sides: equal offsets put enemy and ally text at the same spot.
+    const edge = measuredReadoutCenterX(fixture) + 33.5;
     assert.deepEqual(readoutTranslation(fixture.counterRow), [edge - 200, 66]);
     assert.equal(fixture.counterRow.style.horizontalAlign, 'right');
     dispatchColorSnapshot(fixture, 2, { ...entry.values, [entry.offsetX]: 50 });
@@ -1853,7 +1876,7 @@ test('native enemy ally and pulse offsets use intrinsic bar-relative vertical an
     const base = { ...entry.values, widthScale: 100, heightScale: 100, positionX: 0, positionY: 0,
       [entry.x]: 10, [entry.y]: 20 };
     const fixture = makeStatusFixture(entry.role, base);
-    const edge = measuredReadoutCenterX(fixture) + (entry.role === 'ally' ? 23.5 : 33.5);
+    const edge = measuredReadoutCenterX(fixture) + 33.5;
     assert.deepEqual(readoutTranslation(fixture.counterRow), [edge + 10 - 200, 86], entry.x);
     let revision = 1;
     for (const [widthScale, heightScale] of [[148, 60], [100, 100], [60, 160]]) {
@@ -1888,8 +1911,8 @@ test('v2 full-canvas readout frame aligns native labels and level margins retain
   assert.doesNotMatch(container, /margin(-top)?:\s*-?[1-9]/);
   assert.doesNotMatch(container, /transform:\s*rotate/);
   assert.match(cssBlock(css, '.WindowRoot #name'), /transform:\s*none/);
-  // Detached from #UnitStatus, the frame mirrors its damage wiggle and hidden states.
-  assert.match(cssBlock(css, '.active_damage #hp_counter_container'), /animation-name:\s*active_damage_wiggle/);
+  // Detached readout stays static and continues to mirror stock hidden states.
+  assert.doesNotMatch(css, /\.active_damage #hp_counter_container,[^{}]*\{[^}]*animation-name:\s*active_damage_wiggle/);
   for (const hidden of ['.health_hidden', '.GameStatePreGame', '.beingSpectatedInEye',
     '.health_particle_active', '.neutral_vault', '.midboss'])
     assert.ok(new RegExp(`\\${hidden} #hp_counter_container[\\s\\S]*?visibility:\\s*collapse`).test(css), hidden);
@@ -2470,6 +2493,19 @@ test('v2 rejects malformed and stale configuration revisions', () => {
     enemyHigh: '#ABCDEF',
   }));
   assert.equal(fixture.fill.style.washColor, '#123456');
+
+  const config = fixture.unitStatus.HPV2GetNormalizedConfig();
+  for (const values of [null, true, 42, 'x', []]) {
+    const writes = fixture.harness.operationCounts.styleWrites;
+    handler(JSON.stringify({ magic_word: 'HP_COLORS_V2_CONFIG', version: 2, revision: 4, values }));
+    assert.equal(fixture.unitStatus.HPV2GetNormalizedConfig(), config, 'invalid values preserve config');
+    assert.equal(fixture.fill.style.washColor, '#123456');
+    assert.equal(fixture.harness.operationCounts.styleWrites, writes, 'invalid values do not repaint');
+  }
+  handler(JSON.stringify({ magic_word: 'HP_COLORS_V2_CONFIG', version: 2, revision: 4,
+    values: { enabled: false } }));
+  assert.equal(fixture.unitStatus.HPV2GetNormalizedConfig().enabled, false,
+    'invalid values do not consume the revision and sparse objects remain valid');
 });
 
 test('Appearance player label ownership survives surface changes and releases on retirement', () => {
@@ -2530,7 +2566,7 @@ test('Appearance collapse CSS leaves stock critical effects intact', () => {
     const expression = new RegExp('\\.WindowRoot\\.' + owner + ' #' + id + '\\s*\\{([^}]+)\\}');
     assert.equal(css.match(expression)[1].trim(), 'visibility: collapse;');
   }
-  assert.doesNotMatch(css, /opacity-mask:/);
+  assert.doesNotMatch(css.replace(/\.WindowRoot\.HPColorsRewriteBarMask[^{}]*\{[^}]*\}/g, ''), /opacity-mask:/);
   for (const name of ['healthCritFlash', 'healthCritFlash2', 'healthCritFlash3', 'allyHealthFlash'])
     assert.match(css, new RegExp('@keyframes.*' + name));
   assert.doesNotMatch(css, /HPColorsRewriteHide[^{}]*\{[^}]*opacity-mask/);
@@ -2809,4 +2845,32 @@ test('centered uncustomized player names remain stock and release alignment duri
   dispatchColorSnapshot(fixture, 6, { ...values, enemyNameColorEnabled: true });
   assert.equal(fixture.namePanel.style.horizontalAlign, 'center', 'customized CENTER centers explicitly');
   assert.equal(fixture.namePanel.style.textAlign, 'center');
+});
+
+test("colour pulse uses cached render-only coverage and releases its clip", () => {
+  const values = { enemyPulseEnabled: true, enemyPulseThreshold: 100,
+    enemyPulseColorEnabled: true, enemyPulseColorMode: "gradient" };
+  for (const release of ["off", "colour off", "fixed", "retirement", "teardown"]) {
+    const fixture = makeStatusFixture("enemy", values);
+    const overlay = fixture.pulseOverlay;
+    for (const percent of [0, 12.5, 100]) {
+      fixture.fill.style.clip = `rect(0%, ${percent}%, 100%, 0%)`;
+      fixture.fill.actuallayoutwidth = 69;
+      fixture.harness.scheduler.runByDelay(1);
+      assert.equal(overlay.style.clip, `rect(0%, ${percent}%, 100%, 0%)`);
+      overlay.styleWrites.length = 0;
+      fixture.harness.scheduler.runByDelay(1);
+      assert.deepEqual(overlay.styleWrites, [], "unchanged coverage stays cached");
+    }
+    assert.equal(overlay.style.width, undefined, "health never writes layout width");
+    if (release === "off") dispatchColorSnapshot(fixture, 2, { ...values, enabled: false });
+    if (release === "colour off") dispatchColorSnapshot(fixture, 2, { ...values, enemyPulseColorEnabled: false });
+    if (release === "fixed") dispatchColorSnapshot(fixture, 2, { ...values, enemyPulseColorMode: "fixed" });
+    if (release === "retirement") fixture.healthbar.RemoveClass("UnitHealthbarContainer");
+    if (release === "teardown") fixture.unitStatus.valid = false;
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(overlay.style.clip || "", "", release);
+    assert.equal(overlay.BHasClass("HPColorsRewriteColorPulse"), false, release);
+  }
+  assert.match(read(stylePath).match(/\.WindowRoot #hp_colors_pulse_overlay\s*\{([^}]+)\}/)[1], /width:\s*100%/);
 });

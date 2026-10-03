@@ -85,7 +85,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
   assert.equal(Object.isFrozen(contract.keys), true);
   assert.equal(Object.isFrozen(contract.settingMeta), true);
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 74);
+  assert.equal(contract.extensionKeys.length, 81);
   assert.deepEqual(contract.extensionKeys.slice(68, 70), ['nameAlign', 'hpTextAlign']);
   for (const key of ['nameAlign', 'hpTextAlign']) {
     assert.equal(contract.defaults[key], key === 'nameAlign' ? 'center' : 'left');
@@ -107,6 +107,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
     wireManifest.extensionSlots.map(({ key }) => key),
   );
   const currentBounds = {
+    widthScale: [60, 400], heightScale: [60, 400],
     positionX: [-2000, 2000], positionY: [-2100, 2100],
     staminaOffsetX: [-2000, 2000], staminaOffsetY: [-2100, 2100],
     ultOffsetX: [-3334, 3334], ultOffsetY: [-3500, 3500],
@@ -143,7 +144,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
     color: false,
     conditionEligible: true,
     min: 60,
-    max: 230,
+    max: 400,
     options: [],
   });
   assert.equal(contract.settingMeta.precisePipsEnabled, undefined);
@@ -157,7 +158,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
     highThreshold: 20,
   });
   assert.equal(normalized.enabled, false);
-  assert.equal(normalized.widthScale, 230);
+  assert.equal(normalized.widthScale, 400);
   assert.equal(normalized.enemyLow, DEFAULTS.enemyLow);
   assert.equal(normalized.enemyMode, DEFAULTS.enemyMode);
   assert.equal(normalized.lowThreshold, 64);
@@ -416,6 +417,8 @@ test('HPCRP1 corpus covers every active slot and canonicalizes retired slots', (
       for (const [slot, value] of record.hpv2.values) values[EXTENSION_KEYS[slot]] = value;
       record.values = expectedPairs(values, CODEC_KEYS, CODEC_DEFAULTS);
       record.hpv2.values = expectedPairs(values, EXTENSION_KEYS, CODEC_DEFAULTS);
+      // Records older than slot 75 keep the frozen OFF value, which differs from the shipped ON.
+      if (record.own && !record.own.includes('nameRiseWithPips')) record.own.push('nameRiseWithPips');
     }
   }
   assert.deepEqual(exported.records, canonical.records);
@@ -554,7 +557,7 @@ test('v1 hydration normalizes values and falls back atomically to shipped defaul
   const view = hydrated.read();
 
   assert.equal(view.values.enabled, false);
-  assert.equal(view.values.widthScale, 230);
+  assert.equal(view.values.widthScale, 400);
   assert.equal(view.values.heightScale, 120);
   assert.equal(view.values.enemyLow, '#ABCDEF');
   assert.equal(view.values.lowThreshold < view.values.highThreshold, true);
@@ -3533,7 +3536,7 @@ test('HUD health wash supports conditions, hero scopes, Undo, page reset and bot
   const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
   assert.deepEqual(JSON.parse(code.slice(5)).hpv2.values, [
     ...expectedPairs(state.read().values, EXTENSION_KEYS.slice(0, 65), CODEC_DEFAULTS),
-    [65, 'team'], [66, '#123456'],
+    [65, 'team'], [66, '#123456'], [75, true],
   ]);
   const restored = createState();
   const imported = send(restored, 'settings_import', { raw: code });
@@ -3586,8 +3589,8 @@ test('hpv2 v3 imports offsets and conditions unchanged then exports v2', () => {
 });
 
 test('new appended controls preserve the frozen sparse baseline and transfer', () => {
-  assert.equal(EXTENSION_KEYS.length, 74);
-  assert.deepEqual(EXTENSION_KEYS.slice(67), ['allyPulseReadout', 'nameAlign', 'hpTextAlign',
+  assert.equal(EXTENSION_KEYS.length, 81);
+  assert.deepEqual(EXTENSION_KEYS.slice(67, 74), ['allyPulseReadout', 'nameAlign', 'hpTextAlign',
     'criticalOffsetX', 'criticalOffsetY', 'assassinateOffsetX', 'assassinateOffsetY']);
   for (const defaults of [CODEC_DEFAULTS, CONTRACT.sparseDefaults, DEFAULTS]) {
     assert.equal(defaults.allyPulseReadout, false);
@@ -3615,6 +3618,137 @@ test('new appended controls preserve the frozen sparse baseline and transfer', (
   const target = createState();
   send(target, 'settings_import', { raw: code });
   for (const key of EXTENSION_KEYS.slice(67)) assert.equal(target.read().values[key], state.read().values[key]);
+});
+
+// Failure modes: a missing slot shifts later share codes; a non-NONE baseline
+// changes old saves' look; invalid values must reject; Undo/reset/presets lose it.
+test('bar mask appends a NONE-default enum slot that transfers, resets and rejects bad values', () => {
+  assert.equal(EXTENSION_KEYS[74], 'barMask');
+  for (const defaults of [CODEC_DEFAULTS, CONTRACT.sparseDefaults, DEFAULTS])
+    assert.equal(defaults.barMask, 'none');
+  assert.deepEqual(SETTING_META.barMask.options, ['none', 'original', 'old']);
+  assert.equal(SETTING_META.barMask.conditionEligible, true);
+  assert.equal(CONTRACT.normalizeValue('barMask', 'bad'), 'none');
+  for (const raw of [undefined, makeSession(), { version: 1, values: {} }])
+    assert.equal(createState(raw).read().values.barMask, 'none');
+  const state = createState();
+  assert.equal(send(state, 'setting_edit', { key: 'barMask', value: 'original' }).status, 'committed');
+  assert.equal(state.read().effectiveValues.barMask, 'original');
+  const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.deepEqual(JSON.parse(code.slice(5)).hpv2.values.slice(-2), [[74, 'original'], [75, true]]);
+  const target = createState();
+  assert.equal(send(target, 'settings_import', { raw: code }).status, 'committed');
+  assert.equal(target.read().values.barMask, 'original');
+  const saved = createState({ sessionRaw: effect(send(state, 'setting_edit', { key: 'nameAlign', value: 'left' }), 'session_replace').raw });
+  assert.equal(saved.read().values.barMask, 'original');
+  send(state, 'preset_save', { name: 'Original mask' });
+  const presetCode = effect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const presetTarget = createState();
+  assert.equal(send(presetTarget, 'preset_import', { raw: presetCode }).status, 'committed');
+  assert.equal(row(presetTarget.read(), 'user_0001').values.barMask, 'original');
+  const rejected = send(target, 'settings_import', { raw: 'HPCR2' + JSON.stringify({
+    v: [], c: {}, hpv2: { v: 2, values: [[74, 'rounded']], conditions: {} } }) });
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(target.read().values.barMask, 'original');
+  const reset = send(target, 'reset_request', { keys: ['barMask'] });
+  send(target, 'reset_confirm', { token: reset.view.transactions.confirmation.token });
+  assert.equal(target.read().values.barMask, 'none');
+  send(target, 'undo');
+  assert.equal(target.read().values.barMask, 'original');
+});
+
+// Failure modes: OLD normalizes to NONE, is lost through codes/presets/saves/conditions,
+// or the slot count grows instead of reusing slot 74.
+test('bar style OLD reuses slot 74 and survives codes, presets, saves and conditions', () => {
+  assert.equal(EXTENSION_KEYS.length, 81);
+  assert.equal(CONTRACT.normalizeValue('barMask', 'old'), 'old');
+  const state = createState();
+  assert.equal(send(state, 'setting_edit', { key: 'barMask', value: 'old' }).status, 'committed');
+  assert.equal(send(state, 'condition_set', { key: 'barMask', slot: 1, minTier: 2, value: 'original' }).status, 'committed');
+  const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.deepEqual(JSON.parse(code.slice(5)).hpv2.values.slice(-2), [[74, 'old'], [75, true]]);
+  const target = createState();
+  assert.equal(send(target, 'settings_import', { raw: code }).status, 'committed');
+  assert.equal(target.read().values.barMask, 'old');
+  assert.equal(target.read().conditions.barMask.value, 'original');
+  const saved = createState({ sessionRaw: effect(send(state, 'setting_edit', { key: 'nameAlign', value: 'left' }), 'session_replace').raw });
+  assert.equal(saved.read().values.barMask, 'old');
+  send(state, 'preset_save', { name: 'Old pips' });
+  const presetTarget = createState();
+  send(presetTarget, 'preset_import', { raw: effect(send(state, 'preset_copy_selected'), 'clipboard_write').text });
+  assert.equal(row(presetTarget.read(), 'user_0001').values.barMask, 'old');
+});
+
+// Failure modes: shake slots shift share codes, non-stock defaults change old saves,
+// out-of-range intensity is accepted, or codes/presets/saves/reset/Undo drop the values.
+test('damage shake appends slots 76 and 77 with stock defaults that transfer and reset', () => {
+  assert.equal(EXTENSION_KEYS[76], 'damageShakeEnabled');
+  assert.equal(EXTENSION_KEYS[77], 'damageShakeIntensity');
+  for (const defaults of [CODEC_DEFAULTS, CONTRACT.sparseDefaults, DEFAULTS]) {
+    assert.equal(defaults.damageShakeEnabled, true);
+    assert.equal(defaults.damageShakeIntensity, 3);
+  }
+  for (const raw of [undefined, makeSession(), { version: 1, values: {} }]) {
+    assert.equal(createState(raw).read().values.damageShakeEnabled, true);
+    assert.equal(createState(raw).read().values.damageShakeIntensity, 3);
+  }
+  const state = createState();
+  assert.equal(send(state, 'setting_edit', { key: 'damageShakeEnabled', value: false }).status, 'committed');
+  send(state, 'setting_edit', { key: 'damageShakeIntensity', value: 99 });
+  assert.equal(state.read().values.damageShakeIntensity, 10, 'intensity clamps to 10 degrees');
+  send(state, 'setting_edit', { key: 'damageShakeIntensity', value: 7 });
+  const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.deepEqual(JSON.parse(code.slice(5)).hpv2.values.slice(-2), [[76, false], [77, 7]]);
+  const target = createState();
+  assert.equal(send(target, 'settings_import', { raw: code }).status, 'committed');
+  assert.equal(target.read().values.damageShakeEnabled, false);
+  assert.equal(target.read().values.damageShakeIntensity, 7);
+  const saved = createState({ sessionRaw: effect(send(state, 'setting_edit', { key: 'nameAlign', value: 'left' }), 'session_replace').raw });
+  assert.equal(saved.read().values.damageShakeIntensity, 7);
+  send(state, 'preset_save', { name: 'Calm shake' });
+  const presetTarget = createState();
+  send(presetTarget, 'preset_import', { raw: effect(send(state, 'preset_copy_selected'), 'clipboard_write').text });
+  assert.equal(row(presetTarget.read(), 'user_0001').values.damageShakeEnabled, false);
+  assert.equal(row(presetTarget.read(), 'user_0001').values.damageShakeIntensity, 7);
+  const reset = send(target, 'reset_request', { keys: ['damageShakeEnabled', 'damageShakeIntensity'] });
+  send(target, 'reset_confirm', { token: reset.view.transactions.confirmation.token });
+  assert.equal(target.read().values.damageShakeEnabled, true);
+  assert.equal(target.read().values.damageShakeIntensity, 3);
+  send(target, 'undo');
+  assert.equal(target.read().values.damageShakeIntensity, 7);
+});
+
+// Failure modes: tilt slots shift share codes, a non-zero default tilts old saves,
+// out-of-range degrees are accepted, or codes/presets/saves/reset drop the values.
+test('tilt appends slots 78-80 with straight defaults that clamp, transfer and reset', () => {
+  assert.deepEqual(EXTENSION_KEYS.slice(78), ['nameTilt', 'readoutTilt', 'allyReadoutTilt']);
+  const keys = ['nameTilt', 'readoutTilt', 'allyReadoutTilt'];
+  for (const defaults of [CODEC_DEFAULTS, CONTRACT.sparseDefaults, DEFAULTS])
+    for (const key of keys) assert.equal(defaults[key], 0, key);
+  for (const raw of [undefined, makeSession(), { version: 1, values: {} }])
+    for (const key of keys) assert.equal(createState(raw).read().values[key], 0, key);
+  const state = createState();
+  send(state, 'setting_edit', { key: 'nameTilt', value: -400 });
+  assert.equal(state.read().values.nameTilt, -360);
+  send(state, 'setting_edit', { key: 'readoutTilt', value: 400 });
+  assert.equal(state.read().values.readoutTilt, 360);
+  send(state, 'setting_edit', { key: 'nameTilt', value: 15 });
+  send(state, 'setting_edit', { key: 'readoutTilt', value: -20 });
+  send(state, 'setting_edit', { key: 'allyReadoutTilt', value: 30 });
+  const code = effect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.deepEqual(JSON.parse(code.slice(5)).hpv2.values.slice(-3), [[78, 15], [79, -20], [80, 30]]);
+  const target = createState();
+  assert.equal(send(target, 'settings_import', { raw: code }).status, 'committed');
+  assert.deepEqual(keys.map(key => target.read().values[key]), [15, -20, 30]);
+  const saved = createState({ sessionRaw: effect(send(state, 'setting_edit', { key: 'nameAlign', value: 'left' }), 'session_replace').raw });
+  assert.deepEqual(keys.map(key => saved.read().values[key]), [15, -20, 30]);
+  send(state, 'preset_save', { name: 'Tilted' });
+  const presetTarget = createState();
+  send(presetTarget, 'preset_import', { raw: effect(send(state, 'preset_copy_selected'), 'clipboard_write').text });
+  assert.deepEqual(keys.map(key => row(presetTarget.read(), 'user_0001').values[key]), [15, -20, 30]);
+  const reset = send(target, 'reset_request', { keys });
+  send(target, 'reset_confirm', { token: reset.view.transactions.confirmation.token });
+  assert.deepEqual(keys.map(key => target.read().values[key]), [0, 0, 0]);
 });
 
 test('old local bodies silently drop removed HP text alignment keys', () => {

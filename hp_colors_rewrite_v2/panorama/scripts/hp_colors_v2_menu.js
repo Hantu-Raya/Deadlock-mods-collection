@@ -40,11 +40,10 @@
   var SAVE_TO_FEEDBACK_SEC = 3;
   var SAVE_TO_EMPTY_TEXT = "No presets yet. NEW PRESET saves your settings as one.";
   var PRESET_GONE_TEXT = "THAT PRESET NO LONGER EXISTS. NOTHING CHANGED.";
-  var REPLAY_HOT_SEC = 1;
-  var REPLAY_WARM_SEC = 3;
-  var REPLAY_IDLE_SEC = 8;
-  var REPLAY_HOT_COUNT = 3;
-  var REPLAY_WARM_COUNT = 12;
+  // World contexts ask for config through their sibling relay; the menu
+  // answers at most once per window, with one trailing answer for a burst.
+  var CONFIG_REQUEST_MAGIC = "HPV2_CONFIG_REQUEST";
+  var CONFIG_ANSWER_WINDOW_MS = 500;
   var HERO_POLL_ACTIVE_SEC = 1;
   var HERO_POLL_INACTIVE_SEC = 5;
   var HERO_MODE_AUTO = "auto";
@@ -84,6 +83,9 @@
           "keys": [
             "widthScale",
             "heightScale",
+            "barMask",
+            "damageShakeEnabled",
+            "damageShakeIntensity",
             "positionX",
             "positionY",
             "accessoryAnchorEnabled"
@@ -109,7 +111,9 @@
             "nameOutlineWidth",
             "nameAlign",
             "nameOffsetX",
-            "nameOffsetY"
+            "nameOffsetY",
+            "nameTilt",
+            "nameRiseWithPips"
           ]
         }
       ]
@@ -167,6 +171,7 @@
             "readoutHigh",
             "readoutOffsetX",
             "readoutOffsetY",
+            "readoutTilt",
             "allyReadoutVisible",
             "allyReadoutSize",
             "allyReadoutOutlineWidth",
@@ -177,7 +182,8 @@
             "allyReadoutMid",
             "allyReadoutHigh",
             "allyReadoutOffsetX",
-            "allyReadoutOffsetY"
+            "allyReadoutOffsetY",
+            "allyReadoutTilt"
           ],
           "sides": [
             "HPColorsPlayerHpTextEnemy",
@@ -405,7 +411,8 @@
             "readoutMid",
             "readoutHigh",
             "readoutOffsetX",
-            "readoutOffsetY"
+            "readoutOffsetY",
+            "readoutTilt"
           ]
         },
         {
@@ -488,7 +495,8 @@
             "allyReadoutMid",
             "allyReadoutHigh",
             "allyReadoutOffsetX",
-            "allyReadoutOffsetY"
+            "allyReadoutOffsetY",
+            "allyReadoutTilt"
           ]
         },
         {
@@ -621,14 +629,6 @@
     "nameAlign",
     "nameOffsetX",
     "nameOffsetY",
-    "enemyTeamHigh",
-    "enemyHealing",
-    "enemyDelta",
-    "enemyBulletShield",
-    "allyTeamHigh",
-    "allyHealing",
-    "allyDelta",
-    "allyBulletShield",
     "hpTextAlign",
     "readoutOutlineWidth",
     "readoutOffsetX",
@@ -636,24 +636,10 @@
     "allyReadoutOutlineWidth",
     "allyReadoutOffsetX",
     "allyReadoutOffsetY",
-    "enemyPulseColorEnabled",
-    "enemyPulseColorMode",
-    "enemyPulseColor",
-    "enemyPulseHideBar",
-    "enemyPulseReadout",
-    "enemyPulseReadoutModifiers",
     "enemyPulseReadoutSize",
     "enemyPulseReadoutOffsetX",
     "enemyPulseReadoutOffsetY",
     "enemyKillMarkerWidth",
-    "allyPulseReadout",
-    "allyPulseColorEnabled",
-    "allyPulseColor",
-    "allyPulseColorMode",
-    "enemyPipColorEnabled",
-    "enemyPipColor",
-    "allyPipColorEnabled",
-    "allyPipColor",
     "pipOpacity",
     "levelOffsetX",
     "levelOffsetY",
@@ -665,17 +651,28 @@
     "staminaHeight",
     "staminaOffsetX",
     "staminaOffsetY",
-    "enemyStaminaColorEnabled",
-    "enemyStaminaColor",
-    "pickupGunColor",
-    "pickupMovementColor",
-    "pickupSpiritColor",
-    "pickupSurvivalColor",
     "pickupBackgroundDarkness",
-    "pickupGlyphColor",
     "pickupSpacing",
     "pickupOffsetX",
-    "pickupOffsetY"
+    "pickupOffsetY",
+    "widthScale",
+    "heightScale",
+    "nameSize",
+    "nameRiseWithPips",
+    "readoutSize",
+    "allyReadoutSize",
+    "enemyPulseThreshold",
+    "enemyPulseBpm",
+    "enemyPulseIntensity",
+    "allyPulseThreshold",
+    "allyPulseBpm",
+    "allyPulseIntensity",
+    "enemyKillMarkerThreshold",
+    "pickupSize",
+    "damageShakeIntensity",
+    "nameTilt",
+    "readoutTilt",
+    "allyReadoutTilt"
   ];
   var advancedKeys = {};
   for (var tuningIndex = 0; tuningIndex < ADVANCED_KEYS.length; tuningIndex++)
@@ -733,6 +730,8 @@
     { id: "HPColorsMasterToggle", key: "enabled" },
     { id: "HPColorsCriticalIndicatorToggle", key: "criticalIndicatorVisible" },
     { id: "HPColorsPlayerNamesToggle", key: "playerNamesVisible" },
+    { id: "HPColorsNameRiseToggle", key: "nameRiseWithPips" },
+    { id: "HPColorsDamageShakeToggle", key: "damageShakeEnabled" },
     { id: "HPColorsNpcEnemyToggle", key: "npcEnemyEnabled" },
     { id: "HPColorsNpcAllyToggle", key: "npcAllyEnabled" },
     { id: "HPColorsNpcNeutralToggle", key: "npcNeutralEnabled" },
@@ -790,6 +789,7 @@
   var HUD_TEAM2_COLOR = "#5B79E6";
   // OFF/TEAM/CUSTOM share a neutral white base so the stock team texture never tints the wash.
   var HUD_BASE_TEXTURE = 'url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_png.vtex")';
+  var ENUM_OPTION_LABELS = { barMask: { original: "V2", none: "V1", old: "OLD" } };
   var HUD_BASE_COLOR = "#FFFFFF";
   var MODE_CONTROLS = [
     { id: "HPColorsNameAlignLeft", key: "nameAlign", value: "left" },
@@ -801,6 +801,9 @@
     { id: "HPColorsHudHealthColorModeOff", key: "hudHealthColorMode", value: "off" },
     { id: "HPColorsHudHealthColorModeTeam", key: "hudHealthColorMode", value: "team" },
     { id: "HPColorsHudHealthColorModeCustom", key: "hudHealthColorMode", value: "custom" },
+    { id: "HPColorsBarMaskOriginal", key: "barMask", value: "original" },
+    { id: "HPColorsBarMaskNone", key: "barMask", value: "none" },
+    { id: "HPColorsBarMaskOld", key: "barMask", value: "old" },
     { id: "HPColorsEnemyModeFixed", key: "enemyMode", value: "fixed" },
     {
       id: "HPColorsEnemyModeGradient",
@@ -953,17 +956,21 @@
   ];
   var SLIDER_CONTROLS = [
     {base: "HPColorsPipOpacity", key: "pipOpacity", min: 0, max: 100},
+    { base: "HPColorsDamageShakeIntensity", key: "damageShakeIntensity", min: 1, max: 10 },
 
     { base: "HPColorsNameSize", key: "nameSize", min: 8, max: 40 },
     { base: "HPColorsNameOutlineWidth", key: "nameOutlineWidth", min: 0, max: 10, increment: 0.5 },
     { base: "HPColorsNameOffsetX", key: "nameOffsetX", min: -200, max: 200 },
     { base: "HPColorsNameOffsetY", key: "nameOffsetY", min: -210, max: 210 },
+    { base: "HPColorsNameTilt", key: "nameTilt", min: -360, max: 360 },
+    { base: "HPColorsReadoutTilt", key: "readoutTilt", min: -360, max: 360 },
+    { base: "HPColorsAllyReadoutTilt", key: "allyReadoutTilt", min: -360, max: 360 },
     { base: "HPColorsCriticalOffsetX", key: "criticalOffsetX", min: -200, max: 200 },
     { base: "HPColorsCriticalOffsetY", key: "criticalOffsetY", min: -210, max: 210 },
     { base: "HPColorsAssassinateOffsetX", key: "assassinateOffsetX", min: -200, max: 200 },
     { base: "HPColorsAssassinateOffsetY", key: "assassinateOffsetY", min: -210, max: 210 },
-    { base: "HPColorsWidth", key: "widthScale", min: 60, max: 230 },
-    { base: "HPColorsHeight", key: "heightScale", min: 60, max: 160 },
+    { base: "HPColorsWidth", key: "widthScale", min: 60, max: 400 },
+    { base: "HPColorsHeight", key: "heightScale", min: 60, max: 400 },
     { base: "HPColorsPositionX", key: "positionX", min: -2000, max: 2000, displayScale: 0.1 },
     { base: "HPColorsPositionY", key: "positionY", min: -2100, max: 2100, displayScale: 0.1 },
     { base: "HPColorsUltOffsetX", key: "ultOffsetX", min: -3334, max: 3334, displayScale: 0.1 },
@@ -1306,9 +1313,16 @@
     "nameAlign": "HPColorsNameAlignRow",
     "nameOffsetX": "HPColorsNameOffsetXRow",
     "nameOffsetY": "HPColorsNameOffsetYRow",
+    "nameTilt": "HPColorsNameTiltRow",
+    "readoutTilt": "HPColorsReadoutTiltRow",
+    "allyReadoutTilt": "HPColorsAllyReadoutTiltRow",
+    "nameRiseWithPips": "HPColorsNameRiseWithPipsRow",
     "hpTextAlign": "HPColorsHpTextAlignRow",
     "widthScale": "HPColorsWidthScaleRow",
     "heightScale": "HPColorsHeightScaleRow",
+    "barMask": "HPColorsBarMaskRow",
+    "damageShakeEnabled": "HPColorsDamageShakeEnabledRow",
+    "damageShakeIntensity": "HPColorsDamageShakeIntensityRow",
     "positionX": "HPColorsPositionXRow",
     "positionY": "HPColorsPositionYRow",
     "ultOffsetX": "HPColorsUltOffsetXRow",
@@ -1407,10 +1421,12 @@
     view: null,
   };
   var stateInstance = null;
-  var replayGeneration = 0;
-  var replayRunning = false;
-  var replayDispatches = 0;
-  var serializedReplayPayload = "";
+  // Full payload mirrors the root attribute; broadcasts and answers carry the
+  // sparse form (keys differing from shipped defaults).
+  var publishedFullPayload = "";
+  var publishedSparsePayload = "";
+  var publishedRevision = -1;
+  var configAnswer = { handlerId: null, job: null, lastAt: -Infinity, generation: 0 };
   var lastClipboardCopied = null;
   var storage = null;
   var hydration = { phase: "idle", raw: null };
@@ -1485,10 +1501,11 @@
       } else if (effect.type === "effective_publish") {
         var payload = serializeChange(effect.revision, effect.values);
         writeRootAttribute(CONFIG_ATTR, payload);
-        serializedReplayPayload = payload;
+        rememberPublishedPayload(payload);
         paintHudHealthWash(effect.values);
-        dispatchChange(payload);
-        refreshSnapshotReplay();
+        // A publish is also the answer for this window's requests.
+        configAnswer.lastAt = nowMs();
+        dispatchChange(publishedSparsePayload);
       } else if (effect.type === "clipboard_write") {
         lastClipboardCopied = executeClipboardEffect(effect);
       }
@@ -1920,8 +1937,8 @@
     writeHudHealthStyle("washColor", null);
   }
 
-  function releaseHudHealthWash() {
-    if (hudHealthWash.released || !resolveHudHealthWash()) return;
+  function releaseHudHealthWash(alreadyResolved) {
+    if (hudHealthWash.released || (!alreadyResolved && !resolveHudHealthWash())) return;
     clearHudHealthWash();
     hudHealthWash.released = hudHealthWash.styles.backgroundImage === null &&
       hudHealthWash.styles.backgroundColor === null && hudHealthWash.styles.washColor === null;
@@ -1968,7 +1985,7 @@
       if (team1 !== team2) color = team1 ? HUD_TEAM1_COLOR : HUD_TEAM2_COLOR;
     }
     if (values.hudHealthColorMode !== "off" && !color) {
-      releaseHudHealthWash();
+      releaseHudHealthWash(true);
       return;
     }
     writeHudHealthStyle("backgroundImage", HUD_BASE_TEXTURE);
@@ -4498,52 +4515,121 @@
     }
   }
 
-  function replayDelay() {
-    if (replayDispatches < REPLAY_HOT_COUNT) return REPLAY_HOT_SEC;
-    if (replayDispatches < REPLAY_WARM_COUNT) return REPLAY_WARM_SEC;
-    return REPLAY_IDLE_SEC;
+  function nowMs() {
+    return Date.now ? Date.now() : +new Date();
   }
 
-  function snapshotReplay(generation) {
-    var view = currentView();
-    if (
-      !replayRunning ||
-      generation !== replayGeneration ||
-      !view ||
-      !view.effectiveValues ||
-      !view.effectiveValues.enabled ||
-      !isValid(ui.absoluteRoot)
-    )
-      return;
-    replayDispatches += 1;
-    dispatchChange(serializedReplayPayload);
-    scheduleSnapshotReplay(generation);
-  }
-
-  function scheduleSnapshotReplay(generation) {
+  // Drops keys equal to the shipped defaults; receivers refill them through
+  // normalizeValues. The root attribute keeps the full payload.
+  function sparsePayload(raw) {
+    var defaults = DEFAULTS;
+    if (!raw || !defaults || !Object.keys(defaults).length) return raw;
     try {
-      $.Schedule(replayDelay(), function () {
-        snapshotReplay(generation);
+      var payload = JSON.parse(raw);
+      if (!payload || payload.magic_word !== CONFIG_MAGIC || !payload.values ||
+        typeof payload.values !== "object") return raw;
+      var values = {};
+      for (var key in payload.values) {
+        if (!Object.prototype.hasOwnProperty.call(payload.values, key)) continue;
+        if (Object.prototype.hasOwnProperty.call(defaults, key) &&
+          payload.values[key] === defaults[key]) continue;
+        values[key] = payload.values[key];
+      }
+      return serializeChange(payload.revision, values);
+    } catch {
+      return raw;
+    }
+  }
+
+  function rememberPublishedPayload(raw) {
+    // Recompute when an earlier pass ran before the schema defaults were known.
+    if (!raw || (raw === publishedFullPayload && publishedSparsePayload !== raw)) return;
+    publishedFullPayload = raw;
+    publishedSparsePayload = sparsePayload(raw);
+    try {
+      var revision = JSON.parse(publishedSparsePayload).revision;
+      publishedRevision = Number.isFinite(revision) ? revision : -1;
+    } catch {
+      publishedRevision = -1;
+    }
+  }
+
+  function sendConfigAnswer() {
+    if (!state.booted || hydration.phase === "pending" || !publishedSparsePayload)
+      return;
+    configAnswer.lastAt = nowMs();
+    dispatchChange(publishedSparsePayload);
+  }
+
+  // Answers even with the master switch off, so late contexts stay stock.
+  // While hydration is pending the request is dropped: hydration publishes.
+  function onConfigRequest(raw) {
+    if (!isValid(context)) {
+      stopConfigAnswers();
+      return;
+    }
+    if (typeof raw !== "string" || raw.length > 512 ||
+      raw.indexOf(CONFIG_REQUEST_MAGIC) < 0) return;
+    if (!state.booted || hydration.phase === "pending" || !publishedSparsePayload)
+      return;
+    try {
+      var request = JSON.parse(raw);
+      if (!request || request.magic_word !== CONFIG_REQUEST_MAGIC) return;
+      if (Number.isFinite(request.revision) && request.revision >= publishedRevision)
+        return;
+    } catch {
+      return;
+    }
+    if (configAnswer.job) return;
+    var wait = configAnswer.lastAt + CONFIG_ANSWER_WINDOW_MS - nowMs();
+    if (!(wait > 0)) {
+      sendConfigAnswer();
+      return;
+    }
+    var generation = configAnswer.generation;
+    try {
+      configAnswer.job = $.Schedule(wait / 1000, function () {
+        if (generation !== configAnswer.generation) return;
+        configAnswer.job = null;
+        if (!isValid(context)) return;
+        sendConfigAnswer();
       });
     } catch {
-      replayRunning = false;
+      configAnswer.job = null;
     }
   }
 
-  function refreshSnapshotReplay() {
-    var view = currentView();
-    if (!view || !view.effectiveValues || !view.effectiveValues.enabled) {
-      replayGeneration += 1;
-      replayRunning = false;
-      replayDispatches = 0;
-      return;
+  function stopConfigAnswers() {
+    configAnswer.generation += 1;
+    if (configAnswer.job) {
+      try {
+        if ($.CancelScheduled) $.CancelScheduled(configAnswer.job);
+      } catch {}
     }
-    if (!serializedReplayPayload) return;
-    replayDispatches = 0;
-    if (replayRunning) return;
-    replayRunning = true;
-    replayGeneration += 1;
-    scheduleSnapshotReplay(replayGeneration);
+    configAnswer.job = null;
+    if (configAnswer.handlerId !== null) {
+      try {
+        $.UnregisterForUnhandledEvent(EVENT_CHANNEL, configAnswer.handlerId);
+      } catch {}
+    }
+    configAnswer.handlerId = null;
+    if (isValid(context) && context.HPV2ConfigAnswerStop === stopConfigAnswers)
+      context.HPV2ConfigAnswerStop = null;
+  }
+
+  // One listener per menu; an Escape layout reload replaces the previous one.
+  function startConfigAnswers() {
+    if (configAnswer.handlerId !== null) return;
+    try {
+      if (isValid(context) && typeof context.HPV2ConfigAnswerStop === "function")
+        context.HPV2ConfigAnswerStop();
+    } catch {}
+    try {
+      configAnswer.handlerId = $.RegisterForUnhandledEvent(EVENT_CHANNEL, onConfigRequest);
+      if (isValid(context)) context.HPV2ConfigAnswerStop = stopConfigAnswers;
+    } catch {
+      configAnswer.handlerId = null;
+    }
   }
 
   function showResetFeedback(text, seconds) {
@@ -4905,7 +4991,8 @@
           );
           var label = $.CreatePanel("Label", button, "");
           button.AddClass("HPColorsConditionChoice");
-          label.text = String(option).toUpperCase();
+          var optionLabels = ENUM_OPTION_LABELS[conditionDraft.key];
+          label.text = (optionLabels && optionLabels[option]) || String(option).toUpperCase();
           setClass(button, "Selected", conditionDraft.value === option);
           setPanelEvent(button, "onactivate", function () {
             conditionDraft.value = option;
@@ -5437,8 +5524,10 @@
     if (key === "allyPipColor") return values.pipsVisible && values.allyPipColorEnabled;
     if (key === "enemyPipColorEnabled" || key === "allyPipColorEnabled") return values.pipsVisible;
     if (key === "pipOpacity") return values.pipsVisible;
+    if (key === "damageShakeIntensity") return values.damageShakeEnabled;
     if (key === "levelOffsetX" || key === "levelOffsetY") return values.levelsVisible;
-    if (/^(enemyName|allyName|nameSize|nameOutlineWidth|nameAlign|nameOffset)/.test(key)) return values.playerNamesVisible;
+    if (key === "nameRiseWithPips") return values.playerNamesVisible && values.barMask === "old";
+    if (/^(enemyName|allyName|nameSize|nameOutlineWidth|nameAlign|nameOffset|nameTilt)/.test(key)) return values.playerNamesVisible;
     if (key === "hpTextAlign") return values.readoutVisible || values.allyReadoutVisible;
     if (key === "criticalOffsetX" || key === "criticalOffsetY") return values.criticalIndicatorVisible;
     if (/^allyReadout/.test(key) && key !== "allyReadoutVisible") return values.allyReadoutVisible;
@@ -5523,6 +5612,7 @@
     if (/^pickup/.test(key)) return controlPanel("HPColorsPickupTimersToggle");
     if (/PipColor|pipOpacity/.test(key)) return controlPanel("HPColorsPipsVisibleToggle");
     if (/^levelOffset/.test(key)) return controlPanel("HPColorsLevelsVisibleToggle");
+    if (key === "damageShakeIntensity") return controlPanel("HPColorsDamageShakeToggle");
     return ui.advancedToggle;
   }
 
@@ -5728,7 +5818,28 @@
         ui.settingsPages[pageIndex].id === activeTab.pageId,
       );
     }
+    autoOpenAdvanced(activeTab);
     syncControls();
+  }
+
+  // A page whose ADVANCED settings differ from the defaults opens folded out so the change
+  // stays visible. A page the player has opened or hidden this session keeps that choice.
+  // Older saves carry the original (sparse) defaults, which are not player changes either.
+  function autoOpenAdvanced(tab) {
+    if (navigationCategories !== CATEGORY_DEFS || advancedOpen[tab.pageId] !== undefined) return;
+    var view = currentView();
+    var scope = view && (view.currentScope || view);
+    var values = scope && scope.values;
+    if (!values) return;
+    var original = (view.schema && view.schema.sparseDefaults) || DEFAULTS;
+    for (var index = 0; index < tab.keys.length; index++) {
+      var key = tab.keys[index];
+      if (advancedKeys[key] && Object.prototype.hasOwnProperty.call(DEFAULTS, key) &&
+          values[key] !== DEFAULTS[key] && values[key] !== original[key]) {
+        advancedOpen[tab.pageId] = true;
+        return;
+      }
+    }
   }
 
   function selectCategory(index) {
@@ -6368,8 +6479,8 @@
     setClass(ui.menuButton, "Loading", false);
     sendState({ type: "session_open", publish: true });
     var effectiveRaw = readRootAttribute(CONFIG_ATTR);
-    if (effectiveRaw) serializedReplayPayload = effectiveRaw;
-    refreshSnapshotReplay();
+    if (effectiveRaw) rememberPublishedPayload(effectiveRaw);
+    startConfigAnswers();
     renderNavigation();
     renderStoreStatus();
     restartIdentityWatch();

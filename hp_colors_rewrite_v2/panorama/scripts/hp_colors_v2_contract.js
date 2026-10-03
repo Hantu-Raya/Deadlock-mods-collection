@@ -151,6 +151,13 @@
     criticalOffsetY: 0,
     assassinateOffsetX: 0,
     assassinateOffsetY: 0,
+    barMask: "none",
+    nameRiseWithPips: false,
+    damageShakeEnabled: true,
+    damageShakeIntensity: 3,
+    nameTilt: 0,
+    readoutTilt: 0,
+    allyReadoutTilt: 0,
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -228,6 +235,13 @@
     "criticalOffsetY",
     "assassinateOffsetX",
     "assassinateOffsetY",
+    "barMask",
+    "nameRiseWithPips",
+    "damageShakeEnabled",
+    "damageShakeIntensity",
+    "nameTilt",
+    "readoutTilt",
+    "allyReadoutTilt",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -351,7 +365,7 @@
   DEFAULTS.readoutOffsetY = 0;
   // Durable sparse records use the shipped baseline at 974128a forever.
   // Wire pairs separately retain CODEC_DEFAULTS, their original slot baseline.
-  var SPARSE_DEFAULTS = copyValues(DEFAULTS);
+  var SPARSE_DEFAULTS = copyValues(DEFAULTS, DEFAULTS);
   DEFAULTS.widthScale = 148;
   DEFAULTS.heightScale = 80;
   DEFAULTS.positionY = -38;
@@ -365,6 +379,8 @@
   // Tuned anchored vertical position displays as -16.1% with the shipped bar.
   DEFAULTS.ultOffsetY = -29;
   DEFAULTS.levelOffsetY = -29;
+  // OLD grids grow up per 1,000 max HP; ship the name lifted above them.
+  DEFAULTS.nameRiseWithPips = true;
 
   var BOOLEAN_KEYS = {
     enabled: true,
@@ -402,6 +418,8 @@
     enemyPipColorEnabled: true,
     allyPipColorEnabled: true,
     allyPulseReadout: true,
+    nameRiseWithPips: true,
+    damageShakeEnabled: true,
   };
 
   var COLOR_KEYS = {
@@ -460,11 +478,12 @@
     allyReadoutMode: ["fixed", "gradient"],
     staminaShape: ["arrow", "circle", "box"],
     hudHealthColorMode: ["off", "team", "custom"],
+    barMask: ["none", "original", "old"],
   };
 
   var NUMBER_BOUNDS = {
-    widthScale: [60, 230],
-    heightScale: [60, 160],
+    widthScale: [60, 400],
+    heightScale: [60, 400],
     positionX: [-2000, 2000],
     positionY: [-2100, 2100],
     staminaWidth: [40, 220],
@@ -509,6 +528,10 @@
     assassinateOffsetX: [-200, 200],
     assassinateOffsetY: [-210, 210],
     pipOpacity: [0, 100],
+    damageShakeIntensity: [1, 10],
+    nameTilt: [-360, 360],
+    readoutTilt: [-360, 360],
+    allyReadoutTilt: [-360, 360],
     readoutOutlineWidth: [0, 10],
     allyReadoutOutlineWidth: [0, 10],
     nameOutlineWidth: [0, 10],
