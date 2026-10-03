@@ -116,7 +116,7 @@ Implemented controls:
 - Separate enemy and ally recent-damage delta colors.
 - Separate enemy and ally shield-indicator colors.
 
-The renderer uses cached primary-inner v2 panels. It changes healing and delta `washColor` plus primary bullet-shield `backgroundColor`; the engine remains the sole owner of every layer's live width and timing. Disabled color ownership, neutral/other roles, and master bypass restore the mirrored stock colors. The separate shield bar, deferred layer, and ratking armor stay engine-owned.
+The renderer uses cached primary-inner v2 panels. It changes healing and delta `washColor` plus primary bullet-shield and Rat King barrier (`unit_healthbar_ratking_armor`, enemy/ally slots 81–82, stock `#C7A674`) `backgroundColor`; the engine remains the sole owner of every layer's live width and timing. Disabled color ownership, neutral/other roles, and master bypass restore the mirrored stock colors. The separate shield bar, and deferred layer stay engine-owned.
 
 ## Milestone 5: native color picker
 

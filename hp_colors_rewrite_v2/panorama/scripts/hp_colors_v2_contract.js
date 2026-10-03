@@ -158,6 +158,8 @@
     nameTilt: 0,
     readoutTilt: 0,
     allyReadoutTilt: 0,
+    enemyRatkingArmor: "#C7A674",
+    allyRatkingArmor: "#C7A674",
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -242,6 +244,8 @@
     "nameTilt",
     "readoutTilt",
     "allyReadoutTilt",
+    "enemyRatkingArmor",
+    "allyRatkingArmor",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -459,6 +463,8 @@
     enemyPipColor: true,
     allyPipColor: true,
     hudHealthColor: true,
+    enemyRatkingArmor: true,
+    allyRatkingArmor: true,
   };
 
   var ENUM_OPTIONS = {

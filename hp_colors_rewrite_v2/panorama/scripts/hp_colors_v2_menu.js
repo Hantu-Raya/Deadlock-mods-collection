@@ -137,6 +137,7 @@
             "enemyHealing",
             "enemyDelta",
             "enemyBulletShield",
+            "enemyRatkingArmor",
             "allyEnabled",
             "allyVisible",
             "allyMode",
@@ -146,7 +147,8 @@
             "allyTeamHigh",
             "allyHealing",
             "allyDelta",
-            "allyBulletShield"
+            "allyBulletShield",
+            "allyRatkingArmor"
           ],
           "sides": [
             "HPColorsPlayerBarsEnemy",
@@ -392,7 +394,8 @@
           "keys": [
             "enemyHealing",
             "enemyDelta",
-            "enemyBulletShield"
+            "enemyBulletShield",
+            "enemyRatkingArmor"
           ]
         },
         {
@@ -476,7 +479,8 @@
           "keys": [
             "allyHealing",
             "allyDelta",
-            "allyBulletShield"
+            "allyBulletShield",
+            "allyRatkingArmor"
           ]
         },
         {
@@ -672,7 +676,9 @@
     "damageShakeIntensity",
     "nameTilt",
     "readoutTilt",
-    "allyReadoutTilt"
+    "allyReadoutTilt",
+    "enemyRatkingArmor",
+    "allyRatkingArmor"
   ];
   var advancedKeys = {};
   for (var tuningIndex = 0; tuningIndex < ADVANCED_KEYS.length; tuningIndex++)
@@ -694,12 +700,14 @@
     enemyHealing: "ENEMY HEALING",
     enemyDelta: "ENEMY RECENT DAMAGE",
     enemyBulletShield: "ENEMY SHIELD",
+    enemyRatkingArmor: "ENEMY RAT KING BARRIER",
     allyLow: "ALLY LOW",
     allyMid: "ALLY MID",
     allyHigh: "ALLY HIGH",
     allyHealing: "ALLY HEALING",
     allyDelta: "ALLY RECENT DAMAGE",
     allyBulletShield: "ALLY SHIELD",
+    allyRatkingArmor: "ALLY RAT KING BARRIER",
     ultCustom: "BASE ULTIMATE ICON COLOR",
     ultimateTimerUnavailableColor: "ULTIMATE PROGRESS UNAVAILABLE",
     ultimateTimerAvailableColor: "ULTIMATE PROGRESS READY",
@@ -1167,6 +1175,7 @@
     { base: "HPColorsEnemyHealing", key: "enemyHealing" },
     { base: "HPColorsEnemyDelta", key: "enemyDelta" },
     { base: "HPColorsEnemyShield", key: "enemyBulletShield" },
+    { base: "HPColorsEnemyRatkingArmor", key: "enemyRatkingArmor" },
     { base: "HPColorsEnemyStaminaColor", key: "enemyStaminaColor" },
     { base: "HPColorsUltCustom", key: "ultCustom" },
     {
@@ -1183,6 +1192,7 @@
     { base: "HPColorsAllyHealing", key: "allyHealing" },
     { base: "HPColorsAllyDelta", key: "allyDelta" },
     { base: "HPColorsAllyShield", key: "allyBulletShield" },
+    { base: "HPColorsAllyRatkingArmor", key: "allyRatkingArmor" },
     { base: "HPColorsEnemyKillMarkerColor", key: "enemyKillMarkerColor" },
     { base: "HPColorsEnemyPulseColor", key: "enemyPulseColor" },
     { base: "HPColorsAllyPulseColor", key: "allyPulseColor" },
@@ -1367,6 +1377,7 @@
     "enemyHealing": "HPColorsEnemyHealingRow",
     "enemyDelta": "HPColorsEnemyDeltaRow",
     "enemyBulletShield": "HPColorsEnemyBulletShieldRow",
+    "enemyRatkingArmor": "HPColorsEnemyRatkingArmorRow",
     "enemyStaminaColor": "HPColorsEnemyStaminaColorRow",
     "ultCustom": "HPColorsUltCustomRow",
     "ultimateTimerUnavailableColor": "HPColorsUltimateTimerUnavailableColorRow",
@@ -1377,6 +1388,7 @@
     "allyHealing": "HPColorsAllyHealingRow",
     "allyDelta": "HPColorsAllyDeltaRow",
     "allyBulletShield": "HPColorsAllyBulletShieldRow",
+    "allyRatkingArmor": "HPColorsAllyRatkingArmorRow",
     "enemyKillMarkerColor": "HPColorsEnemyKillMarkerColorRow",
     "enemyPulseColor": "HPColorsEnemyPulseColorRow",
     "allyPulseColor": "HPColorsAllyPulseColorRow",

@@ -121,6 +121,7 @@
   var STOCK_ENEMY_BULLET_SHIELD_COLOR = "#FF8181";
   var STOCK_FRIEND_BULLET_SHIELD_COLOR = "#B7DCFF";
   var STOCK_DEFAULT_BULLET_SHIELD_COLOR = "#FFA500";
+  var STOCK_RATKING_ARMOR_COLOR = "#C7A674";
 
   var DEFAULT_LEVEL_BORDER = STOCK_TEAM1_COLOR;
   var LEVEL_TIERS = [
@@ -3013,6 +3014,13 @@
       "bulletShieldBackgroundColor",
     );
     setStyle(
+      bar.parts.armor,
+      "backgroundColor",
+      STOCK_RATKING_ARMOR_COLOR,
+      bar.applied,
+      "armorBackgroundColor",
+    );
+    setStyle(
       bar.parts.ultIcon,
       "washColor",
       stockColor,
@@ -3097,6 +3105,11 @@
         ? config.enemyBulletShield
         : config.allyBulletShield
       : stockBulletShieldColor(bar);
+    var armor = colorsEnabled
+      ? role === "enemy"
+        ? config.enemyRatkingArmor
+        : config.allyRatkingArmor
+      : STOCK_RATKING_ARMOR_COLOR;
     var stockColor = stockUnitColor(bar);
     var color = colorsEnabled
       ? (mode === "gradient" ? gradientColor : fixedColor)(
@@ -3225,6 +3238,13 @@
       bulletShield,
       bar.applied,
       "bulletShieldBackgroundColor",
+    );
+    setStyle(
+      bar.parts.armor,
+      "backgroundColor",
+      armor,
+      bar.applied,
+      "armorBackgroundColor",
     );
     setStyle(
       bar.parts.ultIcon,

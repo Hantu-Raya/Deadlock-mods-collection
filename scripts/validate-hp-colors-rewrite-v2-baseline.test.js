@@ -942,6 +942,7 @@ test('v2 non-player gates independently authorize only the relation bar surface'
         enemyHealing: '#112233', allyHealing: '#112233',
         enemyDelta: '#223344', allyDelta: '#223344',
         enemyBulletShield: '#334455', allyBulletShield: '#334455',
+        enemyRatkingArmor: '#445566', allyRatkingArmor: '#665544',
         widthScale: 230, heightScale: 160, positionX: 300, positionY: 200,
         pipsVisible: false, readoutVisible: true, allyReadoutVisible: true,
         enemyKillMarkerEnabled: true, staminaWidth: 150,
@@ -959,6 +960,8 @@ test('v2 non-player gates independently authorize only the relation bar surface'
       assert.equal(fixture.inner.FindChildTraverse('unit_healthbar_healing').style.washColor, '#112233');
       assert.equal(fixture.inner.FindChildTraverse('unit_healthbar_delta').style.washColor, '#223344');
       assert.equal(fixture.inner.FindChildTraverse('unit_healthbar_bullet_shield').style.backgroundColor, '#334455');
+      assert.equal(fixture.inner.FindChildTraverse('unit_healthbar_ratking_armor').style.backgroundColor,
+        role === 'enemy' ? '#445566' : '#665544');
       assert.equal(fixture.healthbars.style.preTransformScale2d, '2.3, 1.6');
       assert.deepEqual(requestedBarTranslation(fixture), [30, 20]);
       assert.equal(fixture.pipLines.style.visibility || '', role === 'enemy' ? 'collapse' : '');
@@ -975,6 +978,7 @@ test('v2 non-player gates independently authorize only the relation bar surface'
       assert.equal(fixture.healthbars.style.preTransformScale2d, '');
       assert.deepEqual(requestedBarTranslation(fixture), [0, 0]);
       assert.equal(fixture.fill.style.washColor, role === 'enemy' ? '#FD4949' : '#FFEFD7');
+      assert.equal(fixture.inner.FindChildTraverse('unit_healthbar_ratking_armor').style.backgroundColor, '#C7A674');
     }
   }
 });

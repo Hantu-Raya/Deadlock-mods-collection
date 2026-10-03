@@ -469,6 +469,11 @@
                         <Button id="HPColorsEnemyShieldSwatch" class="HPColorsColorSwatch" />
                         <TextEntry id="HPColorsEnemyShieldHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
                       </Panel>
+                      <Panel id="HPColorsEnemyRatkingArmorRow" class="HPColorsSettingRow HPColorsColorRow">
+                        <Panel class="HPColorsSettingCopy"><Label text="RAT KING BARRIER COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the Rat King barrier." class="HPColorsSettingHelp" /></Panel>
+                        <Button id="HPColorsEnemyRatkingArmorSwatch" class="HPColorsColorSwatch" />
+                        <TextEntry id="HPColorsEnemyRatkingArmorHex" class="HPColorsHexEntry" text="#C7A674" maxchars="7" />
+                      </Panel>
                     </Panel>
                   </Panel>
                   <Panel id="HPColorsSettingsAllyBar" class="HPColorsSideGroup">
@@ -523,6 +528,11 @@
                         <Panel class="HPColorsSettingCopy"><Label text="SHIELD COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the ally shield indicator." class="HPColorsSettingHelp" /></Panel>
                         <Button id="HPColorsAllyShieldSwatch" class="HPColorsColorSwatch" />
                         <TextEntry id="HPColorsAllyShieldHex" class="HPColorsHexEntry" text="#FFFFFF" maxchars="7" />
+                      </Panel>
+                      <Panel id="HPColorsAllyRatkingArmorRow" class="HPColorsSettingRow HPColorsColorRow">
+                        <Panel class="HPColorsSettingCopy"><Label text="RAT KING BARRIER COLOR" class="HPColorsSettingTitle" /><Label text="Set the color of the ally Rat King barrier." class="HPColorsSettingHelp" /></Panel>
+                        <Button id="HPColorsAllyRatkingArmorSwatch" class="HPColorsColorSwatch" />
+                        <TextEntry id="HPColorsAllyRatkingArmorHex" class="HPColorsHexEntry" text="#C7A674" maxchars="7" />
                       </Panel>
                     </Panel>
                   </Panel>

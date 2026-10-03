@@ -92,7 +92,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 81);
+  assert.equal(contract.extensionKeys.length, 83);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -371,7 +371,7 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 81);
+  assert.equal(contract.extensionKeys.length, 83);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
@@ -382,6 +382,7 @@ test('round native format retirement preserves slots and appends independent nam
     'criticalOffsetX', 'criticalOffsetY', 'assassinateOffsetX', 'assassinateOffsetY',
     'barMask', 'nameRiseWithPips', 'damageShakeEnabled', 'damageShakeIntensity',
     'nameTilt', 'readoutTilt', 'allyReadoutTilt',
+    'enemyRatkingArmor', 'allyRatkingArmor',
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -491,6 +492,7 @@ test('follow-up controls append typed extension slots with frozen sparse default
     barMask: 'none', nameRiseWithPips: false,
     damageShakeEnabled: true, damageShakeIntensity: 3,
     nameTilt: 0, readoutTilt: 0, allyReadoutTilt: 0,
+    enemyRatkingArmor: '#C7A674', allyRatkingArmor: '#C7A674',
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
