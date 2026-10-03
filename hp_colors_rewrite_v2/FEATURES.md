@@ -22,7 +22,7 @@ Lane troopers are engine-drawn (not Panorama) and intentionally not customizable
 
 ### HP readout and stock indicators
 
-- HP text adopts the engine's existing `UnitHealthbarValue` into the counter row under the shared bar motion frame, preserving exact engine-updated text and locale grouping without reading or writing the number. No percent/custom counter or maximum exists; damage shake moves the bar and HP text, not the name.
+- HP text adopts the engine's existing `UnitHealthbarValue` into the counter row under the shared bar motion frame, preserving exact engine-updated text and locale grouping without reading or writing the number. No percent/custom counter or maximum exists; damage shake moves the bar, HP text and name together.
 - Retired format slots remain decodable, but their enum rows are removed. Old percent/current saves load as native HP with a one-time menu note; other settings, scopes, conditions and presets survive.
 - Enemy and neutral units use Players → HP Text → ENEMY; friendly units use Players → HP Text → ALLY when their UNITS gate is on. Enemy text off suppresses the number; ally text off returns its parent, styles and pulse classes fully to stock. Gate off restores stock presentation. Shield values are untouched.
 - Native text keeps colors, fonts, size, position, and text outline; enemy pulse modifiers and enemy/ally HP-number pulse remain player-only. The level and kill marker are player-only. Contained lines cover every opted-in unit through the reversible `HPColorsRewriteBarLines` class, with enemy line visibility also covering enemy NPC/building bars. Gate-off or ownership release removes that class. Tall lines and the marker span the primary bar from top to bottom; short 8px ticks are contained and bottom-aligned.
@@ -168,7 +168,7 @@ Implemented controls:
 - Bar-derived or custom low/mid/high text colors. Bar Color inherits the enemy bar's Fixed/Gradient mode and shared thresholds. Custom enables its own Fixed/Gradient choice. The always-editable shared threshold pair lives under General → Basics → Advanced and also drives ally bars and custom HP text. Labels are tinted through `washColor`, matching the bar and legacy rendering path without replacing their base `color`.
 - `readoutMaxTeamColor` and `allyReadoutMaxTeamColor` are retired: codec slots remain tombstones, while values, rules, and ownership keys are dropped on load/import.
 
-Native HP uses the full-canvas counter container under compact `HPV2MotionFrame`, shared with UnitStatus. XML leaves `UnitHealthbarValue` in InfoHealthContainer for the engine to cache it; runtime adopts that same panel. The label-local engine binding does not update replacement `{d:health}` labels, so no custom bound label is created.
+Native HP uses the full-canvas counter container under full-canvas `HPV2MotionFrame`, shared with UnitStatus and the name anchor. XML leaves `UnitHealthbarValue` in InfoHealthContainer for the engine to cache it; runtime adopts that same panel. The label-local engine binding does not update replacement `{d:health}` labels, so no custom bound label is created.
 
 The full-canvas frame holds a fit-children HP row anchored beside the untransformed primary bar, with native bar translation and bar-scaled text offsets. The vertical anchor follows the bar center independently of accessory anchoring. `design.md` defines measured/fallback anchors and edge clamps. Digit/font reflow happens in layout from the aligned edge; text clips without ellipsis or font shrink. Zero/invalid measurements defer. Oversized rows cannot fit; fresh-restart visual checks remain required.
 
@@ -360,7 +360,7 @@ Install only one pak02 variant and fully restart Deadlock. The normal archive co
 
 ## Release 2.2.1
 
-- Damage shake and the critical flash animate the compact stock-sized `HPV2MotionFrame` (bar, accessories and HP text) instead of three full-canvas wrappers; the name no longer shakes (reverses the 2.2.0 name shake).
+- Damage shake animates one full-canvas `HPV2MotionFrame` holding the name anchor, bar, accessories and HP text instead of three wrappers, so the name still shakes with the bar. A compact stock-sized frame was tried and reverted: in game its transform clipped the HP text and level badge.
 - Performance round from `docs/2026-10-03-hp-colors-v2-lag-investigation.md`: OLD collapses the native surfaces it replaces and caps its box pool at 128; dormant and hidden bars skip per-tick work behind one 1 s wake check; scans start at a random phase; colour pulse uses `clip`; ultimate rings are predicted locally from a rate and the topbar re-sends only on change, a 15° miss or an 8 s heartbeat; timer loops stop when both timer features are off.
 - Fixes: failed pickup relays retry immediately instead of waiting for the 6 s heartbeat; malformed config `values` are rejected; stale retry callbacks keep newer job handles.
 - No new settings or slots: 2.2.0 saves, codes and presets load unchanged.

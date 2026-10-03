@@ -38,9 +38,6 @@
 		</snippet>
 	</snippets>
 	<Panel class="WindowRoot" hittest="false">
-		<Panel id="HPV2NameAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
-			<Label id="name" text="{s:name}" />
-		</Panel>
 		<Panel id="NeutralBounty">
 			<Panel id="TierContainer">
 				<Panel class="difficulty_icon" />
@@ -53,6 +50,9 @@
 		<CitadelStatusEffect id="StatusEffects" />
 		<Panel id="TargetableIndicator" />
 		<Panel id="HPV2MotionFrame" hittest="false" hittestchildren="false">
+			<Panel id="HPV2NameAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+				<Label id="name" text="{s:name}" />
+			</Panel>
 			<Panel id="UnitStatus" hittest="false">
 				<Panel id="InfoHealthContainer">
 					<Panel id="LevelContainer" class="NP_playerlevel_container" hittest="false" hittestchildren="false" style="visibility: collapse;">

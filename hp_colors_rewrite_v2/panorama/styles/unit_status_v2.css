@@ -1613,44 +1613,18 @@
 	transition-property: none;
 }
 
-/* One compact stock-sized frame moves bar, accessories and native HP together.
-   Full-canvas children retain their coordinate system; only the name stays still. */
+/* One full-canvas frame shakes bar, accessories, HP text and name together around
+   the stock bar pivot. It must stay full-canvas: a transformed compact frame clips
+   its noclip children to its own bounds in game (HP text and level badge cut). */
 .WindowRoot #HPV2MotionFrame
 {
-	width: 100px;
-	height: 40px;
-	margin-left: 50px;
-	margin-top: 65px;
-	horizontal-align: left;
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
 	vertical-align: top;
 	ignore-parent-flow: true;
 	overflow: noclip;
-	transform-origin: 50% 50%;
-}
-
-.WindowRoot #HPV2MotionFrame #UnitStatus,
-.WindowRoot #HPV2MotionFrame #hp_counter_container
-{
-	width: 200px;
-	height: 210px;
-	margin-left: -50px;
-	margin-top: -65px;
-	horizontal-align: left;
-}
-
-.neutral_normal .WindowRoot #HPV2MotionFrame #UnitStatus,
-.neutral_weak .WindowRoot #HPV2MotionFrame #UnitStatus
-{
-	margin-top: -52px;
-}
-
-.boss_tier1 .WindowRoot #HPV2MotionFrame #UnitStatus,
-.boss_tier2 .WindowRoot #HPV2MotionFrame #UnitStatus,
-.boss_barracks .WindowRoot #HPV2MotionFrame #UnitStatus,
-.building .WindowRoot #HPV2MotionFrame #UnitStatus,
-.midboss .WindowRoot #HPV2MotionFrame #UnitStatus
-{
-	margin-top: -117px;
+	transform-origin: 50% 40.48%;
 }
 
 .active_damage .WindowRoot #HPV2MotionFrame
