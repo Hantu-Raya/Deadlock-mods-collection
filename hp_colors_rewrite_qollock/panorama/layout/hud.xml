@@ -1,4 +1,4 @@
-<!-- Generated from pak03 SHA-256 7e642086e12d05d8ca9f41e46f5104e33d730a37e07c38bee3945c0cfa482bcc by refresh-hp-colors-rewrite-qollock.js -->
+<!-- Generated from pak03 SHA-256 ffa7c340f5c73763047bd359c1569d0ee03a3e08d4254e2e71c089b3922d748e by refresh-hp-colors-rewrite-qollock.js -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -23,28 +23,29 @@
 		<include src="s2r://panorama/scripts/ql_recent_purchases_data.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_minimap_crate_data.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_perf_overlay.vjs_c" />
+		<include src="s2r://panorama/scripts/tools/qol_dump_tree.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_buildbridge.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_locale_lookup.vjs_c" />
 		<include src="s2r://panorama/scripts/ql_core.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_buildsave.vjs_c" />
-		<include src="s2r://panorama/scripts/features/ql_feat_combatstatus.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_topbar.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_bottombar.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_items.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_ammo.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_stamina.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_zipboost.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_statbonuses.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_crosshairstats.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_statsposition.vjs_c" />
-		<include src="s2r://panorama/scripts/features/ql_feat_sigflash.vjs_c" />
-		<include src="s2r://panorama/scripts/features/ql_feat_chatimg.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_chattranslate.vjs_c" />
-		<include src="s2r://panorama/scripts/features/ql_feat_lanewithparty.vjs_c" />
-		<include src="s2r://panorama/scripts/features/ql_feat_ondeatharcade.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_heroshop.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_recentpurchases.vjs_c" />
-		<include src="s2r://panorama/scripts/features/ql_feat_targetshapes.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_betterunsecuredhud.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_minimapruntime.vjs_c" />
+		<include src="s2r://panorama/scripts/features/ql_feat_colorwarnings.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_damagenumbers.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_spm.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_panelcache.vjs_c" />
-		<include src="s2r://panorama/scripts/features/ql_feat_showrank_card.vjs_c" />
 		<include src="s2r://panorama/scripts/features/ql_feat_healthbar.vjs_c" />
 		<include src="s2r://panorama/scripts/features/healthbar/ql_feat_healthbar_accent.vjs_c" />
 		<include src="s2r://panorama/scripts/features/healthbar/ql_feat_healthbar_budhud.vjs_c" />
@@ -61,10 +62,13 @@
 		<include src="s2r://panorama/scripts/core/ql_feature_registry.vjs_c" />
 		<include src="s2r://panorama/scripts/core/ql_manifest_tests.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_build_payload/manifest.vjs_c" />
+		<include src="s2r://panorama/scripts/manifests/ql_build_storage/legacy_3_1_9.vjs_c" />
+		<include src="s2r://panorama/scripts/manifests/ql_build_storage/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_cast_failed_hint/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_mouse_cursor/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_statlocker/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_nicknames/manifest.vjs_c" />
+		<include src="s2r://panorama/scripts/manifests/ql_ult_cooldowns/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_unspent/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_ability_icons/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_damage_report/manifest.vjs_c" />
@@ -73,27 +77,18 @@
 		<include src="s2r://panorama/scripts/manifests/ql_lane_with_party/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_unsecured_souls_timer/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_urn_timer/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_better_unsecured_hud/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_on_death_arcade/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_minimap_runtime/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_recent_purchases/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_target_shapes/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_souls/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_bottom_bar/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_items/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_stamina/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_ammo/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_topbar/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_stat_bonuses/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_damage_impact/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_sigflash/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_zipboost/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_spm/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_combat_status/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_heroshop/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_keyboard/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_damage_numbers/manifest.vjs_c" />
-		<include src="s2r://panorama/scripts/manifests/ql_color_warnings/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_showrank/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_rejuv_hud/manifest.vjs_c" />
 		<include src="s2r://panorama/scripts/manifests/ql_minimap_timers/manifest.vjs_c" />
@@ -152,7 +147,6 @@
 			<CitadelHudQuickResponse id="CitadelQuickResponse" />
 			<CitadelRadialAbilities id="RadialAbilitiesMenu" startangle="-70" endangle="70" />
 			<Panel id="SafeToAbandonIndicator">
-				<Button class="MinimizeSafeToLeave CloseButton" onactivate="$.GetContextPanel().ToggleClass(&apos;MinimizeSafeToLeave&apos;)" />
 				<Label class="abandon_title" text="#AbandonTriggerTeam_Title" />
 				<Label text="{s:safe_to_abandon_text}" />
 			</Panel>
@@ -200,6 +194,7 @@
 			<Panel id="gameplay_hud" class="gameplay_hud" hittest="false">
 				<GlobalClassListener classes="gShopOpen" />
 				<Panel id="hudBacker" />
+				<CitadelHudGameAnnouncements id="CitadelHudGameAnnouncements" />
 				<TeamObjectiveHealthPanel id="objectives_health_friendly" team="2" />
 				<Panel id="spectator_count" onmouseover="UIShowTextTooltip( #hud_spectate_count_tooltip )" onmouseout="UIHideTextTooltip()">
 					<Panel id="spectator_count_container">
@@ -233,14 +228,6 @@
 					<Label id="out_of_ammo_label" text="#Citadel_Hud_OutOfAmmo" />
 					<Label id="low_ammo_label" text="#Citadel_Hud_LowAmmo" />
 					<Label id="out_of_mana_label" text="#Citadel_Hud_NotEnoughEnergy" />
-					<Panel id="cast_failed_box">
-						<GlobalClassListener hittest="false" classes="gDetailView" />
-						<Label id="invalid_cast_ability" text="{s:failed_ability_name}" />
-						<Panel class="invalid_cast_line">
-							<Label id="invalid_cast_reason" text="{s:invalid_cast_reason}" />
-							<Label id="invalid_cast_time_remaining" text="#Citadel_Hud_CastTimeRemaining" />
-						</Panel>
-					</Panel>
 					<Citadel_AbilityHUDPanels id="crosshair" />
 					<Panel id="LowHealthWarning">
 						<Label text="#Citadel_Hud_HealthCritical" />
@@ -263,7 +250,6 @@
 				<CitadelHudDamageSummary id="hud_damage_summary" />
 				<CitadelHudHealthContainer id="health_and_abilities_container" />
 				<CitadelHudAbilityInterrupt id="ability_interrupt_panel" />
-				<CitadelDamageImpact id="damage_impact" />
 				<Panel id="friendly_final_objective_container" class="final_objective_container friendly">
 					<Panel id="center_container">
 						<Panel id="cp_container" class="cp_container" />
@@ -300,9 +286,9 @@
 			<CitadelHudPlayerIntents id="hud_playerintents" />
 			<CitadelChatWheel id="ChatWheel" />
 			<CitadelItemDraftPanel id="ItemDraft" />
+			<CitadelDamageImpact id="damage_impact" />
 			<CitadelHudTopBar id="TopBar" hittest="false" />
 			<CitadelPregameCountdown id="PregameCountdown" />
-			<CitadelHudGameAnnouncements id="CitadelHudGameAnnouncements" />
 			<CitadelHudHeroShop id="CitadelHudHeroShop" />
 			<CitadelHudDamageReport id="CitadelHudDamageReport" />
 			<CitadelHudHeroTesting id="hud_hero_testing" />
@@ -407,6 +393,14 @@
 					</Panel>
 					<CitadelBinding id="UnlockBinding_Scoreboard" class="APUnlockBinding" action="Scoreboard" />
 					<CitadelBinding id="UnlockBinding_AbilityRadial" class="APUnlockBinding" action="AbilityUpgradeRadial" />
+				</Panel>
+			</Panel>
+			<Panel id="cast_failed_box">
+				<GlobalClassListener hittest="false" classes="gDetailView" />
+				<Label id="invalid_cast_ability" text="{s:failed_ability_name}" />
+				<Panel class="invalid_cast_line">
+					<Label id="invalid_cast_reason" text="{s:invalid_cast_reason}" />
+					<Label id="invalid_cast_time_remaining" text="#Citadel_Hud_CastTimeRemaining" />
 				</Panel>
 			</Panel>
 			<CitadelChat id="Chat" />

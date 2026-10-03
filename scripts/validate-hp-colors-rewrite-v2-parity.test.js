@@ -42,6 +42,22 @@ function oneEffect(result, type) {
   return effects[0];
 }
 
+test('sparse baseline copies with an explicit fallback and contract freezing never probes null', () => {
+  const context = { $: {} };
+  const source = read(contractPath).replace('function copyValues(source, defaults) {',
+    'function copyValues(source, defaults) { if (arguments.length !== 2) throw new Error("explicit defaults required");');
+  vm.runInNewContext('Object.isFrozen = (isFrozen => function (value) { if (value === null || typeof value !== "object") ' +
+    'throw new Error("object required"); return isFrozen(value); })(Object.isFrozen);\n' + source, context);
+  const contract = context.$.HPColorsV2ContractFactory.create();
+  assert.equal(contract.sparseDefaults.enemyLow, '#FD4949');
+  assert.equal(contract.sparseDefaults.readoutOffsetX, 0);
+  assert.equal(contract.defaults.readoutOffsetX, 18);
+  assert.equal(contract.settingMeta.enabled.min, null);
+  assert.ok(Object.isFrozen(contract.sparseDefaults));
+  assert.ok(Object.isFrozen(contract.settingMeta.enabled));
+  assert.ok(Object.isFrozen(contract.enumOptions.readoutFont));
+});
+
 test('v2 contract removes retired color exclusions and ghoul opacity and shares requested enemy defaults', () => {
   const { contract } = bootState();
   assert.equal(contract.version, 2);
@@ -76,7 +92,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 67);
+  assert.equal(contract.extensionKeys.length, 83);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -133,9 +149,9 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.defaults.allyPulseColorMode, 'fixed');
   assert.equal(contract.defaults.accessoryAnchorEnabled, true);
   assert.equal(contract.defaults.ultOffsetX, 74);
-  assert.equal(contract.defaults.ultOffsetY, 48);
+  assert.equal(contract.defaults.ultOffsetY, -29);
   assert.equal(contract.defaults.levelOffsetX, 74);
-  assert.equal(contract.defaults.levelOffsetY, 48);
+  assert.equal(contract.defaults.levelOffsetY, -29);
 });
 
 test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapshot', () => {
@@ -152,7 +168,7 @@ test('v2 cold boot uses requested defaults and HPCR2 carries an extension snapsh
   assert.equal(state.read().values.widthScale, 148);
   assert.equal(state.read().values.heightScale, 80);
   assert.equal(state.read().values.readoutOffsetX, 18);
-  assert.equal(state.read().values.ultOffsetY, 48);
+  assert.equal(state.read().values.ultOffsetY, -29);
 
   const imported = send(state, 'settings_import', {
     raw: 'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
@@ -355,12 +371,18 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 67);
+  assert.equal(contract.extensionKeys.length, 83);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
     'readoutOutlineWidth', 'allyReadoutOutlineWidth', 'nameOutlineWidth',
     'hudHealthColorMode', 'hudHealthColor',
+    'allyPulseReadout',
+    'nameAlign', 'hpTextAlign',
+    'criticalOffsetX', 'criticalOffsetY', 'assassinateOffsetX', 'assassinateOffsetY',
+    'barMask', 'nameRiseWithPips', 'damageShakeEnabled', 'damageShakeIntensity',
+    'nameTilt', 'readoutTilt', 'allyReadoutTilt',
+    'enemyRatkingArmor', 'allyRatkingArmor',
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -380,6 +402,42 @@ test('round native format retirement preserves slots and appends independent nam
   for (const key of ['precisePipsEnabled', 'readoutMaxTeamColor', 'allyReadoutMaxTeamColor']) {
     assert.equal(Object.hasOwn(imported.view.values, key), false, key);
     assert.equal(Object.hasOwn(imported.view.conditions, key), false, key);
+  }
+});
+
+test('name alignment slot validates and round-trips values and conditions in both codecs', () => {
+  const { contract, state } = bootState();
+  const values = { nameAlign: 'left', hpTextAlign: 'center' };
+  assert.deepEqual(plain(contract.extensionKeys.slice(68, 70)), Object.keys(values));
+  for (const [key, value] of Object.entries(values)) {
+    assert.equal(contract.defaults[key], key === 'hpTextAlign' ? 'left' : 'center');
+    assert.equal(contract.sparseDefaults[key], key === 'hpTextAlign' ? 'left' : 'center');
+    assert.deepEqual(plain(contract.enumOptions[key]), ['left', 'center', 'right']);
+    assert.equal(contract.validateSettingValue(key, 'invalid'), false);
+    send(state, 'setting_edit', { key, value });
+    send(state, 'condition_set', { key, slot: 1, minTier: 2, value: 'center' });
+  }
+  const code = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  const payload = JSON.parse(code.slice(5));
+  assert.equal(payload.hpv2.v, 2);
+  assert.deepEqual(payload.hpv2.values.slice(-2), [[68, 'left'], [69, 'center']]);
+  const destination = bootState().state;
+  assert.equal(send(destination, 'settings_import', { raw: code }).outcome.status, 'committed');
+  for (const [key, value] of Object.entries(values)) {
+    assert.equal(destination.read().values[key], value);
+    assert.deepEqual(plain(destination.read().conditions[key]), { slot: 1, minTier: 2, value: 'center' });
+  }
+  values.nameAlign = 'right';
+  values.hpTextAlign = 'center';
+  send(state, 'setting_edit', { key: 'nameAlign', value: 'right' });
+  send(state, 'preset_save', { name: 'Aligned name' });
+  const presetCode = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const presetPayload = JSON.parse(presetCode.slice(6));
+  assert.equal(send(destination, 'preset_import', { raw: presetCode }).outcome.status, 'committed');
+  send(destination, 'preset_apply', { id: presetPayload.records[0].id });
+  for (const [key, value] of Object.entries(values)) {
+    assert.equal(destination.read().currentScope.values[key], value);
+    assert.deepEqual(plain(destination.read().currentScope.conditions[key]), { slot: 1, minTier: 2, value: 'center' });
   }
 });
 
@@ -420,7 +478,7 @@ test('round name settings and raw geometry survive both codecs; retired rules dr
   assert.deepEqual(plain(destination.read().values), before.values);
 });
 
-test('follow-up pip colors and stamina shape append six typed extension slots', () => {
+test('follow-up controls append typed extension slots with frozen sparse defaults', () => {
   const { contract } = bootState();
   const defaults = {
     enemyPipColorEnabled: false, enemyPipColor: '#500202',
@@ -428,6 +486,13 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
     pipOpacity: 100, staminaShape: 'arrow',
     readoutOutlineWidth: 5, allyReadoutOutlineWidth: 5, nameOutlineWidth: 5,
     hudHealthColorMode: 'off', hudHealthColor: '#FFFF00',
+    allyPulseReadout: false,
+    nameAlign: 'center', hpTextAlign: 'left',
+    criticalOffsetX: 0, criticalOffsetY: 0, assassinateOffsetX: 0, assassinateOffsetY: 0,
+    barMask: 'none', nameRiseWithPips: false,
+    damageShakeEnabled: true, damageShakeIntensity: 3,
+    nameTilt: 0, readoutTilt: 0, allyReadoutTilt: 0,
+    enemyRatkingArmor: '#C7A674', allyRatkingArmor: '#C7A674',
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
@@ -443,6 +508,26 @@ test('follow-up pip colors and stamina shape append six typed extension slots', 
   assert.equal(contract.normalizeValues({ pipOpacity: -1 }).pipOpacity, 0);
   assert.equal(contract.normalizeValues({ pipOpacity: 101 }).pipOpacity, 100);
   assert.equal(contract.normalizeValues({}).pipOpacity, 100, 'old sparse saves retain stock line opacity');
+  // Failure modes: shake defaults drift from stock, bounds accept 0/11 or fractions, booleans accept strings.
+  assert.equal(contract.defaults.damageShakeEnabled, true);
+  assert.equal(contract.defaults.damageShakeIntensity, 3);
+  assert.equal(contract.booleanKeys.damageShakeEnabled, true);
+  assert.equal(contract.settingMeta.damageShakeIntensity.min, 1);
+  assert.equal(contract.settingMeta.damageShakeIntensity.max, 10);
+  assert.equal(contract.normalizeValues({ damageShakeIntensity: 0 }).damageShakeIntensity, 1);
+  assert.equal(contract.normalizeValues({ damageShakeIntensity: 11 }).damageShakeIntensity, 10);
+  assert.equal(contract.normalizeValues({ damageShakeIntensity: 6.6 }).damageShakeIntensity, 7);
+  assert.equal(contract.validateSettingValue('damageShakeEnabled', 'yes'), false);
+  assert.equal(contract.validateSettingValue('damageShakeIntensity', 'x'), false);
+  // Failure modes: tilt defaults tilt old saves, bounds stop short of or exceed a full turn, fractions survive.
+  for (const key of ['nameTilt', 'readoutTilt', 'allyReadoutTilt']) {
+    assert.equal(contract.defaults[key], 0, key);
+    assert.equal(contract.settingMeta[key].min, -360, key);
+    assert.equal(contract.settingMeta[key].max, 360, key);
+    assert.equal(contract.normalizeValues({ [key]: -400 })[key], -360, key);
+    assert.equal(contract.normalizeValues({ [key]: 400 })[key], 360, key);
+    assert.equal(contract.normalizeValues({ [key]: 14.6 })[key], 15, key);
+  }
   for (const prefix of ['enemy', 'ally']) {
     assert.equal(contract.booleanKeys[prefix + 'PipColorEnabled'], true);
     assert.equal(contract.colorKeys[prefix + 'PipColor'], true);

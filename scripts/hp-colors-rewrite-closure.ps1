@@ -59,6 +59,12 @@ function Get-HpColorsRewriteClosureContract {
         'unit_status_v2_colors.js' {
             return @('HP_COLORS_V2_CONFIG', 'RegisterForUnhandledEvent', 'hp_counter')
         }
+        'test_event_bridge.js' {
+            return @('HPV2_PICKUP_SNAPSHOT', 'HPV2QueuePickup', 'ClientUI_FireOutput')
+        }
+        'test_topbar_pickups.js' {
+            return @('HP_COLORS_V2_CONFIG', 'HPV2_ULTIMATE_SNAPSHOT', 'HPV2PickupStop')
+        }
         'unit_status_v2_segment_align.js' {
             return @('maxhp_segment_1', 'UnitHealthbarsContainer')
         }

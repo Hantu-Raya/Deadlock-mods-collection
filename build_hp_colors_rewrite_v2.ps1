@@ -1,11 +1,18 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDeploy,
+    [switch]$Diagnostics,
+    [switch]$DeployDiagnostics,
     [switch]$ShowRankBarebones,
+    # Dependency pak89 to verify; defaults to the installed addon, else the repo build.
+    [string]$ShowRankBarebonesPak = '',
     [switch]$SkipPanoramaTests
 )
 
 $ErrorActionPreference = 'Stop'
+if ($DeployDiagnostics -and -not $Diagnostics) { throw '-DeployDiagnostics requires -Diagnostics' }
+if ($Diagnostics -and $ShowRankBarebones) { throw 'Diagnostics supports only the normal HPv2 build, not ShowRank Barebones' }
+if ($DeployDiagnostics -and $SkipDeploy) { throw '-DeployDiagnostics and -SkipDeploy are mutually exclusive' }
 
 $root = $PSScriptRoot
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
@@ -28,6 +35,16 @@ $viewer = Get-RepoToolPath -ToolName 'Source2Viewer-CLI.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
+if ($Diagnostics) {
+    $modCompiled = Join-Path $root 'hp_colors_rewrite_v2_diag_compiled'
+    $compileStageRoot = Join-Path $root '_hp_colors_rewrite_v2_diag_build'
+    $compileStageSource = Join-Path $compileStageRoot 'hp_colors_rewrite_v2'
+    $compileStageOutput = Join-Path $compileStageRoot 'hp_colors_rewrite_v2_compiled'
+    $vpkOut = Join-Path $root 'pak02_dir.hpv2diag.vpk'
+    # Deploying deliberately replaces pak02 (with the normal backup/hash checks).
+    # The distinct build filename is NOT an additional addon to load beside pak02.
+    $diagProbe = Join-Path $root 'hp_colors_rewrite_v2_diag\panorama\scripts\hpv2_diag_probe.js'
+}
 $validators = @(
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-baseline.test.js'),
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-editor.test.js'),
@@ -35,6 +52,7 @@ $validators = @(
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-state.test.js'),
     (Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-style.test.js')
 )
+if ($Diagnostics) { $validators += Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-diag.test.js' }
 $timerValidator = Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-timers.js'
 
 $assetManifest = @(
@@ -55,9 +73,13 @@ $assetManifest = @(
 )
 $rewriteScripts = @(
     $assetManifest |
-        Where-Object { $_.Source.EndsWith('.js') -and -not $_.Source.Contains('\test_') } |
+        Where-Object { $_.Source.EndsWith('.js') } |
         ForEach-Object { $_.Source }
 )
+if ($Diagnostics) {
+    # Added after deriving $rewriteScripts: the probe must NOT pass through ADVANCED.
+    $assetManifest += [pscustomobject]@{ Source = 'panorama\scripts\hpv2_diag_probe.js'; Packed = 'panorama/scripts/hpv2_diag_probe.vjs_c' }
+}
 $expectedPackedAssets = @($assetManifest | ForEach-Object { $_.Packed })
 $requiredCompiled = @(
     $expectedPackedAssets |
@@ -96,11 +118,21 @@ Require-Path -Path $vpkeditcli -Label 'vpkeditcli'
 foreach ($validator in $validators) {
     Require-Path -Path $validator -Label 'HP Colors Rewrite v2 validator'
 }
+if ($Diagnostics) {
+    Require-Path -Path $diagProbe -Label 'HPv2 diagnostic probe'
+    & node --check $diagProbe
+    if ($LASTEXITCODE -ne 0) { throw 'HPv2 diagnostic probe syntax check failed' }
+}
 if ($ShowRankBarebones) {
     $barebonesLayout = Join-Path $root 'showrank_barebones\panorama\layout\hud_escape_menu.xml'
-    $barebonesPak = Join-Path (Split-Path $vpkDest -Parent) 'pak89_dir.vpk'
+    $barebonesPak = $ShowRankBarebonesPak
+    if ([string]::IsNullOrWhiteSpace($barebonesPak)) {
+        $barebonesPak = Join-Path (Split-Path $vpkDest -Parent) 'pak89_dir.vpk'
+        if (-not (Test-Path -LiteralPath $barebonesPak)) { $barebonesPak = Join-Path $root 'showrank_barebones_dir.vpk' }
+    }
     Require-Path -Path $barebonesLayout -Label 'ShowRank Barebones Escape layout'
-    Require-Path -Path $barebonesPak -Label 'Installed ShowRank Barebones pak89'
+    Require-Path -Path $barebonesPak -Label 'ShowRank Barebones pak89 (install it or build build_showrank_barebones.ps1)'
+    Write-Host "  ShowRank Barebones dependency -> $barebonesPak" -ForegroundColor Cyan
     $barebonesTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $barebonesPak -Source2ViewerPath $viewer
     Assert-PackedVpkAssets -Tree $barebonesTree -Label 'ShowRank Barebones dependency' -Required @(
         'panorama/scripts/showrank_barebones.vjs_c',
@@ -112,7 +144,7 @@ if ($ShowRankBarebones) {
 Write-Host "`n[1/5] Validating HP Colors Rewrite v2 source..." -ForegroundColor Cyan
 & node $timerValidator $modSrc
 if ($LASTEXITCODE -ne 0) { throw 'HP Colors Rewrite v2 timer validation failed' }
-foreach ($asset in $assetManifest | Where-Object { $_.Source.EndsWith('.js') }) {
+foreach ($asset in $assetManifest | Where-Object { $_.Source.EndsWith('.js') -and $_.Source -ne 'panorama\scripts\hpv2_diag_probe.js' }) {
     & node --check (Join-Path $modSrc $asset.Source)
     if ($LASTEXITCODE -ne 0) { throw "Runtime script syntax check failed: $($asset.Source)" }
 }
@@ -124,8 +156,8 @@ if (-not $SkipPanoramaTests) {
 }
 
 Write-Host "`n[2/5] Preparing HP Colors Rewrite v2 source..." -ForegroundColor Cyan
-Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf 'hp_colors_rewrite_v2_compiled'
-Remove-TreeUnderRoot -Path $compileStageRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_v2_build'
+Remove-TreeUnderRoot -Path $modCompiled -RootPath $root -ExpectedLeaf (Split-Path $modCompiled -Leaf)
+Remove-TreeUnderRoot -Path $compileStageRoot -RootPath $root -ExpectedLeaf (Split-Path $compileStageRoot -Leaf)
 if (Test-Path -LiteralPath $vpkOut) {
     Remove-Item -LiteralPath $vpkOut -Force
 }
@@ -182,6 +214,21 @@ try {
         $topbar.Save($topbarPath)
         Write-Host '  ShowRank Barebones Escape hooks composed; HP cancel behavior retained.' -ForegroundColor Green
     }
+    if ($Diagnostics) {
+        # Inject only after canonical staged validators; production sources stay untouched.
+        Copy-Item -LiteralPath $diagProbe -Destination (Join-Path $compileStageSource 'panorama\scripts\hpv2_diag_probe.js')
+        foreach ($layout in @('unit_status_overlay_v2.xml', 'test_event_relay.xml', 'citadel_hud_top_bar.xml', 'hud_escape_menu.xml')) {
+            $layoutPath = Join-Path $compileStageSource "panorama\layout\$layout"
+            [xml]$diagnosticLayout = [System.IO.File]::ReadAllText($layoutPath)
+            $scripts = $diagnosticLayout.SelectSingleNode('/root/scripts')
+            if ($null -eq $scripts) { throw "Diagnostic layout has no scripts section: $layout" }
+            $include = $diagnosticLayout.CreateElement('include')
+            $include.SetAttribute('src', 's2r://panorama/scripts/hpv2_diag_probe.vjs_c')
+            [void]$scripts.PrependChild($include)
+            $diagnosticLayout.Save($layoutPath)
+        }
+        Write-Host '  DIAGNOSTIC ONLY: probe staged first; never distribute this VPK.' -ForegroundColor Yellow
+    }
 
 
     Write-Host "`n[3/5] Compiling HP Colors Rewrite v2..." -ForegroundColor Cyan
@@ -189,7 +236,7 @@ try {
     Move-Item -LiteralPath $compileStageOutput -Destination $modCompiled
 }
 finally {
-    Remove-TreeUnderRoot -Path $compileStageRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_v2_build'
+    Remove-TreeUnderRoot -Path $compileStageRoot -RootPath $root -ExpectedLeaf (Split-Path $compileStageRoot -Leaf)
 }
 Write-Host "  Compiled OK -> $modCompiled" -ForegroundColor Green
 
@@ -207,7 +254,7 @@ if ($assetDifference.Count -gt 0) {
     throw "HP Colors Rewrite v2 compiled asset set mismatch. Expected=$($expectedPackedAssets -join ',') Actual=$($compiledAssets -join ',')"
 }
 
-Write-Host "`n[4/5] Packing pak02_dir.vpk..." -ForegroundColor Cyan
+Write-Host "`n[4/5] Packing $(Split-Path $vpkOut -Leaf)..." -ForegroundColor Cyan
 Invoke-VpkPack -VpkEditCli $vpkeditcli -InputDir $modCompiled -OutputPath $vpkOut
 $vpkTree = Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $vpkOut -Source2ViewerPath $viewer
 $forbiddenPackedAssets = @(
@@ -226,7 +273,7 @@ Assert-PackedVpkAssets -Tree $vpkTree -Label 'HP Colors Rewrite v2 VPK' -Require
 $vpkSize = (Get-Item -LiteralPath $vpkOut).Length
 Write-Host "  Packed OK -> $vpkOut ($([math]::Round($vpkSize / 1KB, 1)) KB)" -ForegroundColor Green
 
-if ($SkipDeploy) {
+if ($SkipDeploy -or ($Diagnostics -and -not $DeployDiagnostics)) {
     Write-Host "`n[5/5] Deployment skipped." -ForegroundColor Yellow
     Write-Host "`nHP Colors Rewrite v2 build complete. Compile-only VPK -> $vpkOut" -ForegroundColor Yellow
     return

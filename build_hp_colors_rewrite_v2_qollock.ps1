@@ -3,7 +3,7 @@ param(
     [switch]$SkipDeploy,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = '',
-    # QOLLOCK 4.0.3 package to regenerate the Escape menu from; the release zip ships pak03.
+    # QOLLOCK 4.0.3 (1 October hotfix) package to regenerate the Escape menu from; the release zip ships pak03.
     [string]$QollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk',
     [switch]$SkipPanoramaTests
 )
@@ -15,7 +15,7 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
-# QOLLOCK 4.0.3 release layout, pin, contract and bridge.
+# QOLLOCK 4.0.3 1 October hotfix release layout, pin, contract and bridge.
 $supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
 $bridgeSrc = $supportSrc
 $compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'
@@ -49,9 +49,6 @@ $canonicalScripts = @(
     'panorama\scripts\hp_colors_v2_menu.js',
     'panorama\scripts\unit_status_v2_colors.js'
 )
-$compatibilityScripts = $canonicalScripts + @(
-    'panorama\scripts\qollock_hp_colors_bridge.js'
-)
 $canonicalFiles = @(
     'panorama\layout\unit_status_overlay_v2.xml',
     'panorama\scripts\hp_colors_v2_contract.js',
@@ -77,6 +74,9 @@ $bridgeFile = 'panorama\scripts\qollock_hp_colors_bridge.js'
 $timerScripts = @(
     'panorama\scripts\test_event_bridge.js',
     'panorama\scripts\test_topbar_pickups.js'
+)
+$compatibilityScripts = $canonicalScripts + $timerScripts + @(
+    'panorama\scripts\qollock_hp_colors_bridge.js'
 )
 function Require-Path {
     param(
@@ -238,6 +238,18 @@ try {
     if ($missingFromOverride.Count -gt 0) {
         throw "pak02 Escape menu is stale against pinned QOLLOCK; rerun with -RefreshFromInstalledQollock. Missing: $($missingFromOverride -join ', ')"
     }
+    # Fail if the override lacks any HP Colors panel the canonical menu defines: the shared
+    # menu script refuses to boot without its rows/slider hosts (2.2.0 shipped greyed out).
+    $canonicalEscape = [System.IO.File]::ReadAllText($canonicalEscapeMenu)
+    $missingHpColors = @(
+        [regex]::Matches($canonicalEscape, 'id="HPColors[^"]+"') |
+            ForEach-Object { $_.Value } |
+            Sort-Object -Unique |
+            Where-Object { -not $supportEscape.Contains($_) }
+    )
+    if ($missingHpColors.Count -gt 0) {
+        throw "pak02 Escape menu is stale against canonical HP Colors; rerun with -RefreshFromInstalledQollock. Missing: $($missingHpColors -join ', ')"
+    }
     # Preserve the pinned QOLLOCK topbar panels while sharing canonical timer hooks.
     & $Source2ViewerPath -i $qollockPak -o $stageSource -d -f 'panorama/layout/citadel_hud_top_bar.vxml_c'
     if ($LASTEXITCODE -ne 0) { throw 'Pinned QOLLOCK topbar decompilation failed' }
@@ -322,6 +334,27 @@ Assert-PackedVpkAssets `
     -Required $expectedPackedAssets `
     -Forbidden @($assetContract.forbiddenPackedAssets)
 Write-Host "  pak02 asset contract OK -> $($expectedPackedAssets.Count) required assets; forbidden assets absent" -ForegroundColor Green
+
+# Every s2r include in the composed Escape menu must resolve against pak02,
+# the pinned QOLLOCK pak or stock pak01; one missing include is a fatal
+# "Unable to load layout file" at game startup.
+$stockPak = Join-Path (Split-Path -Parent (Split-Path -Parent $vpkDest)) 'pak01_dir.vpk'
+Require-Path -Path $stockPak -Label 'Deadlock stock pak01'
+$knownAssets = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+foreach ($line in @($vpkTree) + @($qollockTree) + @(Get-PackedVpkTree -VpkEditCli $vpkeditcli -VpkPath $stockPak -Source2ViewerPath $Source2ViewerPath)) {
+    [void]$knownAssets.Add(($line -split '\s+')[0].Replace('\', '/'))
+}
+$composedEscapeMenu = Get-Content -LiteralPath (Join-Path $supportSrc 'panorama\layout\hud_escape_menu.xml') -Raw
+$unresolvedIncludes = @(
+    [regex]::Matches($composedEscapeMenu, 's2r://([^"]+)') |
+        ForEach-Object { $_.Groups[1].Value } |
+        Where-Object { -not ($knownAssets.Contains($_) -or $knownAssets.Contains("${_}_c")) } |
+        Sort-Object -Unique
+)
+if ($unresolvedIncludes.Count -gt 0) {
+    throw "Composed Escape menu includes assets absent from pak02, pinned QOLLOCK and stock pak01: $($unresolvedIncludes -join ', ')"
+}
+Write-Host "  Escape-menu includes OK -> all resolve against pak02, pinned QOLLOCK or stock" -ForegroundColor Green
 Write-Host "  Packed OK -> $vpkOut" -ForegroundColor Green
 
 if ($SkipDeploy) {

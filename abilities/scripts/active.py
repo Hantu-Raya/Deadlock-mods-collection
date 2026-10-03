@@ -47,6 +47,8 @@ ADD_BEHAVIOR_BITS_ABILITIES = [
     "citadel_ability_chrono_swap",
     "citadel_ability_shiv_killing_blow",
     "citadel_ability_hook",
+    "citadel_ability_lash",
+    "ability_lash_flog",
     "ability_unicorn_radiantblast",
     "ability_werewolf_kickflip",
     "ability_werewolf_maulingleap",
@@ -235,7 +237,7 @@ def add_passive_item_flag(file_path, output_path=None, enable_behavior_bits=True
     for start, end, block in iter_record_spans(content):
         block_modified = False
 
-        matches_behavior_bits = any(name in block for name in ADD_BEHAVIOR_BITS_ABILITIES)
+        matches_behavior_bits = get_record_name(block) in ADD_BEHAVIOR_BITS_ABILITIES
         if matches_behavior_bits:
             if enable_behavior_bits:
                 block, behavior_modified = append_behavior_bits(block, ADD_BEHAVIOR_BITS)

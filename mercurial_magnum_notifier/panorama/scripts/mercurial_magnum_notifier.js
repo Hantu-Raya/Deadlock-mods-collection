@@ -3,65 +3,71 @@
 
   const POLL_SECONDS = 0.05;
   const ITEM_RESCAN_SECONDS = 0.5;
-  const MAGNUM_ITEM_ID = "upgrade_ethereal_bullets";
-  const MAGNUM_ACTIVE_CLASS = "MagnumBuffActive";
-  const MAGNUM_AMMO_GLOW_CLASS = "MagnumAmmoGlow";
-  const SPLIT_SHOT_AMMO_GLOW_CLASS = "SplitShotAmmoGlow";
-  const BLOOD_TRIBUTE_AMMO_GLOW_CLASS = "BloodTributeAmmoGlow";
-  const SPLIT_SHOT_ITEM_ID = "upgrade_split_shot";
-  const SPLIT_SHOT_ACTIVE_CLASS = "SplitShotActive";
-  const ONE_INDICATOR_OFFSET_CLASS = "NotifierOneOffset";
   const SPLIT_SHOT_DURATION_SECONDS = 5.0;
+  const MAGNUM_ITEM_ID = "upgrade_ethereal_bullets";
+  const SPLIT_SHOT_ITEM_ID = "upgrade_split_shot";
+  const BLOOD_TRIBUTE_LABEL = "BLOOD TRIBUTE";
   const ACTIVE_ITEM_SLOT_IDS = [
     "abilityButton0",
     "abilityButton1",
     "abilityButton2",
     "abilityButton3",
   ];
-  const BLOOD_TRIBUTE_ACTIVE_CLASS = "BloodTributeActive";
+  const ONE_INDICATOR_OFFSET_CLASS = "NotifierOneOffset";
   const TWO_INDICATOR_OFFSET_CLASS = "NotifierTwoOffsets";
 
   const context = $.GetContextPanel();
-  const state = {
-    root: null,
-    nextActivationOrder: 1,
-    magnum: {
-      item: null,
-      nextScanAt: 0,
-      notifier: null,
-      cooldownMask: null,
-      cooldownLabel: null,
-      ammoLabel: null,
-      active: false,
-      activationOrder: 0,
-      seen: false,
-      coolingDown: false,
-      reloading: false,
-      cooldown: -1,
-      cooldownDegrees: -1,
-      readySamples: 0,
-    },
-    split: {
-      item: null,
-      nextScanAt: 0,
-      notifier: null,
-      seen: false,
-      ready: false,
-      active: false,
-      activationOrder: 0,
-      activeUntil: 0,
-    },
-    blood: {
-      togglePanel: null,
-      nextScanAt: 0,
-      abilityContainer: null,
-      slots: [null, null, null, null],
-      labels: [null, null, null, null],
-      notifier: null,
-      active: false,
-      activationOrder: 0,
-    },
+  let root = null;
+  let ammoLabel = null;
+  let nextActivationOrder = 1;
+  let nextLocalScanAt = 0;
+  let itemsOwned = false;
+
+  const magnum = {
+    notifierId: "MercurialMagnumNotifier",
+    activeClass: "MagnumBuffActive",
+    ammoClass: "MagnumAmmoGlow",
+    notifier: null,
+    active: false,
+    activationOrder: 0,
+    item: null,
+    nextScanAt: 0,
+    cooldownMask: null,
+    cooldownLabel: null,
+    seen: false,
+    coolingDown: false,
+    reloading: false,
+    cooldown: -1,
+    cooldownDegrees: -1,
+    readySamples: 0,
   };
+  const split = {
+    notifierId: "SplitShotNotifier",
+    activeClass: "SplitShotActive",
+    ammoClass: "SplitShotAmmoGlow",
+    notifier: null,
+    active: false,
+    activationOrder: 0,
+    item: null,
+    nextScanAt: 0,
+    seen: false,
+    ready: false,
+    activeUntil: 0,
+  };
+  const blood = {
+    notifierId: "BloodTributeNotifier",
+    activeClass: "BloodTributeActive",
+    ammoClass: "BloodTributeAmmoGlow",
+    notifier: null,
+    active: false,
+    activationOrder: 0,
+    togglePanel: null,
+    nextScanAt: 0,
+    abilityContainer: null,
+    slots: [null, null, null, null],
+    labels: [null, null, null, null],
+  };
+  const INDICATORS = [magnum, split, blood];
 
   function nowSeconds() {
     return Date.now() / 1000;
@@ -75,19 +81,21 @@
     }
   }
 
-  function findRoot(panel) {
-    let current = panel;
-    let parent = null;
-    while (isValid(current)) {
-      try {
-        parent = current.GetParent();
-      } catch (e) {
-        parent = null;
-      }
-      if (!isValid(parent)) return current;
-      current = parent;
+  function hasClass(panel, className) {
+    try {
+      return !!(isValid(panel) && panel.BHasClass && panel.BHasClass(className));
+    } catch (e) {
+      return false;
     }
-    return null;
+  }
+
+  function findChild(panel, id) {
+    try {
+      const child = panel.FindChildTraverse(id);
+      return isValid(child) ? child : null;
+    } catch (e) {
+      return null;
+    }
   }
 
   function findFirstWithClass(panel, className) {
@@ -100,19 +108,37 @@
     }
   }
 
+  function getRoot() {
+    if (isValid(root)) return root;
+    root = null;
+    let current = context;
+    while (isValid(current)) {
+      let parent = null;
+      try {
+        parent = current.GetParent();
+      } catch (e) {}
+      if (!isValid(parent)) {
+        root = current;
+        break;
+      }
+      current = parent;
+    }
+    return root;
+  }
+
   function readText(panel) {
+    if (!isValid(panel)) return "";
     try {
-      if (isValid(panel) && typeof panel.text === "string") return panel.text;
+      const text = panel.text;
+      if (typeof text === "string") return text;
     } catch (e) {}
     try {
-      if (isValid(panel) && panel.GetAttributeString) {
-        return panel.GetAttributeString("text", "");
-      }
+      if (panel.GetAttributeString) return panel.GetAttributeString("text", "");
     } catch (e) {}
     return "";
   }
 
-
+  // First unsigned integer in the label text, or -1.
   function readNumber(panel) {
     const text = readText(panel);
     let value = 0;
@@ -129,15 +155,15 @@
     return found ? value : -1;
   }
 
+  // End angle of the stock `radial(cx cy, startdeg, enddeg)` clip, or -1.
   function readCooldownDegrees(cooldownMask) {
     if (!isValid(cooldownMask)) return -1;
 
     let clip = "";
     try {
-      clip =
-        cooldownMask.style && typeof cooldownMask.style.clip === "string"
-          ? cooldownMask.style.clip
-          : "";
+      const style = cooldownMask.style;
+      const value = style && style.clip;
+      if (typeof value === "string") clip = value;
     } catch (e) {}
     try {
       if (!clip && cooldownMask.GetAttributeString) {
@@ -182,412 +208,265 @@
     return found ? sign * (value + fraction) : -1;
   }
 
-  function hasClass(panel, className) {
-    try {
-      return !!(isValid(panel) && panel.BHasClass && panel.BHasClass(className));
-    } catch (e) {
-      return false;
-    }
+  function renderNotifier(indicator) {
+    const panel = indicator.notifier;
+    if (!isValid(panel)) return;
+    const active = indicator.active;
+    panel.SetHasClass(indicator.activeClass, active);
+    panel.style.visibility = active ? "visible" : "collapse";
+    panel.style.opacity = active ? "1" : "0";
   }
+
   function renderAmmoColor() {
-    if (!isValid(state.magnum.ammoLabel)) return;
-    state.magnum.ammoLabel.SetHasClass(
-      MAGNUM_AMMO_GLOW_CLASS,
-      state.magnum.active,
-    );
-    state.magnum.ammoLabel.SetHasClass(
-      SPLIT_SHOT_AMMO_GLOW_CLASS,
-      state.split.active,
-    );
-    state.magnum.ammoLabel.SetHasClass(
-      BLOOD_TRIBUTE_AMMO_GLOW_CLASS,
-      state.blood.active,
-    );
-  }
-  function countNewerIndicators(tracker) {
-    if (!tracker.active) return 0;
-    let count = 0;
-    if (
-      state.magnum.active &&
-      state.magnum.activationOrder > tracker.activationOrder
-    ) {
-      count += 1;
+    if (!isValid(ammoLabel)) return;
+    for (let index = 0; index < INDICATORS.length; index += 1) {
+      const indicator = INDICATORS[index];
+      ammoLabel.SetHasClass(indicator.ammoClass, indicator.active);
     }
-    if (
-      state.split.active &&
-      state.split.activationOrder > tracker.activationOrder
-    ) {
-      count += 1;
+  }
+
+  // Older activations shift left: each newer active indicator adds one slot.
+  function renderPositions() {
+    for (let index = 0; index < INDICATORS.length; index += 1) {
+      const indicator = INDICATORS[index];
+      if (!isValid(indicator.notifier)) continue;
+      let newerCount = 0;
+      if (indicator.active) {
+        for (let other = 0; other < INDICATORS.length; other += 1) {
+          const candidate = INDICATORS[other];
+          if (
+            candidate.active &&
+            candidate.activationOrder > indicator.activationOrder
+          ) {
+            newerCount += 1;
+          }
+        }
+      }
+      indicator.notifier.SetHasClass(ONE_INDICATOR_OFFSET_CLASS, newerCount === 1);
+      indicator.notifier.SetHasClass(TWO_INDICATOR_OFFSET_CLASS, newerCount === 2);
     }
-    if (
-      state.blood.active &&
-      state.blood.activationOrder > tracker.activationOrder
-    ) {
-      count += 1;
+  }
+
+  function setActive(indicator, active) {
+    if (indicator.active === active) return;
+    indicator.active = active;
+    indicator.activationOrder = active ? nextActivationOrder++ : 0;
+    renderNotifier(indicator);
+    renderAmmoColor();
+    renderPositions();
+  }
+
+  // Missing local panels retry at the discovery cadence; indicators re-render
+  // only when a replacement panel is actually found.
+  function cacheLocalPanels(now) {
+    if (now < nextLocalScanAt) return;
+    let found = false;
+    let missing = false;
+    for (let index = 0; index < INDICATORS.length; index += 1) {
+      const indicator = INDICATORS[index];
+      if (isValid(indicator.notifier)) continue;
+      indicator.notifier = findChild(context, indicator.notifierId);
+      if (indicator.notifier) found = true;
+      else missing = true;
     }
-    return count;
-  }
-
-  function renderIndicatorPosition(tracker) {
-    if (!isValid(tracker.notifier)) return;
-    const newerCount = countNewerIndicators(tracker);
-    tracker.notifier.SetHasClass(
-      ONE_INDICATOR_OFFSET_CLASS,
-      tracker.active && newerCount === 1,
-    );
-    tracker.notifier.SetHasClass(
-      TWO_INDICATOR_OFFSET_CLASS,
-      tracker.active && newerCount === 2,
-    );
-  }
-
-  function renderIndicatorPositions() {
-    renderIndicatorPosition(state.magnum);
-    renderIndicatorPosition(state.split);
-    renderIndicatorPosition(state.blood);
-  }
-
-
-
-
-  function renderMagnum() {
-    if (isValid(state.magnum.notifier)) {
-      state.magnum.notifier.SetHasClass(MAGNUM_ACTIVE_CLASS, state.magnum.active);
-      state.magnum.notifier.style.visibility = state.magnum.active ? "visible" : "collapse";
-      state.magnum.notifier.style.opacity = state.magnum.active ? "1" : "0";
+    if (!isValid(ammoLabel)) {
+      ammoLabel = findFirstWithClass(context, "weapon_ammo");
+      if (ammoLabel) found = true;
+      else missing = true;
+    }
+    if (missing) nextLocalScanAt = now + ITEM_RESCAN_SECONDS;
+    if (!found) return;
+    for (let index = 0; index < INDICATORS.length; index += 1) {
+      renderNotifier(INDICATORS[index]);
     }
     renderAmmoColor();
+    renderPositions();
   }
 
-  function renderSplitShot() {
-    if (!isValid(state.split.notifier)) return;
-    state.split.notifier.SetHasClass(
-      SPLIT_SHOT_ACTIVE_CLASS,
-      state.split.active,
-    );
-    state.split.notifier.style.visibility = state.split.active ? "visible" : "collapse";
-    state.split.notifier.style.opacity = state.split.active ? "1" : "0";
-  }
-
-  function renderBloodTribute() {
-    if (!isValid(state.blood.notifier)) return;
-    state.blood.notifier.SetHasClass(
-      BLOOD_TRIBUTE_ACTIVE_CLASS,
-      state.blood.active,
-    );
-    state.blood.notifier.style.visibility = state.blood.active
-      ? "visible"
-      : "collapse";
-    state.blood.notifier.style.opacity = state.blood.active ? "1" : "0";
-  }
-
-  function setMagnumActive(active) {
-    active = !!active;
-    if (state.magnum.active === active) return;
-    state.magnum.active = active;
-    state.magnum.activationOrder = active
-      ? state.nextActivationOrder++
-      : 0;
-    renderMagnum();
-    renderIndicatorPositions();
-  }
-
-  function setSplitShotActive(active) {
-    active = !!active;
-    if (state.split.active === active) return;
-    state.split.active = active;
-    state.split.activationOrder = active
-      ? state.nextActivationOrder++
-      : 0;
-    renderSplitShot();
-    renderAmmoColor();
-    renderIndicatorPositions();
-  }
-
-  function setBloodTributeActive(active) {
-    active = !!active;
-    if (state.blood.active === active) return;
-    state.blood.active = active;
-    state.blood.activationOrder = active
-      ? state.nextActivationOrder++
-      : 0;
-    renderBloodTribute();
-    renderAmmoColor();
-    renderIndicatorPositions();
-  }
-
-
-  function resetMagnumState() {
-    state.magnum.seen = false;
-    state.magnum.cooldownMask = null;
-    state.magnum.cooldownLabel = null;
-    state.magnum.coolingDown = false;
-    state.magnum.reloading = false;
-    state.magnum.cooldown = -1;
-    state.magnum.cooldownDegrees = -1;
-    state.magnum.readySamples = 0;
-    setMagnumActive(false);
-  }
-
-  function resetSplitShotState() {
-    state.split.seen = false;
-    state.split.ready = false;
-    state.split.activeUntil = 0;
-    setSplitShotActive(false);
-  }
-
-  function cacheLocalPanels() {
-    let renderBuff = false;
-    let renderSplit = false;
-    let renderBlood = false;
-    if (!isValid(state.magnum.notifier)) {
-      try {
-        state.magnum.notifier = context.FindChildTraverse("MercurialMagnumNotifier");
-      } catch (e) {
-        state.magnum.notifier = null;
-      }
-      renderBuff = true;
-    }
-    if (!isValid(state.split.notifier)) {
-      try {
-        state.split.notifier = context.FindChildTraverse("SplitShotNotifier");
-      } catch (e) {
-        state.split.notifier = null;
-      }
-      renderSplit = true;
-    }
-    if (!isValid(state.blood.notifier)) {
-      try {
-        state.blood.notifier = context.FindChildTraverse("BloodTributeNotifier");
-      } catch (e) {
-        state.blood.notifier = null;
-      }
-      renderBlood = true;
-    }
-    if (!isValid(state.magnum.ammoLabel)) {
-      state.magnum.ammoLabel = findFirstWithClass(context, "weapon_ammo");
-      renderBuff = true;
-    }
-    if (renderBuff) renderMagnum();
-    if (renderSplit) renderSplitShot();
-    if (renderBlood) renderBloodTribute();
-    if (renderBuff || renderSplit || renderBlood) {
-      renderIndicatorPositions();
-    }
-  }
-
+  // Returns the owned item panel; rescans at most every ITEM_RESCAN_SECONDS.
   function findTrainedItem(now, tracker, itemId, reset) {
-    if (isValid(tracker.item) && hasClass(tracker.item, "trained")) {
-      return tracker.item;
-    }
+    if (hasClass(tracker.item, "trained")) return tracker.item;
     tracker.item = null;
     if (now < tracker.nextScanAt) return null;
 
     tracker.nextScanAt = now + ITEM_RESCAN_SECONDS;
-    if (!isValid(state.root)) state.root = findRoot(context);
-    if (!isValid(state.root)) return null;
-
-    let item = null;
-    try {
-      item = state.root.FindChildTraverse(itemId);
-    } catch (e) {}
-    if (!isValid(item) || !hasClass(item, "trained")) return null;
+    const hudRoot = getRoot();
+    const item = hudRoot && findChild(hudRoot, itemId);
+    if (!hasClass(item, "trained")) return null;
 
     tracker.item = item;
     reset();
     return item;
   }
 
-  function isBloodTributeSlot(index) {
-    return readText(state.blood.labels[index]) === "BLOOD TRIBUTE";
+  function resetMagnumState() {
+    magnum.seen = false;
+    magnum.cooldownMask = null;
+    magnum.cooldownLabel = null;
+    magnum.coolingDown = false;
+    magnum.reloading = false;
+    magnum.cooldown = -1;
+    magnum.cooldownDegrees = -1;
+    magnum.readySamples = 0;
+    setActive(magnum, false);
+  }
+
+  function resetSplitShotState() {
+    split.seen = false;
+    split.ready = false;
+    split.activeUntil = 0;
+    setActive(split, false);
   }
 
   function cacheBloodTributeSlots() {
-    if (!isValid(state.blood.abilityContainer)) {
-      state.blood.abilityContainer = null;
-      for (let index = 0; index < state.blood.slots.length; index += 1) {
-        state.blood.slots[index] = null;
-        state.blood.labels[index] = null;
+    if (!isValid(blood.abilityContainer)) {
+      for (let index = 0; index < ACTIVE_ITEM_SLOT_IDS.length; index += 1) {
+        blood.slots[index] = null;
+        blood.labels[index] = null;
       }
-
-      if (!isValid(state.root)) state.root = findRoot(context);
-      if (!isValid(state.root)) return false;
-      try {
-        state.blood.abilityContainer =
-          state.root.FindChildTraverse("abilitiesContainer");
-      } catch (e) {}
-      if (!isValid(state.blood.abilityContainer)) return false;
+      const hudRoot = getRoot();
+      blood.abilityContainer = hudRoot && findChild(hudRoot, "abilitiesContainer");
+      if (!blood.abilityContainer) return false;
     }
 
-    for (let index = 0; index < state.blood.slots.length; index += 1) {
-      if (!isValid(state.blood.slots[index])) {
-        state.blood.labels[index] = null;
-        try {
-          state.blood.slots[index] =
-            state.blood.abilityContainer.FindChildTraverse(
-              ACTIVE_ITEM_SLOT_IDS[index],
-            );
-        } catch (e) {
-          state.blood.slots[index] = null;
-        }
-      }
-      if (
-        isValid(state.blood.slots[index]) &&
-        !isValid(state.blood.labels[index])
-      ) {
-        state.blood.labels[index] = findFirstWithClass(
-          state.blood.slots[index],
-          "ability_name",
+    for (let index = 0; index < ACTIVE_ITEM_SLOT_IDS.length; index += 1) {
+      if (!isValid(blood.slots[index])) {
+        blood.labels[index] = null;
+        blood.slots[index] = findChild(
+          blood.abilityContainer,
+          ACTIVE_ITEM_SLOT_IDS[index],
         );
+      }
+      if (blood.slots[index] && !isValid(blood.labels[index])) {
+        blood.labels[index] = findFirstWithClass(blood.slots[index], "ability_name");
       }
     }
     return true;
   }
 
-
-  function findBloodTributeItem(now) {
-    if (now < state.blood.nextScanAt) {
-      return isValid(state.blood.togglePanel)
-        ? state.blood.togglePanel
-        : null;
+  // The label scan runs every ITEM_RESCAN_SECONDS; hot polls reuse the matched slot.
+  function findBloodTributeSlot(now) {
+    if (now < blood.nextScanAt) {
+      return isValid(blood.togglePanel) ? blood.togglePanel : null;
     }
 
-    state.blood.nextScanAt = now + ITEM_RESCAN_SECONDS;
-    state.blood.togglePanel = null;
+    blood.nextScanAt = now + ITEM_RESCAN_SECONDS;
+    blood.togglePanel = null;
     if (!cacheBloodTributeSlots()) return null;
 
-    for (let index = 0; index < state.blood.slots.length; index += 1) {
-      const slot = state.blood.slots[index];
-      if (!isValid(slot) || !isBloodTributeSlot(index)) continue;
-      state.blood.togglePanel = slot;
+    for (let index = 0; index < ACTIVE_ITEM_SLOT_IDS.length; index += 1) {
+      const slot = blood.slots[index];
+      if (!isValid(slot) || readText(blood.labels[index]) !== BLOOD_TRIBUTE_LABEL) {
+        continue;
+      }
+      blood.togglePanel = slot;
       return slot;
     }
     return null;
   }
 
   function updateBloodTribute(now) {
-    const slot = findBloodTributeItem(now);
-    if (!isValid(slot)) {
-      setBloodTributeActive(false);
-      return false;
-    }
-
-    setBloodTributeActive(hasClass(slot, "toggled_on"));
-    return true;
+    const slot = findBloodTributeSlot(now);
+    setActive(blood, hasClass(slot, "toggled_on"));
+    return !!slot;
   }
 
   function updateSplitShot(now) {
-    const item = findTrainedItem(
-      now,
-      state.split,
-      SPLIT_SHOT_ITEM_ID,
-      resetSplitShotState,
-    );
-    if (!isValid(item)) {
-      if (state.split.seen || state.split.active) resetSplitShotState();
+    const item = findTrainedItem(now, split, SPLIT_SHOT_ITEM_ID, resetSplitShotState);
+    if (!item) {
+      if (split.seen || split.active) resetSplitShotState();
       return false;
     }
 
     const coolingDown = hasClass(item, "cooling_down");
-    if (!state.split.seen) {
-      state.split.seen = true;
-      state.split.ready = !coolingDown;
+    if (!split.seen) {
+      split.seen = true;
+      split.ready = !coolingDown;
       return true;
     }
 
-    if (!coolingDown) state.split.ready = true;
-    const activated = coolingDown && state.split.ready;
-
-    if (activated) {
-      state.split.ready = false;
-      state.split.activeUntil = now + SPLIT_SHOT_DURATION_SECONDS;
-      setSplitShotActive(true);
-    } else if (state.split.active && now >= state.split.activeUntil) {
-      setSplitShotActive(false);
+    if (!coolingDown) split.ready = true;
+    if (coolingDown && split.ready) {
+      split.ready = false;
+      split.activeUntil = now + SPLIT_SHOT_DURATION_SECONDS;
+      setActive(split, true);
+    } else if (split.active && now >= split.activeUntil) {
+      setActive(split, false);
     }
-
     return true;
   }
 
+  function updateMagnum(now) {
+    const item = findTrainedItem(now, magnum, MAGNUM_ITEM_ID, resetMagnumState);
+    if (!item) {
+      if (magnum.seen || magnum.active) resetMagnumState();
+      return false;
+    }
 
-  function scheduleUpdate(itemOwned) {
-    $.Schedule(itemOwned ? POLL_SECONDS : ITEM_RESCAN_SECONDS, update);
+    const coolingDown = hasClass(item, "cooling_down");
+    const reloading = hasClass(context, "reloading");
+    // Progress only feeds cooldownReset, which needs two consecutive cooling
+    // samples, so ready ticks skip the label text and clip-string reads.
+    let cooldown = -1;
+    let cooldownDegrees = -1;
+    if (coolingDown) {
+      if (!isValid(magnum.cooldownLabel)) {
+        magnum.cooldownLabel = findFirstWithClass(item, "cooldown_timer");
+      }
+      if (!isValid(magnum.cooldownMask)) {
+        magnum.cooldownMask = findChild(item, "cooldown_mask");
+      }
+      cooldown = readNumber(magnum.cooldownLabel);
+      cooldownDegrees = readCooldownDegrees(magnum.cooldownMask);
+    }
+
+    if (!magnum.seen) {
+      magnum.seen = true;
+      magnum.readySamples = coolingDown ? 0 : 1;
+    } else {
+      const cooldownStarted =
+        coolingDown && !magnum.coolingDown && magnum.readySamples >= 2;
+      const radialAvailable = cooldownDegrees >= 0 && magnum.cooldownDegrees >= 0;
+      const radialReset =
+        radialAvailable && cooldownDegrees > magnum.cooldownDegrees + 0.5;
+      const timerReset =
+        !radialAvailable &&
+        cooldown >= 0 &&
+        magnum.cooldown >= 0 &&
+        cooldown > magnum.cooldown + 1;
+      const cooldownReset =
+        coolingDown && magnum.coolingDown && (radialReset || timerReset);
+
+      if (cooldownStarted || cooldownReset) {
+        setActive(magnum, true);
+        magnum.readySamples = 0;
+      } else if (magnum.active && reloading && !magnum.reloading) {
+        setActive(magnum, false);
+      }
+      if (!coolingDown) magnum.readySamples += 1;
+    }
+
+    magnum.coolingDown = coolingDown;
+    magnum.reloading = reloading;
+    magnum.cooldown = cooldown;
+    magnum.cooldownDegrees = cooldownDegrees;
+    return true;
   }
 
   function update() {
     if (!isValid(context)) return;
 
-    const now = nowSeconds();
-    cacheLocalPanels();
-    const splitOwned = updateSplitShot(now);
-    const bloodOwned = updateBloodTribute(now);
-
-    const item = findTrainedItem(
-      now,
-      state.magnum,
-      MAGNUM_ITEM_ID,
-      resetMagnumState,
-    );
-    if (!isValid(item)) {
-      if (state.magnum.seen || state.magnum.active) resetMagnumState();
-      scheduleUpdate(splitOwned || bloodOwned);
-      return;
+    try {
+      const now = nowSeconds();
+      cacheLocalPanels(now);
+      // Detector order is the same-tick activation order: Split Shot, Blood Tribute, Magnum.
+      const splitOwned = updateSplitShot(now);
+      const bloodOwned = updateBloodTribute(now);
+      itemsOwned = updateMagnum(now) || splitOwned || bloodOwned;
+    } finally {
+      // Reschedule at the last known cadence even when a panel write throws.
+      $.Schedule(itemsOwned ? POLL_SECONDS : ITEM_RESCAN_SECONDS, update);
     }
-
-    if (!isValid(state.magnum.cooldownLabel)) {
-      state.magnum.cooldownLabel = findFirstWithClass(item, "cooldown_timer");
-    }
-    const coolingDown = hasClass(item, "cooling_down");
-    const cooldown = readNumber(state.magnum.cooldownLabel);
-    if (!isValid(state.magnum.cooldownMask)) {
-      try {
-        state.magnum.cooldownMask = item.FindChildTraverse("cooldown_mask");
-      } catch (e) {
-        state.magnum.cooldownMask = null;
-      }
-    }
-    const cooldownDegrees = readCooldownDegrees(state.magnum.cooldownMask);
-    const reloading = hasClass(context, "reloading");
-
-    if (!state.magnum.seen) {
-      state.magnum.seen = true;
-      state.magnum.coolingDown = coolingDown;
-      state.magnum.reloading = reloading;
-      state.magnum.cooldown = cooldown;
-      state.magnum.cooldownDegrees = cooldownDegrees;
-      state.magnum.readySamples = coolingDown ? 0 : 1;
-      scheduleUpdate(true);
-      return;
-    }
-
-    const cooldownStarted =
-      coolingDown && !state.magnum.coolingDown && state.magnum.readySamples >= 2;
-    const radialAvailable =
-      cooldownDegrees >= 0 && state.magnum.cooldownDegrees >= 0;
-    const radialReset =
-      radialAvailable && cooldownDegrees > state.magnum.cooldownDegrees + 0.5;
-    const timerReset =
-      !radialAvailable &&
-      cooldown >= 0 &&
-      state.magnum.cooldown >= 0 &&
-      cooldown > state.magnum.cooldown + 1;
-    const cooldownReset =
-      coolingDown && state.magnum.coolingDown && (radialReset || timerReset);
-    const reloadStarted = reloading && !state.magnum.reloading;
-
-    if (cooldownStarted || cooldownReset) {
-      setMagnumActive(true);
-      state.magnum.readySamples = 0;
-    } else if (state.magnum.active && reloadStarted) {
-      setMagnumActive(false);
-    }
-
-    if (!coolingDown) state.magnum.readySamples += 1;
-    state.magnum.coolingDown = coolingDown;
-    state.magnum.reloading = reloading;
-    state.magnum.cooldown = cooldown;
-    state.magnum.cooldownDegrees = cooldownDegrees;
-    scheduleUpdate(true);
   }
 
   update();
