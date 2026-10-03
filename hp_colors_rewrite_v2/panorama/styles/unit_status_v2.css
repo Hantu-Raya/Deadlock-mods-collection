@@ -1609,11 +1609,51 @@
 	vertical-align: top;
 	overflow: noclip;
 	transform-origin: 50% 40.48%;
-	transition-property: pre-transform-scale2d, transform;
-	transition-duration: 0.08s;
+	animation-name: none;
+	transition-property: none;
 }
 
-.active_damage .WindowRoot #InfoHealthContainer
+/* One compact stock-sized frame moves bar, accessories and native HP together.
+   Full-canvas children retain their coordinate system; only the name stays still. */
+.WindowRoot #HPV2MotionFrame
+{
+	width: 100px;
+	height: 40px;
+	margin-left: 50px;
+	margin-top: 65px;
+	horizontal-align: left;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	transform-origin: 50% 50%;
+}
+
+.WindowRoot #HPV2MotionFrame #UnitStatus,
+.WindowRoot #HPV2MotionFrame #hp_counter_container
+{
+	width: 200px;
+	height: 210px;
+	margin-left: -50px;
+	margin-top: -65px;
+	horizontal-align: left;
+}
+
+.neutral_normal .WindowRoot #HPV2MotionFrame #UnitStatus,
+.neutral_weak .WindowRoot #HPV2MotionFrame #UnitStatus
+{
+	margin-top: -52px;
+}
+
+.boss_tier1 .WindowRoot #HPV2MotionFrame #UnitStatus,
+.boss_tier2 .WindowRoot #HPV2MotionFrame #UnitStatus,
+.boss_barracks .WindowRoot #HPV2MotionFrame #UnitStatus,
+.building .WindowRoot #HPV2MotionFrame #UnitStatus,
+.midboss .WindowRoot #HPV2MotionFrame #UnitStatus
+{
+	margin-top: -117px;
+}
+
+.active_damage .WindowRoot #HPV2MotionFrame
 {
 	animation-name: active_damage_wiggle;
 	animation-duration: 0.2s;
@@ -1621,10 +1661,209 @@
 	animation-timing-function: ease-out;
 }
 
-.boss_barracks.active_damage .WindowRoot #InfoHealthContainer,
-.boss_tier1.active_damage .WindowRoot #InfoHealthContainer,
-.boss_tier2.active_damage .WindowRoot #InfoHealthContainer,
-.building.active_damage .WindowRoot #InfoHealthContainer
+.active_damage .WindowRoot.HPColorsRewriteShake1 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_1;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake2 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_2;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake4 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_4;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake5 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_5;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake6 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_6;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake7 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_7;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake8 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_8;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake9 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_9;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShake10 #HPV2MotionFrame
+{
+	animation-name: hpv2_shake_10;
+}
+
+.active_damage .WindowRoot.HPColorsRewriteShakeOff #HPV2MotionFrame
+{
+	animation-name: none;
+}
+
+@keyframes 'hpv2_shake_1'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-1deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_2'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-2deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_4'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-4deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_5'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-5deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_6'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-6deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_7'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-7deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_8'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-8deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_9'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-9deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'hpv2_shake_10'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-10deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+.boss_barracks.active_damage .WindowRoot #HPV2MotionFrame,
+.boss_tier1.active_damage .WindowRoot #HPV2MotionFrame,
+.boss_tier2.active_damage .WindowRoot #HPV2MotionFrame,
+.boss_tier3.active_damage .WindowRoot #HPV2MotionFrame,
+.building.active_damage .WindowRoot #HPV2MotionFrame,
+.CLASS_DESTROYABLE_BUILDING.active_damage .WindowRoot #HPV2MotionFrame,
+.barracks.active_damage .WindowRoot #HPV2MotionFrame,
+.neutral_vault.active_damage .WindowRoot #HPV2MotionFrame,
+.midboss.active_damage .WindowRoot #HPV2MotionFrame
 {
 	animation-name: none;
 	pre-transform-scale2d: 1;
@@ -1636,13 +1875,36 @@
 	width: 100%;
 	height: 100%;
 	transform-origin: 50% 40.48%;
+	animation-name: none;
+	pre-transform-scale2d: 1;
 }
 
-/* Stock CRITICAL already ignores flow. Its stack animation, however, scales
-   around the frame pivot and replaces the renderer's translation at 50%.
-   Retain the brightness beat without changing owned geometry. */
-.enemy.health_critical .ShowCriticalState.HPColorsRewriteBarLines #UnitHealthbarsContainer,
-.enemy.health_critical .ShowCriticalState .WindowRoot.HPColorsRewriteBarLines #UnitHealthbarsContainer
+.enemy.health_critical .ShowCriticalState .WindowRoot #UnitHealthbarsContainer,
+.enemy.health_critical .ShowCriticalState.WindowRoot #UnitHealthbarsContainer
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+/* Critical feedback also targets compact surfaces, never the full-canvas stack.
+   Owned geometry retains its brightness-only beat; unowned bars retain stock scaling. */
+.enemy.health_critical .ShowCriticalState .WindowRoot #UnitHealthbar #UnitHealthbarInner,
+.enemy.health_critical .ShowCriticalState .WindowRoot #UnitShieldbar #UnitHealthbarInner,
+.enemy.health_critical .ShowCriticalState.WindowRoot #UnitHealthbar #UnitHealthbarInner,
+.enemy.health_critical .ShowCriticalState.WindowRoot #UnitShieldbar #UnitHealthbarInner
+{
+	animation-name: healthCritFlash3;
+	animation-duration: 0.3s;
+	animation-iteration-count: infinite;
+	pre-transform-scale2d: 1.2;
+}
+
+.enemy.health_critical .ShowCriticalState.HPColorsRewriteBarLines #UnitHealthbar #UnitHealthbarInner,
+.enemy.health_critical .ShowCriticalState.HPColorsRewriteBarLines #HPV2PipGrid,
+.enemy.health_critical .ShowCriticalState.HPColorsRewriteBarLines #UnitShieldbar #UnitHealthbarInner,
+.enemy.health_critical .ShowCriticalState .WindowRoot.HPColorsRewriteBarLines #UnitHealthbar #UnitHealthbarInner,
+.enemy.health_critical .ShowCriticalState .WindowRoot.HPColorsRewriteBarLines #HPV2PipGrid,
+.enemy.health_critical .ShowCriticalState .WindowRoot.HPColorsRewriteBarLines #UnitShieldbar #UnitHealthbarInner
 {
 	animation-name: HPColorsRewriteCriticalFlash;
 	pre-transform-scale2d: 1;
@@ -1712,6 +1974,112 @@
 	vertical-align: bottom;
 }
 
+/* BAR MASK ORIGINAL: the three stock masks deleted from the prefix, behind the owned root class. */
+.WindowRoot.HPColorsRewriteBarMask .UnitHealthbarContainer,
+.WindowRoot.HPColorsRewriteBarMask #UnitHealthbarInner,
+.WindowRoot.HPColorsRewriteBarMask #UnitHealthbarLines
+{
+	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg");
+}
+
+/* BAR STYLE OLD: 2024-style 100-HP pips. Without a derived max (fallback) the engine lines,
+   positioned as a percent of #UnitHealthbarLines, become 250-HP gaps over the fill box. */
+.WindowRoot.HPColorsRewriteBarOld #UnitHealthbar #UnitHealthbarInner
+{
+	background-color: #182123;
+}
+
+.WindowRoot.HPColorsRewriteBarOld #UnitHealthbar #UnitHealthbarLines
+{
+	width: 69px;
+	height: 12px;
+	margin-left: 6px;
+	margin-top: 3.5px;
+	vertical-align: top;
+	overflow: clip;
+}
+
+.WindowRoot.HPColorsRewriteBarOld #UnitHealthbarLines .line_large.line_large,
+.WindowRoot.HPColorsRewriteBarOld #UnitHealthbarLines .line_small.line_small
+{
+	height: 100%;
+	vertical-align: top;
+	background-color: #0B1012;
+	wash-color: white;
+	opacity: 1;
+}
+
+.WindowRoot.HPColorsRewriteBarOld #UnitHealthbarLines .line_small.line_small
+{
+	width: 1px;
+}
+
+.WindowRoot.HPColorsRewriteBarOld #UnitHealthbarLines .line_large.line_large
+{
+	width: 2px;
+}
+
+/* Pip grid: 10 per row, first 100 HP bottom-left, rows grow up from the bar. The renderer
+   writes pip positions/sizes only when max HP changes and fill widths only for touched pips. */
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #UnitHealthbar
+{
+	overflow: noclip;
+}
+
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #UnitHealthbar #UnitHealthbarInner,
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #UnitHealthbar #UnitHealthbarLines,
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #UnitHealthbar #hp_colors_kill_marker
+{
+	opacity: 0;
+}
+
+/* These replaced layers are not geometry inputs. Keep fill/shield/armor and lines
+   measurable for engine health/max sampling; collapsing them would erase that signal. */
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #unit_healthbar_healing,
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #unit_healthbar_delta,
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #unit_healthbar_deferred,
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #hp_colors_kill_marker
+{
+	visibility: collapse;
+}
+
+#HPV2PipGrid
+{
+	visibility: collapse;
+}
+
+.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #UnitHealthbar #HPV2PipGrid
+{
+	visibility: visible;
+	width: 100%;
+	vertical-align: bottom;
+	margin-bottom: 2.5px;
+	overflow: noclip;
+}
+
+#HPV2PipEmpty,
+#HPV2PipFill
+{
+	width: 100%;
+	height: 100%;
+	overflow: noclip;
+}
+
+.HPV2Pip
+{
+	border-radius: 1px;
+}
+
+#HPV2PipEmpty .HPV2Pip
+{
+	background-color: #182123;
+}
+
+#HPV2PipFill .HPV2Pip
+{
+	background-color: white;
+}
+
 .WindowRoot .unit_info_panel
 {
 	overflow: noclip;
@@ -1745,14 +2113,6 @@
 	overflow: noclip;
 	ignore-parent-flow: true;
 	z-index: 30;
-}
-
-.active_damage #hp_counter_container
-{
-	animation-name: active_damage_wiggle;
-	animation-duration: 0.2s;
-	animation-iteration-count: infinite;
-	animation-timing-function: ease-out;
 }
 
 .midboss #hp_counter_container,
@@ -1789,12 +2149,6 @@
 	transform: translate3d(-60px, 66px, 0px);
 	padding: 4px;
 	overflow: noclip;
-}
-
-.friend .WindowRoot #hp_counter_row,
-.WindowRoot.friend #hp_counter_row
-{
-	transform: translate3d(-70px, 66px, 0px);
 }
 
 
@@ -1873,7 +2227,7 @@
 	ignore-parent-flow: true;
 	horizontal-align: left;
 	vertical-align: middle;
-	width: 0%;
+	width: 100%;
 	height: 100%;
 	background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex");
 	background-size: 1024px 128px;

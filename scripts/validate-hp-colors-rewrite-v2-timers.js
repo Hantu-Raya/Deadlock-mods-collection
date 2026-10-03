@@ -185,7 +185,89 @@ const bakedCode = effect(send(unchanged, "preset_copy_all"), "clipboard_write").
 send(factory.create(), "preset_import", { raw: bakedCode });
 
 // Native timer arithmetic and identity/freshness boundaries remain the real functions.
-const timerSource = fs.readFileSync(path.join(sourceRoot, "panorama/scripts/test_topbar_pickups.js"), "utf8");
+const timerSource = fs.readFileSync(path.join(repoRoot, "hp_colors_rewrite_v2/panorama/scripts/test_topbar_pickups.js"), "utf8");
+const runtimeTimerSource = fs.readFileSync(path.join(sourceRoot, "panorama/scripts/test_topbar_pickups.js"), "utf8");
+for (const wrapperName of ["build_hp_colors_rewrite_v2.ps1", "build_hp_colors_rewrite_v2_qollock.ps1"]) {
+  const wrapper = fs.readFileSync(path.join(repoRoot, wrapperName), "utf8");
+  assert.match(wrapper, /Invoke-HpColorsRewriteClosureAdvanced\b/, wrapperName);
+  assert.match(wrapper, /test_event_bridge\.js/, wrapperName + " bridge asset");
+  assert.match(wrapper, /test_topbar_pickups\.js/, wrapperName + " timer asset");
+  if (wrapperName.includes("qollock"))
+    assert.match(wrapper, /\$compatibilityScripts\s*=\s*\$canonicalScripts\s*\+\s*\$timerScripts/,
+      wrapperName + " compiles timers with compatibility scripts");
+  else
+    assert.doesNotMatch(wrapper, /-not\s+\$_\.Source\.Contains\('\\test_'\)/,
+      wrapperName + " must not exclude timers from Closure");
+}
+const closureHelper = fs.readFileSync(path.join(repoRoot, "scripts/hp-colors-rewrite-closure.ps1"), "utf8");
+for (const scriptName of ["test_event_bridge.js", "test_topbar_pickups.js"])
+  assert.match(closureHelper, new RegExp("'" + scriptName.replace(".", "\\.") + "'\\s*\\{"),
+    scriptName + " has a Closure output contract");
+
+// A native world bar needs only its stock ult background until a cooldown is shown.
+const findUltimateSource = timerSource.match(/^  function findUltimatePanels\([^]*?^  }/m)[0];
+let overlayCreates = 0;
+const ultBackground = {
+  IsValid: () => true, style: { preTransformScale2d: "1" }, children: {},
+  FindChildTraverse(id) { return this.children[id] || null; },
+};
+const overlaySandbox = {
+  context: { FindChildTraverse: id => id === "unit_info_bg" ? ultBackground : null },
+  valid: panel => !!panel && panel.IsValid(), ultimateOverlay: null,
+  ultimateBackground: null, ultimateBackgroundScale: "1", ultimateStyleCache: {},
+  setTimerStyle: () => true,
+  $: { CreatePanel: (type, parent, id) => {
+    overlayCreates++;
+    const panel = { id, type, parent, IsValid: () => true, style: {}, children: {},
+      GetParent: () => parent, FindChildTraverse(name) { return this.children[name] || null; },
+      AddClass() {}, SetImage() {} };
+    parent.children[id] = panel;
+    return panel;
+  } },
+};
+vm.createContext(overlaySandbox);
+vm.runInContext(findUltimateSource, overlaySandbox);
+assert.equal(overlaySandbox.findUltimatePanels(false), true);
+assert.equal(overlayCreates, 0, "ready/idle ultimate needs no overlay");
+assert.equal(overlaySandbox.findUltimatePanels(true), true);
+assert.equal(overlayCreates, 3, "cooldown creates overlay and two artwork panels");
+overlaySandbox.findUltimatePanels(true);
+assert.equal(overlayCreates, 3, "cooldown reuses the same panels");
+let ultimateBackgroundLookups = 0;
+Object.assign(overlaySandbox, {
+  ultimateTimerEnabled: () => true, validUltimates: () => true,
+  sessionStartedAt: 100, ultimateAt: 0, localPlayerName: "LOCAL",
+  namePanel: { IsValid: () => true, text: "PLAYER" }, readName: panel => panel.text,
+  ultimateReady: { IsValid: () => true, visible: false }, ultimateProgressPending: false,
+  clearUltimate: () => assert.fail("valid cooldown must not clear"), paintUltimateProgress() {},
+});
+overlaySandbox.context.BAscendantHasClass = () => false;
+overlaySandbox.context.FindChildTraverse = id => {
+  if (id === "unit_info_bg") { ultimateBackgroundLookups++; return ultBackground; }
+  return null;
+};
+vm.runInContext(timerSource.match(/^  function receiveUltimates\([^]*?^  }/m)[0], overlaySandbox);
+overlaySandbox.receiveUltimates({ at: 1000, players: [["PLAYER", 90, 6]] }, 1000);
+assert.equal(ultimateBackgroundLookups, 1, "cooldown reuses its just-validated background");
+assert.equal(overlaySandbox.ultimateModel.angle, 90);
+let ultimateClears = 0;
+overlaySandbox.clearUltimate = () => { ultimateClears++; overlaySandbox.ultimateName = ""; };
+overlaySandbox.receiveUltimates({ at: 2000, players: [["PLAYER", 360, 0]] }, 2000);
+assert.equal(ultimateClears, 1, "ready ultimate clears the cooldown without resolving panels");
+const replacementBackground = { ...ultBackground, style: { preTransformScale2d: "1" },
+  children: { unit_ult_ready_icon: { IsValid: () => true, visible: false } } };
+overlaySandbox.context.FindChildTraverse = id => {
+  if (id === "unit_info_bg") { ultimateBackgroundLookups++; return replacementBackground; }
+  return null;
+};
+overlaySandbox.receiveUltimates({ at: 3000, players: [["PLAYER", 180, 6]] }, 3000);
+assert.equal(ultimateBackgroundLookups, 2, "next snapshot resolves a replacement background once");
+assert.equal(overlaySandbox.ultimateOverlay.GetParent(), replacementBackground);
+assert.equal(overlayCreates, 6, "replacement background gets its own overlay artwork");
+assert.equal(overlaySandbox.ultimateModel.angle, 180);
+replacementBackground.children.unit_ult_ready_icon.visible = true;
+overlaySandbox.receiveUltimates({ at: 4000, players: [["PLAYER", 180, 6]] }, 4000);
+assert.equal(ultimateClears, 2, "native ready icon still blocks a cooldown overlay");
 function pure(name) {
   const match = timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"));
   assert.ok(match, `Missing timer function ${name}`);
@@ -322,17 +404,68 @@ const relayContext = {
 };
 let relayRaw = "";
 let relayActivations = 0;
+let relayWriteFails = false;
 const relayPanel = {
   IsValid: () => true, AddClass() {}, BLoadLayout: () => true,
-  SetAttributeString: (key, value) => { relayRaw = value; },
+  SetAttributeString: (key, value) => {
+    if (relayWriteFails) throw new Error("temporary relay write failure");
+    relayRaw = value;
+  },
+  DeleteAsync() {},
 };
 vm.runInNewContext(bridgeSource, { $: {
   GetContextPanel: () => relayContext, CreatePanel: () => relayPanel,
-  DispatchEvent: () => { relayActivations++; }, Msg: message => assert.fail(message),
+  DispatchEvent: () => { relayActivations++; },
+  Msg: message => assert.match(message, /temporary relay write failure/),
 } });
-relayContext.HPV2QueuePickup({ name: "PLAYER", mask: 1 });
+assert.equal(relayContext.HPV2QueuePickup({ name: "PLAYER", mask: 1 }), true);
 assert.equal(relayActivations, 1);
 assert.equal(JSON.parse(relayRaw).source, "world_player");
+let relayQueueCalls = 0;
+const queuePickup = relayContext.HPV2QueuePickup;
+relayContext.HPV2QueuePickup = record => { relayQueueCalls++; return queuePickup(record); };
+const publishSandbox = {
+  context: relayContext, sourceId: "world_player", pickups: [0],
+  clipCaptures: [{ progress: { angle: -180, rate: 10, at: 1000 } }],
+  lastPublishedName: null, lastPublishedMask: -1, lastPublishedAt: 0,
+  lastPublishedProgress: null, progressDirty: true, PICKUP_PREDICT_TOLERANCE: 6,
+  Date: { now: () => 1000 },
+};
+vm.createContext(publishSandbox);
+vm.runInContext(["progressPredicted", "publish"].map(name =>
+  timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"))[0]).join("\n"), publishSandbox);
+relayWriteFails = true;
+publishSandbox.publish("PLAYER", 1);
+assert.deepEqual([publishSandbox.lastPublishedName, publishSandbox.lastPublishedMask,
+  publishSandbox.lastPublishedAt, publishSandbox.lastPublishedProgress, publishSandbox.progressDirty],
+  [null, -1, 0, null, true], "a failed queue cannot advance publisher dedup state");
+relayWriteFails = false;
+publishSandbox.publish("PLAYER", 1);
+assert.equal(relayQueueCalls, 2, "the identical sample retries immediately after failure");
+assert.equal(relayActivations, 2);
+assert.equal(publishSandbox.lastPublishedAt, 1000);
+assert.equal(publishSandbox.lastPublishedProgress[0].angle, -180);
+assert.equal(publishSandbox.progressDirty, false);
+publishSandbox.publish("PLAYER", 1);
+assert.equal(relayQueueCalls, 2, "only a successful queue suppresses identical samples");
+for (const result of [false, undefined, null, 1, "true"]) {
+  relayContext.HPV2QueuePickup = () => result;
+  publishSandbox.publish("CHANGED", 2);
+  assert.equal(publishSandbox.lastPublishedName, "PLAYER", "non-true queue results do not acknowledge");
+}
+relayContext.HPV2QueuePickup = queuePickup;
+relayWriteFails = true;
+publishSandbox.publish("", 0);
+assert.equal(publishSandbox.lastPublishedName, "PLAYER", "failed clears retain the published identity");
+relayWriteFails = false;
+publishSandbox.publish("", 0);
+assert.equal(publishSandbox.lastPublishedName, "", "failed clears retry immediately");
+assert.equal(queuePickup(null), true, "clearing a pickup is also acknowledged");
+relayRoot.IsValid = () => false;
+assert.equal(queuePickup(null), false, "invalid context cannot queue");
+relayRoot.IsValid = () => true;
+relayContext.HPV2EventProbeStop();
+assert.equal(queuePickup(null), false, "retained stopped callback cannot queue");
 
 const topbarLayout = fs.readFileSync(path.join(sourceRoot, "panorama/layout/citadel_hud_top_bar.xml"), "utf8");
 assert.match(topbarLayout, /classes="gDetailView gShopOpen gScoreboardOpen gStreetBrawl gPVE"/);
@@ -359,14 +492,19 @@ const validUltimates = pure("validUltimates");
 assert.equal(parseUltimateClip("radial(50% 50%, 0deg, 40.588818deg)"), 40.588818);
 assert.equal(parseUltimateClip("radial(50% 50%, 0deg, -1deg)"), null);
 assert.equal(parseUltimateClip("radial(50% 50%, 0deg, 361deg)"), null);
-const snapshot = { magic_word: "HPV2_ULTIMATE_SNAPSHOT", at: 1000, since: 100, players: [["COOLDOWN", 90], ["READY", 360]] };
-assert.equal(validUltimates(snapshot, 4999, 100, 900), true);
-assert.equal(validUltimates(snapshot, 5000, 100, 900), false);
+const snapshot = { magic_word: "HPV2_ULTIMATE_SNAPSHOT", at: 1000, since: 100, players: [["COOLDOWN", 90, 6], ["READY", 360, 0]] };
+assert.equal(validUltimates(snapshot, 12999, 100, 900), true);
+assert.equal(validUltimates(snapshot, 13000, 100, 900), false);
 assert.equal(validUltimates(snapshot, 999, 100, 900), false);
 assert.equal(validUltimates(snapshot, 1000, 101, 900), false);
 assert.equal(validUltimates(snapshot, 1000, 100, 1001), false);
-assert.equal(validUltimates({ ...snapshot, players: [["A", 90], ["A", 360]] }, 1000, 100, 900), false);
+assert.equal(validUltimates({ ...snapshot, players: [["A", 90, 0], ["A", 360, 0]] }, 1000, 100, 900), false);
 assert.equal(validUltimates({ ...snapshot, players: [] }, 1000, 100, 900), true);
+for (const rate of [-1, NaN, Infinity, "6", 361, undefined])
+  assert.equal(validUltimates({ ...snapshot, players: [["A", 90, rate]] }, 1000, 100, 900), false);
+assert.equal(validUltimates({ ...snapshot, players: [["READY", 360, 6]] }, 1000, 100, 900), false);
+assert.equal(validUltimates({ ...snapshot, players: [["OLD", 90]] }, 1000, 100, 900), false);
+assert.equal(validUltimates({ ...snapshot, players: Array.from({ length: 13 }, (_, n) => ["P" + n, 90, 6]) }, 1000, 100, 900), false);
 const fit = pure("fitProgress");
 assert.equal(fit({ angle: -300, at: 1000 }, { angle: -270, at: 4000 }, { angle: -240, at: 7000 }).rate, 10);
 assert.equal(fit({ angle: -300, at: 1000 }, { angle: -270, at: 4000 }, { angle: -350, at: 7000 }).rate, 0);
@@ -394,6 +532,226 @@ colorSettings.ultimateTimerColorMode = "gradient";
 assert.equal(ultimateProgressColor(0, colorSettings).toUpperCase(), "#204060");
 assert.equal(ultimateProgressColor(180, colorSettings).toUpperCase(), "#806080");
 assert.equal(ultimateProgressColor(360, colorSettings).toUpperCase(), "#E080A0");
+
+// The actual script (including Closure staging) must quiesce when both features are off,
+// restart on configuration, and read each row identity only once per discovery pass.
+const scheduled = [];
+let timerConfig = { enabled: true, pickupTimersEnabled: false, ultimateTimerEnabled: false };
+let configRevision = 1;
+let labelReads = 0;
+let localLabelReads = 0;
+let timerDispatches = 0;
+const timerMessages = [];
+const rowOwner = {
+  paneltype: "CitadelHudTopBarPlayer", IsValid: () => true,
+  BHasClass: () => false, FindChildTraverse: id => id === "UltimateStatus" ? timerUltimate : null,
+};
+const timerUltimate = {
+  IsValid: () => true, GetParent: () => rowOwner, FindChildTraverse: () => null,
+};
+const timerLabel = {
+  IsValid: () => true, GetParent: () => rowOwner,
+  get text() { labelReads++; return "PLAYER"; },
+  BAscendantHasClass: () => false,
+};
+const localOwner = {
+  paneltype: "CitadelHudTopBarPlayer", IsValid: () => true,
+  BHasClass: name => name === "LocalPlayer",
+};
+const localLabel = {
+  IsValid: () => true, GetParent: () => localOwner,
+  get text() { localLabelReads++; return "LOCAL"; },
+};
+const timerRoot = {
+  id: "TopBar", IsValid: () => true, BHasClass: name => name === "HPV2PickupTopBar",
+  BAscendantHasClass: () => false, GetParent: () => null,
+  GetAttributeString: () => JSON.stringify({
+    magic_word: "HP_COLORS_V2_CONFIG", version: 2, revision: configRevision, values: timerConfig,
+  }),
+  FindChildrenWithClassTraverse: name => name === "PlayerName" ? [timerLabel, localLabel] : [],
+  FindChildTraverse: () => null,
+};
+let timerListener;
+const timerApi = {
+  GetContextPanel: () => timerRoot,
+  HPColorsV2ContractFactory: { create: () => ({
+    normalizeValues: values => ({ ...timerConfig, ...values }),
+  }) },
+  RegisterForUnhandledEvent: (_name, callback) => { timerListener = callback; return 1; },
+  Schedule: (delay, callback) => { scheduled.push({ delay, callback }); },
+  DispatchEvent: (_name, raw) => { timerDispatches++; timerMessages.push(JSON.parse(raw)); },
+  Msg: message => assert.fail(message),
+};
+vm.runInNewContext(runtimeTimerSource, { $: timerApi, Date, Math, JSON });
+assert.equal(scheduled.length, 0, "disabled timers create no 1s/5s work");
+timerConfig = { ...timerConfig, pickupTimersEnabled: true };
+configRevision++;
+timerListener(timerRoot.GetAttributeString());
+assert.equal(scheduled.filter(item => item.delay === 5).length, 1, "config wakes row discovery");
+assert.equal(scheduled.filter(item => item.delay === 1).length, 0, "ultimate off creates no 1s work");
+const discovery = scheduled.find(item => item.delay === 5);
+scheduled.length = 0;
+labelReads = 0;
+localLabelReads = 0;
+discovery.callback();
+assert.equal(labelReads, 1, "scan gate and row rendering share row identity");
+assert.equal(localLabelReads, 1, "scan gate reuses the sampled local identity");
+const beforeUltimateOnly = timerMessages.length;
+timerConfig = { ...timerConfig, pickupTimersEnabled: false, ultimateTimerEnabled: true };
+configRevision++;
+timerListener(timerRoot.GetAttributeString());
+assert.equal(scheduled.filter(item => item.delay === 1).length, 1, "ultimate config wakes 1s tick");
+assert.ok(timerMessages.slice(beforeUltimateOnly).some(message => message.magic_word === "HPV2_PICKUP_SCAN_GATE" &&
+  message.since >= 0 && message.localName === "LOCAL"),
+  "ultimate-only discovery still supplies the session token to new world bars");
+timerConfig = { ...timerConfig, ultimateTimerEnabled: false };
+configRevision++;
+timerListener(timerRoot.GetAttributeString());
+const stale = scheduled.splice(0);
+const beforeStaleDispatch = timerDispatches;
+for (const task of stale) task.callback();
+assert.equal(scheduled.length, 0, "disabled features do not reschedule old callbacks");
+assert.equal(timerDispatches, beforeStaleDispatch, "disabled callbacks do not publish");
+
+// Renderer wake notifications replace the separate 3s classification loop on dormant bars.
+let heroActive = false;
+let worldWake;
+let wakeUnsubscribed = false;
+const worldJobs = [];
+const worldPanel = {
+  id: "", IsValid: () => true, BHasClass: () => false,
+  BAscendantHasClass: name => name === "CLASS_PLAYER" && heroActive,
+  FindChildTraverse: () => null,
+  GetParent: () => null,
+  HPV2GetNormalizedConfig: () => ({ enabled: true, pickupTimersEnabled: true,
+    pickupSize: 22, ultimateTimerEnabled: false, ultimateTimerSize: 100, ultimateTimerDarkness: 70 }),
+  HPV2OnConfigChanged: () => () => {},
+  HPV2GetUltimateProgressColor: () => "#FFFFFF",
+  HPV2OnWake(callback) { worldWake = callback; callback(false); return () => { wakeUnsubscribed = true; }; },
+};
+vm.runInNewContext(runtimeTimerSource, { $: {
+  GetContextPanel: () => worldPanel,
+  Schedule: (delay, callback) => { worldJobs.push({ delay, callback }); },
+  Msg: message => assert.fail(message),
+}, Date, Math, JSON });
+assert.equal(worldJobs.length, 0, "dormant world bar relies on renderer wake, not a second 3s poll");
+heroActive = true;
+worldWake(true);
+assert.equal(worldJobs.filter(job => job.delay === 3).length, 1, "hero transition starts sampling");
+heroActive = false;
+worldWake(false);
+const oldWorldJob = worldJobs.pop();
+oldWorldJob.callback();
+assert.equal(worldJobs.length, 0, "nonhero transition retires the world timer");
+worldPanel.HPV2PickupStop();
+assert.equal(wakeUnsubscribed, true, "stopping detaches renderer wake hook");
+
+// Eager config subscriptions must not apply the initial normalized object twice.
+let worldConfigSamples = 0;
+const worldConfig = worldPanel.HPV2GetNormalizedConfig();
+const worldConfigSandbox = {
+  context: { HPV2GetNormalizedConfig: () => worldConfig,
+    HPV2OnConfigChanged(callback) { assert.equal(callback(worldConfig), true); return () => {}; } },
+  config: null, stopped: false, topBar: null, ultimateStylesDirty: false,
+  worldWakeHook: false, clipCaptures: [], lastPublishedName: "", ultimateName: "",
+  pickupTimersEnabled: () => true, ultimateTimerEnabled: () => false,
+  clearUltimate() {}, refreshPlayerUnit: () => true, applyUltimateBaseScale() {},
+  sampleUnit: () => { worldConfigSamples++; }, $: { Msg: message => assert.fail(message) },
+};
+vm.createContext(worldConfigSandbox);
+vm.runInContext(["onWorldConfigChanged", "bindWorldConfig"].map(name =>
+  timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"))[0]).join("\n"), worldConfigSandbox);
+worldConfigSandbox.bindWorldConfig();
+assert.equal(worldConfigSamples, 1, "eager subscription reuses the initial normalized config");
+assert.equal(worldConfigSandbox.onWorldConfigChanged({ ...worldConfig, pickupSize: 30 }), true);
+assert.equal(worldConfigSamples, 2, "a different normalized config still resamples");
+assert.equal(worldConfigSandbox.onWorldConfigChanged({ ...worldConfig, pickupSize: NaN }), false);
+worldConfigSandbox.stopped = true;
+assert.equal(worldConfigSandbox.onWorldConfigChanged(worldConfigSandbox.config), false);
+assert.equal(worldConfigSamples, 2, "malformed and stopped deliveries do not resample");
+
+// An ambiguous team releases owned HUD styling without resolving the same identity twice.
+const menuSource = fs.readFileSync(path.join(repoRoot, "hp_colors_rewrite_v2/panorama/scripts/hp_colors_v2_menu.js"), "utf8");
+const menuFunctions = ["releaseHudHealthWash", "paintHudHealthWash"]
+  .map(name => menuSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"))[0]).join("\n");
+let washResolves = 0;
+const washSandbox = {
+  hydration: { phase: "done" }, HYDRATION_ATTR: "hydration",
+  readRootAttribute: () => "done",
+  hudHealthWash: { container: {}, released: false, styles: {} },
+  resolveHudHealthWash: () => { washResolves++; return true; },
+  panelHasClass: () => true,
+  clearHudHealthWash: () => {},
+};
+washSandbox.clearHudHealthWash = () => {
+  washSandbox.hudHealthWash.styles = { backgroundImage: null, backgroundColor: null, washColor: null };
+};
+vm.createContext(washSandbox);
+vm.runInContext(menuFunctions, washSandbox);
+washSandbox.paintHudHealthWash({ enabled: true, hudHealthColorMode: "team" });
+assert.equal(washResolves, 1, "unknown-team release reuses the identity resolved for paint");
+
+const progressSandbox = {
+  pauseIntervals: [], rows: [], stopped: false, context: { IsValid: () => true },
+  valid: panel => !!panel && panel.IsValid(), readName: panel => panel.text,
+  updatePause() {}, rowUnavailable: () => false, render() {},
+  $: { Schedule: (delay, callback) => scheduled.push({ delay, callback }), Msg: message => assert.fail(message) },
+  Date: { now: () => progressSandbox.now },
+  now: 2000, paused: false, progressTickPending: false,
+};
+const progressSource = ["progressAngle", "paintProgress", "progressTick", "renderProgress"]
+  .map(name => timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"))[0]).join("\n");
+vm.createContext(progressSandbox);
+vm.runInContext(progressSource, progressSandbox);
+let clipWrites = 0;
+const ring = { IsValid: () => true, style: new Proxy({}, {
+  set(target, key, value) { if (key === "clip") clipWrites++; target[key] = value; return true; },
+}) };
+progressSandbox.rows = [{
+  label: { text: "PLAYER" }, mask: 1, rings: [ring], progressClips: [],
+  progressModels: [{ angle: -180, at: 1000, rate: 10 }],
+  progressEnded: [false],
+}];
+progressSandbox.progressTick();
+assert.equal(clipWrites, 1);
+scheduled.length = 0;
+progressSandbox.pauseIntervals = [{ start: 2000, end: null }];
+progressSandbox.now = 3000;
+progressSandbox.paused = true;
+progressSandbox.progressTick();
+assert.equal(clipWrites, 1, "pause does not rewrite frozen clip");
+assert.equal(scheduled.length, 0, "pause does not tick a frozen progress model");
+progressSandbox.pauseIntervals = [{ start: 2000, end: 3000 }];
+progressSandbox.now = 4000;
+progressSandbox.paused = false;
+progressSandbox.progressTick();
+assert.equal(clipWrites, 2, "resumed countdown advances and repaints");
+scheduled.length = 0;
+progressSandbox.rows[0].progressModels[0] = { angle: -10, at: 1000, rate: 10 };
+progressSandbox.rows[0].progressEnded[0] = false;
+progressSandbox.now = 10000;
+progressSandbox.progressTick();
+assert.equal(scheduled.length, 0, "finished countdown does not keep a 1s loop alive");
+const finishedWrites = clipWrites;
+progressSandbox.rows[0].progressModels[0] = { angle: -90, at: 10000, rate: 0 };
+progressSandbox.progressTick();
+assert.equal(clipWrites, finishedWrites, "non-advancing model does not rewrite clip");
+assert.equal(scheduled.length, 0, "non-advancing model does not tick");
+scheduled.length = 0;
+const pausedRow = progressSandbox.rows[0];
+pausedRow.progressModels[0] = null;
+pausedRow.progressClips[0] = null;
+progressSandbox.pauseIntervals = [{ start: 10000, end: null }];
+progressSandbox.paused = true;
+progressSandbox.now = 11000;
+const beforePausedModel = clipWrites;
+const newlyReceived = { angle: -135, at: 11000, rate: 12 };
+progressSandbox.renderProgress(pausedRow, 0, newlyReceived);
+assert.equal(clipWrites, beforePausedModel + 1, "a newly received model gets its initial clip while paused");
+assert.equal(ring.style.clip, "radial(50% 50%, 0deg, -135deg)");
+progressSandbox.progressTick();
+assert.equal(clipWrites, beforePausedModel + 1, "pause freezes the newly painted clip");
+assert.equal(scheduled.length, 0, "paused model creates no advancing schedule");
 colorSettings.ultimateTimerColorMode = "follow";
 assert.equal(ultimateProgressColor(180, colorSettings), "#FFFFFF");
 console.log("PASS: timer state/codec roundtrips, native progress/colors and freshness, native pickup styling/cache/restore, panel-type discovery and sibling relay.");

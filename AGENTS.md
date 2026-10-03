@@ -34,6 +34,7 @@ Important lanes:
 - **HP Colors full**: `anita_ui_core.js` owns ANITA UI, presets, persistence, and publishing; `healthbar_logic.js` consumes settings and paints stock unit-status overlays.
 - **HP Colors minimal**: a runtime-only pak consumes a separate builder preset-store VPK through the static request/snapshot bridge. Do not add full-lane UI, persistence, convars, or runtime preset-store rescans.
 - **HP Colors Rewrite**: `hp_colors_rewrite/` owns the canonical clean-room runtime. `hp_colors_rewrite_qollock/` adds package-derived QOLLOCK compatibility without forking canonical behavior; read `hp_colors_rewrite/AGENTS.md` before changing either lane.
+- **HP Colors Rewrite v2**: `hp_colors_rewrite_v2/` is the canonical runtime; `hp_colors_rewrite_v2_qollock/` ships its own Escape-menu copy that must be refreshed whenever an `HPColors*` menu element changes. Rebuild and repack both variants before any release; read the release checklist in `hp_colors_rewrite_v2/AGENTS.md` first.
 - **Topbar Rank/ShowRank**: layouts load `showrank_common.js` plus the combined topbar runtime. Guarded global wrappers bridge profile, player-list, topbar, and Escape contexts.
 - **Topbar Status Buffs**: a healthbar publisher writes compact status snapshots; a topbar consumer renders them. It conflicts with other pak89 variants.
 - **Abilities**: Python performs streaming/text-span transforms over huge VData inputs. Do not introduce a full parser; transforms may mutate inputs and wrappers restore baselines.

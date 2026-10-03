@@ -1,0 +1,40 @@
+10/03 00:54:10 [VProf] -- Performance report --
+10/03 00:54:10 [VProf] Summary of 219737 frames and 2209 1-second intervals.  (15781 frames excluded from analysis.)
+10/03 00:54:10 [VProf]                       All frames         Active frames       1s max (all)      1s max (active)
+10/03 00:54:10 [VProf]                         Avg    P99        N    Avg    P99      P50    P95        N    P50    P95
+10/03 00:54:10 [VProf]           FrameTotal   9.73  19.18   219737   9.73  19.18    18.36  32.32     2209  18.36  32.32
+10/03 00:54:10 [VProf]           PanoramaUI   1.64   6.71   219737   1.64   6.71     3.41  13.60     2209   3.41  13.60
+10/03 00:54:10 [VProf]           Javascript   0.38   4.45   104469   0.79   7.66     7.94  11.04     2209   7.94  11.04
+10/03 00:54:10 [Client] Source2 engine networking summary.  2361 seconds.
+10/03 00:54:10 [Client]     UPSTREAM (client->server):
+10/03 00:54:10 [Client]           Corrected/smoothed. . : 99 (0.1%)   0 (0.0%) dropped   99 (0.1%) late
+10/03 00:54:10 [Client]           Missed. . . . . . . . : 164 (0.1%)   0 (0.0%) dropped   16 (0.0%) late   148 (0.1%) non-network
+10/03 00:54:11 [Client]           Jitter (ms) . . . . . : P50:1   P99:4
+10/03 00:54:11 [Client]           Jitter, 1-sec max (ms): P50:4   P95:7
+10/03 00:54:11 [Client]         Network ping (ms) . . . : P5:9   P50:10   P95:10
+10/03 00:54:11 [Client]     DOWNSTREAM (server->client):
+10/03 00:54:11 [Client]           Corrected/smoothed. . : 48 (0.0%)   0 (0.0%) dropped   48 (0.0%) late
+10/03 00:54:11 [Client]           Missed. . . . . . . . : 165 (0.1%)   0 (0.0%) dropped   85 (0.1%) late   80 (0.1%) non-network
+10/03 00:54:11 [Client]           Jitter (ms) . . . . . : P50:0   P99:2
+10/03 00:54:11 [Client]           Jitter, 1-sec max (ms): P50:2   P95:3
+10/03 00:54:11 [VProf] VProfLite stopped.
+10/03 01:50:18 [VProf] -- Performance report --
+10/03 01:50:18 [VProf] Summary of 265918 frames and 2619 1-second intervals.  (29985 frames excluded from analysis.)
+10/03 01:50:18 [VProf]                       All frames         Active frames       1s max (all)      1s max (active)
+10/03 01:50:18 [VProf]                         Avg    P99        N    Avg    P99      P50    P95        N    P50    P95
+10/03 01:50:18 [VProf]           FrameTotal   9.44  19.22   265918   9.44  19.22    17.98  28.13     2619  17.98  28.13
+10/03 01:50:18 [VProf]           PanoramaUI   1.80   5.98   265918   1.80   5.98     3.51   9.94     2619   3.51   9.94
+10/03 01:50:18 [VProf]           Javascript   0.37   6.01   113184   0.87   8.15     8.41  10.24     2616   8.41  10.24
+10/03 01:50:18 [Client] Source2 engine networking summary.  2850 seconds.
+10/03 01:50:18 [Client]     UPSTREAM (client->server):
+10/03 01:50:18 [Client]           Corrected/smoothed. . : 738 (0.4%)   0 (0.0%) dropped   738 (0.4%) late
+10/03 01:50:18 [Client]           Missed. . . . . . . . : 244 (0.1%)   0 (0.0%) dropped   27 (0.0%) late   217 (0.1%) non-network
+10/03 01:50:18 [Client]           Jitter (ms) . . . . . : P50:1   P99:18
+10/03 01:50:18 [Client]           Jitter, 1-sec max (ms): P50:4   P95:16
+10/03 01:50:18 [Client]         Network ping (ms) . . . : P5:86   P50:87   P95:88
+10/03 01:50:18 [Client]     DOWNSTREAM (server->client):
+10/03 01:50:18 [Client]           Corrected/smoothed. . : 397 (0.2%)   1 (0.0%) dropped   396 (0.2%) late
+10/03 01:50:18 [Client]           Missed. . . . . . . . : 815 (0.4%)   0 (0.0%) dropped   431 (0.2%) late   384 (0.2%) non-network
+10/03 01:50:18 [Client]           Jitter (ms) . . . . . : P50:0   P99:7
+10/03 01:50:18 [Client]           Jitter, 1-sec max (ms): P50:2   P95:13
+10/03 01:50:18 [VProf] VProfLite stopped.

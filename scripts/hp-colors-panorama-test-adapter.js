@@ -272,6 +272,10 @@ class MockPanel {
     incrementCounter(this.operationCounts, 'classReads');
     return this.classes.has(String(className));
   }
+  BAscendantHasClass(className) {
+    for (let panel = this; panel; panel = panel.parent) if (panel.BHasClass(className)) return true;
+    return false;
+  }
   SetHasClass(className, enabled) { enabled ? this.AddClass(className) : this.RemoveClass(className); }
   ToggleClass(className) { this.SetHasClass(className, !this.BHasClass(className)); }
   SetPanelEvent(eventName, handler) {

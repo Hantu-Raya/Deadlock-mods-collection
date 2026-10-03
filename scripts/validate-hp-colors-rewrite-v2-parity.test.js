@@ -42,6 +42,22 @@ function oneEffect(result, type) {
   return effects[0];
 }
 
+test('sparse baseline copies with an explicit fallback and contract freezing never probes null', () => {
+  const context = { $: {} };
+  const source = read(contractPath).replace('function copyValues(source, defaults) {',
+    'function copyValues(source, defaults) { if (arguments.length !== 2) throw new Error("explicit defaults required");');
+  vm.runInNewContext('Object.isFrozen = (isFrozen => function (value) { if (value === null || typeof value !== "object") ' +
+    'throw new Error("object required"); return isFrozen(value); })(Object.isFrozen);\n' + source, context);
+  const contract = context.$.HPColorsV2ContractFactory.create();
+  assert.equal(contract.sparseDefaults.enemyLow, '#FD4949');
+  assert.equal(contract.sparseDefaults.readoutOffsetX, 0);
+  assert.equal(contract.defaults.readoutOffsetX, 18);
+  assert.equal(contract.settingMeta.enabled.min, null);
+  assert.ok(Object.isFrozen(contract.sparseDefaults));
+  assert.ok(Object.isFrozen(contract.settingMeta.enabled));
+  assert.ok(Object.isFrozen(contract.enumOptions.readoutFont));
+});
+
 test('v2 contract removes retired color exclusions and ghoul opacity and shares requested enemy defaults', () => {
   const { contract } = bootState();
   assert.equal(contract.version, 2);
@@ -76,7 +92,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 74);
+  assert.equal(contract.extensionKeys.length, 81);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -355,7 +371,7 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 74);
+  assert.equal(contract.extensionKeys.length, 81);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
@@ -364,6 +380,8 @@ test('round native format retirement preserves slots and appends independent nam
     'allyPulseReadout',
     'nameAlign', 'hpTextAlign',
     'criticalOffsetX', 'criticalOffsetY', 'assassinateOffsetX', 'assassinateOffsetY',
+    'barMask', 'nameRiseWithPips', 'damageShakeEnabled', 'damageShakeIntensity',
+    'nameTilt', 'readoutTilt', 'allyReadoutTilt',
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -470,6 +488,9 @@ test('follow-up controls append typed extension slots with frozen sparse default
     allyPulseReadout: false,
     nameAlign: 'center', hpTextAlign: 'left',
     criticalOffsetX: 0, criticalOffsetY: 0, assassinateOffsetX: 0, assassinateOffsetY: 0,
+    barMask: 'none', nameRiseWithPips: false,
+    damageShakeEnabled: true, damageShakeIntensity: 3,
+    nameTilt: 0, readoutTilt: 0, allyReadoutTilt: 0,
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
@@ -485,6 +506,26 @@ test('follow-up controls append typed extension slots with frozen sparse default
   assert.equal(contract.normalizeValues({ pipOpacity: -1 }).pipOpacity, 0);
   assert.equal(contract.normalizeValues({ pipOpacity: 101 }).pipOpacity, 100);
   assert.equal(contract.normalizeValues({}).pipOpacity, 100, 'old sparse saves retain stock line opacity');
+  // Failure modes: shake defaults drift from stock, bounds accept 0/11 or fractions, booleans accept strings.
+  assert.equal(contract.defaults.damageShakeEnabled, true);
+  assert.equal(contract.defaults.damageShakeIntensity, 3);
+  assert.equal(contract.booleanKeys.damageShakeEnabled, true);
+  assert.equal(contract.settingMeta.damageShakeIntensity.min, 1);
+  assert.equal(contract.settingMeta.damageShakeIntensity.max, 10);
+  assert.equal(contract.normalizeValues({ damageShakeIntensity: 0 }).damageShakeIntensity, 1);
+  assert.equal(contract.normalizeValues({ damageShakeIntensity: 11 }).damageShakeIntensity, 10);
+  assert.equal(contract.normalizeValues({ damageShakeIntensity: 6.6 }).damageShakeIntensity, 7);
+  assert.equal(contract.validateSettingValue('damageShakeEnabled', 'yes'), false);
+  assert.equal(contract.validateSettingValue('damageShakeIntensity', 'x'), false);
+  // Failure modes: tilt defaults tilt old saves, bounds stop short of or exceed a full turn, fractions survive.
+  for (const key of ['nameTilt', 'readoutTilt', 'allyReadoutTilt']) {
+    assert.equal(contract.defaults[key], 0, key);
+    assert.equal(contract.settingMeta[key].min, -360, key);
+    assert.equal(contract.settingMeta[key].max, 360, key);
+    assert.equal(contract.normalizeValues({ [key]: -400 })[key], -360, key);
+    assert.equal(contract.normalizeValues({ [key]: 400 })[key], 360, key);
+    assert.equal(contract.normalizeValues({ [key]: 14.6 })[key], 15, key);
+  }
   for (const prefix of ['enemy', 'ally']) {
     assert.equal(contract.booleanKeys[prefix + 'PipColorEnabled'], true);
     assert.equal(contract.colorKeys[prefix + 'PipColor'], true);

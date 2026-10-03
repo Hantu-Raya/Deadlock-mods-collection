@@ -305,6 +305,19 @@
                       <Label text="%" class="HPColorsUnitLabel" />
                     </Panel>
                   </Panel>
+                  <Panel id="HPColorsBarMaskRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="BAR STYLE" class="HPColorsSettingTitle" /><Label text="V2 uses the game's slanted bar. V1 is a plain rectangle. OLD splits the bar into 100-HP boxes like the 2024 healthbars." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSegment">
+                      <Button id="HPColorsBarMaskOriginal" class="HPColorsSegmentButton"><Label text="V2" /></Button>
+                      <Button id="HPColorsBarMaskNone" class="HPColorsSegmentButton"><Label text="V1" /></Button>
+                      <Button id="HPColorsBarMaskOld" class="HPColorsSegmentButton"><Label text="OLD" /></Button>
+                    </Panel>
+                  </Panel>
+                  <Panel id="HPColorsDamageShakeEnabledRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="DAMAGE SHAKE" class="HPColorsSettingTitle" /><Label text="Shake healthbars, HP text and names when the unit takes damage, like the game does." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsDamageShakeToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsDamageShakeIntensityRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="SHAKE STRENGTH" class="HPColorsSettingTitle" /><Label text="How far the shake tilts, in degrees. The game uses 3." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsDamageShakeIntensitySliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsDamageShakeIntensityEntry" class="HPColorsNumberEntry" text="3" /><Label text="DEG" class="HPColorsUnitLabel" /></Panel></Panel>
                   <Panel id="HPColorsBarPositionSection" class="HPColorsSection">
                     <Label text="POSITION &amp; ANCHORING" class="HPColorsSectionHeading" />
                     <Label text="Bar movement uses pixels. Anchoring moves the ultimate icon and level badge with the bar." class="HPColorsSectionNote HPColorsAdvancedNote" />
@@ -373,6 +386,11 @@
                     </Panel>
                     <Panel id="HPColorsNameOffsetXRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="NAME X OFFSET" class="HPColorsSettingTitle" /><Label text="Move player names left or right." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsNameOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsNameOffsetXEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel></Panel>
                     <Panel id="HPColorsNameOffsetYRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="NAME Y OFFSET" class="HPColorsSettingTitle" /><Label text="Move player names up or down." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsNameOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsNameOffsetYEntry" class="HPColorsNumberEntry" text="0" /><Label text="PX" class="HPColorsUnitLabel" /></Panel></Panel>
+                    <Panel id="HPColorsNameTiltRow" class="HPColorsSettingRow"><Panel class="HPColorsSettingCopy"><Label text="NAME TILT" class="HPColorsSettingTitle" /><Label text="Rotate player names in degrees. Positive tilts clockwise." class="HPColorsSettingHelp" /></Panel><Panel class="HPColorsSliderGroup"><Panel id="HPColorsNameTiltSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsNameTiltEntry" class="HPColorsNumberEntry" text="0" /><Label text="DEG" class="HPColorsUnitLabel" /></Panel></Panel>
+                    <Panel id="HPColorsNameRiseWithPipsRow" class="HPColorsSettingRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="LIFT NAME ABOVE OLD BOXES" class="HPColorsSettingTitle" /><Label text="With BAR STYLE OLD, move the name up one row for every 1,000 max HP. Off keeps it in place." class="HPColorsSettingHelp" /></Panel>
+                      <Button id="HPColorsNameRiseToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                    </Panel>
                   </Panel>
                 </Panel>
 
@@ -584,6 +602,14 @@
                           <Label text="%" class="HPColorsUnitLabel" />
                         </Panel>
                       </Panel>
+                      <Panel id="HPColorsReadoutTiltRow" class="HPColorsSettingRow">
+                        <Panel class="HPColorsSettingCopy"><Label text="TEXT TILT" class="HPColorsSettingTitle" /><Label text="Rotate enemy HP text in degrees. Positive tilts clockwise." class="HPColorsSettingHelp" /></Panel>
+                        <Panel class="HPColorsSliderGroup">
+                          <Panel id="HPColorsReadoutTiltSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                          <TextEntry id="HPColorsReadoutTiltEntry" class="HPColorsNumberEntry" text="0" />
+                          <Label text="DEG" class="HPColorsUnitLabel" />
+                        </Panel>
+                      </Panel>
                     </Panel>
                   </Panel>
                   <Panel id="HPColorsSettingsAllyReadout" class="HPColorsSideGroup">
@@ -656,6 +682,14 @@
                           <Panel id="HPColorsAllyReadoutOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
                           <TextEntry id="HPColorsAllyReadoutOffsetYEntry" class="HPColorsNumberEntry" text="0" />
                           <Label text="%" class="HPColorsUnitLabel" />
+                        </Panel>
+                      </Panel>
+                      <Panel id="HPColorsAllyReadoutTiltRow" class="HPColorsSettingRow">
+                        <Panel class="HPColorsSettingCopy"><Label text="TEXT TILT" class="HPColorsSettingTitle" /><Label text="Rotate ally HP text in degrees. Positive tilts clockwise." class="HPColorsSettingHelp" /></Panel>
+                        <Panel class="HPColorsSliderGroup">
+                          <Panel id="HPColorsAllyReadoutTiltSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                          <TextEntry id="HPColorsAllyReadoutTiltEntry" class="HPColorsNumberEntry" text="0" />
+                          <Label text="DEG" class="HPColorsUnitLabel" />
                         </Panel>
                       </Panel>
                     </Panel>

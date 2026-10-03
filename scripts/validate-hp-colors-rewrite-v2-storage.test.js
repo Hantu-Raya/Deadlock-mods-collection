@@ -833,7 +833,7 @@ test('saves keep only non-default values, and a restart fills the rest', () => {
   const body = JSON.parse(storedRecord(profile).body);
   const changedFromFrozen = ['widthScale', 'heightScale', 'positionY', 'readoutFont',
     'readoutOffsetX', 'readoutOffsetY', 'ultOffsetX', 'ultOffsetY', 'levelOffsetX',
-    'levelOffsetY', 'enemyPipColorEnabled', 'enemyPipColor'];
+    'levelOffsetY', 'enemyPipColorEnabled', 'enemyPipColor', 'nameRiseWithPips'];
   assert.deepEqual(Object.keys(body.values), changedFromFrozen);
   assert.deepEqual(Object.keys(body.userPresets[0].values), changedFromFrozen);
   assert.equal(body.values.ultOffsetY, -29);

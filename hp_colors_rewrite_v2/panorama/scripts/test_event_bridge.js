@@ -12,19 +12,30 @@
   var relay = null;
   var relayAttribute = "hpv2_pickup_message";
   var lastRelayed = "";
+  var requestErrorShown = false;
 
-  context.HPV2EventProbeStop = function () {
-    stopped = true;
-    if (!isRelay) context.HPV2QueuePickup = null;
-    if (isRelay && context.IsValid()) context.ClearPanelEvent("onactivate");
+  function deleteRelay() {
     if (relay && relay.IsValid()) {
       relay.SetAttributeString(relayAttribute, "");
       relay.DeleteAsync(0);
-      relay = null;
     }
+    relay = null;
+  }
+
+  context.HPV2EventProbeStop = function () {
+    stopped = true;
+    if (!isRelay) {
+      context.HPV2QueuePickup = null;
+      context.HPV2QueueConfigRequest = null;
+      context.HPV2ReleaseRelay = null;
+    }
+    if (isRelay && context.IsValid()) context.ClearPanelEvent("onactivate");
+    deleteRelay();
   };
 
-  function queueSnapshot(record) {
+  // Every world -> HUD message leaves through the sibling relay, never from
+  // this ClientUIDialogPanel context.
+  function queueMessage(message) {
     if (!relay || !relay.IsValid()) {
       if ((root.paneltype || root.type) !== "Panel" ||
           (context.paneltype || context.type) !== "ClientUIDialogPanel")
@@ -40,15 +51,29 @@
         throw error;
       }
     }
-    relay.SetAttributeString(relayAttribute, JSON.stringify({
-      magic_word: "HPV2_PICKUP_SNAPSHOT", source: root.id,
-      instance: instance, seq: ++sequence, at: Date.now(), record: record
-    }));
+    message.source = root.id;
+    message.instance = instance;
+    message.seq = ++sequence;
+    message.at = Date.now();
+    relay.SetAttributeString(relayAttribute, JSON.stringify(message));
     $.DispatchEvent("Activated", relay, "mouse");
+  }
+
+  function queueSnapshot(record) {
+    queueMessage({ magic_word: "HPV2_PICKUP_SNAPSHOT", record: record });
   }
 
   function alive() {
     return context.IsValid() && !!root && root.IsValid();
+  }
+
+  function playerContext() {
+    var panel = context;
+    for (var depth = 0; panel && depth < 24; depth++) {
+      if (panel.BHasClass && panel.BHasClass("CLASS_PLAYER")) return true;
+      panel = panel.GetParent();
+    }
+    return false;
   }
 
   function relaySnapshot() {
@@ -70,9 +95,29 @@
 
   if (!isRelay) {
     context.HPV2QueuePickup = function (record) {
-      if (stopped || !alive()) return;
-      try { queueSnapshot(record); }
-      catch (error) { $.Msg("[test_hpv2][relay-error] " + String(error)); }
+      if (stopped || !alive()) return false;
+      try { queueSnapshot(record); return true; }
+      catch (error) { $.Msg("[test_hpv2][relay-error] " + String(error)); return false; }
+    };
+    // True once queued; the renderer bounds its retries on false.
+    context.HPV2QueueConfigRequest = function (revision) {
+      if (stopped || !alive()) return false;
+      try {
+        queueMessage({ magic_word: "HPV2_CONFIG_REQUEST",
+          revision: typeof revision === "number" && isFinite(revision) ? revision : -1 });
+        return true;
+      } catch (error) {
+        if (!requestErrorShown) {
+          requestErrorShown = true;
+          $.Msg("[test_hpv2][relay-error] " + String(error));
+        }
+        return false;
+      }
+    };
+    // Heroes keep the relay for pickup snapshots; queueMessage recreates it.
+    context.HPV2ReleaseRelay = function () {
+      if (stopped || !relay || playerContext()) return;
+      deleteRelay();
     };
   } else {
     context.SetPanelEvent("onactivate", relaySnapshot);

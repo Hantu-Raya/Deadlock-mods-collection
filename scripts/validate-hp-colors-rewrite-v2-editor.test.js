@@ -333,23 +333,23 @@ function confirmReset(fixture) {
   button.events.onactivate();
 }
 
-test('width slider preserves the legacy 230 percent maximum', () => {
+test('width slider reaches the 400 percent maximum and clamps typed values', () => {
   const fixture = bootMenu();
   openEditor(fixture);
   const slider = panel(fixture, 'HPColorsWidthSlider');
   const entry = panel(fixture, 'HPColorsWidthEntry');
 
   assert.equal(slider.min, 60);
-  assert.equal(slider.max, 230);
-  slider.value = 230;
+  assert.equal(slider.max, 400);
+  slider.value = 400;
   slider.events.onvaluechanged();
-  assert.equal(readMenuState(fixture).values.widthScale, 230);
-  assert.equal(slider.value, 230);
+  assert.equal(readMenuState(fixture).values.widthScale, 400);
+  assert.equal(slider.value, 400);
 
   entry.text = '999';
   entry.events.ontextentrysubmit();
-  assert.equal(readMenuState(fixture).values.widthScale, 230);
-  assert.equal(slider.value, 230);
+  assert.equal(readMenuState(fixture).values.widthScale, 400);
+  assert.equal(slider.value, 400);
 });
 
 test('movement slider windows preserve full typed bounds and pip opacity visibility', () => {
@@ -1249,6 +1249,19 @@ test('menu boot can retry after a transient CreatePanel failure', () => {
   assert.equal(panel(fixture, 'HPColorsMenuButton').BHasClass('Loading'), false);
 });
 
+// Failure modes: the QOLLOCK pak02 ships its own Escape-menu copy; when it lags the
+// canonical menu, a missing row or slider host stops boot, the HP COLORS V2 button stays
+// greyed out and saved settings never publish (2.2.0 QOLLOCK build).
+test('the shipped QOLLOCK Escape menu boots the editor and publishes settings', () => {
+  const qollockLayout = fs.readFileSync(path.resolve(__dirname,
+    '../hp_colors_rewrite_v2_qollock/panorama/layout/hud_escape_menu.xml'), 'utf8');
+  const fixture = bootMenu({ version: 1, values: { enemyLow: '#123456' }, scopes: [] }, { layout: qollockLayout });
+  assert.equal(panel(fixture, 'HPColorsMenuButton').BHasClass('Loading'), false, 'menu booted');
+  openEditor(fixture);
+  assert.equal(panel(fixture, 'HPColorsEditorRoot').BHasClass('Open'), true);
+  assert.equal(readConfig(fixture).values.enemyLow, '#123456', 'saved settings published');
+});
+
 test('menu boot contains thrown panel creation errors and an explicit retry recovers', () => {
   const fixture = bootMenu(
     { version: 1, values: { enemyLow: '#123456' }, scopes: [] },
@@ -1915,6 +1928,29 @@ function dragWidth(fixture, value) {
   slider.events.onmouseup();
   assert.equal(readConfig(fixture).values.widthScale, value);
 }
+
+// Failure modes: contract and slider limits disagree, typed values still clamp at the old
+// 230/160 limits, or the lower bound moves.
+test('bar width and height accept 60-400% from the slider and typed entry', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  selectOverviewLayout(fixture);
+  for (const [base, key] of [['HPColorsWidth', 'widthScale'], ['HPColorsHeight', 'heightScale']]) {
+    const slider = panel(fixture, base + 'Slider');
+    assert.equal(slider.max, 400, key);
+    assert.equal(slider.min, 60, key);
+    const entry = panel(fixture, base + 'Entry');
+    entry.text = '350';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], 350, key);
+    entry.text = '999';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], 400, key);
+    entry.text = '10';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], 60, key);
+  }
+});
 
 function leaveAndReturnToPresets(fixture) {
   selectEnemyBar(fixture);
@@ -3932,12 +3968,13 @@ test('restored editor has twelve tabs and retains CSS-pixel legacy input', () =>
   assert.match(layoutSource, /RESET PAGE/);
 });
 
-test('layout reset captures only its five keys in one Undo', () => {
+test('layout reset captures only its eight keys in one Undo', () => {
   const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
   const keys = categories[0].tabs[1].keys;
-  assert.equal(keys.length, 5);
+  assert.equal(keys.length, 8);
   const values = Object.fromEntries(keys.map(key => [key, key === 'accessoryAnchorEnabled' ? false :
-    /Scale$/.test(key) ? 60 : -10]));
+    key === 'damageShakeEnabled' ? false : key === 'damageShakeIntensity' ? 7 :
+    key === 'barMask' ? 'original' : /Scale$/.test(key) ? 60 : -10]));
   // This checks page ownership, not the separate legacy-offset migration.
   const fixture = bootMenu({ version: 1, offsetVersion: 2, values: {
     ...values, enemyPulseReadoutOffsetX: 55, pickupOffsetX: 66,
@@ -3948,13 +3985,103 @@ test('layout reset captures only its five keys in one Undo', () => {
   selectEnemyBar(fixture);
   confirmReset(fixture);
   const after = readConfig(fixture).values;
-  const shippedLayout = { widthScale: 148, heightScale: 80, positionX: 0,
-    positionY: -38, accessoryAnchorEnabled: true };
+  const shippedLayout = { widthScale: 148, heightScale: 80, barMask: 'none', positionX: 0,
+    positionY: -38, accessoryAnchorEnabled: true, damageShakeEnabled: true, damageShakeIntensity: 3 };
   for (const key of keys) assert.equal(after[key], shippedLayout[key], key);
   assert.equal(after.enemyPulseReadoutOffsetX, 55);
   assert.equal(after.pickupOffsetX, 66);
   panel(fixture, 'HPColorsUndoButton').events.onactivate();
   for (const key of keys) assert.equal(readConfig(fixture).values[key], values[key], key);
+});
+
+// Failure modes: shake rows land on the wrong page, the strength slider shows while
+// shake is off or without ADVANCED, or the toggle/slider write the wrong key or bounds.
+test('damage shake rows sit on Layout; strength is ADVANCED and follows the toggle', () => {
+  const fixture = bootMenu(undefined, { tree: true });
+  openEditor(fixture);
+  selectOverviewLayout(fixture);
+  const ids = () => visibleSettingRows(fixture, 'HPColorsSettingsOverviewLayout').map(row => row.id);
+  assert.ok(ids().includes('HPColorsDamageShakeEnabledRow'));
+  assert.ok(!ids().includes('HPColorsDamageShakeIntensityRow'), 'strength waits for ADVANCED');
+  panel(fixture, 'HPColorsAdvancedToggle').events.onactivate();
+  assert.ok(ids().includes('HPColorsDamageShakeIntensityRow'));
+  const order = ids();
+  assert.ok(order.indexOf('HPColorsBarMaskRow') < order.indexOf('HPColorsDamageShakeEnabledRow'));
+  assert.ok(order.indexOf('HPColorsDamageShakeEnabledRow') < order.indexOf('HPColorsDamageShakeIntensityRow'));
+  panel(fixture, 'HPColorsDamageShakeToggle').events.onactivate();
+  assert.equal(readConfig(fixture).values.damageShakeEnabled, false);
+  assert.equal(panel(fixture, 'HPColorsDamageShakeIntensityRow').BHasClass('FeatureOff'), true);
+  assert.ok(!ids().includes('HPColorsDamageShakeIntensityRow'), 'strength hides while shake is off');
+  panel(fixture, 'HPColorsDamageShakeToggle').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsDamageShakeIntensityRow').BHasClass('FeatureOff'), false);
+  const entry = panel(fixture, 'HPColorsDamageShakeIntensityEntry');
+  entry.text = '42';
+  entry.events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.damageShakeIntensity, 10);
+  assert.match(layoutSource, /SHAKE STRENGTH[\s\S]{0,400}text="DEG"/);
+});
+
+// Failure modes: tilt rows land on the wrong page or out of order, show without ADVANCED,
+// stay visible while names/that side's HP text is off, the ally row writes the enemy key,
+// entries accept values outside -360..360, or the layout drops the DEG unit/copy.
+test('tilt rows follow their offsets, are ADVANCED, gate on their feature and clamp to 360', () => {
+  const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
+  const names = categories[0].tabs.find(tab => tab.name === 'NAMES & LABELS').keys;
+  assert.equal(names[names.indexOf('nameOffsetY') + 1], 'nameTilt');
+  const players = categories.find(category => category.name === 'PLAYERS');
+  const hpText = players.tabs.find(tab => tab.name === 'HP TEXT').keys;
+  assert.equal(hpText[hpText.indexOf('readoutOffsetY') + 1], 'readoutTilt');
+  assert.equal(hpText[hpText.indexOf('allyReadoutOffsetY') + 1], 'allyReadoutTilt');
+  const advanced = Array.from(extractArrayDeclaration(canonicalMenuSource, 'ADVANCED_KEYS'));
+  for (const key of ['nameTilt', 'readoutTilt', 'allyReadoutTilt']) assert.ok(advanced.includes(key), key);
+  for (const [title, help] of [['NAME TILT', 'Rotate player names in degrees. Positive tilts clockwise.'],
+    ['TEXT TILT', 'Rotate enemy HP text in degrees. Positive tilts clockwise.'],
+    ['TEXT TILT', 'Rotate ally HP text in degrees. Positive tilts clockwise.']])
+    assert.match(layoutSource, new RegExp(title + '[\\s\\S]{0,120}' + help + '[\\s\\S]{0,500}text="DEG"'));
+  const fixture = bootMenu({ version: 1, offsetVersion: 2, values: { allyReadoutVisible: true }, scopes: [] });
+  openEditor(fixture);
+  const off = id => panel(fixture, id).BHasClass('FeatureOff');
+  assert.equal(off('HPColorsNameTiltRow'), false);
+  assert.equal(off('HPColorsReadoutTiltRow'), false);
+  assert.equal(off('HPColorsAllyReadoutTiltRow'), false);
+  for (const [base, key] of [['HPColorsNameTilt', 'nameTilt'], ['HPColorsReadoutTilt', 'readoutTilt'],
+    ['HPColorsAllyReadoutTilt', 'allyReadoutTilt']]) {
+    const entry = panel(fixture, base + 'Entry');
+    entry.text = '-400';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], -360, key);
+    entry.text = '400';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], 360, key);
+    entry.text = '15';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], 15, key);
+  }
+  assert.equal(readConfig(fixture).values.readoutTilt, 15, 'ally entry kept the enemy value');
+  panel(fixture, 'HPColorsPlayerNamesToggle').events.onactivate();
+  assert.equal(off('HPColorsNameTiltRow'), true, 'name tilt hides with player names');
+  panel(fixture, 'HPColorsReadoutToggle').events.onactivate();
+  assert.equal(off('HPColorsReadoutTiltRow'), true, 'enemy tilt hides with enemy HP text');
+  assert.equal(off('HPColorsAllyReadoutTiltRow'), false, 'ally tilt follows its own side');
+  panel(fixture, 'HPColorsAllyReadoutToggle').events.onactivate();
+  assert.equal(off('HPColorsAllyReadoutTiltRow'), true);
+});
+
+// Failure modes: a size/offset/tuning number lands in basic, or a color/toggle/style stays hidden.
+test('ADVANCED holds movement, sizing and tuning numbers; colors, toggles and styles are basic', () => {
+  const advanced = Array.from(extractArrayDeclaration(canonicalMenuSource, 'ADVANCED_KEYS'));
+  assert.equal(new Set(advanced).size, advanced.length);
+  for (const key of ['widthScale', 'heightScale', 'nameSize', 'nameRiseWithPips', 'readoutSize',
+    'allyReadoutSize', 'enemyPulseThreshold', 'enemyPulseBpm', 'enemyPulseIntensity',
+    'allyPulseThreshold', 'allyPulseBpm', 'allyPulseIntensity', 'enemyKillMarkerThreshold',
+    'pickupSize', 'damageShakeIntensity', 'nameTilt', 'readoutTilt', 'allyReadoutTilt', 'positionX', 'pipOpacity', 'nameOutlineWidth'])
+    assert.ok(advanced.includes(key), key);
+  for (const key of ['enemyTeamHigh', 'enemyHealing', 'allyBulletShield', 'enemyPulseColor',
+    'enemyPulseColorMode', 'enemyPulseHideBar', 'allyPulseReadout', 'enemyPipColor',
+    'allyPipColorEnabled', 'enemyStaminaColor', 'pickupGunColor', 'pickupGlyphColor',
+    'damageShakeEnabled', 'barMask', 'readoutFont'])
+    assert.ok(!advanced.includes(key), key);
+  assert.equal(advanced.length, 57);
 });
 
 test('always-visible tuning never unhides feature-off rows or hides ready-icon color', () => {
@@ -4039,6 +4166,9 @@ test('task pages own every key once with structural sections and optional Advanc
     [
       "widthScale",
       "heightScale",
+      "barMask",
+      "damageShakeEnabled",
+      "damageShakeIntensity",
       "positionX",
       "positionY",
       "accessoryAnchorEnabled"
@@ -4063,7 +4193,9 @@ test('task pages own every key once with structural sections and optional Advanc
       "nameOutlineWidth",
       "nameAlign",
       "nameOffsetX",
-      "nameOffsetY"
+      "nameOffsetY",
+      "nameTilt",
+      "nameRiseWithPips"
     ]
   ],
   [
@@ -4110,6 +4242,7 @@ test('task pages own every key once with structural sections and optional Advanc
       "readoutHigh",
       "readoutOffsetX",
       "readoutOffsetY",
+      "readoutTilt",
       "allyReadoutVisible",
       "allyReadoutSize",
       "allyReadoutOutlineWidth",
@@ -4120,7 +4253,8 @@ test('task pages own every key once with structural sections and optional Advanc
       "allyReadoutMid",
       "allyReadoutHigh",
       "allyReadoutOffsetX",
-      "allyReadoutOffsetY"
+      "allyReadoutOffsetY",
+      "allyReadoutTilt"
     ]
   ],
   [
@@ -4248,7 +4382,7 @@ test('task pages own every key once with structural sections and optional Advanc
   ]);
   const keys = categories.flatMap(category => category.tabs.flatMap(tab => tab.keys));
   assert.deepEqual([...keys].sort(), Object.keys(shippedDefaults).sort());
-  assert.equal(new Set(keys).size, 136);
+  assert.equal(new Set(keys).size, 143);
   assert.equal(categories.flatMap(category => category.tabs).length, 12);
   for (const category of categories) assert.ok(category.tabs.length <= 4);
   const ids = Array.from(layoutSource.matchAll(/\bid="(HPColors[^"]+)"/g), match => match[1]);
@@ -4949,6 +5083,54 @@ test('CRITICAL and ASSASSINATE offsets edit in pixels; CRITICAL rows follow the 
   assert.equal(panel(fixture, 'HPColorsCriticalOffsetXRow').BHasClass('FeatureOff'), false);
 });
 
+test('BAR MASK segments on Layout commit, Undo and page reset restore NONE', () => {
+  const fixture = bootMenu();
+  openEditor(fixture);
+  selectOverviewLayout(fixture);
+  const row = panel(fixture, 'HPColorsBarMaskRow');
+  assert.equal(row.BHasClass('TuningCollapsed'), false, 'BAR MASK is a basic Layout row');
+  assert.equal(panel(fixture, 'HPColorsBarMaskNone').BHasClass('Selected'), true);
+  assert.equal(readConfig(fixture).values.barMask, 'none');
+  panel(fixture, 'HPColorsBarMaskOriginal').events.onactivate();
+  assert.equal(readConfig(fixture).values.barMask, 'original');
+  assert.equal(panel(fixture, 'HPColorsBarMaskOriginal').BHasClass('Selected'), true);
+  assert.equal(panel(fixture, 'HPColorsBarMaskNone').BHasClass('Selected'), false);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.barMask, 'none');
+  panel(fixture, 'HPColorsBarMaskOriginal').events.onactivate();
+  requestReset(fixture);
+  confirmReset(fixture);
+  assert.equal(readConfig(fixture).values.barMask, 'none');
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readConfig(fixture).values.barMask, 'original');
+  assert.ok(layoutSource.indexOf('id="HPColorsHeightScaleRow"') < layoutSource.indexOf('id="HPColorsBarMaskRow"'));
+  assert.ok(layoutSource.indexOf('id="HPColorsBarMaskRow"') < layoutSource.indexOf('id="HPColorsBarPositionSection"'));
+});
+
+// Failure modes: OLD button missing or unbound, labels not V2/V1/OLD in button order,
+// condition editor shows raw enum names, legacy layouts without the OLD button fail to boot.
+test('BAR STYLE offers V2, V1 and OLD with matching condition labels', () => {
+  const row = layoutSource.slice(layoutSource.indexOf('id="HPColorsBarMaskRow"'),
+    layoutSource.indexOf('id="HPColorsBarPositionSection"'));
+  assert.match(row, /text="BAR STYLE"/);
+  assert.deepEqual(Array.from(row.matchAll(/<Button id="(HPColorsBarMask\w+)"[^>]*><Label text="([^"]+)"/g), m => [m[1], m[2]]), [
+    ['HPColorsBarMaskOriginal', 'V2'], ['HPColorsBarMaskNone', 'V1'], ['HPColorsBarMaskOld', 'OLD']]);
+  const fixture = bootMenu(undefined, { tree: true });
+  openEditor(fixture);
+  selectOverviewLayout(fixture);
+  panel(fixture, 'HPColorsBarMaskOld').events.onactivate();
+  assert.equal(readConfig(fixture).values.barMask, 'old');
+  assert.equal(panel(fixture, 'HPColorsBarMaskOld').BHasClass('Selected'), true);
+  assert.equal(panel(fixture, 'HPColorsBarMaskNone').BHasClass('Selected'), false);
+  panel(fixture, 'HPColorsCondition_barMask').events.onactivate();
+  const options = panel(fixture, 'HPColorsConditionEnumOptions').Children();
+  assert.deepEqual(options.map(child => [child.id, child.Children()[0].text]), [
+    ['HPColorsConditionOption_original', 'V2'], ['HPColorsConditionOption_none', 'V1'], ['HPColorsConditionOption_old', 'OLD']]);
+  panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+  const legacy = bootMenu(undefined, { beforeBoot(harness) { harness.root.FindChildTraverse('HPColorsBarMaskOld')?.DeleteAsync(); } });
+  assert.equal(legacy.harness.logs.some(message => String(message).includes('menu boot failed')), false);
+});
+
 function visibleSettingRows(fixture, pageId) {
   return panel(fixture, pageId).FindChildrenWithClassTraverse('HPColorsSettingRow').filter(row => {
     for (let item = row; item && item.id !== 'HPColorsSettingsList'; item = item.GetParent()) {
@@ -4963,7 +5145,7 @@ function visibleSettingRows(fixture, pageId) {
 // Failure modes: side/fold must not touch settings/history/save/replay/timers;
 // nested gates must stay stronger than Advanced; resets must include invisible
 // allies and conditions; legacy routing must not inherit the new rail positions.
-test('closed disclosures yield 45 default rows across all presentations, at most six per page', () => {
+test('closed disclosures yield 59 default rows across all presentations, at most ten per page', () => {
   const fixture = bootMenu(undefined, { tree: true });
   openEditor(fixture);
   const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
@@ -4982,8 +5164,9 @@ test('closed disclosures yield 45 default rows across all presentations, at most
       }
     }
   }
-  assert.equal(union.size, 45);
-  assert.equal(max, 6);
+  // Colors, toggles and styles are basic; sizes, offsets and tuning numbers sit under ADVANCED.
+  assert.equal(union.size, 59);
+  assert.equal(max, 10);
   panel(fixture, 'HPColorsCategoryOverview').events.onactivate();
   assert.equal(visibleSettingRows(fixture, 'HPColorsSettingsOverviewStatus').length, 2);
 });
@@ -5077,7 +5260,8 @@ test('Players reset confirms both sides and hidden settings, including shared al
   openEditor(fixture);
   selectEnemyBar(fixture);
   panel(fixture, 'HPColorsTab1').events.onactivate();
-  assert.equal(panel(fixture, 'HPColorsAllyReadoutOffsetXRow').BHasClass('TuningCollapsed'), true);
+  assert.equal(panel(fixture, 'HPColorsAllyReadoutOffsetXRow').BHasClass('TuningCollapsed'), false,
+    'a changed hidden offset opens ADVANCED');
   requestReset(fixture);
   assert.match(panel(fixture, 'HPColorsResetDialogMessage').text, /both enemy and ally.*including hidden settings/);
   assert.match(panel(fixture, 'HPColorsResetDialogMessage').text, /shared HP text alignment/);
@@ -5118,7 +5302,7 @@ test('actual legacy four-rail hierarchy boots without selector, folds, store, or
 });
 
 
-test('all 136 settings remain reachable with parents enabled and Advanced open; Players basic stays bounded', () => {
+test('all 142 settings remain reachable with parents enabled and Advanced open; Players basic stays bounded', () => {
   const values = { ...shippedDefaults };
   for (const key of Object.keys(values)) if (typeof values[key] === 'boolean') values[key] = true;
   Object.assign(values, { enabled: false, hudHealthColorMode: 'custom', ultMode: 'custom',
@@ -5133,10 +5317,13 @@ test('all 136 settings remain reachable with parents enabled and Advanced open; 
     for (let tab = 0; tab < categories[rail].tabs.length; tab++) {
       panel(fixture, 'HPColorsTab' + tab).events.onactivate();
       const page = categories[rail].tabs[tab];
+      // Changed advanced values open the fold; close it to measure the basic rows.
+      const folded = () => panel(fixture, 'HPColorsAdvancedToggleLabel').text === 'ADVANCED';
+      if (page.keys.length && !folded()) panel(fixture, 'HPColorsAdvancedToggle').events.onactivate();
       for (const side of categories[rail].name === 'PLAYERS' ? ['Enemy', 'Ally'] : ['Enemy']) {
         if (categories[rail].name === 'PLAYERS') {
           panel(fixture, 'HPColorsPlayerSide' + side).events.onactivate();
-          assert.ok(visibleSettingRows(fixture, page.pageId).length <= 8, page.name + '/' + side);
+          assert.ok(visibleSettingRows(fixture, page.pageId).length <= 10, page.name + '/' + side);
         }
       }
       if (page.keys.length) panel(fixture, 'HPColorsAdvancedToggle').events.onactivate();
@@ -5146,7 +5333,7 @@ test('all 136 settings remain reachable with parents enabled and Advanced open; 
       }
     }
   }
-  assert.equal(all.size, 136);
+  assert.equal(all.size, 142);
   assert.equal(readConfig(fixture).values.enabled, false, 'master-off does not prevent preparation');
   assert.equal(panel(fixture, 'HPColorsAdvancedToggle').BHasClass('Active'), false, 'Presets has its own guide, not Advanced');
   assert.equal(panel(fixture, 'HPColorsTabStrip').BHasClass('SinglePage'), true);
@@ -5244,7 +5431,7 @@ test('dependent reveal respects HUD, neutral, pulse, HP palettes and ultimate ba
   assert.equal(panel(fixture, 'HPColorsUltimateTimerColorModeRow').BHasClass('FeatureOff'), true);
 });
 
-test('hidden values and rules survive side/fold changes and a session reload without reopening disclosures', () => {
+test('hidden values and rules survive side/fold changes and a session reload, which reopens changed Advanced', () => {
   const values = { hudHealthColor: '#112233', allyReadoutOffsetX: 30, enemyPulseReadoutSize: 190 };
   const conditions = { allyReadoutOffsetX: { slot: 1, minTier: 2, value: 90 } };
   const fixture = bootMenu({ version: 1, offsetVersion: 2, values, conditions, scopes: [] }, { tree: true });
@@ -5259,8 +5446,29 @@ test('hidden values and rules survive side/fold changes and a session reload wit
   assert.deepEqual(saved.conditions.allyReadoutOffsetX, conditions.allyReadoutOffsetX);
   const reload = bootMenu(saved, { tree: true }); openEditor(reload); selectEnemyBar(reload);
   panel(reload, 'HPColorsTab1').events.onactivate();
-  assert.equal(panel(reload, 'HPColorsAdvancedToggleLabel').text, 'ADVANCED');
+  assert.equal(panel(reload, 'HPColorsAdvancedToggleLabel').text, 'HIDE ADVANCED', 'changed Advanced values open the page folded out');
   assert.equal(panel(reload, 'HPColorsPlayerSideEnemy').BHasClass('Selected'), true);
   for (const [key, value] of Object.entries(values)) assert.equal(readMenuState(reload).values[key], value);
   assert.deepEqual(readMenuState(reload).conditions.allyReadoutOffsetX, conditions.allyReadoutOffsetX);
+});
+
+// Failure modes: a page with changed ADVANCED settings opens folded so the change is invisible;
+// pages at defaults open unfolded; auto-open overrides an explicit HIDE ADVANCED; it sends
+// intents or writes saved state.
+test('pages open ADVANCED when one of their advanced settings differs from the default', () => {
+  const intents = [];
+  const fixture = bootMenu({ version: 1, values: { positionX: 50 }, scopes: [] }, { tree: true, intents });
+  openEditor(fixture);
+  const label = () => panel(fixture, 'HPColorsAdvancedToggleLabel').text;
+  assert.equal(label(), 'ADVANCED', 'BASICS has only default advanced values');
+  intents.length = 0;
+  panel(fixture, 'HPColorsTab1').events.onactivate();
+  assert.equal(label(), 'HIDE ADVANCED', 'LAYOUT opens with changed BAR X OFFSET shown');
+  assert.equal(panel(fixture, 'HPColorsPositionXRow').BHasClass('TuningCollapsed'), false);
+  panel(fixture, 'HPColorsAdvancedToggle').events.onactivate();
+  assert.equal(label(), 'ADVANCED');
+  panel(fixture, 'HPColorsTab0').events.onactivate();
+  panel(fixture, 'HPColorsTab1').events.onactivate();
+  assert.equal(label(), 'ADVANCED', 'an explicit HIDE ADVANCED sticks for the session');
+  assert.deepEqual(intents, []);
 });
