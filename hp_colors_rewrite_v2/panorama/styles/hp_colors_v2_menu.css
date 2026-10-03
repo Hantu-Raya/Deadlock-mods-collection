@@ -184,6 +184,23 @@
   border-right: 1px solid #ffefd714;
 }
 
+.HPColorsBoundsTool {
+  width: 100%;
+  height: 32px;
+  margin-top: 12px;
+  vertical-align: bottom;
+  ignore-parent-flow: true;
+  flow-children: right;
+}
+
+.HPColorsBoundsLabel {
+  margin-left: 14px;
+  vertical-align: center;
+  font-family: oracle;
+  font-size: 12px;
+  color: #ffefd799;
+}
+
 .HPColorsRailEyebrow {
   margin-left: 14px;
   margin-bottom: 18px;

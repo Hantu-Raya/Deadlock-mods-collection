@@ -210,6 +210,10 @@
               <Label text="05" class="HPColorsCategoryIndex" />
               <Label text="PRESETS" class="HPColorsCategoryLabel" />
             </Button>
+            <Panel class="HPColorsBoundsTool">
+              <Label text="SHOW BOUNDS" class="HPColorsBoundsLabel" />
+              <Button id="HPColorsShowBoundsToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+            </Panel>
           </Panel>
 
           <Panel class="HPColorsContent">

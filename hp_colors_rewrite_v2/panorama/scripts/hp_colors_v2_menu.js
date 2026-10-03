@@ -1438,6 +1438,7 @@
   var publishedFullPayload = "";
   var publishedSparsePayload = "";
   var publishedRevision = -1;
+  var showBounds = false;
   var configAnswer = { handlerId: null, job: null, lastAt: -Infinity, generation: 0 };
   var lastClipboardCopied = null;
   var storage = null;
@@ -1511,7 +1512,7 @@
         writeMenuState(effect.raw);
         schedulePersist(effect.raw, deliberate);
       } else if (effect.type === "effective_publish") {
-        var payload = serializeChange(effect.revision, effect.values);
+        var payload = serializeChange(Math.max(effect.revision, publishedRevision + 1), effect.values, showBounds);
         writeRootAttribute(CONFIG_ATTR, payload);
         rememberPublishedPayload(payload);
         paintHudHealthWash(effect.values);
@@ -4096,11 +4097,12 @@
   }
 
 
-  function serializeChange(revision, values) {
+  function serializeChange(revision, values, bounds) {
     return JSON.stringify({
       magic_word: CONFIG_MAGIC,
       version: CONFIG_VERSION,
       revision: Number(revision) || 0,
+      showBounds: bounds === true,
       values: values,
     });
   }
@@ -4547,7 +4549,7 @@
           payload.values[key] === defaults[key]) continue;
         values[key] = payload.values[key];
       }
-      return serializeChange(payload.revision, values);
+      return serializeChange(payload.revision, values, payload.showBounds);
     } catch {
       return raw;
     }
@@ -5753,6 +5755,7 @@
   }
 
   function syncControls() {
+    setClass(controlPanel("HPColorsShowBoundsToggle"), "Checked", showBounds);
     var view = currentView();
     var scope = view && (view.currentScope || view);
     var values = scope ? scope.values : {};
@@ -6297,6 +6300,18 @@
   }
 
   function bindMenuControls() {
+    var boundsToggle = controlPanel("HPColorsShowBoundsToggle");
+    setClass(boundsToggle, "Checked", showBounds);
+    setPanelEvent(boundsToggle, "onactivate", function () {
+      if (!publishedFullPayload) return;
+      showBounds = !showBounds;
+      var values = JSON.parse(publishedFullPayload).values;
+      var payload = serializeChange(publishedRevision + 1, values, showBounds);
+      writeRootAttribute(CONFIG_ATTR, payload);
+      rememberPublishedPayload(payload);
+      dispatchChange(publishedSparsePayload);
+      setClass(boundsToggle, "Checked", showBounds);
+    });
     setPanelEvent(ui.playerSideEnemy, "onactivate", function () { selectPlayerSide("enemy"); });
     setPanelEvent(ui.playerSideAlly, "onactivate", function () { selectPlayerSide("ally"); });
     setPanelEvent(ui.advancedToggle, "onactivate", toggleAdvanced);
@@ -6450,7 +6465,12 @@
     setPanelEvent(ui.menuButton, "onactivate", requestOpen);
     if (hydration.phase === "idle") beginHydration();
     if (state.booted || hydration.phase !== "done") return;
-    var publishedRaw = decodePublishedState(readRootAttribute(CONFIG_ATTR));
+    var existingConfig = readRootAttribute(CONFIG_ATTR);
+    if (existingConfig) {
+      rememberPublishedPayload(existingConfig);
+      try { showBounds = JSON.parse(existingConfig).showBounds === true; } catch {}
+    }
+    var publishedRaw = decodePublishedState(existingConfig);
     try {
       stateInstance = $.HPColorsV2StateFactory.create({
         sessionRaw: hydration.raw || null,
