@@ -211,6 +211,7 @@
   var awaitingConfig = true;
   var awaitingSince = nowMs();
   var configRevision = -1;
+  var showBounds = false;
   var lastColorChangeAt = 0;
   var eventHandlerId = null;
   var scanJob = null;
@@ -659,6 +660,7 @@
     var assassinateAnchor = directChild(windowRoot, "HPV2AssassinateAnchor");
     return {
       windowRoot: windowRoot,
+      canvasBounds: directChild(windowRoot, "HPV2CanvasBounds"),
       motion: motion,
       healthbars: healthbars,
       primary: primary,
@@ -3281,6 +3283,13 @@
     var panelBaseline = bar.panelBaseline || {};
     bar.surface = resolveSurface(bar, config);
     if (restoring || !isComplete(bar.parts)) bar.surface = "";
+    if (!healthOnly) {
+      var boundsVisible = showBounds && !!bar.surface;
+      if (boundsVisible && !isValid(bar.parts.canvasBounds))
+        bar.parts.canvasBounds = ensureOwnedPanel(bar.parts.windowRoot, "HPV2CanvasBounds");
+      setStyle(bar.parts.canvasBounds, "visibility", boundsVisible ? "visible" : "collapse",
+        bar.applied, "canvasBoundsVisibility");
+    }
     if (!healthOnly) syncOwnedRootClasses(bar);
     if (!bar.surface) {
       restoreInactiveCustomization(bar, panelBaseline);
@@ -3326,6 +3335,7 @@
       )
         return false;
       config = normalizeConfig(data.values);
+      showBounds = data.showBounds === true;
       configRaw = raw;
       configRevision = revision;
       awaitingConfig = false;

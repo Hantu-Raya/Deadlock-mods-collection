@@ -2351,3 +2351,13 @@
 	overflow: noclip;
 }
 
+
+#HPV2CanvasBounds
+{
+  width: 100%;
+  height: 100%;
+  border: 1px solid #5fe69e;
+  ignore-parent-flow: true;
+  z-index: 100;
+  visibility: collapse;
+}

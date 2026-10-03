@@ -15,6 +15,7 @@ The v2 overlay uses the stock tree with its CSS prefix rebased to Deadlock 2026-
 - Known neutral NPCs remain stock unless `npcNeutralEnabled` is on; that gate applies the fixed fill color, shared bar size/position, enemy HP text settings, and contained health lines. Bounty, tier art, and other stock indicators stay stock.
 - Ghoul opacity is retired; legacy codec slots remain reserved and old values/rules are dropped on load and import.
 - Unknown type/relation and contradictory enemy/friend ownership remain stock. Neutral facts take precedence over enemy/friend classes; team IDs alone never infer relation.
+- SHOW BOUNDS at the bottom of the category rail outlines each customized healthbar canvas without shaking; it defaults off and stays on after closing the editor until toggled off or Deadlock restarts, never entering saves or presets or codes.
 
 Surface ownership is kept in one renderer decision: `player` has relation settings and player extras; `unit` has gated non-player bar presentation and native HP text; `fill` has neutral fixed fill plus shared geometry and native HP text. Kill marker, pulse, level, ultimate, and stamina remain player-only.
 

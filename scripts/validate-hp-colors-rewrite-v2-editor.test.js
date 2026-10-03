@@ -3898,7 +3898,8 @@ test('Appearance toggles publish exact keys and reset/Undo only their section', 
     assert.equal(after.values[keys[index]], false);
     assert.deepEqual(after.values, { ...before.values, [keys[index]]: false });
     assert.equal(configDispatches(fixture).length, dispatches + 1);
-    assert.deepEqual(Object.keys(after).sort(), ['magic_word', 'revision', 'values', 'version']);
+    assert.deepEqual(Object.keys(after).sort(), ['magic_word', 'revision', 'showBounds', 'values', 'version']);
+    assert.equal(after.showBounds, false);
   }
   requestReset(fixture);
   confirmReset(fixture);

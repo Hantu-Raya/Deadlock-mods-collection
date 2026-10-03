@@ -353,7 +353,9 @@ test('broadcasts and answers are sparse; root attribute stays full', () => {
   const full = JSON.parse(menu.root.GetAttributeString(CONFIG_ATTR, ''));
   const sparseRaw = menuConfigDispatches(menu).at(-1);
   const sparse = JSON.parse(sparseRaw);
-  assert.deepEqual(Object.keys(sparse), ['magic_word', 'version', 'revision', 'values']);
+  assert.deepEqual(Object.keys(sparse), ['magic_word', 'version', 'revision', 'showBounds', 'values']);
+  assert.equal(sparse.showBounds, false);
+  assert.equal(full.showBounds, false);
   assert.equal(sparse.revision, full.revision);
   assert.ok(Object.keys(full.values).length >= Object.keys(contract.defaults).length);
   assert.ok(sparseRaw.length * 5 < JSON.stringify(full).length, 'sparse is much smaller');

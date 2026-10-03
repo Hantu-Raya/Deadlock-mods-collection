@@ -9,6 +9,7 @@ Settings, scopes, presets, and conditions persist on this PC through `hp_colors_
 Package ownership: the Rewrite v2 runtime is pak02 and the generic preset builder is pak96. v2 no longer reads a builder pak01 seed; an installed old pak01 overrides the ESC layout, and the menu reports it as `OLD PRESET VPK`. That legacy layout has four original rail buttons and explicit legacy navigation; it boots without the canonical selector, Advanced, Units, Presets, Names & Labels, and Own HUD controls until pak01 is removed.
 
 Deprecated as of 2.2.1 (2026-10-03): Rewrite (V1), the web preset builders, and the `gameinfo.gi` unit-status ConVars/launch option. Deadlock uses V2 unit status by default. Do not sync new settings into the builder or document ConVar setup.
+- SHOW BOUNDS is a session-only strict boolean `showBounds` beside snapshot values; keep transport revisions monotonic and the cached passive `HPV2CanvasBounds` panel outside the motion frame, never in settings/storage/presets/codecs.
 
 ## Durable save
 
