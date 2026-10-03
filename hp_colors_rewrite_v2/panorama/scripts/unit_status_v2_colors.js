@@ -664,8 +664,8 @@
       inner: inner,
       infoHealth: infoHealth,
       unitStatus: unitStatus,
-      // Name geometry remains full-canvas and independent of the compact motion frame.
-      name: directChild(directChild(windowRoot, "HPV2NameAnchor"), "name"),
+      // The name rides the full-canvas motion frame, so it shakes with the bar.
+      name: directChild(directChild(motion || windowRoot, "HPV2NameAnchor"), "name"),
       criticalAnchor: criticalAnchor,
       critical: directChild(criticalAnchor, "CriticalIndicator"),
       assassinateAnchor: assassinateAnchor,
@@ -821,36 +821,10 @@
     setStyle(panel, "marginRight", right, bar.applied, key + "MarginRight");
   }
 
-  function rebaseMotionFrame(bar) {
-    var parts = bar.parts;
-    if (!isValid(parts.motion)) return;
-    var width = cssLayout(parts.windowRoot, "actuallayoutwidth", "x");
-    var height = cssLayout(parts.windowRoot, "actuallayoutheight", "y");
-    if (!(width > 0)) width = cssLayout(parts.infoHealth, "actuallayoutwidth", "x");
-    if (!(height > 0)) height = cssLayout(parts.infoHealth, "actuallayoutheight", "y");
-    if (!(width > 0) || !(height > 0)) return;
-    var left = width / 2 - 50;
-    if (width !== bar.motionCanvasWidth || height !== bar.motionCanvasHeight) bar.dirty = true;
-    bar.motionCanvasWidth = width;
-    bar.motionCanvasHeight = height;
-    setStyle(parts.motion, "marginLeft", pixels(left), bar.applied, "motionLeft");
-    var children = [parts.unitStatus, parts.counterContainer];
-    for (var index = 0; index < children.length; index++) {
-      setStyle(children[index], "width", pixels(width), bar.applied, "motionWidth" + index);
-      setStyle(children[index], "height", pixels(height), bar.applied, "motionHeight" + index);
-      setStyle(children[index], "marginLeft", pixels(-left), bar.applied, "motionChildLeft" + index);
-    }
-  }
-
   function rebaseStockGeometry(bar) {
-    rebaseMotionFrame(bar);
     var info = bar.parts.infoHealth;
     var width = cssLayout(info, "actuallayoutwidth", "x");
     var height = cssLayout(info, "actuallayoutheight", "y");
-    if (isValid(bar.parts.motion) && bar.motionCanvasWidth > 0) {
-      width = bar.motionCanvasWidth;
-      height = bar.motionCanvasHeight;
-    }
     if (!Number.isFinite(width) || width <= 0 ||
         !Number.isFinite(height) || height <= 0) return;
     var origin = "50% " + String(8500 / height) + "%";
@@ -860,6 +834,7 @@
     bar.stockTransformOrigin = origin;
     setStyle(info, "transformOrigin", origin, bar.applied, "infoStockOrigin");
     setStyle(panelParent(info), "transformOrigin", origin, bar.applied, "unitStockOrigin");
+    setStyle(bar.parts.motion, "transformOrigin", origin, bar.applied, "motionStockOrigin");
     if (!bar.surface ||
         (config.widthScale === 100 && config.heightScale === 100))
       setStyle(bar.parts.healthbars, "transformOrigin", origin,
@@ -1874,7 +1849,7 @@
     setStyle(panel, "textAlign", aligned ? PANEL_ALIGN[config.nameAlign] :
       nameBaselineStyle(baseline, "textAlign"), bar.applied, "nametextAlign");
     if (!aligned && !config.nameOffsetX && !offsetY) {
-      // Rotation stays on #name; HPV2NameAnchor carries the damage shake.
+      // Rotation stays on #name; HPV2MotionFrame carries the damage shake.
       setStyle(panel, "transform", rotation || baselineStyle(baseline, "transform"),
         bar.applied, "nametransform");
       return;
@@ -3759,10 +3734,6 @@
   // skips per-tick work until config, classification or canvas size changes.
   function dormant(bar) {
     if (bar.surface || bar.dirty || !bar.dormant) return false;
-    if (isValid(bar.parts.motion) &&
-        (cssLayout(bar.parts.windowRoot, "actuallayoutwidth", "x") !== bar.motionCanvasWidth ||
-         cssLayout(bar.parts.windowRoot, "actuallayoutheight", "y") !== bar.motionCanvasHeight))
-      return false;
     var info = bar.parts.infoHealth;
     return cssLayout(info, "actuallayoutwidth", "x") === bar.canvasWidth &&
       cssLayout(info, "actuallayoutheight", "y") === bar.canvasHeight;

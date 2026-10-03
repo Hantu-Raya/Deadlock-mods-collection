@@ -893,8 +893,12 @@ function dispatchColorSnapshot(fixture, revision, values) {
 }
 test('v2 preserves the frozen static stock tree and adds only passive owned panels', () => {
   const layout = parseXmlStructure(read(layoutPath));
-  assert.deepEqual(normalizeXmlStructure(layout, true),
-    normalizeXmlStructure(parseXmlStructure(NEW_STOCK_LAYOUT), false));
+  const stock = normalizeXmlStructure(parseXmlStructure(NEW_STOCK_LAYOUT), false);
+  // One intended deviation: #name sits beside UnitStatus inside the shaking frame.
+  const stockWindow = stock[0].children.find(node => node.attributes.class === 'WindowRoot');
+  const [stockName] = stockWindow.children.splice(stockWindow.children.findIndex(node => node.attributes.id === 'name'), 1);
+  stockWindow.children.splice(stockWindow.children.findIndex(node => node.attributes.id === 'UnitStatus'), 0, stockName);
+  assert.deepEqual(normalizeXmlStructure(layout, true), stock);
   assert.deepEqual(layout[0].children.find(node => node.tag === 'scripts').children.map(node => node.attributes.src), [
     's2r://panorama/scripts/hp_colors_v2_contract.vjs_c',
     's2r://panorama/scripts/unit_status_v2_colors.vjs_c',

@@ -1711,16 +1711,21 @@ test('OLD lifts the player name one 6px row per extra 1,000 max HP when enabled'
   assert.equal(lift(), '', 'master off restores stock');
 });
 
-// Compact bar surfaces retain the stock pivot; full-canvas geometry stays stationary.
-test('damage wiggle animates one compact shared frame and skips objectives', () => {
+// Failure modes: a compact transformed frame clips noclip children to its own
+// bounds in game (HP text and level badge cut while shaking); the name stays still.
+test('damage wiggle animates one full-canvas frame holding bar, HP text and name', () => {
   const xml = fs.readFileSync(path.resolve(sourceRoot, '../layout/unit_status_overlay_v2.xml'), 'utf8');
-  assert.match(xml, /<Panel id="HPV2MotionFrame"[^>]*hittest="false"[^>]*>/);
-  assert.match(xml, /<Panel class="WindowRoot"[^>]*>\s*<Panel id="HPV2NameAnchor"[^>]*>\s*<Label id="name" text="\{s:name\}" \/>/);
+  assert.match(xml, /<Panel id="HPV2MotionFrame"[^>]*hittest="false"[^>]*>\s*<Panel id="HPV2NameAnchor"[^>]*>\s*<Label id="name" text="\{s:name\}" \/>/);
   const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body]) => ({
     selectors: selectors.replace(/\/\*[\s\S]*?\*\//g, '').split(',').map(selector => selector.trim()),
     body,
   }));
+  const frame = rules.find(rule => rule.selectors.includes('.WindowRoot #HPV2MotionFrame'));
+  assert.match(frame.body, /width:\s*100%;[\s\S]*height:\s*100%;/, 'frame covers the whole canvas');
+  assert.match(frame.body, /transform-origin:\s*50% 40\.48%;/, 'stock bar pivot');
+  assert.equal(rules.some(rule => rule.selectors.some(selector => /#HPV2MotionFrame #/.test(selector))), false,
+    'children need no compact-frame compensation');
   const selectorsWith = pattern => rules.filter(rule => pattern.test(rule.body)).flatMap(rule => rule.selectors);
   const wiggles = selectorsWith(/animation-name:\s*active_damage_wiggle/);
   const still = selectorsWith(/animation-name:\s*none/);
@@ -2796,31 +2801,27 @@ test('scan repairs external stamina style drift with write-only paint caches', (
   assert.equal(fixture.icon.style.width, ownedWidth);
 });
 
-test('compact shared motion frame retains full-canvas bar readout and name coordinates', () => {
-  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, parts => {
+test('full-canvas motion frame needs no runtime rebase and still owns the name', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true, nameSize: 22 }, parts => {
     prepareNativeReadout(parts);
     Object.assign(parts.window, { actuallayoutwidth: 200, actuallayoutheight: 210 });
     const motion = parts.window.add(new MockPanel('HPV2MotionFrame', {
-      actuallayoutwidth: 100, actuallayoutheight: 40,
+      actuallayoutwidth: 200, actuallayoutheight: 210,
     }));
+    motion.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { text: 'HAZE', style: {} }));
     parts.status.SetParent(motion);
     parts.container.SetParent(motion);
-    parts.window.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { text: 'HAZE' }));
   });
   const motion = fixture.window.FindChildTraverse('HPV2MotionFrame');
-  assert.equal(motion.style.marginLeft, '50px');
-  for (const panel of [fixture.status, fixture.container]) {
-    assert.equal(panel.style.width, '200px');
-    assert.equal(panel.style.height, '210px');
-    assert.equal(panel.style.marginLeft, '-50px');
-  }
+  const name = motion.FindChildTraverse('name');
+  assert.equal(name.style.fontSize, '22px', 'the name inside the frame is still owned');
   assert.equal(fixture.health.GetParent(), fixture.row, 'native HP stays in the shared moving frame');
-  assert.equal(fixture.primary.style.transformOrigin || '', '', 'native primary origin is not owned');
   fixture.window.actuallayoutwidth = 300;
   fixture.harness.scheduler.runByDelay(1);
-  assert.equal(motion.style.marginLeft, '100px');
-  assert.equal(fixture.container.style.width, '300px');
-  assert.equal(fixture.container.style.marginLeft, '-100px');
+  for (const panel of [motion, fixture.status, fixture.container]) {
+    assert.equal(panel.style.marginLeft || '', '', panel.id);
+    assert.equal(panel.style.width || '', '', panel.id);
+  }
 });
 
 test('lazy ultimate discovery retires the OLD pool and never leaves stale filled children', () => {
