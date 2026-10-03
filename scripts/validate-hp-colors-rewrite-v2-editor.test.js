@@ -47,7 +47,7 @@ const shippedDefaults = JSON.parse(JSON.stringify(
   contractContext.$.HPColorsV2ContractFactory.create().defaults,
 ));
 const CONFIG_ATTR = 'hp_colors_v2_config';
-const PLAYER_BAR_DEFAULTS = Object.fromEntries(["enemyEnabled", "enemyVisible", "enemyMode", "enemyLow", "enemyMid", "enemyHigh", "enemyTeamHigh", "enemyHealing", "enemyDelta", "enemyBulletShield", "allyEnabled", "allyVisible", "allyMode", "allyLow", "allyMid", "allyHigh", "allyTeamHigh", "allyHealing", "allyDelta", "allyBulletShield"].map(key => [key, shippedDefaults[key]]));
+const PLAYER_BAR_DEFAULTS = Object.fromEntries(["enemyEnabled", "enemyVisible", "enemyMode", "enemyLow", "enemyMid", "enemyHigh", "enemyTeamHigh", "enemyHealing", "enemyDelta", "enemyBulletShield", "enemyRatkingArmor", "allyEnabled", "allyVisible", "allyMode", "allyLow", "allyMid", "allyHigh", "allyTeamHigh", "allyHealing", "allyDelta", "allyBulletShield", "allyRatkingArmor"].map(key => [key, shippedDefaults[key]]));
 const PLAYER_BAR_KEYS = Object.keys(PLAYER_BAR_DEFAULTS);
 // This harness loads no storage runtime, so the status chip's resting text is
 // the save-unavailable state; the storage E2E suite covers the SAVED states.
@@ -4081,7 +4081,7 @@ test('ADVANCED holds movement, sizing and tuning numbers; colors, toggles and st
     'allyPipColorEnabled', 'enemyStaminaColor', 'pickupGunColor', 'pickupGlyphColor',
     'damageShakeEnabled', 'barMask', 'readoutFont'])
     assert.ok(!advanced.includes(key), key);
-  assert.equal(advanced.length, 57);
+  assert.equal(advanced.length, 59);
 });
 
 test('always-visible tuning never unhides feature-off rows or hides ready-icon color', () => {
@@ -4213,6 +4213,7 @@ test('task pages own every key once with structural sections and optional Advanc
       "enemyHealing",
       "enemyDelta",
       "enemyBulletShield",
+      "enemyRatkingArmor",
       "allyEnabled",
       "allyVisible",
       "allyMode",
@@ -4222,7 +4223,8 @@ test('task pages own every key once with structural sections and optional Advanc
       "allyTeamHigh",
       "allyHealing",
       "allyDelta",
-      "allyBulletShield"
+      "allyBulletShield",
+      "allyRatkingArmor"
     ]
   ],
   [
@@ -4382,7 +4384,7 @@ test('task pages own every key once with structural sections and optional Advanc
   ]);
   const keys = categories.flatMap(category => category.tabs.flatMap(tab => tab.keys));
   assert.deepEqual([...keys].sort(), Object.keys(shippedDefaults).sort());
-  assert.equal(new Set(keys).size, 143);
+  assert.equal(new Set(keys).size, 145);
   assert.equal(categories.flatMap(category => category.tabs).length, 12);
   for (const category of categories) assert.ok(category.tabs.length <= 4);
   const ids = Array.from(layoutSource.matchAll(/\bid="(HPColors[^"]+)"/g), match => match[1]);
@@ -5302,7 +5304,7 @@ test('actual legacy four-rail hierarchy boots without selector, folds, store, or
 });
 
 
-test('all 142 settings remain reachable with parents enabled and Advanced open; Players basic stays bounded', () => {
+test('all 144 settings remain reachable with parents enabled and Advanced open; Players basic stays bounded', () => {
   const values = { ...shippedDefaults };
   for (const key of Object.keys(values)) if (typeof values[key] === 'boolean') values[key] = true;
   Object.assign(values, { enabled: false, hudHealthColorMode: 'custom', ultMode: 'custom',
@@ -5333,7 +5335,7 @@ test('all 142 settings remain reachable with parents enabled and Advanced open; 
       }
     }
   }
-  assert.equal(all.size, 142);
+  assert.equal(all.size, 144);
   assert.equal(readConfig(fixture).values.enabled, false, 'master-off does not prevent preparation');
   assert.equal(panel(fixture, 'HPColorsAdvancedToggle').BHasClass('Active'), false, 'Presets has its own guide, not Advanced');
   assert.equal(panel(fixture, 'HPColorsTabStrip').BHasClass('SinglePage'), true);
