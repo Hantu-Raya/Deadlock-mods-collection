@@ -237,7 +237,7 @@ def add_passive_item_flag(file_path, output_path=None, enable_behavior_bits=True
     for start, end, block in iter_record_spans(content):
         block_modified = False
 
-        matches_behavior_bits = any(name in block for name in ADD_BEHAVIOR_BITS_ABILITIES)
+        matches_behavior_bits = get_record_name(block) in ADD_BEHAVIOR_BITS_ABILITIES
         if matches_behavior_bits:
             if enable_behavior_bits:
                 block, behavior_modified = append_behavior_bits(block, ADD_BEHAVIOR_BITS)
