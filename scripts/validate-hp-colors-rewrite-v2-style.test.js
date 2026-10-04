@@ -3058,9 +3058,9 @@ test("bar outline owns only the primary backer without moving measured geometry 
   assert.equal(backer().style.position, "5px 2.5px 0px");
   assert.equal(backer().style.width, "71px");
   assert.equal(backer().style.height, "14px");
-  assert.equal(backer().style.backgroundColor, "#000000");
+  assert.equal(backer().style.backgroundColor, "", "stock CSS owns the default outline color");
   assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), true);
-  fixture.update({ barMask: "original", barOutlineThickness: 2.5, barOutlineColor: "#123456", barOutlineOpacity: 37 });
+  fixture.update({ barMask: "original", barOutlineCustomColor: true, barOutlineThickness: 2.5, barOutlineColor: "#123456", barOutlineOpacity: 37 });
   assert.equal(backer().style.position, "3.5px 1px 0px");
   assert.equal(backer().style.width, "74px");
   assert.equal(backer().style.opacity, "0.37");
@@ -3107,7 +3107,7 @@ test("OLD outline draws solid backers under fixed pips and never writes on healt
     "rims draw under the boxes");
   assert.equal(outline().hittest, false);
   assert.equal(outline().style.opacity, "0.4");
-  assert.equal(boxes[0].style.backgroundColor, "#000000");
+  assert.equal(boxes[0].style.backgroundColor, "", "stock CSS owns OLD colors too");
   assert.equal(boxes[0].style.border || "", "");
   // Three rows -> 18px grid; box 0 is bottom-left: y = 18 * 2/3 - 10, height = 4.8 + 20.
   assert.equal(boxes[0].style.position, "-10px 2px 0px");
@@ -3120,7 +3120,7 @@ test("OLD outline draws solid backers under fixed pips and never writes on healt
   assert.equal(layerWrites(fixture, "HPV2PipOutline") + outline().__styleWrites.length, writes);
   fixture.update({ barMask: "old", barOutlineEnabled: false });
   assert.equal(outline().style.visibility, "collapse");
-  fixture.update({ barMask: "old", barOutlineColor: "#ABCDEF" });
+  fixture.update({ barMask: "old", barOutlineCustomColor: true, barOutlineColor: "#ABCDEF" });
   assert.equal(outline().style.visibility, "visible");
   assert.equal(shownPips(fixture, "HPV2PipOutline")[0].style.backgroundColor, "#ABCDEF");
   setEngineLines(fixture.primary.FindChildTraverse("UnitHealthbarLines"), 900, 2);
@@ -3128,6 +3128,39 @@ test("OLD outline draws solid backers under fixed pips and never writes on healt
   assert.equal(shownPips(fixture, "HPV2PipOutline").length, 9);
   fixture.update({ barMask: "old", enabled: false });
   assert.equal(outline().style.visibility, "collapse");
+});
+
+test("OLD outline returns after the engine briefly drops its health lines", () => {
+  const fixture = makeOldFixture(2850);
+  const lines = fixture.primary.FindChildTraverse("UnitHealthbarLines");
+  const outline = () => fixture.primary.FindChildTraverse("HPV2PipOutline");
+  assert.equal(outline().style.visibility, "visible");
+  setEngineLines(lines, 0, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(outline().style.visibility, "collapse", "no grid while lines are missing");
+  setEngineLines(lines, 2850, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(outline().style.visibility, "visible");
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 29);
+});
+
+test("OLD enemy outline recovers on health-only paint after a transient surface collapse", () => {
+  const source = rendererSource.replace('function applyCustomization(bar, restoring) {',
+    'function applyCustomization(bar, restoring) { $.__outlineBar = bar; $.__syncOldOutline = syncOldOutline;');
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old", enemyKillMarkerEnabled: true },
+    ({ primary }) => setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2850, 2), null, source);
+  const bar = fixture.harness.$.__outlineBar;
+  const outline = fixture.primary.FindChildTraverse("HPV2PipOutline");
+  assert.equal(outline.style.visibility, "visible");
+  bar.surface = "";
+  fixture.harness.$.__syncOldOutline(bar);
+  assert.equal(outline.style.visibility, "collapse");
+  bar.surface = "player";
+  bar.dirty = false; bar.healthDirty = true; bar.colorDirty = false;
+  fixture.fill.actuallayoutwidth -= 1;
+  paintReadout(fixture);
+  assert.equal(outline.style.visibility, "visible", "cached geometry must not retain collapsed visibility");
+  assert.equal(fixture.primary.FindChildTraverse("HPV2PipKillMarker").style.visibility, "visible");
 });
 
 test("OLD kill marker sits at the threshold HP inside its pip box", () => {
@@ -3149,4 +3182,61 @@ test("OLD kill marker sits at the threshold HP inside its pip box", () => {
   assert.equal(marker().style.visibility, "collapse");
   fixture.update({ barMask: "original", enemyKillMarkerEnabled: true });
   assert.equal(marker().style.visibility, "collapse");
+});
+
+test("outline stock CSS mirrors ancestor colors and rule order for whole bars and OLD boxes", () => {
+  const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selectors, body]) =>
+    selectors.includes('#HPV2BarOutline') && /background-color:/.test(body));
+  const expected = [['.team1', 'team1ColorDark'], ['.team2', 'team2ColorDark'],
+    ['.friend', 'rgb(4, 37, 23)'], ['.team_neutral', 'offBlack'], ['.enemy', 'offBlack'],
+    ['.enemy.health_critical .ShowCriticalState', 'rgb(47, 4, 4)']];
+  assert.equal(rules.length, expected.length);
+  for (const [index, [ancestor, color]] of expected.entries()) {
+    const [, selectors, body] = rules[index];
+    assert.deepEqual(selectors.replace(/\/\*[\s\S]*?\*\//g, '').trim().split(',').map(s => s.trim()),
+      [ancestor + ' #HPV2BarOutline', ancestor + ' .HPV2PipOutlineBox']);
+    assert.equal(body.trim(), 'background-color: ' + color + ';');
+  }
+});
+
+test("custom outline colors apply only to heroes and repaint on relation or kind changes", () => {
+  for (const mask of ["none", "original", "old"]) {
+    const custom = { barMask: mask, barOutlineCustomColor: true, barOutlineColor: "#123456", allyBarOutlineColor: "#ABCDEF",
+      npcEnemyEnabled: true, npcAllyEnabled: true, npcNeutralEnabled: true, buildingEnemyEnabled: true, buildingAllyEnabled: true };
+    const fixture = makeOwnershipFixture(["player", "enemy"], custom, ({ primary, inner }) => {
+      inner.actuallayoutheight = 12;
+      setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2850, 2);
+    });
+    const outlines = () => mask === "old" ? shownPips(fixture, "HPV2PipOutline")
+      : [fixture.primary.FindChildTraverse("HPV2BarOutline")];
+    const colorIs = color => { assert.ok(outlines().length); for (const panel of outlines()) assert.equal(panel.style.backgroundColor, color); };
+    colorIs("#123456");
+    fixture.world.RemoveClass("enemy"); fixture.world.AddClass("friend");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("#ABCDEF");
+    fixture.world.RemoveClass("player"); fixture.world.AddClass("creature");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.RemoveClass("friend"); fixture.world.AddClass("enemy");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.AddClass("team_neutral");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.RemoveClass("team_neutral"); fixture.world.AddClass("building");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.RemoveClass("building"); fixture.world.RemoveClass("creature"); fixture.world.AddClass("player");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("#123456");
+    fixture.update({ ...custom, barOutlineCustomColor: false });
+    colorIs("");
+    const writes = outlines().reduce((n, panel) => n + panel.__styleWrites.length, 0);
+    fixture.world.AddClass("health_critical");
+    fixture.fill.actuallayoutwidth -= 1;
+    paintReadout(fixture);
+    assert.equal(outlines().reduce((n, panel) => n + panel.__styleWrites.length, 0), writes,
+      "stock critical color is CSS-only; health ticks do not repaint rims");
+  }
 });

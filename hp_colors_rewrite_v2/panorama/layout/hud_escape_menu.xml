@@ -239,10 +239,19 @@
                     <Panel class="HPColorsSettingCopy"><Label text="BAR OUTLINE" class="HPColorsSettingTitle" /><Label text="Outline hero healthbars and enabled Units bars. Shields stay unchanged." class="HPColorsSettingHelp" /></Panel>
                     <Button id="HPColorsBarOutlineToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
                   </Panel>
+                  <Panel id="HPColorsBarOutlineCustomColorRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="CUSTOM OUTLINE COLOR" class="HPColorsSettingTitle" /><Label text="Use separate enemy and ally hero colors. Off uses base-game colors; Units always stay stock." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsBarOutlineCustomColorToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
                   <Panel id="HPColorsBarOutlineColorRow" class="HPColorsSettingRow HPColorsColorRow">
-                    <Panel class="HPColorsSettingCopy"><Label text="OUTLINE COLOR" class="HPColorsSettingTitle" /><Label text="One shared outline color for enemies, allies and neutrals." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSettingCopy"><Label text="ENEMY OUTLINE COLOR" class="HPColorsSettingTitle" /><Label text="Custom outline color for enemy heroes only." class="HPColorsSettingHelp" /></Panel>
                     <Button id="HPColorsBarOutlineColorSwatch" class="HPColorsColorSwatch" />
                     <TextEntry id="HPColorsBarOutlineColorHex" class="HPColorsHexEntry" text="#000000" maxchars="7" />
+                  </Panel>
+                  <Panel id="HPColorsAllyBarOutlineColorRow" class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="ALLY OUTLINE COLOR" class="HPColorsSettingTitle" /><Label text="Custom outline color for ally heroes only." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsAllyBarOutlineColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsAllyBarOutlineColorHex" class="HPColorsHexEntry" text="#000000" maxchars="7" />
                   </Panel>
                   <Panel id="HPColorsBarOutlineThicknessRow" class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy"><Label text="OUTLINE THICKNESS" class="HPColorsSettingTitle" /><Label text="Set the rim thickness; small OLD boxes clamp it to fit." class="HPColorsSettingHelp" /></Panel>

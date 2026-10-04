@@ -85,7 +85,9 @@
             "heightScale",
             "barMask",
             "barOutlineEnabled",
+            "barOutlineCustomColor",
             "barOutlineColor",
+            "allyBarOutlineColor",
             "barOutlineThickness",
             "barOutlineOpacity",
             "damageShakeEnabled",
@@ -696,7 +698,8 @@
   var advancedNotes = [];
 
   var COLOR_TITLES = {
-    barOutlineColor: "BAR OUTLINE COLOR",
+    barOutlineColor: "ENEMY OUTLINE COLOR",
+    allyBarOutlineColor: "ALLY OUTLINE COLOR",
     enemyPipColor: "ENEMY PIP COLOR",
     allyPipColor: "ALLY PIP COLOR",
     enemyNameColor: "ENEMY NAME COLOR",
@@ -738,6 +741,7 @@
 
   var TOGGLE_CONTROLS = [
     { id: "HPColorsBarOutlineToggle", key: "barOutlineEnabled" },
+    { id: "HPColorsBarOutlineCustomColorToggle", key: "barOutlineCustomColor" },
     {id: "HPColorsEnemyPipColorToggle", key: "enemyPipColorEnabled"},
     {id: "HPColorsAllyPipColorToggle", key: "allyPipColorEnabled"},
 
@@ -1174,6 +1178,7 @@
   ];
   var COLOR_CONTROLS = [
     { base: "HPColorsBarOutlineColor", key: "barOutlineColor" },
+    { base: "HPColorsAllyBarOutlineColor", key: "allyBarOutlineColor" },
     { base: "HPColorsHudHealthColor", key: "hudHealthColor" },
     {base: "HPColorsEnemyPipColor", key: "enemyPipColor"},
     {base: "HPColorsAllyPipColor", key: "allyPipColor"},
@@ -1343,7 +1348,9 @@
     "heightScale": "HPColorsHeightScaleRow",
     "barMask": "HPColorsBarMaskRow",
     "barOutlineEnabled": "HPColorsBarOutlineEnabledRow",
+    "barOutlineCustomColor": "HPColorsBarOutlineCustomColorRow",
     "barOutlineColor": "HPColorsBarOutlineColorRow",
+    "allyBarOutlineColor": "HPColorsAllyBarOutlineColorRow",
     "barOutlineThickness": "HPColorsBarOutlineThicknessRow",
     "barOutlineOpacity": "HPColorsBarOutlineOpacityRow",
     "damageShakeEnabled": "HPColorsDamageShakeEnabledRow",
@@ -5438,7 +5445,9 @@
   }
 
   function syncControlDependencies(values) {
-    syncDependentRow("HPColorsBarOutlineColorRow", values.barOutlineEnabled, "HPColorsBarOutlineColorSwatch", "HPColorsBarOutlineColorHex");
+    syncDependentRow("HPColorsBarOutlineCustomColorRow", values.barOutlineEnabled, "HPColorsBarOutlineCustomColorToggle");
+    syncDependentRow("HPColorsBarOutlineColorRow", values.barOutlineEnabled && values.barOutlineCustomColor, "HPColorsBarOutlineColorSwatch", "HPColorsBarOutlineColorHex");
+    syncDependentRow("HPColorsAllyBarOutlineColorRow", values.barOutlineEnabled && values.barOutlineCustomColor, "HPColorsAllyBarOutlineColorSwatch", "HPColorsAllyBarOutlineColorHex");
     syncDependentRow("HPColorsBarOutlineThicknessRow", values.barOutlineEnabled, "HPColorsBarOutlineThicknessSlider", "HPColorsBarOutlineThicknessEntry");
     syncDependentRow("HPColorsBarOutlineOpacityRow", values.barOutlineEnabled, "HPColorsBarOutlineOpacitySlider", "HPColorsBarOutlineOpacityEntry");
     if (navigationCategories === CATEGORY_DEFS) {

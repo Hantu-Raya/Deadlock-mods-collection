@@ -164,6 +164,8 @@
     barOutlineThickness: 1,
     barOutlineOpacity: 100,
     barOutlineColor: "#000000",
+    barOutlineCustomColor: false,
+    allyBarOutlineColor: "#000000",
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -254,6 +256,8 @@
     "barOutlineThickness",
     "barOutlineOpacity",
     "barOutlineColor",
+    "barOutlineCustomColor",
+    "allyBarOutlineColor",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -396,6 +400,7 @@
 
   var BOOLEAN_KEYS = {
     barOutlineEnabled: true,
+    barOutlineCustomColor: true,
     enabled: true,
     criticalIndicatorVisible: true,
     playerNamesVisible: true,
@@ -437,6 +442,7 @@
 
   var COLOR_KEYS = {
     barOutlineColor: true,
+    allyBarOutlineColor: true,
     enemyLow: true,
     enemyMid: true,
     enemyHigh: true,

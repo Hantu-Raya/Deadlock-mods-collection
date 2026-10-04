@@ -1974,6 +1974,43 @@
 	ignore-parent-flow: true;
 	z-index: -1;
 }
+/* Stock outline colors follow the engine's ancestor rule order, including critical state. */
+.team1 #HPV2BarOutline,
+.team1 .HPV2PipOutlineBox
+{
+	background-color: team1ColorDark;
+}
+
+.team2 #HPV2BarOutline,
+.team2 .HPV2PipOutlineBox
+{
+	background-color: team2ColorDark;
+}
+
+.friend #HPV2BarOutline,
+.friend .HPV2PipOutlineBox
+{
+	background-color: rgb(4, 37, 23);
+}
+
+.team_neutral #HPV2BarOutline,
+.team_neutral .HPV2PipOutlineBox
+{
+	background-color: offBlack;
+}
+
+.enemy #HPV2BarOutline,
+.enemy .HPV2PipOutlineBox
+{
+	background-color: offBlack;
+}
+
+.enemy.health_critical .ShowCriticalState #HPV2BarOutline,
+.enemy.health_critical .ShowCriticalState .HPV2PipOutlineBox
+{
+	background-color: rgb(47, 4, 4);
+}
+
 
 .WindowRoot.HPColorsRewriteBarMask #UnitHealthbar #HPV2BarOutline
 {
