@@ -160,6 +160,10 @@
     allyReadoutTilt: 0,
     enemyRatkingArmor: "#C7A674",
     allyRatkingArmor: "#C7A674",
+    barOutlineEnabled: true,
+    barOutlineThickness: 1,
+    barOutlineOpacity: 100,
+    barOutlineColor: "#000000",
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -246,6 +250,10 @@
     "allyReadoutTilt",
     "enemyRatkingArmor",
     "allyRatkingArmor",
+    "barOutlineEnabled",
+    "barOutlineThickness",
+    "barOutlineOpacity",
+    "barOutlineColor",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -387,6 +395,7 @@
   DEFAULTS.nameRiseWithPips = true;
 
   var BOOLEAN_KEYS = {
+    barOutlineEnabled: true,
     enabled: true,
     criticalIndicatorVisible: true,
     playerNamesVisible: true,
@@ -427,6 +436,7 @@
   };
 
   var COLOR_KEYS = {
+    barOutlineColor: true,
     enemyLow: true,
     enemyMid: true,
     enemyHigh: true,
@@ -488,6 +498,8 @@
   };
 
   var NUMBER_BOUNDS = {
+    barOutlineThickness: [0.5, 2.5],
+    barOutlineOpacity: [0, 100],
     widthScale: [60, 400],
     heightScale: [60, 400],
     positionX: [-2000, 2000],
@@ -544,6 +556,7 @@
   };
 
   var NUMBER_STEPS = {
+    barOutlineThickness: 0.5,
     ultimateTimerSize: 5,
     readoutOutlineWidth: 0.5,
     allyReadoutOutlineWidth: 0.5,

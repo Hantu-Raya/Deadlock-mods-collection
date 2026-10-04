@@ -1,4 +1,4 @@
-<!-- Generated from pak03 SHA-256 27e9bb93d3cdcf04d0771d8eeb490589b566fcd3347cff6f3f082c1e37affce3 by refresh-hp-colors-rewrite-qollock.js -->
+<!-- Generated from pak03 SHA-256 a8ea90f59945674b6b3df0475c87fa107317a6e9c4600a95c06e4eadb7e42575 by refresh-hp-colors-rewrite-qollock.js -->
 <root>
 	<styles>
 		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
@@ -316,6 +316,23 @@
                       <Button id="HPColorsBarMaskNone" class="HPColorsSegmentButton"><Label text="V1" /></Button>
                       <Button id="HPColorsBarMaskOld" class="HPColorsSegmentButton"><Label text="OLD" /></Button>
                     </Panel>
+                  </Panel>
+                  <Panel id="HPColorsBarOutlineEnabledRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="BAR OUTLINE" class="HPColorsSettingTitle" /><Label text="Outline hero healthbars and enabled Units bars. Shields stay unchanged." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsBarOutlineToggle" class="HPColorsToggle"><Panel class="HPColorsToggleKnob" /></Button>
+                  </Panel>
+                  <Panel id="HPColorsBarOutlineColorRow" class="HPColorsSettingRow HPColorsColorRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="OUTLINE COLOR" class="HPColorsSettingTitle" /><Label text="One shared outline color for enemies, allies and neutrals." class="HPColorsSettingHelp" /></Panel>
+                    <Button id="HPColorsBarOutlineColorSwatch" class="HPColorsColorSwatch" />
+                    <TextEntry id="HPColorsBarOutlineColorHex" class="HPColorsHexEntry" text="#000000" maxchars="7" />
+                  </Panel>
+                  <Panel id="HPColorsBarOutlineThicknessRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="OUTLINE THICKNESS" class="HPColorsSettingTitle" /><Label text="Set the rim thickness; small OLD boxes clamp it to fit." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsBarOutlineThicknessSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsBarOutlineThicknessEntry" class="HPColorsNumberEntry" text="1" /><Label text="PX" class="HPColorsUnitLabel" /></Panel>
+                  </Panel>
+                  <Panel id="HPColorsBarOutlineOpacityRow" class="HPColorsSettingRow">
+                    <Panel class="HPColorsSettingCopy"><Label text="OUTLINE OPACITY" class="HPColorsSettingTitle" /><Label text="Set outline opacity without changing the health fill." class="HPColorsSettingHelp" /></Panel>
+                    <Panel class="HPColorsSliderGroup"><Panel id="HPColorsBarOutlineOpacitySliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" /><TextEntry id="HPColorsBarOutlineOpacityEntry" class="HPColorsNumberEntry" text="100" /><Label text="%" class="HPColorsUnitLabel" /></Panel>
                   </Panel>
                   <Panel id="HPColorsDamageShakeEnabledRow" class="HPColorsSettingRow">
                     <Panel class="HPColorsSettingCopy"><Label text="DAMAGE SHAKE" class="HPColorsSettingTitle" /><Label text="Shake healthbars, HP text and names when the unit takes damage, like the game does." class="HPColorsSettingHelp" /></Panel>

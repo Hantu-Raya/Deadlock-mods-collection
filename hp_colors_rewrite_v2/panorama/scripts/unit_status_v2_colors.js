@@ -665,6 +665,7 @@
       healthbars: healthbars,
       primary: primary,
       inner: inner,
+      barOutline: directChild(primary, "HPV2BarOutline"),
       infoHealth: infoHealth,
       unitStatus: unitStatus,
       // The name rides the full-canvas motion frame, so it shakes with the bar.
@@ -683,6 +684,7 @@
       pipGrid: directChild(primary, "HPV2PipGrid"),
       pipEmpty: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipEmpty"),
       pipFill: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipFill"),
+      pipOutline: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipOutline"),
       killMarker: directChild(primary, "hp_colors_kill_marker"),
       unitInfo: unitInfo,
       ultBackground: ultBackground,
@@ -2219,6 +2221,8 @@
   function appearanceStyleDrift(bar) {
     var player = config.enabled && bar.surface === "player";
     var root = bar.parts.windowRoot;
+    if (hasClass(bar.parts.primary, "HPColorsRewriteBarOutline") !== (bar.applied.barOutlineClass === "1"))
+      return true;
     var native = nativeReadoutEnabled(bar);
     if (native && isValid(bar.parts.healthValue) &&
       isValid(bar.parts.counterRow) && panelParent(bar.parts.healthValue) !== bar.parts.counterRow)
@@ -2378,6 +2382,76 @@
     bar.pipColorEntries = next;
   }
 
+  function syncBarOutline(bar) {
+    var parts = bar.parts;
+    var enabled = !!(config.enabled && bar.surface && config.barOutlineEnabled);
+    var whole = enabled && config.barMask !== "old" &&
+      bar.innerWidth > 0 && bar.innerHeight > 0;
+    if (whole && !isValid(parts.barOutline))
+      parts.barOutline = ensureOwnedPanel(parts.primary, "HPV2BarOutline");
+    whole = whole && isValid(parts.barOutline);
+    setOwnedClass(parts.primary, "HPColorsRewriteBarOutline", whole,
+      bar.applied, "barOutlineClass");
+    setStyle(parts.barOutline, "visibility", whole ? "visible" : "collapse",
+      bar.applied, "barOutlineVisibility", !whole);
+    if (whole) {
+      var t = config.barOutlineThickness;
+      setStyle(parts.barOutline, "position", pixels(bar.innerX - t) + " " + pixels(bar.innerY - t) + " 0px",
+        bar.applied, "barOutlinePosition");
+      setStyle(parts.barOutline, "width", pixels(bar.innerWidth + 2 * t), bar.applied, "barOutlineWidth");
+      setStyle(parts.barOutline, "height", pixels(bar.innerHeight + 2 * t), bar.applied, "barOutlineHeight");
+      setStyle(parts.barOutline, "backgroundColor", config.barOutlineColor, bar.applied, "barOutlineColor");
+      setStyle(parts.barOutline, "opacity", String(config.barOutlineOpacity / 100), bar.applied, "barOutlineOpacity");
+    }
+    setStyle(parts.pipOutline, "visibility", enabled && config.barMask === "old" && bar.pipCount > 0 ? "visible" : "collapse",
+      bar.applied, "pipOutlineVisibility", !enabled || config.barMask !== "old" || !bar.pipCount);
+  }
+
+  function syncOldOutline(bar) {
+    var parts = bar.parts;
+    var enabled = !!(config.enabled && bar.surface && config.barOutlineEnabled &&
+      config.barMask === "old" && bar.pipCount > 0);
+    if (!enabled) {
+      setStyle(parts.pipOutline, "visibility", "collapse", bar.applied, "pipOutlineVisibility");
+      return;
+    }
+    if (!isValid(parts.pipOutline)) {
+      parts.pipOutline = ensureOwnedPanel(parts.pipGrid, "HPV2PipOutline");
+      bar.pipOutlineRevision = -1;
+    }
+    if (!isValid(parts.pipOutline)) return;
+    // The layer is independent of health: no outline allocations or writes on health ticks.
+    if (bar.pipOutlineRevision === configRevision && bar.pipOutlineSignature === bar.pipSignature) return;
+    setStyle(parts.pipOutline, "visibility", "visible", bar.applied, "pipOutlineVisibility");
+    setStyle(parts.pipOutline, "opacity", String(config.barOutlineOpacity / 100), bar.applied, "pipOutlineOpacity");
+    var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
+    var height = Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX * 0.8 / rows;
+    var complete = bar.applied.pipOutlineVisibility === "visible" && bar.applied.pipOutlineOpacity !== null;
+    for (var index = 0; index < bar.pipPool.length; index++) {
+      var entry = bar.pipPool[index];
+      var shown = index < bar.pipCount;
+      if (shown && (!isValid(entry.outline) || panelParent(entry.outline) !== parts.pipOutline)) {
+        entry.outline = ensureOwnedPanel(parts.pipOutline, "HPV2PipOutline" + index);
+        entry.outlineApplied = {};
+        if (isValid(entry.outline)) entry.outline.AddClass("HPV2PipOutlineBox");
+      }
+      if (!isValid(entry.outline)) { if (shown) complete = false; continue; }
+      setStyle(entry.outline, "visibility", shown ? "visible" : "collapse", entry.outlineApplied, "visibility");
+      if (!shown) continue;
+      var width = bar.primaryWidth * PIP_WIDTH_PERCENT / 100 * entry.capacity / PIP_HP;
+      var t = Math.max(0.01, Math.min(config.barOutlineThickness, (Math.min(width, height) - 0.1) / 2));
+      setStyle(entry.outline, "position", entry.emptyApplied.position, entry.outlineApplied, "position");
+      setStyle(entry.outline, "width", entry.emptyApplied.width, entry.outlineApplied, "width");
+      setStyle(entry.outline, "height", entry.emptyApplied.height, entry.outlineApplied, "height");
+      setStyle(entry.outline, "border", pixels(t) + " solid " + config.barOutlineColor, entry.outlineApplied, "border");
+      if (entry.outlineApplied.border === null || entry.outlineApplied.position === null ||
+        entry.outlineApplied.width === null || entry.outlineApplied.height === null ||
+        entry.outlineApplied.visibility === null) complete = false;
+    }
+    bar.pipOutlineRevision = complete ? configRevision : -1;
+    bar.pipOutlineSignature = bar.pipSignature;
+  }
+
   // OLD: the engine draws floor(max/250) lines at x = 250k/max of #UnitHealthbarLines
   // (UpdateTickBar), so the last line gives max HP without reading HP text. Pips are laid
   // out only when that line set changes; health changes rewrite only the pips they cross.
@@ -2483,6 +2557,7 @@
     var signature = width > 0 && x > 0 ? lines.length + ":" + x + ":" + width : "";
     if (signature !== bar.pipSignature || parts.pipGrid !== bar.pipContainer)
       layoutOldPips(bar, signature, signature ? lines.length * 250 * width / x : 0);
+    syncOldOutline(bar);
     if (bar.pipCount) {
       fillOldPips(bar);
       if (bar.applied.killMarkerVisibility !== "collapse") clearKillMarkerOwnership(bar);
@@ -3291,6 +3366,7 @@
         bar.applied, "canvasBoundsVisibility");
     }
     if (!healthOnly) syncOwnedRootClasses(bar);
+    if (!healthOnly) syncBarOutline(bar);
     if (!bar.surface) {
       restoreInactiveCustomization(bar, panelBaseline);
       bar.dirty = false;
@@ -3532,12 +3608,17 @@
     var full = bar.partsScans % FULL_RESOLVE_SCANS === 1;
     var drift = repairStyleCache(bar.applied, !full);
     if (!full) return drift;
+    if (drift) bar.pipOutlineRevision = -1;
     for (var index = 0; index < bar.pipColorEntries.length; index++)
       if (repairStyleCache(bar.pipColorEntries[index].applied)) drift = true;
     for (var index = 0; index < bar.pipPool.length; index++) {
       var entry = bar.pipPool[index];
       var emptyDrift = repairStyleCache(entry.emptyApplied);
       var fillDrift = repairStyleCache(entry.fillApplied);
+      if (entry.outlineApplied && (repairStyleCache(entry.outlineApplied) || !isValid(entry.outline))) {
+        bar.pipOutlineRevision = -1;
+        drift = true;
+      }
       if (emptyDrift || fillDrift) {
         bar.pipSignature = null;
         drift = true;
@@ -3614,11 +3695,13 @@
     bar.unitInfoAnchorCenterY = 0;
     bar.pipSignature = null;
     bar.pipContainer = null;
-    (bar.pipPool || []).forEach(function (pip) { try { pip.empty.DeleteAsync(0); pip.fill.DeleteAsync(0); } catch {} });
+    (bar.pipPool || []).forEach(function (pip) { try { pip.empty.DeleteAsync(0); pip.fill.DeleteAsync(0); if (isValid(pip.outline)) pip.outline.DeleteAsync(0); } catch {} });
     bar.pipPool = [];
     bar.pipCount = 0;
     bar.pipMax = 0;
     bar.pipHp = null;
+    bar.pipOutlineRevision = -1;
+    bar.pipOutlineSignature = null;
     bar.healthFraction = -1;
     bar.dormant = false;
     bar.factCarriers = null;

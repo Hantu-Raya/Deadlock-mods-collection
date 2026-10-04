@@ -3,7 +3,7 @@ param(
     [switch]$SkipDeploy,
     [switch]$RefreshFromInstalledQollock,
     [string]$Source2ViewerPath = '',
-    # QOLLOCK 4.0.3 (1 October hotfix) package to regenerate the Escape menu from; the release zip ships pak03.
+    # QOLLOCK 4.0.4 (3 October) package to regenerate the Escape menu from; the release zip ships pak03.
     [string]$QollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk',
     [switch]$SkipPanoramaTests
 )
@@ -15,7 +15,7 @@ $root = $PSScriptRoot
 . (Join-Path $root 'scripts\hp-colors-rewrite-closure.ps1')
 
 $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
-# QOLLOCK 4.0.3 1 October hotfix release layout, pin, contract and bridge.
+# QOLLOCK 4.0.4 3 October release layout, pin, contract and bridge.
 $supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
 $bridgeSrc = $supportSrc
 $compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'

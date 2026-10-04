@@ -84,6 +84,10 @@
             "widthScale",
             "heightScale",
             "barMask",
+            "barOutlineEnabled",
+            "barOutlineColor",
+            "barOutlineThickness",
+            "barOutlineOpacity",
             "damageShakeEnabled",
             "damageShakeIntensity",
             "positionX",
@@ -620,6 +624,8 @@
     "HPColorsCategoryReadout",
   ];
   var ADVANCED_KEYS = [
+    "barOutlineThickness",
+    "barOutlineOpacity",
     "lowThreshold",
     "highThreshold",
     "positionX",
@@ -690,6 +696,7 @@
   var advancedNotes = [];
 
   var COLOR_TITLES = {
+    barOutlineColor: "BAR OUTLINE COLOR",
     enemyPipColor: "ENEMY PIP COLOR",
     allyPipColor: "ALLY PIP COLOR",
     enemyNameColor: "ENEMY NAME COLOR",
@@ -730,6 +737,7 @@
   };
 
   var TOGGLE_CONTROLS = [
+    { id: "HPColorsBarOutlineToggle", key: "barOutlineEnabled" },
     {id: "HPColorsEnemyPipColorToggle", key: "enemyPipColorEnabled"},
     {id: "HPColorsAllyPipColorToggle", key: "allyPipColorEnabled"},
 
@@ -963,6 +971,8 @@
     },
   ];
   var SLIDER_CONTROLS = [
+    { base: "HPColorsBarOutlineThickness", key: "barOutlineThickness", min: 0.5, max: 2.5, increment: 0.5, optional: true },
+    { base: "HPColorsBarOutlineOpacity", key: "barOutlineOpacity", min: 0, max: 100, optional: true },
     {base: "HPColorsPipOpacity", key: "pipOpacity", min: 0, max: 100},
     { base: "HPColorsDamageShakeIntensity", key: "damageShakeIntensity", min: 1, max: 10 },
 
@@ -1163,6 +1173,7 @@
     },
   ];
   var COLOR_CONTROLS = [
+    { base: "HPColorsBarOutlineColor", key: "barOutlineColor" },
     { base: "HPColorsHudHealthColor", key: "hudHealthColor" },
     {base: "HPColorsEnemyPipColor", key: "enemyPipColor"},
     {base: "HPColorsAllyPipColor", key: "allyPipColor"},
@@ -1331,6 +1342,10 @@
     "widthScale": "HPColorsWidthScaleRow",
     "heightScale": "HPColorsHeightScaleRow",
     "barMask": "HPColorsBarMaskRow",
+    "barOutlineEnabled": "HPColorsBarOutlineEnabledRow",
+    "barOutlineColor": "HPColorsBarOutlineColorRow",
+    "barOutlineThickness": "HPColorsBarOutlineThicknessRow",
+    "barOutlineOpacity": "HPColorsBarOutlineOpacityRow",
     "damageShakeEnabled": "HPColorsDamageShakeEnabledRow",
     "damageShakeIntensity": "HPColorsDamageShakeIntensityRow",
     "positionX": "HPColorsPositionXRow",
@@ -5423,6 +5438,9 @@
   }
 
   function syncControlDependencies(values) {
+    syncDependentRow("HPColorsBarOutlineColorRow", values.barOutlineEnabled, "HPColorsBarOutlineColorSwatch", "HPColorsBarOutlineColorHex");
+    syncDependentRow("HPColorsBarOutlineThicknessRow", values.barOutlineEnabled, "HPColorsBarOutlineThicknessSlider", "HPColorsBarOutlineThicknessEntry");
+    syncDependentRow("HPColorsBarOutlineOpacityRow", values.barOutlineEnabled, "HPColorsBarOutlineOpacitySlider", "HPColorsBarOutlineOpacityEntry");
     if (navigationCategories === CATEGORY_DEFS) {
       for (var key in keyPageIds) {
         if (!conditionalSettingVisible(key, values))
@@ -6208,6 +6226,8 @@
     for (var index = 0; index < SLIDER_CONTROLS.length; index++) {
       var control = SLIDER_CONTROLS[index];
       var sliderId = control.base + "Slider";
+      // Older composed Escape layouts can omit appended rows until refreshed.
+      if (control.optional && !isValid(find(SETTING_ROW_IDS[control.key]))) continue;
       var slider = createSlider(
         sliderId + "Host",
         sliderId,
