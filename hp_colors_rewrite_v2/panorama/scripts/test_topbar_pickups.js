@@ -71,6 +71,7 @@
   var ultimateOverlay = null;
   var ultimateBackground = null;
   var ultimateBackgroundScale = "1";
+  var ultimateKillStreak = null;
   var ultimateFill = null;
   var ultimateDark = null;
   var ultimateReady = null;
@@ -248,8 +249,22 @@
   // ULTIMATE SIZE scales the whole ult icon, ready or cooling down.
   function applyUltimateBaseScale() {
     var owned = ultimateTimerEnabled() && playerUnit === true && !context.BAscendantHasClass("LocalPlayer");
-    if (owned ? !findUltimatePanels(false) : !valid(ultimateBackground)) return;
-    setTimerStyle(ultimateBackground, "preTransformScale2d",
+    var ready = owned ? findUltimatePanels(false) : valid(ultimateBackground);
+    var panel = ultimateKillStreak && ultimateKillStreak.panel;
+    if (owned && ready && (!valid(panel) || !panel.HPV2KillStreakAdoption ||
+        panel.GetParent() !== ultimateBackground.GetParent()))
+      panel = context.FindChildTraverse("KillStreakIndicator");
+    var adoption = owned && ready && valid(panel) && panel.HPV2KillStreakAdoption &&
+      panel.BHasClass("HPColorsRewriteKillStreakAdopted") &&
+      panel.GetParent() === ultimateBackground.GetParent() ? panel.HPV2KillStreakAdoption : null;
+    if (ultimateKillStreak !== adoption) {
+      if (ultimateKillStreak) setTimerStyle(ultimateKillStreak.panel, "preTransformScale2d",
+        ultimateKillStreak.scale, "killStreakScale");
+      ultimateKillStreak = adoption;
+      delete ultimateStyleCache.killStreakScale;
+    }
+    if (adoption) setTimerStyle(panel, "preTransformScale2d", config.ultimateTimerSize / 100, "killStreakScale");
+    if (ready) setTimerStyle(ultimateBackground, "preTransformScale2d",
       owned ? config.ultimateTimerSize / 100 : ultimateBackgroundScale);
   }
 
@@ -345,13 +360,16 @@
         players.push([player, angle, rate]);
         states.push([player, unlocked ? angle === 360 ? 2 : 1 : 0]);
         var sent = lastUltimatePlayers[player];
+        // The first cooldown sample publishes rate 0; send as soon as a moving rate exists.
+        if (sent && sent[2] === 0 && rate > 0) correction = true;
         if (sent && Math.abs(angle - Math.min(sent[1] === 360 ? 360 : 359.999,
             sent[1] + sent[2] * (now - lastUltimateSentAt) / 1000)) >= ULTIMATE_PREDICT_TOLERANCE) correction = true;
       }
-      // 8 s heartbeat leaves 4 s delivery slack before the 12 s receiver expiry.
+      // 2 s heartbeat bounds new/revealed bars (receivers drop models while hidden);
+      // 12 s expiry tolerates delivery stalls.
       var key = sessionStartedAt + ":" + JSON.stringify(states);
       if (players.length <= 12 && (key !== lastUltimateKey || correction || now < lastUltimateSentAt ||
-          now - lastUltimateSentAt >= 8000)) {
+          now - lastUltimateSentAt >= 2000)) {
         $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
           magic_word: "HPV2_ULTIMATE_SNAPSHOT", since: sessionStartedAt, at: now, players: players
         }));
@@ -1308,6 +1326,7 @@
           if (!worldWakeHook) scheduleWorldTick();
           return;
         }
+        applyUltimateBaseScale();
         if (ultimateName) {
           var now = Date.now();
           if (now < ultimateAt || now - ultimateAt >= 12000 ||

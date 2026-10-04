@@ -96,7 +96,9 @@
 			<Panel class="KSImage" />
 		</Panel>
 		<Panel id="StaminaContainer" />
-		<Panel id="RejuvenatorActive" />
+		<Panel id="HPV2RejuvenatorAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+			<Panel id="RejuvenatorActive" />
+		</Panel>
 		<Panel id="HPV2CriticalAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
 			<Panel id="CriticalIndicator">
 				<Label text="#Citadel_Hud_Critical" />

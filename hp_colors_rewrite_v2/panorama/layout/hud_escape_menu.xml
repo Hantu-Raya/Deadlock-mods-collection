@@ -1024,6 +1024,42 @@
                       </Panel>
                     </Panel>
                   </Panel>
+                  <Panel id="HPColorsRejuvenatorSection" class="HPColorsSection">
+                    <Label text="REJUVENATOR" class="HPColorsSectionHeading" />
+                    <Label text="Shared player healthbars only; your own HUD stays stock." class="HPColorsSectionNote" />
+                    <Panel id="HPColorsRejuvScaleRow" class="HPColorsSettingRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="SCALE" class="HPColorsSettingTitle" /><Label text="Scale the rejuvenator icon without moving its stock center." class="HPColorsSettingHelp" /></Panel>
+                      <Panel class="HPColorsSliderGroup">
+                        <Panel id="HPColorsRejuvScaleSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                        <TextEntry id="HPColorsRejuvScaleEntry" class="HPColorsNumberEntry" />
+                        <Label text="%" class="HPColorsUnitLabel" />
+                      </Panel>
+                    </Panel>
+                    <Panel id="HPColorsRejuvOffsetXRow" class="HPColorsSettingRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="HORIZONTAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the rejuvenator icon left or right." class="HPColorsSettingHelp" /></Panel>
+                      <Panel class="HPColorsSliderGroup">
+                        <Panel id="HPColorsRejuvOffsetXSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                        <TextEntry id="HPColorsRejuvOffsetXEntry" class="HPColorsNumberEntry" />
+                        <Label text="PX" class="HPColorsUnitLabel" />
+                      </Panel>
+                    </Panel>
+                    <Panel id="HPColorsRejuvOffsetYRow" class="HPColorsSettingRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="VERTICAL OFFSET" class="HPColorsSettingTitle" /><Label text="Move the rejuvenator icon up or down." class="HPColorsSettingHelp" /></Panel>
+                      <Panel class="HPColorsSliderGroup">
+                        <Panel id="HPColorsRejuvOffsetYSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                        <TextEntry id="HPColorsRejuvOffsetYEntry" class="HPColorsNumberEntry" />
+                        <Label text="PX" class="HPColorsUnitLabel" />
+                      </Panel>
+                    </Panel>
+                    <Panel id="HPColorsRejuvTiltRow" class="HPColorsSettingRow">
+                      <Panel class="HPColorsSettingCopy"><Label text="TILT" class="HPColorsSettingTitle" /><Label text="Rotate the rejuvenator icon around its center." class="HPColorsSettingHelp" /></Panel>
+                      <Panel class="HPColorsSliderGroup">
+                        <Panel id="HPColorsRejuvTiltSliderHost" class="HPColorsSliderTrackContainer" hittest="false" hittestchildren="true" />
+                        <TextEntry id="HPColorsRejuvTiltEntry" class="HPColorsNumberEntry" />
+                        <Label text="DEG" class="HPColorsUnitLabel" />
+                      </Panel>
+                    </Panel>
+                  </Panel>
                 </Panel>
 
                 <Panel id="HPColorsSettingsNpc" class="HPColorsSettingsPage">

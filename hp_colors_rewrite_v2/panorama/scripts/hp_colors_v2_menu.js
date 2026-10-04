@@ -306,7 +306,11 @@
             "pickupSize",
             "pickupSpacing",
             "pickupOffsetX",
-            "pickupOffsetY"
+            "pickupOffsetY",
+            "rejuvOffsetX",
+            "rejuvOffsetY",
+            "rejuvTilt",
+            "rejuvScale"
           ]
         }
       ]
@@ -667,6 +671,9 @@
     "pickupSpacing",
     "pickupOffsetX",
     "pickupOffsetY",
+    "rejuvOffsetX",
+    "rejuvOffsetY",
+    "rejuvTilt",
     "widthScale",
     "heightScale",
     "nameSize",
@@ -1162,6 +1169,10 @@
       min: -100,
       max: 100,
     },
+    { base: "HPColorsRejuvScale", key: "rejuvScale", min: 25, max: 200, increment: 5, optional: true },
+    { base: "HPColorsRejuvOffsetX", key: "rejuvOffsetX", min: -200, max: 200, optional: true },
+    { base: "HPColorsRejuvOffsetY", key: "rejuvOffsetY", min: -210, max: 210, optional: true },
+    { base: "HPColorsRejuvTilt", key: "rejuvTilt", min: -360, max: 360, optional: true },
     {
       base: "HPColorsUltimateTimerSize",
       key: "ultimateTimerSize",
@@ -1389,6 +1400,10 @@
     "pickupSpacing": "HPColorsPickupSpacingRow",
     "pickupOffsetX": "HPColorsPickupOffsetXRow",
     "pickupOffsetY": "HPColorsPickupOffsetYRow",
+    "rejuvScale": "HPColorsRejuvScaleRow",
+    "rejuvOffsetX": "HPColorsRejuvOffsetXRow",
+    "rejuvOffsetY": "HPColorsRejuvOffsetYRow",
+    "rejuvTilt": "HPColorsRejuvTiltRow",
     "ultimateTimerSize": "HPColorsUltimateTimerSizeRow",
     "ultimateTimerDarkness": "HPColorsUltimateTimerDarknessRow",
     "enemyNameColor": "HPColorsEnemyNameColorRow",
