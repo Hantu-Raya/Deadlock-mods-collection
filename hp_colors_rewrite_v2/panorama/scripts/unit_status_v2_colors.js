@@ -2433,16 +2433,28 @@
     setStyle(parts.pipOutline, "visibility", "visible", bar.applied, "pipOutlineVisibility");
     var color = customBarOutlineColor(bar);
     // The layer is independent of health: no outline allocations or writes on health ticks.
+    // A drift repair nulls the opacity cache; per-box drift resets the revision in the scan.
     if (bar.pipOutlineRevision === configRevision && bar.pipOutlineSignature === bar.pipSignature &&
-      bar.pipOutlineWidth === bar.primaryWidth && bar.pipOutlineColor === color) return;
+      bar.pipOutlineWidth === bar.primaryWidth && bar.pipOutlineColor === color &&
+      bar.applied.pipOutlineOpacity !== null) return;
     setStyle(parts.pipOutline, "opacity", String(config.barOutlineOpacity / 100), bar.applied, "pipOutlineOpacity");
-    var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
-    var gridHeight = Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX;
+    // Per-layout constants: only the column offset and a partial last box vary per box.
     var t = config.barOutlineThickness;
+    var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
+    var rowStep = Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX / rows;
+    var colStep = bar.primaryWidth / PIPS_PER_ROW;
+    var hpWidth = bar.primaryWidth * PIP_WIDTH_PERCENT / 100 / PIP_HP;
+    var fullWidth = pixels(hpWidth * PIP_HP + 2 * t);
+    var height = pixels(rowStep * 0.8 + 2 * t);
+    var top = "";
     var complete = bar.applied.pipOutlineVisibility === "visible" && bar.applied.pipOutlineOpacity !== null;
     for (var index = 0; index < bar.pipPool.length; index++) {
       var entry = bar.pipPool[index];
       var shown = index < bar.pipCount;
+      var col = index % PIPS_PER_ROW;
+      // First box of each row (even if its panel fails): rows fill bottom-up, so row r
+      // sits (rows - 1 - r) steps down.
+      if (shown && !col) top = pixels(rowStep * (rows - 1 - index / PIPS_PER_ROW) - t) + " 0px";
       if (shown && (!isValid(entry.outline) || panelParent(entry.outline) !== parts.pipOutline)) {
         // Anonymous like the pips: an id lookup could adopt a box a reset is deleting.
         try {
@@ -2453,18 +2465,16 @@
         entry.outlineApplied = {};
       }
       if (!isValid(entry.outline)) { if (shown) complete = false; continue; }
-      setStyle(entry.outline, "visibility", shown ? "visible" : "collapse", entry.outlineApplied, "visibility");
+      var applied = entry.outlineApplied;
+      setStyle(entry.outline, "visibility", shown ? "visible" : "collapse", applied, "visibility");
       if (!shown) continue;
-      var row = Math.floor(index / PIPS_PER_ROW);
-      setStyle(entry.outline, "position", pixels(bar.primaryWidth * (index % PIPS_PER_ROW) / PIPS_PER_ROW - t) + " " +
-        pixels(gridHeight * (rows - 1 - row) / rows - t) + " 0px", entry.outlineApplied, "position");
-      setStyle(entry.outline, "width", pixels(bar.primaryWidth * PIP_WIDTH_PERCENT / 100 * entry.capacity / PIP_HP + 2 * t),
-        entry.outlineApplied, "width");
-      setStyle(entry.outline, "height", pixels(gridHeight * 0.8 / rows + 2 * t), entry.outlineApplied, "height");
-      setStyle(entry.outline, "backgroundColor", color, entry.outlineApplied, "backgroundColor");
-      if (entry.outlineApplied.backgroundColor === null || entry.outlineApplied.position === null ||
-        entry.outlineApplied.width === null || entry.outlineApplied.height === null ||
-        entry.outlineApplied.visibility === null) complete = false;
+      setStyle(entry.outline, "position", pixels(colStep * col - t) + " " + top, applied, "position");
+      setStyle(entry.outline, "width", entry.capacity === PIP_HP ? fullWidth : pixels(hpWidth * entry.capacity + 2 * t),
+        applied, "width");
+      setStyle(entry.outline, "height", height, applied, "height");
+      setStyle(entry.outline, "backgroundColor", color, applied, "backgroundColor");
+      if (applied.position === null || applied.width === null || applied.height === null ||
+        applied.backgroundColor === null || applied.visibility === null) complete = false;
     }
     bar.pipOutlineRevision = complete ? configRevision : -1;
     bar.pipOutlineSignature = bar.pipSignature;
@@ -2490,15 +2500,14 @@
     var hp = bar.pipMax * config.enemyKillMarkerThreshold / 100;
     var index = Math.max(0, Math.min(bar.pipCount - 1, Math.floor(hp / PIP_HP)));
     var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
-    var row = Math.floor(index / PIPS_PER_ROW);
     var inside = Math.max(0, Math.min(bar.pipPool[index].capacity, hp - index * PIP_HP));
     var x = index % PIPS_PER_ROW * 100 / PIPS_PER_ROW + PIP_WIDTH_PERCENT * inside / PIP_HP;
-    setStyle(marker, "position", x.toFixed(3) + "% " + ((rows - 1 - row) * 100 / rows).toFixed(3) + "% 0px",
-      bar.applied, "pipKillMarkerPosition");
+    var y = (rows - 1 - Math.floor(index / PIPS_PER_ROW)) * 100 / rows;
+    var width = Math.max(1, nativePx(config.enemyKillMarkerWidth));
+    setStyle(marker, "position", x.toFixed(3) + "% " + y.toFixed(3) + "% 0px", bar.applied, "pipKillMarkerPosition");
     setStyle(marker, "height", (80 / rows).toFixed(3) + "%", bar.applied, "pipKillMarkerHeight");
-    setStyle(marker, "width", pixels(Math.max(1, nativePx(config.enemyKillMarkerWidth))), bar.applied, "pipKillMarkerWidth");
-    setStyle(marker, "marginLeft", pixels(-Math.max(1, nativePx(config.enemyKillMarkerWidth)) / 2),
-      bar.applied, "pipKillMarkerMarginLeft");
+    setStyle(marker, "width", pixels(width), bar.applied, "pipKillMarkerWidth");
+    setStyle(marker, "marginLeft", pixels(-width / 2), bar.applied, "pipKillMarkerMarginLeft");
     setStyle(marker, "backgroundColor", config.enemyKillMarkerColor, bar.applied, "pipKillMarkerColor");
   }
 
@@ -2589,8 +2598,12 @@
     bar.pipHp = hp;
   }
 
-  function applyOldPips(bar) {
-    if (config.enabled && bar.surface && config.barMask === "old") {
+  // Layout half: reads the engine line set (2 native layout reads) and relayouts the grid
+  // only when it changed. The signature string is built only on a change; it keys rims/marker.
+  // Returns true when it relaid out, so callers can schedule one paint.
+  function layoutOld(bar) {
+    var old = config.enabled && bar.surface && config.barMask === "old";
+    if (old) {
       if (!isValid(bar.parts.pipGrid))
         bar.parts.pipGrid = ensureOwnedPanel(bar.parts.primary, "HPV2PipGrid");
       if (!isValid(bar.parts.pipEmpty))
@@ -2599,20 +2612,34 @@
         bar.parts.pipFill = ensureOwnedPanel(bar.parts.pipGrid, "HPV2PipFill");
     }
     var parts = bar.parts || {};
-    var lines = config.enabled && bar.surface && config.barMask === "old" &&
-      isValid(parts.pipEmpty) && isValid(parts.pipFill) ? (bar.pipChildren || []) : [];
+    var lines = old && isValid(parts.pipEmpty) && isValid(parts.pipFill) ? (bar.pipChildren || []) : [];
     var last = lines.length ? lines[lines.length - 1] : null;
     var width = lines.length ? readPanelWidth(parts.pipLines) : 0;
     var x = isValid(last) ? cssLayout(last, "actualxoffset", "x") : NaN;
-    var signature = width > 0 && x > 0 ? lines.length + ":" + x + ":" + width : "";
-    if (signature !== bar.pipSignature || parts.pipGrid !== bar.pipContainer)
-      layoutOldPips(bar, signature, signature ? lines.length * 250 * width / x : 0);
+    var count = lines.length;
+    if (!(width > 0 && x > 0)) count = x = width = 0;
+    if (count === bar.pipLineCount && x === bar.pipLineX && width === bar.pipLineWidth &&
+      bar.pipSignature !== null && parts.pipGrid === bar.pipContainer) return false;
+    bar.pipLineCount = count;
+    bar.pipLineX = x;
+    bar.pipLineWidth = width;
+    layoutOldPips(bar, count ? count + ":" + x + ":" + width : "", count ? count * 250 * width / x : 0);
+    return true;
+  }
+
+  // Paint half: rims, marker and fill. Rims/marker early-return unless config or layout changed.
+  function paintOld(bar) {
     syncOldOutline(bar);
     syncOldKillMarker(bar);
     if (bar.pipCount) {
       fillOldPips(bar);
       if (bar.applied.killMarkerVisibility !== "collapse") clearKillMarkerOwnership(bar);
     }
+  }
+
+  function applyOldPips(bar) {
+    layoutOld(bar);
+    paintOld(bar);
   }
 
   function applyReadoutDecorations(bar) {
@@ -3182,7 +3209,7 @@
       if (bar.colorPulseActive)
         setStyle(bar.parts.pulseOverlay, "clip", pulseOverlayClip(bar),
           bar.applied, "colorPulseClip");
-      applyOldPips(bar);
+      paintOld(bar);
       bar.healthDirty = false;
       positionReadout(bar);
       applyPlayerName(bar);
@@ -3662,7 +3689,6 @@
     var full = bar.partsScans % FULL_RESOLVE_SCANS === 1;
     var drift = repairStyleCache(bar.applied, !full);
     if (!full) return drift;
-    if (drift) bar.pipOutlineRevision = -1;
     for (var index = 0; index < bar.pipColorEntries.length; index++)
       if (repairStyleCache(bar.pipColorEntries[index].applied)) drift = true;
     for (var index = 0; index < bar.pipPool.length; index++) {
@@ -3914,7 +3940,8 @@
     }
     if (bar.hidden || dormant(bar)) return false;
     rebaseStockGeometry(bar);
-    applyOldPips(bar);
+    // Layout only; a relayout schedules the one OLD paint that follows sampling.
+    if (layoutOld(bar)) bar.healthDirty = true;
     var changed = false;
     if (healthRefreshEnabled(bar)) {
       sampleHealthPercent(bar, true);
