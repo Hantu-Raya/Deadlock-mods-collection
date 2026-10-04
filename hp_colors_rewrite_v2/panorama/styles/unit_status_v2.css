@@ -1956,6 +1956,24 @@
 	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg");
 }
 
+/* Only the primary container loses its V2 mask so the owned rim can extend outside it. */
+.WindowRoot.HPColorsRewriteBarMask #UnitHealthbar.HPColorsRewriteBarOutline
+{
+	opacity-mask: none;
+}
+
+#HPV2BarOutline
+{
+	visibility: collapse;
+	ignore-parent-flow: true;
+	z-index: -1;
+}
+
+.WindowRoot.HPColorsRewriteBarMask #UnitHealthbar #HPV2BarOutline
+{
+	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg");
+}
+
 /* BAR STYLE OLD: 2024-style 100-HP pips. Without a derived max (fallback) the engine lines,
    positioned as a percent of #UnitHealthbarLines, become 250-HP gaps over the fill box. */
 .WindowRoot.HPColorsRewriteBarOld #UnitHealthbar #UnitHealthbarInner
@@ -2032,7 +2050,8 @@
 }
 
 #HPV2PipEmpty,
-#HPV2PipFill
+#HPV2PipFill,
+#HPV2PipOutline
 {
 	width: 100%;
 	height: 100%;
@@ -2052,6 +2071,18 @@
 #HPV2PipFill .HPV2Pip
 {
 	background-color: white;
+}
+
+#HPV2PipOutline
+{
+	visibility: collapse;
+	z-index: 2;
+}
+
+.HPV2PipOutlineBox
+{
+	background-color: transparent;
+	border-radius: 1px;
 }
 
 .WindowRoot .unit_info_panel

@@ -1547,7 +1547,11 @@ test('BAR MASK ORIGINAL owns the stock masks through one reversible root class',
   assert.equal(masked(), false, 'teardown releases the mask');
   const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, , body]) => /opacity-mask\s*:/.test(body));
-  assert.equal(rules.length, 1, 'one gated mask rule');
+  assert.equal(rules.length, 3, "stock masks plus primary outline mask release and masked backer");
+  assert.match(rules[1][1], /#UnitHealthbar\.HPColorsRewriteBarOutline/);
+  assert.equal(rules[1][2].trim(), "opacity-mask: none;");
+  assert.match(rules[2][1], /#UnitHealthbar #HPV2BarOutline/);
+  assert.match(rules[2][2], /healthbar_backer_horiz_mask_flipped\.vsvg/);
   const selectors = rules[0][1].replace(/\/\*[\s\S]*?\*\//g, '').split(',').map(selector => selector.trim());
   assert.deepEqual(selectors, [
     '.WindowRoot.HPColorsRewriteBarMask .UnitHealthbarContainer',
@@ -3040,4 +3044,84 @@ test('dormant scans skip cached parts and hidden gates until a full resolve or w
   fixture.harness.scheduler.runByDelay(1);
   assert.equal(fixture.stack.style.preTransformScale2d, '1.5, 1', 'kind wake reconciles immediately');
   assert.ok(gates > 2, 'wake reads hidden gates immediately');
+});
+
+test("bar outline owns only the primary backer without moving measured geometry and releases masks", () => {
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "original" }, ({ inner, stack }) => {
+    inner.actuallayoutheight = 12; inner.actualxoffset = 6; inner.actualyoffset = 3.5;
+    const shield = stack.add(new MockPanel("UnitShieldbar", { classes: ["UnitHealthbarContainer"] }));
+    shield.add(new MockPanel("UnitHealthbarInner"));
+  });
+  const backer = () => fixture.primary.FindChildTraverse("HPV2BarOutline");
+  assert.equal(backer().hittest, false);
+  assert.equal(backer().hittestchildren, false);
+  assert.equal(backer().style.position, "5px 2.5px 0px");
+  assert.equal(backer().style.width, "71px");
+  assert.equal(backer().style.height, "14px");
+  assert.equal(backer().style.backgroundColor, "#000000");
+  assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), true);
+  fixture.update({ barMask: "original", barOutlineThickness: 2.5, barOutlineColor: "#123456", barOutlineOpacity: 37 });
+  assert.equal(backer().style.position, "3.5px 1px 0px");
+  assert.equal(backer().style.width, "74px");
+  assert.equal(backer().style.opacity, "0.37");
+  assert.equal(backer().style.backgroundColor, "#123456");
+  for (const property of ["width", "height", "position", "marginLeft", "marginTop"])
+    assert.equal(fixture.inner.style[property] || "", "", property);
+  const shield = fixture.stack.FindChildTraverse("UnitShieldbar");
+  assert.equal(shield.FindChildTraverse("HPV2BarOutline"), null);
+  assert.equal(shield.BHasClass("HPColorsRewriteBarOutline"), false);
+  const writes = backer().__styleWrites.length;
+  fixture.fill.actuallayoutwidth = 20; paintReadout(fixture);
+  assert.equal(backer().__styleWrites.length, writes, "health ticks do not repaint the rim");
+  fixture.update({ barMask: "original", barOutlineEnabled: false });
+  assert.equal(backer().style.visibility, "collapse");
+  assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), false);
+  assert.equal(fixture.window.BHasClass("HPColorsRewriteBarMask"), true, "off restores the container mask without changing BAR STYLE");
+  fixture.update({ barMask: "original" });
+  fixture.status.valid = false; fixture.harness.scheduler.runNext();
+  assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), false);
+  assert.equal(backer().style.visibility, "collapse");
+});
+
+test("bar outline follows every UNITS gate and neutral precedence", () => {
+  for (const [classes, gate] of [[["creature", "enemy"], "npcEnemyEnabled"],
+    [["creature", "friend"], "npcAllyEnabled"], [["neutral_weak", "team_neutral"], "npcNeutralEnabled"],
+    [["building", "enemy"], "buildingEnemyEnabled"]]) {
+    const fixture = makeOwnershipFixture(classes, {}, ({ inner }) => { inner.actuallayoutheight = 12; });
+    assert.equal(fixture.primary.FindChildTraverse("HPV2BarOutline"), null);
+    fixture.update({ [gate]: true });
+    assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), true, gate);
+    fixture.update({ [gate]: false });
+    assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), false, gate);
+    assert.equal(fixture.primary.FindChildTraverse("HPV2BarOutline").style.visibility, "collapse");
+  }
+});
+
+test("OLD outline boxes match fixed pips, clamp thickness and never write on health ticks", () => {
+  const fixture = makeOldFixture(2850, { barOutlineThickness: 2.5, barOutlineOpacity: 40 });
+  const outline = () => fixture.primary.FindChildTraverse("HPV2PipOutline");
+  const boxes = shownPips(fixture, "HPV2PipOutline");
+  const empty = shownPips(fixture, "HPV2PipEmpty");
+  assert.equal(boxes.length, 29);
+  assert.equal(outline().hittest, false);
+  assert.equal(outline().style.opacity, "0.4");
+  for (let index = 0; index < boxes.length; index++) {
+    for (const property of ["position", "width", "height"])
+      assert.equal(boxes[index].style[property], empty[index].style[property]);
+    assert.ok(parseFloat(boxes[index].style.border) < 2.4, "below half the 4.8px box height");
+  }
+  assert.equal(boxes[28].style.width, "4.250%");
+  const writes = layerWrites(fixture, "HPV2PipOutline") + outline().__styleWrites.length;
+  for (let i = 0; i < 4; i++) { fixture.fill.actuallayoutwidth -= 1; paintReadout(fixture); }
+  assert.equal(layerWrites(fixture, "HPV2PipOutline") + outline().__styleWrites.length, writes);
+  fixture.update({ barMask: "old", barOutlineEnabled: false });
+  assert.equal(outline().style.visibility, "collapse");
+  fixture.update({ barMask: "old", barOutlineColor: "#ABCDEF" });
+  assert.equal(outline().style.visibility, "visible");
+  assert.match(shownPips(fixture, "HPV2PipOutline")[0].style.border, /#ABCDEF$/);
+  setEngineLines(fixture.primary.FindChildTraverse("UnitHealthbarLines"), 900, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 9);
+  fixture.update({ barMask: "old", enabled: false });
+  assert.equal(outline().style.visibility, "collapse");
 });

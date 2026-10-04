@@ -85,7 +85,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
   assert.equal(Object.isFrozen(contract.keys), true);
   assert.equal(Object.isFrozen(contract.settingMeta), true);
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 83);
+  assert.equal(contract.extensionKeys.length, 87);
   assert.deepEqual(contract.extensionKeys.slice(68, 70), ['nameAlign', 'hpTextAlign']);
   for (const key of ['nameAlign', 'hpTextAlign']) {
     assert.equal(contract.defaults[key], key === 'nameAlign' ? 'center' : 'left');
@@ -3589,7 +3589,7 @@ test('hpv2 v3 imports offsets and conditions unchanged then exports v2', () => {
 });
 
 test('new appended controls preserve the frozen sparse baseline and transfer', () => {
-  assert.equal(EXTENSION_KEYS.length, 83);
+  assert.equal(EXTENSION_KEYS.length, 87);
   assert.deepEqual(EXTENSION_KEYS.slice(67, 74), ['allyPulseReadout', 'nameAlign', 'hpTextAlign',
     'criticalOffsetX', 'criticalOffsetY', 'assassinateOffsetX', 'assassinateOffsetY']);
   for (const defaults of [CODEC_DEFAULTS, CONTRACT.sparseDefaults, DEFAULTS]) {
@@ -3660,7 +3660,7 @@ test('bar mask appends a NONE-default enum slot that transfers, resets and rejec
 // Failure modes: OLD normalizes to NONE, is lost through codes/presets/saves/conditions,
 // or the slot count grows instead of reusing slot 74.
 test('bar style OLD reuses slot 74 and survives codes, presets, saves and conditions', () => {
-  assert.equal(EXTENSION_KEYS.length, 83);
+  assert.equal(EXTENSION_KEYS.length, 87);
   assert.equal(CONTRACT.normalizeValue('barMask', 'old'), 'old');
   const state = createState();
   assert.equal(send(state, 'setting_edit', { key: 'barMask', value: 'old' }).status, 'committed');
@@ -3780,4 +3780,28 @@ test('old local bodies silently drop removed HP text alignment keys', () => {
   }
   assert.equal(view.values.nameAlign, 'left');
   assert.equal(row(view, 'user_0001').values.nameAlign, 'right');
+});
+
+test("shared bar outline defaults omit new slots until edited and survive transfer/conditions", () => {
+  const keys = ["barOutlineEnabled", "barOutlineThickness", "barOutlineOpacity", "barOutlineColor"];
+  const defaults = [true, 1, 100, "#000000"];
+  assert.deepEqual(EXTENSION_KEYS.slice(83), keys);
+  for (const [index, key] of keys.entries()) {
+    for (const baseline of [DEFAULTS, CONTRACT.sparseDefaults, CODEC_DEFAULTS])
+      assert.equal(baseline[key], defaults[index], key);
+    assert.equal(SETTING_META[key].conditionEligible, true);
+  }
+  assert.equal(CONTRACT.normalizeValue("barOutlineThickness", 1.3), 1.5);
+  assert.equal(CONTRACT.normalizeValue("barOutlineThickness", 50), 2.5);
+  assert.equal(CONTRACT.normalizeValue("barOutlineOpacity", -10), 0);
+  const state = createState();
+  const untouched = JSON.parse(effect(send(state, "settings_copy"), "clipboard_write").text.slice(5));
+  assert.ok(!(untouched.hpv2 && untouched.hpv2.values || []).some(([slot]) => slot >= 83));
+  for (const [index, value] of [false, 2.5, 37, "#123456"].entries())
+    send(state, "setting_edit", { key: keys[index], value });
+  const code = effect(send(state, "settings_copy"), "clipboard_write").text;
+  assert.deepEqual(JSON.parse(code.slice(5)).hpv2.values.slice(-4), [[83, false], [84, 2.5], [85, 37], [86, "#123456"]]);
+  const target = createState();
+  assert.equal(send(target, "settings_import", { raw: code }).status, "committed");
+  assert.deepEqual(keys.map(key => target.read().values[key]), [false, 2.5, 37, "#123456"]);
 });
