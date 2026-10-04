@@ -376,7 +376,7 @@ Install only one pak02 variant and fully restart Deadlock. The normal archive co
 ## Release 2.2.3
 
 - BAR OUTLINE (slots 84–87 `barOutlineEnabled`/`barOutlineThickness` 0.5–10px/`barOutlineOpacity`/`barOutlineColor`, GENERAL → Layout), on by default with a base-game-colored 1px rim; slots 88 `barOutlineCustomColor` (false) and 89 `allyBarOutlineColor` add custom enemy (slot 87)/ally hero colors. Frozen sparse defaults equal the shipped ones, so untouched saves and codes omit the slots and still load in 2.2.2; only changed outline values need 2.2.3. OLD rims are solid backers under each box (the first in-game look, a bordered overlay, showed fill corners and was replaced).
-- OLD layer visibility has one owner (`syncOldOutline`), fixing enemy rims that stayed hidden after a transient collapse during health-only paints.
+- Enemy OLD rims flickered on/off every ~5 s: the grid kill marker `HPV2PipKillMarker` was missing from resolved parts, so each full-resolve scan reset the bar, and the rebuilt rims re-adopted id-named boxes still pending deletion. Parts now resolve the marker and rim boxes are anonymous (found with a temporary `[HPV2-OL]` watcher in the diagnostic probe). OLD layer visibility also has one owner (`syncOldOutline`).
 - Enemy kill marker on OLD: `HPV2PipKillMarker` tick in the pip grid at the threshold HP.
 - QOLLOCK variant now targets QOLLOCK 4.0.4 (`qollock_404_3october.zip`, pak03 SHA-256 `a8ea90f5…`). Its Escape menu and topbar match 4.0.3, so only the pin and the composed HP rows changed.
 - Not yet confirmed in game: V1/V2 rim draw order (`z-index: -1`), thick rims, OLD backers and kill marker, and QOLLOCK 4.0.4 with this pak02.

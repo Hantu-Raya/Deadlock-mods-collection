@@ -685,6 +685,7 @@
       pipEmpty: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipEmpty"),
       pipFill: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipFill"),
       pipOutline: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipOutline"),
+      pipKillMarker: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipKillMarker"),
       killMarker: directChild(primary, "hp_colors_kill_marker"),
       unitInfo: unitInfo,
       ultBackground: ultBackground,
@@ -2443,9 +2444,13 @@
       var entry = bar.pipPool[index];
       var shown = index < bar.pipCount;
       if (shown && (!isValid(entry.outline) || panelParent(entry.outline) !== parts.pipOutline)) {
-        entry.outline = ensureOwnedPanel(parts.pipOutline, "HPV2PipOutline" + index);
+        // Anonymous like the pips: an id lookup could adopt a box a reset is deleting.
+        try {
+          entry.outline = $.CreatePanel("Panel", parts.pipOutline, "");
+          entry.outline.hittest = false;
+          entry.outline.AddClass("HPV2PipOutlineBox");
+        } catch { entry.outline = null; }
         entry.outlineApplied = {};
-        if (isValid(entry.outline)) entry.outline.AddClass("HPV2PipOutlineBox");
       }
       if (!isValid(entry.outline)) { if (shown) complete = false; continue; }
       setStyle(entry.outline, "visibility", shown ? "visible" : "collapse", entry.outlineApplied, "visibility");
