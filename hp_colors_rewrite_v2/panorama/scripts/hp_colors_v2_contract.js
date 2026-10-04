@@ -166,6 +166,10 @@
     barOutlineColor: "#000000",
     barOutlineCustomColor: false,
     allyBarOutlineColor: "#000000",
+    rejuvOffsetX: 0,
+    rejuvOffsetY: 0,
+    rejuvTilt: 6,
+    rejuvScale: 100,
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -258,6 +262,10 @@
     "barOutlineColor",
     "barOutlineCustomColor",
     "allyBarOutlineColor",
+    "rejuvOffsetX",
+    "rejuvOffsetY",
+    "rejuvTilt",
+    "rejuvScale",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -559,11 +567,16 @@
     readoutOutlineWidth: [0, 10],
     allyReadoutOutlineWidth: [0, 10],
     nameOutlineWidth: [0, 10],
+    rejuvOffsetX: [-200, 200],
+    rejuvOffsetY: [-210, 210],
+    rejuvTilt: [-360, 360],
+    rejuvScale: [25, 200],
   };
 
   var NUMBER_STEPS = {
     barOutlineThickness: 0.5,
     ultimateTimerSize: 5,
+    rejuvScale: 5,
     readoutOutlineWidth: 0.5,
     allyReadoutOutlineWidth: 0.5,
     nameOutlineWidth: 0.5,

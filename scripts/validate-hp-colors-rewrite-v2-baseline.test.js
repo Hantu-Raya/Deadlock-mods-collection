@@ -151,7 +151,7 @@ const XML_REWRITE_OWNED_IDS = new Set([
   'hp_counter_container',
 ]);
 // Owned passive wrappers: compared as if their stock children sat in place.
-const XML_REWRITE_WRAPPER_IDS = new Set(['HPV2MotionFrame', 'HPV2NameAnchor', 'HPV2CriticalAnchor', 'HPV2AssassinateAnchor']);
+const XML_REWRITE_WRAPPER_IDS = new Set(["HPV2MotionFrame", "HPV2NameAnchor", "HPV2CriticalAnchor", "HPV2AssassinateAnchor", "HPV2RejuvenatorAnchor"]);
 
 function parseXmlStructure(source) {
   const roots = [];
@@ -714,7 +714,8 @@ function makeStatusFixture(
       operationCounts: harness.operationCounts,
     })));
   }
-  const rejuvenator = windowRoot.add(new MockPanel('RejuvenatorActive', {
+  const rejuvAnchor = windowRoot.add(new MockPanel("HPV2RejuvenatorAnchor"));
+  const rejuvenator = rejuvAnchor.add(new MockPanel("RejuvenatorActive", {
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));

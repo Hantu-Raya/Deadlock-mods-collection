@@ -92,7 +92,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 89);
+  assert.equal(contract.extensionKeys.length, 93);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -371,7 +371,7 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 89);
+  assert.equal(contract.extensionKeys.length, 93);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
@@ -385,6 +385,7 @@ test('round native format retirement preserves slots and appends independent nam
     'enemyRatkingArmor', 'allyRatkingArmor',
     "barOutlineEnabled", "barOutlineThickness", "barOutlineOpacity", "barOutlineColor",
     "barOutlineCustomColor", "allyBarOutlineColor",
+    "rejuvOffsetX", "rejuvOffsetY", "rejuvTilt", "rejuvScale",
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -497,6 +498,7 @@ test('follow-up controls append typed extension slots with frozen sparse default
     enemyRatkingArmor: '#C7A674', allyRatkingArmor: '#C7A674',
     barOutlineEnabled: true, barOutlineThickness: 1, barOutlineOpacity: 100, barOutlineColor: "#000000",
     barOutlineCustomColor: false, allyBarOutlineColor: "#000000",
+    rejuvOffsetX: 0, rejuvOffsetY: 0, rejuvTilt: 6, rejuvScale: 100,
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
@@ -537,4 +539,40 @@ test('follow-up controls append typed extension slots with frozen sparse default
     assert.equal(contract.colorKeys[prefix + 'PipColor'], true);
     assert.equal(contract.normalizeValues({ [prefix + 'PipColor']: 'aabbcc' })[prefix + 'PipColor'], '#AABBCC');
   }
+});
+
+test('Rejuvenator appends human slots 90–93 with typed bounds, sparse defaults and transfer', () => {
+  const { contract, state } = bootState();
+  const defaults = { rejuvOffsetX: 0, rejuvOffsetY: 0, rejuvTilt: 6, rejuvScale: 100 };
+  assert.deepEqual(plain(contract.extensionKeys.slice(89)), Object.keys(defaults));
+  for (const [key, value] of Object.entries(defaults)) {
+    for (const values of [contract.defaults, contract.sparseDefaults, contract.codecDefaults]) assert.equal(values[key], value, key);
+    assert.equal(contract.settingMeta[key].conditionEligible, true);
+  }
+  for (const [key, min, max] of [['rejuvOffsetX', -200, 200], ['rejuvOffsetY', -210, 210], ['rejuvTilt', -360, 360], ['rejuvScale', 25, 200]]) {
+    assert.equal(contract.normalizeValue(key, min - 1), min);
+    assert.equal(contract.normalizeValue(key, max + 1), max);
+    assert.equal(contract.validateSettingValue(key, 'bad'), false);
+  }
+  assert.equal(contract.normalizeValue('rejuvTilt', 15.6), 16);
+  assert.equal(contract.normalizeValue('rejuvScale', 153), 155);
+  const untouched = JSON.parse(oneEffect(send(state, 'settings_copy'), 'clipboard_write').text.slice(5));
+  assert.equal(untouched.hpv2.values.some(([index]) => index >= 89), false);
+  const values = { rejuvOffsetX: 123, rejuvOffsetY: -100, rejuvTilt: -90, rejuvScale: 150 };
+  for (const [key, value] of Object.entries(values)) send(state, 'setting_edit', { key, value });
+  send(state, 'condition_set', { key: 'rejuvScale', slot: 4, minTier: 3, value: 175 });
+  const raw = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.deepEqual(JSON.parse(raw.slice(5)).hpv2.values.slice(-4), [[89, 123], [90, -100], [91, -90], [92, 150]]);
+  const destination = bootState().state;
+  send(destination, 'settings_import', { raw });
+  for (const [key, value] of Object.entries(values)) assert.equal(destination.read().values[key], value, key);
+  assert.equal(destination.read().conditions.rejuvScale.value, 175);
+  send(state, 'preset_save', { name: 'Rejuvenator' });
+  const preset = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const presetDestination = bootState().state;
+  send(presetDestination, 'preset_import', { raw: preset });
+  const id = JSON.parse(preset.slice(6)).records[0].id;
+  send(presetDestination, 'preset_apply', { id });
+  for (const [key, value] of Object.entries(values)) assert.equal(presetDestination.read().effectiveValues[key], value, key);
+  assert.equal(presetDestination.read().currentScope.conditions.rejuvScale.value, 175);
 });

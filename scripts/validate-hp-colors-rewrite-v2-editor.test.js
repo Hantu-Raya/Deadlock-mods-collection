@@ -4087,7 +4087,7 @@ test('ADVANCED holds movement, sizing and tuning numbers; colors, toggles and st
     'allyPipColorEnabled', 'enemyStaminaColor', 'pickupGunColor', 'pickupGlyphColor',
     'damageShakeEnabled', 'barMask', 'readoutFont'])
     assert.ok(!advanced.includes(key), key);
-  assert.equal(advanced.length, 61);
+  assert.equal(advanced.length, 64);
 });
 
 test('always-visible tuning never unhides feature-off rows or hides ready-icon color', () => {
@@ -4365,7 +4365,8 @@ test('task pages own every key once with structural sections and optional Advanc
       "pickupSize",
       "pickupSpacing",
       "pickupOffsetX",
-      "pickupOffsetY"
+      "pickupOffsetY",
+      "rejuvOffsetX", "rejuvOffsetY", "rejuvTilt", "rejuvScale"
     ]
   ],
   [
@@ -4396,7 +4397,7 @@ test('task pages own every key once with structural sections and optional Advanc
   ]);
   const keys = categories.flatMap(category => category.tabs.flatMap(tab => tab.keys));
   assert.deepEqual([...keys].sort(), Object.keys(shippedDefaults).sort());
-  assert.equal(new Set(keys).size, 151);
+  assert.equal(new Set(keys).size, 155);
   assert.equal(categories.flatMap(category => category.tabs).length, 12);
   for (const category of categories) assert.ok(category.tabs.length <= 4);
   const ids = Array.from(layoutSource.matchAll(/\bid="(HPColors[^"]+)"/g), match => match[1]);
@@ -5159,7 +5160,7 @@ function visibleSettingRows(fixture, pageId) {
 // Failure modes: side/fold must not touch settings/history/save/replay/timers;
 // nested gates must stay stronger than Advanced; resets must include invisible
 // allies and conditions; legacy routing must not inherit the new rail positions.
-test("closed disclosures yield 61 default rows across all presentations, at most ten per page", () => {
+test("closed disclosures yield 62 default rows across all presentations, at most ten per page", () => {
   const fixture = bootMenu(undefined, { tree: true });
   openEditor(fixture);
   const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
@@ -5179,7 +5180,7 @@ test("closed disclosures yield 61 default rows across all presentations, at most
     }
   }
   // Colors, toggles and styles are basic; sizes, offsets and tuning numbers sit under ADVANCED.
-  assert.equal(union.size, 61);
+  assert.equal(union.size, 62);
   assert.equal(max, 10);
   panel(fixture, 'HPColorsCategoryOverview').events.onactivate();
   assert.equal(visibleSettingRows(fixture, 'HPColorsSettingsOverviewStatus').length, 2);
@@ -5316,7 +5317,7 @@ test('actual legacy four-rail hierarchy boots without selector, folds, store, or
 });
 
 
-test("all 150 settings rows remain reachable with parents enabled and Advanced open; Players basic stays bounded", () => {
+test("all 154 settings rows remain reachable with parents enabled and Advanced open; Players basic stays bounded", () => {
   const values = { ...shippedDefaults };
   for (const key of Object.keys(values)) if (typeof values[key] === 'boolean') values[key] = true;
   Object.assign(values, { enabled: false, hudHealthColorMode: 'custom', ultMode: 'custom',
@@ -5347,7 +5348,7 @@ test("all 150 settings rows remain reachable with parents enabled and Advanced o
       }
     }
   }
-  assert.equal(all.size, 150);
+  assert.equal(all.size, 154);
   assert.equal(readConfig(fixture).values.enabled, false, 'master-off does not prevent preparation');
   assert.equal(panel(fixture, 'HPColorsAdvancedToggle').BHasClass('Active'), false, 'Presets has its own guide, not Advanced');
   assert.equal(panel(fixture, 'HPColorsTabStrip').BHasClass('SinglePage'), true);
@@ -5517,4 +5518,32 @@ test("Layout exposes stock/custom outline colors in Basic and tuning in Advanced
   assert.equal(panel(fixture, "HPColorsBarOutlineThicknessEntry").enabled, false);
   for (const key of ["barOutlineColor", "barOutlineCustomColor", "allyBarOutlineColor"])
     assert.notEqual(panel(fixture, "HPColorsCondition_" + key).enabled, false);
+});
+
+test('Pickups owns Rejuvenator: basic scale, Advanced offsets/tilt, conditions, reset and Undo', () => {
+  const fixture = bootMenu(undefined, { tree: true });
+  openEditor(fixture);
+  panel(fixture, "HPColorsCategoryReadout").events.onactivate();
+  panel(fixture, 'HPColorsTab3').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsSettingsPickupTimers').BHasClass('Active'), true);
+  assert.equal(panel(fixture, 'HPColorsRejuvScaleRow').BHasClass('TuningCollapsed'), false);
+  for (const base of ['RejuvOffsetX', 'RejuvOffsetY', 'RejuvTilt'])
+    assert.equal(panel(fixture, 'HPColors' + base + 'Row').BHasClass('TuningCollapsed'), true, base);
+  panel(fixture, 'HPColorsAdvancedToggle').events.onactivate();
+  const values = { rejuvScale: 150, rejuvOffsetX: 40, rejuvOffsetY: -30, rejuvTilt: -90 };
+  for (const [base, key] of [['RejuvScale', 'rejuvScale'], ['RejuvOffsetX', 'rejuvOffsetX'],
+    ['RejuvOffsetY', 'rejuvOffsetY'], ['RejuvTilt', 'rejuvTilt']]) {
+    assert.equal(panel(fixture, 'HPColors' + base + 'Row').BHasClass('TuningCollapsed'), false);
+    const entry = panel(fixture, 'HPColors' + base + 'Entry');
+    entry.text = String(values[key]); entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], values[key]);
+    panel(fixture, 'HPColorsCondition_' + key).events.onactivate();
+    assert.equal(panel(fixture, 'HPColorsConditionDialog').BHasClass('Open'), true);
+    panel(fixture, 'HPColorsConditionCancelButton').events.onactivate();
+  }
+  panel(fixture, 'HPColorsAdvancedToggle').events.onactivate();
+  requestReset(fixture); confirmReset(fixture);
+  for (const key of Object.keys(values)) assert.equal(readConfig(fixture).values[key], shippedDefaults[key]);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  for (const [key, value] of Object.entries(values)) assert.equal(readConfig(fixture).values[key], value);
 });

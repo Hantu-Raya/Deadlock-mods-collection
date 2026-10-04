@@ -2429,6 +2429,23 @@
 	overflow: noclip;
 }
 
+/* Adopt the native flame behind the ultimate without participating in flow. */
+.WindowRoot .unit_info_panel.HPColorsRewriteKillStreakOwner
+{
+	flow-children: none;
+	overflow: noclip;
+}
+
+.WindowRoot #KillStreakIndicator.HPColorsRewriteKillStreakAdopted
+{
+	margin: 0px;
+	horizontal-align: center;
+	vertical-align: center;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	z-index: 2;
+}
+
 
 #HPV2CanvasBounds
 {

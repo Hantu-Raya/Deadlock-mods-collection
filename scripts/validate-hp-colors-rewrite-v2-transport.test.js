@@ -442,8 +442,9 @@ test('pickup re-broadcast only when the published fit stops predicting', () => {
   assert.equal(sent.at(-1)[1], 0);
 });
 
-// Unchanged snapshots wait 8 s; a 15-degree prediction miss or state transition corrects early.
-test('ultimate snapshots use an 8 s heartbeat and correct prediction or state changes', () => {
+// Unchanged snapshots wait 2 s; a first moving rate, a 15-degree prediction miss or a state
+// transition corrects early.
+test('ultimate snapshots use a 2 s heartbeat and correct prediction or state changes', () => {
   let now = 0, angle = 90, unlocked = true, ready = false, present = true;
   const sent = [];
   const box = timerFunctions(['parseUltimateClip', 'ultimateTick'], {
@@ -459,24 +460,25 @@ test('ultimate snapshots use an 8 s heartbeat and correct prediction or state ch
     $: { Schedule() {}, DispatchEvent: (channel, raw) => sent.push([now, JSON.parse(raw).players]), Msg: message => assert.fail(message) },
   });
   for (now = 0; now <= 16000; now += 1000) box.ultimateTick();
-  assert.deepEqual(sent.map(item => item[0]), [0, 8000, 16000]);
-  for (let index = 1; index < sent.length; index++) assert.ok(sent[index][0] - sent[index - 1][0] < 12000);
-  now = 17000; angle = 104.999; box.ultimateTick();
-  assert.equal(sent.length, 3, 'sub-tolerance observation does not broadcast');
-  now = 18000; angle = 105; box.ultimateTick();
-  assert.equal(sent.at(-1)[0], 18000, 'exactly 15 degrees corrects immediately');
-  now = 19000; ready = true; box.ultimateTick();
+  assert.deepEqual(sent.map(item => item[0]), [0, 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000]);
+  now = 17000; angle = 105; box.ultimateTick();
+  assert.deepEqual(sent.at(-1), [17000, [['HAZE', 105, 15]]], 'first moving rate publishes immediately');
+  now = 18000; angle = 134.5; box.ultimateTick();
+  assert.equal(sent.length, 10, 'sub-tolerance observation does not broadcast');
+  now = 19000; angle = 150; box.ultimateTick();
+  assert.equal(sent.at(-1)[0], 19000, 'exactly 15 degrees corrects immediately');
+  now = 20000; ready = true; box.ultimateTick();
   assert.deepEqual(sent.at(-1)[1], [['HAZE', 360, 0]]);
-  now = 20000; unlocked = ready = false; box.ultimateTick();
+  now = 21000; unlocked = ready = false; box.ultimateTick();
   assert.deepEqual(sent.at(-1)[1], [['HAZE', 0, 0]], 'locked has no predicted progress');
-  now = 21000; unlocked = true; angle = 0; box.ultimateTick();
-  assert.equal(sent.at(-1)[0], 21000, 'unlock is a state change even at the same zero angle');
-  now = 22000; present = false; box.ultimateTick();
+  now = 22000; unlocked = true; angle = 0; box.ultimateTick();
+  assert.equal(sent.at(-1)[0], 22000, 'unlock is a state change even at the same zero angle');
+  now = 23000; present = false; box.ultimateTick();
   assert.deepEqual(sent.at(-1)[1], []);
-  now = 23000; present = true; box.ultimateTick();
-  assert.equal(sent.at(-1)[0], 23000, 'appearance sends immediately');
-  now = 24000; angle = NaN; box.ultimateTick();
+  now = 24000; present = true; box.ultimateTick();
+  assert.equal(sent.at(-1)[0], 24000, 'appearance sends immediately');
+  now = 25000; angle = NaN; box.ultimateTick();
   assert.deepEqual(sent.at(-1)[1], [], 'unknown native clip is omitted');
-  now = 25000; angle = 90; box.ultimateTick();
+  now = 26000; angle = 90; box.ultimateTick();
   assert.deepEqual(sent.at(-1)[1], [['HAZE', 90, 0]], 'first known sample has unknown rate');
 });

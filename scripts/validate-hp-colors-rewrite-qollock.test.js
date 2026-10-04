@@ -306,7 +306,7 @@ test('v2 QOLLOCK composition retains the twelve-page ownership matrix and native
       assert.ok(ancestry.get(rows[key]).includes(tab.pageId), key + ' composed owner');
     }
   }
-  assert.equal(keys, 151);
+  assert.equal(keys, 155);
   for (const id of ['HPColorsPlayerSide', 'HPColorsAdvancedToggle', 'HPColorsV2Store', 'HPColorsNativePicker'])
     assert.ok(ancestry.has(id), id);
   // The composed menu must include the same stock picker stylesheet as the

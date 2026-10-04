@@ -658,6 +658,7 @@
     var counterRow = findWithin(counterContainer, "hp_counter_row");
     var criticalAnchor = directChild(windowRoot, "HPV2CriticalAnchor");
     var assassinateAnchor = directChild(windowRoot, "HPV2AssassinateAnchor");
+    var rejuvAnchor = directChild(windowRoot, "HPV2RejuvenatorAnchor");
     return {
       windowRoot: windowRoot,
       canvasBounds: directChild(windowRoot, "HPV2CanvasBounds"),
@@ -674,6 +675,9 @@
       critical: directChild(criticalAnchor, "CriticalIndicator"),
       assassinateAnchor: assassinateAnchor,
       assassinate: directChild(assassinateAnchor, "AssassinateIndicator"),
+      rejuvAnchor: rejuvAnchor,
+      rejuv: directChild(rejuvAnchor, "RejuvenatorActive"),
+      killStreak: directChild(unitInfo, "KillStreakIndicator") || directChild(windowRoot, "KillStreakIndicator"),
       fill: directChild(inner, "unit_healthbar_lagging"),
       healing: directChild(inner, "unit_healthbar_healing"),
       delta: directChild(inner, "unit_healthbar_delta"),
@@ -1732,6 +1736,8 @@
     if (bar.stockHealthRebase && bar.stockHealthRebase.panel === parts.healthValue)
       healthValue.marginRight = bar.stockHealthRebase.marginRight;
     return {
+      rejuvAnchor: retainPanelBaseline(parts.rejuvAnchor, oldParts.rejuvAnchor, oldBaseline.rejuvAnchor, ["transform"]),
+      rejuv: retainPanelBaseline(parts.rejuv, oldParts.rejuv, oldBaseline.rejuv, ["transform", "preTransformScale2d"]),
       name: retainPanelBaseline(parts.name, oldParts.name, oldBaseline.name, NAME_STYLES),
       primary: retainPanelBaseline(
         parts.primary,
@@ -2932,6 +2938,76 @@
       config.heightScale / 100 : 0;
   }
 
+  // Native panels stay engine-owned: only their placement/presentation is adopted.
+  function releaseKillStreak(bar) {
+    var adoption = bar.killStreakAdoption;
+    if (!adoption) return;
+    var panel = adoption.panel;
+    try {
+      if (isValid(adoption.owner))
+        adoption.owner.SetHasClass("HPColorsRewriteKillStreakOwner", adoption.ownerClass);
+      if (isValid(panel)) {
+        panel.SetHasClass("HPColorsRewriteKillStreakAdopted", adoption.panelClass);
+        setStyle(panel, "preTransformScale2d", adoption.scale, null, "", true);
+        delete panel.HPV2KillStreakAdoption;
+        if (isValid(adoption.parent)) {
+          if (panelParent(panel) !== adoption.parent) panel.SetParent(adoption.parent);
+          if (isValid(adoption.next) && panelParent(adoption.next) === adoption.parent)
+            adoption.parent.MoveChildBefore(panel, adoption.next);
+          else if (isValid(adoption.previous) && panelParent(adoption.previous) === adoption.parent)
+            adoption.parent.MoveChildAfter(panel, adoption.previous);
+        }
+      }
+    } catch {}
+    bar.killStreakAdoption = null;
+  }
+
+  function applyKillStreak(bar, active) {
+    var panel = bar.parts.killStreak;
+    var owner = bar.parts.unitInfo;
+    var background = bar.parts.ultBackground;
+    if (bar.killStreakAdoption && (!active || bar.killStreakAdoption.panel !== panel ||
+        bar.killStreakAdoption.owner !== owner)) releaseKillStreak(bar);
+    if (!active || !isValid(panel) || !isValid(owner) || !isValid(background)) return;
+    var adopting = !bar.killStreakAdoption;
+    if (adopting) {
+      var parent = panelParent(panel);
+      var children = panelChildren(parent);
+      var index = children.indexOf(panel);
+      bar.killStreakAdoption = {
+        panel: panel, owner: owner, parent: parent,
+        previous: children[index - 1] || null, next: children[index + 1] || null,
+        scale: panel.style.preTransformScale2d || "1",
+        panelClass: hasClass(panel, "HPColorsRewriteKillStreakAdopted"),
+        ownerClass: hasClass(owner, "HPColorsRewriteKillStreakOwner"),
+      };
+      panel.HPV2KillStreakAdoption = bar.killStreakAdoption;
+    }
+    try {
+      if (panelParent(panel) !== owner) {
+        panel.SetParent(owner);
+        owner.MoveChildBefore(panel, background);
+      } else if (adopting) owner.MoveChildBefore(panel, background);
+      setOwnedClass(owner, "HPColorsRewriteKillStreakOwner", true, bar.applied, "killStreakOwnerClass");
+      setOwnedClass(panel, "HPColorsRewriteKillStreakAdopted", true, bar.applied, "killStreakAdoptedClass");
+    } catch { releaseKillStreak(bar); }
+  }
+
+  function applyRejuvenator(bar, active) {
+    if (!active && !bar.rejuvOwned) return;
+    if (active && (!isValid(bar.parts.rejuvAnchor) || !isValid(bar.parts.rejuv))) return;
+    bar.rejuvOwned = active;
+    var baseline = bar.panelBaseline;
+    setStyle(bar.parts.rejuvAnchor, "transform", active ?
+      "translate3d(" + pixels(config.rejuvOffsetX) + ", " + pixels(config.rejuvOffsetY) + ", 0px)" :
+      baselineStyle(baseline.rejuvAnchor, "transform") || "translate3d(0px, 0px, 0px)",
+      bar.applied, "rejuvAnchorTransform");
+    setStyle(bar.parts.rejuv, "transform", active ? "rotateZ(" + config.rejuvTilt + "deg)" :
+      baselineStyle(baseline.rejuv, "transform") || "rotateZ(6deg)", bar.applied, "rejuvTilt");
+    setStyle(bar.parts.rejuv, "preTransformScale2d", active ? String(config.rejuvScale / 100) :
+      baselineStyle(baseline.rejuv, "preTransformScale2d") || "1", bar.applied, "rejuvScale");
+  }
+
   function applyBarGeometry(bar, panelBaseline) {
     var scaleX = config.widthScale / 100;
     var scaleY = config.heightScale / 100;
@@ -3140,6 +3216,8 @@
   function restoreInactiveCustomization(bar, panelBaseline, preserveUnitPresentation) {
     clearPulse(bar);
     clearKillMarkerOwnership(bar);
+    releaseKillStreak(bar);
+    applyRejuvenator(bar, false);
     // Decorations reconcile pip opacity below; avoid clearing it between identical paints.
     clearReadoutOwnership(bar, true, preserveUnitPresentation);
     clearPlayerNameOwnership(bar);
@@ -3205,6 +3283,11 @@
   }
 
   function applyActiveCustomization(bar, panelBaseline, healthOnly) {
+    if (!healthOnly) {
+      var pickupOwned = bar.surface === "player" && !bar.parts.unitStatus.BAscendantHasClass("LocalPlayer");
+      applyKillStreak(bar, pickupOwned);
+      applyRejuvenator(bar, pickupOwned);
+    }
     if (healthOnly && !bar.colorDirty) {
       if (bar.colorPulseActive)
         setStyle(bar.parts.pulseOverlay, "clip", pulseOverlayClip(bar),
@@ -3433,6 +3516,10 @@
   }
 
   function applyCustomization(bar, restoring) {
+    if (!config.enabled) {
+      releaseKillStreak(bar);
+      applyRejuvenator(bar, false);
+    }
     if (!restoring && (bar.hidden || (bar.dirty && syncSurfaceHidden(bar)))) return;
     if (!bar.dirty && !bar.healthDirty) return;
     var healthOnly = !bar.dirty;
@@ -3710,6 +3797,15 @@
   function reportData(bar, classified) {
     if (!isComplete(bar.parts)) return;
     if (!classified) classifyTarget(bar);
+    var pickupLocal = bar.parts.unitStatus.BAscendantHasClass("LocalPlayer");
+    if (bar.pickupLocal !== pickupLocal) {
+      bar.pickupLocal = pickupLocal;
+      bar.dirty = true;
+    }
+    if (pickupLocal || bar.surface !== "player") {
+      releaseKillStreak(bar);
+      applyRejuvenator(bar, false);
+    }
     if (syncSurfaceHidden(bar)) return;
     if (dormant(bar)) return;
     if (!bar.surface) rebaseStockGeometry(bar);
