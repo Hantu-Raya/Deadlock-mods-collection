@@ -186,6 +186,13 @@ class MockPanel {
     child.SetParent(this);
     return child;
   }
+  MoveChildBefore(child, before) {
+    const from = this.children.indexOf(child);
+    const to = this.children.indexOf(before);
+    if (from < 0 || to < 0) return;
+    this.children.splice(from, 1);
+    this.children.splice(this.children.indexOf(before), 0, child);
+  }
   IsValid() { return this.valid; }
   GetParent() {
     incrementCounter(this.operationCounts, 'parentReads');

@@ -971,7 +971,7 @@
     },
   ];
   var SLIDER_CONTROLS = [
-    { base: "HPColorsBarOutlineThickness", key: "barOutlineThickness", min: 0.5, max: 2.5, increment: 0.5, optional: true },
+    { base: "HPColorsBarOutlineThickness", key: "barOutlineThickness", min: 0.5, max: 10, increment: 0.5, optional: true },
     { base: "HPColorsBarOutlineOpacity", key: "barOutlineOpacity", min: 0, max: 100, optional: true },
     {base: "HPColorsPipOpacity", key: "pipOpacity", min: 0, max: 100},
     { base: "HPColorsDamageShakeIntensity", key: "damageShakeIntensity", min: 1, max: 10 },

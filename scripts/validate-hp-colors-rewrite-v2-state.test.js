@@ -3792,7 +3792,7 @@ test("shared bar outline defaults omit new slots until edited and survive transf
     assert.equal(SETTING_META[key].conditionEligible, true);
   }
   assert.equal(CONTRACT.normalizeValue("barOutlineThickness", 1.3), 1.5);
-  assert.equal(CONTRACT.normalizeValue("barOutlineThickness", 50), 2.5);
+  assert.equal(CONTRACT.normalizeValue("barOutlineThickness", 50), 10);
   assert.equal(CONTRACT.normalizeValue("barOutlineOpacity", -10), 0);
   const state = createState();
   const untouched = JSON.parse(effect(send(state, "settings_copy"), "clipboard_write").text.slice(5));
