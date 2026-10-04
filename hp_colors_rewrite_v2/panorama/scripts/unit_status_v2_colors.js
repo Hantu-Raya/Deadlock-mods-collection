@@ -2282,6 +2282,8 @@
   }
 
   function applyKillMarker(bar, show) {
+    // OLD draws its own marker inside the pip grid (syncOldKillMarker).
+    bar.killMarkerWanted = show;
     if (config.barMask === "old" && bar.pipCount) show = false;
     if (show && !isValid(bar.parts.killMarker))
       bar.parts.killMarker = ensureOwnedPanel(bar.parts.primary, "hp_colors_kill_marker");
@@ -2407,6 +2409,8 @@
       bar.applied, "pipOutlineVisibility", !enabled || config.barMask !== "old" || !bar.pipCount);
   }
 
+  // OLD rims are solid backers behind each box, larger by the thickness on every side.
+  // Grid px: width = primary width, height = rows * 6px (four-row cap), as in layoutOldPips.
   function syncOldOutline(bar) {
     var parts = bar.parts;
     var enabled = !!(config.enabled && bar.surface && config.barOutlineEnabled &&
@@ -2417,15 +2421,18 @@
     }
     if (!isValid(parts.pipOutline)) {
       parts.pipOutline = ensureOwnedPanel(parts.pipGrid, "HPV2PipOutline");
+      try { parts.pipGrid.MoveChildBefore(parts.pipOutline, parts.pipEmpty); } catch {}
       bar.pipOutlineRevision = -1;
     }
     if (!isValid(parts.pipOutline)) return;
     // The layer is independent of health: no outline allocations or writes on health ticks.
-    if (bar.pipOutlineRevision === configRevision && bar.pipOutlineSignature === bar.pipSignature) return;
+    if (bar.pipOutlineRevision === configRevision && bar.pipOutlineSignature === bar.pipSignature &&
+      bar.pipOutlineWidth === bar.primaryWidth) return;
     setStyle(parts.pipOutline, "visibility", "visible", bar.applied, "pipOutlineVisibility");
     setStyle(parts.pipOutline, "opacity", String(config.barOutlineOpacity / 100), bar.applied, "pipOutlineOpacity");
     var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
-    var height = Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX * 0.8 / rows;
+    var gridHeight = Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX;
+    var t = config.barOutlineThickness;
     var complete = bar.applied.pipOutlineVisibility === "visible" && bar.applied.pipOutlineOpacity !== null;
     for (var index = 0; index < bar.pipPool.length; index++) {
       var entry = bar.pipPool[index];
@@ -2438,18 +2445,50 @@
       if (!isValid(entry.outline)) { if (shown) complete = false; continue; }
       setStyle(entry.outline, "visibility", shown ? "visible" : "collapse", entry.outlineApplied, "visibility");
       if (!shown) continue;
-      var width = bar.primaryWidth * PIP_WIDTH_PERCENT / 100 * entry.capacity / PIP_HP;
-      var t = Math.max(0.01, Math.min(config.barOutlineThickness, (Math.min(width, height) - 0.1) / 2));
-      setStyle(entry.outline, "position", entry.emptyApplied.position, entry.outlineApplied, "position");
-      setStyle(entry.outline, "width", entry.emptyApplied.width, entry.outlineApplied, "width");
-      setStyle(entry.outline, "height", entry.emptyApplied.height, entry.outlineApplied, "height");
-      setStyle(entry.outline, "border", pixels(t) + " solid " + config.barOutlineColor, entry.outlineApplied, "border");
-      if (entry.outlineApplied.border === null || entry.outlineApplied.position === null ||
+      var row = Math.floor(index / PIPS_PER_ROW);
+      setStyle(entry.outline, "position", pixels(bar.primaryWidth * (index % PIPS_PER_ROW) / PIPS_PER_ROW - t) + " " +
+        pixels(gridHeight * (rows - 1 - row) / rows - t) + " 0px", entry.outlineApplied, "position");
+      setStyle(entry.outline, "width", pixels(bar.primaryWidth * PIP_WIDTH_PERCENT / 100 * entry.capacity / PIP_HP + 2 * t),
+        entry.outlineApplied, "width");
+      setStyle(entry.outline, "height", pixels(gridHeight * 0.8 / rows + 2 * t), entry.outlineApplied, "height");
+      setStyle(entry.outline, "backgroundColor", config.barOutlineColor, entry.outlineApplied, "backgroundColor");
+      if (entry.outlineApplied.backgroundColor === null || entry.outlineApplied.position === null ||
         entry.outlineApplied.width === null || entry.outlineApplied.height === null ||
         entry.outlineApplied.visibility === null) complete = false;
     }
     bar.pipOutlineRevision = complete ? configRevision : -1;
     bar.pipOutlineSignature = bar.pipSignature;
+    bar.pipOutlineWidth = bar.primaryWidth;
+  }
+
+  // OLD kill marker: a vertical tick at the threshold HP inside the box that holds it.
+  function syncOldKillMarker(bar) {
+    var parts = bar.parts;
+    var show = !!(bar.killMarkerWanted && config.enabled && bar.surface && config.barMask === "old" &&
+      bar.pipCount > 0 && isValid(parts.pipGrid));
+    if (bar.pipMarkerShown === show && bar.pipMarkerRevision === configRevision &&
+      bar.pipMarkerSignature === bar.pipSignature && (!show || isValid(parts.pipKillMarker))) return;
+    if (show && (!isValid(parts.pipKillMarker) || panelParent(parts.pipKillMarker) !== parts.pipGrid))
+      parts.pipKillMarker = ensureOwnedPanel(parts.pipGrid, "HPV2PipKillMarker");
+    var marker = parts.pipKillMarker;
+    setStyle(marker, "visibility", show ? "visible" : "collapse", bar.applied, "pipKillMarkerVisibility");
+    bar.pipMarkerShown = show;
+    bar.pipMarkerRevision = configRevision;
+    bar.pipMarkerSignature = bar.pipSignature;
+    if (!show || !isValid(marker)) return;
+    var hp = bar.pipMax * config.enemyKillMarkerThreshold / 100;
+    var index = Math.max(0, Math.min(bar.pipCount - 1, Math.floor(hp / PIP_HP)));
+    var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
+    var row = Math.floor(index / PIPS_PER_ROW);
+    var inside = Math.max(0, Math.min(bar.pipPool[index].capacity, hp - index * PIP_HP));
+    var x = index % PIPS_PER_ROW * 100 / PIPS_PER_ROW + PIP_WIDTH_PERCENT * inside / PIP_HP;
+    setStyle(marker, "position", x.toFixed(3) + "% " + ((rows - 1 - row) * 100 / rows).toFixed(3) + "% 0px",
+      bar.applied, "pipKillMarkerPosition");
+    setStyle(marker, "height", (80 / rows).toFixed(3) + "%", bar.applied, "pipKillMarkerHeight");
+    setStyle(marker, "width", pixels(Math.max(1, nativePx(config.enemyKillMarkerWidth))), bar.applied, "pipKillMarkerWidth");
+    setStyle(marker, "marginLeft", pixels(-Math.max(1, nativePx(config.enemyKillMarkerWidth)) / 2),
+      bar.applied, "pipKillMarkerMarginLeft");
+    setStyle(marker, "backgroundColor", config.enemyKillMarkerColor, bar.applied, "pipKillMarkerColor");
   }
 
   // OLD: the engine draws floor(max/250) lines at x = 250k/max of #UnitHealthbarLines
@@ -2558,6 +2597,7 @@
     if (signature !== bar.pipSignature || parts.pipGrid !== bar.pipContainer)
       layoutOldPips(bar, signature, signature ? lines.length * 250 * width / x : 0);
     syncOldOutline(bar);
+    syncOldKillMarker(bar);
     if (bar.pipCount) {
       fillOldPips(bar);
       if (bar.applied.killMarkerVisibility !== "collapse") clearKillMarkerOwnership(bar);

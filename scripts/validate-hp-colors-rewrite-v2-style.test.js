@@ -3097,20 +3097,24 @@ test("bar outline follows every UNITS gate and neutral precedence", () => {
   }
 });
 
-test("OLD outline boxes match fixed pips, clamp thickness and never write on health ticks", () => {
-  const fixture = makeOldFixture(2850, { barOutlineThickness: 2.5, barOutlineOpacity: 40 });
+test("OLD outline draws solid backers under fixed pips and never writes on health ticks", () => {
+  const fixture = makeOldFixture(2850, { barOutlineThickness: 10, barOutlineOpacity: 40 });
+  const grid = gridOf(fixture);
   const outline = () => fixture.primary.FindChildTraverse("HPV2PipOutline");
   const boxes = shownPips(fixture, "HPV2PipOutline");
-  const empty = shownPips(fixture, "HPV2PipEmpty");
   assert.equal(boxes.length, 29);
+  assert.ok(grid.children.indexOf(outline()) < grid.children.indexOf(fixture.primary.FindChildTraverse("HPV2PipEmpty")),
+    "rims draw under the boxes");
   assert.equal(outline().hittest, false);
   assert.equal(outline().style.opacity, "0.4");
-  for (let index = 0; index < boxes.length; index++) {
-    for (const property of ["position", "width", "height"])
-      assert.equal(boxes[index].style[property], empty[index].style[property]);
-    assert.ok(parseFloat(boxes[index].style.border) < 2.4, "below half the 4.8px box height");
-  }
-  assert.equal(boxes[28].style.width, "4.250%");
+  assert.equal(boxes[0].style.backgroundColor, "#000000");
+  assert.equal(boxes[0].style.border || "", "");
+  // Three rows -> 18px grid; box 0 is bottom-left: y = 18 * 2/3 - 10, height = 4.8 + 20.
+  assert.equal(boxes[0].style.position, "-10px 2px 0px");
+  assert.equal(boxes[0].style.height, "24.8px");
+  assert.equal(boxes[20].style.position, "-10px -10px 0px");
+  const full = parseFloat(boxes[0].style.width) - 20;
+  assert.ok(Math.abs(parseFloat(boxes[28].style.width) - 20 - full / 2) < 0.02, "half-capacity last box");
   const writes = layerWrites(fixture, "HPV2PipOutline") + outline().__styleWrites.length;
   for (let i = 0; i < 4; i++) { fixture.fill.actuallayoutwidth -= 1; paintReadout(fixture); }
   assert.equal(layerWrites(fixture, "HPV2PipOutline") + outline().__styleWrites.length, writes);
@@ -3118,10 +3122,31 @@ test("OLD outline boxes match fixed pips, clamp thickness and never write on hea
   assert.equal(outline().style.visibility, "collapse");
   fixture.update({ barMask: "old", barOutlineColor: "#ABCDEF" });
   assert.equal(outline().style.visibility, "visible");
-  assert.match(shownPips(fixture, "HPV2PipOutline")[0].style.border, /#ABCDEF$/);
+  assert.equal(shownPips(fixture, "HPV2PipOutline")[0].style.backgroundColor, "#ABCDEF");
   setEngineLines(fixture.primary.FindChildTraverse("UnitHealthbarLines"), 900, 2);
   fixture.harness.scheduler.runByDelay(1);
   assert.equal(shownPips(fixture, "HPV2PipOutline").length, 9);
   fixture.update({ barMask: "old", enabled: false });
   assert.equal(outline().style.visibility, "collapse");
+});
+
+test("OLD kill marker sits at the threshold HP inside its pip box", () => {
+  const fixture = makeOldFixture(2850, { enemyKillMarkerEnabled: true, enemyKillMarkerThreshold: 50 });
+  const marker = () => fixture.primary.FindChildTraverse("HPV2PipKillMarker");
+  // 1425 HP -> box 14 (row 1, column 4), 25 HP in: 40% + 8.5% * 0.25.
+  assert.equal(marker().GetParent(), gridOf(fixture));
+  assert.equal(marker().style.visibility, "visible");
+  assert.equal(marker().style.position, "42.125% 33.333% 0px");
+  assert.equal(marker().style.height, "26.667%");
+  const stock = fixture.primary.FindChildTraverse("hp_colors_kill_marker");
+  assert.ok(!stock || stock.style.visibility === "collapse", "line-bar marker stays hidden on OLD");
+  const writes = marker().__styleWrites.length;
+  for (let i = 0; i < 4; i++) { fixture.fill.actuallayoutwidth -= 1; paintReadout(fixture); }
+  assert.equal(marker().__styleWrites.length, writes, "health ticks do not move the marker");
+  fixture.update({ barMask: "old", enemyKillMarkerEnabled: true, enemyKillMarkerThreshold: 10 });
+  assert.equal(marker().style.position, "27.225% 66.667% 0px", "285 HP -> box 2, 85 HP in");
+  fixture.update({ barMask: "old", enemyKillMarkerEnabled: false });
+  assert.equal(marker().style.visibility, "collapse");
+  fixture.update({ barMask: "original", enemyKillMarkerEnabled: true });
+  assert.equal(marker().style.visibility, "collapse");
 });

@@ -498,7 +498,7 @@
   };
 
   var NUMBER_BOUNDS = {
-    barOutlineThickness: [0.5, 2.5],
+    barOutlineThickness: [0.5, 10],
     barOutlineOpacity: [0, 100],
     widthScale: [60, 400],
     heightScale: [60, 400],

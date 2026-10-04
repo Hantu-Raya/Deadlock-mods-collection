@@ -1956,7 +1956,13 @@
 	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg");
 }
 
-/* Only the primary container loses its V2 mask so the owned rim can extend outside it. */
+/* Thick rims (up to 10px) extend past the container; only the primary container loses
+   its V2 mask and clipping while outlined. */
+.WindowRoot #UnitHealthbar.HPColorsRewriteBarOutline
+{
+	overflow: noclip;
+}
+
 .WindowRoot.HPColorsRewriteBarMask #UnitHealthbar.HPColorsRewriteBarOutline
 {
 	opacity-mask: none;
@@ -2073,16 +2079,20 @@
 	background-color: white;
 }
 
+/* Solid backers placed before #HPV2PipEmpty, so they draw under the boxes. */
 #HPV2PipOutline
 {
 	visibility: collapse;
-	z-index: 2;
 }
 
 .HPV2PipOutlineBox
 {
-	background-color: transparent;
 	border-radius: 1px;
+}
+
+#HPV2PipKillMarker
+{
+	visibility: collapse;
 }
 
 .WindowRoot .unit_info_panel
