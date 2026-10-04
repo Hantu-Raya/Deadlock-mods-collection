@@ -3184,6 +3184,17 @@ test("OLD kill marker sits at the threshold HP inside its pip box", () => {
   assert.equal(marker().style.visibility, "collapse");
 });
 
+// Live trace: the enemy-only grid marker was missing from resolved parts, so every
+// fifth (full-resolve) scan saw "changed parts", reset the bar and deleted its rims.
+test("OLD kill marker does not make full resolves reset the bar and drop its rims", () => {
+  const fixture = makeOldFixture(2850, { enemyKillMarkerEnabled: true, enemyKillMarkerThreshold: 50 });
+  const boxes = shownPips(fixture, "HPV2PipOutline");
+  const empty = shownPips(fixture, "HPV2PipEmpty");
+  for (let scan = 0; scan < 12; scan++) fixture.harness.scheduler.runByDelay(1);
+  assert.deepEqual(shownPips(fixture, "HPV2PipOutline"), boxes, "rim boxes survive full resolves");
+  assert.deepEqual(shownPips(fixture, "HPV2PipEmpty"), empty, "pips are not rebuilt");
+});
+
 test("outline stock CSS mirrors ancestor colors and rule order for whole bars and OLD boxes", () => {
   const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8');
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selectors, body]) =>
