@@ -3969,12 +3969,13 @@ test('restored editor has twelve tabs and retains CSS-pixel legacy input', () =>
   assert.match(layoutSource, /RESET PAGE/);
 });
 
-test("layout reset captures only its twelve keys in one Undo", () => {
+test("layout reset captures only its fourteen keys in one Undo", () => {
   const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
   const keys = categories[0].tabs[1].keys;
-  assert.equal(keys.length, 12);
+  assert.equal(keys.length, 14);
   const values = Object.fromEntries(keys.map(key => [key, key === 'accessoryAnchorEnabled' ? false :
     key === "barOutlineEnabled" ? false : key === "barOutlineThickness" ? 2 :
+    key === "barOutlineCustomColor" ? true : key === "allyBarOutlineColor" ? "#ABCDEF" :
     key === "barOutlineOpacity" ? 37 : key === "barOutlineColor" ? "#123456" :
     key === 'damageShakeEnabled' ? false : key === 'damageShakeIntensity' ? 7 :
     key === 'barMask' ? 'original' : /Scale$/.test(key) ? 60 : -10]));
@@ -3990,7 +3991,8 @@ test("layout reset captures only its twelve keys in one Undo", () => {
   const after = readConfig(fixture).values;
   const shippedLayout = { widthScale: 148, heightScale: 80, barMask: 'none', positionX: 0,
     positionY: -38, accessoryAnchorEnabled: true, damageShakeEnabled: true, damageShakeIntensity: 3,
-    barOutlineEnabled: true, barOutlineThickness: 1, barOutlineOpacity: 100, barOutlineColor: "#000000" };
+    barOutlineEnabled: true, barOutlineThickness: 1, barOutlineOpacity: 100, barOutlineColor: "#000000",
+    barOutlineCustomColor: false, allyBarOutlineColor: "#000000" };
   for (const key of keys) assert.equal(after[key], shippedLayout[key], key);
   assert.equal(after.enemyPulseReadoutOffsetX, 55);
   assert.equal(after.pickupOffsetX, 66);
@@ -4172,7 +4174,9 @@ test('task pages own every key once with structural sections and optional Advanc
       "heightScale",
       "barMask",
       "barOutlineEnabled",
+      "barOutlineCustomColor",
       "barOutlineColor",
+      "allyBarOutlineColor",
       "barOutlineThickness",
       "barOutlineOpacity",
       "damageShakeEnabled",
@@ -4392,7 +4396,7 @@ test('task pages own every key once with structural sections and optional Advanc
   ]);
   const keys = categories.flatMap(category => category.tabs.flatMap(tab => tab.keys));
   assert.deepEqual([...keys].sort(), Object.keys(shippedDefaults).sort());
-  assert.equal(new Set(keys).size, 149);
+  assert.equal(new Set(keys).size, 151);
   assert.equal(categories.flatMap(category => category.tabs).length, 12);
   for (const category of categories) assert.ok(category.tabs.length <= 4);
   const ids = Array.from(layoutSource.matchAll(/\bid="(HPColors[^"]+)"/g), match => match[1]);
@@ -5312,7 +5316,7 @@ test('actual legacy four-rail hierarchy boots without selector, folds, store, or
 });
 
 
-test("all 148 settings rows remain reachable with parents enabled and Advanced open; Players basic stays bounded", () => {
+test("all 150 settings rows remain reachable with parents enabled and Advanced open; Players basic stays bounded", () => {
   const values = { ...shippedDefaults };
   for (const key of Object.keys(values)) if (typeof values[key] === 'boolean') values[key] = true;
   Object.assign(values, { enabled: false, hudHealthColorMode: 'custom', ultMode: 'custom',
@@ -5343,7 +5347,7 @@ test("all 148 settings rows remain reachable with parents enabled and Advanced o
       }
     }
   }
-  assert.equal(all.size, 148);
+  assert.equal(all.size, 150);
   assert.equal(readConfig(fixture).values.enabled, false, 'master-off does not prevent preparation');
   assert.equal(panel(fixture, 'HPColorsAdvancedToggle').BHasClass('Active'), false, 'Presets has its own guide, not Advanced');
   assert.equal(panel(fixture, 'HPColorsTabStrip').BHasClass('SinglePage'), true);
@@ -5483,19 +5487,34 @@ test('pages open ADVANCED when one of their advanced settings differs from the d
   assert.deepEqual(intents, []);
 });
 
-test("Layout exposes shared bar outline toggle/color in Basic and tuning in Advanced", () => {
+test("Layout exposes stock/custom outline colors in Basic and tuning in Advanced", () => {
   const fixture = bootMenu(undefined, { tree: true });
   openEditor(fixture); panel(fixture, "HPColorsTab1").events.onactivate();
   assert.equal(panel(fixture, "HPColorsBarOutlineToggle").BHasClass("Checked"), true);
-  for (const suffix of ["Enabled", "Color"])
-    assert.equal(panel(fixture, "HPColorsBarOutline" + suffix + "Row").BHasClass("TuningCollapsed"), false);
+  assert.equal(panel(fixture, "HPColorsBarOutlineCustomColorToggle").BHasClass("Checked"), false);
+  for (const id of ["HPColorsBarOutlineEnabledRow", "HPColorsBarOutlineCustomColorRow", "HPColorsBarOutlineColorRow", "HPColorsAllyBarOutlineColorRow"])
+    assert.equal(panel(fixture, id).BHasClass("TuningCollapsed"), false);
   for (const suffix of ["Thickness", "Opacity"])
     assert.equal(panel(fixture, "HPColorsBarOutline" + suffix + "Row").BHasClass("TuningCollapsed"), true);
+  for (const id of ["HPColorsBarOutlineColorRow", "HPColorsAllyBarOutlineColorRow"])
+    assert.equal(panel(fixture, id).BHasClass("DependentCollapsed"), true);
+  panel(fixture, "HPColorsBarOutlineCustomColorToggle").events.onactivate();
+  assert.equal(readConfig(fixture).values.barOutlineCustomColor, true);
+  for (const id of ["HPColorsBarOutlineColorRow", "HPColorsAllyBarOutlineColorRow"])
+    assert.equal(panel(fixture, id).BHasClass("DependentCollapsed"), false);
+  panel(fixture, "HPColorsAllyBarOutlineColorHex").text = "#ABCDEF";
+  panel(fixture, "HPColorsAllyBarOutlineColorHex").events.ontextentrysubmit();
+  assert.equal(readConfig(fixture).values.allyBarOutlineColor, "#ABCDEF");
+  panel(fixture, "HPColorsBarOutlineCustomColorToggle").events.onactivate();
+  assert.equal(readConfig(fixture).values.barOutlineCustomColor, false);
+  assert.equal(readConfig(fixture).values.allyBarOutlineColor, "#ABCDEF", "off retains custom colors");
+  for (const id of ["HPColorsBarOutlineColorRow", "HPColorsAllyBarOutlineColorRow"])
+    assert.equal(panel(fixture, id).BHasClass("DependentCollapsed"), true);
   panel(fixture, "HPColorsBarOutlineToggle").events.onactivate();
   assert.equal(readConfig(fixture).values.barOutlineEnabled, false);
-  assert.equal(panel(fixture, "HPColorsBarOutlineColorRow").BHasClass("DependentCollapsed"), true);
   panel(fixture, "HPColorsAdvancedToggle").events.onactivate();
   assert.equal(panel(fixture, "HPColorsBarOutlineThicknessRow").BHasClass("DependentCollapsed"), false);
   assert.equal(panel(fixture, "HPColorsBarOutlineThicknessEntry").enabled, false);
-  assert.notEqual(panel(fixture, "HPColorsCondition_barOutlineColor").enabled, false);
+  for (const key of ["barOutlineColor", "barOutlineCustomColor", "allyBarOutlineColor"])
+    assert.notEqual(panel(fixture, "HPColorsCondition_" + key).enabled, false);
 });

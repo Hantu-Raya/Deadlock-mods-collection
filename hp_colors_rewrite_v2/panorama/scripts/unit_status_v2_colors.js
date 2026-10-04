@@ -2384,6 +2384,11 @@
     bar.pipColorEntries = next;
   }
 
+  function customBarOutlineColor(bar) {
+    return config.barOutlineCustomColor && bar.surface === "player"
+      ? (bar.role === "enemy" ? config.barOutlineColor : config.allyBarOutlineColor) : "";
+  }
+
   function syncBarOutline(bar) {
     var parts = bar.parts;
     var enabled = !!(config.enabled && bar.surface && config.barOutlineEnabled);
@@ -2402,11 +2407,9 @@
         bar.applied, "barOutlinePosition");
       setStyle(parts.barOutline, "width", pixels(bar.innerWidth + 2 * t), bar.applied, "barOutlineWidth");
       setStyle(parts.barOutline, "height", pixels(bar.innerHeight + 2 * t), bar.applied, "barOutlineHeight");
-      setStyle(parts.barOutline, "backgroundColor", config.barOutlineColor, bar.applied, "barOutlineColor");
+      setStyle(parts.barOutline, "backgroundColor", customBarOutlineColor(bar), bar.applied, "barOutlineColor");
       setStyle(parts.barOutline, "opacity", String(config.barOutlineOpacity / 100), bar.applied, "barOutlineOpacity");
     }
-    setStyle(parts.pipOutline, "visibility", enabled && config.barMask === "old" && bar.pipCount > 0 ? "visible" : "collapse",
-      bar.applied, "pipOutlineVisibility", !enabled || config.barMask !== "old" || !bar.pipCount);
   }
 
   // OLD rims are solid backers behind each box, larger by the thickness on every side.
@@ -2417,6 +2420,7 @@
       config.barMask === "old" && bar.pipCount > 0);
     if (!enabled) {
       setStyle(parts.pipOutline, "visibility", "collapse", bar.applied, "pipOutlineVisibility");
+      bar.pipOutlineRevision = -1;
       return;
     }
     if (!isValid(parts.pipOutline)) {
@@ -2425,10 +2429,11 @@
       bar.pipOutlineRevision = -1;
     }
     if (!isValid(parts.pipOutline)) return;
+    setStyle(parts.pipOutline, "visibility", "visible", bar.applied, "pipOutlineVisibility");
+    var color = customBarOutlineColor(bar);
     // The layer is independent of health: no outline allocations or writes on health ticks.
     if (bar.pipOutlineRevision === configRevision && bar.pipOutlineSignature === bar.pipSignature &&
-      bar.pipOutlineWidth === bar.primaryWidth) return;
-    setStyle(parts.pipOutline, "visibility", "visible", bar.applied, "pipOutlineVisibility");
+      bar.pipOutlineWidth === bar.primaryWidth && bar.pipOutlineColor === color) return;
     setStyle(parts.pipOutline, "opacity", String(config.barOutlineOpacity / 100), bar.applied, "pipOutlineOpacity");
     var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
     var gridHeight = Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX;
@@ -2451,7 +2456,7 @@
       setStyle(entry.outline, "width", pixels(bar.primaryWidth * PIP_WIDTH_PERCENT / 100 * entry.capacity / PIP_HP + 2 * t),
         entry.outlineApplied, "width");
       setStyle(entry.outline, "height", pixels(gridHeight * 0.8 / rows + 2 * t), entry.outlineApplied, "height");
-      setStyle(entry.outline, "backgroundColor", config.barOutlineColor, entry.outlineApplied, "backgroundColor");
+      setStyle(entry.outline, "backgroundColor", color, entry.outlineApplied, "backgroundColor");
       if (entry.outlineApplied.backgroundColor === null || entry.outlineApplied.position === null ||
         entry.outlineApplied.width === null || entry.outlineApplied.height === null ||
         entry.outlineApplied.visibility === null) complete = false;
@@ -2459,6 +2464,7 @@
     bar.pipOutlineRevision = complete ? configRevision : -1;
     bar.pipOutlineSignature = bar.pipSignature;
     bar.pipOutlineWidth = bar.primaryWidth;
+    bar.pipOutlineColor = color;
   }
 
   // OLD kill marker: a vertical tick at the threshold HP inside the box that holds it.
@@ -3158,7 +3164,10 @@
       bar.applied,
       "ultBackgroundOpacity",
     );
-    if (!preserveUnitPresentation) restoreBarGeometry(bar, panelBaseline);
+    if (!preserveUnitPresentation) {
+      syncOldOutline(bar);
+      restoreBarGeometry(bar, panelBaseline);
+    }
     bar.geometryChanged = false;
     bar.markerGeometryChanged = false;
   }
