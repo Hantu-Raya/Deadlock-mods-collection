@@ -1,0 +1,127 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/hud_damage_report.vcss" />
+		<include src="s2r://panorama/styles/feeder_feed.vcss" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/feeder_feed.vjs_c" />
+	</scripts>
+	<snippets>
+		<snippet name="HeroDamageColumn">
+			<Panel class="HeroDamageColumn">
+				<ProgressBarWithMiddle id="DamageRatioProgressBar" class="DamageRatioProgressBar" vertical="true" />
+				<Panel class="HeroIconContainer">
+					<CitadelHeroImage id="HeroImage" scaling="stretch-to-cover-preserve-aspect" heroimagestyle="minimap_icon" />
+					<Image class="NeutralImage" scaling="stretch-to-cover-preserve-aspect" src="s2r://panorama/images/npcs/trooper_psd.vtex" />
+				</Panel>
+			</Panel>
+		</snippet>
+		<snippet name="FeederRow">
+			<Panel class="FeederRow">
+				<Panel class="FeederIcon">
+					<CitadelHeroImage id="HeroImage" scaling="stretch-to-cover-preserve-aspect" heroimagestyle="minimap_icon" />
+					<Image class="NeutralImage" scaling="stretch-to-cover-preserve-aspect" src="s2r://panorama/images/npcs/trooper_psd.vtex" />
+				</Panel>
+				<Panel class="FeederBarArea">
+					<Panel class="FeederBarStack">
+						<Panel class="FeederBarTrack">
+							<Panel id="FeederBarDeath" class="FeederBar FeederBarDeath" />
+							<Panel id="FeederBarBag" class="FeederBar FeederBarBag" />
+						</Panel>
+						<Panel class="FeederBarInner">
+							<Label class="FeederName" text="{s:feeder_name}" />
+							<Label id="ChipDeaths" class="FeederChip" text="" />
+							<Label id="ChipKills" class="FeederChip" text="" />
+							<Label id="ChipAssists" class="FeederChip" text="" />
+							<Label id="ChipShares" class="FeederChip" text="" />
+							<Label id="ChipBags" class="FeederChip FeederChipBag" text="" />
+						</Panel>
+					</Panel>
+					<Panel class="FeederValueBox">
+						<Label class="FeederValue" text="{s:feeder_souls}" />
+					</Panel>
+				</Panel>
+			</Panel>
+		</snippet>
+	</snippets>
+	<Panel class="HudDamageReport ShowDamageByHero">
+		<GlobalClassListener classes="gScoreboardOpen gShopOpen gEditingBuilds gDetailView" />
+		<Panel id="ReportContents">
+			<Panel class="Header" onactivate="CitadelHudDamageReport_CycleDisplayMode()">
+				<CitadelHeroImage id="ViewingHeroImage" scaling="stretch-to-cover-preserve-aspect" heroimagestyle="minimap_icon" />
+				<Panel id="TextContainer">
+					<Label html="true" class="DamageReportHeader Received" text="#Citadel_HUD_DamageReport_DamageReceived" />
+					<Label html="true" class="DamageReportHeader Outgoing" text="#Citadel_HUD_DamageReport_DamageDealt" />
+					<Label html="true" class="DamageReportHeader LastRespawn" text="#Citadel_HUD_DamageReport_LastRespawn" />
+					<Panel class="TimeControl">
+						<DropDown id="TimeControlDropDown">
+							<Label id="TimeOptionLastRespawn" class="TimeControlOption" value="-1" text="#Citadel_HUD_DamageReport_CurrentLife" />
+							<Label id="TimeOption600" class="TimeControlOption" value="600" text="#Citadel_HUD_DamageReport_Time600" />
+							<Label id="TimeOption300" class="TimeControlOption" value="300" text="#Citadel_HUD_DamageReport_Time300" />
+							<Label id="TimeOption180" class="TimeControlOption" value="180" text="#Citadel_HUD_DamageReport_Time180" />
+							<Label id="TimeOption60" class="TimeControlOption" value="60" text="#Citadel_HUD_DamageReport_Time60" />
+							<Label id="TimeOption30" class="TimeControlOption" value="30" text="#Citadel_HUD_DamageReport_Time30" />
+						</DropDown>
+					</Panel>
+				</Panel>
+				<Label class="DamageReportHeader FeederHeader" text="FEEDER FEED" />
+				<Panel class="CloseButton" onactivate="CitadelHudDamageReport_SetDisplayMode(0)" />
+			</Panel>
+			<Panel id="FeederTabs" class="FeederTabs">
+				<Panel id="FeederTabDamage" class="FeederTab Selected">
+					<Label text="DAMAGE" />
+				</Panel>
+				<Panel id="FeederTabFeed" class="FeederTab">
+					<Label text="FEEDER FEED" />
+				</Panel>
+			</Panel>
+			<Panel class="DamageSection">
+				<Panel class="DamageControlRow DamageControls">
+					<Panel class="DamageBreakdown">
+						<Label html="true" class="DamagePercent weaponDmg" text="#Citadel_HUD_DamageReport_DamagePercentWeapon" />
+						<ProgressBarWithMiddle id="DamageByTypeProgressBar" class="DamageRatioProgressBar Horizontal" />
+						<Label html="true" class="DamagePercent spiritDmg" text="#Citadel_HUD_DamageReport_DamagePercentAbility" />
+					</Panel>
+				</Panel>
+				<Panel class="DamageByHeroContainer">
+					<Panel class="DamageByHeroToggle" onactivate="CitadelHudDamageReport_ToggleDamageByHero()">
+						<Button class="CloseButton" />
+						<Label class="DamageByHeroLabel" text="#Citadel_HUD_DamageReport_DamageByHero" />
+					</Panel>
+					<Panel id="DamageByHero" class="DamageByHero" />
+				</Panel>
+				<CitadelDamageRows id="DamageByAbility" />
+				<Panel class="Footer">
+					<Panel class="DamageTotal">
+						<Panel class="LabelArea">
+							<Label html="true" class="DamageDesc" text="#Citadel_HUD_DamageReport_Total" />
+							<Label html="true" class="DamageValue" text="#Citadel_HUD_DamageReport_TotalDamageValue" />
+						</Panel>
+						<Panel class="ShowMore" onactivate="CitadelHudDamageReport_SetDisplayMode(3)">
+							<Label text="#Citadel_HUD_DamageReport_ShowMore" />
+						</Panel>
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="FeederFeedSection" class="FeederFeedSection">
+				<Label class="FeederSubtitle" text="TOP DONORS - souls fed to the other team" />
+				<Panel class="FeederRows">
+					<Panel id="FeederDonors" class="FeederList Donors" />
+					<Panel id="FeederDonorsMore" class="FeederShowMore">
+						<Label text="{s:feeder_more}" />
+					</Panel>
+				</Panel>
+				<Label class="FeederSubtitle" text="GRATEFUL RECIPIENTS - who cashed in" />
+				<Panel class="FeederRows">
+					<Panel id="FeederRecipients" class="FeederList Recipients" />
+					<Panel id="FeederRecipientsMore" class="FeederShowMore">
+						<Label text="{s:feeder_more}" />
+					</Panel>
+				</Panel>
+				<Panel class="FeederFooterBar">
+					<Label id="FeederFooter" class="FeederFooter" text="{s:feeder_footer}" />
+				</Panel>
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

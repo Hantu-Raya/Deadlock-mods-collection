@@ -6,6 +6,7 @@ from active import get_record_name, iter_record_spans
 
 
 EVERYONE_RECORDS = {
+    "ability_baba_hexing_brew",
     "ability_bookworm_knightcharge",
     "ability_nano_catform",
     "ability_priest_knockback",
@@ -14,6 +15,7 @@ EVERYONE_RECORDS = {
     "ability_werewolf_transformation",
     "citadel_ability_bull_charge",
     "citadel_ability_uppercut",
+    "citadel_ability_zipline_boost",
     "synth_barrage",
     "upgrade_berserker",
     "upgrade_colossus",
@@ -25,6 +27,7 @@ EVERYONE_RECORDS = {
     "upgrade_self_bubble",
     "upgrade_shadow_strike",
     "upgrade_siphon_bullets",
+    "upgrade_surging_power",
     "upgrade_tech_overflow",
     "vanguard_aoe_buff",
 }
@@ -34,6 +37,8 @@ CASTER_ONLY_RECORDS = {
     "ability_drifter_hunger",
     "ability_punkgoat_ult",
     "ability_stacking_damage",
+    "ability_unicorn_radiantblast",
+    "ability_vampirebat_lovebites",
     "ability_viper_venom",
     "citadel_ability_hook",
     "citadel_ability_shiv_dash",
@@ -46,6 +51,7 @@ CASTER_ONLY_RECORDS = {
     "upgrade_spellslinger_headshots",
     "upgrade_tech_defense_shredders",
     "upgrade_toxic_bullets",
+    "upgrade_weighted_shots",
 }
 
 OVERHEAD_EVERYONE = "OVERHEAD_DRAW_FOR_EVERYONE"
@@ -76,7 +82,7 @@ SPECIAL_MODIFIERS = {
     "upgrade_boxing_glove": [
         (
             '_my_subclass_name = "modifier_slow_base"',
-            _status_fields(OVERHEAD_CASTER_ONLY, "slowed", "DISPLAY_HUD_NONE"),
+            _status_fields(OVERHEAD_CASTER_ONLY, "slowed_buildup", "DISPLAY_HUD_NONE"),
         ),
     ],
     "upgrade_bullet_resist_shredder": [
@@ -92,7 +98,7 @@ SPECIAL_MODIFIERS = {
     "upgrade_capacitor": [
         (
             '_my_subclass_name = "modifier_weapon_capacitor_slow"',
-            _status_fields(OVERHEAD_CASTER_ONLY, "slowed", "DISPLAY_HUD_NONE"),
+            _status_fields(OVERHEAD_CASTER_ONLY, "slowed_buildup", "DISPLAY_HUD_NONE"),
         ),
     ],
     "upgrade_cloaking_device_active": [
@@ -112,7 +118,7 @@ SPECIAL_MODIFIERS = {
     "upgrade_close_quarter_combat": [
         (
             '_my_subclass_name = "modifier_slow_base"',
-            _status_fields(OVERHEAD_CASTER_ONLY, "slowed", "DISPLAY_HUD_NONE"),
+            _status_fields(OVERHEAD_CASTER_ONLY, "slowed_buildup", "DISPLAY_HUD_NONE"),
         ),
     ],
     "upgrade_dps_aura": [

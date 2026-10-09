@@ -11,7 +11,7 @@
     'Apex Combat': ['Ricochet'],
     'Arcane Surge': ['Extra Stamina'],
     'Arctic Blast': ['Cold Front'],
-    'Armor Piercing Rounds': ['High-Velocity Rounds'],
+    'Armor Piercer': ['High-Velocity Rounds'],
     'Ballistic Enchantment': ['Mystic Expansion'],
     'Boundless Spirit': ['Improved Spirit'],
     'Burst Fire': ['Rapid Rounds'],
@@ -50,9 +50,10 @@
     'Rapid Recharge': ['Extra Charge'],
     'Reactive Barrier': ['Grit'],
     'Rescue Beam': ['Healing Rite'],
+    'Shadow Weave': ['Sprint Boots'],
     'Sharpshooter': ['Long Range', 'High-Velocity Rounds'],
     'Spellbreaker': ['Debuff Reducer'],
-    'Spirit Rend': ['Spirit Shredder Bullets'],
+    'Spirit Rend': ['Spirit Shredder'],
     'Spirit Snatch': ['Spirit Strike'],
     'Spiritual Overflow': ['Spirit Lifesteal'],
     'Spirit Shielding': ['Grit'],
@@ -68,7 +69,6 @@
     'Trophy Collector': ['Sprint Boots'],
     'Unstoppable': ['Debuff Reducer'],
     'Vampiric Burst': ['Bullet Lifesteal'],
-    'Veil Walker': ['Sprint Boots'],
     'Vortex Web': ['Slowing Hex'],
     'Weighted Shots': ['Slowing Bullets'],
     'Weapon Shielding': ['Grit'],
@@ -78,7 +78,7 @@
 
   function canon(name) {
     if (!name) return '';
-    return name.toString().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return name.toString().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   }
 
   function parseCost(txt) {
@@ -92,7 +92,7 @@
   }
 
   function setStyle(panel, prop, value) {
-    if (!panel) return;
+    if (!panel?.IsValid?.()) return;
     const key = '_rpStyle_' + prop;
     if (panel[key] === value) return;
     panel.style[prop] = value;
@@ -115,77 +115,95 @@
     }
   }
 
-
   function getGold() {
-    if (!_goldLabel || !_goldLabel.IsValid()) {
+    if (!_goldLabel?.IsValid?.()) {
       const root = findRoot($.GetContextPanel());
-      const gold = root.FindChildTraverse('CurrentGoldAmount');
-      _goldLabel = gold ? gold.FindChildTraverse('hudCurGoldLabel') : null;
+      const gold = getValidChild(root, null, 'CurrentGoldAmount');
+      _goldLabel = getValidChild(gold, null, 'hudCurGoldLabel');
     }
-    return _goldLabel ? parseCost(_goldLabel.text) : 0;
+    const text = _goldLabel ? _goldLabel.text : '';
+    if (text !== _goldText) {
+      _goldText = text;
+      _gold = parseCost(text);
+    }
+    return _gold;
   }
 
-  function getItemChild(panel, refs, key, id) {
-    const cached = refs[key];
-    if (cached && cached.IsValid()) return cached;
-    refs[key] = panel.FindChildTraverse(id);
-    return refs[key];
+  function getValidChild(panel, cached, id) {
+    if (cached?.IsValid?.()) return cached;
+    if (!panel?.IsValid?.()) return null;
+    const child = panel.FindChildTraverse(id);
+    return child?.IsValid?.() ? child : null;
   }
 
+  // Private refs use dot access exclusively so Closure renames reads and writes together.
   function getItemRefs(panel) {
     const refs = panel._rpItemRefs || (panel._rpItemRefs = {});
-    getItemChild(panel, refs, 'cost', 'ModCost');
-    getItemChild(panel, refs, 'name', 'ModName');
+    const cost = getValidChild(panel, refs.cost, 'ModCost');
+    const name = getValidChild(panel, refs.name, 'ModName');
+    refs.changed = refs.cost !== cost || refs.name !== name;
+    refs.cost = cost;
+    refs.name = name;
     return refs;
   }
 
   function getItemVisualRefs(panel) {
     const refs = getItemRefs(panel);
-    getItemChild(panel, refs, 'deficit', 'RecentPurchaseDeficitLabel');
-    getItemChild(panel, refs, 'divider', 'RecentPurchaseCostDivider');
-    getItemChild(panel, refs, 'goldIcon', 'goldIcon');
+    const deficit = getValidChild(panel, refs.deficit, 'RecentPurchaseDeficitLabel');
+    const divider = getValidChild(panel, refs.divider, 'RecentPurchaseCostDivider');
+    const goldIcon = getValidChild(panel, refs.goldIcon, 'goldIcon');
+    refs.changed = refs.changed || refs.deficit !== deficit || refs.divider !== divider || refs.goldIcon !== goldIcon;
+    refs.deficit = deficit;
+    refs.divider = divider;
+    refs.goldIcon = goldIcon;
     return refs;
   }
 
-  function getItems(root) {
-    const out = [];
-    if (!root) return out;
-    const stack = [root];
-    while (stack.length) {
-      const p = stack.pop();
-      if (p.BHasClass && p.BHasClass('QuickbuyItem')) {
-        const refs = getItemRefs(p);
-        const costLbl = refs.cost;
-        const nameLbl = refs.name;
-        out.push({
-          panel: p,
-          key: canon(nameLbl ? nameLbl.text : ''),
-          name: nameLbl ? nameLbl.text : '',
-          base: parseCost(costLbl ? costLbl.text : '')
-        });
+  // Keep discovery live for inserts/reorders, but reuse records and traversal storage.
+  const _stack = [];
+  const _items = [];
+  const _sellItems = [];
+
+  function getItems(root, items, withVisuals) {
+    let count = 0;
+    let changed = false;
+    _stack.length = 0;
+    if (root?.IsValid?.()) _stack.push(root);
+    while (_stack.length) {
+      const panel = _stack.pop();
+      if (!panel?.IsValid?.()) continue;
+      if (panel.BHasClass && panel.BHasClass('QuickbuyItem')) {
+        const refs = withVisuals ? getItemVisualRefs(panel) : getItemRefs(panel);
+        const item = refs.item || (refs.item = { panel: panel });
+        const name = refs.name ? refs.name.text : '';
+        const costText = refs.cost ? refs.cost.text : '';
+        if (items[count] !== item || refs.changed) changed = true;
+        if (item.name !== name) {
+          item.name = name;
+          item.key = canon(name);
+          changed = true;
+        }
+        if (item.costText !== costText) {
+          item.costText = costText;
+          item.base = parseCost(costText);
+          changed = true;
+        }
+        item.refs = refs;
+        items[count++] = item;
         continue;
       }
-      const n = p.GetChildCount();
-      for (let i = n - 1; i >= 0; i--) stack.push(p.GetChild(i));
+      const childCount = panel.GetChildCount();
+      for (let i = childCount - 1; i >= 0; i--) _stack.push(panel.GetChild(i));
     }
-    return out;
+    if (items.length !== count) changed = true;
+    items.length = count;
+    return changed;
   }
 
-  function getSellCredit(sellRoot) {
-    let cred = 0;
-    if (!sellRoot) return cred;
-    const stack = [sellRoot];
-    while (stack.length) {
-      const p = stack.pop();
-      if (p.BHasClass && p.BHasClass('QuickbuyItem')) {
-        const lbl = getItemRefs(p).cost;
-        cred += Math.floor(parseCost(lbl ? lbl.text : '') / 2);
-        continue;
-      }
-      const n = p.GetChildCount();
-      for (let i = n - 1; i >= 0; i--) stack.push(p.GetChild(i));
-    }
-    return cred;
+  function getSellCredit(items) {
+    let credit = 0;
+    for (let i = 0; i < items.length; i++) credit += Math.floor(items[i].base / 2);
+    return credit;
   }
 
   function compute(items, souls, sellCredit) {
@@ -229,18 +247,17 @@
       }
     }
 
-    const adj = total - sellCredit;
-    return adj < 0 ? 0 : adj;
+    return Math.max(0, total - sellCredit);
   }
 
   function applyLabels(items) {
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      if (!it.panel) continue;
+      if (!it.panel?.IsValid?.()) continue;
       const need = it.rem;
       const hasNeed = need > 0;
 
-      const refs = getItemVisualRefs(it.panel);
+      const refs = it.refs;
       const lbl = refs.deficit;
       const needText = formatSouls(need);
       if (lbl) {
@@ -257,26 +274,19 @@
 
       const modCost = refs.cost;
       const goldIcon = refs.goldIcon;
+      const color = hasNeed ? NEED_COLOR : OWNED_COLOR;
       if (modCost) {
-        if (hasNeed) {
-          setStyle(modCost, 'color', NEED_COLOR);
-          setStyle(goldIcon, 'washColor', NEED_COLOR);
-        } else {
-          setStyle(modCost, 'color', OWNED_COLOR);
-          setStyle(goldIcon, 'washColor', OWNED_COLOR);
-        }
+        setStyle(modCost, 'color', color);
+        setStyle(goldIcon, 'washColor', color);
       }
 
-      const msg = hasNeed ? 'Need ' + needText + ' more for ' + (it.name || 'item') : '';
       if (lbl) {
-        if (need > 0) {
-          if (lbl._lastChatMsg !== msg) {
-            lbl._lastChatMsg = msg;
-            lbl.SetPanelEvent('onactivate', () => sendQuickbuyChatMessage(msg));
-          }
-        } else if (lbl._lastChatMsg) {
-          lbl._lastChatMsg = null;
-          lbl.SetPanelEvent('onactivate', () => {});
+        lbl._lastChatMsg = hasNeed ? 'Need ' + needText + ' more for ' + (it.name || 'item') : null;
+        if (hasNeed && refs.chatLabel !== lbl) {
+          lbl.SetPanelEvent('onactivate', () => {
+            if (lbl.IsValid() && lbl._lastChatMsg) sendQuickbuyChatMessage(lbl._lastChatMsg);
+          });
+          refs.chatLabel = lbl;
         }
       }
     }
@@ -375,32 +385,24 @@
 
   function getChatPanel() {
     if (_chat.panel?.IsValid?.()) return _chat.panel;
-    const root = findRoot($.GetContextPanel());
-    const chat = root.FindChildTraverse("Chat");
-    if (chat?.IsValid?.()) {
-      _chat.panel = chat;
-      return chat;
-    }
-    return null;
+    _chat.panel = getValidChild(findRoot($.GetContextPanel()), null, "Chat");
+    return _chat.panel;
   }
 
-  function getChatChild(key, id) {
-    const cached = _chat[key];
+  function getChatChild(cached, id) {
     if (cached?.IsValid?.()) return cached;
-    const chat = getChatPanel();
-    if (!chat) return null;
-    const controls = chat.FindChildTraverse("ChatControls");
-    const child = controls ? controls.FindChildTraverse(id) : null;
-    if (child?.IsValid?.()) _chat[key] = child;
-    return child;
+    const controls = getValidChild(getChatPanel(), null, "ChatControls");
+    return getValidChild(controls, null, id);
   }
 
   function getChatInputPanel() {
-    return getChatChild("input", "ChatInput");
+    _chat.input = getChatChild(_chat.input, "ChatInput");
+    return _chat.input;
   }
 
   function getChatTargetLabel() {
-    return getChatChild("targetLabel", "ChatTargetLabel");
+    _chat.targetLabel = getChatChild(_chat.targetLabel, "ChatTargetLabel");
+    return _chat.targetLabel;
   }
 
   // Cache frequently accessed panels
@@ -408,24 +410,36 @@
   let _goldLabel = null;
   let _queuePanel = null;
   let _sellPanel = null;
+  let _goldText = null;
+  let _gold = 0;
+  let _souls = -1;
+  let _sellCredit = 0;
+  let _totalText = '0';
 
   function tick() {
     const ctx = $.GetContextPanel();
-    if (!ctx) { $.Schedule(TICK, tick); return; }
-
-    if (!_totalLbl || !_totalLbl.IsValid()) _totalLbl = ctx.FindChildTraverse('RecentPurchaseTotalCostLabel');
-    if (!_queuePanel || !_queuePanel.IsValid()) _queuePanel = ctx.FindChildTraverse('QuickbuyQueue');
-    if (!_sellPanel || !_sellPanel.IsValid()) _sellPanel = ctx.FindChildTraverse('QuickbuySellQueue');
-    if (!_totalLbl) { $.Schedule(TICK, tick); return; }
-
-    const items = getItems(_queuePanel);
-    const total = compute(items, getGold(), getSellCredit(_sellPanel));
-    const totalText = String(total);
-    if (_totalLbl._rpText !== totalText) {
-      _totalLbl.text = totalText;
-      _totalLbl._rpText = totalText;
+    if (ctx?.IsValid?.()) {
+      _totalLbl = getValidChild(ctx, _totalLbl, 'RecentPurchaseTotalCostLabel');
+      _queuePanel = getValidChild(ctx, _queuePanel, 'QuickbuyQueue');
+      _sellPanel = getValidChild(ctx, _sellPanel, 'QuickbuySellQueue');
+      if (_totalLbl) {
+        let changed = getItems(_queuePanel, _items, true);
+        if (getItems(_sellPanel, _sellItems, false)) {
+          _sellCredit = getSellCredit(_sellItems);
+          changed = true;
+        }
+        const souls = getGold();
+        if (changed || souls !== _souls) {
+          _souls = souls;
+          _totalText = String(compute(_items, souls, _sellCredit));
+          applyLabels(_items);
+        }
+        if (_totalLbl._rpText !== _totalText) {
+          _totalLbl.text = _totalText;
+          _totalLbl._rpText = _totalText;
+        }
+      }
     }
-    applyLabels(items);
 
     $.Schedule(TICK, tick);
   }

@@ -12,10 +12,8 @@ const records = {
   boundary: { name: "EDGE", at: 26000 }, expired: { name: "OLD", at: 25999 },
   future: { name: "FUTURE", at: 50001 }, tombstone: { name: "", at: 50000 }
 };
-const counters = Object.create(null);
-const count = key => { counters[key] = (counters[key] || 0) + 1; };
-const readUnits = new Function("receivedRecords", "ttl", "Date", "profile", "telemetryCount",
-  grouping + "\nreturn readUnits;")(records, 24000, { now: () => 50000 }, { count }, count);
+const readUnits = new Function("receivedRecords", "ttl", "Date",
+  grouping + "\nreturn readUnits;")(records, 24000, { now: () => 50000 });
 const scoped = readUnits("ALICE", "BOB");
 assert.deepEqual(Object.keys(scoped).sort(), ["ALICE", "BOB"]);
 assert.equal(scoped.ALICE, -1);

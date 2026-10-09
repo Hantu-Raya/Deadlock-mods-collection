@@ -8,6 +8,9 @@
     var SUPPORTER_TICKER_URL = "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
     var STATLOCKER_PROFILE_URL_PREFIX = "https://statlocker.gg/profile/";
     var STATLOCKER_PROFILE_URL_SUFFIX = "/matches";
+    var RANK_IMAGE_URL_PREFIX = "https://api.deadlock-api.com/v1/players/";
+    var RANK_IMAGE_URL_SUFFIX = "/rank/image?format=webp";
+    var RANK_REFRESH_DELAYS = [0.25, 1.0];
     var BRIDGE_TITLE_PREFIX = "DLSTATS2:";
     var BRIDGE_TITLE_MAX_LENGTH = 2048;
     var BRIDGE_URL_MAX_LENGTH = 4096;
@@ -242,6 +245,7 @@
     var communityButton = null;
     var customPanel = null;
     var selfNamePanel = null;
+    var profileRankImage = null;
     var titleLabel = null;
     var statLockerButton = null;
     var playerHeadingLeft = null;
@@ -270,6 +274,7 @@
 
     var currentIdentity = null;
     var currentDisplayName = "";
+    var shownRankAccount = "";
     var lifecycleState = STATE_STOCK;
     var requestGeneration = 0;
     var watcherGeneration = 0;
@@ -589,6 +594,60 @@
             account: identity.account,
             message: ""
         };
+    }
+
+    function rankImageUrl(account) {
+        return RANK_IMAGE_URL_PREFIX + encodeURIComponent(account) + RANK_IMAGE_URL_SUFFIX;
+    }
+
+    function setProfileRankImage(account) {
+        if (!isValidPanel(profileRankImage) || !isCallable(profileRankImage.SetImage)) {
+            return;
+        }
+        try {
+            if (!account) {
+                if (shownRankAccount || profileRankImage.visible !== false) {
+                    profileRankImage.SetImage("");
+                }
+                profileRankImage.visible = false;
+                shownRankAccount = "";
+                return;
+            }
+            if (shownRankAccount !== account) {
+                if (shownRankAccount) {
+                    profileRankImage.visible = false;
+                    profileRankImage.SetImage("");
+                }
+                profileRankImage.SetImage(rankImageUrl(account));
+                shownRankAccount = account;
+            }
+            profileRankImage.visible = true;
+        } catch (error) {
+            shownRankAccount = "";
+            setVisibleProperty(profileRankImage, false);
+        }
+    }
+
+    function refreshProfileRank(identity) {
+        if (!isValidPanel(profileRankImage)) {
+            return;
+        }
+        identity = identity && identity.state ? identity : readIdentity();
+        setProfileRankImage(identity.state === "valid" ? identity.account : "");
+    }
+
+    function scheduleInitialRankRefreshes() {
+        var index;
+        if (!isValidPanel(profileRankImage)) {
+            return;
+        }
+        for (index = 0; index < RANK_REFRESH_DELAYS.length; index += 1) {
+            try {
+                $.Schedule(RANK_REFRESH_DELAYS[index], refreshProfileRank);
+            } catch (error) {
+                return;
+            }
+        }
     }
 
     function payloadAccountMatches(value, accountText) {
@@ -1567,6 +1626,7 @@
         }
 
         currentIdentity = nextIdentity;
+        refreshProfileRank(nextIdentity);
         if (isCustomActive()) {
             restoreStock("profile_change");
         }
@@ -1833,6 +1893,7 @@
         communityButton = findPanel("ProfileStatsCommunityButton");
         customPanel = findPanel("ProfileStatsCommunityPanel");
         selfNamePanel = findPanel("SelfName");
+        profileRankImage = findPanel("ProfileStatsCommunityRankImage");
         titleLabel = findPanel("ProfileStatsCommunityTitle");
         statLockerButton = findPanel("ProfileStatsCommunityStatLocker");
         playerHeadingLeft = findPanel("ProfileStatsCommunityPlayerHeadingLeft");
@@ -1862,6 +1923,9 @@
     }
 
     function bindEvents() {
+        if (isValidPanel(profileRankImage)) {
+            setPanelEvent(root, "onmouseover", refreshProfileRank);
+        }
         setPanelEvent(communityButton, "onactivate", showCustomMode);
         setPanelEvent(statLockerButton, "onactivate", openStatLockerProfile);
         setPanelEvent(matchCountDropdown, "oninputsubmit", onMatchCountChanged);
@@ -1890,6 +1954,8 @@
         closeSupporterTicker();
         setVisibility(customPanel, false);
         bindEvents();
+        refreshProfileRank(currentIdentity);
+        scheduleInitialRankRefreshes();
     }
 
     try {

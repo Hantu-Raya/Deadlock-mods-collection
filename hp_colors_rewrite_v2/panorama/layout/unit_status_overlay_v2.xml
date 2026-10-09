@@ -38,7 +38,6 @@
 		</snippet>
 	</snippets>
 	<Panel class="WindowRoot" hittest="false">
-		<Label id="name" text="{s:name}" />
 		<Panel id="NeutralBounty">
 			<Panel id="TierContainer">
 				<Panel class="difficulty_icon" />
@@ -50,47 +49,46 @@
 		</Panel>
 		<CitadelStatusEffect id="StatusEffects" />
 		<Panel id="TargetableIndicator" />
-		<Panel id="UnitStatus" hittest="false">
-			<Panel id="InfoHealthContainer">
-				<Panel id="LevelContainer" class="NP_playerlevel_container" hittest="false" hittestchildren="false" style="visibility: collapse;">
-					<Label id="unit_level_label" class="NP_playerlevel" text="{i:player_level}" hittest="false" />
-				</Panel>
-				<Panel id="UnitHealthbarsContainer">
-					<Panel id="UnitHealthbar" class="UnitHealthbarContainer">
-						<Panel id="UnitHealthbarInner">
-							<Panel id="unit_healthbar_lagging" class="HealthAmount" />
-							<Panel id="hp_colors_pulse_overlay" hittest="false" hittestchildren="false" style="visibility: collapse;" />
-							<Panel id="unit_healthbar_deferred" class="HealthAmount" />
-							<Panel id="unit_healthbar_healing" class="HealthAmount" />
-							<Panel id="unit_healthbar_bullet_shield" class="HealthAmount" />
-							<Panel id="unit_healthbar_ratking_armor" class="HealthAmount" />
-							<Panel id="unit_healthbar_delta" class="HealthAmount" />
-						</Panel>
-						<Panel id="UnitHealthbarLines" />
-						<Panel id="hp_colors_kill_marker" hittest="false" style="visibility: collapse;" />
-					</Panel>
-					<Panel id="UnitShieldbar" class="UnitHealthbarContainer">
-						<Panel id="UnitHealthbarInner">
-							<Panel id="unit_healthbar_bullet_shield" class="HealthAmount" />
-						</Panel>
-					</Panel>
-				</Panel>
-				<Panel class="unit_info_panel">
-					<Panel id="unit_info_bg">
-						<Image id="unit_ult_ready_icon" />
-						<Panel id="HPV2UltimateOverlay" hittest="false" hittestchildren="false">
-							<Panel id="HPV2UltimateDark" class="HPV2UltimateArtwork" hittest="false" />
-							<Image id="HPV2UltimateFill" class="HPV2UltimateArtwork" src="s2r://panorama/images/hpv2/ultimate_progress.vtex" hittest="false" />
-						</Panel>
-					</Panel>
-				</Panel>
-				<Label id="UnitHealthbarValue" text="{d:health}" />
-				<Label id="UnitShieldbarValue" text="{d:health}" />
+		<Panel id="HPV2MotionFrame" hittest="false" hittestchildren="false">
+			<Panel id="HPV2NameAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+				<Label id="name" text="{s:name}" />
 			</Panel>
-		</Panel>
-		<Panel id="hp_counter_container" hittest="false" hittestchildren="false">
-			<Panel id="hp_counter_anchor" hittest="false" hittestchildren="false">
-				<Panel id="hp_counter_row" hittest="false" hittestchildren="false">
+			<Panel id="UnitStatus" hittest="false">
+				<Panel id="InfoHealthContainer">
+					<Panel id="LevelContainer" class="NP_playerlevel_container" hittest="false" hittestchildren="false" style="visibility: collapse;">
+						<Label id="unit_level_label" class="NP_playerlevel" text="{i:player_level}" hittest="false" />
+					</Panel>
+					<Panel id="UnitHealthbarsContainer">
+						<Panel id="UnitHealthbar" class="UnitHealthbarContainer">
+							<Panel id="UnitHealthbarInner">
+								<Panel id="unit_healthbar_lagging" class="HealthAmount" />
+								<Panel id="unit_healthbar_deferred" class="HealthAmount" />
+								<Panel id="unit_healthbar_healing" class="HealthAmount" />
+								<Panel id="unit_healthbar_bullet_shield" class="HealthAmount" />
+								<Panel id="unit_healthbar_ratking_armor" class="HealthAmount" />
+								<Panel id="unit_healthbar_delta" class="HealthAmount" />
+							</Panel>
+							<Panel id="UnitHealthbarLines" />
+						</Panel>
+						<Panel id="UnitShieldbar" class="UnitHealthbarContainer">
+							<Panel id="UnitHealthbarInner">
+								<Panel id="unit_healthbar_bullet_shield" class="HealthAmount" />
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel class="unit_info_panel">
+						<Panel id="unit_info_bg">
+							<Image id="unit_ult_ready_icon" />
+						</Panel>
+					</Panel>
+					<Label id="UnitHealthbarValue" text="{d:health}" />
+					<Label id="UnitShieldbarValue" text="{d:health}" />
+				</Panel>
+			</Panel>
+			<Panel id="hp_counter_container" hittest="false" hittestchildren="false">
+				<Panel id="hp_counter_anchor" hittest="false" hittestchildren="false">
+					<Panel id="hp_counter_row" hittest="false" hittestchildren="false">
+					</Panel>
 				</Panel>
 			</Panel>
 		</Panel>
@@ -98,12 +96,18 @@
 			<Panel class="KSImage" />
 		</Panel>
 		<Panel id="StaminaContainer" />
-		<Panel id="RejuvenatorActive" />
-		<Panel id="CriticalIndicator">
-			<Label text="#Citadel_Hud_Critical" />
+		<Panel id="HPV2RejuvenatorAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+			<Panel id="RejuvenatorActive" />
 		</Panel>
-		<Panel id="AssassinateIndicator">
-			<Label text="#Citadel_Hud_Assassinate" />
+		<Panel id="HPV2CriticalAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+			<Panel id="CriticalIndicator">
+				<Label text="#Citadel_Hud_Critical" />
+			</Panel>
+		</Panel>
+		<Panel id="HPV2AssassinateAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+			<Panel id="AssassinateIndicator">
+				<Label text="#Citadel_Hud_Assassinate" />
+			</Panel>
 		</Panel>
 		<Panel id="UnkillableIndicator">
 			<Label text="#Citadel_Hud_Unkillable" />

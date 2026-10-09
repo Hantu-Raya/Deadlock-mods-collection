@@ -166,10 +166,13 @@
         }
     }
     function findByClass(panel, className) {
-        if (!isValid(panel) || !panel.FindChildrenWithClassTraverse) {
+        if (!isValid(panel)) {
             return null;
         }
         try {
+            if (!panel.FindChildrenWithClassTraverse) {
+                return null;
+            }
             return panel.FindChildrenWithClassTraverse(className) || [];
         } catch (ignore) {
             return null;
@@ -233,31 +236,37 @@
         }
         image = record.rankImage;
         try {
+            // Presentation cache only: accounts are authorized by the caller, never by this image.
             if (!account) {
-                if (record.shownAccount !== null || image.visible !== false) {
+                if (image.__showrankBarebonesRankAccount || image.visible !== false) {
                     image.SetImage("");
                 }
-                image.visible = false;
-                record.shownAccount = null;
+                image.__showrankBarebonesRankAccount = null;
+                image.__showrankBarebonesRankHero = "";
             } else {
-                if (record.shownAccount !== account) {
-                    if (record.shownAccount !== null) {
+                if (image.__showrankBarebonesRankAccount !== account) {
+                    if (image.__showrankBarebonesRankAccount) {
                         image.visible = false;
                         image.SetImage("");
                     }
-                    record.shownAccount = null;
+                    image.__showrankBarebonesRankAccount = null;
                     image.SetImage(rankImageUrl(account));
-                    record.shownAccount = account;
+                    image.__showrankBarebonesRankAccount = account;
                 }
-                image.visible = true;
+                image.__showrankBarebonesRankHero = record.hero || "";
+            }
+            if (image.visible !== !!account) {
+                image.visible = !!account;
             }
         } catch (ignore) {
-            record.shownAccount = null;
+            try {
+                image.visible = false;
+                image.__showrankBarebonesRankAccount = null;
+            } catch (ignoreReset) {
+            }
         }
     }
-    function setTeamAverageImage(documentRoot, side, url) {
-        var image = findChild(documentRoot, side === "friendly" ? "ShowRankBarebonesAverageFriendlyImage":
-            "ShowRankBarebonesAverageEnemyImage", "Image");
+    function setTeamAverageImage(image, url) {
         url = typeof url === "string" ? url: "";
         if (!isValid(image)) {
             return false;
@@ -275,14 +284,13 @@
         }
     }
     function clearTeamAverages(documentRoot) {
-        setTeamAverageImage(documentRoot, "friendly");
-        setTeamAverageImage(documentRoot, "enemy");
+        setTeamAverageImage(findChild(documentRoot, "ShowRankBarebonesAverageFriendlyImage", "Image"));
+        setTeamAverageImage(findChild(documentRoot, "ShowRankBarebonesAverageEnemyImage", "Image"));
     }
     function rankTarget(panel, id) {
         var rankImage = findChild(panel, id, "Image");
         return isValid(rankImage) ? {
-            rankImage: rankImage,
-            shownAccount: null
+            rankImage: rankImage
         } : null;
     }
     function clearTopbarRecords(records) {
@@ -455,19 +463,28 @@
             return false;
         }
     }
+    function profileRecordIsValid(record) {
+        return !!(record && isValid(record.root) && isValid(record.accountLabel) && isValid(record.rankImage));
+    }
     function refreshProfile(record) {
-        if (record && isValid(record.root) && isValid(record.accountLabel) && isValid(record.rankImage)) {
+        if (record && isValid(record.root) && isValid(record.rankImage)) {
             setRankImage(record, resolveProfileAccount(record));
         }
     }
     function refreshTopbar(record) {
         var hero;
-        if (!record || !isValid(record.root) || !isValid(record.heroLabel) || !isValid(record.rankImage)) {
+        if (!record || !isValid(record.root) || !isValid(record.rankImage)) {
             return "";
         }
-        hero = normalizeHero(readText(record.heroLabel));
-        if (record.hero !== hero) {
-            setRankImage(record, null);
+        hero = isValid(record.heroLabel) ? normalizeHero(readText(record.heroLabel)): "";
+        if (record.hero !== hero || !hero) {
+            try {
+                if (!hero || record.rankImage.__showrankBarebonesRankHero !== hero) {
+                    setRankImage(record, null);
+                }
+            } catch (ignore) {
+                setRankImage(record, null);
+            }
             record.hero = hero;
         }
         return hero;
@@ -537,9 +554,10 @@
         toast.icons = [];
         for (index = 0; index < heroes.length; index += 1) {
             file = MISSING_HERO_ICON_FILES[heroes[index]];
-            if (!file) {
+            if (typeof file !== "string") {
                 continue;
             }
+            icon = null;
             try {
                 icon = $.CreatePanel("Image", toast.iconRow, "");
                 icon.AddClass("ShowRankBarebonesMissingToastIcon");
@@ -615,6 +633,12 @@
                 state.toast = toast;
                 prominent = true;
             } catch (ignore) {
+                try {
+                    if (isValid(toast && toast.panel) && toast.panel.DeleteAsync) {
+                        toast.panel.DeleteAsync(0);
+                    }
+                } catch (ignoreDelete) {
+                }
                 state.toast = null;
                 return;
             }
@@ -792,7 +816,7 @@
         if (!record || !record.active || !isValid(record.root)) {
             return false;
         }
-        if (isHideoutDocumentRoot(shared.documentRoot) || seconds === null) {
+        if (seconds === null) {
             resetMissingPlayer(shared, record, false);
             return true;
         }
@@ -877,8 +901,8 @@
                 leader = records[index];
             }
         }
-        seconds = readMissingWindowSeconds(leader || records[0]);
-        if (!isHideoutDocumentRoot(shared.documentRoot) && seconds !== null && seconds >= MISSING_WINDOW_END_SECONDS) {
+        seconds = isHideoutDocumentRoot(shared.documentRoot) ? null: readMissingWindowSeconds(leader || records[0]);
+        if (seconds !== null && seconds >= MISSING_WINDOW_END_SECONDS) {
             for (index = 0; index < records.length; index += 1) {
                 resetMissingPlayer(shared, records[index], true);
             }
@@ -973,7 +997,7 @@
             }
         });
     }
-    function newMissingRecord(shared, root) {
+    function newMissingRecord(root) {
         return {
             root: root,
             active: true,
@@ -995,7 +1019,7 @@
             shared.missingLeaderRoot = root;
             shared.missingLeaderToken += 1;
             shared.missingLeaderPulse += 1;
-            record = newMissingRecord(shared, root);
+            record = newMissingRecord(root);
             shared.missingRecords = [record];
             if (!refreshMissingSession(shared)) {
                 return;
@@ -1022,7 +1046,7 @@
                 return;
             }
         }
-        record = newMissingRecord(shared, root);
+        record = newMissingRecord(root);
         records.push(record);
         shared.missingRecords = records;
         if (refreshMissingSession(shared) && record.active) {
@@ -1031,7 +1055,9 @@
     }
     function startTopbarWatch(record) {
         var index;
-        getState(record && record.root);
+        if (!record) {
+            return;
+        }
         refreshTopbar(record);
         for (index = 0; index < STARTUP_REFRESH_DELAYS.length; index += 1) {
             schedule(STARTUP_REFRESH_DELAYS[index], function () {
@@ -1040,7 +1066,7 @@
         }
     }
     function continueProfileWatch(record, delays, token, index, elapsed) {
-        if (index >= delays.length) {
+        if (index >= delays.length || !profileRecordIsValid(record)) {
             return;
         }
         schedule(delays[index] - elapsed, function () {
@@ -1053,7 +1079,7 @@
     }
     function continueProfileVerification(record, delays, token, index, elapsed) {
         var account;
-        if (index >= delays.length) {
+        if (index >= delays.length || !profileRecordIsValid(record)) {
             return;
         }
         schedule(delays[index] - elapsed, function () {
@@ -1078,8 +1104,7 @@
     }
     function continueHideoutProfileWatch(record, token, tick) {
         var delay;
-        if (tick >= PROFILE_HOVER_MAX_TICKS || !isValid(record.root) || !isValid(record.accountLabel) ||
-            !isValid(record.rankImage)) {
+        if (tick >= PROFILE_HOVER_MAX_TICKS || !profileRecordIsValid(record)) {
             return;
         }
         delay = tick < PROFILE_HOVER_FAST_TICKS ? PROFILE_HOVER_FAST_DELAY: PROFILE_HOVER_IDLE_DELAY;
@@ -1106,7 +1131,8 @@
     }
     function startProfileWatch(record, delays, retryOutside) {
         var token;
-        if (!record) {
+        if (!profileRecordIsValid(record)) {
+            refreshProfile(record);
             return;
         }
         token = record.refreshToken + 1;
@@ -1158,7 +1184,6 @@
             accountLabel: accountLabel,
             contextAccountLabel: contextAccountLabel,
             rankImage: rankImage,
-            shownAccount: null,
             refreshToken: 0,
             stableAccount: null,
             stableSamples: 0
@@ -1175,8 +1200,7 @@
             heroLabel: heroLabel,
             rankImage: rankImage,
             hero: "",
-            teamSide: "",
-            shownAccount: null
+            teamSide: ""
         } : null;
     }
     function buildRowRecord(panel) {
@@ -1188,7 +1212,6 @@
             heroLabel: heroLabel,
             mainContents: mainContents,
             rankImage: rankImage,
-            shownAccount: null,
             account: null
         } : null;
     }
@@ -1231,7 +1254,7 @@
                     break;
                 }
             }
-            target = rankTarget(roots[index], "ShowRankBarebonesPlayerListRankImage");
+            target = record || rankTarget(roots[index], "ShowRankBarebonesPlayerListRankImage");
             if (target && !account) {
                 setRankImage(target, null);
             }
@@ -1247,7 +1270,6 @@
         var candidates = [];
         var targets = [];
         var heroCounts = Object.create(null);
-        var duplicateHeroes = Object.create(null);
         var uniqueHeroCount = 0;
         var index;
         var record;
@@ -1264,31 +1286,16 @@
                 continue;
             }
             hero = refreshTopbar(record);
-            record.hero = hero;
             candidates.push(record);
-            if (!heroCounts[hero]) {
-                heroCounts[hero] = 1;
-                if (hero) {
-                    uniqueHeroCount += 1;
-                }
-            } else {
-                heroCounts[hero] += 1;
-                if (hero) {
-                    duplicateHeroes[hero] = true;
-                }
+            if (hero && !heroCounts[hero]) {
+                heroCounts[hero] = true;
+                uniqueHeroCount += 1;
             }
         }
         return {
             candidates: candidates,
             targets: targets,
-            heroCounts: heroCounts,
-            duplicateHeroes: duplicateHeroes,
-            uniqueHeroCount: uniqueHeroCount,
             topbarCount: candidates.length,
-            teamSideCandidates: {
-                "friendly": [],
-                "enemy": []
-            },
             sideFactsRead: false,
             allTeamSidesKnown: false,
             readiness: {
@@ -1302,6 +1309,8 @@
         var candidates;
         var index;
         var side;
+        var friendlyCount = 0;
+        var enemyCount = 0;
         if (!snapshot || snapshot.sideFactsRead) {
             return !!(snapshot && snapshot.allTeamSidesKnown);
         }
@@ -1311,15 +1320,16 @@
         for (index = 0; index < candidates.length; index += 1) {
             side = detectTopbarTeamSide(candidates[index].root);
             candidates[index].teamSide = side;
-            if (side === "friendly" || side === "enemy") {
-                snapshot.teamSideCandidates[side].push(candidates[index]);
+            if (side === "friendly") {
+                friendlyCount += 1;
+            } else if (side === "enemy") {
+                enemyCount += 1;
             } else {
                 snapshot.allTeamSidesKnown = false;
             }
         }
         snapshot.readiness.teamSidesReady = snapshot.allTeamSidesKnown &&
-            snapshot.teamSideCandidates["friendly"].length === TEAM_AVERAGE_ACCOUNTS &&
-            snapshot.teamSideCandidates["enemy"].length === TEAM_AVERAGE_ACCOUNTS;
+            friendlyCount === TEAM_AVERAGE_ACCOUNTS && enemyCount === TEAM_AVERAGE_ACCOUNTS;
         return snapshot.allTeamSidesKnown;
     }
     function buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay) {
@@ -1548,8 +1558,15 @@
     }
     function scheduleEscape(delay, session, token, callback) {
         schedule(delay, function () {
+            var shared = session.shared;
             if (escapeIsCurrent(session, token)) {
                 callback();
+            } else if (shared && shared.escape === session && shared.escapeToken === token) {
+                shared.escapeOpenLatched = false;
+                shared.escapeRoot = null;
+                shared.escapeToken += 1;
+                releaseEscapeSession(shared);
+                closePlayerCards();
             }
         });
     }
@@ -1759,8 +1776,8 @@
             setRankImage(plan.writes[index].record, plan.writes[index].account);
         }
         if (plan.average) {
-            setTeamAverageImage(session.shared.documentRoot, "friendly", plan.average.friendlyUrl);
-            setTeamAverageImage(session.shared.documentRoot, "enemy", plan.average.enemyUrl);
+            setTeamAverageImage(plan.average.friendlyImage, plan.average.friendlyUrl);
+            setTeamAverageImage(plan.average.enemyImage, plan.average.enemyUrl);
         } else if (terminal) {
             clearTeamAverages(session.shared.documentRoot);
         }
@@ -1877,6 +1894,10 @@
             }
             return;
         }
+        if (currentRowHero(record) !== record.hero) {
+            completeRowProbe(session, record, null);
+            return;
+        }
         account = changedProfileAccount(session.shared.documentRoot, snapshot);
         if (account) {
             completeRowProbe(session, record, account);
@@ -1908,7 +1929,7 @@
             return;
         }
         record = session.roster.probes[session.index];
-        if (!isValid(record.mainContents)) {
+        if (currentRowHero(record) !== record.hero) {
             session.index += 1;
             probeNextRow(session);
             return;
@@ -2093,6 +2114,9 @@
         var intent;
         if (!shared) {
             state = null;
+            return;
+        }
+        if (shared.escapeRoot !== escapeRoot) {
             return;
         }
         intent = classifyEscapeReadiness({

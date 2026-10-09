@@ -270,7 +270,7 @@ function harness(options = {}) {
         GetContextPanel: () => panel,
         Schedule: (delay, callback) => enqueue(delay, callback),
         DispatchEvent: dispatch,
-        CreatePanel: (type, parent, id) => parent.add(new Panel(type, { id })),
+        CreatePanel: (type, parent, id) => options.createPanel ? options.createPanel(type, parent, id) : parent.add(new Panel(type, { id })),
       };
       dollars.push(dollar);
       vm.runInNewContext(source, {
@@ -1048,7 +1048,7 @@ for (const playerCount of [6, 12]) {
     captureBaseline('baseline.escape-cache-recreated-topbars-12', h);
     assertTopbarEvidenceBudget(
       replayWork,
-      { heroReads: 24, rowHeroReads: 0, textReads: 24, findChild: 42, getParent: 23 },
+      { heroReads: 24, rowHeroReads: 0, textReads: 24, findChild: 39, getParent: 23 },
       'twelve-player cache replay',
     );
   }
@@ -1235,7 +1235,7 @@ for (const playerCount of [6, 12]) {
   );
   assertTopbarEvidenceBudget(
     delayedWork,
-    { heroReads: 24, rowHeroReads: 24, textReads: 96, findChild: 466, getParent: 157 },
+    { heroReads: 24, rowHeroReads: 48, textReads: 120, findChild: 427, getParent: 157 },
     'delayed twelve-player pass',
   );
   const delayedScans = rootRosterScans(delayedWork);
@@ -1274,7 +1274,7 @@ for (const playerCount of [6, 12]) {
   );
   assertTopbarEvidenceBudget(
     completedWork,
-    { heroReads: 24, rowHeroReads: 24, textReads: 96, findChild: 466, getParent: 157 },
+    { heroReads: 24, rowHeroReads: 48, textReads: 120, findChild: 427, getParent: 157 },
     'complete twelve-player pass',
   );
   const completedRoster = h.documentRoot.__showrank_barebones_state_v1.completedRoster;
@@ -1428,7 +1428,7 @@ for (const playerCount of [6, 12]) {
   captureBaseline('baseline.escape-duplicate-heroes', h);
   assertTopbarEvidenceBudget(
     duplicateWork,
-    { heroReads: 2, rowHeroReads: 1, textReads: 7, findChild: 54, getParent: 23 },
+    { heroReads: 2, rowHeroReads: 3, textReads: 9, findChild: 51, getParent: 23 },
     'duplicate top-bar heroes',
   );
   assert.deepStrictEqual(first.image.images.filter(Boolean), [], 'duplicate topbar hero does not render');
@@ -1501,6 +1501,182 @@ for (const playerCount of [6, 12]) {
 {
   const h = harness(); const bar = topbar('haze'), menu = escape(); h.evaluate(bar.root); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); assert.ok(h.drain() <= 9, 'missing rows, late attachment, and final cleanup complete within a 16.25-second bound'); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'missing rows leave stale ranks cleared');
 }
+// Failure modes: stale owners must not close replacements; canceled owners must release;
+// changed row bindings must not receive old witnesses; startup must preserve newer verified renders.
+const regressions = [
+  ['escape.stale-mouseout-cannot-cancel-replacement', () => {
+    const h = harness(), first = escape(), second = escape();
+    const firstDollar = h.evaluate(first.root);
+    firstDollar.ShowRankBarebonesEscapeOpen();
+    first.root.valid = false;
+    firstDollar.ShowRankBarebonesEscapeOut();
+    h.evaluate(second.root).ShowRankBarebonesEscapeOpen();
+    const shared = h.documentRoot.__showrank_barebones_state_v1, token = shared.escapeToken;
+    h.runDelay(0);
+    assert.strictEqual(shared.escape && shared.escape.root, second.root, 'old deferred mouseout cannot release a replacement');
+    assert.strictEqual(shared.escapeToken, token, 'old deferred mouseout cannot advance the replacement token');
+    h.drain();
+  }],
+  ['escape.closed-scheduled-owner-releases-session', () => {
+    const h = harness(), menu = escape();
+    const dollar = h.evaluate(menu.root);
+    dollar.ShowRankBarebonesEscapeOpen();
+    h.documentRoot.RemoveClass('ShowEscapeMenu');
+    h.drain();
+    const shared = h.documentRoot.__showrank_barebones_state_v1;
+    assert.deepStrictEqual([shared.escapeOpenLatched, shared.escape, shared.escapeRoot], [false, null, null], 'native close without mouseout releases its scheduled owner');
+    h.documentRoot.AddClass('ShowEscapeMenu');
+    dollar.ShowRankBarebonesEscapeOpen(); h.drain();
+    assert.strictEqual(h.events.filter((panel) => panel === menu.playersTab).length, 2, 'the next native opening can start a fresh pass');
+  }],
+  ['escape.changed-row-during-witness-fails-closed', () => {
+    const h = harness(), card = profile('101'), menu = escape(), bar = topbar('haze'), player = row('haze');
+    h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(player.root);
+    h.on(player.mainContents, () => { setProfileAccount(card, '201'); player.heroLabel.text = 'calico'; });
+    h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
+    assert.deepStrictEqual(player.image.images.filter(Boolean), [], 'a reused row cannot receive a witness for its former hero');
+    assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'the stale row witness cannot reach a topbar');
+  }],
+  ['topbar.late-startup-preserves-verified-rank', () => {
+    const h = harness(), card = profile('101'), menu = escape(), roster = playerRoster(['haze'], 'LateStartup');
+    roster.bars[0].heroLabel.text = '';
+    h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(201 + index));
+    roster.bars[0].heroLabel.text = 'haze';
+    h.evaluate(menu.root).ShowRankBarebonesEscapeOpen();
+    h.advance(0.7);
+    assert.strictEqual(roster.bars[0].image.visible, true, 'startup must not hide a newer verified render');
+    assert.strictEqual(roster.bars[0].image.images.at(-1), rankUrl('201'), 'startup must not erase a newer verified URL');
+    h.drain();
+  }],
+  ['rank.unchanged-cache-replay-skips-image-writes', () => {
+    const h = harness(), card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'UnchangedReplay');
+    h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(201 + index));
+    const dollar = h.evaluate(menu.root);
+    dollar.ShowRankBarebonesEscapeOpen(); h.drain(); h.resetWork();
+    dollar.ShowRankBarebonesEscapeOpen(); h.drain();
+    captureBaseline('baseline.unchanged-cache-image-writes', h);
+    assert.strictEqual(h.snapshotWork().panelCalls.SetImage, 0, 'unchanged verified replay performs no rank or average image writes');
+  }],
+  ['rank.presentation-cache-is-not-authority', () => {
+    const h = harness(), menu = escape(), player = row('haze'), bar = topbar('haze');
+    h.evaluate(bar.root); h.evaluate(player.root); h.drain();
+    for (const image of [bar.image, player.image]) {
+      image.__showrankBarebonesRankAccount = '999'; image.__showrankBarebonesRankHero = 'haze';
+      image.SetImage(rankUrl('999')); image.visible = true;
+    }
+    h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
+    assert.strictEqual(bar.image.visible, false, 'cached rendering state cannot preserve an unwitnessed topbar account');
+    assert.strictEqual(player.image.visible, false, 'cached rendering state cannot preserve an unwitnessed row account');
+    assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'rendering metadata cannot create a verified cache');
+  }],
+  ['rank.panel-metadata-failure-is-contained', () => {
+    const h = harness(), card = profile('101');
+    Object.defineProperty(card.image, '__showrankBarebonesRankAccount', {
+      get() { throw new Error('native image property unavailable'); },
+      set() { throw new Error('native image property unavailable'); },
+    });
+    assert.doesNotThrow(() => { h.evaluate(card.root); h.drain(); }, 'native image property failures stay inside the adapter');
+    assert.strictEqual(card.image.visible, false, 'failed presentation metadata hides the unverified image');
+  }],
+  ['escape.roster-method-getter-failure-is-contained', () => {
+    const h = harness(), menu = escape();
+    const dollar = h.evaluate(menu.root);
+    Object.defineProperty(h.documentRoot, 'FindChildrenWithClassTraverse', {
+      get() { throw new Error('native traversal unavailable'); },
+    });
+    assert.doesNotThrow(() => { dollar.ShowRankBarebonesEscapeOpen(); h.drain(); }, 'a volatile panel method getter fails closed through bounded retries');
+    assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.escape, null, 'failed traversal still releases the session');
+  }],
+  ['topbar.unready-record-has-no-rank-retries', () => {
+    const h = harness(), panel = new Panel('CitadelHudTopBarPlayer', { classes: ['ShowRankBarebonesTopbarPlayer'] });
+    h.evaluate(panel);
+    assert.strictEqual(h.pending(), 0, 'rank retries cannot recover a null record and should not be scheduled');
+  }],
+  ['profile.invalidated-refresh-stops-chain', () => {
+    const h = harness(), card = profile('101');
+    h.evaluate(card.root); h.drain();
+    card.root.ShowRankBarebonesRefresh(); card.root.valid = false;
+    assert.strictEqual(h.drain(), 1, 'a destroyed profile stops after its already queued callback');
+  }],
+  ['profile.lost-witness-clears-visible-rank', () => {
+    for (const mode of ['startup', 'hover']) {
+      const h = harness(), card = profile('101');
+      h.evaluate(card.root);
+      if (mode === 'hover') h.drain();
+      card.witness.valid = false;
+      if (mode === 'hover') card.root.ShowRankBarebonesRefresh();
+      h.drain();
+      assert.strictEqual(card.image.visible, false, `${mode}: loss of the Direct witness cannot preserve the old rank`);
+      assert.strictEqual(card.image.images.at(-1), '', `${mode}: loss of the Direct witness clears the old URL`);
+    }
+  }],
+  ['topbar.lost-hero-label-clears-visible-rank', () => {
+    const h = harness(), card = profile('101'), menu = escape(), bar = topbar('haze'), player = row('haze');
+    h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(player.root);
+    h.on(player.mainContents, () => setProfileAccount(card, '201'));
+    h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.advance(0.15);
+    assert.strictEqual(bar.image.visible, true, 'the fixture has a Direct-verified rank before its startup retry');
+    bar.heroLabel.valid = false; h.drain();
+    assert.strictEqual(bar.image.visible, false, 'a destroyed hero label cannot preserve the prior hero rank');
+    assert.strictEqual(bar.image.images.at(-1), '', 'loss of the hero binding clears the old URL');
+  }],
+  ['missing.partial-toast-create-cleans-up-panel', () => {
+    const h = harness({ createPanel(type, parent, id) {
+      if (type === 'Label') throw new Error('native label creation failed');
+      return parent.add(new Panel(type, { id }));
+    } });
+    h.gameClock.text = '0:30';
+    const notificationRoot = new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }), player = topbar('Haze', 'PartialToast');
+    h.attach(notificationRoot); player.root.AddClass('HealthVisible'); h.evaluate(player.root);
+    player.root.RemoveClass('HealthVisible'); h.runDelay(0.5); h.runDelay(0);
+    assert.strictEqual(notificationRoot.FindChildTraverse('ShowRankBarebonesMissingToast'), null, 'partial native toast construction leaves no orphan panel');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.failed-icon-create-preserves-prior-icon', () => {
+    let images = 0;
+    const h = harness({ createPanel(type, parent, id) {
+      if (type === 'Image' && ++images === 2) throw new Error('native image creation failed');
+      return parent.add(new Panel(type, { id }));
+    } });
+    h.gameClock.text = '0:30';
+    const notificationRoot = new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' });
+    h.attach(notificationRoot);
+    const players = ['Haze', 'Infernus'].map((hero) => topbar(hero, `FailedIcon-${hero}`));
+    players.forEach((player) => { player.root.AddClass('HealthVisible'); h.evaluate(player.root); });
+    players.forEach((player) => player.root.RemoveClass('HealthVisible'));
+    h.runDelay(0.5); h.runDelay(0);
+    const icons = notificationRoot.FindChildrenWithClassTraverse('ShowRankBarebonesMissingToastIcon');
+    assert.strictEqual(icons.length, 1, 'failure on the second icon cannot delete the first successfully created icon');
+    assert.ok(icons[0].IsValid(), 'the remaining icon is live');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.unknown-hero-does-not-use-inherited-icon', () => {
+    const h = harness();
+    h.gameClock.text = '0:30';
+    const notificationRoot = new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }), player = topbar('constructor', 'UnknownIcon');
+    h.attach(notificationRoot); player.root.AddClass('HealthVisible'); h.evaluate(player.root);
+    player.root.RemoveClass('HealthVisible'); h.runDelay(0.5); h.runDelay(0);
+    assert.strictEqual(notificationRoot.FindChildrenWithClassTraverse('ShowRankBarebonesMissingToastIcon').length, 0, 'unknown heroes cannot turn Object prototype properties into icon URLs');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.shared-tick-reads-document-once', () => {
+    const h = harness(), roster = playerRoster(STANDARD_HEROES, 'SharedTick');
+    h.gameClock.text = '0:30';
+    h.attach(roster.friendly); h.attach(roster.enemy);
+    roster.bars.forEach((bar) => h.evaluate(bar.root));
+    h.advance(1); h.resetWork(); h.runDelay(0.5);
+    const work = h.snapshotWork();
+    const hideoutReads = work.queries.filter((query) => query.id === 'Hud' && query.method === 'BAscendantHasClass' && query.args[0] === 'connectedToHideout').length;
+    captureBaseline('baseline.missing-shared-tick', h);
+    assert.strictEqual(hideoutReads, 1, 'one shared tick uses one hideout snapshot for all twelve records');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+];
+const regressionFailures = [];
+for (const [name, scenario] of regressions) {
+  try { scenario(); } catch (error) { regressionFailures.push(`${name}: ${error.message.split('\n')[0]}`); }
+}
+assert.deepStrictEqual(regressionFailures, [], 'runtime regression scenarios');
 
 
 console.log('showrank barebones runtime tests passed');

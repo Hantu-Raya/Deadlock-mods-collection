@@ -50,6 +50,62 @@ const { bootMenu, openEditor, panel } = loadFixture(
   'validate-hp-colors-rewrite-v2-editor.test.js',
   ['bootMenu', 'openEditor', 'panel'],
 );
+const { makeOwnershipFixture, setEngineLines } = loadFixture(
+  'validate-hp-colors-rewrite-v2-style.test.js',
+  ['makeOwnershipFixture', 'setEngineLines'],
+);
+
+// The adapter counts only width reads; native offset/height reads cost the same.
+function countLayoutReads(panel, counts) {
+  for (const key of ['actualxoffset', 'actualyoffset', 'actuallayoutheight']) {
+    let value = panel[key];
+    Object.defineProperty(panel, key, {
+      configurable: true,
+      enumerable: true,
+      get: () => { counts.layoutOtherReads = (counts.layoutOtherReads || 0) + 1; return value; },
+      set: (next) => { value = next; },
+    });
+  }
+  for (const child of panel.children) countLayoutReads(child, counts);
+}
+
+// OLD 100-HP boxes on a 4,846 total (4,246 HP + 600 shield), as in the live 6753 trace.
+// unlaid: the hidden inner never got a layout pass, so HP comes from the clips alone.
+function oldScenario(name) {
+  let shield;
+  const unlaid = name === 'oldUnlaidActive';
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { barMask: 'old' }, ({ primary, inner, fill }) => {
+    setEngineLines(primary.FindChildTraverse('UnitHealthbarLines'), 4846, 2);
+    shield = inner.add(new MockPanel('unit_healthbar_bullet_shield', {
+      classes: ['HealthAmount', 'HasHealth'], actuallayoutwidth: 0, style: { visibility: 'visible' },
+    }));
+    if (unlaid) for (const panel of [inner, fill]) Object.assign(panel, { actuallayoutwidth: 0 });
+    else fill.actuallayoutwidth = 69;
+    fill.style.clip = 'rect( 0.0%, 87.618652%, 100.0%, 0.0%)';
+    shield.style.clip = 'rect( 0.0%, 100.0%, 100.0%, 87.618652%)';
+  }, null, fs.readFileSync(path.join(sourceRoot, 'panorama/scripts/unit_status_v2_colors.js'), 'utf8'));
+  countLayoutReads(fixture.window, fixture.harness.operationCounts);
+  return measure(fixture.harness, (elapsed) => {
+    if (name === 'oldStable') return;
+    // Taking damage: HP and shield move every 200 ms.
+    const hp = elapsed % 200 ? 80 : 87.618652;
+    fixture.fill.style.clip = `rect( 0.0%, ${hp}%, 100.0%, 0.0%)`;
+    shield.style.clip = `rect( 0.0%, ${hp + 6}%, 100.0%, ${hp}%)`;
+  }, () => ({
+    fill: shownBoxes(fixture, 'HPV2PipFill'),
+    shield: shownBoxes(fixture, 'HPV2PipShield'),
+    // Every owned OLD style, for old-vs-new equivalence across refactors.
+    gridStyles: crypto.createHash('sha256').update(JSON.stringify(fixture.primary.FindChildTraverse('HPV2PipGrid').children
+      .map((layer) => [layer.id, ['washColor', 'height', 'visibility'].map((key) => layer.style[key] || ''),
+        layer.children.map((pip) => ['position', 'width', 'height', 'visibility', 'backgroundColor']
+          .map((key) => pip.style[key] || ''))]))).digest('hex').slice(0, 16),
+  }));
+}
+
+function shownBoxes(fixture, id) {
+  const layer = fixture.primary.FindChildTraverse(id);
+  return layer ? layer.children.filter((pip) => pip.style.visibility === 'visible').length : 0;
+}
 
 function clearCounters(harness) {
   for (const key of Object.keys(harness.operationCounts)) harness.operationCounts[key] = 0;
@@ -130,7 +186,7 @@ function rendererScenario(name) {
       dispatchColorSnapshot(fixture, 2, {
         ...values, widthScale: 100, heightScale: 100, positionX: 0, positionY: 0,
       });
-      assert.equal(fixture.healthbars.style.transform, 'translateX(0px) translateY(0px)');
+      assert.equal(fixture.healthbars.style.transform, 'translate3d(0px, 0px, 0px)');
     }
   }, () => ({
     fillColor: fixture.fill ? fixture.fill.style.washColor : null,
@@ -138,6 +194,45 @@ function rendererScenario(name) {
     transform: fixture.healthbars.style.transform || '',
     ultimateLeft: fixture.unitInfo.style.marginLeft || '',
   }));
+}
+
+// Reaction time: how long an idle bar (no change for 5 s) takes to show its first hit.
+// The hit lands at 30 phases across 1.5 s; polled every 10 simulated ms. No op counts.
+function idleHitLatency(old) {
+  const samples = [];
+  for (let phase = 0; phase < 1500; phase += 50) {
+    let fixture, observe;
+    if (old) {
+      fixture = makeOwnershipFixture(['player', 'enemy'], { barMask: 'old' }, ({ primary, fill }) => {
+        setEngineLines(primary.FindChildTraverse('UnitHealthbarLines'), 4846, 2);
+        fill.actuallayoutwidth = 69;
+        fill.style.clip = 'rect( 0.0%, 87.618652%, 100.0%, 0.0%)';
+      }, null, fs.readFileSync(path.join(sourceRoot, 'panorama/scripts/unit_status_v2_colors.js'), 'utf8'));
+      observe = () => shownBoxes(fixture, 'HPV2PipFill');
+    } else {
+      fixture = makeStatusFixture('enemy', {
+        enabled: true, enemyEnabled: true, enemyMode: 'gradient',
+        enemyLow: '#FD4949', enemyMid: '#FF7B00', enemyHigh: '#00FF00',
+      }, 1, '||||||||', false, false, false, true);
+      observe = () => fixture.fill.style.washColor;
+    }
+    const { scheduler } = fixture.harness;
+    scheduler.runFor(5000 + phase, 1000);
+    const before = observe();
+    if (old) fixture.fill.style.clip = 'rect( 0.0%, 60%, 100.0%, 0.0%)';
+    else fixture.fill.actuallayoutwidth = 20;
+    let latency = null;
+    for (let elapsed = 10; elapsed <= 3000 && latency === null; elapsed += 10) {
+      scheduler.runFor(10, 1000);
+      if (observe() !== before) latency = elapsed;
+    }
+    assert.notEqual(latency, null, 'idle hit never repainted');
+    samples.push(latency);
+  }
+  return {
+    mean: Math.round(samples.reduce((sum, value) => sum + value, 0) / samples.length),
+    max: Math.max(...samples),
+  };
 }
 
 function editorScenario() {
@@ -221,6 +316,9 @@ const renderer = {};
 for (const name of ['stableEnemy', 'activeEnemy', 'stableAlly', 'noBars', 'replacement', 'layoutReset']) {
   renderer[name] = rendererScenario(name);
 }
+for (const name of ['oldStable', 'oldActive', 'oldUnlaidActive']) {
+  renderer[name] = oldScenario(name);
+}
 const report = {
   version: 1,
   sourceRoot,
@@ -230,6 +328,7 @@ const report = {
   note: 'Synthetic Panorama VM operations, not native CPU or FPS. Traversal includes mock recursion. VM elapsed time is diagnostic, not an acceptance threshold. Each scenario has one context and a one-second warmup.',
   scripts,
   renderer,
+  idleHitLatencyMs: { gradient: idleHitLatency(false), old: idleHitLatency(true) },
   editor: editorScenario(),
   scopeEditor: scopeScenario(),
   state: stateScenario(),

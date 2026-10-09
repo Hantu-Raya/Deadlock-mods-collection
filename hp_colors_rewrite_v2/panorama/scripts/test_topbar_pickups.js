@@ -38,6 +38,12 @@
   var pickupStyleRevision = 0;
   var rows = [];
   var progressTickPending = false;
+  var discoveryTickPending = false;
+  var ultimateTickPending = false;
+  var worldTickPending = false;
+  var worldWakeHook = false;
+  var worldAwake = false;
+  var wakeUnsubscribe = null;
   var sourceId = "";
   var receivedRecords = Object.create(null);
   var listener = null;
@@ -45,6 +51,9 @@
   var effectsPanel = null;
   var statusContainer = null;
   var clipCaptures = [];
+  var nativePickupStyles = [];
+  var nativePickupSeen = [];
+  var clipWarningShown = false;
   var progressDirty = false;
   var lastPublishedName = null;
   var lastPublishedMask = -1;
@@ -62,6 +71,7 @@
   var ultimateOverlay = null;
   var ultimateBackground = null;
   var ultimateBackgroundScale = "1";
+  var ultimateKillStreak = null;
   var ultimateFill = null;
   var ultimateDark = null;
   var ultimateReady = null;
@@ -70,6 +80,16 @@
   var ultimateName = "";
   var ultimateAt = 0;
   var ultimateAngle = null;
+  var ultimateModel = null;
+  var ultimateProgressPending = false;
+  var lastUltimateKey = "";
+  var lastUltimateSentAt = 0;
+  var lastUltimatePlayers = Object.create(null);
+  var ULTIMATE_PREDICT_TOLERANCE = 15;
+  var lastPublishedProgress = null;
+  // Degrees a published countdown may miss the next native sample by before
+  // a re-send; refreshes and pauses miss by far more.
+  var PICKUP_PREDICT_TOLERANCE = 6;
 
   function parseUltimateClip(raw) {
     var match = /^radial\(\s*50(?:\.0+)?%\s+50(?:\.0+)?%\s*,\s*0(?:\.0+)?deg\s*,\s*(\d+(?:\.\d+)?)deg\s*\)$/.exec(raw);
@@ -80,16 +100,17 @@
   function validUltimates(message, now, since, previousAt) {
     if (!message || message.magic_word !== "HPV2_ULTIMATE_SNAPSHOT" ||
         typeof message.at !== "number" || !isFinite(message.at) ||
-        message.at > now || now - message.at >= 4000 || message.at < previousAt ||
+        message.at > now || now - message.at >= 12000 || message.at < previousAt ||
         message.since !== since || message.at < since ||
         !Array.isArray(message.players) || message.players.length > 12) return false;
     var names = Object.create(null);
     for (var index = 0; index < message.players.length; index++) {
       var item = message.players[index];
-      if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== "string" ||
+      if (!Array.isArray(item) || item.length !== 3 || typeof item[0] !== "string" ||
           !item[0] || item[0].length > 256 || item[0] !== item[0].trim().toUpperCase() ||
           names[item[0]] || typeof item[1] !== "number" || !isFinite(item[1]) ||
-          item[1] < 0 || item[1] > 360) return false;
+          item[1] < 0 || item[1] > 360 || typeof item[2] !== "number" ||
+          !isFinite(item[2]) || item[2] < 0 || item[2] > 360 || item[1] === 360 && item[2] !== 0) return false;
       names[item[0]] = true;
     }
     return true;
@@ -125,7 +146,6 @@
     if (!ultimateStylesDirty && angle === ultimateAngle) return true;
     var successful = true;
     if (ultimateStylesDirty) {
-      successful = setTimerStyle(ultimateBackground, "preTransformScale2d", config.ultimateTimerSize / 100) && successful;
       successful = setTimerStyle(ultimateOverlay, "horizontalAlign", "center") && successful;
       successful = setTimerStyle(ultimateOverlay, "verticalAlign", "center") && successful;
       successful = setTimerStyle(
@@ -157,17 +177,114 @@
   function clearUltimate() {
     ultimateStylesDirty = true;
     if (valid(ultimateOverlay) && !setTimerStyle(ultimateOverlay, "visibility", "collapse")) return;
-    if (valid(ultimateBackground) && !setTimerStyle(ultimateBackground, "preTransformScale2d", ultimateBackgroundScale)) return;
     ultimateName = "";
     ultimateAngle = null;
+    ultimateModel = null;
+  }
+
+  // Only hero bars carry pickups or ultimates; everything else ignores timer traffic.
+  var playerUnit = null;
+  function refreshPlayerUnit() {
+    var next = !!context.BAscendantHasClass("CLASS_PLAYER");
+    if (next === playerUnit) return next;
+    playerUnit = next;
+    if (!next) {
+      publish("", 0);
+      clearUltimate();
+      restoreNativePickupStyles(true);
+    }
+    applyUltimateBaseScale();
+    return next;
+  }
+
+  function findUltimatePanels(createOverlay, background) {
+    background = background || context.FindChildTraverse("unit_info_bg");
+    if (!valid(background)) return false;
+    if (background !== ultimateBackground) {
+      if (valid(ultimateBackground) &&
+          !setTimerStyle(ultimateBackground, "preTransformScale2d", ultimateBackgroundScale)) return false;
+      ultimateBackground = background;
+      ultimateBackgroundScale = background.style.preTransformScale2d || "1";
+      ultimateOverlay = null;
+      ultimateReady = null;
+      ultimateStyleCache = {};
+      ultimateName = "";
+    }
+    if (!valid(ultimateOverlay) || ultimateOverlay.GetParent() !== background) {
+      ultimateOverlay = background.FindChildTraverse("HPV2UltimateOverlay");
+      ultimateFill = null;
+      ultimateDark = null;
+      ultimateAngle = null;
+      ultimateStylesDirty = true;
+    }
+    if (!valid(ultimateOverlay) && createOverlay) {
+      try {
+        ultimateOverlay = $.CreatePanel("Panel", background, "HPV2UltimateOverlay");
+        ultimateOverlay.hittest = false;
+        ultimateOverlay.hittestchildren = false;
+      } catch { return false; }
+    }
+    if (createOverlay && valid(ultimateOverlay)) {
+      try {
+        if (!valid(ultimateDark) || ultimateDark.GetParent() !== ultimateOverlay)
+          ultimateDark = ultimateOverlay.FindChildTraverse("HPV2UltimateDark");
+        if (!valid(ultimateDark)) {
+          ultimateDark = $.CreatePanel("Panel", ultimateOverlay, "HPV2UltimateDark");
+          ultimateDark.AddClass("HPV2UltimateArtwork");
+          ultimateDark.hittest = false;
+        }
+        if (!valid(ultimateFill) || ultimateFill.GetParent() !== ultimateOverlay)
+          ultimateFill = ultimateOverlay.FindChildTraverse("HPV2UltimateFill");
+        if (!valid(ultimateFill)) {
+          ultimateFill = $.CreatePanel("Image", ultimateOverlay, "HPV2UltimateFill");
+          ultimateFill.AddClass("HPV2UltimateArtwork");
+          ultimateFill.hittest = false;
+          ultimateFill.SetImage("s2r://panorama/images/hpv2/ultimate_progress.vtex");
+        }
+      } catch { return false; }
+    }
+    return !createOverlay || valid(ultimateOverlay) && valid(ultimateDark) && valid(ultimateFill);
+  }
+
+  // ULTIMATE SIZE scales the whole ult icon, ready or cooling down.
+  function applyUltimateBaseScale() {
+    var owned = ultimateTimerEnabled() && playerUnit === true && !context.BAscendantHasClass("LocalPlayer");
+    var ready = owned ? findUltimatePanels(false) : valid(ultimateBackground);
+    var panel = ultimateKillStreak && ultimateKillStreak.panel;
+    if (owned && ready && (!valid(panel) || !panel.HPV2KillStreakAdoption ||
+        panel.GetParent() !== ultimateBackground.GetParent()))
+      panel = context.FindChildTraverse("KillStreakIndicator");
+    var adoption = owned && ready && valid(panel) && panel.HPV2KillStreakAdoption &&
+      panel.BHasClass("HPColorsRewriteKillStreakAdopted") &&
+      panel.GetParent() === ultimateBackground.GetParent() ? panel.HPV2KillStreakAdoption : null;
+    if (ultimateKillStreak !== adoption) {
+      if (ultimateKillStreak) setTimerStyle(ultimateKillStreak.panel, "preTransformScale2d",
+        ultimateKillStreak.scale, "killStreakScale");
+      ultimateKillStreak = adoption;
+      delete ultimateStyleCache.killStreakScale;
+    }
+    if (adoption) setTimerStyle(panel, "preTransformScale2d", config.ultimateTimerSize / 100, "killStreakScale");
+    if (ready) setTimerStyle(ultimateBackground, "preTransformScale2d",
+      owned ? config.ultimateTimerSize / 100 : ultimateBackgroundScale);
+  }
+
+  function paintUltimateProgress() {
+    ultimateProgressPending = false;
+    if (stopped || !ultimateModel || !ultimateName || !ultimateTimerEnabled() ||
+        !valid(context) || worldWakeHook && !worldAwake) return;
+    var now = Date.now();
+    if (now < ultimateAt || now - ultimateAt >= 12000) { clearUltimate(); return; }
+    var angle = Math.min(359.999, ultimateModel.angle + ultimateModel.rate * (now - ultimateAt) / 1000);
+    if (applyUltimateStyles(angle) && setTimerStyle(ultimateFill, "clip", "radial(50% 50%, 0deg, " + angle + "deg)"))
+      ultimateAngle = angle;
+    if (ultimateModel.rate > 0 && angle < 359.999) {
+      ultimateProgressPending = true;
+      $.Schedule(1, paintUltimateProgress); // ponytail: 1 Hz like pickup rings; faster = more JS per hero bar
+    }
   }
 
   function receiveUltimates(message, now) {
-    if (!ultimateTimerEnabled()) {
-      if (ultimateName) clearUltimate();
-      return;
-    }
-    if (!context.BAscendantHasClass("CLASS_PLAYER") || context.BAscendantHasClass("LocalPlayer")) {
+    if (!ultimateTimerEnabled() || context.BAscendantHasClass("LocalPlayer")) {
       if (ultimateName) clearUltimate();
       return;
     }
@@ -175,50 +292,32 @@
     ultimateAt = message.at;
     if (!valid(namePanel)) namePanel = context.FindChildTraverse("name");
     var name = readName(namePanel);
-    var angle = null;
+    var entry = null;
     if (name !== localPlayerName) {
       for (var index = 0; index < message.players.length; index++) {
-        if (message.players[index][0] === name) angle = message.players[index][1];
+        if (message.players[index][0] === name) entry = message.players[index];
       }
     }
-    if (angle === null) { clearUltimate(); return; }
-    if (!valid(ultimateOverlay)) {
-      if (valid(ultimateBackground) && !setTimerStyle(ultimateBackground, "preTransformScale2d", ultimateBackgroundScale)) return;
-      ultimateOverlay = context.FindChildTraverse("HPV2UltimateOverlay");
-      ultimateBackground = valid(ultimateOverlay) ? ultimateOverlay.GetParent() : null;
-      ultimateBackgroundScale = valid(ultimateBackground) ? ultimateBackground.style.preTransformScale2d || "1" : "1";
-      ultimateFill = null;
-      ultimateDark = null;
-      ultimateReady = null;
-      ultimateStyleCache = {};
-      ultimateName = "";
-    }
-    if (!valid(ultimateOverlay)) { clearUltimate(); return; }
+    if (!entry || entry[1] === 360) { clearUltimate(); return; }
+    if (!findUltimatePanels(false)) { clearUltimate(); return; }
     if (!valid(ultimateReady)) ultimateReady = ultimateBackground.FindChildTraverse("unit_ult_ready_icon");
     if (!valid(ultimateReady) || ultimateReady.visible !== false) { clearUltimate(); return; }
-    if (!valid(ultimateFill) || !valid(ultimateDark)) {
-      ultimateFill = ultimateOverlay.FindChildTraverse("HPV2UltimateFill");
-      ultimateDark = ultimateOverlay.FindChildTraverse("HPV2UltimateDark");
-      ultimateAngle = null;
-      ultimateStylesDirty = true;
-    }
+    if (!findUltimatePanels(true, ultimateBackground)) { clearUltimate(); return; }
     if (!valid(ultimateFill)) { clearUltimate(); return; }
-    if (!applyUltimateStyles(angle)) return;
-    if (ultimateAngle !== angle) {
-      if (!setTimerStyle(ultimateFill, "clip", "radial(50% 50%, 0deg, " + angle + "deg)"))
-        return;
-      ultimateAngle = angle;
-    }
     if (!ultimateName && !setTimerStyle(ultimateOverlay, "visibility", "visible")) return;
     ultimateName = name;
+    ultimateModel = { angle: entry[1], rate: entry[2] };
+    if (!ultimateProgressPending) paintUltimateProgress();
   }
 
   function countRowNames() {
     var names = [];
     var counts = Object.create(null);
     var name;
+    var localName = "";
     for (var local = 0; local < localPlayerLabels.length; local++) {
       name = readName(localPlayerLabels[local]);
+      if (localPlayerLabels.length === 1) localName = name;
       if (name) counts[name] = (counts[name] || 0) + 1;
     }
     for (var index = 0; index < rows.length; index++) {
@@ -226,17 +325,17 @@
       names.push(name);
       if (name) counts[name] = (counts[name] || 0) + 1;
     }
-    return { names: names, counts: counts };
+    return { names: names, counts: counts, localName: localName };
   }
 
   function ultimateTick() {
-    if (stopped || !valid(context)) return;
-    if (!ultimateTimerEnabled()) {
-      $.Schedule(1, ultimateTick);
-      return;
-    }
+    ultimateTickPending = false;
+    if (stopped || !valid(context) || !ultimateTimerEnabled()) return;
     try {
       var players = [];
+      var states = [];
+      var correction = false;
+      var now = Date.now();
       var scan = countRowNames();
       for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
         var row = rows[rowIndex];
@@ -245,20 +344,52 @@
             row.label.BAscendantHasClass("LocalPlayer") || row.label.BAscendantHasClass("Dead") ||
             row.label.BAscendantHasClass("Disconnected")) continue;
         var angle = 0;
-        if (row.label.BAscendantHasClass("UltimateUnlocked")) {
+        var unlocked = row.label.BAscendantHasClass("UltimateUnlocked");
+        if (unlocked) {
           if (!valid(row.ultimateBackground)) row.ultimateBackground = row.ultimate.FindChildTraverse("UltimateStatusBG");
           angle = row.label.BAscendantHasClass("UltimateCooldownReady") ? 360 :
             valid(row.ultimateBackground) ? parseUltimateClip(String(row.ultimateBackground.style.clip || "")) : null;
         }
-        if (angle !== null) players.push([player, angle]);
+        var previous = row.ultimateSample;
+        var rate = unlocked && angle !== null && angle < 360 && previous && previous.player === player &&
+          previous.since === sessionStartedAt && previous.unlocked && previous.angle !== null &&
+          previous.angle < 360 && angle >= previous.angle && now > previous.at ?
+          Math.round(Math.min(360, (angle - previous.angle) * 1000 / (now - previous.at)) * 100) / 100 : 0;
+        row.ultimateSample = { player: player, angle: angle, at: now, unlocked: unlocked, since: sessionStartedAt };
+        if (angle === null) continue;
+        players.push([player, angle, rate]);
+        states.push([player, unlocked ? angle === 360 ? 2 : 1 : 0]);
+        var sent = lastUltimatePlayers[player];
+        // The first cooldown sample publishes rate 0; send as soon as a moving rate exists.
+        if (sent && sent[2] === 0 && rate > 0) correction = true;
+        if (sent && Math.abs(angle - Math.min(sent[1] === 360 ? 360 : 359.999,
+            sent[1] + sent[2] * (now - lastUltimateSentAt) / 1000)) >= ULTIMATE_PREDICT_TOLERANCE) correction = true;
       }
-      if (players.length <= 12) $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "HPV2_ULTIMATE_SNAPSHOT", since: sessionStartedAt, at: Date.now(), players: players
-      }));
+      // 2 s heartbeat bounds new/revealed bars (receivers drop models while hidden);
+      // 12 s expiry tolerates delivery stalls.
+      var key = sessionStartedAt + ":" + JSON.stringify(states);
+      if (players.length <= 12 && (key !== lastUltimateKey || correction || now < lastUltimateSentAt ||
+          now - lastUltimateSentAt >= 2000)) {
+        $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
+          magic_word: "HPV2_ULTIMATE_SNAPSHOT", since: sessionStartedAt, at: now, players: players
+        }));
+        lastUltimatePlayers = Object.create(null);
+        players.forEach(function (item) { lastUltimatePlayers[item[0]] = item; });
+        lastUltimateKey = key;
+        lastUltimateSentAt = now;
+      }
     } catch (error) {
       $.Msg("[test_hpv2][ultimate-error] " + String(error));
     }
-    $.Schedule(1, ultimateTick);
+    if (ultimateTimerEnabled()) {
+      ultimateTickPending = true;
+      $.Schedule(1, ultimateTick);
+    }
+  }
+
+  function wakeUltimateTick() {
+    if (!topBar || ultimateTickPending || !ultimateTimerEnabled()) return;
+    ultimateTick();
   }
 
   // Observation heartbeat plus HUD cleanup, with room for delayed updates.
@@ -388,11 +519,57 @@
     }
     return successful;
   }
+
+  // Own only the inline properties we change; leave engine radial clips intact.
+  function setNativePickupStyle(panel, property, value) {
+    if (!valid(panel) || !panel.style) return false;
+    var entry = null;
+    for (var index = 0; index < nativePickupStyles.length; index++) {
+      var candidate = nativePickupStyles[index];
+      if (candidate.panel === panel && candidate.property === property) entry = candidate;
+    }
+    if (!entry) {
+      entry = { panel: panel, property: property, baseline: panel.style[property], cache: {} };
+      nativePickupStyles.push(entry);
+    }
+    nativePickupSeen.push(entry);
+    return setCachedStyle(panel, property, value, entry.cache, property);
+  }
+
+  function restoreNativePickupStyles(all) {
+    for (var index = nativePickupStyles.length - 1; index >= 0; index--) {
+      var entry = nativePickupStyles[index];
+      if (!all && nativePickupSeen.indexOf(entry) >= 0) continue;
+      if (valid(entry.panel) && !setCachedStyle(
+        entry.panel, entry.property, entry.baseline, entry.cache, entry.property
+      )) continue;
+      nativePickupStyles.splice(index, 1);
+    }
+  }
+
+  function styleNativePickup(panel, bit) {
+    var size = config.pickupSize;
+    setNativePickupStyle(panel, "width", size + "px");
+    setNativePickupStyle(panel, "height", size + "px");
+    setNativePickupStyle(panel, "margin", "0px " + config.pickupSpacing + "px");
+    setNativePickupStyle(panel, "transform",
+      "translateX(" + config.pickupOffsetX + "px) translateY(" + config.pickupOffsetY + "px)");
+    var inner = panel.FindChildTraverse("StatusEffectInner");
+    var border = panel.FindChildTraverse("StatusEffectsBorder");
+    setNativePickupStyle(inner, "washColor", pickupBackground(bit));
+    setNativePickupStyle(border, "washColor", pickupColor(bit));
+    var glyphs = panel.FindChildrenWithClassTraverse("statusEffectImage");
+    var image = panel.FindChildTraverse("StatusEffectImage");
+    if (valid(image)) glyphs.push(image);
+    for (var index = 0; index < glyphs.length; index++)
+      setNativePickupStyle(glyphs[index], "washColor", config.pickupGlyphColor);
+  }
   function valid(panel) { return panel && panel.IsValid(); }
 
   function readName(panel) {
-    if (!valid(panel) || typeof panel.text !== "string") return "";
+    if (!valid(panel)) return "";
     var name = panel.text;
+    if (typeof name !== "string") return "";
     return name === "{s:name}" || name === "{s:player_name}" ? "" : name.trim().toUpperCase();
   }
 
@@ -406,23 +583,43 @@
     throw new Error("Pickup snapshot root exceeds 24 ancestors");
   }
 
+  // True when the published fit still predicts every new sample: same bits
+  // tracked, same running/paused state, angle within tolerance.
+  function progressPredicted(sent, next) {
+    if (!sent || !next) return sent === next;
+    for (var bit = 0; bit < next.length; bit++) {
+      var before = sent[bit];
+      var after = next[bit];
+      if (!before !== !after) return false;
+      if (!before) continue;
+      if ((before.rate === 0) !== (after.rate === 0)) return false;
+      var predicted = Math.min(0, before.angle + before.rate * (after.at - before.at) / 1000);
+      if (!(Math.abs(predicted - after.angle) <= PICKUP_PREDICT_TOLERANCE)) return false;
+    }
+    return true;
+  }
+
   function publish(name, mask) {
     if (!name) clipCaptures = [];
     if (!sourceId || !context.HPV2QueuePickup) return;
     var now = Date.now();
-    if (name === lastPublishedName && mask === lastPublishedMask && !progressDirty &&
-        now >= lastPublishedAt && now - lastPublishedAt < 6000) return;
+    var progress = name ? pickups.map(function (_, bit) {
+      var capture = clipCaptures[bit];
+      return mask & (1 << bit) && capture ? capture.progress : null;
+    }) : null;
+    // Mask/name changes, refreshes, pauses and the 6 s heartbeat still send.
+    if (name === lastPublishedName && mask === lastPublishedMask &&
+        now >= lastPublishedAt && now - lastPublishedAt < 6000 &&
+        (!progressDirty || progressPredicted(lastPublishedProgress, progress))) {
+      progressDirty = false;
+      return;
+    }
     // Same-context handoff; serialize only at the sibling boundary.
-    context.HPV2QueuePickup(name ? {
-      name: name, mask: mask, at: now,
-      progress: pickups.map(function (_, bit) {
-        var capture = clipCaptures[bit];
-        return mask & (1 << bit) && capture ? capture.progress : null;
-      })
-    } : null);
+    if (context.HPV2QueuePickup(name ? { name: name, mask: mask, at: now, progress: progress } : null) !== true) return;
     lastPublishedName = name;
     lastPublishedMask = mask;
     lastPublishedAt = now;
+    lastPublishedProgress = progress;
     progressDirty = false;
   }
 
@@ -471,7 +668,10 @@
       capture.count = 0;
       capture.first = capture.previous = null;
       progressDirty = true;
-      $.Msg("[test_hpv2][pickup-clip-error] " + String(error));
+      if (!clipWarningShown) {
+        clipWarningShown = true;
+        $.Msg("[test_hpv2][pickup-clip-error] " + String(error));
+      }
     }
   }
 
@@ -489,7 +689,7 @@
     return true;
   }
 
-  function sampleUnit() {
+  function sampleUnitPickups() {
     if (!pickupTimersEnabled()) {
       clipCaptures.length = 0;
       if (lastPublishedName) publish("", 0);
@@ -515,6 +715,7 @@
       lastPublishedName = null;
       lastPublishedMask = -1;
       lastPublishedAt = 0;
+      lastPublishedProgress = null;
     }
     if (!valid(namePanel)) namePanel = context.FindChildTraverse("name");
     var name = readName(namePanel);
@@ -539,14 +740,20 @@
       var matches = container.FindChildrenWithClassTraverse(pickups[bit].className);
       for (var match = 0; match < matches.length; match++) {
         if (valid(matches[match]) && matches[match].visible !== false) {
+          if (!(mask & (1 << bit))) captureNativeClip(matches[match], bit, name);
           mask |= 1 << bit;
-          captureNativeClip(matches[match], bit, name);
-          break;
+          styleNativePickup(matches[match], bit);
         }
       }
       if (!(mask & (1 << bit))) clipCaptures[bit] = null;
     }
     publish(name, mask);
+  }
+
+  function sampleUnit() {
+    nativePickupSeen = [];
+    try { sampleUnitPickups(); }
+    finally { restoreNativePickupStyles(false); }
   }
 
   function mayContainSnapshot(raw, isHud) {
@@ -577,13 +784,20 @@
     pickupStyleRevision++;
     if (!pickupTimersEnabled()) receivedRecords = Object.create(null);
     renderRows();
+    if (topBar && (pickupTimersEnabled() || ultimateTimerEnabled())) {
+      tick();
+      wakeUltimateTick();
+    }
     return true;
   }
 
   function receiveSnapshot(raw) {
     if (stopped || !valid(context)) return false;
     try {
-      if (typeof raw !== "string" || raw.length > 4096 || !mayContainSnapshot(raw, !!topBar)) return false;
+      if (typeof raw !== "string" || raw.length > 4096) return false;
+      if (!topBar && (playerUnit === null ? !refreshPlayerUnit() : !playerUnit)) return false;
+      // The applied config (and every answer repeating it) fails the revision check anyway.
+      if (!mayContainSnapshot(raw, !!topBar) || raw === configRaw) return false;
       var message = JSON.parse(raw);
       var now = Date.now();
       if (topBar && message && message.magic_word === CONFIG_MAGIC) {
@@ -704,7 +918,8 @@
       var label = labels[index];
       if (!valid(label)) continue;
       var owner = label.GetParent();
-      while (valid(owner) && owner !== topBar && owner.paneltype !== "CitadelHudTopBarPlayer") owner = owner.GetParent();
+      while (valid(owner) && owner !== topBar &&
+        (owner.paneltype || owner.type) !== "CitadelHudTopBarPlayer") owner = owner.GetParent();
       if (!valid(owner) || owner === topBar) continue;
       if (owner.BHasClass("LocalPlayer")) {
         localPlayerLabels.push(label);
@@ -718,7 +933,7 @@
       }
       next.push(row || {
         label: label, ultimate: ultimate, container: null, left: null, right: null, icons: [], glyphs: [],
-        rings: [], progressModels: [], mask: -1, styleRevision: -1, styleCache: {}
+        rings: [], progressModels: [], progressClips: [], mask: -1, styleRevision: -1, styleCache: {}
       });
     }
     for (var previous = 0; previous < rows.length; previous++) {
@@ -755,9 +970,13 @@
     return blocked || renamed;
   }
 
-  function paintProgress(ring, progress, now) {
+  function paintProgress(row, bit, progress, now) {
     var angle = progressAngle(progress, now, pauseIntervals);
-    ring.style.clip = "radial(50% 50%, 0deg, " + angle + "deg)";
+    var clip = "radial(50% 50%, 0deg, " + angle + "deg)";
+    if (row.progressClips[bit] !== clip) {
+      row.rings[bit].style.clip = clip;
+      row.progressClips[bit] = clip;
+    }
     return progress.rate > 0 && angle < 0;
   }
 
@@ -773,14 +992,14 @@
         render(row, 0);
         continue;
       }
-      if (!row.mask || !row.progressModels) continue;
-      active = true;
+      if (!row.mask || !row.progressModels || paused) continue;
       for (var bit = 0; bit < row.rings.length; bit++) {
         var progress = row.progressModels[bit];
         if (!(row.mask & (1 << bit)) || !progress || progress.rate <= 0 ||
             row.progressEnded[bit] || !valid(row.rings[bit])) continue;
         try {
-          row.progressEnded[bit] = !paintProgress(row.rings[bit], progress, now);
+          row.progressEnded[bit] = !paintProgress(row, bit, progress, now);
+          if (!row.progressEnded[bit]) active = true;
         } catch (error) {
           row.progressModels[bit] = null;
           $.Msg("[test_hpv2][topbar-progress-error] " + String(error));
@@ -800,7 +1019,7 @@
     row.progressEnded[bit] = false;
     ring.style.visibility = progress ? "visible" : "collapse";
     if (!progress) return;
-    paintProgress(ring, progress, Date.now());
+    paintProgress(row, bit, progress, Date.now());
   }
 
   function render(row, mask, progress) {
@@ -864,7 +1083,7 @@
       row.glyphs = [];
       row.rings = [];
       row.progressModels = [];
-      row.progressEnded = [];
+      row.progressClips = [];
       row.styleCache = {};
       row.styleRevision = -1;
       for (var index = 0; index < pickups.length; index++) {
@@ -920,16 +1139,18 @@
     for (var index = 0; index < row.icons.length; index++)
       renderProgress(row, index, mask & (1 << index) && progress ? progress[index] : null);
     row.mask = mask;
-    if (!progressTickPending) {
+    if (!progressTickPending && !paused && row.progressModels.some(function (model, bit) {
+      return model && model.rate > 0 && !row.progressEnded[bit] && valid(row.rings[bit]);
+    })) {
       progressTickPending = true;
       $.Schedule(1, progressTick);
     }
   }
 
-  function renderRows(affectedName, previousName) {
+  function renderRows(affectedName, previousName, scan) {
     var units = readUnits(affectedName, previousName);
     var now = Date.now();
-    var scan = countRowNames();
+    scan = scan || countRowNames();
     for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       var row = rows[rowIndex];
       var player = scan.names[rowIndex];
@@ -942,7 +1163,7 @@
     }
   }
 
-  function publishScanGate() {
+  function publishScanGate(scan) {
     if (!valid(gameTimePanel)) gameTimePanel = topBar.FindChildTraverse("GameTime");
     var text = valid(gameTimePanel) ? String(gameTimePanel.text || "").replace(/<[^>]+>/g, "").trim() : "";
     var match = text.match(/^(?:(\d+):)?(\d{1,2}):(\d{2})$/);
@@ -957,15 +1178,15 @@
     if (seconds !== null && lastGameTime !== null && seconds < lastGameTime) {
       sessionStartedAt = Date.now();
       receivedRecords = Object.create(null);
-      renderRows();
+      renderRows(undefined, undefined, scan);
     }
     if (seconds !== null) lastGameTime = seconds;
-    var scan = !normal || seconds === null || seconds >= 300;
-    var localName = localPlayerLabels.length === 1 ? readName(localPlayerLabels[0]) : "";
-    if (localName && countRowNames().counts[localName] !== 1) localName = "";
+    var scanAllowed = !normal || seconds === null || seconds >= 300;
+    var localName = scan.localName;
+    if (localName && scan.counts[localName] !== 1) localName = "";
     if (localName.length > 256) localName = "";
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-      magic_word: "HPV2_PICKUP_SCAN_GATE", scan: scan, localName: localName, since: sessionStartedAt, at: Date.now()
+      magic_word: "HPV2_PICKUP_SCAN_GATE", scan: scanAllowed, localName: localName, since: sessionStartedAt, at: Date.now()
     }));
   }
   function onWorldConfigChanged(next) {
@@ -984,6 +1205,7 @@
       !isFinite(next.ultimateTimerDarkness)
     )
       return false;
+    if (next === config) return true;
     config = next;
     ultimateStylesDirty = true;
     if (!pickupTimersEnabled()) {
@@ -992,6 +1214,11 @@
     }
     if (!ultimateTimerEnabled()) clearUltimate();
     else if (ultimateName) applyUltimateStyles(ultimateAngle);
+    if (worldWakeHook && !worldAwake) return true;
+    if (!refreshPlayerUnit()) return true;
+    applyUltimateBaseScale();
+    sampleUnit();
+    if (worldWakeHook) scheduleWorldTick();
     return true;
   }
 
@@ -1010,12 +1237,53 @@
     }
   }
 
+  function scheduleWorldTick() {
+    if (worldTickPending || worldWakeHook &&
+        (!worldAwake || !pickupTimersEnabled() && !ultimateTimerEnabled())) return;
+    worldTickPending = true;
+    $.Schedule(3, function () {
+      worldTickPending = false;
+      tick();
+    });
+  }
+
+  function onWorldWake(activeHero) {
+    if (stopped || worldAwake === activeHero) return;
+    worldAwake = activeHero === true;
+    if (worldAwake) tick();
+    else {
+      publish("", 0);
+      clearUltimate();
+      restoreNativePickupStyles(true);
+      playerUnit = false;
+      applyUltimateBaseScale();
+    }
+  }
+
+  function bindWorldWake() {
+    if (topBar || typeof context.HPV2OnWake !== "function") return;
+    try {
+      worldWakeHook = true;
+      wakeUnsubscribe = context.HPV2OnWake(onWorldWake);
+      if (typeof wakeUnsubscribe !== "function") throw new Error("missing wake unsubscribe");
+    } catch (error) {
+      worldWakeHook = false;
+      wakeUnsubscribe = null;
+      $.Msg("[test_hpv2][wake-error] " + String(error));
+    }
+  }
+
   context.HPV2PickupStop = function () {
     stopped = true;
     if (typeof configUnsubscribe === "function") {
       try { configUnsubscribe(); } catch {}
       configUnsubscribe = null;
     }
+    if (typeof wakeUnsubscribe === "function") {
+      try { wakeUnsubscribe(); } catch {}
+      wakeUnsubscribe = null;
+    }
+    if (context.HPV2OnPickupMessage === receiveSnapshot) context.HPV2OnPickupMessage = null;
     if (listener !== null) {
       try { $.UnregisterForUnhandledEvent("ClientUI_FireOutput", listener); }
       catch (error) {
@@ -1029,6 +1297,8 @@
     if (!topBar) {
       try { publish("", 0); } catch {}
       try { clearUltimate(); } catch {}
+      try { playerUnit = false; applyUltimateBaseScale(); } catch {}
+      try { restoreNativePickupStyles(true); } catch {}
     }
   };
 
@@ -1040,16 +1310,26 @@
     }
     try {
       if (topBar) {
+        if (!pickupTimersEnabled() && !ultimateTimerEnabled()) return;
         inspectConfigRoot();
         findRows();
-        publishScanGate();
-        if (!valid(pausePanel)) pausePanel = snapshotRoot().FindChildTraverse("PausedGameContainer");
-        updatePause(Date.now());
-        renderRows();
+        var scan = countRowNames();
+        publishScanGate(scan);
+        if (pickupTimersEnabled()) {
+          if (!valid(pausePanel)) pausePanel = snapshotRoot().FindChildTraverse("PausedGameContainer");
+          updatePause(Date.now());
+          renderRows(undefined, undefined, scan);
+        }
       } else {
+        if (worldWakeHook && !worldAwake) return;
+        if (!refreshPlayerUnit()) {
+          if (!worldWakeHook) scheduleWorldTick();
+          return;
+        }
+        applyUltimateBaseScale();
         if (ultimateName) {
           var now = Date.now();
-          if (now < ultimateAt || now - ultimateAt >= 4000 ||
+          if (now < ultimateAt || now - ultimateAt >= 12000 ||
               readName(namePanel) !== ultimateName || ultimateName === localPlayerName ||
               context.BAscendantHasClass("LocalPlayer") || !valid(ultimateReady) ||
               ultimateReady.visible !== false) clearUltimate();
@@ -1062,16 +1342,33 @@
         try { render(rows[clear], 0); } catch {}
       }
     }
-    $.Schedule(topBar ? 5 : 3, tick);
+    if (topBar) {
+      if (!discoveryTickPending && (pickupTimersEnabled() || ultimateTimerEnabled())) {
+        discoveryTickPending = true;
+        $.Schedule(5, function () {
+          discoveryTickPending = false;
+          tick();
+        });
+      }
+    } else scheduleWorldTick();
   }
 
-  try { listener = $.RegisterForUnhandledEvent("ClientUI_FireOutput", receiveSnapshot); }
-  catch (error) {
-    $.Msg("[test_hpv2][pickup-receive-error] " + String(error));
+  // World contexts own one listener (the renderer's), which routes pickup,
+  // scan-gate and ultimate messages to this hook; only the HUD registers here.
+  if (topBar) {
+    try { listener = $.RegisterForUnhandledEvent("ClientUI_FireOutput", receiveSnapshot); }
+    catch (error) {
+      $.Msg("[test_hpv2][pickup-receive-error] " + String(error));
+    }
+  } else {
+    context.HPV2OnPickupMessage = receiveSnapshot;
   }
   if (topBar) inspectConfigRoot();
-  else bindWorldConfig();
+  else {
+    bindWorldConfig();
+    bindWorldWake();
+  }
 
-  tick();
-  if (topBar) ultimateTick();
+  if (topBar ? !discoveryTickPending : !worldWakeHook) tick();
+  if (topBar) wakeUltimateTick();
 })();

@@ -59,6 +59,12 @@ function Get-HpColorsRewriteClosureContract {
         'unit_status_v2_colors.js' {
             return @('HP_COLORS_V2_CONFIG', 'RegisterForUnhandledEvent', 'hp_counter')
         }
+        'test_event_bridge.js' {
+            return @('HPV2_PICKUP_SNAPSHOT', 'HPV2QueuePickup', 'ClientUI_FireOutput')
+        }
+        'test_topbar_pickups.js' {
+            return @('HP_COLORS_V2_CONFIG', 'HPV2_ULTIMATE_SNAPSHOT', 'HPV2PickupStop')
+        }
         'unit_status_v2_segment_align.js' {
             return @('maxhp_segment_1', 'UnitHealthbarsContainer')
         }
@@ -70,6 +76,9 @@ function Get-HpColorsRewriteClosureContract {
         }
         'hp_colors_thirdeye_window.js' {
             return @('HPColorsThirdEyeCloseWindow', 'HPColorsMenuCancel', 'ThirdEye', 'setOpen', 'isOpen')
+        }
+        'feeder_feed.js' {
+            return @('FeederFeedStop', 'ff_entry', 'FeederRow', 'CitadelHudInfoFeed')
         }
         default {
             throw "No Closure ADVANCED output contract for Rewrite script: $ScriptName"
