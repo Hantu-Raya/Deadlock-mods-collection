@@ -46,15 +46,20 @@
     if (!callbacks[name] && Object.keys(callbacks).length >= 8) name = "<other>";
     return callbacks[name] || (callbacks[name] = [name, 0, 0, 0, 0]);
   }
+  // A world callback that reschedules its own function object (the renderer's idle health
+  // probe finding nothing) is "probe"; one that repaints or ends the chain keeps its owner.
+  var running = null, selfScheduled = false;
   function timed(name, fn, receiver, args, scan) {
-    var row = callbackRow(name);
-    var start = Date.now();
+    var start = Date.now(), outer = running, outerSelf = selfScheduled;
+    running = fn; selfScheduled = false;
     if (scan) histogram[Math.floor(((start % 1000) + 1000) % 1000 / 100)] += 1;
     try { return fn.apply(receiver, args); }
     finally {
       var ms = Math.max(0, Date.now() - start);
+      var row = callbackRow(kind === "world" && selfScheduled ? "world:probe@0.15" : name);
       row[1] += 1; row[2] += ms; row[3] = Math.max(row[3], ms);
       if (ms >= 4) row[4] += 1;
+      running = outer; selfScheduled = outerSelf;
     }
   }
   function bytes(raw) {
@@ -91,6 +96,7 @@
   }
   $["Schedule"] = function (delay, fn) {
     var name = owner(delay), scan = kind === "world" && Number(delay) === 1;
+    if (fn === running && Number(delay) === 0.15) selfScheduled = true;
     return schedule.call(this, delay, function () { return timed(name, fn, this, arguments, scan); });
   };
   $["CancelScheduled"] = function () { return cancel.apply(this, arguments); };
@@ -122,6 +128,11 @@
       clock: "Date.now-ms", c: Object.keys(callbacks).map(function (k) { return callbacks[k]; }),
       m: Object.keys(messages).map(function (k) { return messages[k]; }),
       u: ultimate, uo: ultimateOverflow, h: histogram, cut: 0 };
+    // One ancestor-class read per report: hero bars carry pickups/ultimates and never sleep.
+    if (kind === "world") {
+      try { r.t = $["GetContextPanel"]()["BAscendantHasClass"]("CLASS_PLAYER") ? "hero" : "unit"; }
+      catch (error) { r.t = "unit"; }
+    }
     // Keep <other> at the front so compaction never merges it into itself.
     r.c.sort(function (a, b) { return a[0] === "<other>" ? -1 : b[0] === "<other>" ? 1 : 0; });
     r.m.sort(function (a, b) { return a[1] === "<other>" ? -1 : b[1] === "<other>" ? 1 : 0; });

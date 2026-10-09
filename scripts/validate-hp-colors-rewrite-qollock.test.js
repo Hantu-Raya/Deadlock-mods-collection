@@ -207,14 +207,14 @@ test('4.0.3 Escape composition preserves QOLLOCK assets and nested-cancel/resume
   assert.throws(() => buildEscapeMenu(legacy.replace(legacyWrapper, `${legacyWrapper}${legacyWrapper}`), canonical, 'a'.repeat(64)), /Escape resume button: expected exactly one match, found 2/);
 });
 
-test('v2 compatibility pin and generated menu target the QOLLOCK 4.0.4 3 October pak03', () => {
+test('v2 compatibility pin and generated menu target the QOLLOCK 4.0.5 6 October hotfix pak03', () => {
   const v2Support = path.join(root, 'hp_colors_rewrite_v2_qollock');
   const contract = JSON.parse(read(path.join(v2Support, 'pak02-contract.json')));
-  assert.equal(contract.packageOrder[1], 'pak03 pinned QOLLOCK 4.0.4 3 October (qollock_404_3october.zip)');
-  assert.equal(contract.qollockAuthority, 'pinned QOLLOCK 4.0.4 3 October pak03_dir.vpk (qollock_404_3october.zip)');
-  assert.match(read(path.join(v2Support, 'qollock-source.sha256')), /^a8ea90f59945674b6b3df0475c87fa107317a6e9c4600a95c06e4eadb7e42575\s+.*\/qollock-404-3oct\/pak03_dir\.vpk\s*$/);
+  assert.equal(contract.packageOrder[1], 'pak03 pinned QOLLOCK 4.0.5 6 October hotfix (qollock_405_6octoberhotfix.zip)');
+  assert.equal(contract.qollockAuthority, 'pinned QOLLOCK 4.0.5 6 October hotfix pak03_dir.vpk (qollock_405_6octoberhotfix.zip)');
+  assert.match(read(path.join(v2Support, 'qollock-source.sha256')), /^b34d980d1047987ddcfd496eda7ee95b7bedaf794fd4ea256338d7b27bd06054\s+.*\/qollock-405-6oct\/pak03_dir\.vpk\s*$/);
   const escape = read(path.join(v2Support, 'panorama/layout/hud_escape_menu.xml'));
-  assert.match(escape, /Generated from pak03 SHA-256 a8ea90f5/);
+  assert.match(escape, /Generated from pak03 SHA-256 b34d980d/);
   assert.doesNotMatch(escape, /<Button id="EscapeButton"/);
   for (const asset of ['core/ql_persistence.vjs_c', 'core/ql_storage_bridge.vjs_c', 'ql_settings_persistence.vjs_c']) {
     assert.ok(escape.includes(`s2r://panorama/scripts/${asset}`), asset);

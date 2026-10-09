@@ -19,7 +19,8 @@ function validRecord(r) {
     Array.isArray(r.m) && r.m.length <= 6 && r.m.every(row => Array.isArray(row) &&
       row.length === 4 && ['rx', 'tx'].includes(row[0]) && text(row[1], 64) && row.slice(2).every(finite)) &&
     Array.isArray(r.u) && r.u.length <= 8 && r.u.every(finite) &&
-    Array.isArray(r.h) && r.h.length === 10 && r.h.every(finite);
+    Array.isArray(r.h) && r.h.length === 10 && r.h.every(finite) &&
+    (r.t === undefined || ['hero', 'unit'].includes(r.t));
 }
 
 function aggregate(records, missing) {
@@ -37,7 +38,8 @@ function aggregate(records, missing) {
     if (r.cut) missing.push(`Context ${r.id} seq ${r.seq}: line-size compaction (${r.cut}); owner/message detail aggregated under <other>.`);
     const minute = Math.floor(r.to / 60000);
     if (!buckets.has(minute)) buckets.set(minute, { minute, contexts: new Map(), callbacks: new Map(),
-      messages: new Map(), ultimate: new Map(), phases: Array(10).fill(0), worldScanners: new Set(), reports: 0 });
+      messages: new Map(), ultimate: new Map(), phases: Array(10).fill(0), worldScanners: new Set(), reports: 0,
+      world: new Map() });
     const b = buckets.get(minute), seconds = (r.to - r.from) / 1000;
     b.reports += 1;
     b.contexts.set(r.id, r.kind);
@@ -61,6 +63,11 @@ function aggregate(records, missing) {
     if (r.kind === 'world') {
       r.h.forEach((count, i) => { b.phases[i] += count; });
       if (r.h.some(n => n > 0)) b.worldScanners.add(r.id);
+      // A context that ran any paint or probe callback owns visible work; the rest only scan.
+      const painting = r.c.some(([owner, count]) => count > 0 && /^world:(paint|probe)@/.test(owner));
+      const ms = r.c.reduce((n, row) => n + row[2], 0);
+      const calls = r.c.reduce((n, row) => n + row[1], 0);
+      b.world.set(r.id, { t: r.t || 'unknown', painting, msPerSecond: ms / seconds, perSecond: calls / seconds });
     }
   }
   return [...buckets.values()].sort((a, b) => a.minute - b.minute).map(b => {
@@ -68,11 +75,19 @@ function aggregate(records, missing) {
     for (const kind of b.contexts.values()) contexts[kind] += 1;
     const scans = b.phases.reduce((a, n) => a + n, 0);
     const phaseLockScore = scans ? Math.max(...b.phases) / scans : null;
+    const census = { hero: 0, unit: 0, unknown: 0,
+      painting: { contexts: 0, perSecond: 0, msPerSecond: 0 }, scanOnly: { contexts: 0, perSecond: 0, msPerSecond: 0 } };
+    for (const w of b.world.values()) {
+      census[w.t] += 1;
+      const group = w.painting ? census.painting : census.scanOnly;
+      group.contexts += 1; group.perSecond += w.perSecond; group.msPerSecond += w.msPerSecond;
+    }
     return { minute: b.minute, timestamp: new Date(b.minute * 60000).toISOString(), reports: b.reports,
       liveContexts: contexts, callbacks: [...b.callbacks.values()], messages: [...b.messages.values()],
       ultimateDeliveries: [...b.ultimate.entries()].map(([at, ids]) => ({ at, contexts: ids.size })),
       scanPhaseHistogram: b.phases, phaseLockScore,
-      phaseLocked: phaseLockScore === null || b.worldScanners.size < 2 ? null : phaseLockScore >= 0.8 };
+      phaseLocked: phaseLockScore === null || b.worldScanners.size < 2 ? null : phaseLockScore >= 0.8,
+      worldCensus: census };
   });
 }
 
@@ -196,6 +211,12 @@ function markdown(report) {
       const sum = (rows, field) => rows.reduce((n, r) => n + r[field], 0);
       const rx = m.messages.filter(r => r.direction === 'rx'), tx = m.messages.filter(r => r.direction === 'tx');
       out.push(`| ${m.timestamp} | ${Object.values(m.liveContexts).join('/')} | ${value(sum(m.callbacks, 'perSecond'))} | ${sum(m.callbacks, 'spikes')} | ${value(sum(rx, 'perSecond'))}/${value(sum(tx, 'perSecond'))} | ${sum(rx, 'bytes')}/${sum(tx, 'bytes')} | ${value(m.phaseLockScore)} |`);
+    }
+    out.push('', '| Report-end minute (UTC) | World hero/unit | Painting / scan-only contexts | Painting calls/s, ms/s | Scan-only calls/s, ms/s | Quiet probes/s | Full paints/s |',
+      '| --- | --- | --- | --- | --- | ---: | ---: |');
+    for (const m of report.minutes) {
+      const c = m.worldCensus, rate = re => m.callbacks.filter(r => re.test(r.owner)).reduce((n, r) => n + r.perSecond, 0);
+      out.push(`| ${m.timestamp} | ${c.hero}/${c.unit}${c.unknown ? ` (+${c.unknown} untagged)` : ''} | ${c.painting.contexts} / ${c.scanOnly.contexts} | ${value(c.painting.perSecond)}, ${value(c.painting.msPerSecond)} | ${value(c.scanOnly.perSecond)}, ${value(c.scanOnly.msPerSecond)} | ${value(rate(/^world:probe@/))} | ${value(rate(/^world:paint@/))} |`);
     }
   }
   if (report.missing.length) out.push('', 'Missing / limits:', ...report.missing.map(s => `- ${s}`));

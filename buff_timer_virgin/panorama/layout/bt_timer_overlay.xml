@@ -1,0 +1,150 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/hud_timer.vcss_c" />
+		<include src="s2r://panorama/styles/buff_claim.vcss_c" />
+	</styles>
+	<!-- MOD: Movable timer widgets. Each slot holds one widget (and its ping hit area); the timer script positions and
+	     scales the slots from the saved layout. Edit chrome is unscaled and lives in BTEditLayer, one box per slot. -->
+	<Panel class="bt-timer-layer" hittest="false">
+		<!-- Edit mode only: the drag area over the stock minimap. First, so widget slots over the minimap stay on top. -->
+		<Panel id="BTSlotMapGrab" class="bt-map-grab" hittest="false" />
+		<!-- Edit mode only: the drag area over the stock map location label (#minimap_location), above the minimap's. -->
+		<Panel id="BTSlotLocGrab" class="bt-map-grab" hittest="false" />
+		<Panel id="BTSlotRejuv" class="bt-slot bt-slot-pill bt-side-l" hittest="false">
+			<Panel id="Rejuv" hittest="false">
+				<Panel id="RejuvTimeWrapper" class="timer-wrapper" hittest="false">
+					<Label id="RejuvTime" text="0:00" />
+					<Label id="RejuvTimeClip" text="0:00" hittest="false" />
+				</Panel>
+				<Image id="NeutralSpawnBadge2" hittest="false" scaling="stretch-to-fit-preserve-aspect" src="s2r://panorama/images/minimap/neutral_large_psd.vtex" />
+				<Image id="RejuvImg" src="s2r://panorama/images/hud/modifiers/icon_rejuvenator.svg" />
+				<Image id="NeutralSpawnBadge" hittest="false" scaling="stretch-to-fit-preserve-aspect" src="s2r://panorama/images/minimap/neutral_small_psd.vtex" />
+				<Label id="RejuvNum" text="1" />
+			</Panel>
+			<Panel id="RejuvMiniCard" class="rejuv-mini-card" hittest="false">
+				<Label id="RejuvMiniTime" class="rejuv-mini-time" text="" />
+			</Panel>
+			<Button id="RejuvPingButton" class="timer-ping-button rejuv-ping-button" hittestchildren="false" />
+		</Panel>
+		<Panel id="BTSlotBuff" class="bt-slot bt-slot-pill bt-side-r" hittest="false">
+			<Panel id="Buff" class="BuffP" hittest="false">
+				<Panel id="BuffTimeWrapper" class="timer-wrapper" hittest="false">
+					<Label id="BuffTime" text="0:00" />
+					<Label id="BuffTimeClip" text="0:00" hittest="false" />
+				</Panel>
+				<Image id="BuffImg" src="s2r://panorama/images/hud/modifiers/icon_powerup.svg" />
+			</Panel>
+			<Button id="BuffPingButton" class="timer-ping-button buff-ping-button" hittestchildren="false" />
+		</Panel>
+		<Panel id="BTSlotRift" class="bt-slot bt-slot-card bt-side-t" hittest="false">
+			<Panel id="RiftTimerCard" class="objective-timer-card rift-objective-card" hittest="false">
+				<Label id="RiftTimerSub" class="objective-timer-sub" text="RIFT" />
+				<Label id="RiftTimerTime" class="objective-timer-time" text="" />
+			</Panel>
+		</Panel>
+		<Panel id="BTSlotUrn" class="bt-slot bt-slot-card bt-side-t" hittest="false">
+			<Panel id="UrnTimerCard" class="objective-timer-card urn-objective-card" hittest="false">
+				<Label id="UrnTimerSub" class="objective-timer-sub" text="URN" />
+				<Label id="UrnTimerTime" class="objective-timer-time" text="" />
+			</Panel>
+		</Panel>
+		<!-- Bridge buff claim boxes (formerly ClaimOverlayRoot). The script adds active/ally-claim/enemy-claim, and
+		     bt-claim-sample while editing an idle box. -->
+		<Panel id="BTSlotClaimL" class="bt-slot bt-slot-claim bt-side-t" hittest="false">
+			<Panel id="MinimapBuffClaimLeft" class="minimap-claim-box" hittest="false">
+				<Panel id="ClaimBgLeft" class="claim-bg" hittest="false" />
+				<Panel id="ClaimRingLeft" class="claim-ring" hittest="false" />
+				<Panel id="ClaimIconLeft" class="claim-icon" hittest="false" />
+				<Label id="ClaimTimerLeft" class="claim-timer" text="" hittest="false" />
+			</Panel>
+		</Panel>
+		<Panel id="BTSlotClaimR" class="bt-slot bt-slot-claim bt-side-t" hittest="false">
+			<Panel id="MinimapBuffClaimRight" class="minimap-claim-box" hittest="false">
+				<Panel id="ClaimBgRight" class="claim-bg" hittest="false" />
+				<Panel id="ClaimRingRight" class="claim-ring" hittest="false" />
+				<Panel id="ClaimIconRight" class="claim-icon" hittest="false" />
+				<Label id="ClaimTimerRight" class="claim-timer" text="" hittest="false" />
+			</Panel>
+		</Panel>
+		<Panel id="BTEditLayer" class="bt-edit-layer" hittest="false">
+			<!-- The stock minimap's border: first, so widget chromes over it keep their handles. -->
+			<Panel id="BTSlotMapChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotMapOutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotMapHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotMapHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotMapHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotMapHandleBR" class="bt-edit-handle bt-handle-br" />
+			</Panel>
+			<!-- The map location label: a dashed box turned with the label and a stem up to its rotate knob. The knob is a
+			     separate, unturned panel the script places on the turned top edge. -->
+			<Panel id="BTSlotLocChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotLocOutline" class="bt-edit-outline" hittest="false" />
+				<Panel class="bt-loc-stem" hittest="false" />
+				<Label class="bt-loc-hint" text="map location" hittest="false" />
+			</Panel>
+			<Panel id="BTSlotLocRotate" class="bt-loc-rotate" />
+			<Panel id="BTSlotRejuvChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotRejuvOutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotRejuvHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotRejuvHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotRejuvHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotRejuvHandleBR" class="bt-edit-handle bt-handle-br" />
+				<Button id="BTSlotRejuvSideL" class="bt-edit-side bt-edit-side-l" />
+				<Button id="BTSlotRejuvSideR" class="bt-edit-side bt-edit-side-r" />
+				<Button id="BTSlotRejuvSideT" class="bt-edit-side bt-edit-side-t" />
+				<Button id="BTSlotRejuvSideB" class="bt-edit-side bt-edit-side-b" />
+				<Button id="BTSlotRejuvIconToggle" class="bt-edit-icon" />
+			</Panel>
+			<Panel id="BTSlotBuffChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotBuffOutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotBuffHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotBuffHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotBuffHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotBuffHandleBR" class="bt-edit-handle bt-handle-br" />
+				<Button id="BTSlotBuffSideL" class="bt-edit-side bt-edit-side-l" />
+				<Button id="BTSlotBuffSideR" class="bt-edit-side bt-edit-side-r" />
+				<Button id="BTSlotBuffSideT" class="bt-edit-side bt-edit-side-t" />
+				<Button id="BTSlotBuffSideB" class="bt-edit-side bt-edit-side-b" />
+				<Button id="BTSlotBuffIconToggle" class="bt-edit-icon" />
+			</Panel>
+			<Panel id="BTSlotRiftChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotRiftOutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotRiftHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotRiftHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotRiftHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotRiftHandleBR" class="bt-edit-handle bt-handle-br" />
+				<Button id="BTSlotRiftSideL" class="bt-edit-side bt-edit-side-l" />
+				<Button id="BTSlotRiftSideR" class="bt-edit-side bt-edit-side-r" />
+				<Button id="BTSlotRiftSideT" class="bt-edit-side bt-edit-side-t" />
+				<Button id="BTSlotRiftSideB" class="bt-edit-side bt-edit-side-b" />
+			</Panel>
+			<Panel id="BTSlotUrnChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotUrnOutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotUrnHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotUrnHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotUrnHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotUrnHandleBR" class="bt-edit-handle bt-handle-br" />
+				<Button id="BTSlotUrnSideL" class="bt-edit-side bt-edit-side-l" />
+				<Button id="BTSlotUrnSideR" class="bt-edit-side bt-edit-side-r" />
+				<Button id="BTSlotUrnSideT" class="bt-edit-side bt-edit-side-t" />
+				<Button id="BTSlotUrnSideB" class="bt-edit-side bt-edit-side-b" />
+			</Panel>
+			<!-- Claim boxes have no icon/label side to choose: corner handles only. -->
+			<Panel id="BTSlotClaimLChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotClaimLOutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotClaimLHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotClaimLHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotClaimLHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotClaimLHandleBR" class="bt-edit-handle bt-handle-br" />
+			</Panel>
+			<Panel id="BTSlotClaimRChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotClaimROutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotClaimRHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotClaimRHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotClaimRHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotClaimRHandleBR" class="bt-edit-handle bt-handle-br" />
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

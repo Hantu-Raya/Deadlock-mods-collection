@@ -81,6 +81,35 @@ test('real world boot reports scan/paint owners with one bounded line and no pro
   assert.equal(f.harness.dispatches.length, 0);
 });
 
+// Failure modes: idle-health probes hide inside the paint owner; hero and unit contexts
+// are indistinguishable; the report cannot say how many contexts only scan.
+test('world reports split quiet health probes from full paints and tag hero contexts', () => {
+  const f = world();
+  const record = JSON.parse(reports(f.harness)[0].slice('[HPV2DIAG] v1 '.length));
+  assert.equal(record.t, 'hero');
+  const probe = record.c.find(row => row[0] === 'world:probe@0.15');
+  assert.ok(probe && probe[1] >= 100, 'an idle painted bar probes ~6.7 times per second');
+  const paint = record.c.filter(row => /^world:paint@/.test(row[0])).reduce((n, row) => n + row[1], 0);
+  assert.ok(paint > 0 && paint < probe[1], 'full paints stay separate and rarer than quiet probes');
+});
+
+test('report census separates painting and scan-only world contexts by hero/unit', () => {
+  const line = (id, t, rows) => '[HPV2DIAG] v1 ' + JSON.stringify({ id, kind: 'world', t, created: 0, seq: 1,
+    from: 0, to: 60000, clock: 'Date.now-ms', c: rows, m: [], u: [], uo: 0, h: [60, 0, 0, 0, 0, 0, 0, 0, 0, 0], cut: 0 });
+  const scan = ['world:scan@1', 60, 30, 2, 0];
+  const out = parseLog([
+    line('a', 'hero', [scan, ['world:probe@0.15', 300, 6, 1, 0], ['world:paint@1.5', 40, 12, 2, 0]]),
+    line('b', 'unit', [scan]),
+    line('c', 'unit', [scan]),
+  ].join('\n'));
+  const census = out.minutes[0].worldCensus;
+  assert.deepEqual({ hero: census.hero, unit: census.unit, painting: census.painting.contexts,
+    scanOnly: census.scanOnly.contexts }, { hero: 1, unit: 2, painting: 1, scanOnly: 2 });
+  assert.equal(census.scanOnly.msPerSecond, 1, 'two scan-only contexts at 30 ms per 60 s');
+  assert.equal(census.painting.msPerSecond, 0.8);
+  assert.match(markdown(out), /Painting \/ scan-only/);
+});
+
 test('phase-lock detector distinguishes co-created world contexts from a 450 ms offset', () => {
   const together = parseLog([...reports(world().harness), ...reports(world().harness)].join('\n'));
   const apart = parseLog([...reports(world().harness), ...reports(world(450).harness)].join('\n'));

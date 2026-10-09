@@ -3114,6 +3114,78 @@ test('readout offsets normalize and round-trip as zero-based CSS pixels', () => 
   assert.deepEqual(keys.map(key => legacy.read().values[key]), [27, 210, -30, 210, 27, 210]);
 });
 
+test('origin/main whole-library export upgrades only shipped baked defaults', () => {
+  // Frozen HPCRP1 payload from origin/main's contract and state factories.
+  // Its v2 extension predates nameRiseWithPips (slot 75), and shipped Y was 48.
+  const historical = {
+    records: [
+      {
+        id: 'baked_default', kind: 'baked', name: 'Factory', mode: 'off',
+        heroes: [],
+        values: [[1, 148], [2, 80], [4, -38], [8, '#FD4949'],
+          [20, '#FFEFD7'], [21, '#FFEFD7'], [22, '#FFEFD7'],
+          [31, 'oracle'], [32, 18], [33, 14]],
+        conditions: null,
+        hpv2: { v: 2, values: [[8, 74], [9, 48], [10, 74], [11, 48],
+          [56, true], [57, '#000000']], conditions: {} },
+      },
+      {
+        id: 'user_0004', kind: 'user', name: 'Custom Rise', mode: 'selected',
+        heroes: ['hero_haze'],
+        values: [[8, '#FD4949'], [20, '#FFEFD7'], [21, '#FFEFD7'], [22, '#FFEFD7']],
+        conditions: null,
+        hpv2: { v: 2, values: [[9, 123], [11, -74]], conditions: {} },
+        own: ['widthScale', 'heightScale', 'positionY', 'readoutFont',
+          'readoutOffsetX', 'readoutOffsetY', 'ultOffsetX', 'ultOffsetY',
+          'levelOffsetX', 'levelOffsetY', 'enemyPipColorEnabled', 'enemyPipColor'],
+      },
+    ],
+    hiddenBakedPresetIds: ['baked_default'],
+    selectedPresetId: 'user_0004',
+  };
+  assert.deepEqual([EXTENSION_KEYS[9], EXTENSION_KEYS[11], EXTENSION_KEYS[75]],
+    ['ultOffsetY', 'levelOffsetY', 'nameRiseWithPips']);
+  const state = createState();
+  const imported = send(state, 'preset_import', { raw: 'HPCRP1' + JSON.stringify(historical) });
+  assert.equal(imported.status, 'committed', imported.code);
+  const restored = createState({ sessionRaw: effect(imported, 'session_replace').raw });
+  for (const target of [state, restored]) {
+    const view = target.read();
+    assert.deepEqual(row(view, 'baked_default').values, DEFAULTS);
+    assert.equal(row(view, 'baked_default').name, 'Factory');
+    assert.deepEqual(view.repository.hiddenBakedIds, ['baked_default']);
+    assert.equal(view.repository.selectedId, 'user_0001');
+    const user = row(view, 'user_0001');
+    assert.equal(user.name, 'Custom Rise');
+    assert.equal(user.mode, 'selected');
+    assert.deepEqual(user.heroes, ['hero_haze']);
+    assert.equal(user.values.ultOffsetY, 123);
+    assert.equal(user.values.levelOffsetY, -74);
+    assert.equal(user.values.nameRiseWithPips, false);
+    const exported = JSON.parse(effect(send(target, 'preset_copy_all'), 'clipboard_write').text.slice(6));
+    const savedUser = exported.records.find(record => record.kind === 'user');
+    assert.ok(savedUser.own.includes('ultOffsetY'));
+    assert.ok(savedUser.own.includes('levelOffsetY'));
+    assert.deepEqual(savedUser.hpv2.values.filter(([slot]) => slot === 9 || slot === 11),
+      [[9, 123], [11, -74]]);
+    assert.ok(!savedUser.hpv2.values.some(([slot]) => slot === 75));
+  }
+  for (const change of [
+    record => { record.hpv2.values[1][1] = 49; },
+    record => { record.hpv2.values.push([75, false]); },
+  ]) {
+    const altered = JSON.parse(JSON.stringify(historical));
+    change(altered.records[0]);
+    const unchanged = state.read();
+    const rejected = send(state, 'preset_import', {
+      raw: 'HPCRP1' + JSON.stringify(altered),
+    });
+    assert.equal(rejected.status, 'rejected');
+    assert.equal(rejected.code, 'INVALID BAKED PRESET');
+    assert.equal(rejected.view, unchanged);
+  }
+});
+
 test('historical baked readout defaults canonicalize without dropping user presets', () => {
   const source = createState();
   send(source, 'setting_edit', { key: 'readoutOffsetX', value: 150 });

@@ -8,8 +8,15 @@ const vm = require('node:vm');
 
 const scriptPath = path.resolve(__dirname, '..', 'panorama', 'scripts', 'rejuvnbufftimer.js');
 const source = fs.readFileSync(scriptPath, 'utf8');
-const layoutPath = path.resolve(__dirname, '..', 'panorama', 'layout', 'hud.xml');
-const layoutSource = fs.readFileSync(layoutPath, 'utf8');
+const layoutDir = path.resolve(__dirname, '..', 'panorama', 'layout');
+assert.equal(fs.existsSync(path.join(layoutDir, 'hud.xml')), false, 'pak98 must use stock hud.xml unmodified');
+const timerLayoutSource = fs.readFileSync(path.join(layoutDir, 'bt_timer_overlay.xml'), 'utf8');
+const glowLayoutSource = fs.readFileSync(path.join(layoutDir, 'bt_minimap_glow.xml'), 'utf8');
+const layouts = {
+  TimerOverlayFrame: 'bt_timer_overlay.xml',
+  MinimapGlowClip: 'bt_minimap_glow.xml',
+  BTLingerLayer: 'bt_linger_layer.xml',
+};
 const timerStylePath = path.resolve(__dirname, '..', 'panorama', 'styles', 'hud_timer.css');
 const timerStyleSource = fs.readFileSync(timerStylePath, 'utf8');
 const buffClaimStylePath = path.resolve(__dirname, '..', 'panorama', 'styles', 'buff_claim.css');
@@ -22,6 +29,7 @@ let fakeNow = 0;
 let nextScheduleId = 0;
 let contextPanel = null;
 const messages = [];
+let dispatchedEvents = 0;
 
 function liveScheduled() {
   return scheduled.filter((item) => !item.cancelled);
@@ -66,16 +74,22 @@ const sandbox = {
       if (item) item.cancelled = true;
     },
     GetContextPanel: () => contextPanel,
-    DispatchEvent: () => {},
+    DispatchEvent: () => { dispatchedEvents++; },
     Msg: (...args) => messages.push(args),
+    CreatePanel: createPanel,
   },
 };
-function makePanel(classCheck) {
+function makePanel(classCheck, id = '', parent = null) {
   const classes = new Set();
-  return {
+  const panel = {
+    id, parent, children: [], events: Object.create(null), attributes: new Map(), deleted: false,
     style: {},
+    // Every mock panel is laid out (scale 1, 1920x1080 at 0,0), so widget placement succeeds without a retry.
+    actualuiscale_x: 1, actualuiscale_y: 1, actuallayoutwidth: 1920, actuallayoutheight: 1080,
+    GetPositionWithinWindow: () => ({ x: 0, y: 0 }),
+    SetDraggable() {},
     text: '',
-    IsValid: () => true,
+    IsValid() { return !this.deleted && (!this.parent || this.parent.IsValid()); },
     BHasClass: (name) => classCheck ? classCheck(name) : classes.has(name),
     SetHasClass: (name, enabled) => {
       if (enabled) classes.add(name);
@@ -83,9 +97,53 @@ function makePanel(classCheck) {
     },
     AddClass: (name) => classes.add(name),
     RemoveClass: (name) => classes.delete(name),
-    GetParent: () => null,
+    GetParent() { return this.parent; },
+    Children() { return this.children.filter((child) => child.IsValid()); },
+    FindChildTraverse(name) {
+      for (const child of this.Children()) {
+        if (child.id === name) return child;
+        const found = child.FindChildTraverse(name);
+        if (found) return found;
+      }
+      return null;
+    },
+    GetAttributeInt(name, fallback) { return this.attributes.has(name) ? this.attributes.get(name) : fallback; },
+    SetAttributeInt(name, value) { this.attributes.set(name, value); },
+    GetAttributeString(name, fallback) { return this.attributes.has(name) ? this.attributes.get(name) : fallback; },
+    SetAttributeString(name, value) { this.attributes.set(name, value); },
+    SetPanelEvent(name, callback) { this.events[name] = callback; },
+    MoveChildBefore(child, before) {
+      this.children.splice(this.children.indexOf(child), 1);
+      this.children.splice(this.children.indexOf(before), 0, child);
+    },
+    MoveChildAfter(child, after) {
+      this.children.splice(this.children.indexOf(child), 1);
+      this.children.splice(this.children.indexOf(after) + 1, 0, child);
+    },
+    DeleteAsync() { this.deleted = true; },
     SetImage: () => {},
   };
+  if (parent) parent.children.push(panel);
+  return panel;
+}
+
+function createPanel(type, parent, id, onLoad = () => true) {
+  const panel = makePanel(null, id, parent);
+  panel.paneltype = type;
+  if (layouts[id]) {
+    panel.BLoadLayout = (layoutPath, replaceChildren, replaceStyles) => {
+      assert.equal(layoutPath, `file://{resources}/layout/${layouts[id]}`, `#${id} loads its own layout`);
+      assert.equal(replaceChildren, false);
+      assert.equal(replaceStyles, false);
+      if (!onLoad(id)) return false;
+      const xml = fs.readFileSync(path.join(layoutDir, layouts[id]), 'utf8');
+      for (const match of xml.matchAll(/<([A-Za-z][\w]*)\b[^>]*\bid="([^"]+)"/g)) {
+        createPanel(match[1], panel, match[2], onLoad);
+      }
+      return true;
+    };
+  }
+  return panel;
 }
 
 function makeRuntimeRoot(clockText) {
@@ -104,17 +162,23 @@ function makeRuntimeRoot(clockText) {
     FindChildrenWithClassTraverse: (name) => name === 'GameTime' ? [clock] : [],
     FindChildTraverse: (id) => id === 'RejuvenatorCharges' ? charges : null,
   });
-  const ids = Object.create(null);
-  const root = Object.assign(makePanel(), {
-    FindChildTraverse: (id) => ids[id] || null,
-  });
-  ids.Hud = root;
-  ids.RejuvTime = makePanel();
-  ids.RejuvNum = makePanel();
-  ids.RejuvImg = makePanel();
-  ids.BuffTime = makePanel();
-  ids.TopBar = topBar;
-  return { root, clock, topBar, charges, friendly, enemy, setChargePresent: (value) => { chargePresent = value; } };
+  const root = makePanel(null, 'Hud');
+  const clamp = makePanel(null, 'clamp_width', root);
+  const persp = makePanel(null, 'minimap_persp', clamp);
+  const minimapContainer = makePanel(null, 'minimap_container', persp);
+  const overlay = makePanel(null, 'HudMinimapContainer', minimapContainer);
+  const minimap = makePanel(null, 'hud_minimap', overlay);
+  root.FindChildTraverse = (id) => id === 'Hud' ? root : id === 'TopBar' ? topBar : findChild(root, id);
+  return { root, clamp, persp, minimapContainer, overlay, minimap, clock, topBar, charges, friendly, enemy, setChargePresent: (value) => { chargePresent = value; } };
+}
+
+function findChild(parent, id) {
+  for (const child of parent.Children()) {
+    if (child.id === id) return child;
+    const found = child.FindChildTraverse(id);
+    if (found) return found;
+  }
+  return null;
 }
 
 vm.createContext(sandbox);
@@ -122,6 +186,10 @@ vm.runInContext(source, sandbox, { filename: scriptPath });
 const test = sandbox.module.exports.__test;
 assert.ok(test, 'runtime engine test export missing');
 scheduled.length = 0;
+const isolatedRoot = makeRuntimeRoot('clock unavailable');
+contextPanel = isolatedRoot.minimap;
+isolatedRoot.root.SetAttributeInt('bt_timer_gen', 1);
+test.setInstanceTestState({ instanceGen: 1, hudRoot: isolatedRoot.root, retired: false });
 test.setLoopTestState({ generation: 4, playerSeenToken: 0, lowTimeCleared: false });
 test.loop(3);
 assert.equal(liveScheduled().length, 0, 'stale loop generations must not schedule a callback');
@@ -137,8 +205,34 @@ scheduled.length = 0;
 // Failure mode ASTRA-11/12: boot can hide its next active tick behind the gate and leave reset generations unwatched.
 fakeNow = 100000;
 const runtime = makeRuntimeRoot('10:00');
-contextPanel = runtime.root;
+contextPanel = runtime.minimap;
+test.setInstanceTestState({ instanceGen: 0, hudRoot: null, retired: false });
 test.boot();
+const hostState = test.getInstanceTestState();
+assert.equal(runtime.root.GetAttributeInt('bt_timer_gen', 0), hostState.instanceGen, 'first boot claims the HUD generation');
+for (const [key, parent, id] of [
+  ['timerOverlay', runtime.clamp, 'TimerOverlayFrame'],
+  ['timerDock', runtime.persp, 'BTTimerDock'],
+  ['glowClip', runtime.overlay, 'MinimapGlowClip'],
+  ['lingerLayer', runtime.overlay, 'BTLingerLayer'],
+]) {
+  const host = hostState.hosts[key];
+  assert.equal(host.id, id, `${key} uses the contract host id`);
+  assert.equal(host.GetParent(), parent, `${key} uses its contract parent`);
+  assert.equal(parent.Children().filter((child) => child.id === host.id).length, 1, `${key} has exactly one host`);
+}
+// The claim boxes are movable widgets in the timer layer (2026-10-09); the separate ClaimOverlayRoot host is gone.
+// (This mock builds layout ids flat under the host; validate-layout-editor.js checks the slot nesting.)
+assert.equal(runtime.clamp.Children().some((child) => child.id === 'ClaimOverlayRoot'), false, 'no ClaimOverlayRoot host');
+for (const box of ['MinimapBuffClaimLeft', 'MinimapBuffClaimRight']) {
+  assert.ok(hostState.hosts.timerOverlay.FindChildTraverse(box), `#${box} lives in the timer layer`);
+}
+assert.ok(runtime.overlay.Children().indexOf(hostState.hosts.glowClip) < runtime.overlay.Children().indexOf(hostState.hosts.lingerLayer), 'glow precedes linger layer');
+for (const name of ['RejuvPingButton', 'BuffPingButton']) {
+  assert.equal(typeof hostState.hosts.timerOverlay.FindChildTraverse(name).events.onactivate, 'function', `${name} binds a panel event`);
+}
+assert.equal(liveScheduled().filter((item) => item.delay === 5).length, 1, 'boot starts one watchdog');
+assert.equal(liveScheduled().filter((item) => item.delay < 1).length, 1, 'boot starts one main loop');
 let loopState = test.getLoopTestState();
 assert.equal(loopState.running, true, 'valid boot clock must start a live run');
 const bootTick = liveScheduled().find((item) => item.delay < 1);
@@ -175,6 +269,13 @@ advanceBy(5000);
 assert.equal(messages.length, 0, 'watchdog recovery must not emit production Panorama logs');
 assert.ok(test.getLoopTestState().generation > watchdogRecoveryGeneration, 'missed heartbeat must recover into a fresh generation');
 assert.equal(liveScheduled().filter((item) => item.delay === 5).length, 1, 'watchdog recovery must restart only one live watchdog');
+const recoveredHosts = test.getInstanceTestState().hosts;
+for (const key of Object.keys(hostState.hosts)) {
+  assert.equal(recoveredHosts[key], hostState.hosts[key], 'watchdog re-boot must reuse the owned host');
+}
+assert.equal(runtime.clamp.Children().filter((child) => child.id === 'TimerOverlayFrame').length, 1);
+assert.equal(runtime.persp.Children().filter((child) => child.id === 'BTTimerDock').length, 1);
+assert.equal(runtime.overlay.Children().filter((child) => child.id === 'MinimapGlowClip' || child.id === 'BTLingerLayer').length, 2);
 
 // Failure mode ASTRA-03/04: a valid zero must be cached, while text with no clock digits stays explicitly invalid.
 let zeroReads = 0;
@@ -370,7 +471,7 @@ assert.deepEqual(
   'observed Rift spawn should reset the next interval to a single ±1m uncertainty',
 );
 
-const riftCardLayout = layoutSource.match(/<Panel id="RiftTimerCard"[\s\S]*?<\/Panel>/);
+const riftCardLayout = timerLayoutSource.match(/<Panel id="RiftTimerCard"[\s\S]*?<\/Panel>/);
 assert.ok(riftCardLayout, 'Rift timer card layout missing');
 assert.ok(
   riftCardLayout[0].indexOf('id="RiftTimerSub"') < riftCardLayout[0].indexOf('id="RiftTimerTime"'),
@@ -382,10 +483,14 @@ assert.match(
   'Rift timer card must remain inert',
 );
 assert.doesNotMatch(
-  layoutSource,
+  timerLayoutSource,
   /UrnPingButton|RiftMenuHitbox|RiftChatMenu|handleUrnPingActivate|handleRift(Menu|Chat)Activate/,
   'Rift and Urn cards must stay display-only until their chat actions are ready',
 );
+for (const name of ['RejuvPingButton', 'BuffPingButton']) {
+  assert.match(timerLayoutSource, new RegExp(`\\bid="${name}"`), `${name} must be present in the timer overlay`);
+}
+assert.doesNotMatch(timerLayoutSource, /\bonactivate\s*=/i, 'ping activation is bound in JS, not XML');
 
 let riftCardActive = true;
 let urnCardActive = true;
@@ -581,11 +686,19 @@ const lingerContainer = {
   IsValid: () => true,
   FindChildTraverse: () => {
     lingerLookupParent = 'container';
+    return null;
+  },
+};
+const lingerLayer = {
+  IsValid: () => true,
+  FindChildTraverse: () => {
+    lingerLookupParent = 'layer';
     return lingerLabel;
   },
 };
 let lingerAcceptsInput = true;
 let lingerAcceptsFocus = true;
+const lingerAttributes = new Map();
 const lingerButton = {
   actualxoffset: 300,
   actualyoffset: 200,
@@ -599,6 +712,8 @@ const lingerButton = {
   SetAcceptsInput: (enabled) => { lingerAcceptsInput = enabled; },
   BAcceptsFocus: () => lingerAcceptsFocus,
   SetAcceptsFocus: (enabled) => { lingerAcceptsFocus = enabled; },
+  GetAttributeString: (key, fallback) => lingerAttributes.has(key) ? lingerAttributes.get(key) : fallback,
+  SetAttributeString: (key, value) => lingerAttributes.set(key, value),
 };
 const lingerMinimap = {
   actuallayoutwidth: 400,
@@ -610,9 +725,9 @@ const lingerMinimap = {
     return lingerLabel;
   },
 };
-test.setLingerTestUi(lingerContainer, lingerMinimap);
+test.setLingerTestUi(lingerContainer, lingerMinimap, lingerLayer);
 test.showLinger('enemy_test', lingerButton);
-assert.equal(lingerLookupParent, 'container', 'linger label must use the stable HudMinimapContainer overlay');
+assert.equal(lingerLookupParent, 'layer', 'linger label must live in BTLingerLayer, not HudMinimapContainer');
 assert.equal(
   lingerLabel.style.position,
   '74% 67% 0px',
@@ -633,6 +748,7 @@ assert.equal(lingerButton.hittestchildren, true, 'hero descendant hit testing mu
 assert.equal(lingerAcceptsInput, true, 'hero Panorama input acceptance must be restored when linger ends');
 assert.equal(lingerAcceptsFocus, true, 'hero Panorama focus acceptance must be restored when linger ends');
 assert.equal(lingerButton.style.opacity, '0.8', 'hero opacity must be restored exactly when linger ends');
+assert.equal(lingerAttributes.get('bt_linger_prev'), '', 'normal linger restoration clears the predecessor attribute');
 test.showLinger('enemy_restore_race', lingerButton);
 const throwingOpacityStyle = {};
 Object.defineProperty(throwingOpacityStyle, 'opacity', {
@@ -646,7 +762,7 @@ assert.equal(lingerAcceptsInput, true, 'input restoration must survive an opacit
 assert.equal(lingerAcceptsFocus, true, 'focus restoration must survive an opacity setter failure');
 lingerButton.style = { opacity: '0.8' };
 
-lingerContainer.FindChildTraverse = () => null;
+lingerLayer.FindChildTraverse = () => null;
 lingerMinimap.FindChildTraverse = () => null;
 let failedLabelDeleted = false;
 const failedLabelStyle = {};
@@ -667,7 +783,7 @@ assert.equal(lingerAcceptsFocus, true, 'failed linger creation must not leave Pa
 
 assert.equal(failedLabelDeleted, true, 'partially created linger labels must be deleted when setup fails');
 let invalidLabelRecreated = false;
-lingerContainer.FindChildTraverse = () => ({ IsValid: () => false });
+lingerLayer.FindChildTraverse = () => ({ IsValid: () => false });
 sandbox.$.CreatePanel = () => {
   invalidLabelRecreated = true;
   return {
@@ -680,6 +796,26 @@ sandbox.$.CreatePanel = () => {
 test.showLinger('enemy_invalid_label', lingerButton);
 assert.equal(invalidLabelRecreated, true, 'an invalid prior linger label must be recreated');
 test.removeLinger('enemy_invalid_label', true);
+lingerLayer.FindChildTraverse = () => lingerLabel;
+const predecessorState = {
+  previousHitTest: true,
+  previousHitTestChildren: true,
+  previousOpacity: '0.8',
+  previousAcceptsInput: true,
+  previousAcceptsFocus: true,
+};
+lingerAttributes.set('bt_linger_prev', JSON.stringify(predecessorState));
+lingerButton.hittest = lingerButton.hittestchildren = false;
+lingerButton.style.opacity = '0.5';
+lingerAcceptsInput = lingerAcceptsFocus = false;
+test.showLinger('enemy_predecessor', lingerButton);
+test.removeLinger('enemy_predecessor', true);
+assert.equal(lingerButton.hittest, true, 'predecessor original hit testing must survive reload');
+assert.equal(lingerButton.hittestchildren, true);
+assert.equal(lingerButton.style.opacity, '0.8', 'predecessor original opacity must survive reload');
+assert.equal(lingerAcceptsInput, true);
+assert.equal(lingerAcceptsFocus, true);
+assert.equal(lingerAttributes.get('bt_linger_prev'), '', 'restoring predecessor state clears the attribute');
 
 const scaledContainer = { contentwidth: 320, contentheight: 240 };
 const scaledMinimap = {
@@ -853,10 +989,277 @@ const corpseTarget = { x: 50, y: 50, minAllyDist: 0, minEnemyDist: 0 };
 test.computeNearestForTargets(corpseSnapshot.players, [corpseTarget], 1, 5000, false);
 assert.equal(corpseTarget.minEnemyDist, Infinity, 'stationary dead enemy must be excluded after death grace');
 
+// Failed BLoadLayout never leaves a partial host or starts the timer loop.
+function checkLayoutFailure(failures, throwFailure = false) {
+  const scene = makeRuntimeRoot('10:00');
+  let nowMs = 0;
+  let nextId = 0;
+  let attempts = 0;
+  const tasks = [];
+  const local = {
+    module: { exports: {} }, exports: {}, console, globalThis: {}, Date: { now: () => nowMs },
+    $: {
+      GetContextPanel: () => scene.minimap,
+      Schedule: (delay, callback) => {
+        const item = { id: ++nextId, due: nowMs + delay * 1000, delay, callback, cancelled: false };
+        tasks.push(item);
+        return item.id;
+      },
+      CancelScheduled: (handle) => { const task = tasks.find((item) => item.id === handle); if (task) task.cancelled = true; },
+      DispatchEvent: () => {}, Msg: () => {},
+      CreatePanel: (type, parent, id) => createPanel(type, parent, id, () => {
+        if (id === 'TimerOverlayFrame' && attempts++ < failures) {
+          if (throwFailure) throw new Error('layout temporarily unavailable');
+          return false;
+        }
+        return true;
+      }),
+    },
+  };
+  vm.createContext(local);
+  vm.runInContext(source, local, { filename: scriptPath });
+  const timer = local.module.exports.__test;
+  assert.equal(attempts, 1, 'boot attempts the first layout immediately');
+  if (failures) assert.equal(scene.clamp.children.find((child) => child.id === 'TimerOverlayFrame').deleted, true, 'failed host must be deleted');
+  for (let n = 1; n <= Math.min(failures, 4); n++) {
+    assert.equal(tasks.filter((task) => !task.cancelled).length, 1, 'no timer loop or watchdog before layouts load');
+    const retry = tasks.find((task) => !task.cancelled);
+    assert.equal(retry.delay, 1, 'layout failure retry is one second');
+    tasks.splice(tasks.indexOf(retry), 1);
+    nowMs = retry.due;
+    retry.callback();
+    assert.equal(attempts, Math.min(n + 1, 5));
+  }
+  return { scene, timer, tasks };
+}
+const recoveredLayout = checkLayoutFailure(1);
+assert.equal(recoveredLayout.scene.clamp.Children().filter((child) => child.id === 'TimerOverlayFrame').length, 1, 'retry creates one valid timer host');
+assert.equal(recoveredLayout.tasks.filter((task) => !task.cancelled && task.delay === 5).length, 1, 'watchdog begins only after successful layout');
+assert.equal(checkLayoutFailure(1, true).scene.clamp.Children().filter((child) => child.id === 'TimerOverlayFrame').length, 1, 'thrown layout load retries too');
+const failedLayout = checkLayoutFailure(5);
+assert.equal(failedLayout.timer.getInstanceTestState().retired, true, 'five layout failures give up');
+assert.equal(failedLayout.scene.clamp.Children().filter((child) => child.id === 'TimerOverlayFrame').length, 0, 'no failed host survives');
+assert.equal(failedLayout.tasks.filter((task) => !task.cancelled).length, 0, 'give-up leaves no scheduled work');
+
+// A second minimap instance supersedes the first without stealing its owned hosts or stock marker state.
+sandbox.$.CreatePanel = createPanel;
+runtime.overlay.actuallayoutwidth = runtime.overlay.actuallayoutheight = 400;
+runtime.minimap.actuallayoutwidth = runtime.minimap.actuallayoutheight = 400;
+test.setLingerTestUi(runtime.overlay, runtime.minimap, recoveredHosts.lingerLayer);
+const stockMarker = createPanel('Panel', runtime.minimap, 'old_enemy');
+stockMarker.actualxoffset = stockMarker.actualyoffset = 100;
+stockMarker.actuallayoutwidth = stockMarker.actuallayoutheight = 32;
+stockMarker.hittest = stockMarker.hittestchildren = true;
+stockMarker.style.opacity = '0.9';
+let stockInput = true;
+let stockFocus = true;
+stockMarker.BAcceptsInput = () => stockInput;
+stockMarker.SetAcceptsInput = (on) => { stockInput = on; };
+stockMarker.BAcceptsFocus = () => stockFocus;
+stockMarker.SetAcceptsFocus = (on) => { stockFocus = on; };
+test.showLinger('old_enemy', stockMarker);
+const ownedLinger = recoveredHosts.lingerLayer.FindChildTraverse('LingerQ_old_enemy');
+assert.equal(ownedLinger.GetParent(), recoveredHosts.lingerLayer, 'new labels are created in the owned linger host');
+assert.equal(runtime.overlay.Children().some((child) => child.id === 'LingerQ_old_enemy'), false, 'labels are not direct children of HudMinimapContainer');
+assert.equal(stockMarker.hittest, false, 'old instance owns an active linger before replacement');
+const stalePing = recoveredHosts.timerOverlay.FindChildTraverse('RejuvPingButton').events.onactivate;
+const oldHandles = new Set(liveScheduled().map((item) => item.id));
+const secondVm = {
+  module: { exports: {} }, exports: {}, console, globalThis: {}, Date: { now: () => fakeNow },
+  $: { ...sandbox.$, GetContextPanel: () => runtime.minimap, CreatePanel: createPanel },
+};
+vm.createContext(secondVm);
+vm.runInContext(source, secondVm, { filename: scriptPath });
+const second = secondVm.module.exports.__test;
+assert.equal(second.getInstanceTestState().instanceGen, hostState.instanceGen + 1, 'second instance increments bt_timer_gen');
+const successorHosts = second.getInstanceTestState().hosts;
+for (const key of Object.keys(recoveredHosts)) {
+  assert.notEqual(successorHosts[key], recoveredHosts[key], `${key} belongs to the new instance`);
+  assert.equal(successorHosts[key].IsValid(), true);
+  assert.equal(successorHosts[key].GetParent().Children().filter((child) => child.id === successorHosts[key].id).length, 1);
+}
+assert.equal(test.timerAlive(), false, 'superseded instance loses the generation guard');
+advanceBy(1000);
+assert.equal(test.getInstanceTestState().retired, true, 'stale loop retires the first instance');
+for (const host of Object.values(recoveredHosts)) assert.equal(host.deleted, true, 'retire deletes only its owned hosts');
+assert.equal(stockMarker.hittest, true, 'retire restores the stock marker hit testing');
+assert.equal(stockMarker.hittestchildren, true);
+assert.equal(stockMarker.style.opacity, '0.9');
+assert.equal(stockInput, true);
+assert.equal(stockFocus, true);
+assert.equal(stockMarker.GetAttributeString('bt_linger_prev', 'missing'), '', 'retire clears saved stock state');
+assert.ok(liveScheduled().every((item) => !oldHandles.has(item.id)), 'retired instance has no live schedules');
+test.setRejuvTestState({ running: true, root: runtime.root, topBar: runtime.topBar });
+const remainingSchedules = liveScheduled().length;
+const sentEvents = dispatchedEvents;
+stalePing();
+assert.equal(liveScheduled().length, remainingSchedules, 'retired ping handler cannot schedule team chat');
+assert.equal(dispatchedEvents, sentEvents, 'retired ping handler cannot dispatch team chat');
+assert.equal(second.getInstanceTestState().retired, false, 'successor remains live');
+
+// Each generation guard must retire on its own callback, without advancing the other callback or creating a successor.
+function bootGuardScenario() {
+  scheduled.length = 0;
+  const scene = makeRuntimeRoot('10:00');
+  contextPanel = scene.minimap;
+  const isolatedVm = {
+    module: { exports: {} }, exports: {}, console, globalThis: {}, Date: { now: () => fakeNow },
+    $: sandbox.$,
+  };
+  vm.createContext(isolatedVm);
+  vm.runInContext(source, isolatedVm, { filename: scriptPath });
+  const instance = isolatedVm.module.exports.__test;
+  assert.equal(instance.getInstanceTestState().retired, false, 'guard scenario boots a live instance');
+  assert.equal(liveScheduled().filter((item) => item.delay === 5).length, 1, 'guard scenario has a pending watchdog');
+  assert.equal(liveScheduled().filter((item) => item.delay < 1).length, 1, 'guard scenario has a pending loop');
+  return { scene, instance };
+}
+
+const loopGuard = bootGuardScenario();
+const loopHosts = loopGuard.instance.getInstanceTestState().hosts;
+const deleteCalls = new Map();
+for (const host of Object.values(loopHosts)) {
+  deleteCalls.set(host, 0);
+  const deleteAsync = host.DeleteAsync;
+  host.DeleteAsync = function (delay) {
+    assert.equal(delay, 0, 'retire deletes its owned host immediately');
+    deleteCalls.set(host, deleteCalls.get(host) + 1);
+    return deleteAsync.call(this, delay);
+  };
+}
+loopGuard.scene.root.SetAttributeInt('bt_timer_gen', loopGuard.instance.getInstanceTestState().instanceGen + 1);
+const pendingLoop = liveScheduled().find((item) => item.delay < 1);
+scheduled.splice(scheduled.indexOf(pendingLoop), 1);
+pendingLoop.callback();
+assert.equal(loopGuard.instance.getInstanceTestState().retired, true, 'stale loop callback must retire without watchdog help');
+assert.equal(liveScheduled().filter((item) => item.delay < 1).length, 0, 'stale loop must not schedule another loop');
+for (const host of Object.values(loopHosts)) {
+  assert.equal(deleteCalls.get(host), 1, 'retire must call DeleteAsync on each owned host without successor sweep');
+}
+assert.ok(Object.values(loopGuard.instance.getInstanceTestState().hosts).every((host) => host === null), 'retire clears all four host references');
+
+const watchdogGuard = bootGuardScenario();
+watchdogGuard.scene.root.SetAttributeInt('bt_timer_gen', watchdogGuard.instance.getInstanceTestState().instanceGen + 1);
+const pendingWatchdog = liveScheduled().find((item) => item.delay === 5);
+scheduled.splice(scheduled.indexOf(pendingWatchdog), 1);
+pendingWatchdog.callback();
+assert.equal(watchdogGuard.instance.getInstanceTestState().retired, true, 'stale watchdog callback must retire without loop help');
+assert.equal(liveScheduled().filter((item) => item.delay === 5 || item.delay < 1).length, 0, 'stale watchdog leaves no watchdog or loop scheduled');
+
 // Failure mode ASTRA-06/26: obsolete corner glows and an unproduced forward rotation can drift back into the package.
-assert.doesNotMatch(layoutSource, /id="MinimapGlow(?:Left|Right)(?:Top|Bot)"/, 'only the two working lateral glow panels should remain');
+assert.doesNotMatch(glowLayoutSource, /id="MinimapGlow(?:Left|Right)(?:Top|Bot)"/, 'only the two working lateral glow panels should remain');
 assert.doesNotMatch(buffClaimStyleSource, /\.glow-(?:left|right)-(?:top|bot)\b/, 'corner-only glow selectors should be removed');
 assert.doesNotMatch(timerStyleSource, /^@keyframes 'rotate'\s*\{/m, 'unused forward rotation keyframes should be removed');
 assert.doesNotMatch(timerStyleSource, /#RejuvImg\.rotating\.buff\b/, 'unused forward rotation selector should be removed');
 assert.match(timerStyleSource, /#RejuvImg\.rotating\.reverse\b/, 'supported reverse rotation must remain');
+
+// hideout must still publish timer presence and honour settings classes
+for (const clockText of ['10:00', 'clock unavailable']) {
+  scheduled.length = 0;
+  const scene = makeRuntimeRoot(clockText);
+  scene.root.AddClass('connectedToHideout');
+  scene.overlay.actuallayoutwidth = scene.overlay.actuallayoutheight = 400;
+  scene.minimap.actuallayoutwidth = scene.minimap.actuallayoutheight = 400;
+  contextPanel = scene.minimap;
+  const isolatedVm = {
+    module: { exports: {} }, exports: {}, console, globalThis: {}, Date: { now: () => fakeNow },
+    $: sandbox.$,
+  };
+  vm.createContext(isolatedVm);
+  vm.runInContext(source, isolatedVm, { filename: scriptPath });
+  const instance = isolatedVm.module.exports.__test;
+  assert.equal(instance.getInstanceTestState().retired, false, 'hideout timer must boot a live instance');
+  assert.equal(instance.getLoopTestState().running, false, 'hideout and invalid clocks must not start a run');
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), true, 'hideout must still publish timer presence and honour settings classes');
+  const pendingTick = liveScheduled().find((item) => item.delay !== 5);
+  assert.ok(pendingTick, 'inactive timer must own a pending loop');
+  // Create the linger just before the tick so its five-second expiry cannot satisfy the clearing assertion.
+  advanceTo(pendingTick.dueMs - 1);
+  const marker = createPanel('Panel', scene.minimap, 'hideout_enemy');
+  marker.actualxoffset = marker.actualyoffset = 100;
+  marker.actuallayoutwidth = marker.actuallayoutheight = 32;
+  marker.hittest = marker.hittestchildren = true;
+  marker.style.opacity = '0.9';
+  instance.showLinger('hideout_enemy', marker);
+  const hosts = instance.getInstanceTestState().hosts;
+  const label = hosts.lingerLayer.FindChildTraverse('LingerQ_hideout_enemy');
+  assert.ok(label && label.IsValid(), 'inactive timer fixture must contain a live linger');
+  assert.equal(marker.hittest, false, 'fixture linger must hide stock marker hit testing');
+  scene.minimap.AddClass('bt-linger-off');
+  scene.minimap.AddClass('bt-glow-off');
+  advanceTo(pendingTick.dueMs);
+  assert.equal(instance.getLoopTestState().running, false, 'settings processing must not start the inactive run');
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), true, 'inactive ticks must retain timer presence');
+  assert.equal(hosts.glowClip.BHasClass('bt-glow-off'), true, 'hideout and invalid-clock ticks must mirror glow settings');
+  assert.equal(label.IsValid(), false, 'hideout and invalid-clock ticks must clear existing lingers when disabled');
+  assert.equal(marker.hittest, true, 'settings clearing must restore stock marker hit testing');
+  assert.equal(marker.hittestchildren, true, 'settings clearing must restore descendant hit testing');
+  assert.equal(marker.style.opacity, '0.9', 'settings clearing must restore stock marker opacity');
+  assert.equal(marker.GetAttributeString('bt_linger_prev', 'missing'), '', 'settings clearing must remove saved linger state');
+  instance.retire();
+}
+
+// retiring owner withdraws presence
+{
+  const { scene, instance } = bootGuardScenario();
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), true, 'live owner must publish presence before retiring');
+  assert.equal(scene.root.GetAttributeInt('bt_timer_gen', 0), instance.getInstanceTestState().instanceGen, 'retiring fixture must still own the root generation');
+  instance.retire();
+  assert.equal(instance.getInstanceTestState().retired, true, 'owner retirement must complete');
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), false, 'retiring owner withdraws presence');
+}
+
+// superseded instance must not clear its successor presence
+{
+  const { scene, instance: first } = bootGuardScenario();
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), true, 'first instance must publish presence');
+  const firstTick = liveScheduled().find((item) => item.delay < 1);
+  const successorVm = {
+    module: { exports: {} }, exports: {}, console, globalThis: {}, Date: { now: () => fakeNow },
+    $: sandbox.$,
+  };
+  vm.createContext(successorVm);
+  vm.runInContext(source, successorVm, { filename: scriptPath });
+  const successor = successorVm.module.exports.__test;
+  assert.equal(successor.getInstanceTestState().instanceGen, first.getInstanceTestState().instanceGen + 1, 'successor must claim a new root generation');
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), true, 'successor must publish presence before stale retirement');
+  scheduled.splice(scheduled.indexOf(firstTick), 1);
+  firstTick.callback();
+  assert.equal(first.getInstanceTestState().retired, true, 'superseded loop must retire its instance');
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), true, 'superseded instance must not clear its successor presence');
+  const successorTick = liveScheduled().find((item) => item.delay < 1);
+  assert.ok(successorTick, 'successor must retain a scheduled loop');
+  advanceTo(successorTick.dueMs);
+  assert.equal(successor.getInstanceTestState().retired, false, 'successor must remain live on later ticks');
+  assert.equal(scene.minimap.BHasClass('bt-buff-timer'), true, 'successor presence must survive its later ticks');
+  successor.retire();
+}
+
+// friend/enemy perspective classes must win over absolute team1/team2
+{
+  const cases = [
+    ['perspective_enemy', 'map_button player enemy team1 active', 2],
+    ['perspective_friend', 'map_button player friend team2 active', 1],
+    ['legacy_team1', 'map_button player team1 active', 1],
+    ['legacy_ally', 'map_button player ally active', 1],
+    ['legacy_team2', 'map_button player team2 active', 2],
+  ];
+  const markers = cases.map(([id, classes]) => {
+    const marker = makePanel(null, id);
+    for (const name of classes.split(' ')) marker.AddClass(name);
+    marker.actualxoffset = 20;
+    marker.actualyoffset = 30;
+    return marker;
+  });
+  const minimap = makePanel();
+  minimap.actuallayoutwidth = minimap.actuallayoutheight = 100;
+  minimap.FindChildrenWithClassTraverse = (name) => name === 'map_button' ? markers : [];
+  test.setMinimapTestUi(minimap);
+  const snapshot = test.collectMinimapSnapshot(fakeNow, true);
+  assert.deepEqual(
+    Array.from(snapshot.players, (player) => [player.id, player.team]),
+    cases.map(([id, , team]) => [id, team]),
+    'friend/enemy perspective classes must win over absolute team1/team2',
+  );
+}
 console.log('[RUNTIME ENGINE PASS] objective timing, minimap, and lifecycle contracts are valid.');

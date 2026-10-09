@@ -29,7 +29,13 @@ counts. Compact rows: `c=[owner,count,totalMs,maxMs,spikes>=4ms]`,
 plus `<other>` aggregates; at most eight `at` values are retained. Reports stay
 within 900 characters, first at 60–61 s, then every 60 s via original APIs.
 Owners are delay-based, not mangled function names; menu 1 s identity/replay work
-cannot be distinguished. Distinct reporting contexts are not a live census;
+cannot be distinguished. World callbacks that reschedule their own function at
+0.15 s are `world:probe@0.15` (the renderer's idle health probe finding no change);
+probes that repaint, and the ninth probe's hand-off, still count as `world:paint@0.15`.
+World records add `t` (`hero` when the context has a `CLASS_PLAYER` ancestor, else
+`unit`; one class read per report). The report's world census splits contexts into
+painting (any paint/probe callback) and scan-only (stock/dormant bars), with calls/s
+and ms/s per group. Distinct reporting contexts are not a live census;
 sampled ultimate deliveries are lower bounds, not listener-delivery counts.
 
 VM/parser tests and successful packaging do not verify in-game behavior or FPS.

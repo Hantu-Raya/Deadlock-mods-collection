@@ -6,6 +6,7 @@ from active import get_record_name, iter_record_spans
 
 
 EVERYONE_RECORDS = {
+    "ability_baba_hexing_brew",
     "ability_bookworm_knightcharge",
     "ability_nano_catform",
     "ability_priest_knockback",

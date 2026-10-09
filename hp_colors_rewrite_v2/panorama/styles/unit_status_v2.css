@@ -2068,10 +2068,9 @@
 	opacity: 0;
 }
 
-/* These replaced layers are not geometry inputs. Keep fill/shield/armor and lines
-   measurable for engine health/max sampling; collapsing them would erase that signal. */
-.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #unit_healthbar_healing,
-.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #unit_healthbar_delta,
+/* OLD draws no deferred-damage layer and uses its own kill marker. Fill, shield, armor,
+   healing, delta and lines stay measurable (the inner's opacity 0 hides them) for
+   health/max sampling and the pip feedback layers; collapsing them would erase that signal. */
 .WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #unit_healthbar_deferred,
 .WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #hp_colors_kill_marker
 {
@@ -2094,7 +2093,11 @@
 
 #HPV2PipEmpty,
 #HPV2PipFill,
-#HPV2PipOutline
+#HPV2PipOutline,
+#HPV2PipShield,
+#HPV2PipArmor,
+#HPV2PipHealing,
+#HPV2PipDelta
 {
 	width: 100%;
 	height: 100%;
@@ -2111,7 +2114,12 @@
 	background-color: #182123;
 }
 
-#HPV2PipFill .HPV2Pip
+/* Feedback layers are washed per container with the stock layer's applied color. */
+#HPV2PipFill .HPV2Pip,
+#HPV2PipShield .HPV2Pip,
+#HPV2PipArmor .HPV2Pip,
+#HPV2PipHealing .HPV2Pip,
+#HPV2PipDelta .HPV2Pip
 {
 	background-color: white;
 }

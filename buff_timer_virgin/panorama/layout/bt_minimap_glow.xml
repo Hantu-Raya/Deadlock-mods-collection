@@ -1,0 +1,10 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/buff_claim.vcss_c" />
+	</styles>
+	<Panel hittest="false">
+		<Panel id="MinimapGlowLeft" class="minimap-glow glow-left" hittest="false" />
+		<Panel id="MinimapGlowRight" class="minimap-glow glow-right" hittest="false" />
+	</Panel>
+</root>
