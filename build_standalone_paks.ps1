@@ -7,7 +7,8 @@ param(
     [string]$AddonsPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons",
 
     [int]$CompileTimeoutSeconds = 120,
-    [switch]$KeepStaging
+    [switch]$KeepStaging,
+    [switch]$SkipDeploy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,6 +36,7 @@ $pakSpecs = @(
         VpkOut = Join-Path $root $StandalonePakName
         PakName = $StandalonePakName
         ArchiveName = "standalone_passive_items_$dateTag.7z"
+        Deploy = $true
     }
     @{
         Id = "standalone_redesign"
@@ -45,6 +47,7 @@ $pakSpecs = @(
         VpkOut = Join-Path $root $RedesignPakName
         PakName = $RedesignPakName
         ArchiveName = "standalone_passive_items_redesign_$dateTag.7z"
+        Deploy = $false
     }
 )
 
@@ -203,6 +206,37 @@ function Pack-StandaloneVpk {
     Require-Path -Path $Spec.VpkOut -Label $Spec.PakName
 }
 
+# Get-FileHash is unavailable in some Windows PowerShell installs.
+function Get-Sha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($Path)
+    try { ([System.BitConverter]::ToString($sha256.ComputeHash($stream))).Replace('-', '') }
+    finally { $stream.Dispose(); $sha256.Dispose() }
+}
+
+# Replaces addons\<PakName> with the fresh build. The previous copy is kept as
+# a single rolling <PakName>.backup; Deadlock only loads pakNN_dir.vpk names.
+function Deploy-StandaloneVpk {
+    param([Parameter(Mandatory = $true)][hashtable]$Spec)
+
+    $destination = Join-Path $addons $Spec.PakName
+    Write-Host "[deploy] $($Spec.Id) -> $destination" -ForegroundColor Cyan
+    try {
+        if (Test-Path -LiteralPath $destination) {
+            Copy-Item -LiteralPath $destination -Destination "$destination.backup" -Force
+        }
+        Copy-Item -LiteralPath $Spec.VpkOut -Destination $destination -Force
+    } catch {
+        throw "Could not replace $destination (close Deadlock if it is running): $($_.Exception.Message)"
+    }
+
+    if ((Get-Sha256 -Path $Spec.VpkOut) -ne (Get-Sha256 -Path $destination)) {
+        throw "Deployed $($Spec.PakName) does not match the build output"
+    }
+    Write-Host "  Deployed OK ($((Get-Item -LiteralPath $destination).Length) bytes)" -ForegroundColor Green
+}
+
 function Compress-StandaloneVpk {
     param([Parameter(Mandatory = $true)][hashtable]$Spec)
 
@@ -253,6 +287,9 @@ foreach ($spec in $selectedSpecs) {
     Invoke-StandaloneCompiler -Spec $spec
     Stage-CompiledOutput -Spec $spec
     Pack-StandaloneVpk -Spec $spec
+    if ($spec.Deploy -and -not $SkipDeploy) {
+        Deploy-StandaloneVpk -Spec $spec
+    }
     $archives += Compress-StandaloneVpk -Spec $spec
 }
 

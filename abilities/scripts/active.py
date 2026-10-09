@@ -47,15 +47,96 @@ ADD_BEHAVIOR_BITS_ABILITIES = [
     "citadel_ability_chrono_swap",
     "citadel_ability_shiv_killing_blow",
     "citadel_ability_hook",
+    "citadel_ability_lash",
+    "ability_lash_flog",
     "ability_unicorn_radiantblast",
     "ability_werewolf_kickflip",
     "ability_werewolf_maulingleap",
+    "ability_werewolf_frenzy",
+    "ability_werewolf_cripplingslash",
     "citadel_ability_healing_slash",
     "ability_punkgoat_tether",
     "ability_punkgoat_ult",
 ]
 
+# Listed abilities whose stock targeting is not UNIT (SELF, NONE or absent) and whose
+# stock bits lack NO_TARGET. Forced unit targeting alone refuses the cast without an
+# enemy in range; NO_TARGET keeps it castable anywhere, the same pairing stock
+# unit-targeted cone/AoE abilities (radiant blast, steal life) use.
+# Only list abilities whose stock bits lack NO_TARGET: the no-behavior variant removes it.
+NO_TARGET_BIT = "CITADEL_ABILITY_BEHAVIOR_NO_TARGET"
+NO_TARGET_ABILITIES = (
+    "ability_punkgoat_tether",
+    "ability_punkgoat_ult",
+    "ability_werewolf_kickflip",
+    "ability_werewolf_maulingleap",
+    "ability_werewolf_cripplingslash",
+    "citadel_ability_hook",
+    "citadel_ability_chrono_swap",
+    "citadel_ability_shiv_killing_blow",
+)
+
 TARGETING_LOCATION_VALUE = 'CITADEL_ABILITY_TARGETING_LOCATION_UNIT'
+
+# Listed abilities that still show no unit-target UI with a sphere shape. The ability
+# VData schema says only cone shape drives the generic targeting; other shapes are
+# preview-only and leave targeting to the ability's own code. These records already
+# carry stock m_flTargetingConeAngle/HalfWidth values, which the cone then uses.
+CONE_SHAPE_VALUE = 'CITADEL_ABILITY_TARGETING_SHAPE_CONE'
+CONE_TARGETING_ABILITIES = (
+    "ability_punkgoat_tether",
+    "ability_werewolf_kickflip",
+    "ability_werewolf_maulingleap",
+    "ability_werewolf_cripplingslash",
+)
+TARGETING_SHAPE_PATTERN = re.compile(r'(?m)^(\t\tm_eAbilityTargetingShape\s*=\s*")([^"]*)(")')
+
+def behavior_bits_for(record_name):
+    return ADD_BEHAVIOR_BITS + ((NO_TARGET_BIT,) if record_name in NO_TARGET_ABILITIES else ())
+
+def set_cone_shape(block):
+    match = TARGETING_SHAPE_PATTERN.search(block)
+    if not match or match.group(2) == CONE_SHAPE_VALUE:
+        return block, False
+    return block[:match.start(2)] + CONE_SHAPE_VALUE + block[match.end(2):], True
+
+def has_cone_shape(block):
+    match = TARGETING_SHAPE_PATTERN.search(block)
+    return bool(match) and match.group(2) == CONE_SHAPE_VALUE
+
+# The unit-target UI is an ability HUD element (ability_hud_element_unit_target), and
+# stock m_bForceHideHUDPanel = true hides the whole ability HUD panel. Unhide it for
+# listed abilities that still show no target UI.
+SHOW_HUD_PANEL_ABILITIES = (
+    "ability_werewolf_kickflip",
+    "ability_werewolf_maulingleap",
+)
+FORCE_HIDE_HUD_PATTERN = re.compile(r'(?m)^(\t\tm_bForceHideHUDPanel\s*=\s*)true$')
+
+def show_hud_panel(block):
+    updated, count = FORCE_HIDE_HUD_PATTERN.subn(r'\1false', block, count=1)
+    return updated, bool(count)
+
+# Cone targeting only reaches AbilityCastRange. Listed abilities with a stock range of 0
+# (their own code uses another radius) get that property's value, so the cone finds
+# targets. Maps ability -> property whose m_strValue becomes the cast range.
+CAST_RANGE_SOURCES = {
+    "ability_werewolf_cripplingslash": "SlashRadius",
+}
+
+def property_value_pattern(name):
+    return re.compile(rf'(?m)^(\t\t\t{name}\s*=\s*\n\t\t\t\{{\n\t\t\t\tm_strValue\s*=\s*")([^"]*)(")')
+
+def read_property_value(block, name):
+    match = property_value_pattern(name).search(block)
+    return match.group(2) if match else None
+
+def set_cast_range_from(block, source_property):
+    source_value = read_property_value(block, source_property)
+    match = property_value_pattern("AbilityCastRange").search(block)
+    if not match or match.group(2) != "0" or source_value in (None, "0"):
+        return block, False
+    return block[:match.start(2)] + source_value + block[match.end(2):], True
 
 def append_behavior_bits(block, extra_bits):
     match = re.search(
@@ -164,12 +245,23 @@ def find_behavior_state_issues(file_path, expect_enabled):
             continue
 
         found_names.add(record_name)
-        has_all_bits = all(bit in block for bit in ADD_BEHAVIOR_BITS)
-        has_any_bit = any(bit in block for bit in ADD_BEHAVIOR_BITS)
+        bits = behavior_bits_for(record_name)
+        has_all_bits = all(bit in block for bit in bits)
+        has_any_bit = any(bit in block for bit in bits)
         has_targeting = expected_targeting in block
+        needs_cone = record_name in CONE_TARGETING_ABILITIES
 
         if expect_enabled and (not has_all_bits or not has_targeting):
             issues.append(f"{record_name}: missing behavior bits or unit targeting")
+
+        if expect_enabled and needs_cone and not has_cone_shape(block):
+            issues.append(f"{record_name}: missing cone targeting shape")
+
+        if expect_enabled and record_name in SHOW_HUD_PANEL_ABILITIES and FORCE_HIDE_HUD_PATTERN.search(block):
+            issues.append(f"{record_name}: HUD panel still force-hidden")
+
+        if expect_enabled and record_name in CAST_RANGE_SOURCES and read_property_value(block, "AbilityCastRange") in (None, "0"):
+            issues.append(f"{record_name}: cast range still 0")
 
         if not expect_enabled and (has_any_bit or has_targeting):
             issues.append(f"{record_name}: behavior bits or unit targeting still present")
@@ -235,16 +327,29 @@ def add_passive_item_flag(file_path, output_path=None, enable_behavior_bits=True
     for start, end, block in iter_record_spans(content):
         block_modified = False
 
-        matches_behavior_bits = any(name in block for name in ADD_BEHAVIOR_BITS_ABILITIES)
-        if matches_behavior_bits:
+        record_name = get_record_name(block)
+        if record_name in ADD_BEHAVIOR_BITS_ABILITIES:
+            bits = behavior_bits_for(record_name)
             if enable_behavior_bits:
-                block, behavior_modified = append_behavior_bits(block, ADD_BEHAVIOR_BITS)
+                block, behavior_modified = append_behavior_bits(block, bits)
                 block_modified = block_modified or behavior_modified
 
                 block, targeting_modified = set_targeting_location(block, TARGETING_LOCATION_VALUE)
                 block_modified = block_modified or targeting_modified
+
+                if record_name in CONE_TARGETING_ABILITIES:
+                    block, shape_modified = set_cone_shape(block)
+                    block_modified = block_modified or shape_modified
+
+                if record_name in SHOW_HUD_PANEL_ABILITIES:
+                    block, hud_modified = show_hud_panel(block)
+                    block_modified = block_modified or hud_modified
+
+                if record_name in CAST_RANGE_SOURCES:
+                    block, range_modified = set_cast_range_from(block, CAST_RANGE_SOURCES[record_name])
+                    block_modified = block_modified or range_modified
             else:
-                block, behavior_modified = remove_behavior_bits(block, ADD_BEHAVIOR_BITS)
+                block, behavior_modified = remove_behavior_bits(block, bits)
                 block_modified = block_modified or behavior_modified
 
                 block, targeting_modified = remove_targeting_location(block, TARGETING_LOCATION_VALUE)

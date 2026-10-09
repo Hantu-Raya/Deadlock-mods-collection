@@ -34,6 +34,7 @@ Important lanes:
 - **HP Colors full**: `anita_ui_core.js` owns ANITA UI, presets, persistence, and publishing; `healthbar_logic.js` consumes settings and paints stock unit-status overlays.
 - **HP Colors minimal**: a runtime-only pak consumes a separate builder preset-store VPK through the static request/snapshot bridge. Do not add full-lane UI, persistence, convars, or runtime preset-store rescans.
 - **HP Colors Rewrite**: `hp_colors_rewrite/` owns the canonical clean-room runtime. `hp_colors_rewrite_qollock/` adds package-derived QOLLOCK compatibility without forking canonical behavior; read `hp_colors_rewrite/AGENTS.md` before changing either lane.
+- **HP Colors Rewrite v2**: `hp_colors_rewrite_v2/` is the canonical runtime; `hp_colors_rewrite_v2_qollock/` ships its own Escape-menu copy that must be refreshed whenever an `HPColors*` menu element changes. Rebuild and repack both variants before any release; read the release checklist in `hp_colors_rewrite_v2/AGENTS.md` first.
 - **Topbar Rank/ShowRank**: layouts load `showrank_common.js` plus the combined topbar runtime. Guarded global wrappers bridge profile, player-list, topbar, and Escape contexts.
 - **Topbar Status Buffs**: a healthbar publisher writes compact status snapshots; a topbar consumer renders them. It conflicts with other pak89 variants.
 - **Abilities**: Python performs streaming/text-span transforms over huge VData inputs. Do not introduce a full parser; transforms may mutate inputs and wrappers restore baselines.
@@ -48,6 +49,7 @@ Important lanes:
 - `topbar_rank/`, `showrank/` — rank surfaces, topbar HUD, profile/player-list hooks, and build variants. Current combined code uses `showrank_common.js`; legacy `topbar_rank_rank_bridge.js` references are stale.
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
 - `test_hpv2/` — standalone pak04 pickup indicators; read `test_hpv2/AGENTS.md` before changing its runtime, relay layouts, or `build_test_hpv2.ps1`.
+- `feeder_feed/` — pak08 FEEDER FEED tab in the damage report (kill-feed donors/recipients with server bounty and comeback math); read `feeder_feed/AGENTS.md` first.
 - `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
 - `anitaui/`, `soul_timer/`, `self_hp/`, `passive_items_mod/` — Anita UI settings host, unsecured soul-drain countdown, self health bar override, and passive items driven by generated JS config.
 - `abilities/scripts/` — mutable VData baselines and Python text transforms.
@@ -82,6 +84,10 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 node hp_colors_minimal/scripts/validate-minimal.js
 node --test hp_colors_minimal/scripts/validate-minimal.test.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
+
+# Feeder Feed
+node feeder_feed/scripts/validate-feeder-feed.js
+powershell -ExecutionPolicy Bypass -File build_feeder_feed.ps1
 
 # HP Colors Rewrite + QOLLOCK compatibility
 node --test scripts/validate-hp-colors-rewrite-qollock.test.js
@@ -148,6 +154,8 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - `buff_timer_virgin/AGENTS.md` — advanced performance patterns; `sr2compiler/AGENTS.md` — legacy compiler behavior; `abilities/AGENTS.md` — VData constraints.
 - `.agents/system-prompts/skill-init-claudemd-and-skill-setup-new-version.md` — `/init` flow for targeted agent-guide/skill setup updates.
 - `.agents/skills/find-skills/SKILL.md` — skill discovery workflow; verify quality before recommending installs.
+- `.agents/skills/refactor-pinned/SKILL.md` — behavior-preserving refactors: pin, small steps, old-vs-new equivalence (`HP_COLORS_REWRITE_SOURCE_ROOT`, `scripts/diff-vpk-entries.py`).
+- `.agents/skills/optimize-measured/SKILL.md` — runtime/build optimization: baseline, one change per measurement, keep or revert (`scripts/measure-hp-colors-rewrite-v2-refactor.js`, `scripts/profile-hp-colors-rewrite-v2-reads.js`).
 
 ## Runtime/Tooling Preferences
 
@@ -182,23 +190,6 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - **Issue tracker**: issues are local markdown under `.scratch/hp_colors/`; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
 - **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 - **Domain docs**: multi-context layout; for HP Colors work read `hp_colors/CONTEXT.md` and ADRs when present. See `docs/agents/domain.md`.
-
-## Agentmemory
-
-Save durable repo facts, architecture notes, workflow lessons, and debugging lessons with agentmemory.
-
-- When exposed directly: `memory_save` for facts/architecture/workflows/decisions (comma-separated `concepts` and `files`); `memory_lesson_save` for lessons (comma-separated `tags`, plus `project`, `context`, `confidence`, `content`). Verify with `memory_recall` or the latest memories.
-- Otherwise use the local REST MCP bridge:
-
-  ```powershell
-  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_save","arguments":{"type":"architecture","concepts":"concept one, concept two","files":"path/file.ext","content":"Memory content to save."}}'
-  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_lesson_save","arguments":{"project":"F:\\Users\\FoxOS_User\\Desktop\\Deadlock-mods-collection","tags":"tag one, tag two","confidence":0.9,"context":"When this lesson applies","content":"Lesson content to save."}}'
-  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3111/agentmemory/mcp/call" -ContentType "application/json" -Body '{"name":"memory_recall","arguments":{"query":"search terms","limit":10}}'
-  Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:3111/agentmemory/memories?latest=true"
-  ```
-
-- Optional graph seeding: `POST http://127.0.0.1:3111/agentmemory/graph/extract` with an `observations` array after a successful save; stats at `GET http://127.0.0.1:3111/agentmemory/graph/stats`.
-- Viewer: `http://localhost:3113`. Desktop shortcuts call `C:\Users\Administrator\.agentmemory\Start-Agentmemory.ps1` / `Stop-Agentmemory.ps1`. Codex MCP uses `C:\Users\Administrator\.agentmemory\codex-agentmemory-mcp-proxy.mjs` to reach the `3111` bridge.
 
 ## Context-mode and Reasoning
 

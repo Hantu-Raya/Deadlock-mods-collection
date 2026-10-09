@@ -24,6 +24,32 @@ CitadelProfilePage #HeroList
 	padding-top: 56px;
 }
 
+CitadelProfilePage #ProfileInfo
+{
+	min-width: 190px;
+	overflow: noclip;
+}
+
+#ProfileStatsCommunityRankHost
+{
+	width: 90px;
+	height: 70px;
+	margin-left: 200px;
+	margin-top: -10px;
+	horizontal-align: left;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+#ProfileStatsCommunityRankImage
+{
+	width: 88px;
+	height: 66px;
+	horizontal-align: center;
+	vertical-align: center;
+}
+
 #ProfileStatsCommunityButton:hover
 {
 	opacity: 0.9;
@@ -61,7 +87,7 @@ CitadelProfilePage #HeroList
 #ProfileStatsCommunityPanel
 {
 	ignore-parent-flow: true;
-	width: 100%;
+	width: 944px;
 	height: 100%;
 	min-height: 0px;
 	z-index: 3;
@@ -70,6 +96,16 @@ CitadelProfilePage #HeroList
 	overflow: clip;
 	background-color: offBlack;
 	box-shadow: inset -20px 0px 220px #00000088;
+}
+
+.AspectRatio16x10 #ProfileStatsCommunityPanel
+{
+	width: 859px;
+}
+
+.ShowRankBarebonesProfilePage #ProfileStatsCommunityPanel
+{
+	width: 93.8%;
 }
 
 #ProfileStatsCommunitySupportBar

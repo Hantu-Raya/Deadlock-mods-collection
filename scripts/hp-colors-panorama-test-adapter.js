@@ -186,6 +186,13 @@ class MockPanel {
     child.SetParent(this);
     return child;
   }
+  MoveChildBefore(child, before) {
+    const from = this.children.indexOf(child);
+    const to = this.children.indexOf(before);
+    if (from < 0 || to < 0) return;
+    this.children.splice(from, 1);
+    this.children.splice(this.children.indexOf(before), 0, child);
+  }
   IsValid() { return this.valid; }
   GetParent() {
     incrementCounter(this.operationCounts, 'parentReads');
@@ -271,6 +278,10 @@ class MockPanel {
     this.classReadCount += 1;
     incrementCounter(this.operationCounts, 'classReads');
     return this.classes.has(String(className));
+  }
+  BAscendantHasClass(className) {
+    for (let panel = this; panel; panel = panel.parent) if (panel.BHasClass(className)) return true;
+    return false;
   }
   SetHasClass(className, enabled) { enabled ? this.AddClass(className) : this.RemoveClass(className); }
   ToggleClass(className) { this.SetHasClass(className, !this.BHasClass(className)); }

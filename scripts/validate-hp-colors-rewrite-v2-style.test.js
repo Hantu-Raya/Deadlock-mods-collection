@@ -86,8 +86,10 @@ test('native readback avoids normalized rewrites while repairing engine and pane
   let left = '';
   let top = '';
   let writes = 0;
+  let reads = 0;
   const panel = { style: new Proxy({}, {
     get(target, key) {
+      reads++;
       if (key === 'washColor') return color;
       if (key === 'margin') return left + ' ' + top;
       return '';
@@ -104,12 +106,14 @@ test('native readback avoids normalized rewrites while repairing engine and pane
   setStyle(panel, 'washColor', '#FD4949', cache, 'color');
   setStyle(panel, 'marginLeft', '30px', cache, 'left');
   setStyle(panel, 'marginTop', '10px', cache, 'top');
+  const initialReads = reads;
   for (let i = 0; i < 10; i++) {
     setStyle(panel, 'washColor', '#FD4949', cache, 'color');
     setStyle(panel, 'marginLeft', '30px', cache, 'left');
     setStyle(panel, 'marginTop', '10px', cache, 'top');
   }
   assert.equal(writes, 3, 'unchanged native values must not trigger more assignments');
+  assert.equal(reads, initialReads, 'unchanged cached writes do not read native styles');
 
   color = '#000000FF';
   assert.equal(cachedStyleDrift(panel, 'washColor', cache, 'color'), true);
@@ -118,6 +122,7 @@ test('native readback avoids normalized rewrites while repairing engine and pane
 
   left = '0px';
   top = '0px';
+  assert.equal(cachedStyleDrift(panel, 'marginLeft', cache, 'left'), true);
   setStyle(panel, 'marginLeft', '30px', cache, 'left');
   assert.equal(cachedStyleDrift(panel, 'marginTop', cache, 'top'), true);
   setStyle(panel, 'marginTop', '10px', cache, 'top');
@@ -148,7 +153,7 @@ test('a rejected native write remains retryable', () => {
   assert.equal(color, '#FD4949');
 });
 
-function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHarness = null, source = rendererSource) {
+function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHarness = null, source = rendererSource, random = () => 0) {
   const harness = sharedHarness || createPanoramaHarness();
   const add = (parent, id, options = {}) => parent.add(new MockPanel(id, options));
   const world = add(harness.root, 'WorldUIRoot', { classes });
@@ -211,8 +216,9 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHar
   harness.contextPanel = status;
   if (beforeBoot) beforeBoot({ harness, world, window, status, stack, primary, inner,
     level, levelLabel, unitInfo, ultBackground, ultIcon, ultOverlay, fill, marker,
-    health, shield, info, container, anchor, row, counter, counterMax });
-  const context = createVmContext(harness, { includeGameUI: false });
+    stamina, icon, health, shield, info, container, anchor, row, counter, counterMax });
+  const context = createVmContext(harness, { includeGameUI: false,
+    globals: { Math: Object.assign(Object.create(Math), { random }) } });
   runInVm(contractSource, context);
   runInVm(source, context);
   return {
@@ -225,6 +231,27 @@ function makeOwnershipFixture(classes, values = {}, beforeBoot = null, sharedHar
     },
   };
 }
+
+test("world scans start immediately, stagger only the first reschedule and wake within one second", () => {
+  for (const phase of [0, 0.25, 1 - Number.EPSILON]) {
+    let randomCalls = 0;
+    const fixture = makeOwnershipFixture(["player", "enemy"], {}, null, null, rendererSource,
+      () => { randomCalls++; return phase; });
+    const scheduler = fixture.harness.scheduler;
+    assert.equal(fixture.window.BHasClass("HPColorsRewriteEnemyPlayer"), true, "boot discovery is immediate");
+    assert.equal(scheduler.nextDelayByFunctionName("scan"), 1 - phase);
+    scheduler.runByDelay(1 - phase);
+    for (let index = 0; index < 3; index++) {
+      assert.equal(scheduler.nextDelayByFunctionName("scan"), 1);
+      scheduler.runByDelay(1);
+    }
+    fixture.world.RemoveClass("enemy");
+    fixture.world.AddClass("friend");
+    scheduler.runFor(1000);
+    assert.equal(fixture.window.BHasClass("HPColorsRewriteEnemyPlayer"), false);
+    assert.equal(randomCalls, 1, "later scans keep the phase without new jitter");
+  }
+});
 
 for (const [classes, gate, prefix] of [
   [['CLASS_TROOPER', 'enemy'], 'npcEnemyEnabled', 'readout'],
@@ -253,7 +280,10 @@ for (const [classes, gate, prefix] of [
   assert.equal(lines.style.opacity || '', '');
   fixture.update(values);
   assert.equal(fixture.stack.style.preTransformScale2d, '2.3, 1.6');
-  assert.equal(fixture.stack.style.transform, 'translateX(30px) translateY(20px)');
+  const stackTranslation = /^translate3d\(([-\d.]+)px, ([-\d.]+)px, 0px\)$/.exec(fixture.stack.style.transform);
+  assert.ok(stackTranslation);
+  assert.ok(Math.abs(Number(stackTranslation[1]) - 18.95) < 1e-9);
+  assert.ok(Math.abs(Number(stackTranslation[2]) - 38.6) < 1e-9);
   assert.equal(fixture.health.GetParent(), fixture.row);
   assert.equal(fixture.health.style.washColor, '#112233');
   assert.equal(fixture.health.style.fontSize, '20px');
@@ -263,10 +293,9 @@ for (const [classes, gate, prefix] of [
   assert.equal(lines.style.opacity, '0.4');
   for (const line of lines.Children())
     assert.equal(line.style.washColor, gate === 'npcNeutralEnabled' ? '#778899' : '#445566');
-  assert.equal(fixture.stack.style.transformOrigin, '54.25% 35.24%');
+  assert.equal(fixture.stack.style.transformOrigin, '50% 50%');
   fixture.update({ ...values, [prefix + 'OffsetX']: -10, [prefix + 'OffsetY']: 10 });
-  assert.equal(fixture.row.style.marginRight, prefix === 'readout' ? '53px' : '63px');
-  assert.equal(fixture.row.style.marginTop, '102px');
+  assert.deepEqual(readoutTranslation(fixture.row), [-51, 102]);
   for (const panel of [fixture.health, fixture.counter, fixture.counterMax]) {
     assert.deepEqual(panel.readoutTextWrites, []);
     assert.equal(panel.readoutTextReads, 0);
@@ -433,21 +462,36 @@ function assertInactiveReadout(panel) {
   for (const className of nativePulseClasses) assert.equal(panel.BHasClass(className), false, className);
 }
 
+// Runs the next full paint; an idle bar first runs its health probes (no health change here).
 function paintReadout(fixture) {
-  fixture.harness.scheduler.takeByFunctionName('paintColors').fn();
+  const { scheduler } = fixture.harness;
+  for (let probes = 0; probes < 10 && !scheduler.jobs.some((job) => job.fn.name === 'paintColors'); probes += 1)
+    scheduler.takeByFunctionName('probeHealth').fn();
+  scheduler.takeByFunctionName('paintColors').fn();
+}
+
+function readoutTranslation(row) {
+  const match = /^translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0px\)$/.exec(row.style.transform);
+  assert.ok(match, `unsupported readout translation: ${row.style.transform}`);
+  return [Number(match[1]), Number(match[2])];
 }
 
 function assertReadoutBounds(fixture, x = 0, y = 0) {
-  const { container, anchor, row, world } = fixture;
+  const { container, anchor, row, primary, stack } = fixture;
   const width = container.actuallayoutwidth;
   const height = container.actuallayoutheight;
-  const left = width - Number.parseFloat(row.style.marginRight) - row.actuallayoutwidth;
-  const top = Number.parseFloat(row.style.marginTop);
-  const edge = width / 2 + (world.BHasClass('friend') ? 30 : 40);
-  assert.equal(left, Math.max(0, Math.min(width - row.actuallayoutwidth, edge - row.actuallayoutwidth + x)));
-  assert.equal(top, Math.max(0, Math.min(height - row.actuallayoutheight, 66 + y)));
-  assert.ok(left >= 0 && left + row.actuallayoutwidth <= width);
-  assert.ok(top >= 0 && top + row.actuallayoutheight <= height);
+  const [shift, top] = readoutTranslation(row);
+  const centerX = stack.actualxoffset + primary.actualxoffset + primary.actuallayoutwidth / 2;
+  const centerY = stack.actualyoffset + primary.actualyoffset + primary.actuallayoutheight / 2;
+  const gap = 33.5;
+  const q = { left: 0, center: 0.5, right: 1 }[row.style.horizontalAlign];
+  const point = centerX + gap + x + 2 * (q - 1) * 4;
+  const low = q * row.actuallayoutwidth;
+  const high = width - (1 - q) * row.actuallayoutwidth;
+  const expected = (high < low ? low : Math.max(low, Math.min(high, point))) - q * width;
+  assert.equal(shift, expected);
+  assert.equal(top, Math.max(0, Math.min(height - row.actuallayoutheight, centerY - 8 + y)));
+  assert.ok(q * width + shift >= low && q * width + shift <= Math.max(low, high));
   assert.equal(anchor.style.width, width + 'px');
   assert.equal(anchor.style.height, height + 'px');
   assert.equal(anchor.style.transform, '');
@@ -492,9 +536,9 @@ test('unchanged-fill paint tracks digit/font row reflow and container resize wit
   for (const classes of [['player', 'enemy'], ['player', 'friend']]) {
     const prefix = classes.includes('friend') ? 'allyReadout' : 'readout';
     const fixture = makeOwnershipFixture(classes, { [prefix + 'Visible']: true }, prepareNativeReadout);
-    const edge = prefix === 'readout' ? 140 : 130;
+    const edge = 142;
     assertReadoutBounds(fixture);
-    assert.equal(fixture.container.actuallayoutwidth - Number.parseFloat(fixture.row.style.marginRight), edge);
+    assert.equal(readoutTranslation(fixture.row)[0] + fixture.container.actuallayoutwidth, edge);
     for (const x of [0, 200]) {
       fixture.update({ [prefix + 'Visible']: true, [prefix + 'OffsetX']: x });
       for (const [number, width] of [['9', 16], ['999', 32], ['1,000', 46], ['2,990', 48], ['10,000', 60]]) {
@@ -502,7 +546,7 @@ test('unchanged-fill paint tracks digit/font row reflow and container resize wit
         fixture.row.actuallayoutwidth = width;
         paintReadout(fixture);
         assertReadoutBounds(fixture, x);
-        assert.equal(200 - Number.parseFloat(fixture.row.style.marginRight), x ? 200 : edge);
+        if (!x) assert.equal(readoutTranslation(fixture.row)[0] + fixture.container.actuallayoutwidth, edge);
       }
     }
     for (const font of ['default', 'oracle', 'pulp']) for (const size of [72, 320]) {
@@ -526,13 +570,13 @@ test('unchanged-fill paint tracks digit/font row reflow and container resize wit
     assertReadoutBounds(fixture);
     fixture.update({ [prefix + 'Visible']: false });
     for (const property of ['width', 'height', 'transform']) assert.equal(fixture.anchor.style[property], '');
-    for (const property of ['marginRight', 'marginTop']) assert.equal(fixture.row.style[property], '');
+    for (const property of ['transform', 'marginLeft', 'marginTop']) assert.equal(fixture.row.style[property] ?? '', '');
   }
 });
 
 test('readout geometry converts measured window pixels to CSS pixels at world-panel scale 2', () => {
   // Live 6722: a 200x210 CSS canvas reports 400x420 actual pixels (window scale 2).
-  for (const [classes, prefix, edge] of [[['player', 'enemy'], 'readout', 140], [['player', 'friend'], 'allyReadout', 130]]) {
+  for (const [classes, prefix] of [[['player', 'enemy'], 'readout'], [['player', 'friend'], 'allyReadout']]) {
     const fixture = makeOwnershipFixture(classes, { [prefix + 'Visible']: true }, (parts) => {
       prepareNativeReadout(parts);
       for (const panel of [parts.container, parts.row]) {
@@ -545,34 +589,131 @@ test('readout geometry converts measured window pixels to CSS pixels at world-pa
       parts.row.actuallayoutheight = 48;
     });
     paintReadout(fixture);
-    assert.equal(fixture.row.style.marginRight, (200 - edge) + 'px');
-    assert.equal(fixture.row.style.marginTop, '66px');
+    assert.deepEqual(readoutTranslation(fixture.row), [-58, 66]);
     assert.equal(fixture.anchor.style.width, '200px');
     assert.equal(fixture.anchor.style.height, '210px');
     fixture.update({ [prefix + 'Visible']: true, [prefix + 'OffsetX']: 200, [prefix + 'OffsetY']: 210 });
-    assert.equal(fixture.row.style.marginRight, '0px');
-    assert.equal(fixture.row.style.marginTop, (210 - 24) + 'px');
+    assert.deepEqual(readoutTranslation(fixture.row), [0, 186]);
   }
 });
 
-test('right-anchored readout keeps its edge through digit changes and before first measurement', () => {
-  // Stylesheet defaults equal the renderer's zero-offset result on the 200px
-  // canvas, so the first frame (before layout is measured) is already placed.
+test('readout LEFT, RIGHT and CENTER hold their edge through digit reflow', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'hp_colors_rewrite_v2', 'panorama', 'styles', 'unit_status_v2.css'), 'utf8');
   const rowRule = css.match(/\.WindowRoot #hp_counter_row\s*\{([^}]*)\}/)[1];
   assert.match(rowRule, /horizontal-align:\s*right/);
-  assert.match(rowRule, /margin-right:\s*60px/);
-  assert.match(css, /\.friend \.WindowRoot #hp_counter_row,\s*\.WindowRoot\.friend #hp_counter_row\s*\{\s*margin-right:\s*70px/);
-  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, prepareNativeReadout);
-  assert.equal(fixture.row.style.marginRight, '60px');
-  for (const width of [16, 32, 46, 60]) {
-    fixture.row.actuallayoutwidth = width;
-    fixture.row.styleWrites.length = 0;
-    paintReadout(fixture);
-    // The right edge never depends on the (lagging) measured number width.
-    assert.deepEqual(fixture.row.styleWrites.filter(write => write.property === 'marginRight'), []);
-    assert.equal(fixture.row.style.marginRight, '60px');
+  assert.match(rowRule, /transform:\s*translate3d\(-60px, 66px, 0px\)/);
+  assert.doesNotMatch(rowRule, /margin-right/);
+  assert.doesNotMatch(css, /\.friend \.WindowRoot #hp_counter_row/, 'allies share the enemy fallback');
+  for (const role of ['enemy', 'ally', 'pulse']) for (const align of ['right', 'left', 'center']) {
+    const prefix = role === 'ally' ? 'allyReadout' : 'readout';
+    const values = {
+      [prefix + 'Visible']: true, hpTextAlign: align,
+      enemyPulseEnabled: role === 'pulse', enemyPulseReadout: role === 'pulse',
+      enemyPulseThreshold: 100, enemyPulseReadoutModifiers: role === 'pulse',
+    };
+    const fixture = makeOwnershipFixture(['player', role === 'ally' ? 'friend' : 'enemy'],
+      values, prepareNativeReadout);
+    // q is the right-edge fraction kept at the anchor: LEFT grows left.
+    const q = { left: 1, center: 0.5, right: 0 }[align];
+    const point = 142 + 2 * (q - 1) * 4;
+    const expectedShift = point - q * 200;
+    for (const [text, width] of [['999', 32], ['1,000', 46], ['17,000', 60]]) {
+      fixture.health.__text = text;
+      fixture.row.actuallayoutwidth = width;
+      fixture.row.styleWrites.length = 0;
+      paintReadout(fixture);
+      assert.equal(fixture.row.style.horizontalAlign, { left: 'right', center: 'center', right: 'left' }[align]);
+      assert.deepEqual(readoutTranslation(fixture.row), [expectedShift, 66], role + ' ' + align);
+      assert.equal(fixture.row.styleWrites.some(([property]) => property === 'transform'), false,
+        'unclamped digit reflow does not rewrite transform');
+      assertReadoutBounds(fixture);
+    }
+    for (const x of [-334, 334]) {
+      fixture.update({ ...values, [prefix + 'OffsetX']: x, enemyPulseReadoutOffsetX: x });
+      assertReadoutBounds(fixture, x);
+    }
   }
+});
+
+test('unmeasured player default LEFT keeps the right edge at 140/66 for enemies and allies', () => {
+  for (const [role, prefix, edge] of [
+    ['enemy', 'readout', 140], ['friend', 'allyReadout', 140],
+  ]) {
+    const fixture = makeOwnershipFixture(['player', role], { [prefix + 'Visible']: true }, parts => {
+      prepareNativeReadout(parts);
+      parts.primary.actuallayoutwidth = 0;
+    });
+    assert.equal(fixture.row.style.horizontalAlign, 'right');
+    assert.deepEqual(readoutTranslation(fixture.row), [edge - 200, 66]);
+  }
+});
+
+test('readout uses measured untransformed bar centers and falls back while primary layout is unavailable', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], {
+    readoutVisible: true, positionX: 100, positionY: 100,
+  }, parts => {
+    prepareNativeReadout(parts);
+    parts.primary.actuallayoutwidth = 0;
+  });
+  assert.deepEqual(readoutTranslation(fixture.row), [-50, 76], 'player fallback is canvas center plus 6.5');
+  fixture.primary.actualuiscale_x = 2;
+  fixture.primary.actualuiscale_y = 2;
+  fixture.primary.actualxoffset = 160;
+  fixture.primary.actualyoffset = 140;
+  fixture.primary.actuallayoutwidth = 120;
+  fixture.primary.actuallayoutheight = 24;
+  paintReadout(fixture);
+  assert.deepEqual(readoutTranslation(fixture.row), [-46.5, 78], 'primary normalizes its own axis scales');
+  fixture.update({ readoutVisible: true, positionX: -100, positionY: -100 });
+  assert.deepEqual(readoutTranslation(fixture.row), [-66.5, 58], 'bar translation is applied exactly once');
+});
+
+test('ui-scaled objective HP text keeps its right anchor in WindowRoot pixels', () => {
+  const values = { enabled: true, buildingEnemyEnabled: true, readoutVisible: true,
+    widthScale: 100, heightScale: 100, positionX: 0, positionY: 0, readoutOffsetX: 0, readoutOffsetY: 8 };
+  const rightEdge = (scale, statusX, statusY) => {
+    const fixture = makeOwnershipFixture(['building', 'enemy'], values, parts => {
+      prepareNativeReadout(parts);
+      parts.container.actuallayoutwidth = 400;
+      parts.container.actuallayoutheight = 420;
+      for (const panel of [parts.status, parts.info, parts.stack, parts.primary, parts.inner, parts.fill]) {
+        panel.actualuiscale_x = scale;
+        panel.actualuiscale_y = scale;
+      }
+      parts.status.actualxoffset = statusX;
+      parts.status.actualyoffset = statusY;
+      parts.primary.actualxoffset = 70.5 * scale;
+      parts.primary.actualyoffset = 65 * scale;
+      parts.primary.actuallayoutwidth = 76 * scale;
+      parts.primary.actuallayoutheight = 18 * scale;
+    });
+    paintReadout(fixture);
+    const [left, top] = readoutTranslation(fixture.row);
+    return [left + fixture.container.actuallayoutwidth, top];
+  };
+  assert.deepEqual(rightEdge(1, 0, 0), [142, 74]);
+  // Stock 180% UnitStatus scales its local bar point and applies window compensation.
+  assert.deepEqual(rightEdge(1.8, -80, -52), [175.6, 74.8]);
+});
+
+test('per-kind ui-scale compensation restores the stock compact frame top without moving players', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'hp_colors_rewrite_v2', 'panorama', 'styles', 'unit_status_v2.css'), 'utf8');
+  const owned = css.slice(css.indexOf('/* Rewrite-owned additions'));
+  for (const [classes, scale, margin] of [
+    [['neutral_normal', 'neutral_weak'], 0.8, 13],
+    [['boss_tier1', 'boss_tier2', 'boss_barracks', 'building', 'midboss'], 1.8, -52],
+  ]) {
+    for (const kind of classes) {
+      const block = owned.match(new RegExp('\\.' + kind + ' \\.WindowRoot #UnitStatus(?:,|\\s)[^{]*\\{([^}]*)\\}'));
+      assert.ok(block, kind);
+      assert.match(block[1], new RegExp('margin-top:\\s*' + margin + 'px;'), kind);
+    }
+    assert.ok(Math.abs(margin + 65 * scale - 65) < 1e-9, 'leaf top equals stock y=65');
+  }
+  assert.doesNotMatch(owned, /\.player \.WindowRoot #UnitStatus/);
+  const label = owned.match(/\.WindowRoot #hp_counter_row #UnitHealthbarValue\s*\{([^}]*)\}/)[1];
+  assert.match(label, /text-overflow:\s*clip/);
+  assert.doesNotMatch(label, /(?:max-width|width)\s*:/);
 });
 
 test('invalid readout layout defers on the existing cadence; oversized rows expose the fit limit', () => {
@@ -580,7 +721,7 @@ test('invalid readout layout defers on the existing cadence; oversized rows expo
     prepareNativeReadout(parts);
     parts.row.actuallayoutwidth = 0;
   });
-  assert.equal(fixture.row.style.marginRight || '', '');
+  assert.equal(fixture.row.style.transform || '', '');
   const panels = [fixture.anchor, fixture.row];
   for (const [panel, property, invalid] of [
     [fixture.row, 'actuallayoutwidth', 0], [fixture.row, 'actuallayoutheight', NaN],
@@ -600,8 +741,7 @@ test('invalid readout layout defers on the existing cadence; oversized rows expo
   fixture.row.actuallayoutwidth = 250;
   fixture.row.actuallayoutheight = 230;
   paintReadout(fixture);
-  assert.equal(fixture.row.style.marginRight, '0px');
-  assert.equal(fixture.row.style.marginTop, '0px');
+  assert.deepEqual(readoutTranslation(fixture.row), [50, 0]);
   assert.ok(fixture.row.actuallayoutwidth > fixture.container.actuallayoutwidth);
   assert.ok(fixture.row.actuallayoutheight > fixture.container.actuallayoutheight);
   fixture.row.actuallayoutwidth = 48;
@@ -610,26 +750,26 @@ test('invalid readout layout defers on the existing cadence; oversized rows expo
   assertReadoutBounds(fixture);
 });
 
-test('readout geometry retries rejected margins and repairs native drift at unchanged measurements', () => {
+test('readout geometry retries rejected transforms and repairs native drift at unchanged measurements', () => {
   const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true }, prepareNativeReadout);
   const nativeStyle = fixture.row.style;
   let reject = true;
   fixture.row.style = new Proxy(nativeStyle, {
     set(target, property, value) {
-      if (property === 'marginRight' && reject) throw new Error('temporarily unavailable margin');
+      if (property === 'transform' && reject) throw new Error('temporarily unavailable transform');
       target[property] = value;
       return true;
     },
   });
   fixture.row.actuallayoutwidth = 60;
   paintReadout(fixture);
-  assert.equal(nativeStyle.marginRight, '60px');
+  assert.deepEqual(readoutTranslation(fixture.row), [-58, 66], 'rejected change retains prior transform');
   reject = false;
   paintReadout(fixture);
   assertReadoutBounds(fixture);
-  nativeStyle.marginRight = '0px';
+  nativeStyle.transform = 'translate3d(0px, 0px, 0px)';
   fixture.anchor.style.width = '1px';
-  paintReadout(fixture);
+  fixture.harness.scheduler.runByDelay(1);
   assertReadoutBounds(fixture);
 });
 
@@ -651,8 +791,7 @@ test('HP/current readouts adopt the same engine label outside UnitStatus with ze
       assert.equal(fixture.health.style.fontSize, '20px');
       assert.equal(fixture.health.style.fontFamily, 'VALVEPulp, Noto Sans, sans-serif');
       assert.equal(fixture.anchor.style.transform, '');
-      assert.equal(fixture.row.style.marginRight, prefix === 'readout' ? '0px' : '10px');
-      assert.equal(fixture.row.style.marginTop, '0px');
+      assert.deepEqual(readoutTranslation(fixture.row), [0, 0]);
       assert.equal(fixture.row.FindChildTraverse('UnitHealthbarValue'), fixture.health);
       assert.equal(fixture.health.GetParent(), fixture.row);
       assert.equal(fixture.row.GetParent().GetParent().GetParent(), fixture.window);
@@ -692,8 +831,7 @@ test('retired format snapshots keep the same native engine label and pulse owner
   assert.equal(fixture.health.style.fontFamily, 'VALVEOracle, Reaver, sans-serif');
   for (const panel of [fixture.counter, fixture.counterMax]) assertInactiveReadout(panel);
   assert.equal(fixture.anchor.style.transform, '');
-  assert.equal(fixture.row.style.marginRight, '10px');
-  assert.equal(fixture.row.style.marginTop, '0px');
+  assert.deepEqual(readoutTranslation(fixture.row), [-8, 0]);
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), true);
   const writes = fixture.counter.readoutTextWrites.length;
   fixture.update({ ...values, readoutFormat: 'current', enemyPulseIntensity: 0 });
@@ -701,8 +839,7 @@ test('retired format snapshots keep the same native engine label and pulse owner
   assert.equal(fixture.health.style.visibility, 'visible');
   assert.equal(fixture.health.style.washColor, '#123456');
   assert.equal(fixture.anchor.style.transform, '');
-  assert.equal(fixture.row.style.marginRight, '10px');
-  assert.equal(fixture.row.style.marginTop, '0px');
+  assert.deepEqual(readoutTranslation(fixture.row), [-8, 0]);
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseSubtle'), true);
   assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), false);
   for (const panel of [fixture.counter, fixture.counterMax]) assertInactiveReadout(panel);
@@ -785,7 +922,7 @@ test('text outline widths retain stock at five and restore native labels on ever
         enemyPulseReadoutModifiers: true };
       const fixture = makeOwnershipFixture(['player', relation], values, (parts) => {
         parts.health.style.textShadow = originalHP;
-        name = parts.window.add(new MockPanel('name', { text: 'Native name',
+        name = parts.window.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { text: 'Native name',
           style: { textShadow: originalName } }));
         for (const panel of [parts.health, name]) panel.style = new Proxy(panel.style, {
           set(target, property, value) {
@@ -816,7 +953,7 @@ test('text outline widths retain stock at five and restore native labels on ever
         const newHP = fixture.info.add(new MockPanel('UnitHealthbarValue',
           { style: { textShadow: 'replacement HP shadow' } }));
         name.SetParent(fixture.info);
-        const newName = fixture.window.add(new MockPanel('name',
+        const newName = fixture.window.FindChildTraverse('HPV2NameAnchor').add(new MockPanel('name',
           { style: { textShadow: 'replacement name shadow' } }));
         fixture.harness.scheduler.runByDelay(1);
         assert.equal(newHP.style.textShadow, '0px 0px 0px 2 #10130D');
@@ -848,10 +985,9 @@ test('counter row replacement never orphans the adopted engine label', () => {
   fixture.harness.scheduler.runByDelay(1);
   assert.equal(fixture.health.GetParent(), row);
   assert.deepEqual(fixture.health.readoutParentWrites, [fixture.row, fixture.info, row]);
-  assert.equal(fixture.row.style.marginRight, '');
-  assert.equal(fixture.row.style.marginTop, '');
-  assert.equal(row.style.marginRight, '60px');
-  assert.equal(row.style.marginTop, '66px');
+  for (const property of ['transform', 'marginLeft', 'marginTop'])
+    assert.equal(fixture.row.style[property] ?? '', '');
+  assert.deepEqual(readoutTranslation(row), [-58, 66]);
   fixture.update({ enabled: false });
   assert.equal(fixture.health.GetParent(), fixture.info);
   assertNativeStock(fixture.health);
@@ -1010,19 +1146,31 @@ test('accessory margins retain rebased stock coordinates after offsets or bypass
   }
 });
 
-test('anchor-on shipped indicator offsets preserve the requested anchor-off placement', () => {
-  const requested = makeOwnershipFixture(['player', 'enemy'], {
-    widthScale: 148, heightScale: 80, positionX: 0, positionY: -38,
-    accessoryAnchorEnabled: false, ultOffsetX: 74, levelOffsetX: 74,
-    ultOffsetY: 0, levelOffsetY: 0,
-  });
-  const shipped = makeOwnershipFixture(['player', 'enemy'], contract.defaults);
+test('shipped indicator offsets are rigid when anchored and scale only when unanchored', () => {
   assert.equal(contract.defaults.accessoryAnchorEnabled, true);
-  for (const key of ['level', 'unitInfo']) {
-    assert.equal(shipped[key].style.marginLeft, requested[key].style.marginLeft, key);
-    // Integer raw offsets can only approximate 47.5: nearest 48 is +0.04 CSS px.
-    assert.ok(Math.abs(parseFloat(shipped[key].style.marginTop) -
-      parseFloat(requested[key].style.marginTop)) <= 0.040001, key);
+  for (const [widthScale, heightScale] of [[100, 100], [148, 80]]) {
+    const values = { widthScale, heightScale, positionX: 0, positionY: 0,
+      ultOffsetX: 74, levelOffsetX: 74, ultOffsetY: 48, levelOffsetY: 48 };
+    const anchored = makeOwnershipFixture(['player', 'enemy'], {
+      ...values, accessoryAnchorEnabled: true });
+    const unanchored = makeOwnershipFixture(['player', 'enemy'], {
+      ...values, accessoryAnchorEnabled: false });
+    const requested = [anchored, unanchored].map(fixture => ['level', 'unitInfo'].map(key =>
+      [parseFloat(fixture[key].style.marginLeft), parseFloat(fixture[key].style.marginTop)]));
+    for (const fixture of [anchored, unanchored])
+      fixture.update({ ...values, accessoryAnchorEnabled: fixture === anchored,
+        ultOffsetX: 0, levelOffsetX: 0, ultOffsetY: 0, levelOffsetY: 0 });
+    for (const [index, key] of ['level', 'unitInfo'].entries()) {
+      if (widthScale === 100 && heightScale === 100)
+        assert.deepEqual(requested[0][index], requested[1][index], key + ' stock-scale equality');
+      for (const [axis, property, offset, scale] of [
+        [0, 'marginLeft', 7.4, widthScale / 100], [1, 'marginTop', 4.8, heightScale / 100]]) {
+        const rigidDelta = requested[0][index][axis] - parseFloat(anchored[key].style[property]);
+        const scaledDelta = requested[1][index][axis] - parseFloat(unanchored[key].style[property]);
+        assert.ok(Math.abs(scaledDelta - rigidDelta - offset * (scale - 1)) < 0.011,
+          key + ' ' + property + ' offset scaling difference');
+      }
+    }
   }
 });
 
@@ -1083,7 +1231,7 @@ function accessoryResult(fixture) {
     transform: fixture.stack.style.transform,
     marker: [fixture.marker.style.marginLeft, fixture.marker.style.width],
     health: [fixture.counter.text, fixture.fill.style.washColor],
-    readout: [fixture.row.style.marginRight, fixture.row.style.marginTop],
+    readout: [fixture.row.style.transform, fixture.row.style.marginLeft, fixture.row.style.marginTop],
   };
 }
 
@@ -1099,8 +1247,8 @@ test('early, late and asymmetric world scales give identical CSS accessory, mark
   const asymmetric = makeOwnershipFixture(classes, accessoryValues,
     parts => measuredGeometry(parts, 2, 3), early.harness);
   const expected = accessoryResult(early);
-  assert.deepEqual(expected.level, ['-22.4px', '69.9px']);
-  assert.deepEqual(expected.ultimate, ['0.6px', '69.4px']);
+  assert.deepEqual(expected.level, ['-22.4px', '67.5px']);
+  assert.deepEqual(expected.ultimate, ['0.6px', '67px']);
   assert.deepEqual(expected.marker, ['37.5px', '1px']);
   assert.deepEqual(expected.health, ['', '#00FF00']);
   for (const fixture of [late, asymmetric]) {
@@ -1116,8 +1264,9 @@ test('early, late and asymmetric world scales give identical CSS accessory, mark
   const normalOffset = makeOwnershipFixture(classes, offset, parts => measuredGeometry(parts, 1, 1));
   const scaledOffset = makeOwnershipFixture(classes, offset, parts => measuredGeometry(parts, 2, 3));
   assert.deepEqual(accessoryResult(scaledOffset), accessoryResult(normalOffset));
+  // Rigid anchored group: positionY -200 raw (-20px) moves the ult icon by exactly -20px.
   assert.deepEqual([normalOffset.level.style.marginLeft, normalOffset.unitInfo.style.marginTop],
-    ['-42.4px', '49.4px']);
+    ['-42.4px', '47px']);
   const defaults = makeOwnershipFixture(classes, {}, parts => measuredGeometry(parts, 2, 3));
   assert.equal(defaults.level.style.marginLeft, '27px');
   assert.equal(defaults.level.style.marginTop, '67.5px');
@@ -1197,10 +1346,9 @@ test('delayed primary, pending hydration and primary replacement recapture ready
   assert.equal(old.IsValid(), false);
 });
 
-
-
-test('production renderer has no diagnostics or temporary probes', () => {
-  assert.doesNotMatch(rendererSource, /DIAG|diagnos(?:e|tic)|accessoryDiagnostic|\$\.Msg/);
+test('production renderer has no debug logging, profiling, or temporary probes', () => {
+  assert.doesNotMatch(rendererSource,
+    /DEBUG_LOG|debugLog|DIAG|diagnos(?:e|tic)|accessoryDiagnostic|profil(?:e|ing)|rootBudget|\$\.Msg/);
   const fixture = makeOwnershipFixture(['player', 'enemy'], accessoryValues,
     parts => measuredGeometry(parts, 2, 3));
   assert.deepEqual(fixture.harness.logs, []);
@@ -1244,7 +1392,7 @@ test('Appearance defaults pass through, players ignore color gates, unit gates n
   }
 });
 
-test('Appearance preserves custom and empty inline masks and repairs drift on existing cadence', () => {
+test('Appearance preserves custom and empty inline masks and repairs drift on the scan cadence', () => {
   for (const baseline of ['', 'url("custom-mask.vsvg")']) {
     const fixture = makeOwnershipFixture(['player', 'enemy']);
     // Capture custom baselines in a fresh generation, before ownership.
@@ -1260,7 +1408,8 @@ test('Appearance preserves custom and empty inline masks and repairs drift on ex
     const jobs = fixture.harness.scheduler.jobs.length;
     fixture.window.RemoveClass('HPColorsRewriteHideCritical');
     fixture.window.RemoveClass('HPColorsRewriteHidePlayerName');
-    fixture.harness.scheduler.runNext();
+    // Drift repair runs on the 1 s scan, not on paint ticks.
+    fixture.harness.scheduler.runByDelay(1);
     assertAppearance(fixture, true);
     assert.equal(fixture.harness.scheduler.jobs.length, jobs);
     fixture.update({});
@@ -1302,7 +1451,7 @@ test('Appearance class failures retry, cache unchanged writes, and never write i
     });
     assertAppearance(fixture, false);
     reject = false;
-    fixture.harness.scheduler.runNext();
+    fixture.harness.scheduler.runByDelay(1);
     assertAppearance(fixture, true);
     const writes = classWrites;
     for (let i = 0; i < 6; i++) fixture.harness.scheduler.runNext();
@@ -1311,7 +1460,7 @@ test('Appearance class failures retry, cache unchanged writes, and never write i
     fixture.update({});
     assertAppearance(fixture, true);
     reject = false;
-    fixture.harness.scheduler.runNext();
+    fixture.harness.scheduler.runByDelay(1);
     assertAppearance(fixture, false);
     for (const panel of appearanceMasks(fixture))
       assert.equal(panel.style.opacityMask, 'url("original.vsvg")');
@@ -1374,13 +1523,543 @@ test('Appearance never writes masks or hide classes to shield-first duplicates a
   assert.deepEqual(writes, []);
 });
 
+// Failure modes: mask leaks onto NONE, master-off, ungated units or teardown;
+// inline mask writes clobber engine/external masks; CSS mask escapes the class gate
+// or misses one of the three stock mask targets.
+test('BAR MASK ORIGINAL owns the stock masks through one reversible root class', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy']);
+  const masked = () => fixture.window.BHasClass('HPColorsRewriteBarMask');
+  assert.equal(masked(), false, 'shipped NONE stays rectangular');
+  fixture.update({ barMask: 'original' });
+  assert.equal(masked(), true);
+  fixture.update({ barMask: 'original', enabled: false });
+  assert.equal(masked(), false, 'master-off releases the mask');
+  fixture.update({ barMask: 'original' });
+  assert.equal(masked(), true);
+  fixture.update({ barMask: 'none' });
+  assert.equal(masked(), false);
+  for (const panel of [fixture.primary, fixture.inner, fixture.primary.FindChildTraverse('UnitHealthbarLines')])
+    assert.equal(panel.style.opacityMask || '', '', 'no inline mask writes');
+  const unit = makeOwnershipFixture(['building', 'enemy'], { barMask: 'original' });
+  assert.equal(unit.window.BHasClass('HPColorsRewriteBarMask'), false, 'ungated units stay stock');
+  unit.update({ barMask: 'original', buildingEnemyEnabled: true });
+  assert.equal(unit.window.BHasClass('HPColorsRewriteBarMask'), true);
+  fixture.update({ barMask: 'original' });
+  fixture.status.DeleteAsync = () => {};
+  fixture.status.IsValid = () => false;
+  fixture.harness.scheduler.runNext();
+  assert.equal(masked(), false, 'teardown releases the mask');
+  const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, , body]) => /opacity-mask\s*:/.test(body));
+  assert.equal(rules.length, 3, "stock masks plus primary outline mask release and masked backer");
+  assert.match(rules[1][1], /#UnitHealthbar\.HPColorsRewriteBarOutline/);
+  assert.equal(rules[1][2].trim(), "opacity-mask: none;");
+  assert.match(rules[2][1], /#UnitHealthbar #HPV2BarOutline/);
+  assert.match(rules[2][2], /healthbar_backer_horiz_mask_flipped\.vsvg/);
+  const selectors = rules[0][1].replace(/\/\*[\s\S]*?\*\//g, '').split(',').map(selector => selector.trim());
+  assert.deepEqual(selectors, [
+    '.WindowRoot.HPColorsRewriteBarMask .UnitHealthbarContainer',
+    '.WindowRoot.HPColorsRewriteBarMask #UnitHealthbarInner',
+    '.WindowRoot.HPColorsRewriteBarMask #UnitHealthbarLines',
+  ]);
+  assert.equal(rules[0][2].trim(),
+    'opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg");');
+});
+
+// Engine fact (IDA 6711 CCitadelHudUtils::UpdateTickBar): floor(max/250) lines, none above
+// 50; line k sits at style position x = 250k/max * 100% of #UnitHealthbarLines.
+function setEngineLines(lines, max, scale = 1, width = 69) {
+  for (const child of [...lines.children]) child.DeleteAsync();
+  lines.actuallayoutwidth = width * scale;
+  lines.actualuiscale_x = scale;
+  const count = Math.floor(max / 250);
+  for (let k = 1; count <= 50 && k <= count; k++)
+    lines.add(new MockPanel('', { classes: [k % 4 ? 'line_small' : 'line_large'],
+      actualxoffset: 250 * k / max * width * scale, actualuiscale_x: scale }));
+}
+
+function makeOldFixture(max, values = {}, classes = ['player', 'enemy'], scale = 2) {
+  return makeOwnershipFixture(classes, { barMask: 'old', ...values }, ({ primary }) => {
+    setEngineLines(primary.FindChildTraverse('UnitHealthbarLines'), max, scale);
+    const grid = primary.add(new MockPanel('HPV2PipGrid'));
+    grid.add(new MockPanel('HPV2PipEmpty'));
+    grid.add(new MockPanel('HPV2PipFill'));
+  });
+}
+
+const gridOf = fixture => fixture.primary.FindChildTraverse('HPV2PipGrid');
+const layerOf = (fixture, id) => fixture.primary.FindChildTraverse(id).children;
+const shownPips = (fixture, id) => layerOf(fixture, id).filter(child => child.style.visibility !== 'collapse');
+const layerWrites = (fixture, id) => layerOf(fixture, id).reduce((sum, child) => sum + child.__styleWrites.length, 0);
+
+// Failure modes: wrong max from lines (uiscale, last line, multiples of 250); wrong pip
+// order/rows (first 100 HP must be bottom-left, 10 per row, drain from top-right); rows not
+// compressed past four; last pip not sized to its capacity; partial pip wrong; every pip
+// rewritten on each HP change; empty layer touched by health; fill color not following the
+// bar; invalid line sets (none, zero layout, >50 lines) not falling back to engine lines.
+test('OLD draws a 10-per-row 100-HP pip grid from engine lines and updates only touched pips', () => {
+  const fixture = makeOldFixture(2900);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarOld'), true);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), true);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarMask'), false);
+  const empty = shownPips(fixture, 'HPV2PipEmpty');
+  assert.equal(empty.length, 29, 'ceil(2900/100) pips');
+  assert.equal(gridOf(fixture).style.height, '18px', 'three rows of 6px');
+  assert.equal(empty[0].style.position, '0.000% 66.667% 0px', 'first 100 HP bottom-left');
+  assert.equal(empty[10].style.position, '0.000% 33.333% 0px');
+  assert.equal(empty[28].style.position, '80.000% 0.000% 0px', 'last pip top row');
+  for (const pip of empty) {
+    assert.equal(pip.BHasClass('HPV2Pip'), true);
+    assert.equal(pip.style.width, '8.500%');
+    assert.equal(pip.style.height, '26.667%');
+  }
+  let fill = shownPips(fixture, 'HPV2PipFill');
+  assert.equal(fill.length, 15, '1,450 HP: 14 full pips and one half pip');
+  assert.equal(fill[13].style.width, '8.500%');
+  assert.equal(fill[14].style.width, '4.250%');
+  assert.equal(fill[14].style.position, empty[14].style.position);
+  assert.ok(fixture.fill.style.washColor);
+  assert.equal(fixture.primary.FindChildTraverse('HPV2PipFill').style.washColor, fixture.fill.style.washColor);
+  const emptyWrites = layerWrites(fixture, 'HPV2PipEmpty');
+  let fillWrites = layerWrites(fixture, 'HPV2PipFill');
+  fixture.fill.actuallayoutwidth = 31.05;
+  fixture.harness.scheduler.runByDelay(1);
+  fill = shownPips(fixture, 'HPV2PipFill');
+  assert.equal(fill.length, 14, '1,305 HP');
+  assert.equal(fill[13].style.width, '0.425%');
+  assert.ok(layerWrites(fixture, 'HPV2PipFill') - fillWrites <= 4, 'only the two touched pips change');
+  assert.equal(layerWrites(fixture, 'HPV2PipEmpty'), emptyWrites, 'health never touches the empty layer');
+  fillWrites = layerWrites(fixture, 'HPV2PipFill');
+  for (let i = 0; i < 6; i++) fixture.harness.scheduler.runNext();
+  assert.equal(layerWrites(fixture, 'HPV2PipFill'), fillWrites, 'idle ticks write nothing');
+  assert.equal(layerWrites(fixture, 'HPV2PipEmpty'), emptyWrites);
+  const lines = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+  setEngineLines(lines, 2850, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, 'HPV2PipEmpty')[28].style.width, '4.250%', 'last pip holds 50 HP');
+  setEngineLines(lines, 4500, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, 'HPV2PipEmpty').length, 45);
+  assert.equal(gridOf(fixture).style.height, '24px', 'five rows compress into four rows of height');
+  assert.equal(shownPips(fixture, 'HPV2PipEmpty')[0].style.height, '16.000%');
+  setEngineLines(lines, 3000, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, 'HPV2PipEmpty').length, 30, 'a 250-multiple max puts the last line at 100%');
+  assert.equal(layerOf(fixture, 'HPV2PipEmpty').length, 45, 'pool keeps, collapses extras');
+  for (const [max, label] of [[200, 'no lines below 250 HP'], [13000, 'engine draws no lines above 50']]) {
+    setEngineLines(lines, max, 2);
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), false, label);
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarOld'), true, label);
+  }
+  setEngineLines(lines, 2900, 2);
+  lines.actuallayoutwidth = 0;
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), false, 'layout not ready');
+  lines.actuallayoutwidth = 138;
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), true, 'recovers on the existing cadence');
+});
+
+// Failure modes: anchored ult/level stay on the hidden bar's centre instead of the grid's,
+// the lift ignores row count/height scale, or leaks into V1 or unanchored placement.
+test('OLD centres anchored ult and level icons on the pip grid', () => {
+  const top = panel => Number.parseFloat(panel.style.marginTop);
+  const fixture = makeOldFixture(2900, { barMask: 'none', heightScale: 100 });
+  const v1 = [top(fixture.level), top(fixture.unitInfo)];
+  fixture.update({ barMask: 'old', heightScale: 100 });
+  // Three 6px rows sit 2.5px above the bar bottom: centre 2.5px above the bar centre.
+  assert.deepEqual([top(fixture.level), top(fixture.unitInfo)], v1.map(value => value - 2.5));
+  setEngineLines(fixture.primary.FindChildTraverse('UnitHealthbarLines'), 4500, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.deepEqual([top(fixture.level), top(fixture.unitInfo)], v1.map(value => value - 5.5), 'four-row height');
+  fixture.update({ barMask: 'old', heightScale: 200 });
+  fixture.update({ barMask: 'none', heightScale: 200 });
+  const tall = [top(fixture.level), top(fixture.unitInfo)];
+  fixture.update({ barMask: 'old', heightScale: 200 });
+  assert.deepEqual([top(fixture.level), top(fixture.unitInfo)], tall.map(value => value - 11), 'lift scales with height');
+  fixture.update({ barMask: 'old', heightScale: 200, accessoryAnchorEnabled: false });
+  const loose = [top(fixture.level), top(fixture.unitInfo)];
+  fixture.update({ barMask: 'none', heightScale: 200, accessoryAnchorEnabled: false });
+  assert.deepEqual([top(fixture.level), top(fixture.unitInfo)], loose, 'unanchored icons keep stock placement');
+});
+
+// Failure modes: the name stays under taller OLD grids; the lift ignores rows past the
+// first, the four-row cap or height scale; it leaks into V1/master-off/toggle-off; it
+// drops the player's own Y offset; turning it off leaves the lift behind.
+test('OLD lifts the player name one 6px row per extra 1,000 max HP when enabled', () => {
+  const on = { barMask: 'old', nameRiseWithPips: true, heightScale: 100 };
+  let name;
+  const fixture = makeOwnershipFixture(['player', 'enemy'], on, ({ primary, window }) => {
+    setEngineLines(primary.FindChildTraverse('UnitHealthbarLines'), 900, 2);
+    const grid = primary.add(new MockPanel('HPV2PipGrid'));
+    grid.add(new MockPanel('HPV2PipEmpty'));
+    grid.add(new MockPanel('HPV2PipFill'));
+    Object.assign(window, { actuallayoutwidth: 200, actuallayoutheight: 210 });
+    name = window.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { actuallayoutwidth: 60, actuallayoutheight: 20, text: 'Hero' }));
+  });
+  const lift = () => name.style.transform || '';
+  assert.equal(lift(), '', 'one row keeps the default position');
+  const lines = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+  setEngineLines(lines, 2900, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(lift(), 'translate3d(0px, -12px, 0px)', 'three rows: two rows up');
+  setEngineLines(lines, 4500, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(lift(), 'translate3d(0px, -18px, 0px)', 'grid stops growing at four rows');
+  fixture.update({ ...on, heightScale: 200 });
+  assert.equal(lift(), 'translate3d(0px, -36px, 0px)', 'scales with bar height');
+  fixture.update({ ...on, nameOffsetY: 10 });
+  assert.equal(lift(), 'translate3d(0px, -8px, 0px)', 'adds to the name Y offset');
+  fixture.update({ ...on, nameRiseWithPips: false });
+  assert.equal(lift(), '', 'toggle off keeps the name where it is');
+  fixture.update({ ...on, barMask: 'none' });
+  assert.equal(lift(), '', 'V1 never lifts');
+  fixture.update({ ...on, enabled: false });
+  assert.equal(lift(), '', 'master off restores stock');
+});
+
+// Failure modes: a compact transformed frame clips noclip children to its own
+// bounds in game (HP text and level badge cut while shaking); the name stays still.
+test('damage wiggle animates one full-canvas frame holding bar, HP text and name', () => {
+  const xml = fs.readFileSync(path.resolve(sourceRoot, '../layout/unit_status_overlay_v2.xml'), 'utf8');
+  assert.match(xml, /<Panel id="HPV2MotionFrame"[^>]*hittest="false"[^>]*>\s*<Panel id="HPV2NameAnchor"[^>]*>\s*<Label id="name" text="\{s:name\}" \/>/);
+  const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body]) => ({
+    selectors: selectors.replace(/\/\*[\s\S]*?\*\//g, '').split(',').map(selector => selector.trim()),
+    body,
+  }));
+  const frame = rules.find(rule => rule.selectors.includes('.WindowRoot #HPV2MotionFrame'));
+  assert.match(frame.body, /width:\s*100%;[\s\S]*height:\s*100%;/, 'frame covers the whole canvas');
+  assert.match(frame.body, /transform-origin:\s*50% 40\.48%;/, 'stock bar pivot');
+  assert.equal(rules.some(rule => rule.selectors.some(selector => /#HPV2MotionFrame #/.test(selector))), false,
+    'children need no compact-frame compensation');
+  const selectorsWith = pattern => rules.filter(rule => pattern.test(rule.body)).flatMap(rule => rule.selectors);
+  const wiggles = selectorsWith(/animation-name:\s*active_damage_wiggle/);
+  const still = selectorsWith(/animation-name:\s*none/);
+  for (const target of ['.WindowRoot #HPV2MotionFrame']) {
+    assert.ok(wiggles.includes('.active_damage ' + target), target + ' wiggles');
+    for (const kind of ['boss_barracks', 'boss_tier1', 'boss_tier2', 'building'])
+      assert.ok(still.includes('.' + kind + '.active_damage ' + target), kind + ' keeps ' + target + ' still');
+  }
+  assert.equal(wiggles.some(selector => /#name\b/.test(selector)), false, 'the name label keeps its inline transform');
+  for (const id of ['InfoHealthContainer', 'hp_counter_container', 'HPV2NameAnchor'])
+    assert.equal(wiggles.some(selector => selector.includes('#' + id)), false, id + ' stays static');
+});
+
+// Failure modes: the stock 3deg default gains a class; OFF/strength classes stack or leak
+// after returning to 3, master-off or on ungated units; cached classes miss a re-add.
+test('damage shake owns one reversible root class per setting and none at stock', () => {
+  const shakeClasses = root => root.classes
+    ? [...root.classes].filter(name => /^HPColorsRewriteShake/.test(name)).sort()
+    : ['HPColorsRewriteShakeOff', ...Array.from({ length: 10 }, (_, i) => 'HPColorsRewriteShake' + (i + 1))]
+      .filter(name => root.BHasClass(name));
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { enabled: true });
+  assert.deepEqual(shakeClasses(fixture.window), [], 'default keeps the stock wiggle');
+  fixture.update({ enabled: true, damageShakeEnabled: false });
+  assert.deepEqual(shakeClasses(fixture.window), ['HPColorsRewriteShakeOff']);
+  fixture.update({ enabled: true, damageShakeIntensity: 7 });
+  assert.deepEqual(shakeClasses(fixture.window), ['HPColorsRewriteShake7']);
+  fixture.update({ enabled: true, damageShakeIntensity: 10 });
+  assert.deepEqual(shakeClasses(fixture.window), ['HPColorsRewriteShake10']);
+  fixture.update({ enabled: true, damageShakeIntensity: 3 });
+  assert.deepEqual(shakeClasses(fixture.window), []);
+  fixture.update({ enabled: false, damageShakeIntensity: 7 });
+  assert.deepEqual(shakeClasses(fixture.window), [], 'master off restores stock');
+  fixture.update({ enabled: true, damageShakeIntensity: 7 });
+  assert.deepEqual(shakeClasses(fixture.window), ['HPColorsRewriteShake7'], 're-enabling re-adds the class');
+  const ungated = makeOwnershipFixture(['CLASS_TROOPER', 'enemy'],
+    { enabled: true, npcEnemyEnabled: false, damageShakeEnabled: false });
+  assert.deepEqual(shakeClasses(ungated.window), [], 'ungated units keep stock');
+  ungated.update({ enabled: true, npcEnemyEnabled: false, damageShakeIntensity: 7 });
+  assert.deepEqual(shakeClasses(ungated.window), []);
+});
+
+// Failure modes: a strength has no keyframes or misses a target; OFF leaves one target
+// shaking; shake rules outrank or follow the objective rule so buildings/bosses shake.
+test('damage shake CSS covers every strength and objectives still never shake', () => {
+  const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
+  const flat = css.replace(/@keyframes '[^']+'\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
+  const rules = [...flat.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body], index) => ({
+    selectors: selectors.replace(/\/\*[\s\S]*?\*\//g, '').split(',').map(selector => selector.trim()),
+    body, index,
+  }));
+  const objective = rules.find(rule => rule.selectors.includes('.building.active_damage .WindowRoot #HPV2MotionFrame'));
+  assert.match(objective.body, /animation-name:\s*none/);
+  const targets = cls => ['.active_damage .WindowRoot.' + cls + ' #HPV2MotionFrame'];
+  for (let degrees = 1; degrees <= 10; degrees++) {
+    if (degrees === 3) continue;
+    const frames = css.match(new RegExp("@keyframes 'hpv2_shake_" + degrees + "'\\s*\\{([\\s\\S]*?)\\n\\}"));
+    assert.ok(frames, degrees + ' has keyframes');
+    assert.match(frames[1], new RegExp('50%\\s*\\{\\s*transform: rotateZ\\(-' + degrees + 'deg\\)'));
+    const rule = rules.find(r => new RegExp('animation-name:\\s*hpv2_shake_' + degrees + ';').test(r.body));
+    assert.ok(rule, degrees + ' has a rule');
+    for (const target of targets('HPColorsRewriteShake' + degrees)) assert.ok(rule.selectors.includes(target), target);
+    assert.ok(rule.index < objective.index, degrees + ' stays before the objective rule');
+  }
+  const off = rules.find(rule => rule.selectors.includes(targets('HPColorsRewriteShakeOff')[0]));
+  assert.match(off.body, /animation-name:\s*none/);
+  for (const target of targets('HPColorsRewriteShakeOff')) assert.ok(off.selectors.includes(target), target);
+  assert.ok(off.index < objective.index);
+  assert.equal(rules.some(rule => /HPColorsRewriteShake/.test(rule.selectors.join()) &&
+    rule.selectors.some(selector => /#name\b/.test(selector))), false, 'never animate #name');
+});
+
+// Failure modes: OLD classes leak after V1/V2, master-off, ungated units or teardown;
+// SHOW HEALTH LINES off hides the gaps; line color/opacity ownership fights the gap CSS;
+// a missing separator container blocks painting or schedules retries.
+test('OLD owns reversible root classes, forces lines visible and releases line styling', () => {
+  const fixture = makeOldFixture(2900, { pipsVisible: false, enemyPipColorEnabled: true, pipOpacity: 40 });
+  const lines = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+  assert.notEqual(lines.style.visibility, 'collapse', 'gaps stay with health lines off');
+  assert.equal(lines.style.opacity || '', '');
+  for (const child of lines.children) assert.equal(child.style.washColor || '', '');
+  fixture.update({ barMask: 'original' });
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarOld'), false);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), false);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarMask'), true);
+  fixture.update({ barMask: 'old', enabled: false });
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarOld'), false);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), false);
+  fixture.update({ barMask: 'old' });
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), true);
+  fixture.status.DeleteAsync = () => {};
+  fixture.status.IsValid = () => false;
+  fixture.harness.scheduler.runNext();
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarOld'), false, 'teardown releases');
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), false);
+  const unit = makeOldFixture(2900, {}, ['building', 'enemy']);
+  assert.equal(unit.window.BHasClass('HPColorsRewriteBarOld'), false, 'ungated units stay stock');
+  unit.update({ barMask: 'old', buildingEnemyEnabled: true });
+  assert.equal(unit.window.BHasClass('HPColorsRewriteBarPips'), true);
+  const bare = makeOwnershipFixture(['player', 'enemy'], { barMask: 'old' }, ({ primary }) =>
+    setEngineLines(primary.FindChildTraverse('UnitHealthbarLines'), 2900));
+  assert.equal(bare.window.BHasClass('HPColorsRewriteBarOld'), true);
+  assert.equal(bare.window.BHasClass('HPColorsRewriteBarPips'), true, 'grid is created lazily');
+  const jobs = bare.harness.scheduler.jobs.length;
+  bare.harness.scheduler.runNext();
+  assert.equal(bare.harness.scheduler.jobs.length, jobs, 'no retry loop');
+});
+
+test('OLD CSS draws the grid over a hidden bar and stays class-gated', () => {
+  const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
+  const owned = css.split('/* Rewrite-owned additions')[1];
+  const rule = selector => {
+    const match = owned.match(new RegExp('(?:^|\\n)' + selector.replace(/[.#]/g, '\\$&').replace(/ /g, '\\s+') + '[^{]*\\{([^}]*)\\}'));
+    assert.ok(match, selector);
+    return match[1];
+  };
+  const box = rule('.WindowRoot.HPColorsRewriteBarOld #UnitHealthbar #UnitHealthbarLines');
+  for (const declaration of ['width: 69px', 'height: 12px', 'margin-left: 6px', 'margin-top: 3.5px'])
+    assert.match(box, new RegExp(declaration.replace('.', '\\.')));
+  assert.match(rule('.WindowRoot.HPColorsRewriteBarOld #UnitHealthbar #UnitHealthbarInner'), /background-color: #182123;/);
+  assert.match(rule('#HPV2PipGrid'), /visibility: collapse;/);
+  const grid = rule('.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #UnitHealthbar #HPV2PipGrid');
+  for (const declaration of [/visibility: visible;/, /vertical-align: bottom;/, /overflow: noclip;/]) assert.match(grid, declaration);
+  assert.match(rule('.WindowRoot.HPColorsRewriteBarOld.HPColorsRewriteBarPips #UnitHealthbar #UnitHealthbarInner'), /opacity: 0;/);
+  assert.match(rule('#HPV2PipEmpty .HPV2Pip'), /background-color: #182123;/);
+  assert.match(rule('#HPV2PipFill .HPV2Pip'), /background-color: white;/);
+  for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/HPColorsRewriteBarOld|HPV2Pip/.test(selector)) continue;
+    assert.ok(css.indexOf(selector) > css.indexOf('/* Rewrite-owned additions'), selector);
+    assert.doesNotMatch(body, /opacity-mask|box-shadow|transition/);
+  }
+});
+
+// Failure modes: bars left stock by an off UNITS toggle (or master off) keep re-reading and
+// re-checking styles every paint tick; dormancy survives a toggle-on or a reclassification;
+// a canvas resize while dormant leaves stock labels at stale coordinates.
+test('bars left stock by their UNITS toggle go dormant until config, class or canvas changes', () => {
+  const fixture = makeOwnershipFixture(['building', 'enemy'], { widthScale: 150 });
+  fixture.harness.scheduler.runFor(3000);
+  const counts = {};
+  const lines = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+  for (const panel of [fixture.stack, lines, fixture.primary, fixture.inner, fixture.fill]) panel.operationCounts = counts;
+  fixture.harness.scheduler.runFor(10000);
+  assert.equal(counts.styleReads || 0, 0, 'dormant bars read no bar styles');
+  assert.equal(counts.styleWrites || 0, 0);
+  assert.equal(fixture.stack.style.preTransformScale2d || '', '');
+  fixture.update({ widthScale: 150, buildingEnemyEnabled: true });
+  assert.equal(fixture.stack.style.preTransformScale2d, '1.5, 1', 'toggle on wakes the bar');
+  fixture.update({ widthScale: 150 });
+  assert.equal(fixture.stack.style.preTransformScale2d || '', '', 'toggle off restores stock');
+  fixture.world.RemoveClass('building');
+  fixture.world.AddClass('player');
+  fixture.harness.scheduler.runFor(2000);
+  assert.equal(fixture.stack.style.preTransformScale2d, '1.5, 1', 'reclassification wakes the bar');
+  fixture.world.RemoveClass('player');
+  fixture.world.AddClass('building');
+  fixture.harness.scheduler.runFor(3000);
+  const before = fixture.level.style.marginLeft;
+  fixture.info.actuallayoutwidth = 300;
+  fixture.harness.scheduler.runFor(2000);
+  assert.notEqual(fixture.level.style.marginLeft, before, 'canvas resize still rebases stock labels');
+});
+
+// Failure modes: neutral objectives (Sinner's Sacrifice vault) or a building that also carries a
+// neutral/creature fact receive the NEUTRAL camp fill instead of staying stock.
+test('neutral objectives and buildings never take the NEUTRAL camp fill', () => {
+  const values = { npcNeutralEnabled: true, neutralColor: '#123456', widthScale: 150 };
+  const camp = makeOwnershipFixture(['neutral_weak', 'team_neutral'], values);
+  assert.equal(camp.fill.style.washColor, '#123456', 'camps keep the fill');
+  for (const classes of [['neutral_vault', 'team_neutral'], ['building', 'creature', 'team_neutral'],
+    ['boss_tier1', 'team_neutral', 'creature']]) {
+    const unit = makeOwnershipFixture(classes, values);
+    assert.notEqual(unit.fill.style.washColor, '#123456', classes.join(' '));
+    assert.equal(unit.stack.style.preTransformScale2d || '', '', classes.join(' '));
+  }
+});
+
+const timerSource = fs.readFileSync(path.join(sourceRoot, 'test_topbar_pickups.js'), 'utf8');
+
+// The overlay layout root is the shared context of the renderer and the timer script.
+function bootTimers(classes, values = {}) {
+  const fixture = makeOwnershipFixture(classes, values, ({ window, ultOverlay }) => {
+    window.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { text: 'HAZE' }));
+    ultOverlay.add(new MockPanel('HPV2UltimateDark'));
+    ultOverlay.add(new MockPanel('HPV2UltimateFill'));
+  });
+  for (const key of ['HPV2GetNormalizedConfig', 'HPV2OnConfigChanged', 'HPV2GetUltimateProgressColor', 'HPV2OnWake'])
+    fixture.world[key] = fixture.status[key];
+  fixture.harness.contextPanel = fixture.world;
+  runInVm('globalThis.__parses = 0; JSON.parse = (parse => function () { globalThis.__parses++; ' +
+    'return parse.apply(this, arguments); })(JSON.parse);', fixture.context);
+  const rendererEntry = fixture.harness.handlerEntries.find(item => item.channel === 'ClientUI_FireOutput');
+  const before = fixture.harness.handlerEntries.length;
+  runInVm(timerSource, fixture.context);
+  // World contexts keep one listener: the renderer's, which routes timer
+  // traffic to the hook the timer script registers on its context.
+  assert.equal(fixture.harness.handlerEntries.slice(before)
+    .filter(item => item.channel === 'ClientUI_FireOutput').length, 0);
+  assert.equal(typeof fixture.world.HPV2OnPickupMessage, 'function');
+  fixture.status.HPV2OnPickupMessage = fixture.world.HPV2OnPickupMessage;
+  fixture.timerEvent = message => rendererEntry.fn(JSON.stringify(message));
+  fixture.parses = () => runInVm('globalThis.__parses', fixture.context);
+  return fixture;
+}
+
+const ultimateSnapshot = (fixture, players) => ({ magic_word: 'HPV2_ULTIMATE_SNAPSHOT', since: 0, at: fixture.harness.now, players: players.map(entry => entry.length === 2 ? [...entry, 0] : entry) });
+
+// Failure modes: every native tick broadcasts; prediction freezes or declares ready early.
+test('ultimate cooldowns broadcast sparsely and animate locally without stepping', () => {
+  const harness = createPanoramaHarness();
+  const topbar = harness.root.add(new MockPanel('TopBar', { classes: ['HPV2PickupTopBar'] }));
+  const owner = topbar.add(new MockPanel('Player', { paneltype: 'CitadelHudTopBarPlayer', classes: ['UltimateUnlocked'] }));
+  owner.add(new MockPanel('PlayerName', { text: 'HAZE', classes: ['PlayerName'] }));
+  const native = owner.add(new MockPanel('UltimateStatus')).add(new MockPanel('UltimateStatusBG', { style: { clip: 'radial(50% 50%, 0deg, 0deg)' } }));
+  topbar.SetAttributeString('hp_colors_v2_config', JSON.stringify({ magic_word: 'HP_COLORS_V2_CONFIG', version: 2, revision: 1, values: { pickupTimersEnabled: false } }));
+  harness.contextPanel = topbar;
+  const context = createVmContext(harness);
+  runInVm(contractSource, context);
+  runInVm(timerSource, context);
+  const messages = () => harness.dispatches.filter(event => String(event[1]).includes('HPV2_ULTIMATE_SNAPSHOT')).map(event => JSON.parse(event[1]));
+  for (let second = 1; second < 60; second++) {
+    native.style.clip = 'radial(50% 50%, 0deg, ' + second * 6 + 'deg)';
+    harness.scheduler.runFor(1000);
+  }
+  assert.equal(messages().length, 31, 'first moving rate then 2 s heartbeats, not 60 broadcasts');
+  assert.deepEqual(messages()[1].players, [['HAZE', 6, 6]], 'moving rate publishes at the first 1 s sample');
+  const hero = bootTimers(['player', 'enemy', 'CLASS_PLAYER']);
+  hero.ultIcon.visible = false;
+  hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 90, 6]]));
+  const fill = hero.ultOverlay.FindChildTraverse('HPV2UltimateFill');
+  const paints = () => hero.harness.scheduler.jobs.filter(job => job.fn.name === 'paintUltimateProgress');
+  assert.deepEqual(paints().map(job => job.delay), [1], 'one local repaint per second, not 20 Hz');
+  hero.harness.scheduler.runFor(1000);
+  assert.equal(fill.style.clip, 'radial(50% 50%, 0deg, 96deg)', 'drawn angle is not quantized');
+  hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 359, 6]]));
+  hero.harness.scheduler.runFor(1000);
+  assert.equal(fill.style.clip, 'radial(50% 50%, 0deg, 359.999deg)');
+  hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 360, 0]]));
+  assert.equal(hero.ultOverlay.style.visibility, 'collapse', 'only authoritative ready ends the ring');
+  hero.harness.scheduler.runFor(1000);
+  assert.equal(paints().length, 0, 'ready retires local animation');
+  hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 90, 6]]));
+  hero.update({ ultimateTimerEnabled: false });
+  hero.harness.scheduler.runFor(1000);
+  assert.equal(paints().length, 0, 'ULTIMATE off quiesces animation');
+  const delayed = bootTimers(['player', 'enemy', 'CLASS_PLAYER']);
+  delayed.ultIcon.visible = false;
+  delayed.harness.now = 8000;
+  delayed.timerEvent({ ...ultimateSnapshot(delayed, [['HAZE', 90, 6]]), at: 0 });
+  assert.equal(delayed.ultOverlay.FindChildTraverse('HPV2UltimateFill').style.clip, 'radial(50% 50%, 0deg, 138deg)', 'elapsed starts at snapshot at, not receipt');
+  delayed.harness.scheduler.runFor(4000);
+  assert.equal(delayed.ultOverlay.style.visibility, 'collapse', 'stale prediction expires at 12 s');
+});
+
+
+// Failure modes: ULTIMATE SIZE applies only while the cooldown ring shows, the ready icon
+// snaps back when a cooldown ends, the feature-off/stock scale is not restored, and
+// troopers/buildings/camps still decode the 1 Hz topbar snapshot or keep pickup state.
+test('ULTIMATE SIZE scales the ready ult icon and only hero bars decode timer traffic', () => {
+  const hero = bootTimers(['player', 'enemy', 'CLASS_PLAYER'], { ultimateTimerSize: 150 });
+  const scale = () => hero.ultBackground.style.preTransformScale2d;
+  assert.equal(scale(), '1.5', 'ready ult icon uses ULTIMATE SIZE without a cooldown');
+  hero.ultIcon.visible = false;
+  hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 120]]));
+  assert.equal(hero.ultOverlay.style.visibility, 'visible');
+  assert.equal(scale(), '1.5');
+  hero.ultIcon.visible = true;
+  hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 360]]));
+  assert.equal(hero.ultOverlay.style.visibility, 'collapse');
+  assert.equal(scale(), '1.5', 'base keeps the size after the cooldown ends');
+  hero.update({ ultimateTimerSize: 80 });
+  assert.equal(scale(), '0.8');
+  hero.update({ ultimateTimerSize: 80, ultimateTimerEnabled: false });
+  assert.equal(scale(), '1', 'feature off restores the stock scale');
+  const decoded = hero.parses();
+  hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 120]]));
+  assert.equal(hero.parses(), decoded + 1, 'hero bars still decode');
+
+  for (const classes of [['building', 'enemy'], ['CLASS_TROOPER', 'friend'], ['neutral_weak']]) {
+    const unit = bootTimers(classes, { ultimateTimerSize: 150 });
+    const parses = unit.parses();
+    unit.timerEvent(ultimateSnapshot(unit, [['HAZE', 120]]));
+    unit.timerEvent({ magic_word: 'HPV2_PICKUP_SCAN_GATE', scan: true, at: unit.harness.now, since: 0, localName: '' });
+    unit.harness.scheduler.runFor(3000);
+    assert.equal(unit.parses(), parses, classes.join(' ') + ' never decodes timer traffic');
+    assert.equal(unit.ultBackground.style.preTransformScale2d || '', '', classes.join(' ') + ' ult untouched');
+  }
+});
+
+// Failure modes: cached scan parts hide a late optional part, or cached unit
+// facts miss a reused panel's relation change or a fact that appears on an
+// ancestor which carried none on the last full walk.
+test('scan caching still detects late optional parts and reused-panel class changes', () => {
+  const values = { playerNamesVisible: true, nameOutlineWidth: 8 };
+  const early = makeOwnershipFixture(['player', 'enemy'], values, ({ window }) =>
+    window.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { text: 'HAZE' })));
+  const expected = early.window.FindChildTraverse('name').style.textShadow;
+  assert.equal(expected, '0px 0px 0px 8 #10130Dee');
+  const late = makeOwnershipFixture(['player', 'enemy'], values, ({ window }) =>
+    window.add(new MockPanel('HPV2NameAnchor')));
+  for (let index = 0; index < 3; index++) late.harness.scheduler.runByDelay(1);
+  const name = late.window.FindChildTraverse('HPV2NameAnchor').add(new MockPanel('name', { text: 'HAZE' }));
+  for (let index = 0; index < 5; index++) late.harness.scheduler.runByDelay(1);
+  assert.equal(name.style.textShadow, expected, 'late name found by the periodic full resolve');
+
+  const reused = makeOwnershipFixture(['player', 'enemy'], {});
+  for (let index = 0; index < 2; index++) reused.harness.scheduler.runByDelay(1);
+  assert.equal(reused.window.BHasClass('HPColorsRewriteEnemyPlayer'), true);
+  reused.world.RemoveClass('enemy');
+  reused.world.AddClass('friend');
+  reused.harness.scheduler.runByDelay(1);
+  assert.equal(reused.window.BHasClass('HPColorsRewriteEnemyPlayer'), false, 'carrier change on the next scan');
+
+  const split = makeOwnershipFixture(['player', 'enemy'], {});
+  for (let index = 0; index < 2; index++) split.harness.scheduler.runByDelay(1);
+  split.stack.AddClass('friend');
+  for (let index = 0; index < 5; index++) split.harness.scheduler.runByDelay(1);
+  assert.equal(split.window.BHasClass('HPColorsRewriteEnemyPlayer'), false, 'non-carrier fact by the full walk');
+});
+
 test('stock CSS differs only by permanent healthbar mask and outer-background deletions', () => {
   const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
-  // Frozen 6722 stock prefix minus the three healthbar masks, eight container
-  // background declarations, and their six now-empty relation rules. No other
-  // stock declarations, geometry, inner backing, or critical effects may change.
+  // Frozen 2026-10-01 (6728, SteamTracking 573a4129) stock prefix minus the three healthbar masks
+  // and nine container background declarations, with six emptied relation rules removed.
+  // No other stock declarations, geometry, inner backing, or critical effects may change.
   const prefix = css.split('/* Rewrite-owned additions')[0];
-  assert.equal(require('node:crypto').createHash('sha256').update(prefix).digest('hex'), 'e9a067ddd5cdb9854578eb2bf85deea33fb3c30fe1eba0ba505e0f3fe82b9bdb');
+  assert.equal(require('node:crypto').createHash('sha256').update(prefix).digest('hex'), 'd0152146ee5a12c498cacdd3840307d0cac91204bf332575b68ae0f679ad3653');
   for (const [, selector, body] of prefix.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     if (/\.UnitHealthbarContainer(?:[.\s]|$)/.test(selector))
       assert.doesNotMatch(body, /background-color\s*:/);
@@ -1400,14 +2079,14 @@ test('explicit stamina shapes preserve arrows with custom dimensions and restore
       enemyStaminaColorEnabled: true, enemyStaminaColor: '#654321',
     });
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaOwned'), shape !== 'arrow');
-    assert.equal(fixture.icon.style.width, '15px');
-    assert.equal(fixture.icon.style.height, '6px');
+    assert.equal(fixture.icon.style.width, shape === 'arrow' ? '10.91px' : '15px');
+    assert.equal(fixture.icon.style.height, shape === 'arrow' ? '16.07px' : '6px');
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaCircle'), shape === 'circle');
     assert.equal(fixture.stamina.BHasClass('HPColorsRewriteStaminaBox'), shape === 'box');
     assert.equal(fixture.icon.style.washColor, shape === 'arrow' ? '#654321' : '#FFFFFF');
     assert.equal(fixture.icon.style.backgroundColor, shape === 'arrow' ? '#ABCDEF' : '#654321');
     fixture.icon.GetParent().AddClass('PipEmpty');
-    fixture.harness.scheduler.runByDelay(1);
+    fixture.harness.scheduler.runFor(1000);
     assert.equal(fixture.icon.style.washColor, shape === 'arrow' ? 'offBlack' : '#FFFFFF');
     assert.equal(fixture.icon.style.backgroundColor, shape === 'arrow' ? '#ABCDEF' : '#000000');
     fixture.update({ enabled: false, staminaShape: shape });
@@ -1477,7 +2156,7 @@ test('pip opacity multiplies stock lines independently of custom color and resto
     assert.equal(line.style.washColor, '#445566');
     fixture.update({ ...gate, pipOpacity: 50 });
     line.SetParent(fixture.window);
-    paintReadout(fixture);
+    fixture.harness.scheduler.runByDelay(1);
     assert.equal(line.style.opacity, '0.37', 'removed lines restore exactly');
     assert.equal(line.style.washColor, '#445566');
     fixture.update({ ...gate, pipOpacity: 50 });
@@ -1495,7 +2174,7 @@ test('pip parent opacity releases when enemy lines are hidden or the bar retires
     if (release === 'off') fixture.update({ pipOpacity: 50, pipsVisible: false });
     else {
       fixture.primary.RemoveClass('UnitHealthbarContainer');
-      fixture.harness.scheduler.runByDelay(1);
+      fixture.harness.scheduler.runFor(1000);
     }
     assert.equal(container.style.opacity, '', release);
   }
@@ -1567,7 +2246,7 @@ test('native label canvas compensation releases exactly on adoption, resize and 
   const replacement = fixture.info.add(new MockPanel('UnitHealthbarValue', {
     style: { ...nativeReadoutStock },
   }));
-  fixture.harness.scheduler.runByDelay(1);
+  fixture.harness.scheduler.runFor(1000);
   assertNativeStock(fixture.health);
   assert.equal(replacement.GetParent(), fixture.row);
   assert.equal(replacement.style.marginRight, '-5px');
@@ -1576,7 +2255,7 @@ test('native label canvas compensation releases exactly on adoption, resize and 
   assert.equal(replacement.style.marginRight, '120px');
   for (const panel of [fixture.info, fixture.window, fixture.status, fixture.stack])
     panel.actuallayoutwidth = 400;
-  fixture.harness.scheduler.runByDelay(1);
+  fixture.harness.scheduler.runFor(1000);
   assertNativeStock(replacement);
 });
 
@@ -1630,8 +2309,9 @@ test('full-canvas rebase preserves stock leaf positions and old-frame wiggle piv
         assert.ok(Math.abs(Number(pivot[1]) / 100 * width - width / 2) < 0.001);
         assert.ok(Math.abs(Number(pivot[2]) / 100 * height - 85) < 0.001);
       }
-      assert.equal(fixture.harness.scheduler.jobs.length, 2, 'rebase does not schedule another loop');
-      fixture.harness.scheduler.runByDelay(1);
+      // Dormant health keeps the wake scan and pending config request only.
+      assert.equal(fixture.harness.scheduler.jobs.length, 2, 'rebase adds no loop or dormant paint');
+      fixture.harness.scheduler.runFor(1000);
       assert.deepEqual(position(fixture.unitInfo), [width / 2 - 50, 67], 'unchanged cadence does not double-rebase');
     }
   }
@@ -1655,11 +2335,11 @@ test('circle and box stamina use stock-filled white and black empty interiors wi
     assert.equal(fixture.icon.style.backgroundColor, '#FFFFFF');
     assert.equal(fixture.icon.style.borderColor, '#FFFFFF');
     fixture.icon.GetParent().AddClass('PipEmpty');
-    fixture.harness.scheduler.runByDelay(1);
+    fixture.harness.scheduler.runFor(1000);
     assert.equal(fixture.icon.style.backgroundColor, '#000000');
     assert.equal(fixture.icon.style.borderColor, '#FFFFFF');
     fixture.icon.GetParent().RemoveClass('PipEmpty');
-    fixture.harness.scheduler.runByDelay(1);
+    fixture.harness.scheduler.runFor(1000);
     assert.equal(fixture.icon.style.backgroundColor, '#FFFFFF');
     fixture.update({ staminaShape: 'arrow' });
     assert.equal(fixture.icon.style.backgroundColor, '#ABCDEF');
@@ -1675,7 +2355,7 @@ test('custom pip ownership handles late lines and restores captured inline style
   const original = container.add(new MockPanel('latePip', {
     classes: ['line_large'], style: { washColor: '#445566', opacity: '0.3' },
   }));
-  paintReadout(fixture);
+  fixture.harness.scheduler.runByDelay(1);
   assert.equal(original.style.washColor, '#123456');
   assert.equal(original.style.opacity, '0.3');
   assert.equal(container.style.opacity, '0.42');
@@ -1683,7 +2363,7 @@ test('custom pip ownership handles late lines and restores captured inline style
   const replacement = container.add(new MockPanel('replacementPip', {
     classes: ['line_small'], style: { washColor: '#778899', opacity: '0.7' },
   }));
-  paintReadout(fixture);
+  fixture.harness.scheduler.runByDelay(1);
   assert.equal(original.style.washColor, '#445566');
   assert.equal(original.style.opacity, '0.3');
   assert.equal(replacement.style.washColor, '#123456');
@@ -1697,15 +2377,17 @@ test('CRITICAL uses brightness-only feedback on owned bars, not a geometry anima
   const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
   const stock = css.split('/* Rewrite-owned additions')[0];
   const owned = css.slice(stock.length);
-  const animation = owned.match(/\.enemy\.health_critical \.ShowCriticalState\.HPColorsRewriteBarLines #UnitHealthbarsContainer[\s\S]*?\{([^}]*)\}/);
-  assert.ok(animation, 'owned critical state must override the stock stack animation');
-  assert.match(animation[1], /pre-transform-scale2d:\s*1;/);
+  const animation = owned.match(/\.enemy\.health_critical \.ShowCriticalState\.HPColorsRewriteBarLines #UnitHealthbar[\s\S]*?\{([^}]*)\}/);
+  assert.ok(animation, 'owned critical feedback must target compact bars');
+  assert.match(animation[1], /pre-transform-scale2d:\s*1;/,
+    'owned compact critical feedback resets the unowned 1.2 scale');
+  assert.match(owned, /\.WindowRoot #UnitHealthbarsContainer\s*\{[^}]*animation-name:\s*none;/);
   const name = animation[1].match(/animation-name:\s*([\w]+);/)[1];
   const frames = owned.slice(owned.indexOf("@keyframes '" + name + "'")).split('\n}\n')[0];
   assert.match(frames, /brightness:\s*2/);
   assert.doesNotMatch(frames, /pre-transform-scale2d|transform:|margin|height|width/);
-  assert.match(owned, /\.player\.health_critical \.ShowCriticalState\.HPColorsRewriteBarLines \.UnitHealthbarContainer[\s\S]*?\{[^}]*margin-left:\s*17px;/);
-  assert.match(stock, /#CriticalIndicator\s*\{[^}]*ignore-parent-flow:\s*true;[^}]*margin-top:\s*84px;/);
+  assert.match(owned, /\.player\.health_critical \.ShowCriticalState\.HPColorsRewriteBarLines \.UnitHealthbarContainer[\s\S]*?\{[^}]*margin-left:\s*13px;/);
+  assert.match(stock, /#CriticalIndicator\s*\{[^}]*ignore-parent-flow:\s*true;[^}]*margin-top:\s*86px;/);
   assert.match(stock, /@keyframes 'healthCritFlash3'[\s\S]*pre-transform-scale2d:\s*1\.15;[\s\S]*transform:\s*rotateY/);
 
   const values = { ...accessoryValues, positionX: 100, positionY: -380 };
@@ -1735,7 +2417,7 @@ test('native HP and pulse text reserve local outline room without moving the gly
       parts.health.style.padding = '4px';
       parts.health.style.overflow = 'clip';
     });
-    const rowPosition = [fixture.row.style.marginRight, fixture.row.style.marginTop];
+    const rowPosition = readoutTranslation(fixture.row);
     for (const outline of [0, 0.5, 5, 10]) {
       fixture.update({ ...values, [prefix + 'OutlineWidth']: outline });
       const room = Math.ceil(outline);
@@ -1746,7 +2428,7 @@ test('native HP and pulse text reserve local outline room without moving the gly
       assert.equal(room + Number.parseFloat(fixture.health.style.marginLeft), 0, 'glyph left stays fixed');
       assert.equal(2 * room + Number.parseFloat(fixture.health.style.marginLeft) +
         Number.parseFloat(fixture.health.style.marginRight), 0, 'fit-children contribution stays fixed');
-      assert.deepEqual([fixture.row.style.marginRight, fixture.row.style.marginTop], rowPosition);
+      assert.deepEqual(readoutTranslation(fixture.row), rowPosition);
       if (relation === 'enemy') assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), true);
       const writes = fixture.health.styleWrites.length;
       paintReadout(fixture);
@@ -1758,4 +2440,1162 @@ test('native HP and pulse text reserve local outline room without moving the gly
     assert.equal(fixture.health.style.overflow, 'clip');
     assert.equal(fixture.health.GetParent(), fixture.info);
   }
+});
+
+test('objective boss facts use the building gate, while midboss and troopers remain NPCs', () => {
+  for (const kind of ['boss_tier1', 'boss_tier2', 'boss_tier3', 'boss_barracks', 'barracks']) {
+    const fixture = makeOwnershipFixture([kind, 'enemy'], {
+      npcEnemyEnabled: true, buildingEnemyEnabled: false,
+    });
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), false, kind);
+    fixture.update({ npcEnemyEnabled: false, buildingEnemyEnabled: true });
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), true, kind);
+    fixture.world.AddClass('friend');
+    fixture.harness.scheduler.runFor(2500);
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), false, 'ambiguous ' + kind);
+    fixture.world.AddClass('team_neutral');
+    fixture.update({ buildingEnemyEnabled: true, buildingAllyEnabled: true, npcNeutralEnabled: true });
+    fixture.harness.scheduler.runFor(2500);
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), false, 'neutral objective ' + kind);
+  }
+  for (const kind of ['midboss', 'CLASS_TROOPER', 'creature']) {
+    const fixture = makeOwnershipFixture([kind, 'enemy'], { npcEnemyEnabled: true });
+    assert.equal(fixture.window.BHasClass('HPColorsRewriteBarLines'), true, kind);
+  }
+});
+
+test('primary shield and armor allocations do not dilute HP thresholds or readout colors', () => {
+  const values = {
+    lowThreshold: 40, highThreshold: 60, enemyMode: 'fixed',
+    enemyLow: '#FF0000', enemyMid: '#FFFF00', enemyHigh: '#00FF00',
+    readoutVisible: true, enemyPulseEnabled: true, enemyPulseThreshold: 55,
+    enemyPulseReadout: true, enemyPulseColorEnabled: true, enemyPulseColorMode: 'gradient',
+  };
+  // Shield then armor follow the fill edge; negativeOffset draws them behind it from x=0.
+  const placeLayers = (layers, signal, fillWidth) => {
+    let start = fillWidth;
+    for (const [layer, extent] of layers) {
+      const end = start + extent;
+      if (signal === 'layout') [layer.actuallayoutwidth, layer.actualxoffset] = [extent, start];
+      else if (signal === 'clip') layer.style.clip = `rect(0%, ${end / 103.5 * 100}%, 100%, ${start / 103.5 * 100}%)`;
+      else if (signal === 'negativeOffset') layer.actualxoffset = end - 103.5;
+      else layer.actualxoffset = start;
+      start = end;
+    }
+  };
+  for (const signal of ['layout', 'clip', 'width', 'scale', 'preScale', 'negativeOffset']) {
+    const layers = [];
+    const fixture = makeOwnershipFixture(['player', 'enemy'], values, parts => {
+      prepareNativeReadout(parts);
+      parts.inner.actuallayoutwidth = 103.5;
+      parts.inner.add(new MockPanel('hp_colors_pulse_overlay', { style: { visibility: 'collapse' } }));
+      const shieldbar = parts.stack.add(new MockPanel('UnitShieldbar', { classes: ['UnitHealthbarContainer'] }));
+      const shieldInner = shieldbar.add(new MockPanel('UnitHealthbarInner', { actuallayoutwidth: 500 }));
+      shieldInner.add(new MockPanel('unit_healthbar_bullet_shield', { actuallayoutwidth: 500 }));
+      for (const [id, extent] of [['unit_healthbar_bullet_shield', 20.7], ['unit_healthbar_ratking_armor', 13.8]]) {
+        const layer = parts.inner.add(new MockPanel(id, {
+          classes: ['HealthAmount', 'HasHealth'], actuallayoutwidth: 103.5,
+          style: { visibility: 'visible' },
+        }));
+        if (signal === 'width') layer.style.width = `${extent}px`;
+        if (signal === 'scale') layer.style.transform = `scaleX(${extent / 103.5})`;
+        if (signal === 'preScale') layer.style.preTransformScale2d = `${extent / 103.5}, 1`;
+        layers.push([layer, extent]);
+      }
+      placeLayers(layers, signal, 34.5);
+    });
+    assert.equal(fixture.fill.style.washColor, '#FFFF00', signal);
+    assert.equal(fixture.health.style.washColor, '#FFFF00', signal);
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), true, signal);
+    assert.equal(fixture.fill.BHasClass('HPColorsRewritePulse'), true, signal);
+    const overlay = fixture.inner.FindChildTraverse('hp_colors_pulse_overlay');
+    // Coverage remains the actual fraction of the combined inner, not HP percent.
+    assert.equal(overlay.style.clip, 'rect(0%, 33.33%, 100%, 0%)', signal);
+    fixture.fill.actuallayoutwidth = 48.3;
+    placeLayers(layers, signal, 48.3);
+    fixture.update(values);
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), false, signal);
+    assert.equal(fixture.fill.style.washColor, '#00FF00', signal);
+  }
+});
+
+test('a shield layer hidden behind the fill does not change HP thresholds', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], {
+    lowThreshold: 40, highThreshold: 60, enemyMode: 'fixed',
+    enemyLow: '#FF0000', enemyMid: '#FFFF00', enemyHigh: '#00FF00',
+  }, parts => {
+    parts.inner.actuallayoutwidth = 103.5;
+    parts.inner.add(new MockPanel('unit_healthbar_bullet_shield', {
+      classes: ['HealthAmount', 'HasHealth'], actuallayoutwidth: 20.7, style: { visibility: 'visible' },
+    }));
+  });
+  assert.equal(fixture.fill.style.washColor, '#FF0000', '33% HP stays low; 0..20% shield is under the fill');
+});
+
+test('arrow dimensions scale continuously on independent axes and release backgroundSize', () => {
+  for (const width of [109, 110, 111]) {
+    for (const height of [44.7, 44.8, 44.9]) {
+      const fixture = makeOwnershipFixture(['player', 'enemy'], {
+        staminaShape: 'arrow', staminaWidth: width, staminaHeight: height,
+      }, parts => Object.assign(parts.icon.style, {
+        width: '8px', height: '12px', backgroundSize: 'contain',
+      }));
+      assert.equal(fixture.icon.style.width, Math.round(8 * width / 110 * 100) / 100 + 'px', String(width));
+      assert.equal(fixture.icon.style.height, Math.round(12 * height / 44.8 * 100) / 100 + 'px', String(height));
+      assert.equal(fixture.icon.style.backgroundSize,
+        width === 110 && height === 44.8 ? 'contain' : '100% 100%');
+      fixture.update({ staminaShape: 'box', staminaWidth: width, staminaHeight: height });
+      assert.equal(fixture.icon.style.backgroundSize, 'contain');
+      fixture.update({ staminaShape: 'arrow', staminaWidth: width, staminaHeight: height });
+      fixture.update({ staminaShape: 'arrow' });
+      assert.equal(fixture.icon.style.width, '8px');
+      assert.equal(fixture.icon.style.height, '12px');
+      assert.equal(fixture.icon.style.backgroundSize, 'contain');
+      fixture.update({ staminaShape: 'arrow', staminaWidth: 111 });
+      fixture.update({ enabled: false });
+      assert.equal(fixture.icon.style.backgroundSize, 'contain');
+      assert.equal(fixture.icon.style.width, '8px');
+    }
+  }
+});
+
+test('text pulses without bar colors and ally pulse adds animation only, restoring stock classes', () => {
+  for (const role of ['enemy', 'ally']) {
+    const prefix = role === 'enemy' ? 'readout' : 'allyReadout';
+    const values = {
+      enemyEnabled: false, allyEnabled: false,
+      [prefix + 'Visible']: true, [prefix + 'Size']: 200,
+      [role + 'PulseEnabled']: true, [role + 'PulseThreshold']: 55,
+      [role + 'PulseReadout']: true, [role + 'PulseIntensity']: 0,
+      enemyPulseReadoutModifiers: false,
+    };
+    const fixture = makeOwnershipFixture(['player', role === 'enemy' ? 'enemy' : 'friend'], values, parts => {
+      prepareNativeReadout(parts);
+      parts.health.AddClass('HPColorsRewritePulseIntense');
+    });
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), true, role);
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulseSubtle'), true, role);
+    assert.equal(fixture.fill.BHasClass('HPColorsRewritePulse'), false, role);
+    assert.equal(fixture.health.style.fontSize, '20px', 'text animation does not resize ' + role);
+    const geometry = readoutTranslation(fixture.row);
+    fixture.update({ ...values, [role + 'PulseReadout']: false });
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), false, role);
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), true, 'stock class ' + role);
+    assert.deepEqual(readoutTranslation(fixture.row), geometry);
+    fixture.update({ ...values, [prefix + 'Visible']: false });
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), false, 'hidden ' + role);
+    fixture.update(values);
+    fixture.fill.actuallayoutwidth = 69;
+    fixture.update(values);
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulse'), false, 'threshold ' + role);
+    fixture.update({ enabled: false });
+    assert.equal(fixture.health.BHasClass('HPColorsRewritePulseIntense'), true, 'release ' + role);
+  }
+});
+
+test('pre-transform canvas-centre scaling is compensated and accessories follow the visual bar', () => {
+  for (const ui of [[1, 1], [2, 3]]) {
+    const fixture = makeOwnershipFixture(['player', 'enemy'], {}, parts => {
+      measuredGeometry(parts, ...ui);
+    });
+    const css = (panel, property, axis) => panel[property] / panel['actualuiscale_' + axis];
+    const stockLeft = css(fixture.stack, 'actualxoffset', 'x') + css(fixture.primary, 'actualxoffset', 'x');
+    const stockX = stockLeft + css(fixture.primary, 'actuallayoutwidth', 'x') / 2;
+    const stockY = css(fixture.stack, 'actualyoffset', 'y') +
+      css(fixture.primary, 'actualyoffset', 'y') + css(fixture.primary, 'actuallayoutheight', 'y') / 2;
+    const close = (actual, expected, label) => assert.ok(Math.abs(actual - expected) < 0.011,
+      label + ': ' + actual + ' != ' + expected);
+    for (const widthScale of [100, 148, 230]) {
+      for (const heightScale of [60, 100, 160]) {
+        const sx = widthScale / 100, sy = heightScale / 100;
+        const values = { widthScale, heightScale, positionX: 70, positionY: 30,
+          accessoryAnchorEnabled: true, readoutVisible: true, readoutOffsetX: 5, readoutOffsetY: 12,
+          levelOffsetX: 20, levelOffsetY: 10, ultOffsetX: -20, ultOffsetY: -10 };
+        fixture.update(values);
+        const transform = /^translate3d\(([-\d.]+)px, ([-\d.]+)px, 0px\)$/.exec(fixture.stack.style.transform);
+        assert.ok(transform);
+        assert.equal(fixture.stack.style.transformOrigin,
+          sx !== 1 || sy !== 1 ? '50% 50%' : '50% ' + (85 / 210 * 100) + '%');
+        const panelX = css(fixture.stack, 'actuallayoutwidth', 'x') / 2;
+        const panelY = css(fixture.stack, 'actuallayoutheight', 'y') / 2;
+        const visualX = css(fixture.stack, 'actualxoffset', 'x') + panelX +
+          (css(fixture.primary, 'actualxoffset', 'x') +
+            css(fixture.primary, 'actuallayoutwidth', 'x') / 2 - panelX) * sx + Number(transform[1]);
+        const visualY = css(fixture.stack, 'actualyoffset', 'y') + panelY +
+          (css(fixture.primary, 'actualyoffset', 'y') +
+            css(fixture.primary, 'actuallayoutheight', 'y') / 2 - panelY) * sy + Number(transform[2]);
+        close(visualX, stockX + 7, 'visual centre X');
+        close(visualY, stockY + 3, 'visual centre Y');
+        const visualLeft = visualX - css(fixture.primary, 'actuallayoutwidth', 'x') * sx / 2;
+        for (const [panel, baseLeft, baseTop, ox, oy] of [
+          [fixture.level, 27, 67.5, 2, 1], [fixture.unitInfo, 50, 67, -2, -1]]) {
+          const halfW = css(panel, 'actuallayoutwidth', 'x') / 2;
+          const halfH = css(panel, 'actuallayoutheight', 'y') / 2;
+          close(parseFloat(panel.style.marginLeft) + halfW - visualLeft,
+            baseLeft + halfW - stockLeft + ox, 'anchored rigid X gap');
+          close(parseFloat(panel.style.marginTop) + halfH - visualY,
+            baseTop + halfH - stockY + oy, 'anchored rigid Y gap');
+          fixture.update({ ...values, accessoryAnchorEnabled: false });
+          close(parseFloat(panel.style.marginLeft),
+            baseLeft - css(fixture.primary, 'actuallayoutwidth', 'x') * (sx - 1) / 2 + ox * sx,
+            'legacy anchor-off X');
+          close(parseFloat(panel.style.marginTop),
+            stockY + (baseTop + halfH - stockY + oy) * sy - halfH,
+            'legacy anchor-off Y');
+          fixture.update(values);
+        }
+        const [left, top] = readoutTranslation(fixture.row);
+        close(left + css(fixture.container, 'actuallayoutwidth', 'x') - visualX, 33.5 + 5 * sx, 'readout X');
+        close(top - visualY, -8 + 12 * sy, 'readout Y');
+        const before = fixture.row.style.transform;
+        fixture.update({ ...values, accessoryAnchorEnabled: false });
+        assert.equal(fixture.row.style.transform, before, 'HP anchor remains independent');
+      }
+    }
+    fixture.update({ enabled: false });
+    assert.equal(fixture.stack.style.transform || '', '');
+    assert.equal(fixture.stack.style.preTransformScale2d || '', '');
+    assert.equal(fixture.stack.style.transformOrigin, '50% ' + (85 / 210 * 100) + '%');
+    assert.equal(fixture.level.style.marginLeft, '27px');
+    assert.equal(fixture.level.style.marginTop, '67.5px');
+    assert.equal(fixture.unitInfo.style.marginLeft, '50px');
+    assert.equal(fixture.unitInfo.style.marginTop, '67px');
+  }
+});
+
+function makeNameFixture(values) {
+  let name;
+  const fixture = makeOwnershipFixture(['player', 'enemy'], values, ({ window }) => {
+    Object.assign(window, { actuallayoutwidth: 200, actuallayoutheight: 210 });
+    name = window.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { actuallayoutwidth: 60, actuallayoutheight: 20, text: 'Hero' }));
+  });
+  return { fixture, name };
+}
+
+// Failure modes: tilt 0 changes today's name transforms or ownership; a tilt with offsets
+// replaces the translate; tilt alone stays on the stock fast path and never applies;
+// rotation lands on the shake-animated HPV2NameAnchor; release leaves the rotation behind.
+test('name tilt appends rotateZ to the name transform and releases to stock', () => {
+  const { fixture, name } = makeNameFixture({ nameOffsetX: 10, nameOffsetY: -5 });
+  const anchor = name.GetParent();
+  assert.equal(name.style.transform, 'translate3d(10px, -5px, 0px)', 'tilt 0 keeps the offset translate');
+  fixture.update({ nameOffsetX: 10, nameOffsetY: -5, nameTilt: 15 });
+  assert.equal(name.style.transform, 'translate3d(10px, -5px, 0px) rotateZ(15deg)');
+  fixture.update({ nameTilt: 15 });
+  assert.equal(name.style.transform, 'rotateZ(15deg)', 'tilt alone is a customization');
+  fixture.update({ nameAlign: 'left', nameTilt: -20 });
+  assert.match(name.style.transform, /^translate3d\(.*, 0px\) rotateZ\(-20deg\)$/);
+  assert.equal(anchor.style.transform ?? '', '', 'anchor keeps the shake animation free');
+  fixture.update({ nameTilt: 0 });
+  assert.equal(name.style.transform ?? '', '', 'tilt 0 releases the name to stock');
+  fixture.update({ nameTilt: 30 });
+  fixture.update({ enabled: false, nameTilt: 30 });
+  assert.equal(name.style.transform ?? '', '', 'master off restores stock');
+  const plain = makeNameFixture({});
+  assert.equal(plain.name.style.transform ?? '', '');
+  assert.deepEqual(plain.name.styleWrites, [], 'uncustomized names stay untouched');
+});
+
+// Failure modes: the HP text tilt rotates the geometry row instead of the label; the ally
+// side reads the enemy key; pulse modifiers drop the tilt; release leaves the rotation.
+test('HP text tilt rotates the adopted label per side and releases the baseline', () => {
+  const enemy = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true, readoutTilt: -20, allyReadoutTilt: 40 }, prepareNativeReadout);
+  assert.equal(enemy.health.GetParent(), enemy.row);
+  assert.equal(enemy.health.style.transform, 'rotateZ(-20deg)');
+  assert.doesNotMatch(enemy.row.style.transform || '', /rotate/, 'row keeps its geometry translate');
+  enemy.update({ readoutVisible: true, readoutTilt: -20, enemyPulseEnabled: true, enemyPulseThreshold: 100,
+    enemyPulseReadout: true, enemyPulseReadoutModifiers: true });
+  assert.equal(enemy.health.style.transform, 'rotateZ(-20deg)', 'pulse modifiers keep the tilt');
+  enemy.update({ readoutVisible: true, readoutTilt: 0 });
+  assert.equal(enemy.health.style.transform, nativeReadoutStock.transform, 'tilt 0 uses the baseline');
+  enemy.update({ readoutVisible: true, readoutTilt: 25 });
+  enemy.update({ readoutVisible: false, readoutTilt: 25 });
+  assert.equal(enemy.health.style.transform, nativeReadoutStock.transform, 'side off restores the baseline');
+  enemy.update({ readoutVisible: true, readoutTilt: 25 });
+  enemy.update({ enabled: false, readoutTilt: 25 });
+  assertNativeStock(enemy.health);
+  const ally = makeOwnershipFixture(['player', 'friend'], { allyReadoutVisible: true, readoutTilt: -20, allyReadoutTilt: 40 }, prepareNativeReadout);
+  assert.equal(ally.health.style.transform, 'rotateZ(40deg)');
+  ally.update({ allyReadoutVisible: false, allyReadoutTilt: 40 });
+  assertNativeStock(ally.health);
+});
+
+// Failure modes: dormant paint/pickup callbacks survive; hidden bars do geometry work or
+// show an adopted label; unchanged pip children are enumerated by the hot paint path.
+test('dormant renderer retains only its one-second wake sentinel', () => {
+  const fixture = bootTimers(['building', 'enemy']);
+  fixture.harness.scheduler.runFor(5000);
+  assert.deepEqual(fixture.harness.scheduler.jobs.map(job => job.delay), [1]);
+  fixture.world.RemoveClass('building');
+  fixture.world.AddClass('player');
+  fixture.world.AddClass('CLASS_PLAYER');
+  fixture.harness.scheduler.runFor(1000);
+  assert.ok(fixture.harness.scheduler.jobs.some(job => job.delay !== 1), 'hero wake resumes paint');
+});
+
+test('hidden health surfaces defer geometry and reconcile current config on wake', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true });
+  fixture.world.AddClass('health_hidden');
+  fixture.harness.scheduler.runFor(2000);
+  const counts = {};
+  for (const panel of [fixture.stack, fixture.primary, fixture.inner, fixture.fill, fixture.row])
+    panel.operationCounts = counts;
+  const transform = fixture.stack.style.preTransformScale2d;
+  fixture.update({ readoutVisible: true, widthScale: 230 });
+  fixture.harness.scheduler.runFor(3000);
+  assert.equal(fixture.health.style.visibility, 'collapse');
+  assert.equal(fixture.stack.style.preTransformScale2d, transform, 'hidden geometry is untouched');
+  assert.equal(counts.styleWrites || 0, 0);
+  fixture.world.RemoveClass('health_hidden');
+  fixture.harness.scheduler.runFor(1000);
+  assert.equal(fixture.health.style.visibility, 'visible');
+  assert.equal(fixture.stack.style.preTransformScale2d, '2.3, 1');
+});
+
+test('paint reuses scanned pip children and fixed-color fill changes avoid accessory writes', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { enemyMode: 'fixed' }, ({ primary }) => {
+    const lines = primary.FindChildTraverse('UnitHealthbarLines');
+    lines.add(new MockPanel('', { classes: ['line_large'] }));
+  });
+  const lines = fixture.primary.FindChildTraverse('UnitHealthbarLines');
+  const original = lines.Children.bind(lines);
+  let enumerations = 0;
+  lines.Children = () => { enumerations++; return original(); };
+  const accessories = {};
+  fixture.level.operationCounts = accessories;
+  fixture.unitInfo.operationCounts = accessories;
+  fixture.fill.actuallayoutwidth = 33;
+  fixture.harness.scheduler.runByDelay(0.15);
+  assert.equal(enumerations, 0, 'paint never enumerates pip children');
+  assert.equal(accessories.styleReads || 0, 0, 'fill changes never read accessory style setters back');
+  assert.equal(accessories.styleWrites || 0, 0, 'fill changes do not repaint accessory geometry');
+  fixture.harness.scheduler.runByDelay(1);
+  assert.ok(enumerations > 0, 'the scan refreshes engine-created lines');
+});
+
+test('OLD slot allocation is bounded and overflow falls back without truncating health', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { barMask: 'old' }, ({ primary }) => {
+    const lines = primary.FindChildTraverse('UnitHealthbarLines');
+    lines.actuallayoutwidth = 69;
+    lines.add(new MockPanel('', { classes: ['line_large'], actualxoffset: 69 / 400 }));
+  });
+  assert.ok(layerOf(fixture, 'HPV2PipEmpty').length <= 128);
+  assert.equal(fixture.window.BHasClass('HPColorsRewriteBarPips'), false,
+    'above the 12,800 HP slot ceiling use native OLD fallback rather than truncating health');
+});
+
+test('optional pulse marker and OLD surfaces are created only on demand', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], {
+    enemyPulseEnabled: false, enemyKillMarkerEnabled: false,
+  }, ({ primary }) => {
+    primary.FindChildTraverse('hp_colors_kill_marker').DeleteAsync(0);
+  });
+  assert.equal(fixture.primary.FindChildTraverse('hp_colors_kill_marker'), null);
+  assert.equal(fixture.inner.FindChildTraverse('hp_colors_pulse_overlay'), null);
+  assert.equal(gridOf(fixture), null);
+  fixture.update({ enemyPulseEnabled: true, enemyPulseColorEnabled: true,
+    enemyPulseColorMode: 'gradient', enemyPulseThreshold: 80, enemyKillMarkerEnabled: true });
+  assert.ok(fixture.primary.FindChildTraverse('hp_colors_kill_marker'));
+  assert.ok(fixture.inner.FindChildTraverse('hp_colors_pulse_overlay'));
+  fixture.update({ barMask: 'old' });
+  assert.ok(gridOf(fixture));
+});
+
+test('scan repairs external stamina style drift with write-only paint caches', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { staminaWidth: 200 });
+  const ownedWidth = fixture.icon.style.width;
+  fixture.icon.style.width = '1px';
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.icon.style.width, ownedWidth);
+});
+
+test('full-canvas motion frame needs no runtime rebase and still owns the name', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { readoutVisible: true, nameSize: 22 }, parts => {
+    prepareNativeReadout(parts);
+    Object.assign(parts.window, { actuallayoutwidth: 200, actuallayoutheight: 210 });
+    const motion = parts.window.add(new MockPanel('HPV2MotionFrame', {
+      actuallayoutwidth: 200, actuallayoutheight: 210,
+    }));
+    motion.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { text: 'HAZE', style: {} }));
+    parts.status.SetParent(motion);
+    parts.container.SetParent(motion);
+  });
+  const motion = fixture.window.FindChildTraverse('HPV2MotionFrame');
+  const name = motion.FindChildTraverse('name');
+  assert.equal(name.style.fontSize, '22px', 'the name inside the frame is still owned');
+  assert.equal(fixture.health.GetParent(), fixture.row, 'native HP stays in the shared moving frame');
+  fixture.window.actuallayoutwidth = 300;
+  fixture.harness.scheduler.runByDelay(1);
+  for (const panel of [motion, fixture.status, fixture.container]) {
+    assert.equal(panel.style.marginLeft || '', '', panel.id);
+    assert.equal(panel.style.width || '', '', panel.id);
+  }
+});
+
+test('lazy ultimate discovery retires the OLD pool and never leaves stale filled children', () => {
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { barMask: 'old' }, parts => {
+    setEngineLines(parts.primary.FindChildTraverse('UnitHealthbarLines'), 2900);
+    parts.ultOverlay.DeleteAsync();
+  });
+  const empty = layerOf(fixture, 'HPV2PipEmpty').slice();
+  const fill = layerOf(fixture, 'HPV2PipFill').slice();
+  assert.equal(empty.length, 29);
+  const overlay = fixture.ultBackground.add(new MockPanel('HPV2UltimateOverlay'));
+  overlay.add(new MockPanel('HPV2UltimateDark'));
+  overlay.add(new MockPanel('HPV2UltimateFill'));
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(layerOf(fixture, 'HPV2PipEmpty').length, empty.length, 'pool stays bounded');
+  assert.equal(layerOf(fixture, 'HPV2PipFill').length, fill.length);
+  for (const panel of [...empty, ...fill]) assert.equal(panel.IsValid(), false, 'old children retire');
+  fixture.fill.actuallayoutwidth = 0;
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, 'HPV2PipFill').length, 0, 'no orphaned old fill survives damage');
+  overlay.DeleteAsync();
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(layerOf(fixture, 'HPV2PipEmpty').length, 29);
+});
+
+for (const missing of ['HPV2PipEmpty', 'HPV2PipFill']) test('OLD retries a temporarily missing layer: ' + missing, () => {
+  let reject = true;
+  const fixture = makeOwnershipFixture(['player', 'enemy'], { barMask: 'old' }, parts => {
+    setEngineLines(parts.primary.FindChildTraverse('UnitHealthbarLines'), 2900);
+    const create = parts.harness.$.CreatePanel;
+    parts.harness.$.CreatePanel = function (type, parent, id) {
+      if (id === missing && reject) throw new Error('temporary owned layer creation failure');
+      return create(type, parent, id);
+    };
+  });
+  assert.ok(gridOf(fixture));
+  assert.equal(gridOf(fixture).FindChildTraverse(missing), null);
+  reject = false;
+  fixture.harness.scheduler.runByDelay(1);
+  assert.ok(gridOf(fixture).FindChildTraverse(missing));
+  assert.equal(shownPips(fixture, 'HPV2PipEmpty').length, 29);
+});
+
+for (const [classes, gate, scale, legacyX, legacyY, expected] of [
+  [['building', 'enemy'], 'buildingEnemyEnabled', 1.8, -80, -52, [175.6, 74.8]],
+  [['neutral_weak', 'team_neutral'], 'npcNeutralEnabled', 0.8, 20, 13, [133.6, 73.8]],
+]) test('scaled shared frame places HP in the counter coordinate space: ' + gate, () => {
+  const windowScale = 2;
+  const fixture = makeOwnershipFixture(classes, {
+    [gate]: true, readoutVisible: true, readoutOffsetY: 8,
+  }, parts => {
+    prepareNativeReadout(parts);
+    for (const panel of [parts.window, parts.container, parts.anchor, parts.row]) {
+      panel.actualuiscale_x = windowScale;
+      panel.actualuiscale_y = windowScale;
+    }
+    for (const panel of [parts.window, parts.container]) {
+      panel.actuallayoutwidth = 200 * windowScale;
+      panel.actuallayoutheight = 210 * windowScale;
+    }
+    parts.row.actuallayoutwidth = 48 * windowScale;
+    parts.row.actuallayoutheight = 24 * windowScale;
+    for (const panel of [parts.status, parts.info, parts.stack, parts.primary, parts.inner, parts.fill]) {
+      panel.actualuiscale_x = scale * windowScale;
+      panel.actualuiscale_y = scale * windowScale;
+    }
+    for (const panel of [parts.status, parts.info, parts.stack]) {
+      panel.actuallayoutwidth = 200 * scale * windowScale;
+      panel.actuallayoutheight = 210 * scale * windowScale;
+    }
+    parts.primary.actualxoffset = 70.5 * scale * windowScale;
+    parts.primary.actualyoffset = 65 * scale * windowScale;
+    parts.primary.actuallayoutwidth = 76 * scale * windowScale;
+    parts.primary.actuallayoutheight = 18 * scale * windowScale;
+    parts.inner.actuallayoutwidth = 69 * scale * windowScale;
+    parts.fill.actuallayoutwidth = 34.5 * scale * windowScale;
+    const motion = parts.window.add(new MockPanel('HPV2MotionFrame', {
+      actualxoffset: 50 * windowScale, actualyoffset: 65 * windowScale,
+      actualuiscale_x: windowScale, actualuiscale_y: windowScale,
+      actuallayoutwidth: 100 * windowScale, actuallayoutheight: 40 * windowScale,
+    }));
+    parts.status.SetParent(motion);
+    parts.container.SetParent(motion);
+    parts.status.actualxoffset = (legacyX - 50) * windowScale;
+    parts.status.actualyoffset = (legacyY - 65) * windowScale;
+    parts.container.actualxoffset = -50 * windowScale;
+    parts.container.actualyoffset = -65 * windowScale;
+  });
+  const [shift, top] = readoutTranslation(fixture.row);
+  assert.ok(Math.abs(shift + 200 - expected[0]) < 0.01, 'right HP edge follows the scaled bar');
+  assert.ok(Math.abs(top - expected[1]) < 0.01, 'HP height includes the shared-frame ancestry');
+});
+
+test('release restores unchanged cached stock values despite drift after the last scan', () => {
+  let name;
+  const fixture = makeOwnershipFixture(['player', 'enemy'], {
+    nameSize: 22, readoutVisible: true, staminaWidth: 200,
+  }, parts => {
+    prepareNativeReadout(parts);
+    name = parts.window.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', {
+      style: { transform: 'rotateZ(5deg)', fontSize: '14px' },
+    }));
+  });
+  name.style.transform = 'translate3d(17px, 0px, 0px)';
+  fixture.health.style.transform = 'rotateZ(90deg)';
+  fixture.stamina.style.transform = 'translate3d(9px, 0px, 0px)';
+  fixture.update({ enabled: false });
+  assert.equal(name.style.transform, 'rotateZ(5deg)');
+  assertNativeStock(fixture.health);
+  assert.equal(fixture.stamina.style.transform || '', '');
+});
+
+test('OLD late line layout and fallback move accessories without replacing engine lines', () => {
+  let lines, children;
+  const fixture = makeOwnershipFixture(['player', 'enemy'], {
+    barMask: 'old', accessoryAnchorEnabled: true,
+  }, parts => {
+    lines = parts.primary.FindChildTraverse('UnitHealthbarLines');
+    setEngineLines(lines, 2900);
+    children = lines.children.slice();
+    lines.actuallayoutwidth = 0;
+    for (const child of children) child.actualxoffset = 0;
+  });
+  const baseline = [fixture.level, fixture.unitInfo].map(panel => Number.parseFloat(panel.style.marginTop));
+  lines.actuallayoutwidth = 69;
+  children.forEach((child, index) => { child.actualxoffset = 250 * (index + 1) / 2900 * 69; });
+  paintReadout(fixture);
+  assert.deepEqual(lines.children, children, 'engine line identities did not change');
+  [fixture.level, fixture.unitInfo].forEach((panel, index) =>
+    assert.equal(Number.parseFloat(panel.style.marginTop), baseline[index] - 2.5, 'three-row OLD group follows grid center'));
+  lines.actuallayoutwidth = 0;
+  paintReadout(fixture);
+  [fixture.level, fixture.unitInfo].forEach((panel, index) =>
+    assert.equal(Number.parseFloat(panel.style.marginTop), baseline[index], 'native fallback restores the accessory center'));
+});
+
+test("confirmed hidden entry clears owned pulses once and resumes current state on reveal", () => {
+  const values = { enemyPulseEnabled: true, enemyPulseThreshold: 100, enemyPulseReadout: true,
+    enemyPulseColorEnabled: true, enemyPulseColorMode: "gradient", readoutVisible: true };
+  for (const gate of ["health_hidden", "GameStatePreGame", "beingSpectatedInEye"]) {
+    const fixture = makeOwnershipFixture(["player", "enemy"], values);
+    const overlay = fixture.inner.FindChildTraverse("hp_colors_pulse_overlay");
+    assert.equal(fixture.fill.BHasClass("HPColorsRewritePulse"), true);
+    fixture.world.AddClass(gate);
+    fixture.harness.scheduler.runByDelay(1);
+    for (const panel of [fixture.fill, fixture.health])
+      assert.equal(panel.BHasClass("HPColorsRewritePulse"), false, gate);
+    assert.equal(overlay.BHasClass("HPColorsRewriteColorPulse"), false, gate);
+    assert.equal(overlay.style.clip || "", "");
+    const panels = [fixture.fill, fixture.health, overlay];
+    for (const panel of panels) panel.styleWrites.length = 0;
+    fixture.harness.scheduler.runFor(2000);
+    for (const panel of panels) assert.deepEqual(panel.styleWrites, [], "hidden cleanup is one-shot");
+    fixture.fill.actuallayoutwidth = 17.25;
+    fixture.update({ ...values, enemyPulseBpm: 90 });
+    fixture.world.RemoveClass(gate);
+    fixture.harness.scheduler.runFor(1000);
+    for (const panel of [fixture.fill, fixture.health])
+      assert.equal(panel.BHasClass("HPColorsRewritePulse"), true, gate);
+    assert.equal(overlay.BHasClass("HPColorsRewriteColorPulse"), true, gate);
+    assert.equal(overlay.style.clip, "rect(0%, 25%, 100%, 0%)");
+    assert.equal(overlay.style.animationDuration, "0.667s");
+  }
+});
+
+// Failure mode: the hidden gate re-walks every ancestor each scan (D3: scan cost doubled).
+test("steady scans read hidden gates only on classification carriers", () => {
+  const fixture = makeOwnershipFixture(["player", "enemy"]);
+  fixture.harness.scheduler.runFor(2000);
+  let reads = 0;
+  for (const panel of [fixture.inner, fixture.primary, fixture.stack, fixture.info]) {
+    const has = panel.BHasClass.bind(panel);
+    panel.BHasClass = name => (name === "health_hidden" && reads++, has(name));
+  }
+  fixture.harness.scheduler.runFor(10000);
+  assert.equal(reads, 0, "non-carrier ancestors are not re-read for hidden gates");
+});
+
+test("steady scans read general style drift only on full-resolve scans", () => {
+  const fixture = makeOwnershipFixture(["player", "enemy"]);
+  fixture.harness.scheduler.runFor(2000);
+  let reads = 0;
+  const style = fixture.marker.style;
+  fixture.marker.style = new Proxy(style, {
+    get(target, key) {
+      if (key === "visibility") reads++;
+      return target[key];
+    },
+  });
+  for (let index = 0; index < 10; index++) fixture.harness.scheduler.runByDelay(1);
+  assert.equal(reads, 2, "the general style sentinel runs once per five scans");
+  style.visibility = "visible";
+  fixture.harness.scheduler.runFor(5000);
+  assert.equal(style.visibility, "collapse", "periodic drift repair still restores ownership");
+});
+
+// Dormant non-heroes retain classification/canvas sentinels, not active ownership probes.
+test('dormant scans skip cached parts and hidden gates until a full resolve or wake', () => {
+  const fixture = makeOwnershipFixture(['building', 'enemy'], { widthScale: 150 }, parts => parts.stamina.SetParent(null));
+  fixture.harness.scheduler.runFor(2000);
+  let gates = 0, partReads = 0;
+  const has = fixture.world.BHasClass.bind(fixture.world);
+  fixture.world.BHasClass = name => (name === 'health_hidden' && gates++, has(name));
+  const parent = fixture.fill.GetParent.bind(fixture.fill);
+  fixture.fill.GetParent = () => (partReads++, parent());
+  for (let index = 0; index < 10; index++) fixture.harness.scheduler.runByDelay(1);
+  assert.equal(gates, 2, 'hidden gates run only on every-fifth full resolves');
+  assert.equal(partReads, 2, 'only full resolves snapshot part parents');
+  fixture.update({ widthScale: 160 });
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(partReads, 3, 'config wakes a full reconcile even while the UNITS toggle stays off');
+  fixture.update({ widthScale: 150 });
+  fixture.harness.scheduler.runByDelay(1);
+  fixture.world.RemoveClass('building');
+  fixture.world.AddClass('player');
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.stack.style.preTransformScale2d, '1.5, 1', 'kind wake reconciles immediately');
+  assert.ok(gates > 2, 'wake reads hidden gates immediately');
+});
+
+test("bar outline owns only the primary backer without moving measured geometry and releases masks", () => {
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "original" }, ({ inner, stack }) => {
+    inner.actuallayoutheight = 12; inner.actualxoffset = 6; inner.actualyoffset = 3.5;
+    const shield = stack.add(new MockPanel("UnitShieldbar", { classes: ["UnitHealthbarContainer"] }));
+    shield.add(new MockPanel("UnitHealthbarInner"));
+  });
+  const backer = () => fixture.primary.FindChildTraverse("HPV2BarOutline");
+  assert.equal(backer().hittest, false);
+  assert.equal(backer().hittestchildren, false);
+  assert.equal(backer().style.position, "5px 2.5px 0px");
+  assert.equal(backer().style.width, "71px");
+  assert.equal(backer().style.height, "14px");
+  assert.equal(backer().style.backgroundColor, "", "stock CSS owns the default outline color");
+  assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), true);
+  fixture.update({ barMask: "original", barOutlineCustomColor: true, barOutlineThickness: 2.5, barOutlineColor: "#123456", barOutlineOpacity: 37 });
+  assert.equal(backer().style.position, "3.5px 1px 0px");
+  assert.equal(backer().style.width, "74px");
+  assert.equal(backer().style.opacity, "0.37");
+  assert.equal(backer().style.backgroundColor, "#123456");
+  for (const property of ["width", "height", "position", "marginLeft", "marginTop"])
+    assert.equal(fixture.inner.style[property] || "", "", property);
+  const shield = fixture.stack.FindChildTraverse("UnitShieldbar");
+  assert.equal(shield.FindChildTraverse("HPV2BarOutline"), null);
+  assert.equal(shield.BHasClass("HPColorsRewriteBarOutline"), false);
+  const writes = backer().__styleWrites.length;
+  fixture.fill.actuallayoutwidth = 20; paintReadout(fixture);
+  assert.equal(backer().__styleWrites.length, writes, "health ticks do not repaint the rim");
+  fixture.update({ barMask: "original", barOutlineEnabled: false });
+  assert.equal(backer().style.visibility, "collapse");
+  assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), false);
+  assert.equal(fixture.window.BHasClass("HPColorsRewriteBarMask"), true, "off restores the container mask without changing BAR STYLE");
+  fixture.update({ barMask: "original" });
+  fixture.status.valid = false; fixture.harness.scheduler.runNext();
+  assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), false);
+  assert.equal(backer().style.visibility, "collapse");
+});
+
+test("bar outline follows every UNITS gate and neutral precedence", () => {
+  for (const [classes, gate] of [[["creature", "enemy"], "npcEnemyEnabled"],
+    [["creature", "friend"], "npcAllyEnabled"], [["neutral_weak", "team_neutral"], "npcNeutralEnabled"],
+    [["building", "enemy"], "buildingEnemyEnabled"]]) {
+    const fixture = makeOwnershipFixture(classes, {}, ({ inner }) => { inner.actuallayoutheight = 12; });
+    assert.equal(fixture.primary.FindChildTraverse("HPV2BarOutline"), null);
+    fixture.update({ [gate]: true });
+    assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), true, gate);
+    fixture.update({ [gate]: false });
+    assert.equal(fixture.primary.BHasClass("HPColorsRewriteBarOutline"), false, gate);
+    assert.equal(fixture.primary.FindChildTraverse("HPV2BarOutline").style.visibility, "collapse");
+  }
+});
+
+test("OLD outline draws solid backers under fixed pips and never writes on health ticks", () => {
+  const fixture = makeOldFixture(2850, { barOutlineThickness: 10, barOutlineOpacity: 40 });
+  const grid = gridOf(fixture);
+  const outline = () => fixture.primary.FindChildTraverse("HPV2PipOutline");
+  const boxes = shownPips(fixture, "HPV2PipOutline");
+  assert.equal(boxes.length, 29);
+  assert.ok(grid.children.indexOf(outline()) < grid.children.indexOf(fixture.primary.FindChildTraverse("HPV2PipEmpty")),
+    "rims draw under the boxes");
+  assert.equal(outline().hittest, false);
+  assert.equal(outline().style.opacity, "0.4");
+  assert.equal(boxes[0].style.backgroundColor, "", "stock CSS owns OLD colors too");
+  assert.equal(boxes[0].style.border || "", "");
+  // Three rows -> 18px grid; box 0 is bottom-left: y = 18 * 2/3 - 10, height = 4.8 + 20.
+  assert.equal(boxes[0].style.position, "-10px 2px 0px");
+  assert.equal(boxes[0].style.height, "24.8px");
+  assert.equal(boxes[20].style.position, "-10px -10px 0px");
+  const full = parseFloat(boxes[0].style.width) - 20;
+  assert.ok(Math.abs(parseFloat(boxes[28].style.width) - 20 - full / 2) < 0.02, "half-capacity last box");
+  const writes = layerWrites(fixture, "HPV2PipOutline") + outline().__styleWrites.length;
+  for (let i = 0; i < 4; i++) { fixture.fill.actuallayoutwidth -= 1; paintReadout(fixture); }
+  assert.equal(layerWrites(fixture, "HPV2PipOutline") + outline().__styleWrites.length, writes);
+  fixture.update({ barMask: "old", barOutlineEnabled: false });
+  assert.equal(outline().style.visibility, "collapse");
+  fixture.update({ barMask: "old", barOutlineCustomColor: true, barOutlineColor: "#ABCDEF" });
+  assert.equal(outline().style.visibility, "visible");
+  assert.equal(shownPips(fixture, "HPV2PipOutline")[0].style.backgroundColor, "#ABCDEF");
+  setEngineLines(fixture.primary.FindChildTraverse("UnitHealthbarLines"), 900, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 9);
+  fixture.update({ barMask: "old", enabled: false });
+  assert.equal(outline().style.visibility, "collapse");
+});
+
+test("OLD outline returns after the engine briefly drops its health lines", () => {
+  const fixture = makeOldFixture(2850);
+  const lines = fixture.primary.FindChildTraverse("UnitHealthbarLines");
+  const outline = () => fixture.primary.FindChildTraverse("HPV2PipOutline");
+  assert.equal(outline().style.visibility, "visible");
+  setEngineLines(lines, 0, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(outline().style.visibility, "collapse", "no grid while lines are missing");
+  setEngineLines(lines, 2850, 2);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(outline().style.visibility, "visible");
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 29);
+});
+
+test("OLD enemy outline recovers on health-only paint after a transient surface collapse", () => {
+  const source = rendererSource.replace('function applyCustomization(bar, restoring) {',
+    'function applyCustomization(bar, restoring) { $.__outlineBar = bar; $.__syncOldOutline = syncOldOutline;');
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old", enemyKillMarkerEnabled: true },
+    ({ primary }) => setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2850, 2), null, source);
+  const bar = fixture.harness.$.__outlineBar;
+  const outline = fixture.primary.FindChildTraverse("HPV2PipOutline");
+  assert.equal(outline.style.visibility, "visible");
+  bar.surface = "";
+  fixture.harness.$.__syncOldOutline(bar);
+  assert.equal(outline.style.visibility, "collapse");
+  bar.surface = "player";
+  bar.dirty = false; bar.healthDirty = true; bar.colorDirty = false;
+  fixture.fill.actuallayoutwidth -= 1;
+  paintReadout(fixture);
+  assert.equal(outline.style.visibility, "visible", "cached geometry must not retain collapsed visibility");
+  assert.equal(fixture.primary.FindChildTraverse("HPV2PipKillMarker").style.visibility, "visible");
+});
+
+test("OLD kill marker sits at the threshold HP inside its pip box", () => {
+  const fixture = makeOldFixture(2850, { enemyKillMarkerEnabled: true, enemyKillMarkerThreshold: 50 });
+  const marker = () => fixture.primary.FindChildTraverse("HPV2PipKillMarker");
+  // 1425 HP -> box 14 (row 1, column 4), 25 HP in: 40% + 8.5% * 0.25.
+  assert.equal(marker().GetParent(), gridOf(fixture));
+  assert.equal(marker().style.visibility, "visible");
+  assert.equal(marker().style.position, "42.125% 33.333% 0px");
+  assert.equal(marker().style.height, "26.667%");
+  const stock = fixture.primary.FindChildTraverse("hp_colors_kill_marker");
+  assert.ok(!stock || stock.style.visibility === "collapse", "line-bar marker stays hidden on OLD");
+  const writes = marker().__styleWrites.length;
+  for (let i = 0; i < 4; i++) { fixture.fill.actuallayoutwidth -= 1; paintReadout(fixture); }
+  assert.equal(marker().__styleWrites.length, writes, "health ticks do not move the marker");
+  fixture.update({ barMask: "old", enemyKillMarkerEnabled: true, enemyKillMarkerThreshold: 10 });
+  assert.equal(marker().style.position, "27.225% 66.667% 0px", "285 HP -> box 2, 85 HP in");
+  fixture.update({ barMask: "old", enemyKillMarkerEnabled: false });
+  assert.equal(marker().style.visibility, "collapse");
+  fixture.update({ barMask: "original", enemyKillMarkerEnabled: true });
+  assert.equal(marker().style.visibility, "collapse");
+});
+
+// Live trace: the enemy-only grid marker was missing from resolved parts, so every
+// fifth (full-resolve) scan saw "changed parts", reset the bar and deleted its rims.
+test("OLD kill marker does not make full resolves reset the bar and drop its rims", () => {
+  const fixture = makeOldFixture(2850, { enemyKillMarkerEnabled: true, enemyKillMarkerThreshold: 50 });
+  const boxes = shownPips(fixture, "HPV2PipOutline");
+  const empty = shownPips(fixture, "HPV2PipEmpty");
+  for (let scan = 0; scan < 12; scan++) fixture.harness.scheduler.runByDelay(1);
+  assert.deepEqual(shownPips(fixture, "HPV2PipOutline"), boxes, "rim boxes survive full resolves");
+  assert.deepEqual(shownPips(fixture, "HPV2PipEmpty"), empty, "pips are not rebuilt");
+});
+
+// Failure modes: healing/shield/delta hidden in OLD (the reported bug); segments not starting
+// at the fill edge or mapped to the wrong box; custom colors not reaching the boxes; shield
+// drawn over the fill; a shield counted twice (live 2.2.4 bug: lines already include it, so
+// a corrected "full HP" fill plus extra boxes drew every box full); new lines still at the
+// engine's FLT_MAX layout dropping the grid; deleted cached lines dropping it when the
+// shield ends; idle ticks rewriting.
+test("OLD pips draw healing, shield and delta segments on the engine's own bar total", () => {
+  const colors = { enemyHealing: "#00FF00", enemyBulletShield: "#0000FF", enemyDelta: "#FF00FF" };
+  // The stock XML ships every layer; the engine toggles HasHealth and their geometry.
+  const ids = ["unit_healthbar_healing", "unit_healthbar_bullet_shield", "unit_healthbar_delta"];
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old", ...colors }, ({ primary, inner }) => {
+    setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2900, 2);
+    for (const id of ids) inner.add(new MockPanel(id, { classes: ["HealthAmount"], style: { visibility: "visible" } }));
+  });
+  const layer = (id, width, offset) => {
+    const panel = fixture.inner.FindChildTraverse(id);
+    Object.assign(panel, { actuallayoutwidth: width, actualxoffset: offset });
+    panel.AddClass("HasHealth");
+    return panel;
+  };
+  const container = id => fixture.primary.FindChildTraverse(id);
+  // 1,450 HP fill (34.5 of 69); healing covers the next 10% = 290 HP.
+  const healing = layer("unit_healthbar_healing", 6.9, 34.5);
+  fixture.harness.scheduler.runByDelay(1);
+  let heal = shownPips(fixture, "HPV2PipHealing");
+  assert.deepEqual(heal.map(pip => [pip.style.position, pip.style.width]), [
+    ["44.250% 33.333% 0px", "4.250%"], ["50.000% 33.333% 0px", "8.500%"],
+    ["60.000% 33.333% 0px", "8.500%"], ["70.000% 33.333% 0px", "3.400%"],
+  ], "1,450-1,740 HP: half of box 14, boxes 15-16, 40 HP of box 17");
+  assert.equal(container("HPV2PipHealing").style.washColor, "#00FF00");
+  assert.equal(container("HPV2PipHealing").style.washColor, healing.style.washColor, "same color as the stock layer");
+  const grid = gridOf(fixture).children;
+  assert.ok(grid.indexOf(container("HPV2PipHealing")) > grid.indexOf(container("HPV2PipFill")), "healing over the fill");
+  let writes = layerWrites(fixture, "HPV2PipHealing");
+  for (let i = 0; i < 6; i++) fixture.harness.scheduler.runNext();
+  assert.equal(layerWrites(fixture, "HPV2PipHealing"), writes, "idle ticks write nothing");
+  healing.actuallayoutwidth = 9.66; // 1,450-1,856 HP: box 17 fills, box 18 gains 56 HP
+  fixture.harness.scheduler.runByDelay(1);
+  heal = shownPips(fixture, "HPV2PipHealing");
+  assert.equal(heal.length, 5);
+  assert.equal(heal[4].style.width, "4.760%");
+  assert.ok(layerWrites(fixture, "HPV2PipHealing") - writes <= 5, "only boxes 17 and 18 change");
+  healing.RemoveClass("HasHealth");
+  const delta = layer("unit_healthbar_delta", 3.45, 34.5); // 145 HP of recent damage
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipHealing").length, 0, "ended healing collapses");
+  assert.deepEqual(shownPips(fixture, "HPV2PipDelta").map(pip => pip.style.width), ["4.250%", "8.075%"]);
+  assert.equal(container("HPV2PipDelta").style.washColor, "#FF00FF");
+  delta.RemoveClass("HasHealth");
+  // Live 6753 trace (4,246 HP + 600 shield): the engine re-spaces the lines over HP + shield
+  // (new lines carry a percent position but FLT_MAX layout), clips the fill at HP / total and
+  // the shield from there to 100%. Here: 2,900 HP + 600 shield = 3,500.
+  const lines = fixture.primary.FindChildTraverse("UnitHealthbarLines");
+  setEngineLines(lines, 3500, 2);
+  for (const line of lines.children) {
+    line.style.position = (line.actualxoffset / 138 * 100).toFixed(6) + "% 0.0px 0.0px";
+    line.actualxoffset = 3.4028234663852886e38;
+  }
+  fixture.fill.actuallayoutwidth = 69 * 2900 / 3500;
+  const shield = layer("unit_healthbar_bullet_shield", 69 - 69 * 2900 / 3500, 69 * 2900 / 3500);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 35, "the grid spans HP + shield like the stock bar");
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 29, "2,900 HP fills 29 boxes, not all 35");
+  assert.deepEqual(shownPips(fixture, "HPV2PipShield").map(pip => pip.style.position), [
+    "90.000% 25.000% 0px", "0.000% 0.000% 0px", "10.000% 0.000% 0px",
+    "20.000% 0.000% 0px", "30.000% 0.000% 0px", "40.000% 0.000% 0px",
+  ], "600 shield HP right after the fill");
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 35);
+  assert.equal(container("HPV2PipShield").style.washColor, "#0000FF");
+  const order = gridOf(fixture).children;
+  assert.ok(order.indexOf(container("HPV2PipShield")) >= 0 &&
+    order.indexOf(container("HPV2PipShield")) < order.indexOf(container("HPV2PipFill")), "shield under the fill");
+  // Shield ends: the engine deletes the surplus lines the renderer had cached.
+  shield.RemoveClass("HasHealth");
+  setEngineLines(lines, 2900, 2);
+  fixture.fill.actuallayoutwidth = 69;
+  paintReadout(fixture); // one paint tick, before any rescan
+  assert.equal(fixture.window.BHasClass("HPColorsRewriteBarPips"), true, "no fallback flash");
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 29);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 29);
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0);
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 29);
+  for (let scan = 0; scan < 12; scan++) fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 29, "layer containers survive full resolves");
+});
+
+// Exact live trace (6753, 4,246 HP + 600 shield). Failure modes: the shield's first sample
+// still has FLT_MAX/zero layout, so geometry sampling sees no shield; a failed segment creation
+// is recorded as painted and never retried while HP and spans stay the same; percent float
+// dust (4,245.9999) or 2,900.00005 lights a 0%-wide extra fill box.
+test("OLD paints a live percent-clipped shield before layout settles and retries failed segments", () => {
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old" }, ({ primary, inner }) => {
+    setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 4246, 2);
+    inner.add(new MockPanel("unit_healthbar_bullet_shield", { classes: ["HealthAmount"], style: { visibility: "visible" } }));
+  });
+  const $ = fixture.harness.$;
+  const create = $.CreatePanel;
+  let failShield = Infinity; // every creation fails until the scan window ends
+  $.CreatePanel = function (type, parent, id) {
+    if (failShield > 0 && parent && parent.id === "HPV2PipShield") { failShield--; throw new Error("injected"); }
+    return create.apply(this, arguments);
+  };
+  const lines = fixture.primary.FindChildTraverse("UnitHealthbarLines");
+  setEngineLines(lines, 4846, 2);
+  for (const line of lines.children) {
+    line.style.position = (line.actualxoffset / 138 * 100).toFixed(6) + "% 0.0px 0.0px";
+    line.actualxoffset = 3.4028234663852886e38;
+  }
+  Object.assign(fixture.fill, { actuallayoutwidth: 69 });
+  fixture.fill.style.clip = "rect( 0.0%, 87.618652%, 100.0%, 0.0%)";
+  const shield = fixture.inner.FindChildTraverse("unit_healthbar_bullet_shield");
+  Object.assign(shield, { actuallayoutwidth: 0, actualxoffset: 3.4028234663852886e38 });
+  shield.style.clip = "rect( 0.0%, 100.0%, 100.0%, 87.618652%)";
+  shield.AddClass("HasHealth");
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 49);
+  const fill = shownPips(fixture, "HPV2PipFill");
+  assert.equal(fill.length, 43, "4,246 HP: 42 full boxes and 46 HP of box 42");
+  assert.equal(fill[42].style.width, "3.910%");
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0, "creation failed");
+  failShield = 0;
+  // Retry must come from the paint loop alone (no scan, no HP or span change).
+  paintReadout(fixture);
+  const shieldPips = shownPips(fixture, "HPV2PipShield");
+  assert.deepEqual(shieldPips.map(pip => [pip.style.position, pip.style.width]).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])), [
+    ["23.910% 0.000% 0px", "4.590%"], ["30.000% 0.000% 0px", "8.500%"], ["40.000% 0.000% 0px", "8.500%"],
+    ["50.000% 0.000% 0px", "8.500%"], ["60.000% 0.000% 0px", "8.500%"], ["70.000% 0.000% 0px", "8.500%"],
+    ["80.000% 0.000% 0px", "3.910%"],
+  ], "54 HP of box 42, boxes 43-47, and the 46 HP last box, retried with unchanged HP");
+  const writes = layerWrites(fixture, "HPV2PipShield");
+  for (let i = 0; i < 4; i++) paintReadout(fixture);
+  assert.equal(layerWrites(fixture, "HPV2PipShield"), writes, "settled shield writes nothing");
+  // Shield ends at full HP: exactly 100% must not light a sliver box.
+  shield.RemoveClass("HasHealth");
+  setEngineLines(lines, 4246, 2);
+  fixture.fill.style.clip = "rect( 0.0%, 100.0%, 100.0%, 0.0%)";
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 43);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 43);
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0);
+  // 4,200 / 4,246 as an engine percent reads 4,200.00002 HP: box 42 must stay empty.
+  fixture.fill.style.clip = "rect( 0.0%, 98.916628%, 100.0%, 0.0%)";
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 42, "no 0%-wide sliver box");
+});
+
+// Live 6753: bars that first appear while OLD hides the inner (opacity 0) never get a
+// layout pass, so the inner and its layers keep reporting 0 or FLT_MAX. The engine's
+// percent clips still carry HP and shield, and the grid must not stay empty.
+test("OLD reads HP and shield from percent clips when the hidden inner was never laid out", () => {
+  const unlaid = { actuallayoutwidth: 0, actualxoffset: 3.4028234663852886e38 };
+  let shield;
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old" }, ({ primary, inner, fill }) => {
+    setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 4846, 2);
+    shield = inner.add(new MockPanel("unit_healthbar_bullet_shield", { classes: ["HealthAmount", "HasHealth"], style: { visibility: "visible" } }));
+    for (const panel of [inner, fill, shield]) Object.assign(panel, unlaid);
+    fill.style.clip = "rect( 0.0%, 87.618652%, 100.0%, 0.0%)";
+    shield.style.clip = "rect( 0.0%, 100.0%, 100.0%, 87.618652%)";
+  });
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 49);
+  assert.equal(layerOf(fixture, "HPV2PipFill")[42].style.width, "3.910%", "box 42 painted with 46 HP");
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 43, "4,246 HP from the fill clip alone");
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 7, "600 shield from the shield clip alone");
+  // Space-separated clips are the same engine signal.
+  fixture.fill.style.clip = "rect( 0.0% 50.0% 100.0% 0.0% )";
+  shield.RemoveClass("HasHealth");
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 25, "2,423 HP");
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0);
+});
+
+test("outline stock CSS mirrors ancestor colors and rule order for whole bars and OLD boxes", () => {
+  const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, selectors, body]) =>
+    selectors.includes('#HPV2BarOutline') && /background-color:/.test(body));
+  const expected = [['.team1', 'team1ColorDark'], ['.team2', 'team2ColorDark'],
+    ['.friend', 'rgb(4, 37, 23)'], ['.team_neutral', 'offBlack'], ['.enemy', 'offBlack'],
+    ['.enemy.health_critical .ShowCriticalState', 'rgb(47, 4, 4)']];
+  assert.equal(rules.length, expected.length);
+  for (const [index, [ancestor, color]] of expected.entries()) {
+    const [, selectors, body] = rules[index];
+    assert.deepEqual(selectors.replace(/\/\*[\s\S]*?\*\//g, '').trim().split(',').map(s => s.trim()),
+      [ancestor + ' #HPV2BarOutline', ancestor + ' .HPV2PipOutlineBox']);
+    assert.equal(body.trim(), 'background-color: ' + color + ';');
+  }
+});
+
+test("custom outline colors apply only to heroes and repaint on relation or kind changes", () => {
+  for (const mask of ["none", "original", "old"]) {
+    const custom = { barMask: mask, barOutlineCustomColor: true, barOutlineColor: "#123456", allyBarOutlineColor: "#ABCDEF",
+      npcEnemyEnabled: true, npcAllyEnabled: true, npcNeutralEnabled: true, buildingEnemyEnabled: true, buildingAllyEnabled: true };
+    const fixture = makeOwnershipFixture(["player", "enemy"], custom, ({ primary, inner }) => {
+      inner.actuallayoutheight = 12;
+      setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2850, 2);
+    });
+    const outlines = () => mask === "old" ? shownPips(fixture, "HPV2PipOutline")
+      : [fixture.primary.FindChildTraverse("HPV2BarOutline")];
+    const colorIs = color => { assert.ok(outlines().length); for (const panel of outlines()) assert.equal(panel.style.backgroundColor, color); };
+    colorIs("#123456");
+    fixture.world.RemoveClass("enemy"); fixture.world.AddClass("friend");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("#ABCDEF");
+    fixture.world.RemoveClass("player"); fixture.world.AddClass("creature");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.RemoveClass("friend"); fixture.world.AddClass("enemy");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.AddClass("team_neutral");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.RemoveClass("team_neutral"); fixture.world.AddClass("building");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("");
+    fixture.world.RemoveClass("building"); fixture.world.RemoveClass("creature"); fixture.world.AddClass("player");
+    fixture.harness.scheduler.runByDelay(1);
+    colorIs("#123456");
+    fixture.update({ ...custom, barOutlineCustomColor: false });
+    colorIs("");
+    const writes = outlines().reduce((n, panel) => n + panel.__styleWrites.length, 0);
+    fixture.world.AddClass("health_critical");
+    fixture.fill.actuallayoutwidth -= 1;
+    paintReadout(fixture);
+    assert.equal(outlines().reduce((n, panel) => n + panel.__styleWrites.length, 0), writes,
+      "stock critical color is CSS-only; health ticks do not repaint rims");
+  }
+});
+
+// Native MoveChild APIs are deliberately local to the adopted-panel fixture.
+function enablePickupOrdering(parent) {
+  function move(child, sibling, after) {
+    assert.equal(child.GetParent(), parent);
+    assert.equal(sibling.GetParent(), parent);
+    parent.children.splice(parent.children.indexOf(child), 1);
+    parent.children.splice(parent.children.indexOf(sibling) + after, 0, child);
+  }
+  parent.MoveChildBefore = (child, sibling) => move(child, sibling, 0);
+  parent.MoveChildAfter = (child, sibling) => move(child, sibling, 1);
+}
+
+function preparePlayerPickups(parts) {
+  enablePickupOrdering(parts.window);
+  enablePickupOrdering(parts.unitInfo);
+  parts.window.add(new MockPanel('KillStreakIndicator', { style: {
+    marginTop: '48px', marginLeft: '44px', preTransformScale2d: '0.9',
+    animationName: 'TagGroove1', visibility: 'collapse',
+  } })).add(new MockPanel('KSImage', { classes: ['KSImage'] }));
+  parts.window.add(new MockPanel('HPV2RejuvenatorAnchor', { style: { transform: 'translate3d(2px, 3px, 0px)' } }))
+    .add(new MockPanel('RejuvenatorActive', { style: { marginTop: '56px', marginLeft: '94px',
+      width: '24px', height: '24px', transform: 'rotateZ(6deg)', preTransformScale2d: '0.8', visibility: 'collapse' } }));
+}
+
+function playerPickups(fixture) {
+  return {
+    ks: fixture.window.FindChildTraverse('KillStreakIndicator'),
+    anchor: fixture.window.FindChildTraverse('HPV2RejuvenatorAnchor'),
+    rejuv: fixture.window.FindChildTraverse('RejuvenatorActive'),
+  };
+}
+
+test('native kill streak adopts before ultimate, survives full resolves and restores order/styles', () => {
+  const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, preparePlayerPickups);
+  const { ks, anchor } = playerPickups(fixture);
+  assert.equal(ks.GetParent(), fixture.unitInfo);
+  assert.equal(fixture.unitInfo.Children()[0], ks);
+  assert.equal(fixture.unitInfo.Children()[1], fixture.ultBackground);
+  assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), true);
+  const adoption = ks.HPV2KillStreakAdoption;
+  fixture.harness.scheduler.runFor(12000);
+  assert.equal(ks.HPV2KillStreakAdoption, adoption, 'periodic resolve must not reset the bar');
+  fixture.update({ accessoryAnchorEnabled: false, widthScale: 230, heightScale: 160, ultOffsetX: 200, ultOffsetY: 100 });
+  assert.equal(ks.GetParent(), fixture.unitInfo, 'native parent follows anchored and unanchored movement');
+  assert.equal(ks.style.animationName, 'TagGroove1');
+  assert.equal(ks.Children()[0].BHasClass('KSImage'), true);
+  ks.style.preTransformScale2d = '1.5';
+  fixture.update({ enabled: false });
+  assert.equal(ks.GetParent(), fixture.window);
+  assert.equal(fixture.window.Children().indexOf(ks) + 1, fixture.window.Children().indexOf(anchor));
+  assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), false);
+  assert.equal(fixture.unitInfo.BHasClass('HPColorsRewriteKillStreakOwner'), false);
+  assert.equal(ks.HPV2KillStreakAdoption, undefined);
+  assert.equal(ks.style.preTransformScale2d, '0.9');
+  assert.equal(ks.style.marginTop, '48px');
+  assert.equal(ks.style.marginLeft, '44px');
+  assert.equal(ks.style.visibility, 'collapse');
+});
+
+test('Rejuvenator offsets translate the anchor only, scale/tilt the leaf and restore captured styles', () => {
+  for (const role of ['enemy', 'friend']) {
+    const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', role],
+      { rejuvOffsetX: 20, rejuvOffsetY: -40, rejuvTilt: -90, rejuvScale: 150 }, preparePlayerPickups);
+    const { anchor, rejuv } = playerPickups(fixture);
+    assert.equal(anchor.style.transform, 'translate3d(20px, -40px, 0px)');
+    assert.equal(rejuv.style.transform, 'rotateZ(-90deg)');
+    assert.equal(rejuv.style.preTransformScale2d, '1.5');
+    assert.equal(rejuv.style.visibility, 'collapse');
+    for (const property of ['marginTop', 'marginLeft', 'width', 'height'])
+      assert.equal(rejuv.styleWrites.filter(write => write.property === property).length, 0, property);
+    anchor.styleWrites.length = rejuv.styleWrites.length = 0;
+    fixture.harness.scheduler.runFor(12000);
+    assert.equal(anchor.styleWrites.length + rejuv.styleWrites.length, 0, 'steady state has no repeated writes/full-resolve reset');
+    fixture.world.AddClass('LocalPlayer');
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(anchor.style.transform, 'translate3d(2px, 3px, 0px)');
+    assert.equal(rejuv.style.transform, 'rotateZ(6deg)');
+    assert.equal(rejuv.style.preTransformScale2d, '0.8');
+    assert.equal(playerPickups(fixture).ks.GetParent(), fixture.window);
+    fixture.world.RemoveClass('LocalPlayer');
+    fixture.harness.scheduler.runByDelay(1);
+    assert.equal(rejuv.style.preTransformScale2d, '1.5');
+    fixture.world.RemoveClass('player'); fixture.world.RemoveClass('CLASS_PLAYER'); fixture.world.AddClass('creature');
+    fixture.update({ npcEnemyEnabled: true, npcAllyEnabled: true, rejuvScale: 200 });
+    assert.equal(rejuv.style.preTransformScale2d, '0.8', 'non-player owned surfaces restore');
+  }
+});
+
+test('pickup ownership is absent on LocalPlayer, neutral, NPC and building surfaces', () => {
+  for (const classes of [['player', 'enemy', 'LocalPlayer'], ['creature', 'enemy'],
+    ['creature', 'team_neutral'], ['building', 'enemy']]) {
+    const fixture = makeOwnershipFixture(classes, { npcEnemyEnabled: true, npcNeutralEnabled: true,
+      buildingEnemyEnabled: true, rejuvScale: 200, rejuvTilt: 100 }, preparePlayerPickups);
+    const { ks, rejuv, anchor } = playerPickups(fixture);
+    assert.equal(ks.GetParent(), fixture.window);
+    assert.equal(ks.HPV2KillStreakAdoption, undefined);
+    assert.equal(rejuv.styleWrites.length + anchor.styleWrites.length, 0, classes.join(' '));
+  }
+});
+
+test('timer mirrors adopted kill-streak size and restores on release, replacement and stop', () => {
+  const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], { ultimateTimerSize: 150 }, preparePlayerPickups);
+  const timerSource = fs.readFileSync(path.join(sourceRoot, 'test_topbar_pickups.js'), 'utf8');
+  runInVm(timerSource, fixture.context);
+  const { ks, anchor, rejuv } = playerPickups(fixture);
+  assert.equal(ks.style.preTransformScale2d, '1.5');
+  assert.equal(fixture.ultBackground.style.preTransformScale2d, '1.5');
+  const adopted = ks.HPV2KillStreakAdoption;
+  const writes = ks.styleWrites.length;
+  fixture.harness.scheduler.runFor(9000);
+  assert.equal(ks.styleWrites.length, writes, 'timer writes stay cached');
+  assert.equal(ks.HPV2KillStreakAdoption, adopted, 'renderer does not fight timer-owned scale');
+  // An engine leaf replacement resets the bar while retaining the native flame.
+  rejuv.SetParent(fixture.window);
+  const replacement = anchor.add(new MockPanel('RejuvenatorActive', { style: { transform: 'rotateZ(12deg)', preTransformScale2d: '0.7' } }));
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(rejuv.style.preTransformScale2d, '0.8');
+  assert.notEqual(ks.HPV2KillStreakAdoption, adopted);
+  fixture.harness.scheduler.runFor(3000);
+  assert.equal(ks.style.preTransformScale2d, '1.5', 'new adoption invalidates cached scale even for the same panel');
+  fixture.update({ enabled: false });
+  assert.equal(ks.style.preTransformScale2d, '0.9');
+  assert.equal(replacement.style.preTransformScale2d, '0.7');
+  fixture.update({ ultimateTimerSize: 200 });
+  fixture.harness.scheduler.runFor(3000);
+  assert.equal(ks.style.preTransformScale2d, '2');
+  fixture.status.HPV2PickupStop();
+  assert.equal(ks.style.preTransformScale2d, '0.9');
+  fixture.primary.DeleteAsync();
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(ks.GetParent(), fixture.window);
+  assert.equal(replacement.style.preTransformScale2d, '0.7');
+});
+
+
+test('hidden pickup owners still release on master-off, LocalPlayer and non-player transitions', () => {
+  for (const release of ['master', 'local', 'kind']) {
+    const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], { rejuvScale: 150 }, preparePlayerPickups);
+    const { ks, rejuv } = playerPickups(fixture);
+    fixture.world.AddClass('health_hidden');
+    fixture.harness.scheduler.runByDelay(1);
+    if (release === 'master') fixture.update({ enabled: false });
+    else {
+      if (release === 'local') fixture.world.AddClass('LocalPlayer');
+      else { fixture.world.RemoveClass('player'); fixture.world.RemoveClass('CLASS_PLAYER'); fixture.world.AddClass('creature'); }
+      fixture.harness.scheduler.runByDelay(1);
+    }
+    assert.equal(ks.GetParent(), fixture.window, release);
+    assert.equal(ks.HPV2KillStreakAdoption, undefined, release);
+    assert.equal(rejuv.style.preTransformScale2d, '0.8', release);
+  }
+});
+
+test('replaced native kill streak adopts before background and restores its original order on release', () => {
+  const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], { ultimateTimerSize: 150 }, preparePlayerPickups);
+  runInVm(fs.readFileSync(path.join(sourceRoot, 'test_topbar_pickups.js'), 'utf8'), fixture.context);
+  const old = playerPickups(fixture).ks;
+  old.SetParent(fixture.window);
+  const next = fixture.unitInfo.add(new MockPanel('KillStreakIndicator', { style: { preTransformScale2d: '0.7' } }));
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(old.HPV2KillStreakAdoption, undefined);
+  assert.equal(old.style.preTransformScale2d, '0.9');
+  assert.equal(fixture.unitInfo.Children()[0], next);
+  fixture.harness.scheduler.runFor(3000);
+  assert.equal(next.style.preTransformScale2d, '1.5');
+  fixture.update({ enabled: false });
+  assert.equal(next.GetParent(), fixture.unitInfo, 'already native in group: release restores that parent');
+  assert.ok(fixture.unitInfo.Children().indexOf(next) > fixture.unitInfo.Children().indexOf(fixture.ultBackground));
+  assert.equal(next.style.preTransformScale2d, '0.7');
+  assert.equal(next.BHasClass('HPColorsRewriteKillStreakAdopted'), false);
 });

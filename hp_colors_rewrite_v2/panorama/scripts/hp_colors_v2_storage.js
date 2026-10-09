@@ -20,8 +20,10 @@
   var RECORD_TAG = "HPV2S1";
   var ENVELOPE_MAGIC = "HPV2STORE";
   // Schema 4 marks bar-relative HP-text offsets. Schemas 1–3 stored absolute
-  // CSS pixels and remain readable; older builds must not overwrite schema 4.
+  // CSS pixels and remain readable. Schema 5 came only from the withdrawn
+  // centered-HP-text test build; it is read as schema 4 and never written.
   var ENVELOPE_SCHEMA = 4;
+  var MAX_READ_SCHEMA = 5;
 
   // Measured live: 3000-character replies arrive intact, and each title
   // carries at most 4096 characters.
@@ -159,12 +161,12 @@
     }
     if (!envelope || typeof envelope !== "object" || envelope.m !== ENVELOPE_MAGIC)
       return { kind: "corrupt" };
-    if (Number.isInteger(envelope.s) && envelope.s > ENVELOPE_SCHEMA)
+    if (Number.isInteger(envelope.s) && envelope.s > MAX_READ_SCHEMA)
       return { kind: "unsupported", schema: envelope.s };
     var body = null;
     if (envelope.s === 1 && typeof envelope.b === "string") body = parseBody(envelope.b);
     else if (
-      (envelope.s === 2 || envelope.s === 3 || envelope.s === 4) &&
+      (envelope.s === 2 || envelope.s === 3 || envelope.s === 4 || envelope.s === 5) &&
       envelope.b &&
       typeof envelope.b === "object"
     )
@@ -172,7 +174,7 @@
     if (!body) return { kind: "corrupt" };
     // The envelope is the durable format authority, not an untrusted body marker.
     var session = JSON.parse(body);
-    if (envelope.s === 4) session.offsetVersion = 2;
+    if (envelope.s === 4 || envelope.s === 5) session.offsetVersion = 2;
     else delete session.offsetVersion;
     body = JSON.stringify(session);
     return {

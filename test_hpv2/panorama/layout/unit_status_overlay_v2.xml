@@ -5,7 +5,6 @@
 		<include src="s2r://panorama/styles/test_world_ultimate.vcss_c" />
 	</styles>
 	<scripts>
-		<include src="s2r://panorama/scripts/test_pickup_profile.vjs_c" />
 		<include src="s2r://panorama/scripts/test_event_bridge.vjs_c" />
 		<include src="s2r://panorama/scripts/test_topbar_pickups.vjs_c" />
 	</scripts>

@@ -4,7 +4,7 @@
 
 ## Goal
 
-Remove the cooldown-start frame-time regression while preserving accurate native ultimate progress and the working pickup indicators. Execute the stages below in order. Change one performance variable at a time until the expensive path is identified.
+Investigation stopped at the user's request and checkpointed in `63ddeef`. The subsequent request removes diagnostics and simplifies the working runtime, without further rendering experiments. The sections below preserve historical findings, not an active execution plan.
 
 The user reported approximately 500 FPS before the ultimate timer starts and 45 FPS afterward. Treat that observation as established; do not ask them to repeat it merely to confirm it.
 
@@ -18,9 +18,9 @@ The user reported approximately 500 FPS before the ultimate timer starts and 45 
 - Native `unit_ult_ready_icon` visibility remains engine-owned. Custom artwork lives in `HPV2UltimateOverlay`, with separate dark and colored artwork panels.
 - Dark-layer brightness is `0.01`; colored artwork brightness is `2`.
 - The user confirms icon-only radial progress works. The colored fill is a direct Image using the stock ready texture, over a separate dark copy. No explicit composition-layer attribute, diagnostic backing, or percentage label remains.
-- Latest deployed package: `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak04_dir.vpk`, 58,563 bytes.
-- Deployment SHA256: `A9B51EBA2E6E8C15AFEC71AA2B0CA84A6612A761209A0583639E6A2B1D5EE599`.
-- Normal visible artwork remains. HUD now skips irrelevant unescaped messages before JSON parsing, using the shared role-aware prefilter; obsolete ultimate angle tracing is removed. Existing function profiling, guards, sampling rates, transport, and rendering are preserved.
+- Latest deployed package: `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak04_dir.vpk`, 44,171 bytes.
+- Deployment SHA256: `DB6EB87864FC1E02C30B7D768DDF429C1DB0841798F728E3D04F68982724EB70`.
+- Profiler wrappers, counters, telemetry state/reports, the profiler script, and its validator/imports are removed. The package contains three layouts, two scripts, and the ultimate stylesheet. Readable one-line guards replace debug-only branches; name normalization, heartbeat checks, and lifecycle predicates are simplified. Operational error logging, gameplay guards, sampling rates, transport, and visible artwork remain.
 
 Read `AGENTS.md` and `test_hpv2/AGENTS.md` before editing. Re-read current files; this document records the handoff, not an assertion that later workspace state is unchanged.
 
@@ -393,7 +393,7 @@ Separate-role build verification: all six pure-data checks, syntax checks, requi
 
 ## Session continuation
 
-Current focus is Panorama/JavaScript work, not FPS. Native VProf gives a qualified lead toward steady painting cost and layout spikes. The agent has now inspected the second-monitor debugger directly and captured healthbar/custom-fill and TopBar activity. Both branches repaint; neither is established as the expensive owner. This inspection is hero-testing, not the earlier spectator workload. Next identify the initiating style/layout invalidation before selecting a rendering change. No panel properties, runtime source, or pak04 were changed.
+The user stopped the investigation and saved checkpoint `63ddeef`, then requested diagnostic removal and concise refactoring. That cleanup is built and deployed with the size/hash recorded above. Five pure-data validators, JS syntax, exact Source 2 Viewer inventory, and deployment hash matching passed. A throwaway comparison against the checkpoint also passed 11 string-normalization cases and 576 heartbeat-boundary cases without Panorama mocks. No new-build in-game smoke or performance gain is claimed. Restart Deadlock to load the package; do not resume rendering experiments without a new request.
 
 ## Visible A baseline and hidden B comparison
 

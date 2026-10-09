@@ -1,0 +1,150 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss_c" />
+		<include src="s2r://panorama/styles/bt_minimap_settings.vcss_c" />
+	</styles>
+	<Panel class="bt-settings-host" hittest="false" hittestchildren="true">
+		<!-- MOD: Buff timer settings. The gear toggles a compact panel that opens straight above it; colours are edited inline. -->
+		<Panel id="BTSettingsRoot" hittest="false">
+			<Panel id="BTSettingsPanel" class="bt-settings-panel" hittest="true">
+				<Label class="bt-settings-title" text="BUFF TIMER" />
+				<!-- The stock minimap's look: its ring frame (with the blur behind it) and the whole minimap's opacity. -->
+				<Label class="bt-settings-section bt-section-first" text="MINIMAP" />
+				<Button id="BTBorderToggle" class="bt-switch-row">
+					<Label class="bt-row-label" text="Minimap border" />
+					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
+				</Button>
+				<Panel class="bt-strength-row" hittest="false">
+					<Label class="bt-strength-label" text="Opacity" />
+					<Panel id="BTMapOpacityHost" class="bt-strength-host" hittest="false" hittestchildren="true" />
+					<Label id="BTMapOpacityValue" class="bt-strength-value" text="100%" />
+				</Panel>
+				<Label class="bt-settings-section" text="ENEMY MARKERS" />
+				<Button id="BTUpColor" class="bt-color-row">
+					<Panel id="BTUpColorArrow" class="bt-color-arrow bt-arrow-up" hittest="false" />
+					<Label class="bt-row-label" text="Enemy above" />
+					<Label id="BTUpColorHex" class="bt-color-hex" text="#FFE14D" />
+				</Button>
+				<Button id="BTDownColor" class="bt-color-row">
+					<Panel id="BTDownColorArrow" class="bt-color-arrow bt-arrow-down" hittest="false" />
+					<Label class="bt-row-label" text="Enemy below" />
+					<Label id="BTDownColorHex" class="bt-color-hex" text="#4DD2FF" />
+				</Button>
+				<!-- One editor for every colour row; the script moves it right under the row being edited. Presets are one
+				     click, the spectrum jumps to the clicked point, brightness scales the picked colour. -->
+				<Panel id="BTColorEditor" class="bt-color-editor">
+					<Panel id="BTPresetRow" class="bt-preset-row" />
+					<Panel class="bt-spectrum-row">
+						<Panel id="BTSpectrumHost" class="bt-spectrum-host" hittest="false" hittestchildren="true">
+							<Panel class="bt-spectrum-track" hittest="false" />
+						</Panel>
+						<TextEntry id="BTColorHexEntry" class="bt-hex-entry" text="#FFFFFF" maxchars="7" />
+					</Panel>
+					<Panel class="bt-strength-row bt-brightness-row" hittest="false">
+						<Label class="bt-strength-label" text="Brightness" />
+						<Panel id="BTBrightnessHost" class="bt-strength-host" hittest="false" hittestchildren="true" />
+						<Label id="BTBrightnessValue" class="bt-strength-value" text="100%" />
+					</Panel>
+				</Panel>
+				<Button id="BTLingerToggle" class="bt-switch-row bt-timer-only">
+					<Label class="bt-row-label" text="? where enemies vanish" />
+					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
+				</Button>
+				<!-- Timer-owned (hidden without the timer): pick any colour, e.g. for colour blindness. -->
+				<Label class="bt-settings-section bt-timer-only" text="CLAIM BOXES" />
+				<Button id="BTAllyColor" class="bt-color-row bt-timer-only">
+					<Panel id="BTAllyColorSwatch" class="bt-color-swatch" hittest="false" />
+					<Label class="bt-row-label" text="Ally claim" />
+					<Label id="BTAllyColorHex" class="bt-color-hex" text="#64FFC8" />
+				</Button>
+				<Button id="BTEnemyColor" class="bt-color-row bt-timer-only">
+					<Panel id="BTEnemyColorSwatch" class="bt-color-swatch" hittest="false" />
+					<Label class="bt-row-label" text="Enemy claim (box and glow)" />
+					<Label id="BTEnemyColorHex" class="bt-color-hex" text="#FF3232" />
+				</Button>
+				<Label class="bt-settings-section bt-timer-only" text="BRIDGE BUFF GLOW" />
+				<Button id="BTGlowToggle" class="bt-switch-row bt-timer-only">
+					<Label class="bt-row-label" text="Show glow" />
+					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
+				</Button>
+				<Panel class="bt-strength-row bt-timer-only" hittest="false">
+					<Label class="bt-strength-label" text="Strength" />
+					<Panel id="BTGlowStrengthHost" class="bt-strength-host" hittest="false" hittestchildren="true" />
+					<Label id="BTGlowStrengthValue" class="bt-strength-value" text="100%" />
+				</Panel>
+				<Button id="BTGlowGunColor" class="bt-color-row bt-timer-only">
+					<Panel id="BTGlowGunColorSwatch" class="bt-color-swatch" hittest="false" />
+					<Label class="bt-row-label" text="Weapon" />
+					<Label id="BTGlowGunColorHex" class="bt-color-hex" text="#FFB450" />
+				</Button>
+				<Button id="BTGlowCastingColor" class="bt-color-row bt-timer-only">
+					<Panel id="BTGlowCastingColorSwatch" class="bt-color-swatch" hittest="false" />
+					<Label class="bt-row-label" text="Spirit" />
+					<Label id="BTGlowCastingColorHex" class="bt-color-hex" text="#B464FF" />
+				</Button>
+				<Button id="BTGlowSurvivalColor" class="bt-color-row bt-timer-only">
+					<Panel id="BTGlowSurvivalColorSwatch" class="bt-color-swatch" hittest="false" />
+					<Label class="bt-row-label" text="Vitality" />
+					<Label id="BTGlowSurvivalColorHex" class="bt-color-hex" text="#64FF64" />
+				</Button>
+				<Button id="BTGlowMovementColor" class="bt-color-row bt-timer-only">
+					<Panel id="BTGlowMovementColorSwatch" class="bt-color-swatch" hittest="false" />
+					<Label class="bt-row-label" text="Movement" />
+					<Label id="BTGlowMovementColorHex" class="bt-color-hex" text="#64C8FF" />
+				</Button>
+				<!-- Moves, scales and flips the Bridge/Rejuv pills and the Rift/Urn cards; the bar below takes over. -->
+				<Label class="bt-settings-section bt-timer-only" text="LAYOUT" />
+				<Button id="BTLayoutButton" class="bt-layout-row bt-timer-only">
+					<Label class="bt-row-label" text="Move and resize widgets" />
+					<Label class="bt-layout-row-go" text="EDIT" />
+				</Button>
+				<Panel class="bt-settings-footer" hittest="false">
+					<Label id="BTSettingsStatus" class="bt-settings-status" text="LOADING" />
+					<Button id="BTSettingsReset" class="bt-settings-reset">
+						<Label id="BTSettingsResetLabel" text="RESET" />
+					</Button>
+				</Panel>
+			</Panel>
+			<Button id="BTSettingsGear" class="bt-settings-gear">
+				<Image class="bt-settings-gear-icon" src="s2r://panorama/images/icons/settings_global.vsvg" hittest="false" />
+			</Button>
+			<Panel class="bt-settings-store-wrap" hittest="false" hittestchildren="false">
+				<CitadelHTMLPanel id="BTSettingsStore" class="bt-settings-store" hittest="false" acceptsfocus="false" />
+			</Panel>
+		</Panel>
+		<!-- Edit mode only. The script opens it just above the minimap (clear of every default widget spot); the grip
+		     drags it anywhere. Holds keyboard focus so Esc cancels. The legend draws the same symbols as the widget chrome. -->
+		<Panel id="BTLayoutBar" class="bt-layout-bar" hittest="true" acceptsfocus="true">
+			<Panel id="BTLayoutBarGrip" class="bt-layout-grip" hittest="true">
+				<Label class="bt-layout-title" text="EDIT TIMER LAYOUT" hittest="false" />
+				<Label class="bt-layout-grip-hint" text="drag here to move this box" hittest="false" />
+			</Panel>
+			<Panel class="bt-legend-row" hittest="false">
+				<Panel class="bt-legend-symbol" hittest="false"><Panel class="bt-legend-outline" hittest="false" /></Panel>
+				<Label class="bt-legend-text" text="Drag a widget or the minimap inside its dashed outline to move it" />
+			</Panel>
+			<Panel class="bt-legend-row" hittest="false">
+				<Panel class="bt-legend-symbol" hittest="false"><Panel class="bt-legend-square" hittest="false" /></Panel>
+				<Label class="bt-legend-text" text="Drag a white corner square to resize (minimap 50-150%)" />
+			</Panel>
+			<Panel class="bt-legend-row" hittest="false">
+				<Panel class="bt-legend-symbol" hittest="false"><Panel class="bt-legend-arrow" hittest="false" /></Panel>
+				<Label class="bt-legend-text" text="Click an arrow to put the icon or label on that side" />
+			</Panel>
+			<Panel class="bt-legend-row" hittest="false">
+				<Panel class="bt-legend-symbol" hittest="false"><Panel class="bt-legend-icon" hittest="false" /></Panel>
+				<Label class="bt-legend-text" text="Click it on a pill to hide or show the icon" />
+			</Panel>
+			<Panel class="bt-legend-row" hittest="false">
+				<Panel class="bt-legend-symbol" hittest="false"><Panel class="bt-legend-knob" hittest="false" /></Panel>
+				<Label class="bt-legend-text" text="Drag the round knob on the map location label to turn it" />
+			</Panel>
+			<Panel class="bt-layout-actions" hittest="false">
+				<Button id="BTLayoutReset" class="bt-layout-action bt-layout-action-reset"><Label text="RESET LAYOUT" /></Button>
+				<Panel class="bt-layout-spacer" hittest="false" />
+				<Button id="BTLayoutCancel" class="bt-layout-action"><Label text="CANCEL" /></Button>
+				<Button id="BTLayoutDone" class="bt-layout-action bt-layout-action-done"><Label text="DONE" /></Button>
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

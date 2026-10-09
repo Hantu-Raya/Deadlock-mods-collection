@@ -207,14 +207,14 @@ test('4.0.3 Escape composition preserves QOLLOCK assets and nested-cancel/resume
   assert.throws(() => buildEscapeMenu(legacy.replace(legacyWrapper, `${legacyWrapper}${legacyWrapper}`), canonical, 'a'.repeat(64)), /Escape resume button: expected exactly one match, found 2/);
 });
 
-test('v2 compatibility pin and generated menu target the QOLLOCK 4.0.3 pak03 release', () => {
+test('v2 compatibility pin and generated menu target the QOLLOCK 4.0.5 6 October hotfix pak03', () => {
   const v2Support = path.join(root, 'hp_colors_rewrite_v2_qollock');
   const contract = JSON.parse(read(path.join(v2Support, 'pak02-contract.json')));
-  assert.equal(contract.packageOrder[1], 'pak03 pinned QOLLOCK 4.0.3 (qollock_403_30september.zip)');
-  assert.equal(contract.qollockAuthority, 'pinned QOLLOCK 4.0.3 release pak03_dir.vpk (qollock_403_30september.zip)');
-  assert.match(read(path.join(v2Support, 'qollock-source.sha256')), /^b242cd7b74dee59bdd58629fa45c2c83a957c911c3ef79153ffe37d6e29033af\s+.*\/qollock-403\/pak03_dir\.vpk\s*$/);
+  assert.equal(contract.packageOrder[1], 'pak03 pinned QOLLOCK 4.0.5 6 October hotfix (qollock_405_6octoberhotfix.zip)');
+  assert.equal(contract.qollockAuthority, 'pinned QOLLOCK 4.0.5 6 October hotfix pak03_dir.vpk (qollock_405_6octoberhotfix.zip)');
+  assert.match(read(path.join(v2Support, 'qollock-source.sha256')), /^b34d980d1047987ddcfd496eda7ee95b7bedaf794fd4ea256338d7b27bd06054\s+.*\/qollock-405-6oct\/pak03_dir\.vpk\s*$/);
   const escape = read(path.join(v2Support, 'panorama/layout/hud_escape_menu.xml'));
-  assert.match(escape, /Generated from pak03 SHA-256 b242cd7b/);
+  assert.match(escape, /Generated from pak03 SHA-256 b34d980d/);
   assert.doesNotMatch(escape, /<Button id="EscapeButton"/);
   for (const asset of ['core/ql_persistence.vjs_c', 'core/ql_storage_bridge.vjs_c', 'ql_settings_persistence.vjs_c']) {
     assert.ok(escape.includes(`s2r://panorama/scripts/${asset}`), asset);
@@ -277,3 +277,44 @@ test('opening HP Colors closes QOL settings without resuming gameplay', () => {
 
 
 
+
+test('v2 QOLLOCK composition retains the twelve-page ownership matrix and native picker style', () => {
+  const canonical = read(path.join(root, 'hp_colors_rewrite_v2/panorama/layout/hud_escape_menu.xml'));
+  const source = read(path.join(root, 'hp_colors_rewrite_v2/panorama/scripts/hp_colors_v2_menu.js'));
+  const categories = vm.runInNewContext(source.match(/var CATEGORY_DEFS = ([\s\S]*?\n  \]);/)[1]);
+  const rows = vm.runInNewContext('(' + source.match(/var SETTING_ROW_IDS = ([\s\S]*?\n  });/)[1] + ')');
+  const escape = buildEscapeMenu(packageEscape403, canonical, 'b'.repeat(64));
+  const ancestry = new Map();
+  const stack = [];
+  for (const token of escape.match(/<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>/g) || []) {
+    if (token.startsWith('<!--')) continue;
+    if (token.startsWith('</')) { stack.pop(); continue; }
+    const id = token.match(/\bid="([^"]+)"/)?.[1] || '';
+    if (id.startsWith('HPColors')) {
+      assert.ok(!ancestry.has(id), 'unique composed HP ID ' + id);
+      ancestry.set(id, stack.filter(Boolean));
+    }
+    if (!token.endsWith('/>')) stack.push(id);
+  }
+  assert.equal(stack.length, 0);
+  assert.equal(categories.flatMap(category => category.tabs).length, 12);
+  let keys = 0;
+  for (const category of categories) for (const tab of category.tabs) {
+    assert.equal(ancestry.get(tab.pageId).at(-1), 'HPColorsSettingsList');
+    for (const key of tab.keys) {
+      keys++;
+      assert.ok(ancestry.get(rows[key]).includes(tab.pageId), key + ' composed owner');
+    }
+  }
+  assert.equal(keys, 155);
+  for (const id of ['HPColorsPlayerSide', 'HPColorsAdvancedToggle', 'HPColorsV2Store', 'HPColorsNativePicker'])
+    assert.ok(ancestry.has(id), id);
+  // The composed menu must include the same stock picker stylesheet as the
+  // canonical layout; an unknown s2r include is a fatal layout load in game.
+  const pickerInclude = /s2r:\/\/panorama\/styles\/[a-z_]*color_picker\.vcss_c/g;
+  const canonicalPicker = canonical.match(pickerInclude);
+  assert.deepEqual(canonicalPicker, ['s2r://panorama/styles/citadel_ui_color_picker.vcss_c']);
+  assert.deepEqual(escape.match(pickerInclude), canonicalPicker);
+  const withHostStyle = packageEscape403.replace('<styles>', `<styles><include src="${canonicalPicker[0]}" />`);
+  assert.deepEqual(buildEscapeMenu(withHostStyle, canonical, 'b'.repeat(64)).match(pickerInclude), canonicalPicker);
+});
