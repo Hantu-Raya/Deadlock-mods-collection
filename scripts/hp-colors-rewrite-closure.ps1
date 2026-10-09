@@ -77,6 +77,9 @@ function Get-HpColorsRewriteClosureContract {
         'hp_colors_thirdeye_window.js' {
             return @('HPColorsThirdEyeCloseWindow', 'HPColorsMenuCancel', 'ThirdEye', 'setOpen', 'isOpen')
         }
+        'feeder_feed.js' {
+            return @('FeederFeedStop', 'ff_entry', 'FeederRow', 'CitadelHudInfoFeed')
+        }
         default {
             throw "No Closure ADVANCED output contract for Rewrite script: $ScriptName"
         }

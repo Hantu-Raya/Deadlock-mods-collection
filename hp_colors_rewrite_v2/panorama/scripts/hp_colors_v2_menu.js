@@ -1697,6 +1697,7 @@
     conditionApplyButton: null,
   };
   var controlPanels = {};
+  var controlLookupPass = null;
   var resetKeys = null;
   var identity = {
     root: null,
@@ -1775,6 +1776,8 @@
 
   function controlPanel(id) {
     if (!id) return null;
+    if (controlLookupPass && Object.prototype.hasOwnProperty.call(controlLookupPass, id))
+      return controlLookupPass[id];
     var panel = controlPanels[id];
     // A retired pak01 layout cannot supply the missing newer controls. Resolve
     // those absences once per boot; explicit setup retries reset this cache.
@@ -1783,6 +1786,7 @@
       panel = find(id);
       controlPanels[id] = panel;
     }
+    if (controlLookupPass) controlLookupPass[id] = panel;
     return panel;
   }
 
@@ -1802,13 +1806,20 @@
     return last;
   }
 
+  var menuClassCache = new WeakMap();
   function setClass(panel, className, enabled) {
-    if (!isValid(panel)) return;
     var next = !!enabled;
+    var cache = menuClassCache.get(panel);
+    if (cache && cache[className] === next) return;
+    if (!isValid(panel)) return;
+    if (!cache) {
+      cache = {};
+      menuClassCache.set(panel, cache);
+    }
     try {
-      if (isCallable(panel.BHasClass) && panel.BHasClass(className) === next)
-        return;
-      panel.SetHasClass(className, next);
+      if (!isCallable(panel.BHasClass) || panel.BHasClass(className) !== next)
+        panel.SetHasClass(className, next);
+      cache[className] = next;
     } catch {}
   }
 
@@ -2528,7 +2539,7 @@
         ? row.heroes
         : [],
     });
-    renderPresetOptions();
+    if (presetDeleteConfirmId || presetReplaceConfirm) renderPresetOptions();
     syncControls();
     syncPresetSaveForm(false);
   }
@@ -2554,7 +2565,7 @@
       mode: next.length ? mode : HERO_SCOPE_ALL,
       heroes: next,
     });
-    renderPresetOptions();
+    if (presetDeleteConfirmId || presetReplaceConfirm) renderPresetOptions();
     syncControls();
     syncPresetSaveForm(false);
   }
@@ -5297,11 +5308,14 @@
     } catch {}
   }
 
+  var swatchColorCache = new WeakMap();
   function setBackgroundColor(panel, value) {
+    if (swatchColorCache.get(panel) === value) return;
     if (!isValid(panel) || !panel.style) return;
     try {
       if (panel.style.backgroundColor !== value)
         panel.style.backgroundColor = value;
+      swatchColorCache.set(panel, value);
     } catch {}
   }
 
@@ -5690,9 +5704,13 @@
   }
 
   function collapseSetting(key, className, collapsed) {
-    if (collapsed) repairCollapsedFocus(key, className === "TuningCollapsed"
-      ? ui.advancedToggle : collapseFocusTarget(key, className === "FeatureOff"));
-    setClass(controlPanel(SETTING_ROW_IDS[key]), className, collapsed);
+    var row = controlPanel(SETTING_ROW_IDS[key]);
+    var classes = menuClassCache.get(row);
+    if (collapsed && (!classes || classes[className] !== true ||
+        picker.key === key || conditionDraft.key === key))
+      repairCollapsedFocus(key, className === "TuningCollapsed"
+        ? ui.advancedToggle : collapseFocusTarget(key, className === "FeatureOff"));
+    setClass(row, className, collapsed);
   }
 
   function conditionalFocusTarget(key, values) {
@@ -5802,6 +5820,8 @@
     var scope = view && (view.currentScope || view);
     var values = scope ? scope.values : {};
     syncingControls = true;
+    var previousControlPass = controlLookupPass;
+    controlLookupPass = Object.create(null);
     try {
       syncToggleControls(values);
       syncModeControls(values);
@@ -5814,6 +5834,7 @@
       syncPicker();
       syncConditionIndicators(view);
     } finally {
+      controlLookupPass = previousControlPass;
       syncingControls = false;
     }
     renderIdentity(view);

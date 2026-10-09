@@ -1,0 +1,29 @@
+/* MOD: enemy level arrow. The engine sets arrowUp/arrowDown on an enemy's map button when the enemy is
+   above/below you. Stock only changes z-index, so reuse #LocalSpecularImage (collapsed on non-local icons).
+   wash-color here is the default; bt_minimap_settings.js writes the colours chosen in the settings menu inline. */
+.map_button.player.enemy.arrowUp #LocalSpecularImage,
+.map_button.player.enemy.arrowDown #LocalSpecularImage
+{
+	visibility: visible;
+	width: 60%;
+	height: 36%;
+	horizontal-align: right;
+	vertical-align: top;
+	background-image: url("s2r://panorama/images/control_icons/arrow_solid_up_png.vtex");
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	wash-color: #FFE14D;
+	z-index: 101;
+}
+
+.map_button.player.enemy.arrowDown #LocalSpecularImage
+{
+	vertical-align: bottom;
+	background-image: url("s2r://panorama/images/control_icons/arrow_solid_down_png.vtex");
+	wash-color: #4DD2FF;
+}
+
+.map_button.player.enemy.PlayerDead #LocalSpecularImage
+{
+	visibility: collapse;
+}

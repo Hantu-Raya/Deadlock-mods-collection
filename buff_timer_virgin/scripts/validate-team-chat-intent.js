@@ -81,12 +81,17 @@ const chat = {
   IsValid: () => true,
   FindChildTraverse: (id) => id === 'ChatControls' ? controls : null,
 };
+const attributes = new Map();
 const root = {
   IsValid: () => true,
+  GetAttributeInt: (name, fallback) => attributes.has(name) ? attributes.get(name) : fallback,
+  SetAttributeInt: (name, value) => attributes.set(name, value),
   GetParent: () => null,
   FindChildTraverse: (id) => id === 'Chat' ? chat : null,
 };
 contextPanel = root;
+root.SetAttributeInt('bt_timer_gen', 1);
+test.setInstanceTestState({ instanceGen: 1, hudRoot: root, retired: false });
 
 assert.equal(intent.send('Bridge; 5:00', 1000), true, 'valid timer text must open team chat');
 assert.deepEqual(events[0], ['CitadelConCommand', 'say_chat_team'], 'send must request team chat, not all-chat');
@@ -153,5 +158,14 @@ assert.ok(lostRetry, 'intent must have a scheduled retry to lose');
 sandbox.$.CancelScheduled(lostRetry.id);
 runNextScheduled();
 assert.equal(test.isChatIntentInFlight(), false, 'two-second intent expiry must release a token whose retry was lost');
+
+scheduled.length = 0;
+events.length = 0;
+assert.equal(intent.send('Urn 1s', 13000), true, 'retirement test intent must schedule a chat retry');
+root.SetAttributeInt('bt_timer_gen', 2);
+const eventCountBeforeRetirement = events.length;
+runNextScheduled();
+assert.equal(events.length, eventCountBeforeRetirement, 'retired timer must not dispatch any chat event from a pending retry');
+assert.equal(test.getInstanceTestState().retired, true, 'superseded timer must retire on its pending chat retry');
 
 console.log('[TEAM CHAT PASS] sanitization, team targeting, cooldown, in-flight retries, submit, and focus contracts are valid.');

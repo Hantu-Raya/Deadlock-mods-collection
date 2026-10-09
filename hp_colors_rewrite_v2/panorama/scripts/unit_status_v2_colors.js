@@ -304,6 +304,8 @@
     iconApplied: [],
     applied: {},
     enemy: false,
+    // The last apply cleared ownership; unowned scans skip verification until it changes.
+    released: false,
   };
   function isValid(panel) {
     try {
@@ -459,12 +461,15 @@
     return lineage;
   }
 
+  var RELATION_FACTS = { enemy: ["enemy"], friend: ["friend"], team1: ["team1"],
+    team2: ["team2"], spectating: ["spectating"] };
   // Every class the classifier reads, deduplicated across the fact tables.
   var UNIT_FACT_CLASSES = (function () {
     var seen = Object.create(null);
     var result = [];
     var lists = [KIND_FACTS.building, KIND_FACTS.player, KIND_FACTS.npc, NEUTRAL_FACTS,
-      ["enemy", "friend", "team1", "team2", "spectating"]];
+      RELATION_FACTS.enemy, RELATION_FACTS.friend, RELATION_FACTS.team1,
+      RELATION_FACTS.team2, RELATION_FACTS.spectating];
     for (var listIndex = 0; listIndex < lists.length; listIndex++)
       for (var index = 0; index < lists[listIndex].length; index++) {
         var name = lists[listIndex][index];
@@ -502,17 +507,27 @@
     return facts;
   }
 
-  // Null when a carrier is gone; the caller then repeats the full walk.
+  // Null when a carrier is gone; the caller then repeats the full walk. Each group is read
+  // only until decided, so classifyUnit gets the same answers from fewer class reads.
   function collectCarrierFacts(carriers) {
+    for (var check = 0; check < carriers.length; check++)
+      if (!isValid(carriers[check])) return null;
     var facts = Object.create(null);
-    for (var panelIndex = 0; panelIndex < carriers.length; panelIndex++) {
-      var panel = carriers[panelIndex];
-      if (!isValid(panel)) return null;
-      for (var index = 0; index < UNIT_FACT_CLASSES.length; index++) {
-        var name = UNIT_FACT_CLASSES[index];
-        if (!facts[name] && hasClass(panel, name)) facts[name] = true;
-      }
+    function any(list) {
+      for (var panelIndex = 0; panelIndex < carriers.length; panelIndex++)
+        for (var index = 0; index < list.length; index++)
+          if (hasClass(carriers[panelIndex], list[index])) return (facts[list[index]] = true);
+      return false;
     }
+    if (!any(KIND_FACTS.building) && !any(KIND_FACTS.player)) any(KIND_FACTS.npc);
+    // Neutral wins the relation, so enemy/friend only matter without it.
+    if (!any(NEUTRAL_FACTS)) {
+      any(RELATION_FACTS.enemy);
+      any(RELATION_FACTS.friend);
+    }
+    any(RELATION_FACTS.team1);
+    any(RELATION_FACTS.team2);
+    any(RELATION_FACTS.spectating);
     return facts;
   }
 
@@ -652,57 +667,81 @@
       }
     }
     var unitInfo = directChildWithClass(infoHealth, "unit_info_panel");
-    var ultBackground = directChild(unitInfo, "unit_info_bg");
-    var motion = directChild(windowRoot, "HPV2MotionFrame");
-    var counterContainer = directChild(motion || windowRoot, "hp_counter_container");
+    // One Children() pass per parent; each id maps to the first valid match, as directChild.
+    var rootChildren = childIndex(windowRoot);
+    var infoChildren = childIndex(infoHealth);
+    var unitInfoChildren = childIndex(unitInfo);
+    var primaryChildren = childIndex(primary);
+    var innerChildren = childIndex(inner);
+    var ultBackground = unitInfoChildren.unit_info_bg || null;
+    var motion = rootChildren.HPV2MotionFrame || null;
+    var motionChildren = motion ? childIndex(motion) : rootChildren;
+    var counterContainer = motionChildren.hp_counter_container || null;
     var counterRow = findWithin(counterContainer, "hp_counter_row");
-    var criticalAnchor = directChild(windowRoot, "HPV2CriticalAnchor");
-    var assassinateAnchor = directChild(windowRoot, "HPV2AssassinateAnchor");
-    var rejuvAnchor = directChild(windowRoot, "HPV2RejuvenatorAnchor");
+    var criticalAnchor = rootChildren.HPV2CriticalAnchor || null;
+    var assassinateAnchor = rootChildren.HPV2AssassinateAnchor || null;
+    var rejuvAnchor = rootChildren.HPV2RejuvenatorAnchor || null;
+    var pipGrid = primaryChildren.HPV2PipGrid || null;
+    var gridChildren = childIndex(pipGrid);
     return {
       windowRoot: windowRoot,
-      canvasBounds: directChild(windowRoot, "HPV2CanvasBounds"),
+      canvasBounds: rootChildren.HPV2CanvasBounds || null,
       motion: motion,
       healthbars: healthbars,
       primary: primary,
       inner: inner,
-      barOutline: directChild(primary, "HPV2BarOutline"),
+      barOutline: primaryChildren.HPV2BarOutline || null,
       infoHealth: infoHealth,
       unitStatus: unitStatus,
       // The name rides the full-canvas motion frame, so it shakes with the bar.
-      name: directChild(directChild(motion || windowRoot, "HPV2NameAnchor"), "name"),
+      name: directChild(motionChildren.HPV2NameAnchor || null, "name"),
       criticalAnchor: criticalAnchor,
       critical: directChild(criticalAnchor, "CriticalIndicator"),
       assassinateAnchor: assassinateAnchor,
       assassinate: directChild(assassinateAnchor, "AssassinateIndicator"),
       rejuvAnchor: rejuvAnchor,
       rejuv: directChild(rejuvAnchor, "RejuvenatorActive"),
-      killStreak: directChild(unitInfo, "KillStreakIndicator") || directChild(windowRoot, "KillStreakIndicator"),
-      fill: directChild(inner, "unit_healthbar_lagging"),
-      healing: directChild(inner, "unit_healthbar_healing"),
-      delta: directChild(inner, "unit_healthbar_delta"),
-      bulletShield: directChild(inner, "unit_healthbar_bullet_shield"),
-      armor: directChild(inner, "unit_healthbar_ratking_armor"),
-      pulseOverlay: directChild(inner, "hp_colors_pulse_overlay"),
-      pipLines: directChild(primary, "UnitHealthbarLines"),
-      pipGrid: directChild(primary, "HPV2PipGrid"),
-      pipEmpty: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipEmpty"),
-      pipFill: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipFill"),
-      pipOutline: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipOutline"),
-      pipKillMarker: directChild(directChild(primary, "HPV2PipGrid"), "HPV2PipKillMarker"),
-      killMarker: directChild(primary, "hp_colors_kill_marker"),
+      killStreak: unitInfoChildren.KillStreakIndicator || rootChildren.KillStreakIndicator || null,
+      fill: innerChildren.unit_healthbar_lagging || null,
+      healing: innerChildren.unit_healthbar_healing || null,
+      delta: innerChildren.unit_healthbar_delta || null,
+      bulletShield: innerChildren.unit_healthbar_bullet_shield || null,
+      armor: innerChildren.unit_healthbar_ratking_armor || null,
+      pulseOverlay: innerChildren.hp_colors_pulse_overlay || null,
+      pipLines: primaryChildren.UnitHealthbarLines || null,
+      pipGrid: pipGrid,
+      pipEmpty: gridChildren.HPV2PipEmpty || null,
+      pipFill: gridChildren.HPV2PipFill || null,
+      pipOutline: gridChildren.HPV2PipOutline || null,
+      pipKillMarker: gridChildren.HPV2PipKillMarker || null,
+      pipShield: gridChildren.HPV2PipShield || null,
+      pipArmor: gridChildren.HPV2PipArmor || null,
+      pipHealing: gridChildren.HPV2PipHealing || null,
+      pipDelta: gridChildren.HPV2PipDelta || null,
+      killMarker: primaryChildren.hp_colors_kill_marker || null,
       unitInfo: unitInfo,
       ultBackground: ultBackground,
       ultIcon: directChild(ultBackground, "unit_ult_ready_icon"),
       ultOverlay: directChild(ultBackground, "HPV2UltimateOverlay"),
-      levelContainer: directChild(infoHealth, "LevelContainer"),
+      levelContainer: infoChildren.LevelContainer || null,
       levelLabel: findWithin(infoHealth, "unit_level_label"),
-      healthValue: directChild(infoHealth, "UnitHealthbarValue") ||
+      healthValue: infoChildren.UnitHealthbarValue ||
         directChild(counterRow, "UnitHealthbarValue"),
       counterContainer: counterContainer,
       counterAnchor: findWithin(counterContainer, "hp_counter_anchor"),
       counterRow: counterRow,
     };
+  }
+
+  function childIndex(panel) {
+    var index = Object.create(null);
+    if (!isValid(panel)) return index;
+    var children = panelChildren(panel);
+    for (var position = 0; position < children.length; position++) {
+      var id = isValid(children[position]) ? panelId(children[position]) : "";
+      if (id && !index[id]) index[id] = children[position];
+    }
+    return index;
   }
 
 
@@ -1034,12 +1073,37 @@
     if (inlineWidth !== null) fraction = Math.min(fraction, inlineWidth);
     return Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
   }
-  // Right edge of a visible shield/armor layer as a fraction of the inner bar,
-  // or -1 when absent. The fill (z-index 3) covers anything left of its edge.
-  function healthLayerRight(panel, innerWidth) {
+  // Engine layers are full-width (#UnitHealthbarInner .HealthAmount 100%) and clipped to
+  // rect(top%, right%, bottom%, left%) of that width (live 6753 trace), so an all-percent
+  // clip with no inline width/transform gives the span without layout reads. This also holds
+  // while a layer, or the whole inner hidden by OLD's opacity 0, still reports FLT_MAX/zero
+  // layout (live 6753: such bars kept inner width 0 and drew no fill or shield). Anything
+  // else uses geometry.
+  var PERCENT_RECT = /^rect\s*\(\s*(-?[\d.]+)%\s*[,\s]\s*(-?[\d.]+)%\s*[,\s]\s*(-?[\d.]+)%\s*[,\s]\s*(-?[\d.]+)%\s*\)$/i;
+  var fillSpanScratch = [-1, -1];
+
+  // Writes the clip's visible [left, right] (both -1 when empty) and returns true when the
+  // panel's span is a pure percent clip; false leaves out untouched for the geometry path.
+  function percentClipSpan(panel, out, slot) {
+    var rect = PERCENT_RECT.exec(readHealthSignal(panel, "clip", true));
+    if (!rect || readHealthSignal(panel, "width", true) || readHealthSignal(panel, "transform", true) ||
+        readHealthSignal(panel, "preTransformScale2d", true)) return false;
+    var left = Math.max(0, Math.min(1, Number(rect[4]) / 100));
+    var right = Math.max(0, Math.min(1, Number(rect[2]) / 100));
+    var shown = Number(rect[3]) > Number(rect[1]) && right > left;
+    out[slot] = shown ? left : -1;
+    out[slot + 1] = shown ? right : -1;
+    return true;
+  }
+
+  // Visible span of a health layer as fractions of the inner bar, written to
+  // out[slot] (left) and out[slot + 1] (right), both -1 when absent. Returns the right edge.
+  function healthLayerSpan(panel, innerWidth, out, slot) {
+    out[slot] = out[slot + 1] = -1;
     if (!hasClass(panel, "HasHealth") ||
         readHealthSignal(panel, "visibility", true) === "collapse" ||
         readHealthSignal(panel, "visible", false) === "false") return -1;
+    if (percentClipSpan(panel, out, slot)) return out[slot + 1];
     var width = cssLayout(panel, "actuallayoutwidth", "x");
     var length = visibleHealthFraction(panel, innerWidth, width);
     if (!(length > 0)) return -1;
@@ -1052,7 +1116,8 @@
         ? healthLengthFraction(edges[3], width) : null;
       if (clipLeft !== null) left += clipLeft;
     }
-    return left + length;
+    out[slot] = left;
+    return (out[slot + 1] = left + length);
   }
 
   // Shield and armor shrink the HP share of the bar only beyond the fill edge,
@@ -1070,7 +1135,13 @@
     var fillWidth = Number.isFinite(rawFillWidth) ? Math.max(0, rawFillWidth) : 0;
     var innerWidth = bar.innerWidth;
     var primaryWidth = bar.primaryWidth;
-    var fraction = visibleHealthFraction(bar.parts.fill, innerWidth, rawFillWidth);
+    // Minimum of all signals when laid out; an unmeasured inner falls back to the percent clip.
+    var fillSpan = fillSpanScratch;
+    var fillClipped = !(innerWidth > 0) && percentClipSpan(bar.parts.fill, fillSpan, 0);
+    var fraction = fillClipped
+      ? Math.max(0, fillSpan[1] - fillSpan[0])
+      : visibleHealthFraction(bar.parts.fill, innerWidth, rawFillWidth);
+    var measured = innerWidth > 0 || fillClipped;
     var sampled = bar.healthSampled;
     var healthWidthChanged =
       !sampled || innerWidth !== bar.sampleHealthParentWidth;
@@ -1080,10 +1151,16 @@
     var previousFillWidth = bar.sampleFillWidth;
     var fillChanged = !sampled || fillWidth !== previousFillWidth;
     var overlayPercent = Math.round(fraction * 10000) / 100;
-    fraction = correctedHealthFraction(fraction,
-      healthLayerRight(bar.parts.bulletShield, innerWidth),
-      healthLayerRight(bar.parts.armor, innerWidth));
-    bar.healthFraction = innerWidth > 0 ? fraction : -1;
+    // Slots 0/1 shield, 2/3 armor, 4/5 healing, 6/7 delta (OLD_LAYERS order).
+    var spans = layerSpanScratch;
+    var shieldRight = healthLayerSpan(bar.parts.bulletShield, innerWidth, spans, 0);
+    var armorRight = healthLayerSpan(bar.parts.armor, innerWidth, spans, 2);
+    // OLD paints the engine's own fractions: lines, fill and layers share one bar total.
+    bar.rawHealthFraction = measured ? fraction : -1;
+    fraction = correctedHealthFraction(fraction, shieldRight, armorRight);
+    bar.healthFraction = measured ? fraction : -1;
+    if (config.barMask === "old" && bar.pipCount > 0 && measured)
+      sampleOldLayers(bar, innerWidth);
     var overlayChanged =
       !sampled || overlayPercent !== bar.pulseOverlayPercent;
     bar.healthSampled = true;
@@ -1091,7 +1168,7 @@
     bar.sampleHealthParentWidth = innerWidth;
     bar.sampleBarWidth = primaryWidth;
     bar.pulseOverlayPercent = overlayPercent;
-    if (innerWidth <= 0) {
+    if (!measured) {
       bar.lastWidthPercent = -1;
       bar.healthPresentationChanged =
         !sampled ||
@@ -1264,8 +1341,9 @@
     return STOCK_DEFAULT_BULLET_SHIELD_COLOR;
   }
 
-  function styleMatches(panel, property, cache, cacheKey) {
-    if (!isValid(panel) || !panel.style) return false;
+  // valid: the caller's IsValid result for panel in this synchronous pass, if it has one.
+  function styleMatches(panel, property, cache, cacheKey, valid) {
+    if (!(valid === undefined ? isValid(panel) : valid) || !panel.style) return false;
     try {
       var native = cache && cache.nativeStyles && cache.nativeStyles[cacheKey];
       if (!native || native.panel !== panel) return false;
@@ -1277,10 +1355,7 @@
   }
 
   function setStyle(panel, property, value, cache, cacheKey, restoring) {
-    if (!isValid(panel) || !panel.style) {
-      if (cache) cache[cacheKey] = null;
-      return;
-    }
+    // A cache hit names the same live panel object, so it needs no IsValid call.
     if (
       cache &&
       cache[cacheKey] === value &&
@@ -1288,6 +1363,10 @@
       cache.nativeStyles[cacheKey].panel === panel &&
       (!restoring || styleMatches(panel, property, cache, cacheKey))
     ) {
+      return;
+    }
+    if (!isValid(panel) || !panel.style) {
+      if (cache) cache[cacheKey] = null;
       return;
     }
     try {
@@ -1321,22 +1400,22 @@
       }
     } catch {
       if (cache) cache[cacheKey] = null;
-      return;
     }
   }
 
 
   function setOwnedClass(panel, className, enabled, cache, cacheKey) {
     var marker = enabled ? "1" : "0";
-    if (!isValid(panel)) {
-      if (cache) cache[cacheKey] = null;
-      return;
-    }
+    // hasClass reads false on a missing or dead panel, so a hit needs no IsValid call.
     if (
       cache &&
       cache[cacheKey] === marker &&
       hasClass(panel, className) === enabled
     ) {
+      return;
+    }
+    if (!isValid(panel)) {
+      if (cache) cache[cacheKey] = null;
       return;
     }
     try {
@@ -1387,10 +1466,13 @@
   }
 
 
-  function cachedStyleDrift(panel, property, cache, cacheKey) {
-    var drift = !!(cache &&
+  // An absent optional part (null) has nothing to repair; when it appears, the part
+  // re-resolve resets the cache. Without this, its null cache entry read as drift on
+  // every scan and forced a full customization pass each second.
+  function cachedStyleDrift(panel, property, cache, cacheKey, valid) {
+    var drift = !!(panel && cache &&
       Object.prototype.hasOwnProperty.call(cache, cacheKey) &&
-      !styleMatches(panel, property, cache, cacheKey));
+      !styleMatches(panel, property, cache, cacheKey, valid));
     if (drift) cache[cacheKey] = null;
     return drift;
   }
@@ -1399,12 +1481,29 @@
     var drift = false;
     var entries = cache && cache.nativeStyles;
     if (!entries) return false;
+    // Entries cluster by panel, so one IsValid per run of the same panel.
+    var panel = null;
+    var valid = false;
     for (var key in entries) {
       if (readoutOnly && key.indexOf("readout") !== 0) continue;
       var entry = entries[key];
-      if (cachedStyleDrift(entry.panel, entry.property, cache, key)) drift = true;
+      if (entry.panel !== panel) valid = isValid((panel = entry.panel));
+      if (cachedStyleDrift(panel, entry.property, cache, key, valid)) drift = true;
     }
     return drift;
+  }
+
+  // Anonymous OLD boxes, outlines and segments are created and styled only here, so their
+  // cache is write-only: no native readback and no drift scan. null marks a failed write.
+  function setPipStyle(panel, property, value, applied, key) {
+    if (applied[key] === value) return;
+    try {
+      if (!isValid(panel)) throw 0;
+      panel.style[property] = value;
+      applied[key] = value;
+    } catch {
+      applied[key] = null;
+    }
   }
 
   function ensureOwnedPanel(parent, id) {
@@ -1421,7 +1520,13 @@
 
   function scanPipChildren(bar) {
     var previous = bar.colorPipChildren || [];
-    bar.pipChildren = panelChildren(bar.parts.pipLines);
+    var children = panelChildren(bar.parts.pipLines);
+    // Engine lines keep their class for life: an unchanged child list needs no reclassify.
+    var same = !!bar.pipChildren && children.length === bar.pipChildren.length;
+    for (var check = 0; same && check < children.length; check++)
+      same = children[check] === bar.pipChildren[check];
+    bar.pipChildren = children;
+    if (same) return;
     bar.colorPipChildren = [];
     for (var index = 0; index < bar.pipChildren.length; index++) {
       var panel = bar.pipChildren[index];
@@ -1468,8 +1573,10 @@
     if (!bar.healthValueOriginalParent)
       bar.healthValueOriginalParent = bar.parts.infoHealth;
     try {
-      if (panelParent(panel) !== row) panel.SetParent(row);
-      if (panelParent(panel) !== row) return false;
+      if (panelParent(panel) !== row) {
+        panel.SetParent(row);
+        if (panelParent(panel) !== row) return false;
+      }
       // Release only measured canvas compensation, not pre-existing native styles.
       rebaseNativeLabel(bar, null, "stockHealthRebase", "");
       bar.nativeReadoutOwned = true;
@@ -1902,56 +2009,26 @@
       : rotation || baselineStyle(baseline, "transform"), bar.applied, "nametransform");
   }
 
-  function clearStaminaOwnership() {
-    setStyle(
-      staminaSurface.container,
-      "transform",
+  var STAMINA_ICON_STYLES = ["width", "height", "backgroundColor", "borderColor", "washColor",
+    "backgroundSize"];
+  // verified: repairStyleCache just checked these caches against native styles in this pass,
+  // so a cache hit already proves the restore; otherwise each restore rereads the style.
+  function clearStaminaOwnership(verified) {
+    var restoring = !verified;
+    setStyle(staminaSurface.container, "transform",
       baselineStyle(staminaSurface.containerBaseline, "transform"),
-      staminaSurface.applied,
-      "transform", true,
-    );
-    setStyle(
-      staminaSurface.container,
-      "washColor",
+      staminaSurface.applied, "transform", restoring);
+    setStyle(staminaSurface.container, "washColor",
       baselineStyle(staminaSurface.containerBaseline, "washColor"),
-      staminaSurface.applied,
-      "washColor", true,
-    );
+      staminaSurface.applied, "washColor", restoring);
     for (var index = 0; index < staminaSurface.icons.length; index++) {
       var cache = staminaSurface.iconApplied[index] || {};
       var baseline = staminaSurface.iconBaselines[index] || {};
-      setStyle(
-        staminaSurface.icons[index],
-        "width",
-        baselineStyle(baseline, "width"),
-        cache,
-        "width", true,
-      );
-      setStyle(
-        staminaSurface.icons[index],
-        "height",
-        baselineStyle(baseline, "height"),
-        cache,
-        "height", true,
-      );
-      setStyle(
-        staminaSurface.icons[index],
-        "backgroundColor",
-        baselineStyle(baseline, "backgroundColor"),
-        cache,
-        "backgroundColor", true,
-      );
-      setStyle(
-        staminaSurface.icons[index],
-        "borderColor",
-        baselineStyle(baseline, "borderColor"),
-        cache,
-        "borderColor", true,
-      );
-      setStyle(staminaSurface.icons[index], "washColor",
-        baselineStyle(baseline, "washColor"), cache, "washColor", true);
-      setStyle(staminaSurface.icons[index], "backgroundSize",
-        baselineStyle(baseline, "backgroundSize"), cache, "backgroundSize", true);
+      for (var style = 0; style < STAMINA_ICON_STYLES.length; style++) {
+        var property = STAMINA_ICON_STYLES[style];
+        setStyle(staminaSurface.icons[index], property, baselineStyle(baseline, property),
+          cache, property, restoring);
+      }
     }
     setOwnedClass(
       staminaSurface.container,
@@ -1995,6 +2072,7 @@
   function rebuildStaminaCache(scope, container) {
     clearStaminaOwnership();
     staminaSurface.scope = scope;
+    staminaSurface.released = false;
     staminaSurface.container = container;
     staminaSurface.containerParent = panelParent(container);
     staminaSurface.containerChildCount = panelChildCount(container);
@@ -2034,15 +2112,27 @@
   }
 
 
-  function applyStaminaSurface() {
+  // Stock pip values everywhere: owning them would write back the captured baselines,
+  // exactly what releasing does, so default settings leave the pips with stock.
+  function staminaCustomized() {
+    var shape = config.staminaShape || "arrow";
+    return config.staminaWidth !== 110 || config.staminaHeight !== 44.8 ||
+      !!config.enemyStaminaColorEnabled || shape === "circle" || shape === "box" ||
+      config.staminaOffsetX !== 0 || config.staminaOffsetY !== 0;
+  }
+
+  function applyStaminaSurface(verified) {
     if (
       !isValid(staminaSurface.container) ||
       !config.enabled ||
-      !staminaSurface.enemy
+      !staminaSurface.enemy ||
+      !staminaCustomized()
     ) {
-      clearStaminaOwnership();
+      clearStaminaOwnership(verified);
+      staminaSurface.released = true;
       return;
     }
+    staminaSurface.released = false;
     var widthOwned = config.staminaWidth !== 110;
     var heightOwned = config.staminaHeight !== 44.8;
     var colorOwned = config.enemyStaminaColorEnabled;
@@ -2145,18 +2235,24 @@
 
   function reconcileStaminaSurface(bar) {
     var scope = bar && bar.parts ? bar.parts.windowRoot : null;
-    if (!staminaCacheUsable(scope))
-      rebuildStaminaCache(scope, findWithin(scope, "StaminaContainer"));
-    staminaSurface.enemy = !!(
+    var enemy = !!(
       bar &&
       bar.surface === "player" &&
       bar.kind === "player" &&
       bar.role === "enemy"
     );
+    staminaSurface.enemy = enemy;
+    // Released pips belong to stock (objectives, allies, default settings, master off):
+    // nothing to verify or repair until ownership returns, and stock may restyle them.
+    if (staminaSurface.released && scope === staminaSurface.scope &&
+        !(enemy && config.enabled && staminaCustomized()))
+      return;
+    if (!staminaCacheUsable(scope))
+      rebuildStaminaCache(scope, findWithin(scope, "StaminaContainer"));
     repairStyleCache(staminaSurface.applied);
     for (var index = 0; index < staminaSurface.iconApplied.length; index++)
       repairStyleCache(staminaSurface.iconApplied[index]);
-    applyStaminaSurface();
+    applyStaminaSurface(true);
   }
 
 
@@ -2472,13 +2568,13 @@
       }
       if (!isValid(entry.outline)) { if (shown) complete = false; continue; }
       var applied = entry.outlineApplied;
-      setStyle(entry.outline, "visibility", shown ? "visible" : "collapse", applied, "visibility");
+      setPipStyle(entry.outline, "visibility", shown ? "visible" : "collapse", applied, "visibility");
       if (!shown) continue;
-      setStyle(entry.outline, "position", pixels(colStep * col - t) + " " + top, applied, "position");
-      setStyle(entry.outline, "width", entry.capacity === PIP_HP ? fullWidth : pixels(hpWidth * entry.capacity + 2 * t),
+      setPipStyle(entry.outline, "position", pixels(colStep * col - t) + " " + top, applied, "position");
+      setPipStyle(entry.outline, "width", entry.capacity === PIP_HP ? fullWidth : pixels(hpWidth * entry.capacity + 2 * t),
         applied, "width");
-      setStyle(entry.outline, "height", height, applied, "height");
-      setStyle(entry.outline, "backgroundColor", color, applied, "backgroundColor");
+      setPipStyle(entry.outline, "height", height, applied, "height");
+      setPipStyle(entry.outline, "backgroundColor", color, applied, "backgroundColor");
       if (applied.position === null || applied.width === null || applied.height === null ||
         applied.backgroundColor === null || applied.visibility === null) complete = false;
     }
@@ -2507,11 +2603,9 @@
     var index = Math.max(0, Math.min(bar.pipCount - 1, Math.floor(hp / PIP_HP)));
     var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
     var inside = Math.max(0, Math.min(bar.pipPool[index].capacity, hp - index * PIP_HP));
-    var x = index % PIPS_PER_ROW * 100 / PIPS_PER_ROW + PIP_WIDTH_PERCENT * inside / PIP_HP;
-    var y = (rows - 1 - Math.floor(index / PIPS_PER_ROW)) * 100 / rows;
     var width = Math.max(1, nativePx(config.enemyKillMarkerWidth));
-    setStyle(marker, "position", x.toFixed(3) + "% " + y.toFixed(3) + "% 0px", bar.applied, "pipKillMarkerPosition");
-    setStyle(marker, "height", (80 / rows).toFixed(3) + "%", bar.applied, "pipKillMarkerHeight");
+    setStyle(marker, "position", oldBoxPosition(index, rows, inside), bar.applied, "pipKillMarkerPosition");
+    setStyle(marker, "height", oldBoxHeight(rows), bar.applied, "pipKillMarkerHeight");
     setStyle(marker, "width", pixels(width), bar.applied, "pipKillMarkerWidth");
     setStyle(marker, "marginLeft", pixels(-width / 2), bar.applied, "pipKillMarkerMarginLeft");
     setStyle(marker, "backgroundColor", config.enemyKillMarkerColor, bar.applied, "pipKillMarkerColor");
@@ -2555,7 +2649,7 @@
     // Like the 2024 grid, more than four rows shrink to fit four rows of height.
     if (count) setStyle(parts.pipGrid, "height", Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX + "px",
       bar.applied, "pipGridHeight");
-    var height = rows ? (80 / rows).toFixed(3) + "%" : "";
+    var height = rows ? oldBoxHeight(rows) : "";
     for (var index = 0; index < Math.max(count, bar.pipPool.length); index++) {
       var entry = bar.pipPool[index] || (bar.pipPool[index] = createPip(parts));
       if (!entry) {
@@ -2565,20 +2659,20 @@
       }
       var shown = index < count;
       if (shown) {
-        var row = Math.floor(index / PIPS_PER_ROW);
-        var position = (index % PIPS_PER_ROW * 100 / PIPS_PER_ROW).toFixed(3) + "% " +
-          ((rows - 1 - row) * 100 / rows).toFixed(3) + "% 0px";
+        var position = oldBoxPosition(index, rows, 0);
         entry.capacity = Math.min(PIP_HP, max - index * PIP_HP);
-        setStyle(entry.empty, "position", position, entry.emptyApplied, "position");
-        setStyle(entry.empty, "height", height, entry.emptyApplied, "height");
-        setStyle(entry.empty, "width", (PIP_WIDTH_PERCENT * entry.capacity / PIP_HP).toFixed(3) + "%",
+        setPipStyle(entry.empty, "position", position, entry.emptyApplied, "position");
+        setPipStyle(entry.empty, "height", height, entry.emptyApplied, "height");
+        setPipStyle(entry.empty, "width", (PIP_WIDTH_PERCENT * entry.capacity / PIP_HP).toFixed(3) + "%",
           entry.emptyApplied, "width");
-        setStyle(entry.fill, "position", position, entry.fillApplied, "position");
-        setStyle(entry.fill, "height", height, entry.fillApplied, "height");
-      } else setStyle(entry.fill, "visibility", "collapse", entry.fillApplied, "visibility");
-      setStyle(entry.empty, "visibility", shown ? "visible" : "collapse", entry.emptyApplied, "visibility");
+        setPipStyle(entry.fill, "position", position, entry.fillApplied, "position");
+        setPipStyle(entry.fill, "height", height, entry.fillApplied, "height");
+      } else setPipStyle(entry.fill, "visibility", "collapse", entry.fillApplied, "visibility");
+      setPipStyle(entry.empty, "visibility", shown ? "visible" : "collapse", entry.emptyApplied, "visibility");
     }
     bar.pipCount = count;
+    // Every layer segment is repainted against the new layout.
+    bar.oldLayerPainted = null;
     if (oldPipRows(bar) !== previousRows) bar.dirty = bar.geometryChanged = true;
     setOwnedClass(parts.windowRoot, "HPColorsRewriteBarPips",
       !!(config.enabled && bar.surface) && config.barMask === "old" && count > 0,
@@ -2586,9 +2680,10 @@
   }
 
   function fillOldPips(bar) {
-    if (!(bar.healthFraction >= 0)) return;
+    if (!(bar.rawHealthFraction >= 0)) return;
     setStyle(bar.parts.pipFill, "washColor", bar.applied.washColor || "", bar.applied, "pipFillWash");
-    var hp = bar.healthFraction * bar.pipMax;
+    // Snap to 0.1 HP: percent clips leave float dust (2,900.00005) that would light a 0% box.
+    var hp = Math.round(bar.rawHealthFraction * bar.pipMax * 10) / 10;
     var previous = bar.pipHp;
     if (previous === hp) return;
     var last = bar.pipCount - 1;
@@ -2597,11 +2692,168 @@
     for (var index = Math.max(0, from); index <= to; index++) {
       var entry = bar.pipPool[index];
       var share = Math.max(0, Math.min(1, (hp - index * PIP_HP) / entry.capacity));
-      setStyle(entry.fill, "width", (PIP_WIDTH_PERCENT * entry.capacity / PIP_HP * share).toFixed(3) + "%",
+      setPipStyle(entry.fill, "width", (PIP_WIDTH_PERCENT * entry.capacity / PIP_HP * share).toFixed(3) + "%",
         entry.fillApplied, "width");
-      setStyle(entry.fill, "visibility", share > 0 ? "visible" : "collapse", entry.fillApplied, "visibility");
+      setPipStyle(entry.fill, "visibility", share > 0 ? "visible" : "collapse", entry.fillApplied, "visibility");
     }
     bar.pipHp = hp;
+  }
+
+  // Position of the point hp HP into box index (rows fill bottom-up), and the box height.
+  function oldBoxPosition(index, rows, hp) {
+    return (index % PIPS_PER_ROW * 100 / PIPS_PER_ROW + PIP_WIDTH_PERCENT * hp / PIP_HP).toFixed(3) + "% " +
+      ((rows - 1 - Math.floor(index / PIPS_PER_ROW)) * 100 / rows).toFixed(3) + "% 0px";
+  }
+
+  function oldBoxHeight(rows) {
+    return (80 / rows).toFixed(3) + "%";
+  }
+
+  // OLD feedback layers: segments inside the boxes in stock z-order (shield and armor
+  // under the fill, healing and delta over it), washed with the color the renderer applied
+  // to the matching stock layer. Containers and segments are created on first use.
+  // Live 6753 trace: every layer is a full-width panel clipped to rect(.., right, .., left)
+  // of one bar total, and the 250-HP lines use that same total, so a shield grows the grid
+  // (4,246 HP + 600 shield = 19 lines, fill clipped at 87.6%, shield 87.6-100%).
+  var OLD_LAYERS = [
+    { part: "pipShield", id: "HPV2PipShield", color: "bulletShieldBackgroundColor", under: true },
+    { part: "pipArmor", id: "HPV2PipArmor", color: "armorBackgroundColor", under: true },
+    { part: "pipHealing", id: "HPV2PipHealing", color: "healingWashColor", under: false },
+    { part: "pipDelta", id: "HPV2PipDelta", color: "deltaWashColor", under: false },
+  ];
+  var layerSpanScratch = [-1, -1, -1, -1, -1, -1, -1, -1];
+
+  // Engine layer fractions of the bar total (1e-6 steps; a change repaints). Paint converts
+  // them with the current line-derived total: a scan samples before it relays out the grid.
+  function sampleOldLayers(bar, innerWidth) {
+    var spans = layerSpanScratch;
+    healthLayerSpan(bar.parts.healing, innerWidth, spans, 4);
+    healthLayerSpan(bar.parts.delta, innerWidth, spans, 6);
+    var kept = bar.oldLayerSpans || (bar.oldLayerSpans = [-1, -1, -1, -1, -1, -1, -1, -1]);
+    for (var slot = 0; slot < 8; slot += 2) {
+      var left = -1;
+      var right = -1;
+      if (spans[slot + 1] > spans[slot]) {
+        left = Math.round(spans[slot] * 1e6) / 1e6;
+        right = Math.round(spans[slot + 1] * 1e6) / 1e6;
+      }
+      if (kept[slot] === left && kept[slot + 1] === right) continue;
+      kept[slot] = left;
+      kept[slot + 1] = right;
+      bar.healthDirty = true;
+    }
+    // A paint that could not create or style a segment retries on the next paint tick.
+    if (bar.oldLayersPending) bar.healthDirty = true;
+  }
+
+  function oldBoxAt(bar, hp) {
+    return Math.max(0, Math.min(bar.pipCount - 1, Math.floor(hp / PIP_HP)));
+  }
+
+  // Returns the layer's container, creating it only when wanted. created marks a new one,
+  // whose segments (none yet) need a full pass.
+  function oldLayerContainer(bar, layer, wanted) {
+    var parts = bar.parts;
+    var container = parts[layer.part];
+    layer.created = false;
+    if (isValid(container) && panelParent(container) === parts.pipGrid) return container;
+    if (!wanted) return null;
+    container = parts[layer.part] = ensureOwnedPanel(parts.pipGrid, layer.id);
+    if (!isValid(container)) return null;
+    var before = layer.under ? parts.pipFill : parts.pipKillMarker;
+    if (isValid(before)) try { parts.pipGrid.MoveChildBefore(container, before); } catch {}
+    layer.created = true;
+    return container;
+  }
+
+  // Returns false when the box could not be fully painted, so its layer stays pending.
+  function paintOldSegment(bar, layer, container, index, left, right, rows) {
+    var entry = bar.pipPool[index];
+    if (!entry) return true;
+    var segment = entry.layers && entry.layers[layer.part];
+    if (segment && (!isValid(segment.panel) || panelParent(segment.panel) !== container)) {
+      try { if (isValid(segment.panel)) segment.panel.DeleteAsync(0); } catch {}
+      delete entry.layers[layer.part];
+      segment = null;
+    }
+    var base = index * PIP_HP;
+    var start = Math.max(left, base);
+    var end = Math.min(right, base + entry.capacity);
+    if (!(index < bar.pipCount && end - start > 0.05)) {
+      if (!segment) return true;
+      setPipStyle(segment.panel, "visibility", "collapse", segment.applied, "visibility");
+      return segment.applied.visibility !== null;
+    }
+    if (!segment) {
+      var panel = null;
+      try {
+        panel = $.CreatePanel("Panel", container, "");
+        panel.AddClass("HPV2Pip");
+      } catch {
+        try { if (isValid(panel)) panel.DeleteAsync(0); } catch {}
+        return false;
+      }
+      if (!isValid(panel)) return false;
+      segment = (entry.layers || (entry.layers = {}))[layer.part] = { panel: panel, applied: {} };
+    }
+    var applied = segment.applied;
+    setPipStyle(segment.panel, "position", oldBoxPosition(index, rows, start - base), applied, "position");
+    setPipStyle(segment.panel, "width", (PIP_WIDTH_PERCENT * (end - start) / PIP_HP).toFixed(3) + "%",
+      applied, "width");
+    setPipStyle(segment.panel, "height", oldBoxHeight(rows), applied, "height");
+    setPipStyle(segment.panel, "visibility", "visible", applied, "visibility");
+    return applied.position !== null && applied.width !== null && applied.height !== null &&
+      applied.visibility !== null;
+  }
+
+  // Rewrites only boxes the previous or current span touches; after a relayout or drift
+  // repair (painted = null) it revisits every pooled box once.
+  function paintOldLayers(bar) {
+    var spans = bar.oldLayerSpans;
+    if (!spans) return;
+    bar.oldLayersPending = false;
+    var full = !bar.oldLayerPainted;
+    var painted = bar.oldLayerPainted || (bar.oldLayerPainted = [-1, -1, -1, -1, -1, -1, -1, -1]);
+    var rows = Math.ceil(bar.pipCount / PIPS_PER_ROW);
+    for (var index = 0; index < OLD_LAYERS.length; index++) {
+      var layer = OLD_LAYERS[index];
+      var slot = index * 2;
+      var left = spans[slot] < 0 ? -1 : Math.round(spans[slot] * bar.pipMax * 10) / 10;
+      var right = spans[slot + 1] < 0 ? -1 : Math.round(spans[slot + 1] * bar.pipMax * 10) / 10;
+      var container = oldLayerContainer(bar, layer, right > left);
+      if (!container) {
+        if (right > left) bar.oldLayersPending = true;
+        continue;
+      }
+      setStyle(container, "washColor", bar.applied[layer.color] || "", bar.applied, layer.part + "Wash");
+      var whole = full || layer.created;
+      if (!whole && painted[slot] === left && painted[slot + 1] === right) continue;
+      var from = 0;
+      var to = bar.pipPool.length - 1;
+      if (!whole) {
+        from = Infinity;
+        to = -1;
+        if (painted[slot + 1] > painted[slot]) {
+          from = oldBoxAt(bar, painted[slot]);
+          to = oldBoxAt(bar, painted[slot + 1]);
+        }
+        if (right > left) {
+          from = Math.min(from, oldBoxAt(bar, left));
+          to = Math.max(to, oldBoxAt(bar, right));
+        }
+        to = Math.min(to, bar.pipPool.length - 1);
+      }
+      var complete = true;
+      for (var box = Math.max(0, from); box <= to; box++)
+        if (!paintOldSegment(bar, layer, container, box, left, right, rows)) complete = false;
+      // Commit only a fully painted span; otherwise the next paint revisits the same boxes.
+      if (!complete) {
+        bar.oldLayersPending = true;
+        continue;
+      }
+      painted[slot] = left;
+      painted[slot + 1] = right;
+    }
   }
 
   // Layout half: reads the engine line set (2 native layout reads) and relayouts the grid
@@ -2618,10 +2870,26 @@
         bar.parts.pipFill = ensureOwnedPanel(bar.parts.pipGrid, "HPV2PipFill");
     }
     var parts = bar.parts || {};
-    var lines = old && isValid(parts.pipEmpty) && isValid(parts.pipFill) ? (bar.pipChildren || []) : [];
+    // Both were just validated or created (ensureOwnedPanel returns only valid panels).
+    var lines = old && parts.pipEmpty && parts.pipFill ? (bar.pipChildren || []) : [];
     var last = lines.length ? lines[lines.length - 1] : null;
-    var width = lines.length ? readPanelWidth(parts.pipLines) : 0;
-    var x = isValid(last) ? cssLayout(last, "actualxoffset", "x") : NaN;
+    var lastValid = isValid(last);
+    // The engine removes surplus lines when the total drops (a shield ends); rescan rather
+    // than fall back on a deleted cached child.
+    if (last && !lastValid) {
+      scanPipChildren(bar);
+      lines = bar.pipChildren || [];
+      last = lines.length ? lines[lines.length - 1] : null;
+      lastValid = isValid(last);
+    }
+    // Prefer the engine's own percent position: new lines report FLT_MAX layout until laid out.
+    var position = /^(\d+(?:\.\d+)?)%/.exec(lastValid ? readHealthSignal(last, "position", true) : "");
+    var width = 100;
+    var x = position ? Number(position[1]) : NaN;
+    if (!(x > 0)) {
+      width = lines.length ? readPanelWidth(parts.pipLines) : 0;
+      x = lastValid ? cssLayout(last, "actualxoffset", "x") : NaN;
+    }
     var count = lines.length;
     if (!(width > 0 && x > 0)) count = x = width = 0;
     if (count === bar.pipLineCount && x === bar.pipLineX && width === bar.pipLineWidth &&
@@ -2633,8 +2901,9 @@
     return true;
   }
 
-  // Paint half: rims, marker and fill. Rims/marker early-return unless config or layout changed.
+  // Paint half: layers, rims, marker and fill. Rims/marker early-return unless config or layout changed.
   function paintOld(bar) {
+    if (bar.pipCount) paintOldLayers(bar);
     syncOldOutline(bar);
     syncOldKillMarker(bar);
     if (bar.pipCount) {
@@ -3778,18 +4047,18 @@
     if (!full) return drift;
     for (var index = 0; index < bar.pipColorEntries.length; index++)
       if (repairStyleCache(bar.pipColorEntries[index].applied)) drift = true;
+    // Owned OLD panels have write-only caches; only a lost outline or segment needs a repaint.
     for (var index = 0; index < bar.pipPool.length; index++) {
       var entry = bar.pipPool[index];
-      var emptyDrift = repairStyleCache(entry.emptyApplied);
-      var fillDrift = repairStyleCache(entry.fillApplied);
-      if (entry.outlineApplied && (repairStyleCache(entry.outlineApplied) || !isValid(entry.outline))) {
+      if (entry.outlineApplied && !isValid(entry.outline)) {
         bar.pipOutlineRevision = -1;
         drift = true;
       }
-      if (emptyDrift || fillDrift) {
-        bar.pipSignature = null;
-        drift = true;
-      }
+      for (var part in entry.layers)
+        if (!isValid(entry.layers[part].panel)) {
+          bar.oldLayerPainted = null;
+          drift = true;
+        }
     }
     return drift;
   }
@@ -3871,17 +4140,29 @@
     bar.unitInfoAnchorCenterY = 0;
     bar.pipSignature = null;
     bar.pipContainer = null;
-    (bar.pipPool || []).forEach(function (pip) { try { pip.empty.DeleteAsync(0); pip.fill.DeleteAsync(0); if (isValid(pip.outline)) pip.outline.DeleteAsync(0); } catch {} });
+    (bar.pipPool || []).forEach(function (pip) {
+      try {
+        pip.empty.DeleteAsync(0);
+        pip.fill.DeleteAsync(0);
+        if (isValid(pip.outline)) pip.outline.DeleteAsync(0);
+        for (var part in pip.layers) if (isValid(pip.layers[part].panel)) pip.layers[part].panel.DeleteAsync(0);
+      } catch {}
+    });
     bar.pipPool = [];
     bar.pipCount = 0;
     bar.pipMax = 0;
     bar.pipHp = null;
+    bar.oldLayerSpans = null;
+    bar.oldLayersPending = false;
+    bar.oldLayerPainted = null;
     bar.pipOutlineRevision = -1;
     bar.pipOutlineSignature = null;
     bar.healthFraction = -1;
+    bar.rawHealthFraction = -1;
     bar.dormant = false;
     bar.factCarriers = null;
     bar.factScans = 0;
+    bar.sleepScans = 0;
   }
 
   // Cached parts stand between full resolves unless one went invalid or moved,
@@ -3971,6 +4252,36 @@
     return true;
   }
 
+  // A sleeper whose kind no enabled gate can colour stays stock whatever its relation, so
+  // between full reclassifications (every FULL_RESOLVE_SCANS-th scan) it only watches its
+  // fact carriers for a kind that could own it: player, or a kind whose gate is open.
+  // Unknown kinds always classify, so late classes still land promptly.
+  function sleeperClassifyDue(bar) {
+    var buildingOpen = config.buildingEnemyEnabled || config.buildingAllyEnabled;
+    var npcOpen = config.npcEnemyEnabled || config.npcAllyEnabled || config.npcNeutralEnabled;
+    if (config.enabled && (bar.kind === "unknown" || (bar.kind === "building" ? buildingOpen : npcOpen)))
+      return true;
+    if (bar.sleepScans++ % FULL_RESOLVE_SCANS === 0) return true;
+    if (!config.enabled) return false;
+    var carriers = bar.factCarriers;
+    if (!carriers || !carriers.length) return true;
+    for (var index = 0; index < carriers.length; index++) {
+      var carrier = carriers[index];
+      if (!isValid(carrier)) return true;
+      if (hasAnyClass(carrier, KIND_FACTS.player) ||
+          (buildingOpen && hasAnyClass(carrier, KIND_FACTS.building)) ||
+          (npcOpen && hasAnyClass(carrier, KIND_FACTS.npc)))
+        return true;
+    }
+    return false;
+  }
+
+  function hasAnyClass(panel, list) {
+    for (var index = 0; index < list.length; index++)
+      if (hasClass(panel, list[index])) return true;
+    return false;
+  }
+
   function reconcileBars() {
     var lineage = primaryLineage();
     var bar = lineage ? findBarByInner(lineage.inner) : null;
@@ -3989,8 +4300,8 @@
         bar = addBar(resolveParts(lineage));
       } else {
         var sleeping = bar.dormant && bar.kind !== "player";
-        var steady = sleeping && !classifyTarget(bar) && dormant(bar) &&
-          bar.partsLineage === liveLineage.revision;
+        var steady = sleeping && !(sleeperClassifyDue(bar) && classifyTarget(bar)) &&
+          dormant(bar) && bar.partsLineage === liveLineage.revision;
         var reresolve = sleeping ? bar.partsScans++ % FULL_RESOLVE_SCANS === 0 || !steady : !cachedPartsUsable(bar);
         var partsChanged = reresolve && refreshBarParts(bar, lineage);
         if (!steady || reresolve) {
@@ -4116,7 +4427,40 @@
       : lastColorChangeAt && now - lastColorChangeAt <= PAINT_RECENT_MS
         ? PAINT_RECENT_SEC
         : PAINT_IDLE_SEC;
-    if (paintNeeded()) schedulePaint(delay);
+    if (!paintNeeded()) return;
+    if (delay === PAINT_IDLE_SEC) scheduleHealthProbe();
+    else schedulePaint(delay);
+  }
+
+  // An idle bar still gets its full paint every PAINT_IDLE_SEC. Between those, a probe every
+  // PAINT_ACTIVE_SEC rereads only the fill inputs visibleHealthFraction uses plus the shield
+  // and barrier clips, and repaints as soon as one moves, so a first hit shows as fast as on
+  // an active bar. Anything the probe does not read still waits for the idle paint, as before.
+  var FILL_SIGNALS = [["clip", true], ["width", true], ["transform", true],
+    ["preTransformScale2d", true], ["actuallayoutwidth", false], ["actualxoffset", false]];
+  function healthSignature() {
+    var signature = "";
+    for (var index = 0; index < bars.length; index++) {
+      var parts = bars[index].parts;
+      if (!bars[index].surface || !parts.fill) continue;
+      for (var signal = 0; signal < FILL_SIGNALS.length; signal++)
+        signature += readHealthSignal(parts.fill, FILL_SIGNALS[signal][0], FILL_SIGNALS[signal][1]) + ",";
+      signature += (parts.bulletShield ? readHealthSignal(parts.bulletShield, "clip", true) : "") + "," +
+        (parts.armor ? readHealthSignal(parts.armor, "clip", true) : "") + ";";
+    }
+    return signature;
+  }
+
+  function scheduleHealthProbe() {
+    var generation = ++paintGeneration;
+    var signature = healthSignature();
+    var probes = Math.round(PAINT_IDLE_SEC / PAINT_ACTIVE_SEC) - 1;
+    paintJob = $.Schedule(PAINT_ACTIVE_SEC, function probeHealth() {
+      if (stopped || generation !== paintGeneration) return;
+      if (!isValid(context) || healthSignature() !== signature) refreshPaint();
+      else if (--probes > 0) paintJob = $.Schedule(PAINT_ACTIVE_SEC, probeHealth);
+      else schedulePaint(PAINT_ACTIVE_SEC);
+    });
   }
 
   function paintNeeded() {

@@ -2,9 +2,9 @@
   "pak": "pak02_dir.vpk",
   "packageOrder": [
     "pak02 HP Colors Rewrite v2 support runtime",
-    "pak03 pinned QOLLOCK 4.0.4 3 October (qollock_404_3october.zip)"
+    "pak03 pinned QOLLOCK 4.0.5 6 October hotfix (qollock_405_6octoberhotfix.zip)"
   ],
-  "qollockAuthority": "pinned QOLLOCK 4.0.4 3 October pak03_dir.vpk (qollock_404_3october.zip)",
+  "qollockAuthority": "pinned QOLLOCK 4.0.5 6 October hotfix pak03_dir.vpk (qollock_405_6octoberhotfix.zip)",
   "refreshSwitch": "-RefreshFromInstalledQollock",
   "requiredSources": [
     "panorama/layout/hud_escape_menu.xml",

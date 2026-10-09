@@ -462,8 +462,12 @@ function assertInactiveReadout(panel) {
   for (const className of nativePulseClasses) assert.equal(panel.BHasClass(className), false, className);
 }
 
+// Runs the next full paint; an idle bar first runs its health probes (no health change here).
 function paintReadout(fixture) {
-  fixture.harness.scheduler.takeByFunctionName('paintColors').fn();
+  const { scheduler } = fixture.harness;
+  for (let probes = 0; probes < 10 && !scheduler.jobs.some((job) => job.fn.name === 'paintColors'); probes += 1)
+    scheduler.takeByFunctionName('probeHealth').fn();
+  scheduler.takeByFunctionName('paintColors').fn();
 }
 
 function readoutTranslation(row) {
@@ -3193,6 +3197,178 @@ test("OLD kill marker does not make full resolves reset the bar and drop its rim
   for (let scan = 0; scan < 12; scan++) fixture.harness.scheduler.runByDelay(1);
   assert.deepEqual(shownPips(fixture, "HPV2PipOutline"), boxes, "rim boxes survive full resolves");
   assert.deepEqual(shownPips(fixture, "HPV2PipEmpty"), empty, "pips are not rebuilt");
+});
+
+// Failure modes: healing/shield/delta hidden in OLD (the reported bug); segments not starting
+// at the fill edge or mapped to the wrong box; custom colors not reaching the boxes; shield
+// drawn over the fill; a shield counted twice (live 2.2.4 bug: lines already include it, so
+// a corrected "full HP" fill plus extra boxes drew every box full); new lines still at the
+// engine's FLT_MAX layout dropping the grid; deleted cached lines dropping it when the
+// shield ends; idle ticks rewriting.
+test("OLD pips draw healing, shield and delta segments on the engine's own bar total", () => {
+  const colors = { enemyHealing: "#00FF00", enemyBulletShield: "#0000FF", enemyDelta: "#FF00FF" };
+  // The stock XML ships every layer; the engine toggles HasHealth and their geometry.
+  const ids = ["unit_healthbar_healing", "unit_healthbar_bullet_shield", "unit_healthbar_delta"];
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old", ...colors }, ({ primary, inner }) => {
+    setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2900, 2);
+    for (const id of ids) inner.add(new MockPanel(id, { classes: ["HealthAmount"], style: { visibility: "visible" } }));
+  });
+  const layer = (id, width, offset) => {
+    const panel = fixture.inner.FindChildTraverse(id);
+    Object.assign(panel, { actuallayoutwidth: width, actualxoffset: offset });
+    panel.AddClass("HasHealth");
+    return panel;
+  };
+  const container = id => fixture.primary.FindChildTraverse(id);
+  // 1,450 HP fill (34.5 of 69); healing covers the next 10% = 290 HP.
+  const healing = layer("unit_healthbar_healing", 6.9, 34.5);
+  fixture.harness.scheduler.runByDelay(1);
+  let heal = shownPips(fixture, "HPV2PipHealing");
+  assert.deepEqual(heal.map(pip => [pip.style.position, pip.style.width]), [
+    ["44.250% 33.333% 0px", "4.250%"], ["50.000% 33.333% 0px", "8.500%"],
+    ["60.000% 33.333% 0px", "8.500%"], ["70.000% 33.333% 0px", "3.400%"],
+  ], "1,450-1,740 HP: half of box 14, boxes 15-16, 40 HP of box 17");
+  assert.equal(container("HPV2PipHealing").style.washColor, "#00FF00");
+  assert.equal(container("HPV2PipHealing").style.washColor, healing.style.washColor, "same color as the stock layer");
+  const grid = gridOf(fixture).children;
+  assert.ok(grid.indexOf(container("HPV2PipHealing")) > grid.indexOf(container("HPV2PipFill")), "healing over the fill");
+  let writes = layerWrites(fixture, "HPV2PipHealing");
+  for (let i = 0; i < 6; i++) fixture.harness.scheduler.runNext();
+  assert.equal(layerWrites(fixture, "HPV2PipHealing"), writes, "idle ticks write nothing");
+  healing.actuallayoutwidth = 9.66; // 1,450-1,856 HP: box 17 fills, box 18 gains 56 HP
+  fixture.harness.scheduler.runByDelay(1);
+  heal = shownPips(fixture, "HPV2PipHealing");
+  assert.equal(heal.length, 5);
+  assert.equal(heal[4].style.width, "4.760%");
+  assert.ok(layerWrites(fixture, "HPV2PipHealing") - writes <= 5, "only boxes 17 and 18 change");
+  healing.RemoveClass("HasHealth");
+  const delta = layer("unit_healthbar_delta", 3.45, 34.5); // 145 HP of recent damage
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipHealing").length, 0, "ended healing collapses");
+  assert.deepEqual(shownPips(fixture, "HPV2PipDelta").map(pip => pip.style.width), ["4.250%", "8.075%"]);
+  assert.equal(container("HPV2PipDelta").style.washColor, "#FF00FF");
+  delta.RemoveClass("HasHealth");
+  // Live 6753 trace (4,246 HP + 600 shield): the engine re-spaces the lines over HP + shield
+  // (new lines carry a percent position but FLT_MAX layout), clips the fill at HP / total and
+  // the shield from there to 100%. Here: 2,900 HP + 600 shield = 3,500.
+  const lines = fixture.primary.FindChildTraverse("UnitHealthbarLines");
+  setEngineLines(lines, 3500, 2);
+  for (const line of lines.children) {
+    line.style.position = (line.actualxoffset / 138 * 100).toFixed(6) + "% 0.0px 0.0px";
+    line.actualxoffset = 3.4028234663852886e38;
+  }
+  fixture.fill.actuallayoutwidth = 69 * 2900 / 3500;
+  const shield = layer("unit_healthbar_bullet_shield", 69 - 69 * 2900 / 3500, 69 * 2900 / 3500);
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 35, "the grid spans HP + shield like the stock bar");
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 29, "2,900 HP fills 29 boxes, not all 35");
+  assert.deepEqual(shownPips(fixture, "HPV2PipShield").map(pip => pip.style.position), [
+    "90.000% 25.000% 0px", "0.000% 0.000% 0px", "10.000% 0.000% 0px",
+    "20.000% 0.000% 0px", "30.000% 0.000% 0px", "40.000% 0.000% 0px",
+  ], "600 shield HP right after the fill");
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 35);
+  assert.equal(container("HPV2PipShield").style.washColor, "#0000FF");
+  const order = gridOf(fixture).children;
+  assert.ok(order.indexOf(container("HPV2PipShield")) >= 0 &&
+    order.indexOf(container("HPV2PipShield")) < order.indexOf(container("HPV2PipFill")), "shield under the fill");
+  // Shield ends: the engine deletes the surplus lines the renderer had cached.
+  shield.RemoveClass("HasHealth");
+  setEngineLines(lines, 2900, 2);
+  fixture.fill.actuallayoutwidth = 69;
+  paintReadout(fixture); // one paint tick, before any rescan
+  assert.equal(fixture.window.BHasClass("HPColorsRewriteBarPips"), true, "no fallback flash");
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 29);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 29);
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0);
+  assert.equal(shownPips(fixture, "HPV2PipOutline").length, 29);
+  for (let scan = 0; scan < 12; scan++) fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 29, "layer containers survive full resolves");
+});
+
+// Exact live trace (6753, 4,246 HP + 600 shield). Failure modes: the shield's first sample
+// still has FLT_MAX/zero layout, so geometry sampling sees no shield; a failed segment creation
+// is recorded as painted and never retried while HP and spans stay the same; percent float
+// dust (4,245.9999) or 2,900.00005 lights a 0%-wide extra fill box.
+test("OLD paints a live percent-clipped shield before layout settles and retries failed segments", () => {
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old" }, ({ primary, inner }) => {
+    setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 4246, 2);
+    inner.add(new MockPanel("unit_healthbar_bullet_shield", { classes: ["HealthAmount"], style: { visibility: "visible" } }));
+  });
+  const $ = fixture.harness.$;
+  const create = $.CreatePanel;
+  let failShield = Infinity; // every creation fails until the scan window ends
+  $.CreatePanel = function (type, parent, id) {
+    if (failShield > 0 && parent && parent.id === "HPV2PipShield") { failShield--; throw new Error("injected"); }
+    return create.apply(this, arguments);
+  };
+  const lines = fixture.primary.FindChildTraverse("UnitHealthbarLines");
+  setEngineLines(lines, 4846, 2);
+  for (const line of lines.children) {
+    line.style.position = (line.actualxoffset / 138 * 100).toFixed(6) + "% 0.0px 0.0px";
+    line.actualxoffset = 3.4028234663852886e38;
+  }
+  Object.assign(fixture.fill, { actuallayoutwidth: 69 });
+  fixture.fill.style.clip = "rect( 0.0%, 87.618652%, 100.0%, 0.0%)";
+  const shield = fixture.inner.FindChildTraverse("unit_healthbar_bullet_shield");
+  Object.assign(shield, { actuallayoutwidth: 0, actualxoffset: 3.4028234663852886e38 });
+  shield.style.clip = "rect( 0.0%, 100.0%, 100.0%, 87.618652%)";
+  shield.AddClass("HasHealth");
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 49);
+  const fill = shownPips(fixture, "HPV2PipFill");
+  assert.equal(fill.length, 43, "4,246 HP: 42 full boxes and 46 HP of box 42");
+  assert.equal(fill[42].style.width, "3.910%");
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0, "creation failed");
+  failShield = 0;
+  // Retry must come from the paint loop alone (no scan, no HP or span change).
+  paintReadout(fixture);
+  const shieldPips = shownPips(fixture, "HPV2PipShield");
+  assert.deepEqual(shieldPips.map(pip => [pip.style.position, pip.style.width]).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])), [
+    ["23.910% 0.000% 0px", "4.590%"], ["30.000% 0.000% 0px", "8.500%"], ["40.000% 0.000% 0px", "8.500%"],
+    ["50.000% 0.000% 0px", "8.500%"], ["60.000% 0.000% 0px", "8.500%"], ["70.000% 0.000% 0px", "8.500%"],
+    ["80.000% 0.000% 0px", "3.910%"],
+  ], "54 HP of box 42, boxes 43-47, and the 46 HP last box, retried with unchanged HP");
+  const writes = layerWrites(fixture, "HPV2PipShield");
+  for (let i = 0; i < 4; i++) paintReadout(fixture);
+  assert.equal(layerWrites(fixture, "HPV2PipShield"), writes, "settled shield writes nothing");
+  // Shield ends at full HP: exactly 100% must not light a sliver box.
+  shield.RemoveClass("HasHealth");
+  setEngineLines(lines, 4246, 2);
+  fixture.fill.style.clip = "rect( 0.0%, 100.0%, 100.0%, 0.0%)";
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 43);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 43);
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0);
+  // 4,200 / 4,246 as an engine percent reads 4,200.00002 HP: box 42 must stay empty.
+  fixture.fill.style.clip = "rect( 0.0%, 98.916628%, 100.0%, 0.0%)";
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 42, "no 0%-wide sliver box");
+});
+
+// Live 6753: bars that first appear while OLD hides the inner (opacity 0) never get a
+// layout pass, so the inner and its layers keep reporting 0 or FLT_MAX. The engine's
+// percent clips still carry HP and shield, and the grid must not stay empty.
+test("OLD reads HP and shield from percent clips when the hidden inner was never laid out", () => {
+  const unlaid = { actuallayoutwidth: 0, actualxoffset: 3.4028234663852886e38 };
+  let shield;
+  const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old" }, ({ primary, inner, fill }) => {
+    setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 4846, 2);
+    shield = inner.add(new MockPanel("unit_healthbar_bullet_shield", { classes: ["HealthAmount", "HasHealth"], style: { visibility: "visible" } }));
+    for (const panel of [inner, fill, shield]) Object.assign(panel, unlaid);
+    fill.style.clip = "rect( 0.0%, 87.618652%, 100.0%, 0.0%)";
+    shield.style.clip = "rect( 0.0%, 100.0%, 100.0%, 87.618652%)";
+  });
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 49);
+  assert.equal(layerOf(fixture, "HPV2PipFill")[42].style.width, "3.910%", "box 42 painted with 46 HP");
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 43, "4,246 HP from the fill clip alone");
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 7, "600 shield from the shield clip alone");
+  // Space-separated clips are the same engine signal.
+  fixture.fill.style.clip = "rect( 0.0% 50.0% 100.0% 0.0% )";
+  shield.RemoveClass("HasHealth");
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(shownPips(fixture, "HPV2PipFill").length, 25, "2,423 HP");
+  assert.equal(shownPips(fixture, "HPV2PipShield").length, 0);
 });
 
 test("outline stock CSS mirrors ancestor colors and rule order for whole bars and OLD boxes", () => {

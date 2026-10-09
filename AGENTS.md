@@ -49,6 +49,7 @@ Important lanes:
 - `topbar_rank/`, `showrank/` — rank surfaces, topbar HUD, profile/player-list hooks, and build variants. Current combined code uses `showrank_common.js`; legacy `topbar_rank_rank_bridge.js` references are stale.
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
 - `test_hpv2/` — standalone pak04 pickup indicators; read `test_hpv2/AGENTS.md` before changing its runtime, relay layouts, or `build_test_hpv2.ps1`.
+- `feeder_feed/` — pak08 FEEDER FEED tab in the damage report (kill-feed donors/recipients with server bounty and comeback math); read `feeder_feed/AGENTS.md` first.
 - `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
 - `anitaui/`, `soul_timer/`, `self_hp/`, `passive_items_mod/` — Anita UI settings host, unsecured soul-drain countdown, self health bar override, and passive items driven by generated JS config.
 - `abilities/scripts/` — mutable VData baselines and Python text transforms.
@@ -83,6 +84,10 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 node hp_colors_minimal/scripts/validate-minimal.js
 node --test hp_colors_minimal/scripts/validate-minimal.test.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
+
+# Feeder Feed
+node feeder_feed/scripts/validate-feeder-feed.js
+powershell -ExecutionPolicy Bypass -File build_feeder_feed.ps1
 
 # HP Colors Rewrite + QOLLOCK compatibility
 node --test scripts/validate-hp-colors-rewrite-qollock.test.js
@@ -149,6 +154,8 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - `buff_timer_virgin/AGENTS.md` — advanced performance patterns; `sr2compiler/AGENTS.md` — legacy compiler behavior; `abilities/AGENTS.md` — VData constraints.
 - `.agents/system-prompts/skill-init-claudemd-and-skill-setup-new-version.md` — `/init` flow for targeted agent-guide/skill setup updates.
 - `.agents/skills/find-skills/SKILL.md` — skill discovery workflow; verify quality before recommending installs.
+- `.agents/skills/refactor-pinned/SKILL.md` — behavior-preserving refactors: pin, small steps, old-vs-new equivalence (`HP_COLORS_REWRITE_SOURCE_ROOT`, `scripts/diff-vpk-entries.py`).
+- `.agents/skills/optimize-measured/SKILL.md` — runtime/build optimization: baseline, one change per measurement, keep or revert (`scripts/measure-hp-colors-rewrite-v2-refactor.js`, `scripts/profile-hp-colors-rewrite-v2-reads.js`).
 
 ## Runtime/Tooling Preferences
 

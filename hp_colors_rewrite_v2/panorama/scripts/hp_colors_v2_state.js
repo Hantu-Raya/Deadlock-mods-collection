@@ -868,8 +868,8 @@
     return record;
   }
 
-  // Only the canonical baked record may carry historical shipped readout offsets.
-  function normalizeBakedReadoutOffsets(values, source) {
+  // Only canonical baked records may carry earlier shipped defaults.
+  function normalizeBakedShippedDefaults(values, source) {
     var baseline = source.hpv2 && source.hpv2.v >= 2 ? DEFAULTS : SPARSE_DEFAULTS;
     var historical = {
       readoutOffsetX: [27, -30],
@@ -879,6 +879,10 @@
       allyReadoutOffsetX: [-30],
       allyReadoutOffsetY: [434],
     };
+    if (baseline === DEFAULTS) {
+      historical.ultOffsetY = [48];
+      historical.levelOffsetY = [48];
+    }
     var groups = [
       { pairs: source.values, keys: CODEC_KEYS },
       { pairs: source.hpv2 ? source.hpv2.values : [], keys: EXTENSION_KEYS },
@@ -894,6 +898,11 @@
         values[key] = baseline[key];
       }
     }
+    // Before nameRiseWithPips was appended, v2 exports omitted its slot.
+    if (baseline === DEFAULTS && !source.hpv2.values.some(function (pair) {
+      return EXTENSION_KEYS[pair[0]] === "nameRiseWithPips";
+    }))
+      values.nameRiseWithPips = DEFAULTS.nameRiseWithPips;
     return true;
   }
 
@@ -969,7 +978,7 @@
       if (extension.offsetVersion !== 2)
         migrateReadoutOffsets(decoded.values, conditions);
       if (kind === "baked") {
-        if (!normalizeBakedReadoutOffsets(decoded.values, source))
+        if (!normalizeBakedShippedDefaults(decoded.values, source))
           return { error: "INVALID BAKED PRESET" };
         if (
           id !== DEFAULT_PRESET_ID ||
@@ -1537,6 +1546,20 @@
       };
     }
 
+    // Owned projections contain ordered JSON objects, dense arrays and finite scalars.
+    function sameProjection(a, b) {
+      if (a === b) return true;
+      if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+      var keys = Object.keys(a);
+      var otherKeys = Object.keys(b);
+      if (keys.length !== otherKeys.length) return false;
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        if (key !== otherKeys[i] || !sameProjection(a[key], b[key])) return false;
+      }
+      return true;
+    }
+
     function sameRows(a, b) {
       if (a.length !== b.length) return false;
       for (var i = 0; i < a.length; i++) {
@@ -1636,7 +1659,7 @@
               ? valuesEqual(fresh, previous)
               : field === "repository"
                 ? sameRepository(fresh, previous)
-                : JSON.stringify(fresh) === JSON.stringify(previous);
+                : sameProjection(fresh, previous);
           if (unchanged) candidate[field] = previous;
         }
       }
@@ -1713,15 +1736,12 @@
       }
       var afterSession = sessionRaw();
       sessionMemo = afterSession;
-      var afterIdentity = identitySignature();
-      var afterAbility = abilitySignature();
-      var afterTransactions = transactionSignature();
       var stateChanged =
         mutationResult ||
         beforeSession !== afterSession ||
-        beforeIdentity !== afterIdentity ||
-        beforeAbility !== afterAbility ||
-        beforeTransactions !== afterTransactions;
+        beforeIdentity !== identitySignature() ||
+        beforeAbility !== abilitySignature() ||
+        beforeTransactions !== transactionSignature();
       if (opts.clipboard) {
         extraEffects.push(opts.clipboard);
         stateChanged = true;

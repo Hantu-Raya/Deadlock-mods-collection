@@ -1,0 +1,672 @@
+/* MOD: Buff timer minimap settings. Colours are stock Deadlock tokens written out:
+   offWhite #FFEFD7, offBlack #10130D, context-menu surface #181716, warningRed #ee5945. */
+.bt-settings-host
+{
+    width: 100%;
+    height: 100%;
+    overflow: noclip;
+}
+
+/* The gear sits in the bottom-right corner of the screen under HudCore; the panel opens straight above it. */
+#BTSettingsRoot
+{
+    width: 256px;
+    height: fit-children;
+    horizontal-align: right;
+    vertical-align: bottom;
+    margin-right: 6px;
+    margin-bottom: 6px;
+    flow-children: down;
+    overflow: noclip;
+    z-index: 1000003;
+}
+
+.bt-settings-gear
+{
+    width: 30px;
+    height: 30px;
+    horizontal-align: right;
+    border-radius: 50%;
+    background-color: #10130Dcc;
+    border: 1px solid #FFEFD71a;
+    opacity: 0.6;
+    transition-property: opacity;
+    transition-duration: 0.12s;
+}
+
+.bt-settings-gear:hover,
+.bt-settings-gear.open
+{
+    opacity: 1;
+}
+
+.bt-settings-gear-icon
+{
+    width: 18px;
+    height: 18px;
+    horizontal-align: center;
+    vertical-align: center;
+    wash-color: #FFEFD7;
+}
+
+.bt-settings-panel
+{
+    visibility: collapse;
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 10px 12px 8px 12px;
+    flow-children: down;
+    background-color: #181716f2;
+    border: 1px solid #FFEFD71a;
+    border-radius: 3px;
+}
+
+.bt-settings-panel.open
+{
+    visibility: visible;
+}
+
+.bt-settings-panel.loading .bt-color-row,
+.bt-settings-panel.loading .bt-switch-row,
+.bt-settings-panel.loading .bt-settings-reset
+{
+    opacity: 0.35;
+}
+
+.bt-settings-title
+{
+    margin-bottom: 4px;
+    font-family: oracle;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #FFEFD780;
+}
+
+/* Rows: colour rows show the minimap arrow glyph itself, washed with the chosen colour. */
+.bt-color-row,
+.bt-switch-row
+{
+    width: 100%;
+    height: 28px;
+    padding: 0px 6px;
+    flow-children: right;
+    border-radius: 3px;
+}
+
+.bt-color-row:hover,
+.bt-switch-row:hover
+{
+    background-color: #FFEFD70d;
+}
+
+.bt-color-row.selected
+{
+    background-color: #FFEFD714;
+}
+
+.bt-color-arrow
+{
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    vertical-align: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.bt-arrow-up
+{
+    background-image: url("s2r://panorama/images/control_icons/arrow_solid_up_png.vtex");
+    wash-color: #FFE14D;
+}
+
+.bt-arrow-down
+{
+    background-image: url("s2r://panorama/images/control_icons/arrow_solid_down_png.vtex");
+    wash-color: #4DD2FF;
+}
+
+.bt-row-label
+{
+    width: fill-parent-flow(1);
+    vertical-align: center;
+    font-family: sans;
+    font-size: 14px;
+    color: #FFEFD7cc;
+    text-overflow: shrink;
+}
+
+.bt-color-hex
+{
+    vertical-align: center;
+    font-family: sans;
+    font-size: 12px;
+    color: #FFEFD766;
+}
+
+/* Inline editor shared by both colour rows. */
+.bt-color-editor
+{
+    visibility: collapse;
+    width: 100%;
+    padding: 6px 6px 4px 6px;
+    flow-children: down;
+}
+
+.bt-color-editor.open
+{
+    visibility: visible;
+}
+
+.bt-preset-row
+{
+    width: 100%;
+    height: 18px;
+    flow-children: right;
+}
+
+.bt-preset
+{
+    width: 18px;
+    height: 18px;
+    margin-right: 3px;
+    border: 1px solid #FFEFD733;
+    border-radius: 2px;
+}
+
+.bt-preset:hover
+{
+    border: 1px solid #FFEFD7aa;
+}
+
+.bt-preset.selected
+{
+    border: 2px solid #FFEFD7;
+}
+
+.bt-spectrum-row
+{
+    width: 100%;
+    height: 24px;
+    margin-top: 8px;
+    flow-children: right;
+}
+
+.bt-spectrum-host
+{
+    width: fill-parent-flow(1);
+    height: 100%;
+}
+
+/* Same stops as the stock settings colour slider (settings_color_slider.css .ColorSliderTrack). */
+.bt-spectrum-track
+{
+    width: 100%;
+    height: 8px;
+    vertical-align: center;
+    border-radius: 4px;
+    background-color: gradient( linear, 0% 0%, 100% 0%, from( #000000 ), color-stop( 0.08, #ff0000 ), color-stop( 0.22, #ffff00 ), color-stop( 0.36, #00ff00 ), color-stop( 0.50, #00ffff ), color-stop( 0.64, #0000ff ), color-stop( 0.78, #ff00ff ), color-stop( 0.92, #ff0000 ), to( #ffffff ) );
+}
+
+/* The script creates Slider#BTSpectrum over the track; only its thumb is drawn. */
+.bt-spectrum.HorizontalSlider
+{
+    width: 100%;
+    height: 100%;
+    vertical-align: center;
+    overflow: noclip;
+}
+
+/* Stock citadel_base_styles gives the track 10px padding and the progress/thumb a glow; clear them so the
+   thumb lines up with the drawn gradient and nothing glows. */
+.bt-spectrum.HorizontalSlider #SliderTrack,
+.bt-spectrum.HorizontalSlider #SliderTrackProgress
+{
+    height: 100%;
+    padding: 0px;
+    background-color: #00000000;
+    border: 0px solid #00000000;
+    box-shadow: none;
+}
+
+.bt-spectrum.HorizontalSlider .SliderThumb,
+Slider.bt-spectrum.HorizontalSlider #SliderThumb,
+Slider.bt-spectrum.HorizontalSlider #SliderThumb:hover,
+Slider.bt-spectrum.HorizontalSlider:active #SliderThumb
+{
+    width: 14px;
+    height: 14px;
+    vertical-align: center;
+    border-radius: 50%;
+    border: 2px solid #10130D;
+    background-color: #FFEFD7;
+    box-shadow: none;
+}
+
+.bt-hex-entry
+{
+    width: 74px;
+    height: 24px;
+    margin-left: 8px;
+    padding: 2px 6px;
+    vertical-align: center;
+    font-family: sans;
+    font-size: 13px;
+    color: #FFEFD7;
+    background-color: #10130D99;
+    background-image: none;
+    border: 1px solid #FFEFD722;
+    border-radius: 3px;
+}
+
+.bt-hex-entry:focus
+{
+    border: 1px solid #FFEFD766;
+}
+
+/* Toggles reuse the stock settings switch art (settings_toggle.css). */
+.bt-switch
+{
+    width: 32px;
+    height: 16px;
+    vertical-align: center;
+    background-image: url("s2r://panorama/images/buttons/switch_background.vsvg");
+    background-size: 32px 16px;
+    background-repeat: no-repeat;
+}
+
+.bt-switch-handle
+{
+    width: 16px;
+    height: 16px;
+    background-image: url("s2r://panorama/images/buttons/switch_handle_off.vsvg");
+    background-size: 16px 16px;
+    background-repeat: no-repeat;
+}
+
+.bt-switch-row.on .bt-switch-handle
+{
+    background-image: url("s2r://panorama/images/buttons/switch_handle_on.vsvg");
+    transform: translateX(16px);
+}
+
+.bt-settings-footer
+{
+    width: 100%;
+    margin-top: 6px;
+    flow-children: right;
+}
+
+.bt-settings-status
+{
+    width: fill-parent-flow(1);
+    vertical-align: center;
+    font-family: sans;
+    font-size: 11px;
+    color: #FFEFD766;
+    text-overflow: shrink;
+}
+
+.bt-settings-reset
+{
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+
+.bt-settings-reset:hover
+{
+    background-color: #ee594522;
+}
+
+.bt-settings-reset Label
+{
+    font-family: oracle;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #FFEFD799;
+}
+
+.bt-settings-reset:hover Label
+{
+    color: #ee5945;
+}
+
+/* Hidden save page: same collapsed-wrapper pattern as HP Colors v2's store panel. */
+.bt-settings-store-wrap
+{
+    width: 10px;
+    height: 10px;
+    ignore-parent-flow: true;
+    visibility: collapse;
+}
+
+.bt-settings-store
+{
+    width: 100%;
+    height: 100%;
+    opacity: 0.01;
+}
+
+/* Customize row: same shape as the switch rows, with a small EDIT tag where the switch would be. */
+.bt-layout-row
+{
+    width: 100%;
+    height: 28px;
+    padding: 0px 6px;
+    flow-children: right;
+    border-radius: 3px;
+}
+
+.bt-layout-row:hover
+{
+    background-color: #FFEFD70d;
+}
+
+.bt-settings-panel.loading .bt-layout-row
+{
+    opacity: 0.35;
+}
+
+.bt-layout-row-go
+{
+    vertical-align: center;
+    font-family: oracle;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #FFEFD799;
+}
+
+.bt-layout-row:hover .bt-layout-row-go
+{
+    color: #FFEFD7;
+}
+
+/* Edit bar. The script places it just above the minimap (writing left/top alignment and position) and the grip drags
+   it; top centre below the top bar is only the fallback until the minimap has a layout. It is not in the gear column:
+   above the gear it covered the right claim box and anything dragged into that corner. */
+.bt-layout-bar
+{
+    visibility: collapse;
+    width: 330px;
+    horizontal-align: center;
+    vertical-align: top;
+    margin-top: 150px;
+    padding: 0px 10px 8px 10px;
+    flow-children: down;
+    background-color: #181716f2;
+    border: 1px dashed #FFEFD7aa;
+    border-radius: 3px;
+    z-index: 1000004;
+}
+
+/* While editing the gear hides too (the menu is closed), so the bottom-right corner takes widgets. */
+#BTSettingsRoot.bt-editing .bt-settings-gear
+{
+    visibility: collapse;
+}
+
+.bt-layout-bar.open
+{
+    visibility: visible;
+}
+
+/* Grip: the title strip; dragging it moves the whole box. */
+.bt-layout-grip
+{
+    width: 100%;
+    height: 24px;
+    margin-bottom: 4px;
+    flow-children: right;
+    border-bottom: 1px solid #FFEFD71a;
+}
+
+.bt-layout-grip:hover
+{
+    background-color: #FFEFD70d;
+}
+
+.bt-layout-title
+{
+    vertical-align: center;
+    font-family: oracle;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #FFEFD7cc;
+}
+
+.bt-layout-grip-hint
+{
+    width: fill-parent-flow(1);
+    vertical-align: center;
+    margin-left: 8px;
+    font-family: sans;
+    font-size: 10px;
+    color: #FFEFD766;
+    text-align: right;
+    text-overflow: shrink;
+}
+
+/* Legend: each row shows the symbol as it appears on the widgets. */
+.bt-legend-row
+{
+    width: 100%;
+    height: 18px;
+    margin-bottom: 2px;
+    flow-children: right;
+}
+
+.bt-legend-symbol
+{
+    width: 24px;
+    height: 18px;
+}
+
+.bt-legend-outline
+{
+    width: 18px;
+    height: 12px;
+    horizontal-align: center;
+    vertical-align: center;
+    border: 1px dashed #FFFFFF;
+}
+
+.bt-legend-square
+{
+    width: 10px;
+    height: 10px;
+    horizontal-align: center;
+    vertical-align: center;
+    background-color: #FFFFFF;
+    border: 1px solid #10130D;
+    border-radius: 2px;
+}
+
+.bt-legend-arrow
+{
+    width: 12px;
+    height: 12px;
+    horizontal-align: center;
+    vertical-align: center;
+    background-image: url("s2r://panorama/images/control_icons/arrow_solid_up_png.vtex");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    wash-color: #FFFFFF;
+}
+
+.bt-legend-knob
+{
+    width: 10px;
+    height: 10px;
+    horizontal-align: center;
+    vertical-align: center;
+    background-color: #FFFFFF;
+    border: 1px solid #10130D;
+    border-radius: 5px;
+}
+
+.bt-legend-icon
+{
+    width: 12px;
+    height: 12px;
+    horizontal-align: center;
+    vertical-align: center;
+    background-image: url("s2r://panorama/images/hud/modifiers/icon_invisible.vsvg");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    wash-color: #FFFFFF;
+}
+
+.bt-legend-text
+{
+    width: fill-parent-flow(1);
+    vertical-align: center;
+    margin-left: 4px;
+    font-family: sans;
+    font-size: 11px;
+    color: #FFEFD7cc;
+    text-overflow: shrink;
+}
+
+.bt-layout-actions
+{
+    width: 100%;
+    margin-top: 6px;
+    flow-children: right;
+}
+
+.bt-layout-action
+{
+    padding: 4px 8px;
+    margin-left: 4px;
+    border-radius: 3px;
+    background-color: #FFEFD70d;
+}
+
+.bt-layout-action:hover
+{
+    background-color: #FFEFD722;
+}
+
+.bt-layout-action Label
+{
+    font-family: oracle;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #FFEFD7cc;
+}
+
+.bt-layout-action-reset
+{
+    margin-left: 0px;
+}
+
+.bt-layout-action-reset:hover Label
+{
+    color: #ee5945;
+}
+
+.bt-layout-spacer
+{
+    width: fill-parent-flow(1);
+}
+
+.bt-layout-action-done
+{
+    background-color: #FFEFD733;
+}
+
+.bt-layout-action-done Label
+{
+    color: #FFEFD7;
+}
+
+/* Section labels; .bt-timer-only rows and labels belong to the timer and hide without it. */
+.bt-settings-section
+{
+    margin-top: 6px;
+    margin-bottom: 2px;
+    font-family: oracle;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #FFEFD766;
+}
+
+.bt-settings-section.bt-section-first
+{
+    margin-top: 0px;
+}
+
+.bt-settings-panel.no-buff-timer .bt-timer-only
+{
+    visibility: collapse;
+}
+
+/* Square swatch in the colour the row edits (the script writes background-color). */
+.bt-color-swatch
+{
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    vertical-align: center;
+    border: 1px solid #FFEFD733;
+    border-radius: 2px;
+}
+
+.bt-strength-row
+{
+    width: 100%;
+    height: 28px;
+    padding: 0px 6px;
+    flow-children: right;
+}
+
+.bt-settings-panel.loading .bt-strength-row
+{
+    opacity: 0.35;
+}
+
+.bt-strength-label
+{
+    width: 70px;
+    vertical-align: center;
+    font-family: sans;
+    font-size: 14px;
+    color: #FFEFD7cc;
+}
+
+.bt-strength-host
+{
+    width: fill-parent-flow(1);
+    height: 100%;
+}
+
+Slider.bt-strength
+{
+    width: 100%;
+    vertical-align: center;
+}
+
+.bt-strength-value
+{
+    width: 42px;
+    vertical-align: center;
+    font-family: sansMono;
+    font-size: 12px;
+    text-align: right;
+    color: #FFEFD7cc;
+}
+
+/* Brightness of the edited colour, under the spectrum (the editor already pads it). */
+.bt-strength-row.bt-brightness-row
+{
+    height: 24px;
+    margin-top: 6px;
+    padding: 0px;
+}

@@ -1,5 +1,9 @@
 param(
-    [switch]$RefreshFromSteamTracking
+    [switch]$RefreshFromSteamTracking,
+    # Build only these pak specs (e.g. -Only pak03); default builds all four.
+    [string[]]$Only,
+    # Also copy each built pakXX_dir.vpk into the Deadlock addons folder.
+    [switch]$Deploy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -85,6 +89,13 @@ $pakSpecs = @(
         BehaviorState = "disabled"
     }
 )
+
+if ($Only) {
+    # A refresh must rewrite both baselines together; a filtered spec list would skip one.
+    if ($RefreshFromSteamTracking) { throw "-RefreshFromSteamTracking cannot be combined with -Only" }
+    $pakSpecs = @($pakSpecs | Where-Object { $Only -contains $_.Name })
+    if (-not $pakSpecs) { throw "No pak spec matches -Only $($Only -join ', ')" }
+}
 
 $legacyArchiveNames = @(
     "filter_for_passive_and_active_items_noBehaviour_$dateTag.7z",
@@ -286,6 +297,10 @@ if ($RefreshFromSteamTracking) {
     Update-AbilityBaselinesFromSteamTracking -InputFiles $inputFiles
 }
 
+if ($Deploy -and (Get-Process -Name deadlock -ErrorAction SilentlyContinue)) {
+    throw "Deadlock is running and locks addons paks; close it before -Deploy"
+}
+
 $inputBaselines = @{}
 $baselineDir = Join-Path ([System.IO.Path]::GetTempPath()) ("deadlock_abilities_baseline_" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $baselineDir -Force | Out-Null
@@ -321,6 +336,19 @@ foreach ($spec in $pakSpecs) {
     Stage-And-Pack -StageDir $spec.StageDir -CompiledSource $spec.CompiledSource -VpkOut $spec.VpkOut
 }
 
+# Restore inputs before deploy/archive so a failure there cannot leave a transformed baseline.
+foreach ($inputFile in $inputFiles) {
+    Copy-ItemWithRetry -Source $inputBaselines[$inputFile] -Destination (Join-Path $modScripts $inputFile)
+}
+
+if ($Deploy) {
+    foreach ($spec in $pakSpecs) {
+        $deployPath = Join-Path $addons (Split-Path -Leaf $spec.VpkOut)
+        Write-Host "[deploy] $deployPath" -ForegroundColor Cyan
+        Copy-ItemWithRetry -Source $spec.VpkOut -Destination $deployPath
+    }
+}
+
 Remove-LegacyArchives
 
 $archives = foreach ($spec in $pakSpecs) {
@@ -335,10 +363,6 @@ foreach ($spec in $pakSpecs) {
     if (Test-Path $spec.VpkOut) {
         Remove-Item -Force $spec.VpkOut
     }
-}
-
-foreach ($inputFile in $inputFiles) {
-    Copy-ItemWithRetry -Source $inputBaselines[$inputFile] -Destination (Join-Path $modScripts $inputFile)
 }
 
 if (Test-Path $baselineDir) {

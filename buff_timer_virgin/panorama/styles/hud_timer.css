@@ -1,11 +1,32 @@
-/* Stock minimap_persp is 440x520 since 2026-09-29; keep the timer percentages on the old bottom-anchored 440x440 box. */
+/* MOD: The timer layer fills .clamp_width; the script positions each widget slot. Default spots come from BTTimerDock,
+   the old bottom-anchored 440x440 box inside #minimap_persp. Copies stock hud.css #minimap_persp hiding. */
 #TimerOverlayFrame
 {
 	width: 100%;
-	height: 440px;
-	vertical-align: bottom;
+	height: 100%;
 	overflow: noclip;
 	z-index: 99999;
+	transition-property: opacity;
+	transition-duration: .21s;
+}
+
+.InHideout #TimerOverlayFrame,
+.GameStatePreGame #TimerOverlayFrame,
+.GameStatePreGameWait #TimerOverlayFrame,
+.StreetBrawlInterstitial #TimerOverlayFrame
+{
+	opacity: 0;
+}
+
+.connectedToHeroTesting:not(.isDefaultMap) #TimerOverlayFrame
+{
+	visibility: collapse;
+}
+
+/* Edit mode shows the widgets everywhere, including the hideout. */
+#TimerOverlayFrame.bt-layout-edit
+{
+	opacity: 1;
 }
 
 #Buff
@@ -386,14 +407,16 @@
     z-index: 999999;
 }
 
+/* Small-camp marker ("arrow camp") shown during the neutral phases: a fixed 18px badge on the icon's outer top
+   corner. Its native size and the old -50% top margin put it over the time text. Pill: 141x44, icon x 18-54. */
 #NeutralSpawnBadge
 {
     horizontal-align: left;
     vertical-align: top;
-    width: fit-children;
-    height: fit-children;
-    margin-left: 18%;
-    margin-top: -50%;
+    width: 18px;
+    height: 18px;
+    margin-left: 12px;
+    margin-top: 1px;
     opacity: 0;
     pre-transform-scale2d: 0.8;
     transition-property: opacity, pre-transform-scale2d, wash-color;
@@ -684,4 +707,567 @@
 #RejuvImg.white 
 {
     wash-color: white;
+}
+
+/* MOD: Movable widget slots. Sizes must match LAYOUT_BASE in rejuvnbufftimer.js: pill 141x44 (l/r) or 76x84 (t/b),
+   card 44x26 (t/b) or 82x22 (l/r). Slots stay hidden until the script places them. */
+.bt-slot
+{
+	horizontal-align: left;
+	vertical-align: top;
+	overflow: noclip;
+	opacity: 0;
+}
+
+.bt-slot.bt-placed
+{
+	opacity: 1;
+}
+
+.bt-slot-pill.bt-side-l,
+.bt-slot-pill.bt-side-r
+{
+	width: 141px;
+	height: 44px;
+}
+
+.bt-slot-pill.bt-side-t,
+.bt-slot-pill.bt-side-b
+{
+	width: 76px;
+	height: 84px;
+}
+
+.bt-slot-card.bt-side-t,
+.bt-slot-card.bt-side-b
+{
+	width: 44px;
+	height: 26px;
+}
+
+.bt-slot-card.bt-side-l,
+.bt-slot-card.bt-side-r
+{
+	width: 82px;
+	height: 22px;
+}
+
+/* Bridge buff claim boxes (buff_claim.css styles the box itself). */
+.bt-slot-claim
+{
+	width: 48px;
+	height: 48px;
+}
+
+.bt-slot #Buff,
+.bt-slot #Rejuv,
+.bt-slot #RiftTimerCard,
+.bt-slot #UrnTimerCard,
+.bt-slot #RejuvPingButton,
+.bt-slot #BuffPingButton
+{
+	width: 100%;
+	height: 100%;
+	margin-left: 0px;
+	margin-right: 0px;
+	margin-top: 0px;
+	margin-bottom: 0px;
+	horizontal-align: left;
+	vertical-align: top;
+}
+
+/* Mini card: above the time text (text is right of the icon by default). */
+.bt-slot #RejuvMiniCard
+{
+	width: 48px;
+	height: 20px;
+	margin-left: 0px;
+	margin-top: 0px;
+	horizontal-align: left;
+	vertical-align: top;
+	position: 92px -11px 0px;
+}
+
+#BTSlotRejuv.bt-side-r #RejuvMiniCard
+{
+	position: 0px -11px 0px;
+}
+
+/* Vertical pill (76 px wide): centred on it and overlapping its top edge by 6 px, like the horizontal spots do.
+   Placed wholly above the slot (-24 px) it was not drawn in game: the engine skips a child that lies entirely outside
+   its parent's box. 6 px in keeps clear of most of the neutral badge at y 3. */
+#BTSlotRejuv.bt-side-t #RejuvMiniCard,
+#BTSlotRejuv.bt-side-b #RejuvMiniCard
+{
+	position: 14px -14px 0px;
+}
+
+/* Bridge pill: icon left (mirror of the default icon right). */
+#BTSlotBuff.bt-side-l .timer-wrapper
+{
+	margin-right: 0px;
+	margin-left: 30%;
+}
+
+#BTSlotBuff.bt-side-l #BuffImg
+{
+	horizontal-align: left;
+	margin-right: 0px;
+	margin-left: 13%;
+}
+
+/* Rejuv pill: icon right (mirror of the default icon left). */
+#BTSlotRejuv.bt-side-r .timer-wrapper
+{
+	margin-left: 0px;
+	margin-right: 30%;
+}
+
+#BTSlotRejuv.bt-side-r #RejuvImg
+{
+	horizontal-align: right;
+	margin-left: 0px;
+	margin-right: 13%;
+}
+
+#BTSlotRejuv.bt-side-r #Rejuv.neutral-card-mode #RejuvImg
+{
+	margin-left: 0px;
+	margin-right: 8%;
+}
+
+#BTSlotRejuv.bt-side-r #NeutralSpawnBadge
+{
+	horizontal-align: right;
+	margin-left: 0px;
+	margin-right: 12px;
+}
+
+#BTSlotRejuv.bt-side-r #NeutralSpawnBadge2
+{
+	horizontal-align: right;
+	margin-left: 0px;
+	margin-right: 16%;
+	pre-transform-rotate2d: -18deg;
+}
+
+#BTSlotRejuv.bt-side-r #RejuvNum
+{
+	margin-right: 0px;
+	margin-left: 50%;
+}
+
+/* Both pills, icon on top or bottom: the icon fills the upper (or lower) half, the time the other half. */
+#BTSlotBuff.bt-side-t .timer-wrapper,
+#BTSlotRejuv.bt-side-t .timer-wrapper,
+#BTSlotBuff.bt-side-b .timer-wrapper,
+#BTSlotRejuv.bt-side-b .timer-wrapper
+{
+	width: 100%;
+	height: 42%;
+	margin-left: 0px;
+	margin-right: 0px;
+	margin-top: 0px;
+	margin-bottom: 0px;
+	horizontal-align: center;
+}
+
+#BTSlotBuff.bt-side-t .timer-wrapper,
+#BTSlotRejuv.bt-side-t .timer-wrapper
+{
+	vertical-align: bottom;
+	margin-bottom: 6%;
+}
+
+#BTSlotBuff.bt-side-b .timer-wrapper,
+#BTSlotRejuv.bt-side-b .timer-wrapper
+{
+	vertical-align: top;
+	margin-top: 6%;
+}
+
+/* 76px is narrower than "Spawn" at 24px: shrink the label to fit instead of eliding it ("Spa..."). Both the base
+   and the clip label carry the same text, so they shrink alike and the fill stays aligned. */
+#BTSlotBuff.bt-side-t #BuffTime,
+#BTSlotBuff.bt-side-t #BuffTimeClip,
+#BTSlotBuff.bt-side-b #BuffTime,
+#BTSlotBuff.bt-side-b #BuffTimeClip,
+#BTSlotRejuv.bt-side-t #RejuvTime,
+#BTSlotRejuv.bt-side-t #RejuvTimeClip,
+#BTSlotRejuv.bt-side-b #RejuvTime,
+#BTSlotRejuv.bt-side-b #RejuvTimeClip
+{
+	text-overflow: shrink;
+}
+
+#BTSlotBuff.bt-side-t #BuffImg,
+#BTSlotRejuv.bt-side-t #RejuvImg,
+#BTSlotRejuv.bt-side-t #NeutralSpawnBadge2,
+#BTSlotBuff.bt-side-b #BuffImg,
+#BTSlotRejuv.bt-side-b #RejuvImg,
+#BTSlotRejuv.bt-side-b #NeutralSpawnBadge2
+{
+	horizontal-align: center;
+	width: 46%;
+	height: 42%;
+	margin-left: 0px;
+	margin-right: 0px;
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+
+#BTSlotBuff.bt-side-t #BuffImg,
+#BTSlotRejuv.bt-side-t #RejuvImg,
+#BTSlotRejuv.bt-side-t #NeutralSpawnBadge2
+{
+	vertical-align: top;
+	margin-top: 8%;
+}
+
+#BTSlotBuff.bt-side-b #BuffImg,
+#BTSlotRejuv.bt-side-b #RejuvImg,
+#BTSlotRejuv.bt-side-b #NeutralSpawnBadge2
+{
+	vertical-align: bottom;
+	margin-bottom: 8%;
+}
+
+/* Vertical pill 76x84: icon x 20-56, y 7-42 (top) or 42-77 (bottom); the badge takes the icon's top-left corner. */
+#BTSlotRejuv.bt-side-t #NeutralSpawnBadge,
+#BTSlotRejuv.bt-side-b #NeutralSpawnBadge
+{
+	horizontal-align: left;
+	margin-left: 14px;
+	margin-right: 0px;
+	margin-top: 3px;
+}
+
+#BTSlotRejuv.bt-side-b #NeutralSpawnBadge
+{
+	margin-top: 38px;
+}
+
+/* Vault phase: 1.8x (the horizontal look) would make the 35px icon 63px and cover the time below or above it. */
+#BTSlotRejuv.bt-side-t #Rejuv.neutral-card-mode #RejuvImg,
+#BTSlotRejuv.bt-side-b #Rejuv.neutral-card-mode #RejuvImg
+{
+	pre-transform-scale2d: 1.3;
+}
+
+/* Charge number on the icon, as in the horizontal pill: centred on the icon, a little below its middle. A fixed
+   width, because 10% of the 76px pill (7.6px) clipped the digit. */
+#BTSlotRejuv.bt-side-t #RejuvNum,
+#BTSlotRejuv.bt-side-b #RejuvNum
+{
+	horizontal-align: center;
+	width: 14px;
+	height: 30%;
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+#BTSlotRejuv.bt-side-t #RejuvNum
+{
+	vertical-align: top;
+	margin-top: 18%;
+	margin-bottom: 0px;
+}
+
+#BTSlotRejuv.bt-side-b #RejuvNum
+{
+	vertical-align: bottom;
+	margin-top: 0px;
+	margin-bottom: 10%;
+}
+
+/* Rift/Urn cards: label above (default), below, left or right of the time. */
+.bt-slot-card.bt-side-b .objective-timer-card
+{
+	flow-children: up;
+}
+
+.bt-slot-card.bt-side-l .objective-timer-card
+{
+	flow-children: right;
+}
+
+.bt-slot-card.bt-side-r .objective-timer-card
+{
+	flow-children: left;
+}
+
+.bt-slot-card.bt-side-l .objective-timer-sub,
+.bt-slot-card.bt-side-r .objective-timer-sub
+{
+	width: 44%;
+	height: fit-children;
+	vertical-align: center;
+}
+
+.bt-slot-card.bt-side-l .objective-timer-time,
+.bt-slot-card.bt-side-r .objective-timer-time
+{
+	width: 56%;
+	height: fit-children;
+	vertical-align: center;
+}
+
+/* Edit mode: every widget visible, pings off. */
+.bt-layout-edit .bt-slot .objective-timer-card,
+.bt-layout-edit .bt-slot #RejuvMiniCard
+{
+	opacity: 1;
+}
+
+.bt-layout-edit .bt-slot #RejuvPingButton,
+.bt-layout-edit .bt-slot #BuffPingButton
+{
+	visibility: collapse;
+}
+
+/* Edit chrome: one unscaled box per slot, 22px larger on every side than the widget; the script sizes it and the
+   outline. Handles sit on the widget corners, side arrows just outside each edge. */
+.bt-edit-layer
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+	z-index: 1000003;
+}
+
+.bt-layout-edit .bt-edit-layer
+{
+	visibility: visible;
+}
+
+/* Drag area over the stock minimap (edit mode only); the script places and sizes it on the minimap. */
+.bt-map-grab
+{
+	horizontal-align: left;
+	vertical-align: top;
+	visibility: collapse;
+}
+
+.bt-layout-edit .bt-map-grab
+{
+	visibility: visible;
+}
+
+/* Map location label chrome. The stem runs from the outline's top edge (22 px into the chrome) up to the knob, whose
+   12 px circle the script centres 16 px above that edge. */
+.bt-loc-stem
+{
+	width: 2px;
+	height: 10px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 12px;
+	background-color: #FFFFFF;
+}
+
+.bt-loc-rotate
+{
+	width: 12px;
+	height: 12px;
+	horizontal-align: left;
+	vertical-align: top;
+	background-color: #FFFFFF;
+	border: 1px solid #10130D;
+	border-radius: 6px;
+}
+
+.bt-loc-rotate:hover
+{
+	background-color: #FFE14D;
+}
+
+/* Outside a district the label is empty: name the box so it can be found. */
+.bt-loc-hint
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-family: sans;
+	font-size: 11px;
+	color: #FFEFD7aa;
+	visibility: collapse;
+}
+
+.bt-loc-empty .bt-loc-hint
+{
+	visibility: visible;
+}
+
+/* No stock label (a hud.xml mod without #minimap_location): no chrome for it. */
+.bt-layout-edit .bt-loc-none
+{
+	visibility: collapse;
+}
+
+.bt-edit-chrome
+{
+	horizontal-align: left;
+	vertical-align: top;
+	overflow: noclip;
+}
+
+.bt-edit-outline
+{
+	horizontal-align: left;
+	vertical-align: top;
+	margin-left: 22px;
+	margin-top: 22px;
+	border: 2px dashed #FFFFFF;
+}
+
+.bt-edit-handle
+{
+	width: 12px;
+	height: 12px;
+	background-color: #FFFFFF;
+	border: 1px solid #10130D;
+	border-radius: 2px;
+}
+
+.bt-handle-tl
+{
+	horizontal-align: left;
+	vertical-align: top;
+	margin-left: 16px;
+	margin-top: 16px;
+}
+
+.bt-handle-tr
+{
+	horizontal-align: right;
+	vertical-align: top;
+	margin-right: 16px;
+	margin-top: 16px;
+}
+
+.bt-handle-bl
+{
+	horizontal-align: left;
+	vertical-align: bottom;
+	margin-left: 16px;
+	margin-bottom: 16px;
+}
+
+.bt-handle-br
+{
+	horizontal-align: right;
+	vertical-align: bottom;
+	margin-right: 16px;
+	margin-bottom: 16px;
+}
+
+.bt-edit-side
+{
+	width: 14px;
+	height: 14px;
+	background-image: url("s2r://panorama/images/control_icons/arrow_solid_up_png.vtex");
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	wash-color: #FFEFD766;
+}
+
+.bt-edit-side:hover
+{
+	wash-color: #FFEFD7;
+}
+
+.bt-edit-side-l
+{
+	horizontal-align: left;
+	vertical-align: center;
+	margin-left: 4px;
+	pre-transform-rotate2d: -90deg;
+}
+
+.bt-edit-side-r
+{
+	horizontal-align: right;
+	vertical-align: center;
+	margin-right: 4px;
+	pre-transform-rotate2d: 90deg;
+}
+
+.bt-edit-side-t
+{
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 4px;
+}
+
+.bt-edit-side-b
+{
+	horizontal-align: center;
+	vertical-align: bottom;
+	margin-bottom: 4px;
+	pre-transform-rotate2d: 180deg;
+}
+
+.bt-edit-chrome.bt-side-l .bt-edit-side-l,
+.bt-edit-chrome.bt-side-r .bt-edit-side-r,
+.bt-edit-chrome.bt-side-t .bt-edit-side-t,
+.bt-edit-chrome.bt-side-b .bt-edit-side-b
+{
+	wash-color: #FFFFFF;
+}
+
+/* Pills without their icon (side "n", set from the chrome's icon toggle): only the time, centred on the horizontal
+   pill. 3-id selectors so they beat the neutral-mode rules that show the badges. */
+.bt-slot-pill.bt-side-n
+{
+	width: 141px;
+	height: 44px;
+}
+
+#BTSlotRejuv.bt-side-n #Rejuv #RejuvImg,
+#BTSlotRejuv.bt-side-n #Rejuv #RejuvNum,
+#BTSlotRejuv.bt-side-n #Rejuv #NeutralSpawnBadge,
+#BTSlotRejuv.bt-side-n #Rejuv #NeutralSpawnBadge2,
+#BTSlotBuff.bt-side-n #Buff #BuffImg
+{
+	visibility: collapse;
+}
+
+#BTSlotRejuv.bt-side-n #Rejuv .timer-wrapper,
+#BTSlotBuff.bt-side-n #Buff .timer-wrapper
+{
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+/* Mini card centred over the time (141 px pill, 48 px card). */
+#BTSlotRejuv.bt-side-n #RejuvMiniCard
+{
+	position: 46px -11px 0px;
+}
+
+/* Edit chrome: a pill without its icon has no vertical layout, so no top/bottom arrows. */
+.bt-edit-chrome.bt-side-n .bt-edit-side-t,
+.bt-edit-chrome.bt-side-n .bt-edit-side-b
+{
+	visibility: collapse;
+}
+
+/* Icon toggle (pills only), in the chrome's top-right corner next to the resize handle; lit while the icon is hidden. */
+.bt-edit-icon
+{
+	width: 14px;
+	height: 14px;
+	horizontal-align: right;
+	vertical-align: top;
+	margin-right: 2px;
+	margin-top: 2px;
+	background-image: url("s2r://panorama/images/hud/modifiers/icon_invisible.vsvg");
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	wash-color: #FFEFD766;
+}
+
+.bt-edit-icon:hover,
+.bt-edit-chrome.bt-side-n .bt-edit-icon
+{
+	wash-color: #FFEFD7;
 }
