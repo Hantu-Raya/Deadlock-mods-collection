@@ -1336,7 +1336,9 @@
       px: rect["px"], py: rect["py"], pw: rect["pw"], ph: rect["ph"],
       // Label only: its centre, dashed-box size, turn, offset (minimap px), layer px per minimap px, stock centre, knob.
       cx: rect["cx"], cy: rect["cy"], deg: rect["deg"], dx: rect["dx"], dy: rect["dy"], f: rect["f"],
-      sx: rect["sx"], sy: rect["sy"], kx: rect["kx"], ky: rect["ky"]
+      sx: rect["sx"], sy: rect["sy"], kx: rect["kx"], ky: rect["ky"],
+      // Net worth pill: its width factor at drag start (corner handles resize width and height separately).
+      ww: key === "w" && BtLayout.draft && BtLayout.draft["ww"] !== undefined ? BtLayout.draft["ww"] : 1
     };
     BtLayout.dragHnd = btSchedule(BT_LAYOUT_TICK_S, btLayoutDragTick);
     return true;
@@ -1486,6 +1488,11 @@
       // At the stock spot, turn and size the timer hands the label back to the stock CSS.
       if (entry.length === 3 && entry[0] === 0 && entry[1] === 0 && entry[2] === BT_LOC_DEG) delete BtLayout.draft["lc"];
       else BtLayout.draft["lc"] = entry;
+    } else if (drag.key === "w" && drag.corner) {
+      const resized = btLayoutResizeWorth(drag, dx, dy);
+      BtLayout.draft["w"] = resized.entry;
+      if (resized.width === 1) delete BtLayout.draft["ww"];
+      else BtLayout.draft["ww"] = resized.width;
     } else {
       BtLayout.draft[drag.key] = drag.corner ? btLayoutResize(drag, dx, dy) : btLayoutMove(drag, dx, dy);
     }
@@ -1562,6 +1569,22 @@
     const x = btLayoutClamp(right ? drag.x : drag.x + drag.rw - w, 0, drag.w - w);
     const y = btLayoutClamp(bottom ? drag.y : drag.y + drag.rh - h, 0, drag.h - h);
     return btLayoutEntry(drag, x, y, scale, drag.side);
+  }
+  // The net worth pill resizes freely (user request 2026-10-12): up/down sets its scale (height and text size), and its
+  // width on screen follows the cursor, kept as the width factor "ww" (60-200 % of stock at that scale). The corner
+  // opposite the handle stays put.
+  function btLayoutResizeWorth(drag, dx, dy) {
+    const right = drag.corner.charAt(1) === "R";
+    const bottom = drag.corner.charAt(0) === "B";
+    const stockW = drag.bw / drag.ww;
+    const scale = Math.round(btLayoutClamp((drag.rh + (bottom ? dy : -dy)) / drag.bh, 0.5, 2) * 100) / 100;
+    const raw = (drag.rw + (right ? dx : -dx)) / (stockW * scale);
+    const width = Math.round(btLayoutClamp(raw, BT_WORTH_WIDTH_MIN / 100, BT_WORTH_WIDTH_MAX / 100) * 100) / 100;
+    const w = stockW * width * scale;
+    const h = drag.bh * scale;
+    const x = btLayoutClamp(right ? drag.x : drag.x + drag.rw - w, 0, drag.w - w);
+    const y = btLayoutClamp(bottom ? drag.y : drag.y + drag.rh - h, 0, drag.h - h);
+    return { entry: btLayoutEntry(drag, x, y, scale, drag.side), width: width };
   }
   // Like a widget corner: uniform scale from the axis that moved more, the minimap's opposite corner stays put. The
   // #minimap_persp box (what the spot places) keeps its offset to the minimap at the new scale.

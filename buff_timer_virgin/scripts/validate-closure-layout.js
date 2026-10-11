@@ -312,6 +312,15 @@ step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 
   assert.equal(body.x, 32, 'bit 32 saved');
   assert.equal(body.t.w[3], 'n', 'hidden icon saved');
   assert.equal(body.t.ww, 1.5, 'width saved');
+  // The pill's corner handles resize width and height separately (sideways: width only).
+  game.click('BTWidgetWorth');
+  game.click('BTLayoutButton');
+  game.advance(300);
+  const slot = game.ids.BTSlotWorth;
+  const scale = slot.style.uiScale;
+  drag(game, game.ids.BTSlotWorthHandleBR, 70.5 * parseFloat(scale) / 100, 0);
+  assert.equal(slot.style.uiScale, scale, 'sideways corner drag keeps the scale');
+  assert.equal(slot.style.width, '282px', '150 % + 50 % of stock');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });

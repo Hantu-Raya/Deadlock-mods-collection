@@ -22,7 +22,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { root, KEY, read, createProfile, record, launch, makePanel } = require('./bt-test-harness.js');
+const { root, KEY, SCALE, read, createProfile, record, launch, makePanel } = require('./bt-test-harness.js');
 
 const checks = [];
 const check = (name, fn) => {
@@ -378,6 +378,58 @@ check('width slider stretches only the pill, its edit box follows, it saves and 
     game2.advance(2000);
     assert.equal(game2.state().phase, 'blocked', `${bad} is damaged`);
   }
+});
+
+// User request 2026-10-12: in the layout editor the pill's corner handles resize its width and height separately
+// (other widgets keep the uniform scale). Sideways only: wider, same height and text size; up/down only: the scale.
+function dragHandle(game, panel, dxLayout, dyLayout) {
+  const callbacks = {};
+  panel.events.DragStart(panel, callbacks);
+  const proxy = callbacks.displayPanel;
+  assert.ok(proxy && proxy.IsValid(), `#${panel.id} drag supplies a proxy`);
+  proxy.win = { x: 500, y: 500 };
+  game.advance(40);
+  proxy.win = { x: 500 + dxLayout * SCALE, y: 500 + dyLayout * SCALE };
+  game.advance(40);
+  delete proxy.win;
+  panel.events.DragEnd(panel, proxy);
+  game.advance(40);
+}
+check('editor corner handles stretch the pill sideways without changing its height', () => {
+  const profile = createProfile();
+  const game = ready(profile);
+  tick(game, 180, 1);
+  const slot = game.ids.BTSlotWorth;
+  game.toggleMenu();
+  game.click('BTLayoutButton');
+  game.advance(300);
+  const scale = slot.style.uiScale;
+  const s = parseFloat(scale) / 100;
+  dragHandle(game, game.ids.BTSlotWorthHandleBR, 70.5 * s, 0);
+  assert.equal(slot.style.uiScale, scale, 'sideways drag keeps the scale (height, text size)');
+  assert.equal(slot.style.width, '211.5px', '141 px + 70.5 px at this scale: 150 %');
+  game.click('BTLayoutDone');
+  game.advance(2200);
+  assert.equal(saved(profile).t.ww, 1.5);
+  // Up/down: the scale changes, the pill keeps its width on screen.
+  game.toggleMenu();
+  game.click('BTLayoutButton');
+  game.advance(300);
+  dragHandle(game, game.ids.BTSlotWorthHandleBR, 0, 22 * s);
+  const s2 = parseFloat(slot.style.uiScale) / 100;
+  assert.ok(Math.abs(s2 - 1.5 * s) < 0.011, `up/down drag scales the height (${s2})`);
+  const shown = (slot.style.width ? parseFloat(slot.style.width) : 141) * s2;
+  assert.ok(Math.abs(shown - 211.5 * s) <= 3, `width on screen kept: ${shown} vs ${211.5 * s}`);
+  game.click('BTLayoutDone');
+  game.advance(2200);
+  // Other widgets keep the uniform corner scale.
+  game.toggleMenu();
+  game.click('BTLayoutButton');
+  game.advance(300);
+  const buff = game.ids.BTSlotBuff;
+  dragHandle(game, game.ids.BTSlotBuffHandleBR, 70.5, 0);
+  assert.equal(buff.style.width, undefined, 'the Bridge pill is never stretched');
+  assert.notEqual(buff.style.uiScale, '100%');
 });
 
 check('the pill is a movable widget: default spot, chrome, icon toggle', () => {
