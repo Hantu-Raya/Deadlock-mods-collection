@@ -1,6 +1,8 @@
 param(
     [switch]$Install,
     [switch]$KeepStaging,
+    # Profiling build: instruments the staged runtime with [SRBDIAG] reports. Never distribute it.
+    [switch]$Diagnostics,
     [string]$AddonsPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
 )
 
@@ -14,7 +16,10 @@ $compositionScript = Join-Path $root 'scripts\profile-stats-community-compositio
 $buildRoot = Join-Path $root '_showrank_barebones_build'
 $stageSource = Join-Path $buildRoot 'src'
 $stageCompiled = Join-Path $buildRoot 'src_compiled'
-$vpkOutput = Join-Path $root 'showrank_barebones_dir.vpk'
+$vpkLeaf = if ($Diagnostics) { 'showrank_barebones_dir.diag.vpk' } else { 'showrank_barebones_dir.vpk' }
+$vpkOutput = Join-Path $root $vpkLeaf
+$diagScript = Join-Path $root 'scripts\showrank-barebones-diag.js'
+$diagArtifact = Join-Path $root '.tmp\showrank-barebones-diag\harness-report.txt'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkEditCli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'),
@@ -304,7 +309,7 @@ Assert-BarebonesAssetSet -Actual (Get-BarebonesAssetPaths -RootPath $barebonesRo
 Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf '_showrank_barebones_build'
 if (Test-Path -LiteralPath $vpkOutput) {
     Assert-PathUnderRoot -Path $vpkOutput -RootPath $root
-    if ((Split-Path -Leaf (Resolve-Path -LiteralPath $vpkOutput).Path) -ne 'showrank_barebones_dir.vpk') {
+    if ((Split-Path -Leaf (Resolve-Path -LiteralPath $vpkOutput).Path) -ne $vpkLeaf) {
         throw "Refusing to remove unexpected barebones VPK: $vpkOutput"
     }
     Remove-Item -LiteralPath $vpkOutput -Force
@@ -318,7 +323,21 @@ try {
         New-Item -ItemType Directory -Path (Split-Path -Parent $stagedPath) -Force | Out-Null
         Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force
     }
-    & node $compositionScript $stageSource
+    if ($Diagnostics) {
+        # Instrument a private copy of the host templates; the source tree stays untouched.
+        $diagHost = Join-Path $buildRoot 'diag_host'
+        foreach ($asset in @('panorama/scripts/showrank_barebones.js', 'panorama/styles/showrank_barebones_topbar.css')) {
+            $hostPath = Join-Path $diagHost ($asset -replace '/', '\\')
+            New-Item -ItemType Directory -Path (Split-Path -Parent $hostPath) -Force | Out-Null
+            Copy-Item -LiteralPath (Join-Path $barebonesRoot ($asset -replace '/', '\\')) -Destination $hostPath -Force
+        }
+        & node $diagScript instrument (Join-Path $diagHost 'panorama\scripts\showrank_barebones.js')
+        if ($LASTEXITCODE -ne 0) { throw "ShowRank barebones diagnostics instrumentation failed with exit code $LASTEXITCODE" }
+        Write-Host '  DIAGNOSTIC ONLY: [SRBDIAG] profiling runtime staged; never distribute this VPK.' -ForegroundColor Yellow
+        & node $compositionScript --host-root $diagHost $stageSource
+    } else {
+        & node $compositionScript $stageSource
+    }
     if ($LASTEXITCODE -ne 0) { throw "Profile Stats Community composition failed with exit code $LASTEXITCODE" }
     Assert-BarebonesAssetSet -Actual (Get-BarebonesAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Composed barebones source'
     $readableRuntime = Join-Path $buildRoot 'showrank_barebones.readable.js'
@@ -333,16 +352,29 @@ try {
     $previousRuntimeOverride = $env:SHOWRANK_BAREBONES_RUNTIME
     try {
         $env:SHOWRANK_BAREBONES_RUNTIME = $stagedRuntime
+        if ($Diagnostics) {
+            if (-not (Select-String -LiteralPath $stagedRuntime -Pattern '[SRBDIAG] v1 ' -SimpleMatch -Quiet)) {
+                throw 'Minified diagnostics runtime lost its [SRBDIAG] report tag.'
+            }
+            $env:SHOWRANK_BAREBONES_DIAG = '1'
+            $env:SHOWRANK_BAREBONES_DIAG_ARTIFACT = $diagArtifact
+            if (Test-Path -LiteralPath $diagArtifact) { Remove-Item -LiteralPath $diagArtifact -Force }
+        }
         & node (Join-Path $barebonesRoot 'tests\showrank-barebones-runtime.test.js')
         if ($LASTEXITCODE -ne 0) { throw "Minified barebones runtime test failed with exit code $LASTEXITCODE" }
         & node (Join-Path $barebonesRoot 'tests\profile-stats-community-runtime.test.js')
         if ($LASTEXITCODE -ne 0) { throw "Minified Profile Stats Community runtime test failed with exit code $LASTEXITCODE" }
     } finally {
+        Remove-Item Env:SHOWRANK_BAREBONES_DIAG, Env:SHOWRANK_BAREBONES_DIAG_ARTIFACT -ErrorAction SilentlyContinue
         if ($hadRuntimeOverride) {
             $env:SHOWRANK_BAREBONES_RUNTIME = $previousRuntimeOverride
         } else {
             Remove-Item Env:SHOWRANK_BAREBONES_RUNTIME -ErrorAction SilentlyContinue
         }
+    }
+    if ($Diagnostics) {
+        if (-not (Test-Path -LiteralPath $diagArtifact)) { throw "Diagnostics scenario did not run: $diagArtifact was not written" }
+        Write-Host "  Diagnostics harness report: $diagArtifact" -ForegroundColor Yellow
     }
 
 
@@ -363,6 +395,9 @@ try {
 
     if ($Install) {
         Install-BarebonesVpk -SourceVpk $vpkOutput
+        if ($Diagnostics) {
+            Write-Host '  Installed the DIAGNOSTIC pak89. Reinstall the normal build (without -Diagnostics) when profiling is done.' -ForegroundColor Yellow
+        }
     }
 } finally {
     if (-not $KeepStaging) {
