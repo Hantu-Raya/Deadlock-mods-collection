@@ -151,7 +151,7 @@ step('minified scripts move and resize the minimap from its border, save it and 
 });
 
 // The stock #minimap_location label (harness: 150x22, centre at layer (1820, 1009), stock turn -30deg).
-step('minified scripts move and turn the map location label, save it and hand it back on RESET', () => {
+step('minified scripts move, resize and turn the map location label, save it and hand it back on RESET', () => {
   const profile = createProfile();
   const game = ready(profile);
   game.toggleMenu();
@@ -163,6 +163,12 @@ step('minified scripts move and turn the map location label, save it and hand it
   const style = game.location.style;
   assert.equal(style.transform, 'translate3d(-200px, -150px, 0px)', 'the label moves');
   assert.equal(style.preTransformRotate2d, '-30deg', 'and keeps the stock turn');
+  // Top-right corner of the -30deg 150x22 box sits at (59.45, -47.03) from the centre; half that again outward: 150 %.
+  const c = Math.cos(-Math.PI / 6);
+  const s = Math.sin(-Math.PI / 6);
+  drag(game, game.ids.BTSlotLocHandleTR, (75 * c + 11 * s) / 2, (75 * s - 11 * c) / 2);
+  assert.equal(style.preTransformScale2d, '1.5', 'a corner handle resizes the label');
+  assert.equal(style.transform, 'translate3d(-200px, -150px, 0px)', 'around its centre');
   // Knob to straight right of the label centre (1620, 859): a quarter turn clockwise.
   const knob = /^(-?[\d.]+)px (-?[\d.]+)px/.exec(String(game.ids.BTSlotLocRotate.style.position));
   assert.ok(knob, 'the knob is placed');
@@ -171,17 +177,19 @@ step('minified scripts move and turn the map location label, save it and hand it
   game.click('BTLayoutDone');
   game.advance(2000);
   const saved = JSON.parse(profile.disk.get(KEY).slice(14));
-  assert.equal(saved.s, 6);
-  assert.deepEqual(saved.t.lc, [-200, -150, 90], 'the label is saved');
+  assert.equal(saved.s, 7);
+  assert.deepEqual(saved.t.lc, [-200, -150, 90, 1.5], 'the label is saved');
   assert.equal(game.persp.classes.has('in_map_district'), false, 'DONE hides the label outside a district again');
   const again = ready(profile);
   assert.equal(again.location.style.transform, 'translate3d(-200px, -150px, 0px)', 'the saved label is restored');
   assert.equal(again.location.style.preTransformRotate2d, '90deg', 'the saved turn is restored');
+  assert.equal(again.location.style.preTransformScale2d, '1.5', 'the saved size is restored');
   again.toggleMenu();
   again.click('BTLayoutButton');
   again.click('BTLayoutReset');
   assert.equal(again.location.style.transform, null, 'RESET LAYOUT hands the label back to the stock CSS');
   assert.equal(again.location.style.preTransformRotate2d, null, 'RESET LAYOUT hands the turn back');
+  assert.equal(again.location.style.preTransformScale2d, null, 'RESET LAYOUT hands the size back');
 });
 
 step('minified settings hide the minimap border, fade it, dim a colour, save them and hand stock back on RESET', () => {
@@ -233,6 +241,35 @@ step('minified timer paints and expires an enemy disappearance mark with its eng
   assert.ok(label.classes.has('active'), 'the question mark is shown');
   game.advance(5500);
   assert.ok(!label.IsValid(), 'the mark expires');
+});
+
+// Failure mode: Closure renames a widget table field or the mask key, so the shipped menu switch hides nothing,
+// the timer keeps writing the hidden label, or the "x" mask is not saved/restored.
+step('minified WIDGETS switches hide slots, freeze the Bridge label, save the mask and restore it', () => {
+  const profile = createProfile();
+  const game = launch(profile, { withTimer: true, clock: '3:00' });
+  game.advance(2500);
+  game.toggleMenu();
+  game.click('BTWidgetBuff');
+  game.click('BTWidgetClaims');
+  game.advance(600);
+  assert.equal(game.minimap.GetAttributeInt('bt_widgets_off', 0), 17, 'mask published');
+  for (const id of ['BTSlotBuff', 'BTSlotClaimL', 'BTSlotClaimR', 'BTSlotBuffChrome']) {
+    assert.ok(game.ids[id].classes.has('bt-widget-off'), `#${id} hidden`);
+  }
+  assert.ok(!game.ids.BTSlotRejuv.classes.has('bt-widget-off'), 'Rejuv stays shown');
+  assert.ok(!game.ids.BTWidgetBuff.classes.has('on') && game.ids.BTWidgetRejuv.classes.has('on'), 'switch rows render');
+  const frozen = game.ids.BuffTime.text;
+  game.clock.text = '3:05';
+  game.advance(2000);
+  assert.equal(game.ids.BuffTime.text, frozen, 'a switched-off Bridge label is not written');
+  assert.equal(JSON.parse(profile.disk.get(KEY).slice(14)).x, 17, 'mask saved');
+  game.click('BTWidgetBuff');
+  game.advance(1500);
+  assert.equal(game.ids.BuffTime.text, '01:55', 'switched back on, the Bridge label follows the clock');
+  const again = ready(profile);
+  assert.equal(again.minimap.GetAttributeInt('bt_widgets_off', 0), 16, 'restored mask');
+  assert.ok(again.ids.BTSlotClaimL.classes.has('bt-widget-off') && !again.ids.BTSlotBuff.classes.has('bt-widget-off'), 'restored slots');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });

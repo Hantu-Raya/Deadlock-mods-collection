@@ -68,6 +68,7 @@
 
 .bt-settings-panel.loading .bt-color-row,
 .bt-settings-panel.loading .bt-switch-row,
+.bt-settings-panel.loading .bt-widget-chip,
 .bt-settings-panel.loading .bt-settings-reset
 {
     opacity: 0.35;
@@ -290,6 +291,62 @@ Slider.bt-spectrum.HorizontalSlider:active #SliderThumb
 {
     background-image: url("s2r://panorama/images/buttons/switch_handle_on.vsvg");
     transform: translateX(16px);
+}
+
+/* WIDGETS: one row of five toggle chips; lit = shown. A switched-off widget stops its timer logic. */
+.bt-widget-chips
+{
+    width: 100%;
+    height: 22px;
+    flow-children: right;
+}
+
+.bt-widget-chip
+{
+    width: fill-parent-flow(1);
+    height: 100%;
+    margin-right: 3px;
+    border: 1px solid #FFEFD726;
+    border-radius: 3px;
+}
+
+.bt-widget-chip-last
+{
+    margin-right: 0px;
+}
+
+.bt-widget-chip:hover
+{
+    background-color: #FFEFD70d;
+}
+
+.bt-widget-chip.on
+{
+    background-color: #FFEFD71f;
+    border: 1px solid #FFEFD766;
+}
+
+.bt-widget-chip Label
+{
+    width: 100%;
+    horizontal-align: center;
+    vertical-align: center;
+    text-align: center;
+    font-family: sans;
+    font-size: 11px;
+    color: #FFEFD766;
+    text-overflow: shrink;
+}
+
+.bt-widget-chip.on Label
+{
+    color: #FFEFD7e6;
+}
+
+/* Claims off: the claim box and glow rows have nothing to colour. They stay editable. */
+.bt-settings-panel.bt-claims-off .bt-claims-dep
+{
+    opacity: 0.35;
 }
 
 .bt-settings-footer

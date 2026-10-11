@@ -420,6 +420,10 @@ function createHarness(scenario) {
   const context = vm.createContext(sandbox);
   function boot() {
     sources.forEach((source, index) => vm.runInContext(source, context, { filename: scriptNames[index] }));
+    // The stock map location label: hud.xml builds it after hud_minimap.xml (and both scripts) have loaded.
+    const location = panel('Panel', perspective, 'minimap_location');
+    Object.assign(location.raw, { actualxoffset: 283.33, actualyoffset: 377.5, actuallayoutwidth: 125, actuallayoutheight: 18.33,
+      actualuiscale_x: 0.8333333134651184, actualuiscale_y: 0.8333333134651184 });
   }
   function snapshot() {
     const result = [];
@@ -470,6 +474,8 @@ const scenarios = [
   { name: 'earlyLane', start: 180, seconds: 60 },
   { name: 'neutralOverride', start: 240, seconds: 60 },
   { name: 'rejuvSpawnClaim', start: 590, seconds: 30 },
+  // The same claim, then the 180 s Rejuv buff runs out on the mini card.
+  { name: 'rejuvBuffExpiry', start: 590, seconds: 200 },
   { name: 'bridgePowerupClaim', start: 590, seconds: 60 },
   { name: 'lateRiftUrn', start: 1770, seconds: 60 },
   { name: 'lingerHeavy', start: 900, seconds: 60 },
@@ -480,6 +486,9 @@ const scenarios = [
     s: 4, u: '#FFFFFF', d: '#FF4D4D', l: 1, g: 1,
     t: { b: [0.1, 0.2, 1.5, 't'], cl: [0.4, 0.1, 0.75, 't'], cr: [0.6, 0.1, 1.25, 't'] },
     c: { a: '#3DFFE0', e: '#FF9A3D', w: '#A970FF', v: '#FFFFFF' }, k: 140 } },
+  // All widgets disabled, including claims during the Bridge respawn window; linger is off too.
+  { name: 'widgetsOff', start: 590, seconds: 60, saved: {
+    s: 7, u: '#FFE14D', d: '#4DD2FF', l: 0, g: 1, x: 31 } },
   // Layout edit session during a match: move the Bridge pill, flip the Rift card, resize the Urn card, drag the
   // edit box, DONE.
   { name: 'layoutEditDrag', start: 180, seconds: 30 }
@@ -512,11 +521,11 @@ function drive(game, scenario, elapsed) {
     setClass(game.players[11], 'PlayerDead', elapsed >= 12000 && elapsed < 18000);
     if (scenario.name !== 'lingerHeavy') setClass(game.players[10], 'active', !(elapsed >= 20000 && elapsed < 27000));
   }
-  if (scenario.name === 'rejuvSpawnClaim') {
+  if (scenario.name === 'rejuvSpawnClaim' || scenario.name === 'rejuvBuffExpiry') {
     setClass(game.friendly, 'RejuvCount_1', elapsed >= 15000);
     if (elapsed === 8000) game.fire('RejuvPingButton');
   }
-  if (scenario.name === 'bridgePowerupClaim' || scenario.name === 'customLookClaim') {
+  if (scenario.name === 'bridgePowerupClaim' || scenario.name === 'customLookClaim' || scenario.name === 'widgetsOff') {
     // Two players reach the spawn points before the Bridge reset; disappearance after the native markers
     // have been scanned attributes the claims (both allies, or ally left and enemy right).
     const enemyRight = scenario.name === 'customLookClaim';
@@ -535,6 +544,10 @@ function drive(game, scenario, elapsed) {
     if (elapsed === 7000) game.fire('BTSlotRiftSideL');
     dragAt(game, elapsed, 'BTSlotUrnHandleBR', 8000, [{ x: 1500, y: 800 }, { x: 1540, y: 830 }, { x: 1580, y: 860 }]);
     dragAt(game, elapsed, 'BTLayoutBarGrip', 11000, [{ x: 800, y: 100 }, { x: 760, y: 140 }]);
+    // The map location label: move, turn from its knob, grow from a corner.
+    dragAt(game, elapsed, 'BTSlotLocGrab', 12000, [{ x: 1000, y: 600 }, { x: 960, y: 580 }]);
+    dragAt(game, elapsed, 'BTSlotLocRotate', 12500, [{ x: 1000, y: 600 }, { x: 1060, y: 640 }]);
+    dragAt(game, elapsed, 'BTSlotLocHandleTR', 13000, [{ x: 1000, y: 600 }, { x: 1030, y: 580 }]);
     if (elapsed === 14000) game.fire('BTLayoutDone');
   }
   if (scenario.name === 'lateRiftUrn') {
@@ -595,6 +608,10 @@ function measure(scenario) {
     assert.ok(any(sample => sample.neutral), 'neutral override absent');
     assert.ok(!any(sample => sample.mini), 'mini card shown while the Rejuv waits at Spawn');
   }
+  if (scenario.name === 'rejuvBuffExpiry') {
+    assert.ok(any(sample => sample.mini === '02:59'), 'Rejuv buff countdown absent');
+    assert.ok(!witnesses[witnesses.length - 1].mini || witnesses[witnesses.length - 1].mini !== '00:01', 'buff did not expire');
+  }
   if (scenario.name === 'rejuvSpawnClaim') {
     assert.ok(any(sample => sample.rejuv === 'Spawn') && any(sample => sample.mini && sample.rejuv !== 'Spawn'), 'Rejuv spawn/claim transition absent');
     assert.ok(any(sample => sample.chatSubmits > 0), 'Rejuv chat path absent');
@@ -604,6 +621,18 @@ function measure(scenario) {
     assert.ok(any(sample => sample.chatSubmits > 0), 'Bridge chat path absent');
   }
   if (scenario.name === 'lateRiftUrn') assert.ok(any(sample => sample.riftConfirmed) && any(sample => sample.urn === '0:00'), 'Rift warning/urn spawn absent');
+  if (scenario.name === 'widgetsOff') {
+    assert.equal(game.minimap.GetAttributeInt('bt_widgets_off', 0), 31, 'saved widget mask did not hydrate');
+    assert.ok(!any(sample => sample.claims.length > 0), 'disabled Claims created a box');
+    // Timer boots before settings hydrates; the initial Bridge value may be painted once, then must stay frozen.
+    assert.equal(new Set(witnesses.slice(3).map(sample => sample.bridge)).size, 1, 'disabled Bridge kept writing its label');
+    assert.ok(witnesses.every(sample => !sample.riftConfirmed), 'disabled Rift observed a warning');
+    assert.ok(witnesses.every(sample => !sample.lingers), 'disabled linger created a marker');
+    for (const id of ['BTSlotBuff', 'BTSlotRejuv', 'BTSlotRift', 'BTSlotUrn', 'BTSlotClaimL', 'BTSlotClaimR']) {
+      assert.ok(game.find(id).BHasClass('bt-widget-off'), `${id} not disabled`);
+      assert.ok(game.find(`${id}Chrome`).BHasClass('bt-widget-off'), `${id} chrome not disabled`);
+    }
+  }
   if (scenario.name === 'lingerHeavy') assert.ok(any(sample => sample.lingers > 0), 'linger labels absent');
   if (scenario.name === 'settingsMenuOpen') {
     assert.ok(any(sample => sample.menuOpen && sample.pickerOpen), 'gear/editor path absent');
@@ -622,7 +651,9 @@ function measure(scenario) {
   if (scenario.name === 'layoutEditDrag') {
     assert.ok(any(sample => sample.editing) && !witnesses[witnesses.length - 1].editing, 'edit session absent or not ended');
     const saved = game.disk.get('hantu.bufftimer.v1/settings') || '';
-    for (const key of ['"b":', '"f":', '"u":']) assert.ok(saved.includes(key), `DONE did not save ${key} (${saved})`);
+    for (const key of ['"b":', '"f":', '"u":', '"lc":']) assert.ok(saved.includes(key), `DONE did not save ${key} (${saved})`);
+    const lc = JSON.parse(saved.slice(saved.indexOf('{'))).t.lc;
+    assert.ok(lc.length === 4 && lc[2] !== -30, `the label drags did not move, turn and resize it (${lc})`);
   }
   return {
     simSeconds: scenario.seconds,

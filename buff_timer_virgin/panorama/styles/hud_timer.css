@@ -724,6 +724,13 @@
 	opacity: 1;
 }
 
+/* WIDGETS switch off: the widget and its edit chrome are gone, in edit mode too (the timer also skips its logic). */
+.bt-slot.bt-widget-off,
+.bt-edit-chrome.bt-widget-off
+{
+	visibility: collapse;
+}
+
 .bt-slot-pill.bt-side-l,
 .bt-slot-pill.bt-side-r
 {
@@ -1079,6 +1086,13 @@
 .bt-loc-rotate:hover
 {
 	background-color: #FFE14D;
+}
+
+/* The label's corner handles: placed by the script on the turned box, like the knob. */
+.bt-loc-handle
+{
+	horizontal-align: left;
+	vertical-align: top;
 }
 
 /* Outside a district the label is empty: name the box so it can be found. */

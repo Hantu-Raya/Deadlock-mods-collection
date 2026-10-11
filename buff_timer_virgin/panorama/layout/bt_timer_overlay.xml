@@ -84,6 +84,10 @@
 				<Label class="bt-loc-hint" text="map location" hittest="false" />
 			</Panel>
 			<Panel id="BTSlotLocRotate" class="bt-loc-rotate" />
+			<Panel id="BTSlotLocHandleTL" class="bt-edit-handle bt-loc-handle" />
+			<Panel id="BTSlotLocHandleTR" class="bt-edit-handle bt-loc-handle" />
+			<Panel id="BTSlotLocHandleBL" class="bt-edit-handle bt-loc-handle" />
+			<Panel id="BTSlotLocHandleBR" class="bt-edit-handle bt-loc-handle" />
 			<Panel id="BTSlotRejuvChrome" class="bt-edit-chrome" hittest="false">
 				<Panel id="BTSlotRejuvOutline" class="bt-edit-outline" hittest="false" />
 				<Panel id="BTSlotRejuvHandleTL" class="bt-edit-handle bt-handle-tl" />

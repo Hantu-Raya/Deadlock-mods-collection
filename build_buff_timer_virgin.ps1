@@ -242,6 +242,13 @@ $lookValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-look.js'
 if ($LASTEXITCODE -ne 0) {
     throw "Look validator failed with exit code $LASTEXITCODE"
 }
+
+# WIDGETS switches: hiding, skipped logic, the schema 7 "x" mask, save/restore and RESET.
+$widgetsValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-widget-toggles.js'
+& node $widgetsValidator
+if ($LASTEXITCODE -ne 0) {
+    throw "Widget toggle validator failed with exit code $LASTEXITCODE"
+}
 foreach ($script in @($compressedScript, $compressedSettingsScript)) {
     $stagedSource = [System.IO.File]::ReadAllText($script)
     $productionSource = [regex]::Replace(
@@ -293,6 +300,8 @@ $scriptInfo = Assert-ClosureOutput -Path $compressedScript -MinBytes 8192 -Requi
     'BuffTime',
     'bt_timer_gen',
     'bt_linger_prev',
+    'bt_widgets_off',
+    'bt-widget-off',
     'TimerOverlayFrame',
     'MinimapGlowClip',
     'BTLingerLayer',
@@ -342,7 +351,9 @@ $settingsInfo = Assert-ClosureOutput -Path $compressedSettingsScript -MinBytes 4
     'file://{resources}/layout/bt_minimap_settings.xml',
     'bt-linger-off',
     'bt-glow-off',
-    'bt_settings_gen'
+    'bt_settings_gen',
+    'bt_widgets_off',
+    'BTWidgetClaims'
 )
 Remove-Item -LiteralPath $settingsExterns -Force
 Write-Host "  Closure ADVANCED OK -> $compressedSettingsScript ($([math]::Round($settingsInfo.Length / 1KB, 1)) KB)" -ForegroundColor Green

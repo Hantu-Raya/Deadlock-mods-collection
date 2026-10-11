@@ -126,6 +126,22 @@ label.text = 'To (TEAM):';
 runNextScheduled();
 fakeNow = 2000;
 
+// Failure mode (GPT-6.1-Sol audit BT-01): the player replaces the staged timer text before the zero-delay submit; the
+// replacement must not be sent, and must stay in the box.
+scheduled.length = 0;
+events.length = 0;
+fakeNow = 2100;
+assert.equal(intent.send('Rejuv 1:00', fakeNow), true, 'draft test intent must schedule');
+runNextScheduled();
+runNextScheduled();
+assert.equal(input.text, 'Rejuv 1:00', 'timer text staged');
+input.text = 'gg wp';
+runNextScheduled();
+assert.equal(events.some((event) => event[0] === 'CitadelChatInputSubmitted'), false, 'a replaced draft is never submitted');
+assert.equal(input.text, 'gg wp', 'the player\'s text stays');
+assert.equal(test.isChatIntentInFlight(), false, 'the intent is released');
+input.text = '';
+
 scheduled.length = 0;
 events.length = 0;
 fakeNow = 2500;
@@ -167,5 +183,25 @@ const eventCountBeforeRetirement = events.length;
 runNextScheduled();
 assert.equal(events.length, eventCountBeforeRetirement, 'retired timer must not dispatch any chat event from a pending retry');
 assert.equal(test.getInstanceTestState().retired, true, 'superseded timer must retire on its pending chat retry');
+
+// Failure mode (GPT-6.1-Sol audit BT-04): with the game clock unreadable during a match, a ping must not post a
+// made-up timer (Bridge showed 5:01 from gTime() = -1).
+{
+  const { createProfile, launch } = require('./bt-test-harness.js');
+  const game = launch(createProfile(), { withTimer: true, settings: false, clock: '12:00' });
+  game.advance(2500);
+  const pings = () => game.stats.events.filter((name) => name === 'CitadelConCommand').length;
+  game.clock.text = '';
+  game.advance(400);
+  for (const id of ['RejuvPingButton', 'BuffPingButton']) {
+    game.ids[id].events.onactivate();
+    game.advance(400);
+  }
+  assert.equal(pings(), 0, 'no team chat without a readable clock');
+  game.clock.text = '12:01';
+  game.advance(400);
+  game.ids.BuffPingButton.events.onactivate();
+  assert.equal(pings(), 1, 'a readable clock pings again');
+}
 
 console.log('[TEAM CHAT PASS] sanitization, team targeting, cooldown, in-flight retries, submit, and focus contracts are valid.');

@@ -133,7 +133,7 @@ step('colours and strength save only when changed, restore after restart and fit
   game.ids.BTGlowStrength.drag(120);
   game.advance(2000);
   const body = savedBody(profile);
-  assert.equal(body.s, 6, 'schema 6');
+  assert.equal(body.s, 7, 'schema 7');
   assert.deepEqual(body.c, { e: '#FF9A3D' }, 'only the changed colour is stored');
   assert.equal(body.k, 120);
   const again = ready({ profile }).game;
@@ -150,7 +150,7 @@ step('colours and strength save only when changed, restore after restart and fit
   for (const key of ['f', 'u', 'cl', 'cr']) t[key][3] = 't';
   t.m = 1.35;
   t.mp = [0.12345, 0.56789];
-  t.lc = [-999.9, -999.9, -165];
+  t.lc = [-999.9, -999.9, -165, 1.75];
   const full = record(JSON.stringify({ s: 6, u: '#111111', d: '#222222', l: 0, g: 0, t,
     c: { a: '#333333', e: '#444444', w: '#555555', p: '#666666', v: '#777777', m: '#888888' }, k: 150, b: 0, o: 25 }));
   const big = createProfile({ [KEY]: full });

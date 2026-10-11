@@ -19,6 +19,15 @@
 					<Panel id="BTMapOpacityHost" class="bt-strength-host" hittest="false" hittestchildren="true" />
 					<Label id="BTMapOpacityValue" class="bt-strength-value" text="100%" />
 				</Panel>
+				<!-- Timer-owned: a switched-off widget is hidden and its timer logic stops (no polling for it). -->
+				<Label class="bt-settings-section bt-timer-only" text="WIDGETS" />
+				<Panel class="bt-widget-chips bt-timer-only" hittest="false" hittestchildren="true">
+					<Button id="BTWidgetBuff" class="bt-widget-chip"><Label text="Bridge" hittest="false" /></Button>
+					<Button id="BTWidgetRejuv" class="bt-widget-chip"><Label text="Rejuv" hittest="false" /></Button>
+					<Button id="BTWidgetRift" class="bt-widget-chip"><Label text="Rift" hittest="false" /></Button>
+					<Button id="BTWidgetUrn" class="bt-widget-chip"><Label text="Urn" hittest="false" /></Button>
+					<Button id="BTWidgetClaims" class="bt-widget-chip bt-widget-chip-last"><Label text="Claims" hittest="false" /></Button>
+				</Panel>
 				<Label class="bt-settings-section" text="ENEMY MARKERS" />
 				<Button id="BTUpColor" class="bt-color-row">
 					<Panel id="BTUpColorArrow" class="bt-color-arrow bt-arrow-up" hittest="false" />
@@ -52,42 +61,42 @@
 				</Button>
 				<!-- Timer-owned (hidden without the timer): pick any colour, e.g. for colour blindness. -->
 				<Label class="bt-settings-section bt-timer-only" text="CLAIM BOXES" />
-				<Button id="BTAllyColor" class="bt-color-row bt-timer-only">
+				<Button id="BTAllyColor" class="bt-color-row bt-timer-only bt-claims-dep">
 					<Panel id="BTAllyColorSwatch" class="bt-color-swatch" hittest="false" />
 					<Label class="bt-row-label" text="Ally claim" />
 					<Label id="BTAllyColorHex" class="bt-color-hex" text="#64FFC8" />
 				</Button>
-				<Button id="BTEnemyColor" class="bt-color-row bt-timer-only">
+				<Button id="BTEnemyColor" class="bt-color-row bt-timer-only bt-claims-dep">
 					<Panel id="BTEnemyColorSwatch" class="bt-color-swatch" hittest="false" />
 					<Label class="bt-row-label" text="Enemy claim (box and glow)" />
 					<Label id="BTEnemyColorHex" class="bt-color-hex" text="#FF3232" />
 				</Button>
 				<Label class="bt-settings-section bt-timer-only" text="BRIDGE BUFF GLOW" />
-				<Button id="BTGlowToggle" class="bt-switch-row bt-timer-only">
+				<Button id="BTGlowToggle" class="bt-switch-row bt-timer-only bt-claims-dep">
 					<Label class="bt-row-label" text="Show glow" />
 					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
 				</Button>
-				<Panel class="bt-strength-row bt-timer-only" hittest="false">
+				<Panel class="bt-strength-row bt-timer-only bt-claims-dep" hittest="false">
 					<Label class="bt-strength-label" text="Strength" />
 					<Panel id="BTGlowStrengthHost" class="bt-strength-host" hittest="false" hittestchildren="true" />
 					<Label id="BTGlowStrengthValue" class="bt-strength-value" text="100%" />
 				</Panel>
-				<Button id="BTGlowGunColor" class="bt-color-row bt-timer-only">
+				<Button id="BTGlowGunColor" class="bt-color-row bt-timer-only bt-claims-dep">
 					<Panel id="BTGlowGunColorSwatch" class="bt-color-swatch" hittest="false" />
 					<Label class="bt-row-label" text="Weapon" />
 					<Label id="BTGlowGunColorHex" class="bt-color-hex" text="#FFB450" />
 				</Button>
-				<Button id="BTGlowCastingColor" class="bt-color-row bt-timer-only">
+				<Button id="BTGlowCastingColor" class="bt-color-row bt-timer-only bt-claims-dep">
 					<Panel id="BTGlowCastingColorSwatch" class="bt-color-swatch" hittest="false" />
 					<Label class="bt-row-label" text="Spirit" />
 					<Label id="BTGlowCastingColorHex" class="bt-color-hex" text="#B464FF" />
 				</Button>
-				<Button id="BTGlowSurvivalColor" class="bt-color-row bt-timer-only">
+				<Button id="BTGlowSurvivalColor" class="bt-color-row bt-timer-only bt-claims-dep">
 					<Panel id="BTGlowSurvivalColorSwatch" class="bt-color-swatch" hittest="false" />
 					<Label class="bt-row-label" text="Vitality" />
 					<Label id="BTGlowSurvivalColorHex" class="bt-color-hex" text="#64FF64" />
 				</Button>
-				<Button id="BTGlowMovementColor" class="bt-color-row bt-timer-only">
+				<Button id="BTGlowMovementColor" class="bt-color-row bt-timer-only bt-claims-dep">
 					<Panel id="BTGlowMovementColorSwatch" class="bt-color-swatch" hittest="false" />
 					<Label class="bt-row-label" text="Movement" />
 					<Label id="BTGlowMovementColorHex" class="bt-color-hex" text="#64C8FF" />

@@ -190,7 +190,7 @@ const isolatedRoot = makeRuntimeRoot('clock unavailable');
 contextPanel = isolatedRoot.minimap;
 isolatedRoot.root.SetAttributeInt('bt_timer_gen', 1);
 test.setInstanceTestState({ instanceGen: 1, hudRoot: isolatedRoot.root, retired: false });
-test.setLoopTestState({ generation: 4, playerSeenToken: 0, lowTimeCleared: false });
+test.setLoopTestState({ generation: 4, lowTimeCleared: false });
 test.loop(3);
 assert.equal(liveScheduled().length, 0, 'stale loop generations must not schedule a callback');
 // Failure mode ASTRA-04: an invalid gate clock must retry cheaply instead of entering a false match.
@@ -378,21 +378,25 @@ assert.equal(test.computeNeutralPhase(240)?.key, 'medium', 'medium camp countdow
 assert.equal(test.computeNeutralPhase(300)?.key, 'medium', 'medium camp countdown must include the tracked spawn second');
 assert.equal(test.computeNeutralPhase(301), null, 'medium camp countdown must end after the tracked 300-second spawn');
 
-test.setLoopTestState({ playerSeenToken: 0, lowTimeCleared: false });
+// Low game time clears the per-player state once, rearms at 10 s, and ignores unreadable times.
+const seeded = () => test.setPlayerStateTest('low_time_probe', { team: 2 });
+const cleared = () => test.getPlayerStateTest('low_time_probe') === undefined;
+test.setLoopTestState({ lowTimeCleared: false });
+seeded();
 test.maybeClearNeutralCachesForLowGameTime(5);
-let lowTimeState = test.getLoopTestState();
-assert.equal(lowTimeState.playerSeenToken, 1, 'low-game cleanup should advance the player token once');
+assert.equal(cleared(), true, 'low-game cleanup clears player state');
+seeded();
 test.maybeClearNeutralCachesForLowGameTime(5);
-lowTimeState = test.getLoopTestState();
-assert.equal(lowTimeState.playerSeenToken, 1, 'repeated low-game callbacks should not clear caches twice');
+assert.equal(cleared(), false, 'repeated low-game callbacks should not clear caches twice');
 test.maybeClearNeutralCachesForLowGameTime(10);
 test.maybeClearNeutralCachesForLowGameTime(5);
-lowTimeState = test.getLoopTestState();
-assert.equal(lowTimeState.playerSeenToken, 2, 'reaching 10 seconds should rearm the next low-game cleanup');
+assert.equal(cleared(), true, 'reaching 10 seconds should rearm the next low-game cleanup');
+test.maybeClearNeutralCachesForLowGameTime(10);
+seeded();
 test.maybeClearNeutralCachesForLowGameTime(Number.NaN);
-assert.equal(test.getLoopTestState().playerSeenToken, 2, 'invalid game time must not clear runtime state');
+assert.equal(cleared(), false, 'invalid game time must not clear runtime state');
 test.maybeClearNeutralCachesForLowGameTime(-1);
-assert.equal(test.getLoopTestState().playerSeenToken, 2, 'negative game time must not clear runtime state');
+assert.equal(cleared(), false, 'negative game time must not clear runtime state');
 
 let rift = test.computeRiftState(579);
 assert.equal(rift.warning, false, 'Rift readiness warning should not start before the 80s lead');
@@ -988,6 +992,18 @@ assert.equal(test.getPlayerStateTest('stationary_corpse').deadTs, initialDeadTs,
 const corpseTarget = { x: 50, y: 50, minAllyDist: 0, minEnemyDist: 0 };
 test.computeNearestForTargets(corpseSnapshot.players, [corpseTarget], 1, 5000, false);
 assert.equal(corpseTarget.minEnemyDist, Infinity, 'stationary dead enemy must be excluded after death grace');
+// Failure mode (GPT-6.1-Sol audit BT-02): the enemy respawns while no claim tracking runs, then dies again at the
+// powerup; the second death must get its own grace instead of the first death's expired timestamp.
+const alive = { players: [Object.assign({}, corpseSnapshot.players[0], { isActive: true, isDead: false, xPct: 30, yPct: 30 })] };
+test.checkEnemyLinger(20000, alive);
+const secondDeath = { players: [Object.assign({}, corpseSnapshot.players[0], { xPct: 50, yPct: 50 })] };
+test.checkEnemyLinger(40000, secondDeath);
+const secondTarget = { x: 50, y: 50, minAllyDist: 0, minEnemyDist: 0 };
+test.computeNearestForTargets(secondDeath.players, [secondTarget], 1, 41000, false);
+assert.equal(secondTarget.minEnemyDist, 0, 'a fresh death counts during its own grace');
+const lateTarget = { x: 50, y: 50, minAllyDist: 0, minEnemyDist: 0 };
+test.computeNearestForTargets(secondDeath.players, [lateTarget], 1, 43000, false);
+assert.equal(lateTarget.minEnemyDist, Infinity, 'and is excluded after it');
 
 // Failed BLoadLayout never leaves a partial host or starts the timer loop.
 function checkLayoutFailure(failures, throwFailure = false) {

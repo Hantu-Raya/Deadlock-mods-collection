@@ -576,9 +576,10 @@ function locStyle(game) {
   const style = game.location.style;
   const match = /^translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0px\)$/.exec(String(style.transform || ''));
   return {
-    stock: !style.transform && !style.preTransformRotate2d,
+    stock: !style.transform && !style.preTransformRotate2d && !style.preTransformScale2d,
     dx: match ? Number(match[1]) : NaN, dy: match ? Number(match[2]) : NaN,
     deg: style.preTransformRotate2d ? parseFloat(style.preTransformRotate2d) : NaN,
+    scale: style.preTransformScale2d ? parseFloat(style.preTransformScale2d) : 1,
   };
 }
 const posOf = (panel) => {
@@ -615,6 +616,32 @@ function turnLoc(game, deg) {
   const turn = deg * Math.PI / 180;
   drag(game, game.ids.BTSlotLocRotate, { x: chrome.kx * SCALE, y: chrome.ky * SCALE },
     { x: (chrome.cx + 100 * Math.sin(turn)) * SCALE, y: (chrome.cy - 100 * Math.cos(turn)) * SCALE });
+}
+// A corner of the turned dashed box (TL/TR/BL/BR) in layer px, and the centre of its 12 px handle.
+function locCorner(game, corner) {
+  const chrome = locChrome(game);
+  const turn = chrome.deg * Math.PI / 180;
+  const lx = (corner[1] === 'R' ? 1 : -1) * chrome.w / 2;
+  const ly = (corner[0] === 'B' ? 1 : -1) * chrome.h / 2;
+  const at = posOf(game.ids[`BTSlotLocHandle${corner}`]);
+  return {
+    x: chrome.cx + lx * Math.cos(turn) - ly * Math.sin(turn), y: chrome.cy + lx * Math.sin(turn) + ly * Math.cos(turn),
+    hx: at.x + 6, hy: at.y + 6,
+  };
+}
+// Drags a corner handle along the line from the label centre, to factor times its distance.
+function resizeLoc(game, corner, factor) {
+  const chrome = locChrome(game);
+  const c = locCorner(game, corner);
+  drag(game, game.ids[`BTSlotLocHandle${corner}`], { x: c.hx * SCALE, y: c.hy * SCALE },
+    { x: (chrome.cx + (c.x - chrome.cx) * factor) * SCALE, y: (chrome.cy + (c.y - chrome.cy) * factor) * SCALE });
+}
+function expectCorners(game, message) {
+  for (const corner of ['TL', 'TR', 'BL', 'BR']) {
+    const c = locCorner(game, corner);
+    near(c.hx, c.x, `${message}: ${corner} handle x`, 0.3);
+    near(c.hy, c.y, `${message}: ${corner} handle y`, 0.3);
+  }
 }
 step('the map location label moves and turns inside the minimap box; DONE saves it, CANCEL and RESET LAYOUT hand it back', () => {
   const { game, profile } = ready();
@@ -692,7 +719,7 @@ step('the map location label moves and turns inside the minimap box; DONE saves 
   game.advance(2000);
   assert.equal(game.stats.writes, writes + 1, 'DONE saves once');
   const body = JSON.parse(profile.disk.get(KEY).slice(14));
-  assert.equal(body.s, 6, 'saves with the label are schema 6');
+  assert.equal(body.s, 7, 'saves with the label are schema 7');
   assert.deepEqual(body.t.lc, [-100, -60, 15], 'the label is saved as its offset from stock and its turn');
 
   // Next launch: applied while the label is hidden (nothing to measure); it travels and scales with the minimap.
@@ -724,6 +751,72 @@ step('the map location label moves and turns inside the minimap box; DONE saves 
   next.advance(2000);
   assert.equal(savedLayout(profile), undefined, 'a reset layout saves nothing');
   assert.equal(next.persp.classes.has('in_map_district'), false, 'DONE hides the label outside a district again');
+});
+
+// Failure modes: corner handles off the turned corners, a resize moving the label, scaling not clamped to 50-200 % or
+// not snapping to 100 %, the knob and the drag area ignoring the size, a grown label leaving the minimap box, the size
+// not saved/restored or not handed back with the rest, schema-6 saves without a size failing to load.
+step('the map location label resizes from the corners of its turned box, around its centre', () => {
+  const { game, profile } = ready();
+  game.toggleMenu();
+  enterEdit(game);
+  game.advance(300);
+  for (const corner of ['TL', 'TR', 'BL', 'BR']) {
+    assert.equal(game.ids[`BTSlotLocHandle${corner}`].draggable, true, `${corner} handle draggable while editing`);
+  }
+  expectCorners(game, 'stock');
+  dragLoc(game, -150, -120);
+  const before = locChrome(game);
+  resizeLoc(game, 'TR', 1.5);
+  let style = locStyle(game);
+  assert.equal(style.scale, 1.5, 'dragging a corner out grows the label');
+  near(style.dx, -150, 'resizing keeps the centre (x)', 0.15);
+  near(style.dy, -120, 'resizing keeps the centre (y)', 0.15);
+  assert.equal(style.deg, -30, 'resizing keeps the turn');
+  let chrome = locChrome(game);
+  near(chrome.w, LOC.w * 1.5, 'the dashed box grows (w)', 0.3);
+  near(chrome.h, LOC.h * 1.5, 'the dashed box grows (h)', 0.3);
+  near(chrome.cx, before.cx, 'the dashed box keeps its centre', 0.3);
+  expectCorners(game, 'grown');
+  expectKnob(game, 'grown');
+  near(parseFloat(game.ids.BTSlotLocGrab.style.width), (LOC.w * Math.cos(Math.PI / 6) + LOC.h / 2) * 1.5, 'the drag area grows', 0.3);
+  // Turned a quarter, the bottom-left corner pulled in: smaller around the same centre.
+  turnLoc(game, 90);
+  expectCorners(game, 'turned');
+  resizeLoc(game, 'BL', 0.5);
+  assert.equal(locStyle(game).scale, 0.75, 'dragging a corner in shrinks the label');
+  resizeLoc(game, 'BR', 0.1);
+  assert.equal(locStyle(game).scale, 0.5, 'the size stops at 50%');
+  resizeLoc(game, 'TL', 10);
+  assert.equal(locStyle(game).scale, 2, 'the size stops at 200%');
+  chrome = locChrome(game);
+  assert.ok(chrome.cx - chrome.h / 2 >= 1480 - 0.3 && chrome.cx + chrome.h / 2 <= 1920.3, 'a grown label stays in the minimap box');
+  resizeLoc(game, 'TL', 0.51);
+  assert.equal(locStyle(game).scale, 1, 'snaps to 100% within 3%');
+  resizeLoc(game, 'TL', 1.3);
+  game.click('BTLayoutDone');
+  game.advance(2000);
+  const saved = savedLayout(profile).lc;
+  assert.equal(saved.length, 4, 'a resized label stores its size');
+  assert.equal(saved[2], 90);
+  assert.equal(saved[3], 1.3);
+  const next = ready({ profile }).game;
+  assert.equal(locStyle(next).scale, 1.3, 'the size is restored on launch');
+  next.toggleMenu();
+  enterEdit(next);
+  next.click('BTLayoutReset');
+  assert.ok(locStyle(next).stock, 'RESET LAYOUT hands the size back too');
+  next.click('BTLayoutCancel');
+  assert.equal(locStyle(next).scale, 1.3, 'CANCEL keeps the saved size');
+  // A schema 6 entry without a size (first label build) loads at 100%; sizes out of range block like other damage.
+  const plain = ready({ profile: createProfile({ [KEY]: record('{"s":6,"u":"#111111","d":"#222222","l":1,"g":1,"t":{"lc":[5,5,0]}}') }) }).game;
+  assert.equal(plain.state().phase, 'ready');
+  assert.deepEqual([locStyle(plain).deg, locStyle(plain).scale], [0, 1]);
+  for (const bad of ['[5,5,0,3]', '[5,5,0,0.2]', '[5,5,0,"1.2"]', '[5,5,0,1.2,1]']) {
+    const game2 = ready({ profile: createProfile({ [KEY]: record(`{"s":6,"u":"#111111","d":"#222222","l":1,"g":1,"t":{"lc":${bad}}}`) }) }).game;
+    assert.equal(game2.state().phase, 'blocked', `label entry ${bad} blocks`);
+    assert.ok(locStyle(game2).stock, `label entry ${bad} is not applied`);
+  }
 });
 
 step('an engine-set district class stays; without the stock label the rest of the editor works', () => {
@@ -774,6 +867,35 @@ step('a timer reboot keeps the saved label; a replaced timer leaves it alone; th
   game.minimap.deleted = true;
   game.advance(1500);
   assert.ok(locStyle(game).stock, 'a timer with no successor hands the label back');
+});
+
+// GPT-6.1-Sol audit BT-03: the timer reboots while the editor is open. The retiring timer may take the district class
+// away, but the successor puts it back on its next apply (at most one 0.25 s settings tick), and DONE still hides the
+// label again outside a district. BT-05: a replaced stock label gets the saved spot, turn and size again.
+step('a timer reboot mid-edit keeps the label shown; a replaced label gets the saved label again', () => {
+  const profile = createProfile({ [KEY]: record('{"s":6,"u":"#111111","d":"#222222","l":1,"g":1,"t":{"lc":[-40,-20,45,1.5]}}') });
+  const { game } = ready({ profile });
+  game.toggleMenu();
+  enterEdit(game);
+  game.advance(300);
+  assert.equal(game.persp.classes.has('in_map_district'), true, 'editing shows the label');
+  const oldApi = game.shared.BTTimerLayout;
+  game.bootTimerAgain();
+  game.advance(300);
+  assert.equal(oldApi.apply({}, true), false, 'the replaced timer retires when it is next used');
+  game.advance(300);
+  assert.equal(game.persp.classes.has('in_map_district'), true, 'the retiring timer leaves the successor\'s label shown');
+  game.click('BTLayoutDone');
+  game.advance(300);
+  assert.equal(game.persp.classes.has('in_map_district'), false, 'DONE hides it again outside a district');
+
+  const { makePanel } = require('./bt-test-harness.js');
+  game.location.deleted = true;
+  const fresh = makePanel('minimap_location', 'Panel', game.persp);
+  game.advance(12000);
+  assert.equal(fresh.style.transform, 'translate3d(-40px, -20px, 0px)', 'the replacement label is moved');
+  assert.equal(fresh.style.preTransformRotate2d, '45deg', 'and turned');
+  assert.equal(fresh.style.preTransformScale2d, '1.5', 'and resized');
 });
 
 // A label that stays collapsed while editing (outside a district, should the class not reveal it) has no layout to

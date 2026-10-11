@@ -169,12 +169,14 @@ function record(body) {
 function launch(profile, options = {}) {
   const opts = Object.assign({ commit: true, navSec: 0.8, replySec: 0.05, echoSec: 0.12, version: null, href: null, dropWrite: () => false }, options);
   const scheduled = [];
+  const scheduledDelays = [];
   let now = 0;
   let nextId = 0;
   let instance = 0;
   const schedule = (delaySec, callback, owner = 0) => {
     const item = { id: ++nextId, due: now + Math.max(0, Number(delaySec) || 0) * 1000, callback, owner, cancelled: false };
     scheduled.push(item);
+    scheduledDelays.push({ owner, delaySec: Number(delaySec), at: now });
     return item.id;
   };
   const cancel = (handle) => { const item = scheduled.find((entry) => entry.id === handle); if (item) item.cancelled = true; };
@@ -469,6 +471,7 @@ function launch(profile, options = {}) {
     washes: () => ({ up: markers.up.image.style.washColor, down: markers.down.image.style.washColor, ally: markers.ally.image.style.washColor }),
     liveHosts: () => hudCore.Children().filter((child) => child.id === 'BTMinimapSettingsHost'),
     liveCallbacks: (owner) => scheduled.filter((item) => item.owner === owner && !item.cancelled).length,
+    scheduledDelays,
     bootSecond: () => { const old = game.test; game.test = startInstance(); return old; },
     bootTimerAgain: () => { const old = game.timer; game.timer = startTimer(); return old; },
     instances: () => instance,

@@ -15,7 +15,7 @@
     btLayoutDone: "BTLayoutDone", btLayoutCancel: "BTLayoutCancel", btLayoutReset: "BTLayoutReset",
     btLayoutGrip: "BTLayoutBarGrip"
   };
-  const UI = { minimap: $.GetContextPanel(), host: null, /** @type {!Object} */ colorRows: {} };
+  const UI = { minimap: $.GetContextPanel(), host: null, /** @type {!Object} */ colorRows: {}, /** @type {!Array} */ widgetRows: [] };
   let _parent = null;
   let _gen = 0;
   let _stopped = false;
@@ -24,6 +24,8 @@
   let _tick = 0;
   let _layoutAttempts = 0;
   let _enemyMarkers = [];
+  // The bt_widgets_off value last written on #hud_minimap (-1: nothing yet, so a new instance writes it once).
+  let _btWidgetsWritten = -1;
 
   // Durable save through the hpv2-store /bt/ page. Transport (fragment in, HTMLTitle out) follows hp_colors_v2_storage.js, but this page owns one key and its
   // own prefix/version, so it never touches HP Colors data. JSON keys are quoted: Closure must not rename them.
@@ -31,9 +33,10 @@
   const BT_STORE_VERSION = 1;
   const BT_STORE_PREFIX = "BTS1:";
   // 3 adds the optional timer layout "t"; 4 the optional custom colours "c" and glow strength "k"; 5 the optional
-  // minimap size "t"."m" and spot "t"."mp", borderless "b" and opacity "o"; 6 the optional map location label "t"."lc"
-  // (older builds read a newer schema as a newer save, not a damaged one). Older saves load.
-  const BT_SCHEMA = 6;
+  // minimap size "t"."m" and spot "t"."mp", borderless "b" and opacity "o"; 6 the optional map location label "t"."lc";
+  // 7 the optional switched-off widgets "x" (older builds read a newer schema as a newer save, not a damaged one).
+  // Older saves load.
+  const BT_SCHEMA = 7;
   const BT_REPLY_TIMEOUT_S = 5;
   const BT_HELLO_RETRY_S = 8;
   const BT_READY_TIMEOUT_MS = 30000;
@@ -64,6 +67,15 @@
   // Minimap size in percent of stock (layout model key "m" holds it as a fraction; absent = 100).
   const BT_MAP_SCALE_MIN = 50;
   const BT_MAP_SCALE_MAX = 150;
+  // WIDGETS switches. A set bit switches the widget off: the timer hides it and stops its logic. The mask is record "x"
+  // (only when not 0) and the int attribute bt_widgets_off on #hud_minimap, which the timer reads every loop tick.
+  // Claims covers both claim boxes and the Bridge side glows. Never renumber the bits: saves store them.
+  const BT_WIDGETS = [
+    { row: "BTWidgetBuff", bit: 1 }, { row: "BTWidgetRejuv", bit: 2 }, { row: "BTWidgetRift", bit: 4 },
+    { row: "BTWidgetUrn", bit: 8 }, { row: "BTWidgetClaims", bit: 16 }
+  ];
+  const BT_WIDGETS_ALL = 31;
+  const BT_WIDGET_CLAIMS = 16;
   // One-click presets. Schema 1 (first settings build) stored indices into this list, so never reorder or remove entries.
   const BT_PRESETS = ["#FFE14D", "#4DD2FF", "#FFFFFF", "#FF4D4D", "#FF9A3D", "#5CFF6B", "#3DFFE0", "#FF4DFF", "#A970FF", "#FF8FC8"];
   // Spectrum slider: positions 0-1000 and the stops the CSS draws (stock settings_color_slider.css), black - hues - white.
@@ -77,7 +89,7 @@
   // y fraction, scale, side]} plus "m": minimap size fraction and "mp": [x, y] fractions of its box; absent = default.
   const BtSettings = {
     /** @type {!Object} */ colors: btDefaultColors(), strength: BT_STRENGTH_DEFAULT,
-    linger: true, glow: true, border: true, opacity: BT_OPACITY_MAX,
+    linger: true, glow: true, border: true, opacity: BT_OPACITY_MAX, widgetsOff: 0,
     /** @type {!Object} */ layout: {}
   };
   // The stock minimap's look (ring frame + blur backdrop, whole-minimap opacity): its panels, found once, and the look
@@ -141,6 +153,10 @@
   const BT_LOC_MAX = 1000;
   const BT_LOC_TURN_STEP = 15;
   const BT_LOC_TURN_SNAP = 4;
+  // Its size from a corner handle: 50-200 %, whole percent, soft snap to 100 % within 3 %.
+  const BT_LOC_SCALE_MIN = 0.5;
+  const BT_LOC_SCALE_MAX = 2;
+  const BT_LOC_SCALE_SNAP = 0.03;
   // Edit bar: width matches .bt-layout-bar; the height is measured once laid out (estimate before that).
   const BT_BAR_W = 330;
   const BT_BAR_EST_H = 150;
@@ -271,6 +287,7 @@
     // Minimap look: only when not stock.
     if (!BtSettings.border) data["b"] = 0;
     if (BtSettings.opacity !== BT_OPACITY_MAX) data["o"] = BtSettings.opacity;
+    if (BtSettings.widgetsOff !== 0) data["x"] = BtSettings.widgetsOff;
     const body = JSON.stringify(data);
     return "BTS1." + btChecksum(body) + "." + body;
   }
@@ -310,8 +327,10 @@
       }
       if (key === "lc" && schema >= 6) {
         const loc = value[key];
-        if (!Array.isArray(loc) || loc.length !== 3 || !loc.every((part) => typeof part === "number")) return null;
+        // [dx, dy, degrees] or, resized, [dx, dy, degrees, size 0.5-2].
+        if (!Array.isArray(loc) || (loc.length !== 3 && loc.length !== 4) || !loc.every((part) => typeof part === "number")) return null;
         if (!(Math.abs(loc[0]) <= BT_LOC_MAX && Math.abs(loc[1]) <= BT_LOC_MAX && loc[2] >= -180 && loc[2] <= 180)) return null;
+        if (loc.length === 4 && !(loc[3] >= BT_LOC_SCALE_MIN && loc[3] <= BT_LOC_SCALE_MAX)) return null;
         layout[key] = loc.slice();
         continue;
       }
@@ -342,7 +361,7 @@
   function btDecode(record) {
     const result = {
       kind: "absent", /** @type {!Object} */ colors: btDefaultColors(), strength: BT_STRENGTH_DEFAULT,
-      linger: true, glow: true, border: true, opacity: BT_OPACITY_MAX,
+      linger: true, glow: true, border: true, opacity: BT_OPACITY_MAX, widgetsOff: 0,
       /** @type {!Object} */ layout: {}
     };
     if (record === null || record === undefined) return result;
@@ -378,6 +397,8 @@
     const border = schema >= 5 && data["b"] !== undefined ? data["b"] : 1;
     const opacity = schema >= 5 && data["o"] !== undefined ? data["o"] : BT_OPACITY_MAX;
     if (!btIsFlag(border) || !Number.isInteger(opacity) || opacity < BT_OPACITY_MIN || opacity > BT_OPACITY_MAX) return result;
+    const widgetsOff = schema >= 7 && data["x"] !== undefined ? data["x"] : 0;
+    if (!Number.isInteger(widgetsOff) || widgetsOff < 0 || widgetsOff > BT_WIDGETS_ALL) return result;
     result.layout = layout;
     result.kind = "valid";
     result.colors["up"] = up;
@@ -388,6 +409,7 @@
     result.glow = glow === 1;
     result.border = border === 1;
     result.opacity = opacity;
+    result.widgetsOff = widgetsOff;
     return result;
   }
 
@@ -421,8 +443,18 @@
     btPaintArrows(_enemyMarkers, true);
     setPanelClass(UI.minimap, "bt-linger-off", !BtSettings.linger);
     setPanelClass(UI.minimap, "bt-glow-off", !BtSettings.glow);
+    btWriteWidgets();
     btLookPush();
     btApplyMapLook();
+  }
+  // The timer reads this once per loop tick (one native read), so it is written only when it changes.
+  function btWriteWidgets() {
+    const mask = BtSettings.widgetsOff;
+    if (mask === _btWidgetsWritten || !panelValid(UI.minimap)) return;
+    try {
+      UI.minimap.SetAttributeInt("bt_widgets_off", mask);
+      _btWidgetsWritten = mask;
+    } catch {}
   }
   // Borderless hides the stock ring frame and its blur backdrop; opacity fades #minimap_container (map, markers and
   // the timer's glows and '?' labels; the timer widgets live outside it). Inline styles, null = stock CSS.
@@ -505,6 +537,10 @@
     setPanelClass(UI.btLinger, "on", BtSettings.linger);
     setPanelClass(UI.btGlow, "on", BtSettings.glow);
     setPanelClass(UI.btBorder, "on", BtSettings.border);
+    for (let i = 0; i < BT_WIDGETS.length; i++) {
+      setPanelClass(UI.widgetRows[i], "on", (BtSettings.widgetsOff & BT_WIDGETS[i].bit) === 0);
+    }
+    setPanelClass(UI.btPanel, "bt-claims-off", (BtSettings.widgetsOff & BT_WIDGET_CLAIMS) !== 0);
     setPanelText(UI.btOpacityValue, BtSettings.opacity + "%");
     btSyncSlider(UI.btOpacity, BtSettings.opacity);
     setPanelText(UI.btStatus, BtStore.status);
@@ -513,11 +549,12 @@
 
   function btChanged() {
     btApplyToHud();
+    const ready = BtStore.phase === "ready";
+    // SAVED only when the shown values are what the store acknowledged and nothing is still in flight. Set before the
+    // one menu render, so an edit renders the menu once.
+    if (ready) BtStore.status = btEncode() === BtStore.savedRecord && BtStore.pendingOp !== "w" ? "SAVED" : "SAVING";
     btRefreshMenu();
-    if (BtStore.phase !== "ready") return;
-    // SAVED only when the shown values are what the store acknowledged and nothing is still in flight.
-    btSetStatus(btEncode() === BtStore.savedRecord && BtStore.pendingOp !== "w" ? "SAVED" : "SAVING");
-    btScheduleSave();
+    if (ready) btScheduleSave();
   }
   function btTargetColor() {
     return BtSettings.colors[BtEditor.target];
@@ -595,6 +632,10 @@
     btBind(UI.btLinger, "onactivate", btToggleLinger);
     btBind(UI.btGlow, "onactivate", btToggleGlow);
     btBind(UI.btBorder, "onactivate", btToggleBorder);
+    for (let i = 0; i < BT_WIDGETS.length; i++) {
+      const bit = BT_WIDGETS[i].bit;
+      btBind(UI.widgetRows[i], "onactivate", () => btToggleWidget(bit));
+    }
     btBind(UI.btReset, "onactivate", btResetSettings);
     for (const target of BT_COLORS) {
       const row = UI.colorRows[target.key];
@@ -785,6 +826,11 @@
     BtSettings.border = !BtSettings.border;
     btChanged();
   }
+  function btToggleWidget(bit) {
+    if (!btEditable()) return;
+    BtSettings.widgetsOff ^= bit;
+    btChanged();
+  }
   function btToggleMenu() {
     _btMenuOpen = !_btMenuOpen;
     if (!_btMenuOpen) {
@@ -821,6 +867,7 @@
     BtSettings.glow = true;
     BtSettings.border = true;
     BtSettings.opacity = BT_OPACITY_MAX;
+    BtSettings.widgetsOff = 0;
     btChanged();
   }
 
@@ -944,6 +991,7 @@
       BtSettings.glow = result.glow;
       BtSettings.border = result.border;
       BtSettings.opacity = result.opacity;
+      BtSettings.widgetsOff = result.widgetsOff;
       BtSettings.layout = result.layout;
       BtStore.savedRecord = stored;
       BtStore.phase = "ready";
@@ -1075,7 +1123,10 @@
     }
     // The map location label: its drag area moves it, its knob turns it.
     complete = btLayoutBindDrag(api, btLayoutPanel(api, "BTSlotLocGrab"), "lc", "", "BTSlotLoc") && complete;
-    complete = btLayoutBindDrag(api, btLayoutPanel(api, "BTSlotLocRotate"), "lc", "R", "BTSlotLoc") && complete;
+    complete = btLayoutBindDrag(api, btLayoutPanel(api, "BTSlotLocRotate"), "lc", "K", "BTSlotLoc") && complete;
+    for (const corner of BT_LAYOUT_CORNERS) {
+      complete = btLayoutBindDrag(api, btLayoutPanel(api, "BTSlotLocHandle" + corner), "lc", corner, "BTSlotLoc") && complete;
+    }
     if (complete) BtLayout.boundApi = api;
   }
   function btLayoutBindDrag(api, panel, key, corner, id) {
@@ -1094,10 +1145,6 @@
   function btLayoutRaise(api, id) {
     if (!BtLayout.editing || api !== btLayoutApi() || typeof api["raise"] !== "function") return;
     try { api["raise"](id); } catch {}
-  }
-  // Edit-mode drags only, so a failed move or resize can be read from console.log.
-  function btLayoutLog(text) {
-    try { $["Msg"]("[BT-L] " + text); } catch {}
   }
   // Loop tick: follow timer reboots, keep the timer showing our model, leave edit mode if the timer is gone.
   function btLayoutSync() {
@@ -1131,15 +1178,6 @@
     btBarPlace();
     try { UI.btLayoutBar.SetFocus(); } catch {}
     btLayoutPush();
-    // Once the engine has laid out the edit chrome: where the map location label's chrome went and whether the label
-    // itself had a layout (m=1) or the stock spot was used (m=0); "none" = no label found.
-    btSchedule(0.5, () => {
-      if (!BtLayout.editing || api !== btLayoutApi()) return;
-      const metrics = btLayoutMetrics(api);
-      const loc = metrics ? metrics["loc"] : null;
-      btLayoutLog(loc ? "loc m=" + loc["m"] + " cx=" + Math.round(loc["cx"]) + " cy=" + Math.round(loc["cy"]) +
-        " w=" + Math.round(loc["w"]) + " h=" + Math.round(loc["h"]) + " deg=" + loc["deg"] : "loc none");
-    });
   }
   // DONE keeps the draft and saves it through the normal throttled write; CANCEL/Esc drop it.
   function btLayoutLeave(save) {
@@ -1208,13 +1246,11 @@
   // from where it was first seen, so the grab point stays under the cursor.
   function btLayoutDragStart(api, key, corner, id, callbacks) {
     if (!alive() || !BtLayout.editing || api !== btLayoutApi() || !callbacks || typeof callbacks !== "object") {
-      btLayoutLog("drag " + key + (corner || "") + " ignored (not editing or stale)");
       return false;
     }
     const metrics = btLayoutMetrics(api);
     const rect = metrics ? (key === "m" ? metrics["map"] : key === "lc" ? metrics["loc"] : metrics["slots"][key]) : null;
     if (!rect || !panelValid(UI.host)) {
-      btLayoutLog("drag " + key + (corner || "") + " ignored (no layout)");
       return false;
     }
     if (key !== "m" && key !== "lc") btLayoutRaise(api, id);
@@ -1233,9 +1269,6 @@
       sx: rect["sx"], sy: rect["sy"], kx: rect["kx"], ky: rect["ky"]
     };
     BtLayout.dragHnd = btSchedule(BT_LAYOUT_TICK_S, btLayoutDragTick);
-    const at = key === "lc" ? " cx=" + Math.round(rect["cx"]) + " cy=" + Math.round(rect["cy"]) + " deg=" + rect["deg"]
-      : " x=" + Math.round(rect["x"]) + " y=" + Math.round(rect["y"]) + " s=" + rect["s"] + " side=" + rect["side"];
-    btLayoutLog("drag " + key + " " + (corner || "move") + " start" + at + " uiscale=" + metrics["scale"]);
     return true;
   }
   // Hands the engine an invisible proxy to move with the cursor. home is where the proxy sits without an engine-set
@@ -1377,9 +1410,11 @@
       if (entry.scale === 1) delete BtLayout.draft["m"];
       else BtLayout.draft["m"] = entry.scale;
     } else if (drag.key === "lc") {
-      const entry = drag.corner ? btLayoutTurnLoc(drag, dx, dy) : btLayoutMoveLoc(drag, dx, dy);
-      // At the stock spot and turn the timer hands the label back to the stock CSS.
-      if (entry[0] === 0 && entry[1] === 0 && entry[2] === BT_LOC_DEG) delete BtLayout.draft["lc"];
+      // "": the drag area moves it, "K": the knob turns it, a corner handle resizes it.
+      const entry = !drag.corner ? btLayoutMoveLoc(drag, dx, dy)
+        : drag.corner === "K" ? btLayoutTurnLoc(drag, dx, dy) : btLayoutResizeLoc(drag, dx, dy);
+      // At the stock spot, turn and size the timer hands the label back to the stock CSS.
+      if (entry.length === 3 && entry[0] === 0 && entry[1] === 0 && entry[2] === BT_LOC_DEG) delete BtLayout.draft["lc"];
       else BtLayout.draft["lc"] = entry;
     } else {
       BtLayout.draft[drag.key] = drag.corner ? btLayoutResize(drag, dx, dy) : btLayoutMove(drag, dx, dy);
@@ -1393,32 +1428,51 @@
     let cy = drag.cy + dy;
     if (Math.abs(cx - drag.sx) <= BT_LAYOUT_SNAP) cx = drag.sx;
     if (Math.abs(cy - drag.sy) <= BT_LAYOUT_SNAP) cy = drag.sy;
-    return btLayoutLocEntry(drag, cx, cy, drag.deg);
+    return btLayoutLocEntry(drag, cx, cy, drag.deg, drag.s);
   }
   // The knob turns the label to face the cursor (0 = knob straight up, clockwise positive like CSS), whole degrees with
   // a soft snap to 15 degree steps. The cursor is the knob's centre plus the drag.
   function btLayoutTurnLoc(drag, dx, dy) {
     const vx = drag.kx + dx - drag.cx;
     const vy = drag.ky + dy - drag.cy;
-    if (vx * vx + vy * vy < 16) return btLayoutLocEntry(drag, drag.cx, drag.cy, drag.deg);
+    if (vx * vx + vy * vy < 16) return btLayoutLocEntry(drag, drag.cx, drag.cy, drag.deg, drag.s);
     let deg = Math.round(Math.atan2(vx, -vy) * 180 / Math.PI);
     const step = Math.round(deg / BT_LOC_TURN_STEP) * BT_LOC_TURN_STEP;
     if (Math.abs(deg - step) <= BT_LOC_TURN_SNAP) deg = step;
     if (deg <= -180) deg += 360;
-    return btLayoutLocEntry(drag, drag.cx, drag.cy, deg + 0);
+    return btLayoutLocEntry(drag, drag.cx, drag.cy, deg + 0, drag.s);
   }
-  // [dx, dy, degrees]: the centre clamped so the turned label stays inside the #minimap_persp box (the engine does not
-  // draw a child outside it), stored as its offset from the stock spot in minimap px (1 decimal).
-  function btLayoutLocEntry(drag, cx, cy, deg) {
+  // A corner handle scales the label around its centre by how far the cursor is from the centre compared to the corner
+  // it started on.
+  function btLayoutResizeLoc(drag, dx, dy) {
+    const turn = drag.deg * Math.PI / 180;
+    const lx = (drag.corner.charAt(1) === "R" ? 0.5 : -0.5) * drag.rw;
+    const ly = (drag.corner.charAt(0) === "B" ? 0.5 : -0.5) * drag.rh;
+    const cornerX = lx * Math.cos(turn) - ly * Math.sin(turn);
+    const cornerY = lx * Math.sin(turn) + ly * Math.cos(turn);
+    const reach = Math.sqrt(cornerX * cornerX + cornerY * cornerY);
+    if (!(reach > 0)) return btLayoutLocEntry(drag, drag.cx, drag.cy, drag.deg, drag.s);
+    const raw = drag.s * Math.sqrt((cornerX + dx) * (cornerX + dx) + (cornerY + dy) * (cornerY + dy)) / reach;
+    let scale = Math.round(btLayoutClamp(raw, BT_LOC_SCALE_MIN, BT_LOC_SCALE_MAX) * 100) / 100;
+    if (Math.abs(scale - 1) <= BT_LOC_SCALE_SNAP) scale = 1;
+    return btLayoutLocEntry(drag, drag.cx, drag.cy, drag.deg, scale);
+  }
+  // [dx, dy, degrees] (plus the size when not 100 %): the centre clamped so the turned label stays inside the
+  // #minimap_persp box (the engine does not draw a child outside it), stored as its offset from the stock spot in
+  // minimap px (1 decimal). drag.rw/rh are the dashed box at size drag.s.
+  function btLayoutLocEntry(drag, cx, cy, deg, scale) {
     const turn = deg * Math.PI / 180;
     const cos = Math.abs(Math.cos(turn));
     const sin = Math.abs(Math.sin(turn));
-    const hx = (drag.rw * cos + drag.rh * sin) / 2;
-    const hy = (drag.rw * sin + drag.rh * cos) / 2;
+    const k = scale / drag.s;
+    const hx = (drag.rw * cos + drag.rh * sin) * k / 2;
+    const hy = (drag.rw * sin + drag.rh * cos) * k / 2;
     const x = btLayoutClamp(cx, drag.px + hx, Math.max(drag.px + hx, drag.px + drag.pw - hx));
     const y = btLayoutClamp(cy, drag.py + hy, Math.max(drag.py + hy, drag.py + drag.ph - hy));
     const offset = (value, stock) => btLayoutClamp(Math.round((value - stock) / drag.f * 10) / 10, -BT_LOC_MAX, BT_LOC_MAX) + 0;
-    return [offset(x, drag.sx), offset(y, drag.sy), deg];
+    const entry = [offset(x, drag.sx), offset(y, drag.sy), deg];
+    if (scale !== 1) entry.push(scale);
+    return entry;
   }
   function btLayoutMove(drag, dx, dy) {
     const x = btLayoutClamp(btLayoutSnap(drag.x + dx, drag.rw, drag.w), 0, drag.w - drag.rw);
@@ -1469,9 +1523,6 @@
   function btLayoutDragEnd(api) {
     const drag = BtLayout.drag;
     if (!drag || drag.api !== api) return true;
-    const entry = BtLayout.draft ? BtLayout.draft[drag.key] : null;
-    btLayoutLog("drag " + drag.key + " " + (drag.corner || "move") + " end origin=" + (drag.origin ? "yes" : "never") +
-      " entry=" + (entry !== undefined && entry !== null ? String(entry) : "unchanged"));
     btLayoutDragStop();
     return true;
   }
@@ -1546,6 +1597,7 @@
     UI.btLinger = find(PANEL_IDS.btLinger);
     UI.btGlow = find(PANEL_IDS.btGlow);
     UI.btBorder = find(PANEL_IDS.btBorder);
+    UI.widgetRows = BT_WIDGETS.map((widget) => find(widget.row));
     UI.btOpacityHost = find(PANEL_IDS.btOpacityHost);
     UI.btOpacityValue = find(PANEL_IDS.btOpacityValue);
     UI.btStatus = find(PANEL_IDS.btStatus);
@@ -1630,7 +1682,7 @@
       phase: BtStore.phase, status: BtStore.status, menuOpen: _btMenuOpen,
       up: BtSettings.colors["up"], down: BtSettings.colors["down"], linger: BtSettings.linger,
       colors: Object.assign({}, BtSettings.colors), strength: BtSettings.strength,
-      glow: BtSettings.glow, picker: BtEditor.target, markers: _enemyMarkers.length, gen: _gen,
+      glow: BtSettings.glow, picker: BtEditor.target, markers: _enemyMarkers.length, gen: _gen, widgetsOff: BtSettings.widgetsOff,
       layoutEditing: BtLayout.editing, layout: JSON.stringify(BtSettings.layout)
     });
     module.exports.__test = { getState, btDecode, btEncode, scanNow, paintNow, alive };

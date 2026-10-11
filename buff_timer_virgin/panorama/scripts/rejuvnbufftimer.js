@@ -95,15 +95,26 @@
   const LAYOUT_BASE = {
     "pill": { "h": [141, 44], "v": [76, 84] }, "card": { "h": [82, 22], "v": [44, 26] }, "claim": { "h": [48, 48], "v": [48, 48] }
   };
+  // bit: the WIDGETS switch that hides the slot (see WIDGET_* below).
   const LAYOUT_SLOTS = [
-    { key: "b", id: "BTSlotBuff", kind: "pill", side: "r", x: 268.4, y: 44 },
-    { key: "r", id: "BTSlotRejuv", kind: "pill", side: "l", x: 30.8, y: 44 },
-    { key: "f", id: "BTSlotRift", kind: "card", side: "t", x: 173.8, y: 31.2 },
-    { key: "u", id: "BTSlotUrn", kind: "card", side: "t", x: 222.2, y: 31.2 },
+    { key: "b", id: "BTSlotBuff", kind: "pill", side: "r", x: 268.4, y: 44, bit: 1 },
+    { key: "r", id: "BTSlotRejuv", kind: "pill", side: "l", x: 30.8, y: 44, bit: 2 },
+    { key: "f", id: "BTSlotRift", kind: "card", side: "t", x: 173.8, y: 31.2, bit: 4 },
+    { key: "u", id: "BTSlotUrn", kind: "card", side: "t", x: 222.2, y: 31.2, bit: 8 },
     // Claim boxes: the old buff_claim.css spots (30% in from each side, 8% up from the bottom of the 440 box).
-    { key: "cl", id: "BTSlotClaimL", kind: "claim", side: "t", x: 132, y: 356.8 },
-    { key: "cr", id: "BTSlotClaimR", kind: "claim", side: "t", x: 260, y: 356.8 }
+    { key: "cl", id: "BTSlotClaimL", kind: "claim", side: "t", x: 132, y: 356.8, bit: 16 },
+    { key: "cr", id: "BTSlotClaimR", kind: "claim", side: "t", x: 260, y: 356.8, bit: 16 }
   ];
+  // WIDGETS switches: the settings script writes the switched-off bits as the int attribute bt_widgets_off on
+  // #hud_minimap. A switched-off widget is collapsed (.bt-widget-off on its slot and edit chrome) and its logic is
+  // skipped. Claims covers both claim boxes, the side glows and all powerup tracking. Saves store the bits.
+  const WIDGET_BUFF = 1;
+  const WIDGET_REJUV = 2;
+  const WIDGET_RIFT = 4;
+  const WIDGET_URN = 8;
+  const WIDGET_CLAIMS = 16;
+  const WIDGETS_ALL = 31;
+  const WIDGETS_READ_MS = 250;
   const LAYOUT_SIDES = ["l", "r", "t", "b"];
   // Pills only: "n" = no icon (just the time, on the horizontal pill). Side classes cover all five.
   const LAYOUT_SIDE_CLASSES = ["l", "r", "t", "b", "n"];
@@ -129,7 +140,11 @@
   // A label with no layout: the stock CSS margins (left, bottom) that place it, and a typical "DISTRICT : building" size.
   const LAYOUT_LOC_MARGIN = [240, 45];
   const LAYOUT_LOC_FALLBACK = [150, 22];
+  // Its size (the optional fourth "lc" element), written as pre-transform-scale2d around its centre.
+  const LAYOUT_LOC_SCALE_MIN = 0.5;
+  const LAYOUT_LOC_SCALE_MAX = 2;
   const LAYOUT_LOC_KNOB = 16;
+  // Half the 12 px knob and corner handles.
   const LAYOUT_LOC_KNOB_R = 6;
   // sig: model + measured geometry of the last placement; modelSig/measuredMs: its model part and when it was measured.
   // parts: per slot key, its panels and last placement (layoutSlotParts; "m": the minimap border; "lc": the map location
@@ -227,7 +242,7 @@
   ];
   // Read by isDue() with runtime strings, so the keys are quoted (Closure ADVANCED renames bare keys).
   const LAST_TICK = {
-    "rejuv": 0, "buff": 0, "bridge": 0, "miniCard": 0, "claim": 0, "scan": 0,
+    "rejuv": 0, "bridge": 0, "miniCard": 0, "claim": 0, "scan": 0,
     "linger": 0, "pretrack": 0, "monitor": 0, "prune": 0, "objective": 0
   };
   const _nearestTargets = [];
@@ -246,7 +261,6 @@
   let phaseStart = 0;
   let claimCnt = 0;
   let buffStart = 0;
-  let buffCnt = 0;
   let lastSec = -1;
   let lastGlobalSec = -1;
   let lastGateChk = 0;
@@ -272,7 +286,6 @@
   let _mapButtonCache = null;
   let _mapButtonCacheTs = 0;
   let _playerState = Object.create(null);
-  let _playerSeenToken = 0;
   let _stablePlayerKeySeq = 0;
   let _neutralModeHnd = null;
   let _imgRotateHnd = null;
@@ -282,6 +295,13 @@
   let _settingsMinimap = null;
   let _settingsGlowClip = null;
   let _settingsGlowOff = false;
+  // Switched-off widget bits (read at most every WIDGETS_READ_MS), the mask last written on the slot classes (-1: write
+  // again) and the last read.
+  let _widgetsOff = 0;
+  let _widgetsShown = -1;
+  let _widgetsReadMs = -Infinity;
+  // False while neither Claims nor the '?' tracks enemy activity; the next pass then only records it.
+  let _enemyTracked = true;
   let _lowTimeCacheCleared = false;
   let _generation = 0;
   let _nextLoopDueMs = 0;
@@ -306,13 +326,14 @@
   }
   function writeText(baseKey, clipKey, text, panelA, panelB) {
     const value = String(text);
-    if (panelA?.IsValid?.() && WRITE_CACHE[baseKey] !== value) {
+    // The cache is checked first: an unchanged value needs no native validity check.
+    if (WRITE_CACHE[baseKey] !== value && panelA?.IsValid?.()) {
       try {
         panelA.text = value;
         WRITE_CACHE[baseKey] = value;
       } catch {}
     }
-    if (clipKey !== null && panelB?.IsValid?.() && WRITE_CACHE[clipKey] !== value) {
+    if (clipKey !== null && WRITE_CACHE[clipKey] !== value && panelB?.IsValid?.()) {
       try {
         panelB.text = value;
         WRITE_CACHE[clipKey] = value;
@@ -430,14 +451,13 @@
     phaseStart = 0;
     claimCnt = 0;
     buffStart = 0;
-    buffCnt = 0;
     lastSec = -1;
     lastGlobalSec = -1;
     spawnWait = false;
     lastFound = false;
     running = false;
     tick = TICK_NORM;
-    clearMinimapRuntimeState(Date.now(), true);
+    clearMinimapRuntimeState(Date.now());
     prevBuffRem = BRIDGE_DUR;
     _riftObservedSpawn = 0;
     _riftWarningActive = false;
@@ -756,13 +776,13 @@
     } catch { return false; }
   }
   function cachedWrite(panel, property, value) {
+    let cache = panel ? _cachedWrites.get(panel) : undefined;
+    if (cache && cache[property] === value) return;
     if (!panelValid(panel)) return;
-    let cache = _cachedWrites.get(panel);
     if (!cache) {
       cache = Object.create(null);
       _cachedWrites.set(panel, cache);
     }
-    if (cache[property] === value) return;
     try {
       if (property === "hittest") panel["hittest"] = value;
       else if (property === "draggable") panel["SetDraggable"](value);
@@ -885,17 +905,21 @@
   }
   // The stock #minimap_location, found lazily: hud_minimap.xml and its scripts load inside #minimap_container before
   // hud.xml builds that later sibling, so a lookup at boot finds nothing (live 2026-10-10: "loc none", no label chrome).
-  // Missing (a hud.xml mod without it), it is looked for again after 1 s, backing off to every 10 s.
+  // Missing (a hud.xml mod without it), it is looked for again after 1 s, backing off to every 10 s. A label found anew
+  // (first time, or a replacement for one that went away) gets the model written again.
   function layoutLoc() {
     if (panelValid(Layout.loc)) return Layout.loc;
     const nowMs = Date.now();
     if (nowMs < Layout.locSeekMs || !panelValid(Layout.persp)) return null;
     Layout.locSeekMs = nowMs + (Layout.locSeeks++ < 10 ? 1000 : 10000);
     try { Layout.loc = Layout.persp.FindChildTraverse("minimap_location"); } catch { Layout.loc = null; }
-    return panelValid(Layout.loc) ? Layout.loc : null;
+    if (!panelValid(Layout.loc)) return null;
+    Layout.locSeeks = 0;
+    Layout.locWritten = "?";
+    return Layout.loc;
   }
-  // Writes the model's label offset and turn on the stock #minimap_location; no entry hands both back to the stock CSS.
-  // Needs no layout, so a saved label is in place before it first shows. The bt_loc attribute marks a label some
+  // Writes the model's label offset, turn and size on the stock #minimap_location; no entry hands them back to the stock
+  // CSS. Needs no layout, so a saved label is in place before it first shows. The bt_loc attribute marks a label some
   // instance wrote: a new instance clears what a predecessor left without touching a label nobody moved.
   function layoutWriteLoc() {
     const entry = Layout.model["lc"];
@@ -907,17 +931,23 @@
         loc.SetAttributeString("bt_loc", "1");
         loc.style["transform"] = "translate3d(" + entry[0] + "px, " + entry[1] + "px, 0px)";
         loc.style["preTransformRotate2d"] = entry[2] + "deg";
+        loc.style["preTransformScale2d"] = String(layoutLocScale(entry));
       } else if (Layout.locWritten !== "?" || loc.GetAttributeString("bt_loc", "") === "1") {
         layoutClearLoc(loc);
       }
     } catch { return; }
     Layout.locWritten = written;
   }
-  // null clears a base property but throws for an alias (see the alias rule in AGENTS.md); should either of these be
-  // one, the stock values are written instead.
+  // An "lc" entry's size: its optional fourth element (absent = 100%).
+  function layoutLocScale(entry) {
+    return entry && entry.length > 3 ? entry[3] : 1;
+  }
+  // null clears a base property but throws for an alias (see the alias rule in AGENTS.md); should any of these be one,
+  // the stock values are written instead.
   function layoutClearLoc(loc) {
     try { loc.style["transform"] = null; } catch { loc.style["transform"] = "rotateZ(" + LAYOUT_LOC_DEG + "deg)"; }
     try { loc.style["preTransformRotate2d"] = null; } catch { loc.style["preTransformRotate2d"] = "0deg"; }
+    try { loc.style["preTransformScale2d"] = null; } catch { loc.style["preTransformScale2d"] = "1"; }
     loc.SetAttributeString("bt_loc", "");
   }
   // Edit mode shows the label outside a district through the stock rule .in_map_district #minimap_location. A class
@@ -931,8 +961,8 @@
       Layout.locClass = show;
     } catch {}
   }
-  // The label where the model puts it, in layer px: centre, unturned size, turn and offset (dx/dy in minimap px; f: layer
-  // px per minimap px), plus its stock centre. Layout offsets ignore transforms, so the stock box is measured as is.
+  // The label where the model puts it, in layer px: centre, size (scaled), turn, scale and offset (dx/dy in minimap px;
+  // f: layer px per minimap px), plus its stock centre. Layout offsets ignore transforms, so the stock box is measured as is.
   // persp: the #minimap_persp box (projected right after a write). A label without a layout (collapsed, e.g. should the
   // in_map_district class on #minimap_persp not reveal it outside a district; unverified in game) gets its stock CSS box
   // (bottom-centre, margin-left 240, margin-bottom 45) at LAYOUT_LOC_FALLBACK size; measured tells which.
@@ -955,11 +985,16 @@
       const entry = Layout.model["lc"];
       const dx = entry ? entry[0] : 0;
       const dy = entry ? entry[1] : 0;
+      const scale = layoutLocScale(entry);
       const sx = persp.x + (lx + lw / 2) * f;
       const sy = persp.y + (ly + lh / 2) * f;
+      const w = lw * f * scale;
+      const h = lh * f * scale;
       return {
-        cx: sx + dx * f, cy: sy + dy * f, w: lw * f, h: lh * f, f: f, measured: measured,
-        deg: entry ? entry[2] : LAYOUT_LOC_DEG, dx: dx, dy: dy, sx: sx, sy: sy
+        cx: sx + dx * f, cy: sy + dy * f, w: w, h: h, s: scale, f: f, measured: measured,
+        deg: entry ? entry[2] : LAYOUT_LOC_DEG, dx: dx, dy: dy, sx: sx, sy: sy,
+        // The dashed box (at least LAYOUT_LOC_MIN, so an empty label can still be grabbed).
+        cw: Math.max(w, LAYOUT_LOC_MIN_W), ch: Math.max(h, LAYOUT_LOC_MIN_H)
       };
     } catch { return null; }
   }
@@ -1004,9 +1039,10 @@
       clean["mp"] = [spot[0], spot[1]];
     }
     const loc = model["lc"];
-    if (Array.isArray(loc) && loc.length === 3 && loc.every((part) => typeof part === "number") &&
-        Math.abs(loc[0]) <= LAYOUT_LOC_MAX && Math.abs(loc[1]) <= LAYOUT_LOC_MAX && loc[2] >= -180 && loc[2] <= 180) {
-      clean["lc"] = [loc[0], loc[1], loc[2]];
+    if (Array.isArray(loc) && (loc.length === 3 || loc.length === 4) && loc.every((part) => typeof part === "number") &&
+        Math.abs(loc[0]) <= LAYOUT_LOC_MAX && Math.abs(loc[1]) <= LAYOUT_LOC_MAX && loc[2] >= -180 && loc[2] <= 180 &&
+        (loc.length === 3 || (loc[3] >= LAYOUT_LOC_SCALE_MIN && loc[3] <= LAYOUT_LOC_SCALE_MAX))) {
+      clean["lc"] = loc.slice();
     }
     return clean;
   }
@@ -1050,11 +1086,16 @@
       const chrome = parts.chrome;
       cachedWrite(slot, "position", round(rect.x) + "px " + round(rect.y) + "px 0px");
       cachedWrite(slot, "uiScale", Math.round(rect.s * 100) + "%");
-      for (const side of LAYOUT_SIDE_CLASSES) {
-        setPanelClass(slot, "bt-side-" + side, side === rect.side);
-        setPanelClass(chrome, "bt-side-" + side, side === rect.side);
+      // Side classes only change with the side (the first placement also clears the XML default); the slot and its
+      // chrome are this script's own panels, so nothing else changes them in between.
+      if (parts.side !== rect.side) {
+        for (const side of LAYOUT_SIDE_CLASSES) {
+          setPanelClass(slot, "bt-side-" + side, side === rect.side);
+          setPanelClass(chrome, "bt-side-" + side, side === rect.side);
+        }
+        if (!parts.side) setPanelClass(slot, "bt-placed", true);
+        parts.side = rect.side;
       }
-      setPanelClass(slot, "bt-placed", true);
       cachedWrite(slot, "hittest", Layout.editing);
       cachedWrite(slot, "draggable", Layout.editing);
       // The chrome is not scaled: 22 px larger than the scaled widget on every side.
@@ -1104,34 +1145,39 @@
     cachedWrite(parts.grab, "height", round(map.h) + "px");
   }
   // The label's edit chrome: a dashed box turned with the label (the turn is drawn only: hit testing of turned panels
-  // is unproven, so the drag area is the turned label's upright bounding box and the knob an unturned panel placed on
-  // the turned top edge). The drag area sits under the widget slots like the minimap's.
+  // is unproven, so the drag area is the turned label's upright bounding box, and the knob and the four corner handles
+  // are unturned panels placed on the turned box). The drag area sits under the widget slots like the minimap's.
   function placeLocChrome(layer, box, round) {
     let parts = Layout.parts["lc"];
     if (!parts || !panelValid(parts.chrome)) {
       try {
         parts = {
           chrome: layer.FindChildTraverse("BTSlotLocChrome"), outline: layer.FindChildTraverse("BTSlotLocOutline"),
-          grab: layer.FindChildTraverse("BTSlotLocGrab"), knob: layer.FindChildTraverse("BTSlotLocRotate")
+          grab: layer.FindChildTraverse("BTSlotLocGrab"), knob: layer.FindChildTraverse("BTSlotLocRotate"),
+          handles: LAYOUT_HANDLES.map((handle) => layer.FindChildTraverse("BTSlotLoc" + handle))
         };
       } catch { return; }
       if (!panelValid(parts.chrome)) return;
       Layout.parts["lc"] = parts;
     }
     const editing = Layout.editing && !!box;
-    for (const panel of [parts.chrome, parts.grab, parts.knob]) setPanelClass(panel, "bt-loc-none", Layout.editing && !box);
+    for (const panel of [parts.chrome, parts.grab, parts.knob, ...parts.handles]) {
+      setPanelClass(panel, "bt-loc-none", Layout.editing && !box);
+    }
     cachedWrite(parts.grab, "hittest", editing);
-    cachedWrite(parts.grab, "draggable", editing);
-    cachedWrite(parts.knob, "draggable", editing);
+    for (const panel of [parts.grab, parts.knob, ...parts.handles]) cachedWrite(panel, "draggable", editing);
     if (!editing) return;
-    const w = Math.max(box.w, LAYOUT_LOC_MIN_W);
-    const h = Math.max(box.h, LAYOUT_LOC_MIN_H);
+    const w = box.cw;
+    const h = box.ch;
     const turn = box.deg * Math.PI / 180;
-    const cos = Math.abs(Math.cos(turn));
-    const sin = Math.abs(Math.sin(turn));
-    const gw = w * cos + h * sin;
-    const gh = w * sin + h * cos;
-    const reach = h / 2 + LAYOUT_LOC_KNOB;
+    const cos = Math.cos(turn);
+    const sin = Math.sin(turn);
+    const gw = w * Math.abs(cos) + h * Math.abs(sin);
+    const gh = w * Math.abs(sin) + h * Math.abs(cos);
+    // The 12 px panel centred on the point (lx, ly) from the centre of the unturned box, turned with it (clockwise for
+    // positive degrees).
+    const at = (lx, ly) => round(box.cx + lx * cos - ly * sin - LAYOUT_LOC_KNOB_R) + "px " +
+      round(box.cy + lx * sin + ly * cos - LAYOUT_LOC_KNOB_R) + "px 0px";
     setPanelClass(parts.chrome, "bt-loc-empty", !box.measured || box.w < LAYOUT_LOC_MIN_W / 2);
     cachedWrite(parts.chrome, "position", round(box.cx - w / 2 - LAYOUT_CHROME_PAD) + "px " + round(box.cy - h / 2 - LAYOUT_CHROME_PAD) + "px 0px");
     cachedWrite(parts.chrome, "width", round(w + 2 * LAYOUT_CHROME_PAD) + "px");
@@ -1142,8 +1188,12 @@
     cachedWrite(parts.grab, "position", round(box.cx - gw / 2) + "px " + round(box.cy - gh / 2) + "px 0px");
     cachedWrite(parts.grab, "width", round(gw) + "px");
     cachedWrite(parts.grab, "height", round(gh) + "px");
-    cachedWrite(parts.knob, "position", round(box.cx + reach * Math.sin(turn) - LAYOUT_LOC_KNOB_R) + "px " +
-      round(box.cy - reach * Math.cos(turn) - LAYOUT_LOC_KNOB_R) + "px 0px");
+    cachedWrite(parts.knob, "position", at(0, -(h / 2 + LAYOUT_LOC_KNOB)));
+    for (let i = 0; i < LAYOUT_HANDLES.length; i++) {
+      // "HandleTL" etc.: character 6 is the vertical side, 7 the horizontal one.
+      const corner = LAYOUT_HANDLES[i];
+      cachedWrite(parts.handles[i], "position", at((corner.charAt(7) === "R" ? 0.5 : -0.5) * w, (corner.charAt(6) === "B" ? 0.5 : -0.5) * h));
+    }
   }
   // A slot's panels, found once per slot panel (a rebuilt layer has new ones), and the placement last written.
   function layoutSlotParts(layer, spec) {
@@ -1155,7 +1205,7 @@
       if (!panelValid(slot)) return null;
       parts = {
         slot: slot, chrome: layer.FindChildTraverse(spec.id + "Chrome"), outline: layer.FindChildTraverse(spec.id + "Outline"),
-        handles: LAYOUT_HANDLES.map((handle) => layer.FindChildTraverse(spec.id + handle)), placed: ""
+        handles: LAYOUT_HANDLES.map((handle) => layer.FindChildTraverse(spec.id + handle)), placed: "", side: ""
       };
     } catch { return null; }
     Layout.parts[spec.key] = parts;
@@ -1252,12 +1302,10 @@
     const lb = metrics.loc;
     let loc = null;
     if (lb && box) {
-      const lw = Math.max(lb.w, LAYOUT_LOC_MIN_W);
-      const lh = Math.max(lb.h, LAYOUT_LOC_MIN_H);
+      const reach = lb.ch / 2 + LAYOUT_LOC_KNOB;
       const turn = lb.deg * Math.PI / 180;
-      const reach = lh / 2 + LAYOUT_LOC_KNOB;
       loc = {
-        "cx": lb.cx, "cy": lb.cy, "w": lw, "h": lh, "deg": lb.deg, "dx": lb.dx, "dy": lb.dy, "f": lb.f,
+        "cx": lb.cx, "cy": lb.cy, "w": lb.cw, "h": lb.ch, "s": lb.s, "deg": lb.deg, "dx": lb.dx, "dy": lb.dy, "f": lb.f,
         "sx": lb.sx, "sy": lb.sy, "kx": lb.cx + reach * Math.sin(turn), "ky": lb.cy - reach * Math.cos(turn),
         "px": box.x, "py": box.y, "pw": box.w, "ph": box.h, "m": lb.measured ? 1 : 0
       };
@@ -1334,12 +1382,11 @@
     _minimapSnapshot.riftWarningActive = false;
     _snapshotTs = nowMs || 0;
   }
-  function clearMinimapRuntimeState(nowMs, advancePlayerToken) {
+  function clearMinimapRuntimeState(nowMs) {
     const now = nowMs || Date.now();
     clearMapButtonCache();
     clearMinimapSnapshot(0);
     _playerState = Object.create(null);
-    if (advancePlayerToken) _playerSeenToken++;
     trackedPowerups.length = 0;
     monitoringActive = false;
     pretrackActive = false;
@@ -1367,12 +1414,12 @@
       return;
     }
     if (_lowTimeCacheCleared) return;
-    clearMinimapRuntimeState(Date.now(), true);
+    clearMinimapRuntimeState(Date.now());
     _lowTimeCacheCleared = true;
   }
 
   function writePanelStyle(cacheKey, panel, property, value) {
-    if (!panel?.IsValid?.() || WRITE_CACHE[cacheKey] === value) return;
+    if (WRITE_CACHE[cacheKey] === value || !panel?.IsValid?.()) return;
     try {
       panel.style[property] = value;
       WRITE_CACHE[cacheKey] = value;
@@ -1403,16 +1450,15 @@
     return "player_panel_" + _stablePlayerKeySeq;
   }
 
-  function markPlayerSeen(key, team, nowMs, token) {
+  function markPlayerSeen(key, team, nowMs) {
     let ps = _playerState[key];
     if (!ps) {
-      ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: team || 0, lastSeenMs: 0, seenToken: 0 };
+      ps = { x: 0, y: 0, deadTs: 0, wasActive: true, team: team || 0, lastSeenMs: 0 };
       _playerState[key] = ps;
     } else if (team) {
       ps.team = team;
     }
     ps.lastSeenMs = nowMs || Date.now();
-    if (token !== undefined && token !== null) ps.seenToken = token;
     return ps;
   }
 
@@ -1478,7 +1524,6 @@
     const mmGeom = resolveMinimapReferenceSize(mm, minimap !== undefined);
     const mmW = mmGeom.width;
     const mmH = mmGeom.height;
-    const playerSeenToken = ++_playerSeenToken;
 
     for (let i = 0, len = buttons.length; i < len; i++) {
       const btn = buttons[i];
@@ -1492,7 +1537,7 @@
           }
           if (!setMapPosition(entry, btn, mmW, mmH)) continue;
           const id = getStablePlayerKey(btn, i, true);
-          const ps = markPlayerSeen(id, 0, now, playerSeenToken);
+          const ps = markPlayerSeen(id, 0, now);
           const classified = classifyTeam(btn);
           const team = classified || ps.team || 0;
           ps.team = team;
@@ -1508,7 +1553,7 @@
         if (btn.BHasClass("powerup_spawn")) {
           let entry = _minimapSnapshot.powerupSpawns[powerupCount];
           if (!entry) {
-            entry = { id: "", panel: null, isActive: false, type: "unknown", xPct: 0, yPct: 0 };
+            entry = { panel: null, isActive: false, type: "unknown", xPct: 0, yPct: 0 };
             _minimapSnapshot.powerupSpawns[powerupCount] = entry;
           }
           if (!setMapPosition(entry, btn, mmW, mmH)) continue;
@@ -1519,7 +1564,6 @@
               break;
             }
           }
-          entry.id = btn["id"] || ("powerup_" + i);
           entry.panel = btn;
           entry.isActive = btn.BHasClass("active");
           entry.type = type;
@@ -1557,7 +1601,7 @@
       const pl = players[i];
       if (!pl) continue;
       const id = pl.id || getStablePlayerKey(pl.panel, i);
-      const ps = markPlayerSeen(id, pl.team || 0, now, _playerSeenToken);
+      const ps = markPlayerSeen(id, pl.team || 0, now);
       let team = ps.team || pl.team || 0;
       if (!team && pl.panel?.IsValid?.()) team = classifyTeam(pl.panel);
       ps.team = team;
@@ -1660,12 +1704,13 @@
     }
   }
 
+  // Returns which charge panels are bound and valid (1 = friendly, 2 = enemy), so doScan need not check them again.
   function resolveRejuvChargePanels(nowMs) {
     const now = Number.isFinite(nowMs) ? nowMs : Date.now();
     const friendlyWasValid = panelValid(UI.rejuvFriendly);
     const enemyWasValid = panelValid(UI.rejuvEnemy);
-    if (friendlyWasValid && enemyWasValid) return false;
-    if (now - _rejuvResolveTs < REJUV_PANEL_RETRY_MS) return false;
+    const bound = (friendlyWasValid ? 1 : 0) | (enemyWasValid ? 2 : 0);
+    if (bound === 3 || now - _rejuvResolveTs < REJUV_PANEL_RETRY_MS) return bound;
     _rejuvResolveTs = now;
     let topBar = UI.topBar;
     if (!panelValid(topBar) && panelValid(UI.root)) {
@@ -1676,38 +1721,40 @@
         topBar = null;
       }
     }
-    if (!panelValid(topBar)) return false;
+    if (!panelValid(topBar)) return bound;
     let charges;
-    try { charges = topBar.FindChildTraverse("RejuvenatorCharges"); } catch { return false; }
-    if (!panelValid(charges)) return false;
+    try { charges = topBar.FindChildTraverse("RejuvenatorCharges"); } catch { return bound; }
+    if (!panelValid(charges)) return bound;
     let friendly = null;
     let enemy = null;
     try { friendly = charges.FindChildTraverse("RejuvenatorFriendly"); } catch {}
     try { enemy = charges.FindChildTraverse("RejuvenatorEnemy"); } catch {}
     let rebound = false;
-    if (panelValid(friendly)) {
+    const friendlyValid = panelValid(friendly);
+    const enemyValid = panelValid(enemy);
+    if (friendlyValid) {
       rebound = !friendlyWasValid || UI.rejuvFriendly !== friendly;
       UI.rejuvFriendly = friendly;
     } else {
       UI.rejuvFriendly = null;
     }
-    if (panelValid(enemy)) {
+    if (enemyValid) {
       rebound = !enemyWasValid || UI.rejuvEnemy !== enemy || rebound;
       UI.rejuvEnemy = enemy;
     } else {
       UI.rejuvEnemy = null;
     }
     if (rebound) _rejuvReboundPending = true;
-    return rebound;
+    return (friendlyValid ? 1 : 0) | (enemyValid ? 2 : 0);
   }
 
   function doScan(nowMs) {
     if (!running) return;
-    resolveRejuvChargePanels(nowMs);
+    const bound = resolveRejuvChargePanels(nowMs);
     let found = false;
     for (let i = 0; i < 2 && !found; i++) {
       const p = i === 0 ? UI.rejuvFriendly : UI.rejuvEnemy;
-      if (!p?.IsValid?.()) continue;
+      if (!(bound & (i + 1))) continue;
       try {
         if (p.BHasClass("RejuvCount_1") || p.BHasClass("RejuvCount_2") || p.BHasClass("RejuvCount_3") || p.BHasClass("RejuvCount_4")) {
           found = true;
@@ -1765,9 +1812,8 @@
 
   function startBuff(now) {
     buffStart = now;
-    buffCnt = REJUV_DUR;
     setMiniCardState(true, true);
-    writeText("miniText", null, formatTime(buffCnt, "pad"), UI.rejuvMiniTime, null);
+    writeText("miniText", null, formatTime(REJUV_DUR, "pad"), UI.rejuvMiniTime, null);
   }
 
   function setRejuvPhaseDisplay(text, number, imageIndex) {
@@ -1777,7 +1823,6 @@
   }
   function endBuff() {
     buffStart = 0;
-    buffCnt = 0;
     WRITE_CACHE["miniText"] = "";
     setMiniCardState(NEUTRAL_ACTIVE["bot"] || NEUTRAL_ACTIVE["medium"] || NEUTRAL_ACTIVE["card"], false);
   }
@@ -2022,20 +2067,25 @@
     }
     setObjectiveCardsActive(true);
 
-    if (snapshot) observeRiftMarker(snapshot.riftMarkerSeen, snapshot.riftWarningActive, now);
+    if (widgetOn(WIDGET_RIFT)) {
+      if (snapshot) observeRiftMarker(snapshot.riftMarkerSeen, snapshot.riftWarningActive, now);
+      const rift = computeRiftState(now);
+      _riftHot = !!(rift.inWindow || _riftWarningActive || rift.confirmed);
+      writeText("riftText", null, rift.text, UI.riftTime, null);
+      writeText("riftSubText", null, rift.sub, UI.riftSubTime, null);
+      setObjectiveCardClass("riftWindow", UI.riftCard, "rift-window", rift.inWindow);
+      setObjectiveCardClass("riftWarning", UI.riftCard, "rift-warning", rift.warning);
+      setObjectiveCardClass("riftConfirmed", UI.riftCard, "rift-confirmed", rift.confirmed);
+    } else {
+      _riftHot = false;
+    }
 
-    const rift = computeRiftState(now);
-    _riftHot = !!(rift.inWindow || _riftWarningActive || rift.confirmed);
-    writeText("riftText", null, rift.text, UI.riftTime, null);
-    writeText("riftSubText", null, rift.sub, UI.riftSubTime, null);
-    setObjectiveCardClass("riftWindow", UI.riftCard, "rift-window", rift.inWindow);
-    setObjectiveCardClass("riftWarning", UI.riftCard, "rift-warning", rift.warning);
-    setObjectiveCardClass("riftConfirmed", UI.riftCard, "rift-confirmed", rift.confirmed);
-
-    const urn = computeUrnState(now);
-    writeText("urnText", null, formatTime(urn.remaining, "compact"), UI.urnTime, null);
-    writeText("urnSubText", null, "URN", UI.urnSubTime, null);
-    setObjectiveCardClass("urnWarning", UI.urnCard, "urn-warning", urn.warning);
+    if (widgetOn(WIDGET_URN)) {
+      const urn = computeUrnState(now);
+      writeText("urnText", null, formatTime(urn.remaining, "compact"), UI.urnTime, null);
+      writeText("urnSubText", null, "URN", UI.urnSubTime, null);
+      setObjectiveCardClass("urnWarning", UI.urnCard, "urn-warning", urn.warning);
+    }
   }
 
   function writeSideGlow(sideIndex, type, enemyClaimed) {
@@ -2456,7 +2506,10 @@
     _lingerCount = 0;
   }
 
-  function checkEnemyLinger(nowMs, snapshot) {
+  // rebase: enemy activity was not tracked for a while (Claims and '?' both off), so this pass only records it; a
+  // disappearance from that time must not show a '?' now.
+  /** @param {boolean=} rebase */
+  function checkEnemyLinger(nowMs, snapshot, rebase) {
     const now = nowMs || Date.now();
     const snap = snapshot || collectMinimapSnapshot(now, false);
     const players = snap?.players || [];
@@ -2468,7 +2521,7 @@
         const pl = players[i];
         if (!pl) continue;
         const id = pl.id || getStablePlayerKey(pl.panel, i);
-        const ps = markPlayerSeen(id, pl.team || 0, now, _playerSeenToken);
+        const ps = markPlayerSeen(id, pl.team || 0, now);
         let team = ps.team || pl.team || 0;
         if (!team && pl.panel?.IsValid?.()) team = classifyTeam(pl.panel);
         if (team !== 2) continue;
@@ -2482,9 +2535,11 @@
           removeLinger(id, true);
           continue;
         }
+        // Alive again: the next death starts its own grace even when no claim tracking ran in between.
+        ps.deadTs = 0;
         // Bookkeeping above keeps running while the '?' is off, so re-enabling never replays an old disappearance.
         if (wasActive && !pl.isActive) {
-          if (!_lingerOff) showLinger(id, pl.panel);
+          if (!_lingerOff && rebase !== true) showLinger(id, pl.panel);
         } else if (!wasActive && pl.isActive) {
           removeLinger(id, true);
         }
@@ -2505,7 +2560,8 @@
   }
 
   function buildTimerChatMessage(kind, now) {
-    if (!running) return "";
+    // gTime() is -1 without a readable clock: no message rather than a made-up timer.
+    if (!running || !(now >= 0)) return "";
     if (kind === "rejuv") {
       const safeIdx = idx >= 0 && idx < SEQ.length ? idx : 0;
       const rejuvRem = Math.max(0, SEQ[safeIdx].d - (now - phaseStart));
@@ -2695,13 +2751,18 @@
     try {
       chatInput.text = message;
       scheduleChat(0, () => {
-        // Submit only while this is still the current intent and the same team chat entry is open.
+        // Submit only while this is still the current intent, the same team chat entry is open and the box still holds
+        // our text (the player may have typed over it since).
         let submit = isCurrentChatIntent(token, generation) && !!resolveChatPanels() && panelValid(chatInput) &&
           UI.chatInput === chatInput && UI.chatTargetLabel === targetLabel && TeamChatIntent.isTeamTarget(targetLabel);
         if (submit) {
           let currentTargetText = "";
-          try { currentTargetText = String(targetLabel?.text || "").trim(); } catch {}
-          submit = currentTargetText === targetText;
+          let currentText = "";
+          try {
+            currentTargetText = String(targetLabel?.text || "").trim();
+            currentText = String(chatInput.text || "");
+          } catch {}
+          submit = currentTargetText === targetText && currentText === message;
         }
         if (submit) try { $.DispatchEvent("CitadelChatInputSubmitted", chatInput); } catch {}
         // Sent or abandoned, our text never stays in the box.
@@ -2732,7 +2793,8 @@
     });
   }
 
-  // bt_minimap_settings.js in hud_minimap.xml talks to this timer only through #hud_minimap classes.
+  // bt_minimap_settings.js in hud_minimap.xml talks to this timer only through #hud_minimap classes and the int
+  // attribute bt_widgets_off.
   /** @param {Object=} minimap */
   function readSettingsContract(minimap) {
     const mm = minimap === undefined ? UI.minimap : minimap;
@@ -2747,6 +2809,15 @@
       lingerOff = mm.BHasClass("bt-linger-off");
       glowOff = mm.BHasClass("bt-glow-off");
     } catch {}
+    // The loop runs every 100 ms near a Rejuv spawn; a menu switch only needs a quarter-second response.
+    const nowMs = Date.now();
+    if (nowMs - _widgetsReadMs >= WIDGETS_READ_MS) {
+      _widgetsReadMs = nowMs;
+      let widgetsOff = 0;
+      try { widgetsOff = mm.GetAttributeInt("bt_widgets_off", 0) & WIDGETS_ALL; } catch {}
+      if (widgetsOff !== _widgetsOff) setWidgetsOff(widgetsOff, nowMs);
+    }
+    if (_widgetsShown !== _widgetsOff) showWidgets();
     if (lingerOff !== _lingerOff) {
       _lingerOff = lingerOff;
       if (lingerOff && _lingerCount > 0) clearAllLingers();
@@ -2759,13 +2830,86 @@
     }
   }
 
+  function widgetOn(bit) {
+    return (_widgetsOff & bit) === 0;
+  }
+  // A switched-off widget stops at once (claims and glows cleared, Rift not hot; loopTickMs drops Rejuv's fast tick);
+  // one switched back on renders on its next lane pass instead of waiting out its interval.
+  function setWidgetsOff(next, nowMs) {
+    const turnedOff = next & ~_widgetsOff;
+    const turnedOn = _widgetsOff & ~next;
+    _widgetsOff = next;
+    if (turnedOff & WIDGET_CLAIMS) stopClaimTracking(nowMs);
+    if (turnedOff & WIDGET_RIFT) {
+      _riftHot = false;
+      // The warning's falling edge goes unseen while off; a stale "active" would reject the next warning. The observed
+      // spawn stays, so the same interval's warning is still rejected.
+      _riftWarningActive = false;
+    }
+    if (turnedOn & WIDGET_REJUV) {
+      lastSec = -1;
+      LAST_TICK["rejuv"] = 0;
+      LAST_TICK["miniCard"] = 0;
+      LAST_TICK["scan"] = 0;
+    }
+    if (turnedOn & WIDGET_BUFF) LAST_TICK["bridge"] = 0;
+    if (turnedOn & (WIDGET_RIFT | WIDGET_URN)) LAST_TICK["objective"] = 0;
+    // The Bridge respawn edge passed unseen: open a scan window so spawns that are up now are tracked again.
+    if ((turnedOn & WIDGET_CLAIMS) && running) {
+      buffResetTs = nowMs;
+      lastPowerupScan = 0;
+    }
+  }
+  // The loop's base tick: Rejuv's fast tick (spawn wait, neutral phase) counts only while Rejuv is on. startRun and
+  // showSpawn set it regardless.
+  function loopTickMs() {
+    return (widgetOn(WIDGET_REJUV) ? tick : TICK_NORM) * 1000;
+  }
+  // Claims off: no claim box, no side glow, no powerup tracking. Known spawn spots stay for when it comes back on.
+  function stopClaimTracking(nowMs) {
+    trackedPowerups.length = 0;
+    monitoringActive = false;
+    pretrackActive = false;
+    buffResetTs = 0;
+    pretrackData.left.minAlly = Infinity;
+    pretrackData.left.minEnemy = Infinity;
+    pretrackData.right.minAlly = Infinity;
+    pretrackData.right.minEnemy = Infinity;
+    writeSideGlow(0, null, false);
+    writeSideGlow(1, null, false);
+    setClaimSide(0, false, false, "", nowMs);
+    setClaimSide(1, false, false, "", nowMs);
+  }
+  // .bt-widget-off on each slot and its edit chrome (hud_timer.css collapses both). Runs only when the mask changes
+  // or the hosts were rebuilt; a missing slot keeps it pending for the next tick.
+  function showWidgets() {
+    const layer = TIMER_HOSTS[0];
+    if (!panelValid(layer)) return;
+    let done = true;
+    for (const spec of LAYOUT_SLOTS) {
+      const parts = layoutSlotParts(layer, spec);
+      if (!parts) {
+        done = false;
+        continue;
+      }
+      const off = (_widgetsOff & spec.bit) !== 0;
+      if (!setPanelClass(parts.slot, "bt-widget-off", off)) done = false;
+      if (parts.chrome) setPanelClass(parts.chrome, "bt-widget-off", off);
+    }
+    if (done) _widgetsShown = _widgetsOff;
+  }
+
+  // Rift (koth_warning), claims and the '?' linger read the snapshot; with all three off nothing traverses map_button.
   function runMinimapLane(realNowMs, gameNowSec, mm) {
     if (!running || isHideout()) return null;
+    if (!widgetOn(WIDGET_RIFT) && !widgetOn(WIDGET_CLAIMS) && _lingerOff) return null;
     return collectMinimapSnapshot(realNowMs, false, mm);
   }
 
   function runTimerLane(realNowMs, gameNowSec, snapshot) {
-    if (isDue("rejuv", realNowMs, 1000)) {
+    const rejuvOn = widgetOn(WIDGET_REJUV);
+    const claimsOn = widgetOn(WIDGET_CLAIMS);
+    if (rejuvOn && isDue("rejuv", realNowMs, 1000)) {
       if (gameNowSec !== lastSec) {
         lastSec = gameNowSec;
         if (idx < 0 || idx >= SEQ.length) idx = 0;
@@ -2793,32 +2937,28 @@
     }
     const neutralOverride = NEUTRAL_ACTIVE["bot"] || NEUTRAL_ACTIVE["medium"] || NEUTRAL_ACTIVE["card"];
 
-    if (isDue("buff", realNowMs, 1000) && buffStart > 0) {
-      buffCnt = computeRejuvBuffRemaining(gameNowSec, buffStart);
-      if (!neutralOverride) {
-        writeText("miniText", null, formatTime(buffCnt, "pad"), UI.rejuvMiniTime, null);
-      }
-      if (buffCnt <= 0) endBuff();
-    }
-
+    // The Bridge clock also starts claim tracking, so it runs (plain arithmetic) while either is on; prevBuffRem stays
+    // current so switching claims back on cannot see a stale respawn edge.
     if (isDue("bridge", realNowMs, 1000)) {
       const buffRem = BRIDGE_DUR - (gameNowSec % BRIDGE_DUR);
-      writeText("buffTextBase", "buffTextClip", formatTime(buffRem, "pad"), UI.buffLab, UI.buffLabClip);
-      const buffPct = buffRem / BRIDGE_DUR;
-      const p = Math.floor((1.0 - buffPct) * 100);
-      const buffClip = "rect(0%,100%,100%," + p + "%)";
-      writePanelStyle("buffClip", UI.buffLabClip, "clip", buffClip);
-      const gVal = Math.floor(255 * buffPct);
-      const newColor = "rgb(255," + gVal + "," + gVal + ")";
-      writePanelStyle("buffClipColor", UI.buffLabClip, "color", newColor);
-      if (buffRem <= POWERUP_CHECK_TH && !pretrackActive && !monitoringActive && knownSpawnPos) {
+      if (widgetOn(WIDGET_BUFF)) {
+        writeText("buffTextBase", "buffTextClip", formatTime(buffRem, "pad"), UI.buffLab, UI.buffLabClip);
+        const buffPct = buffRem / BRIDGE_DUR;
+        const p = Math.floor((1.0 - buffPct) * 100);
+        const buffClip = "rect(0%,100%,100%," + p + "%)";
+        writePanelStyle("buffClip", UI.buffLabClip, "clip", buffClip);
+        const gVal = Math.floor(255 * buffPct);
+        const newColor = "rgb(255," + gVal + "," + gVal + ")";
+        writePanelStyle("buffClipColor", UI.buffLabClip, "color", newColor);
+      }
+      if (claimsOn && buffRem <= POWERUP_CHECK_TH && !pretrackActive && !monitoringActive && knownSpawnPos) {
         pretrackActive = true;
         pretrackData.left.minAlly = Infinity;
         pretrackData.left.minEnemy = Infinity;
         pretrackData.right.minAlly = Infinity;
         pretrackData.right.minEnemy = Infinity;
       }
-      if (prevBuffRem <= POWERUP_CHECK_TH && prevBuffRem > 0 && buffRem > POWERUP_CHECK_TH) {
+      if (claimsOn && prevBuffRem <= POWERUP_CHECK_TH && prevBuffRem > 0 && buffRem > POWERUP_CHECK_TH) {
         buffResetTs = realNowMs;
         trackedPowerups.length = 0;
         monitoringActive = false;
@@ -2826,25 +2966,36 @@
       prevBuffRem = buffRem;
     }
 
-    if (isDue("miniCard", realNowMs, 1000) && UI.rejuvMiniCard?.IsValid?.()) {
-      const buffActive = buffStart > 0;
-      // A Rejuv waiting to be taken (the Mid Boss is up from the start of a match) has no countdown, and the pill's own
-      // Spawn says so: the override shows the mini card only while a phase is counting down.
-      const phaseCountdown = neutralOverride && !spawnWait;
-      setMiniCardState(phaseCountdown || buffActive, buffActive && !phaseCountdown);
-      if (phaseCountdown) {
-        const safeIdx = idx >= 0 && idx < SEQ.length ? idx : 0;
-        const miniRem = Math.max(0, SEQ[safeIdx].d - (gameNowSec - phaseStart));
-        writeText("miniText", null, formatTime(miniRem, "pad"), UI.rejuvMiniTime, null);
-      } else if (buffActive) {
-        const miniBuffRem = computeRejuvBuffRemaining(gameNowSec, buffStart);
-        writeText("miniText", null, formatTime(miniBuffRem, "pad"), UI.rejuvMiniTime, null);
+    if (rejuvOn && isDue("miniCard", realNowMs, 1000)) {
+      // The Rejuv buff expires here, mini card or not; outside an override its last second reads 00:00.
+      if (buffStart > 0 && computeRejuvBuffRemaining(gameNowSec, buffStart) <= 0) {
+        if (!neutralOverride) writeText("miniText", null, formatTime(0, "pad"), UI.rejuvMiniTime, null);
+        endBuff();
+      }
+      if (UI.rejuvMiniCard?.IsValid?.()) {
+        const buffActive = buffStart > 0;
+        // A Rejuv waiting to be taken (the Mid Boss is up from the start of a match) has no countdown, and the pill's own
+        // Spawn says so: the override shows the mini card only while a phase is counting down.
+        const phaseCountdown = neutralOverride && !spawnWait;
+        setMiniCardState(phaseCountdown || buffActive, buffActive && !phaseCountdown);
+        if (phaseCountdown) {
+          const safeIdx = idx >= 0 && idx < SEQ.length ? idx : 0;
+          const miniRem = Math.max(0, SEQ[safeIdx].d - (gameNowSec - phaseStart));
+          writeText("miniText", null, formatTime(miniRem, "pad"), UI.rejuvMiniTime, null);
+        } else if (buffActive) {
+          const miniBuffRem = computeRejuvBuffRemaining(gameNowSec, buffStart);
+          writeText("miniText", null, formatTime(miniBuffRem, "pad"), UI.rejuvMiniTime, null);
+        }
       }
     }
 
-    if (isDue("claim", realNowMs, 100)) updateClaims(realNowMs);
-    if (isDue("scan", realNowMs, spawnWait ? 250 : 3000)) doScan(realNowMs);
+    if (claimsOn && isDue("claim", realNowMs, 100)) updateClaims(realNowMs);
+    if (rejuvOn && isDue("scan", realNowMs, spawnWait ? 250 : 3000)) doScan(realNowMs);
 
+    if (!widgetOn(WIDGET_RIFT) && !widgetOn(WIDGET_URN)) {
+      _riftHot = false;
+      return;
+    }
     const objectiveIntervalMs = _riftHot ? 250 : 1000;
     if (isDue("objective", realNowMs, objectiveIntervalMs)) {
       updateObjectiveTimers(gameNowSec, snapshot);
@@ -2853,28 +3004,34 @@
 
   function runMaintenanceLane(realNowMs, snapshot) {
     let currentSnapshot = snapshot;
+    const claimsOn = widgetOn(WIDGET_CLAIMS);
     if (isDue("linger", realNowMs, 300)) {
-      const lingerActive = buffResetTs > 0 && realNowMs - buffResetTs < POWERUP_LINGER;
+      const lingerActive = claimsOn && buffResetTs > 0 && realNowMs - buffResetTs < POWERUP_LINGER;
       if (lingerActive && !monitoringActive && realNowMs - lastPowerupScan >= 200) {
         lastPowerupScan = realNowMs;
         scanPowerups(realNowMs, null, true);
       }
-      if (!monitoringActive && trackedPowerups.length === 0 && buffResetTs > 0 && realNowMs - buffResetTs >= 3000 && realNowMs - buffResetTs < 4000) {
+      if (claimsOn && !monitoringActive && trackedPowerups.length === 0 && buffResetTs > 0 && realNowMs - buffResetTs >= 3000 && realNowMs - buffResetTs < 4000) {
         scanPowerups(realNowMs, null, true);
       }
-      if (realNowMs - lastLingerCheck >= getMinimapWorkInterval(realNowMs)) {
+      // Enemy activity feeds the '?' and the claims' corpse grace; with both off it is not tracked, and the first pass
+      // after that only records it.
+      if (!claimsOn && _lingerOff) {
+        _enemyTracked = false;
+      } else if (realNowMs - lastLingerCheck >= getMinimapWorkInterval(realNowMs)) {
         lastLingerCheck = realNowMs;
         if (currentSnapshot === null) currentSnapshot = collectMinimapSnapshot(realNowMs, false);
-        checkEnemyLinger(realNowMs, currentSnapshot);
+        checkEnemyLinger(realNowMs, currentSnapshot, !_enemyTracked);
+        _enemyTracked = true;
       }
     }
 
-    if (isDue("pretrack", realNowMs, PRETRACK_INTERVAL) && pretrackActive && knownSpawnPos) {
+    if (claimsOn && isDue("pretrack", realNowMs, PRETRACK_INTERVAL) && pretrackActive && knownSpawnPos) {
       if (currentSnapshot === null) currentSnapshot = collectMinimapSnapshot(realNowMs, false);
       doPretrack(realNowMs, currentSnapshot);
     }
 
-    if (isDue("monitor", realNowMs, MONITOR_INTERVAL) && monitoringActive) {
+    if (claimsOn && isDue("monitor", realNowMs, MONITOR_INTERVAL) && monitoringActive) {
       if (currentSnapshot === null) currentSnapshot = collectMinimapSnapshot(realNowMs, false);
       monitorPowerups(realNowMs, currentSnapshot);
     }
@@ -2898,7 +3055,7 @@
       if (!running) {
         scheduleLoopAt(gen, LOOP_INVALID_RETRY_MS);
       } else {
-        scheduleLoop(gen, tick * 1000, getMinimapWorkInterval(rn), _riftHot);
+        scheduleLoop(gen, loopTickMs(), getMinimapWorkInterval(rn), _riftHot);
       }
       return;
     }
@@ -2935,7 +3092,7 @@
     runTimerLane(rn, now, snapshot);
     runMaintenanceLane(rn, snapshot);
 
-    scheduleLoop(gen, tick * 1000, getMinimapWorkInterval(rn), _riftHot);
+    scheduleLoop(gen, loopTickMs(), getMinimapWorkInterval(rn), _riftHot);
   }
 
   function boot() {
@@ -2963,6 +3120,9 @@
       return;
     }
     UI.root = root;
+    // Hosts may be new (no .bt-widget-off yet): the next settings read writes the switches again.
+    _widgetsShown = -1;
+    _widgetsReadMs = -Infinity;
     try { bindUiPanels(root); } catch { scheduleBoot(0.5); return; }
     try {
       if (panelValid(UI.rejuvPing)) UI.rejuvPing["SetPanelEvent"]("onactivate", handleRejuvPingActivate);
@@ -3089,7 +3249,7 @@
     module.exports.__test.setPlayerStateTest = function (id, state) {
       _playerState = Object.create(null);
       _playerState[id] = Object.assign(
-        { x: 0, y: 0, deadTs: 0, wasActive: true, team: 0, lastSeenMs: 0, seenToken: 0 },
+        { x: 0, y: 0, deadTs: 0, wasActive: true, team: 0, lastSeenMs: 0 },
         state
       );
     };
@@ -3112,7 +3272,6 @@
     module.exports.__test.loop = loop;
     module.exports.__test.setLoopTestState = function (patch) {
       if (patch && Number.isFinite(patch.generation)) _generation = patch.generation;
-      if (patch && Number.isFinite(patch.playerSeenToken)) _playerSeenToken = patch.playerSeenToken;
       if (patch && patch.lowTimeCleared !== undefined) _lowTimeCacheCleared = !!patch.lowTimeCleared;
       if (patch && patch.running !== undefined) running = !!patch.running;
       if (patch && Number.isFinite(patch.lastGlobalSec)) lastGlobalSec = patch.lastGlobalSec;
@@ -3122,7 +3281,6 @@
     module.exports.__test.getLoopTestState = function () {
       return {
         generation: _generation,
-        playerSeenToken: _playerSeenToken,
         lowTimeCleared: _lowTimeCacheCleared,
         running,
         lastGlobalSec,
