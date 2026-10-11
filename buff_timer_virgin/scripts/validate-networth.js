@@ -340,6 +340,46 @@ check('menu switch turns the soul icon off and on, keeps the spot and saves it',
   assert.equal(saved(profile).t.w[3], 'l');
 });
 
+// User request 2026-10-12: the pill's width can change on its own (corner handles keep the aspect). Menu slider
+// "Souls width" 60-200 % (layout model "ww", saved in "t" only when not 100 %); the edit chrome follows it.
+check('width slider stretches only the pill, its edit box follows, it saves and RESET LAYOUT clears it', () => {
+  const profile = createProfile();
+  const game = ready(profile);
+  tick(game, 180, 1);
+  const slot = game.ids.BTSlotWorth;
+  const height = slot.style.height;
+  game.toggleMenu();
+  game.ids.BTWorthWidth.drag(150);
+  game.advance(300);
+  assert.equal(slot.style.width, '211.5px', '141 px x 150 %');
+  assert.equal(slot.style.height, height, 'height untouched');
+  assert.equal(game.ids.BTWorthWidthValue.text, '150%');
+  game.advance(2000);
+  assert.equal(saved(profile).t.ww, 1.5);
+  game.click('BTLayoutButton');
+  game.advance(300);
+  const scale = parseFloat(slot.style.uiScale) / 100;
+  const outline = parseFloat(game.ids.BTSlotWorthOutline.style.width);
+  assert.ok(Math.abs(outline - 211.5 * scale) <= 0.2, `edit outline ${outline} follows the width`);
+  game.click('BTSlotWorthSideT');
+  game.advance(300);
+  assert.equal(slot.style.width, '114px', 'vertical pill: 76 px x 150 %');
+  game.click('BTLayoutReset');
+  game.advance(300);
+  assert.equal(slot.style.width, null, 'RESET LAYOUT hands the width back to the CSS');
+  game.click('BTLayoutDone');
+  game.advance(2200);
+  assert.equal(saved(profile).t, undefined, 'no layout left to save');
+  const again = ready(createProfile({ [KEY]: record('{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":{"ww":0.6}}') }));
+  tick(again, 180, 1);
+  assert.equal(again.ids.BTSlotWorth.style.width, '84.6px', 'saved width restored');
+  for (const bad of ['{"ww":0.5}', '{"ww":2.5}', '{"ww":"1.5"}']) {
+    const game2 = launch(createProfile({ [KEY]: record(`{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":${bad}}`) }), { withTimer: true, clock: '3:00' });
+    game2.advance(2000);
+    assert.equal(game2.state().phase, 'blocked', `${bad} is damaged`);
+  }
+});
+
 check('the pill is a movable widget: default spot, chrome, icon toggle', () => {
   const game = ready();
   tick(game, 180, 1);

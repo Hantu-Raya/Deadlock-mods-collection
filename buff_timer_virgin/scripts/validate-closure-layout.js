@@ -302,12 +302,16 @@ step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 
   game.click('BTWorthIconToggle');
   game.advance(300);
   assert.ok(game.ids.BTSlotWorth.classes.has('bt-side-n'), 'menu switch hides the soul icon');
+  game.ids.BTWorthWidth.drag(150);
+  game.advance(300);
+  assert.equal(game.ids.BTSlotWorth.style.width, '211.5px', 'width slider stretches the pill');
   game.click('BTWidgetWorth');
   game.advance(2000);
   assert.ok(game.ids.BTSlotWorth.classes.has('bt-widget-off'), 'Souls switch hides the pill');
   const body = JSON.parse(profile.disk.get(KEY).slice(14));
   assert.equal(body.x, 32, 'bit 32 saved');
   assert.equal(body.t.w[3], 'n', 'hidden icon saved');
+  assert.equal(body.t.ww, 1.5, 'width saved');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });

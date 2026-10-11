@@ -151,6 +151,7 @@ step('colours and strength save only when changed, restore after restart and fit
   t.m = 1.35;
   t.mp = [0.12345, 0.56789];
   t.lc = [-999.9, -999.9, -165, 1.75];
+  t.ww = 1.95;
   const full = record(JSON.stringify({ s: 8, u: '#111111', d: '#222222', l: 0, g: 0, t,
     c: { a: '#333333', e: '#444444', w: '#555555', p: '#666666', v: '#777777', m: '#888888' }, k: 150, b: 0, o: 25, x: 62 }));
   const big = createProfile({ [KEY]: full });

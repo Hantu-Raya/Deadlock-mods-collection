@@ -9,6 +9,7 @@
     btBrightnessHost: "BTBrightnessHost", btBrightnessValue: "BTBrightnessValue",
     btLinger: "BTLingerToggle", btGlow: "BTGlowToggle", btBorder: "BTBorderToggle", btWorthIcon: "BTWorthIconToggle",
     btOpacityHost: "BTMapOpacityHost", btOpacityValue: "BTMapOpacityValue",
+    btWorthWidthHost: "BTWorthWidthHost", btWorthWidthValue: "BTWorthWidthValue",
     btStatus: "BTSettingsStatus", btReset: "BTSettingsReset",
     btResetLabel: "BTSettingsResetLabel", btStore: "BTSettingsStore",
     btLayoutButton: "BTLayoutButton", btLayoutBar: "BTLayoutBar",
@@ -64,6 +65,10 @@
   const BT_OPACITY_MIN = 20;
   const BT_OPACITY_MAX = 100;
   const BT_OPACITY_STEP = 5;
+  // Net worth pill width in percent of its stock width (layout model "ww" holds it as a fraction; absent = 100).
+  const BT_WORTH_WIDTH_MIN = 60;
+  const BT_WORTH_WIDTH_MAX = 200;
+  const BT_WORTH_WIDTH_STEP = 5;
   // Minimap size in percent of stock (layout model key "m" holds it as a fraction; absent = 100).
   const BT_MAP_SCALE_MIN = 50;
   const BT_MAP_SCALE_MAX = 150;
@@ -271,7 +276,7 @@
       if (!layout) layout = {};
       layout[slot[0]] = entry.slice();
     }
-    for (const key of ["m", "mp", "lc"]) {
+    for (const key of ["m", "mp", "lc", "ww"]) {
       const value = BtSettings.layout[key];
       if (value === undefined) continue;
       if (!layout) layout = {};
@@ -316,6 +321,12 @@
     if (value === undefined) return layout;
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     for (const key of Object.keys(value)) {
+      if (key === "ww" && schema >= 8) {
+        const width = btWorthWidthPercent(value[key]);
+        if (width === 0) return null;
+        layout[key] = width / 100;
+        continue;
+      }
       if (key === "m") {
         const size = btMapScalePercent(value[key]);
         if (size === 0) return null;
@@ -547,6 +558,9 @@
     }
     setPanelClass(UI.btPanel, "bt-claims-off", (BtSettings.widgetsOff & BT_WIDGET_CLAIMS) !== 0);
     setPanelText(UI.btOpacityValue, BtSettings.opacity + "%");
+    const worthWidth = btWorthWidth();
+    setPanelText(UI.btWorthWidthValue, worthWidth + "%");
+    btSyncSlider(UI.btWorthWidth, worthWidth);
     btSyncSlider(UI.btOpacity, BtSettings.opacity);
     setPanelText(UI.btStatus, BtStore.status);
     setPanelText(UI.btResetLabel, BtStore.resetArmed ? "CONFIRM RESET" : "RESET");
@@ -727,6 +741,31 @@
       return;
     }
     BtSettings.opacity = value;
+    btChanged();
+  }
+  // Net worth pill width (layout model "ww"). Changes the saved layout directly; the timer resizes the pill and its
+  // edit box. Locked while editing the layout (the menu is closed then anyway).
+  function btWorthWidth() {
+    const width = BtSettings.layout["ww"];
+    return width === undefined ? 100 : Math.round(width * 100);
+  }
+  function btOnWorthWidth() {
+    if (!btEditable() || BtLayout.editing) {
+      btSyncSlider(UI.btWorthWidth, btWorthWidth());
+      return;
+    }
+    let value = btSliderValue(UI.btWorthWidth);
+    if (!isFinite(value)) return;
+    value = Math.round(Math.max(BT_WORTH_WIDTH_MIN, Math.min(BT_WORTH_WIDTH_MAX, value)) / BT_WORTH_WIDTH_STEP) * BT_WORTH_WIDTH_STEP;
+    if (value === btWorthWidth()) {
+      btSyncSlider(UI.btWorthWidth, value);
+      return;
+    }
+    const layout = btLayoutCopy(BtSettings.layout);
+    if (value === 100) delete layout["ww"];
+    else layout["ww"] = value / 100;
+    BtSettings.layout = layout;
+    btLayoutPush();
     btChanged();
   }
   function btOnStrength() {
@@ -1087,7 +1126,13 @@
     if (model["m"] !== undefined) copy["m"] = model["m"];
     if (model["mp"] !== undefined) copy["mp"] = model["mp"].slice();
     if (model["lc"] !== undefined) copy["lc"] = model["lc"].slice();
+    if (model["ww"] !== undefined) copy["ww"] = model["ww"];
     return copy;
+  }
+  // Model "ww" (a fraction of the pill's stock width) -> whole percent; 0 when it is not a valid width.
+  function btWorthWidthPercent(value) {
+    if (typeof value !== "number" || !(value >= BT_WORTH_WIDTH_MIN / 100 && value <= BT_WORTH_WIDTH_MAX / 100)) return 0;
+    return Math.round(value * 100);
   }
   // Model "m" (a fraction of the stock size) -> whole percent; 0 when it is not a valid size.
   function btMapScalePercent(value) {
@@ -1626,6 +1671,8 @@
     UI.widgetRows = BT_WIDGETS.map((widget) => find(widget.row));
     UI.btOpacityHost = find(PANEL_IDS.btOpacityHost);
     UI.btOpacityValue = find(PANEL_IDS.btOpacityValue);
+    UI.btWorthWidthHost = find(PANEL_IDS.btWorthWidthHost);
+    UI.btWorthWidthValue = find(PANEL_IDS.btWorthWidthValue);
     UI.btStatus = find(PANEL_IDS.btStatus);
     UI.btReset = find(PANEL_IDS.btReset);
     UI.btResetLabel = find(PANEL_IDS.btResetLabel);
@@ -1693,6 +1740,9 @@
     btSyncSlider(UI.btStrength, BtSettings.strength);
     UI.btOpacity = btBuildSlider(UI.btOpacityHost, "BTMapOpacity", "bt-strength", BT_OPACITY_MIN, BT_OPACITY_MAX, BT_OPACITY_STEP, btOnOpacity);
     btSyncSlider(UI.btOpacity, BtSettings.opacity);
+    UI.btWorthWidth = btBuildSlider(UI.btWorthWidthHost, "BTWorthWidth", "bt-strength", BT_WORTH_WIDTH_MIN, BT_WORTH_WIDTH_MAX,
+      BT_WORTH_WIDTH_STEP, btOnWorthWidth);
+    btSyncSlider(UI.btWorthWidth, btWorthWidth());
     btBindControls();
     btApplyToHud();
     btRefreshMenu();

@@ -1293,7 +1293,8 @@
 	width: 100%;
 	height: 100%;
 	background-color: rgba(12, 12, 12, 0.6);
-	border-radius: 10px;
+	/* Capsule: fully round ends (half the 44 px height); the vertical pill is an ellipse. */
+	border-radius: 22px;
 	world-blur: ingameHudBlur;
 	/* The lead glow spills a few px past the pill's edge. */
 	overflow: noclip;
@@ -1414,13 +1415,14 @@
 	margin-right: 0px;
 }
 
-/* Lead glow: a soft ring on the pill's edge, spilling a little inside and outside (user request 2026-10-12: around the
-   button, toned down). Each glow panel is 8 px larger than the pill on every side so the gaussian blur has room; its
-   ring sits on the pill's rim. The script writes the inline opacity of one of them (0 inside +-2 %, 1 from 30 %). */
+/* Lead glow: a soft round ring on the capsule's edge, spilling a little inside and outside (user requests 2026-10-12:
+   around the button, toned down, more circular). Each glow panel is a little larger than the pill so the gaussian blur
+   has room; its ring sits on the pill's rim. Sizes are percentages so a stretched pill (model "ww") keeps its glow. The
+   script writes the inline opacity of one of them (0 inside +-2 %, 1 from 30 %). */
 .networth-glow
 {
-	width: 157px;
-	height: 60px;
+	width: 112%;
+	height: 136%;
 	horizontal-align: center;
 	vertical-align: center;
 	blur: gaussian( 3 );
@@ -1431,25 +1433,33 @@
 
 .networth-glow-ring
 {
-	width: 143px;
-	height: 46px;
+	width: 90%;
+	height: 77%;
 	horizontal-align: center;
 	vertical-align: center;
-	border-radius: 11px;
+	border-radius: 23px;
+}
+
+#BTSlotWorth.bt-side-t #NetWorth,
+#BTSlotWorth.bt-side-b #NetWorth,
+#BTSlotWorth.bt-side-t .networth-glow-ring,
+#BTSlotWorth.bt-side-b .networth-glow-ring
+{
+	border-radius: 50%;
 }
 
 #BTSlotWorth.bt-side-t .networth-glow,
 #BTSlotWorth.bt-side-b .networth-glow
 {
-	width: 92px;
-	height: 100px;
+	width: 120%;
+	height: 120%;
 }
 
 #BTSlotWorth.bt-side-t .networth-glow-ring,
 #BTSlotWorth.bt-side-b .networth-glow-ring
 {
-	width: 78px;
-	height: 86px;
+	width: 86%;
+	height: 85%;
 }
 
 .networth-glow-ally .networth-glow-ring
@@ -1468,6 +1478,7 @@
 	height: 100%;
 	horizontal-align: left;
 	vertical-align: top;
+	border-radius: 22px;
 }
 
 .bt-layout-edit .bt-slot #NetWorthPingButton

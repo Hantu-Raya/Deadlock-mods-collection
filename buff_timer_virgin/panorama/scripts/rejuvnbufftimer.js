@@ -125,6 +125,9 @@
   const LAYOUT_SIDE_CLASSES = ["l", "r", "t", "b", "n"];
   const LAYOUT_HANDLES = ["HandleTL", "HandleTR", "HandleBL", "HandleBR"];
   const LAYOUT_CHROME_PAD = 22;
+  // Net worth pill width (model "ww", a fraction of its stock width): an inline width on its slot.
+  const LAYOUT_WORTH_WIDTH_MIN = 0.6;
+  const LAYOUT_WORTH_WIDTH_MAX = 2;
   const LAYOUT_REMEASURE_MS = 1000;
   // Minimap size (model "m", a fraction of stock): inline ui-scale on #minimap_persp, which scales the whole minimap
   // (and BTTimerDock inside it) around its bottom-right anchor. The dock is 440 layout px wide at stock size.
@@ -1016,7 +1019,9 @@
     // packs full-size widgets into half the room); moved widgets keep their own scale.
     const scale = entry ? entry[2] : Math.max(0.5, Math.min(2, metrics.dockScale));
     // Vertical only with the icon on top or bottom; "n" (no icon) is the horizontal pill.
-    const size = LAYOUT_BASE[spec.kind][side === "t" || side === "b" ? "v" : "h"];
+    const base = LAYOUT_BASE[spec.kind][side === "t" || side === "b" ? "v" : "h"];
+    // The net worth pill's width can change on its own (model "ww", a fraction of its stock width).
+    const size = spec.key === "w" && Layout.model["ww"] !== undefined ? [base[0] * Layout.model["ww"], base[1]] : base;
     const w = size[0] * scale;
     const h = size[1] * scale;
     const x = entry ? entry[0] * metrics.w : metrics.dockX + spec.x * metrics.dockScale;
@@ -1055,6 +1060,10 @@
         (loc.length === 3 || (loc[3] >= LAYOUT_LOC_SCALE_MIN && loc[3] <= LAYOUT_LOC_SCALE_MAX))) {
       clean["lc"] = loc.slice();
     }
+    const width = model["ww"];
+    if (typeof width === "number" && width >= LAYOUT_WORTH_WIDTH_MIN && width <= LAYOUT_WORTH_WIDTH_MAX && width !== 1) {
+      clean["ww"] = Math.round(width * 100) / 100;
+    }
     return clean;
   }
   /** @param {boolean=} force */
@@ -1091,12 +1100,14 @@
       if (!parts) continue;
       const rect = layoutRect(spec, metrics);
       // A drag moves one widget: the others keep what they were given.
-      const placed = (Layout.editing ? "e" : "n") + rect.x + "," + rect.y + "," + rect.s + rect.side;
+      const placed = (Layout.editing ? "e" : "n") + rect.x + "," + rect.y + "," + rect.s + rect.side + "," + rect.bw;
       if (force !== true && placed === parts.placed) continue;
       const slot = parts.slot;
       const chrome = parts.chrome;
       cachedWrite(slot, "position", round(rect.x) + "px " + round(rect.y) + "px 0px");
       cachedWrite(slot, "uiScale", Math.round(rect.s * 100) + "%");
+      // Inline width only for a stretched net worth pill; null hands it back to the side's CSS size.
+      if (spec.key === "w") cachedWrite(slot, "width", Layout.model["ww"] === undefined ? null : round(rect.bw) + "px");
       // Side classes only change with the side (the first placement also clears the XML default); the slot and its
       // chrome are this script's own panels, so nothing else changes them in between.
       if (parts.side !== rect.side) {
@@ -1270,7 +1281,7 @@
     const spot = model["mp"];
     const loc = model["lc"];
     return sig + "|m" + (model["m"] === undefined ? "-" : model["m"]) + "|" + (spot ? spot.join(",") : "-") +
-      "|l" + (loc ? loc.join(",") : "-");
+      "|l" + (loc ? loc.join(",") : "-") + "|w" + (model["ww"] === undefined ? "-" : model["ww"]);
   }
   function layoutPlacedRecently(modelSig, nowMs) {
     return modelSig === Layout.modelSig && nowMs - Layout.measuredMs < LAYOUT_REMEASURE_MS;
