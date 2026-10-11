@@ -5,7 +5,9 @@ param(
     [string]$Source2ViewerPath = '',
     # QOLLOCK 4.0.5 (6 October hotfix) package to regenerate the Escape menu from; the release zip ships pak03.
     [string]$QollockPak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak03_dir.vpk',
-    [switch]$SkipPanoramaTests
+    [switch]$SkipPanoramaTests,
+    # Separate, compile-only build; clean runtime and root pak02 remain untouched.
+    [switch]$UltimateDebug
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,8 +20,14 @@ $canonicalSrc = Join-Path $root 'hp_colors_rewrite_v2'
 # QOLLOCK 4.0.5 6 October hotfix release layout, pin, contract and bridge.
 $supportSrc = Join-Path $root 'hp_colors_rewrite_v2_qollock'
 $bridgeSrc = $supportSrc
-$compiledOut = Join-Path $root 'hp_colors_rewrite_v2_qollock_compiled'
-$buildRoot = Join-Path $root '_hp_colors_rewrite_v2_qollock_build'
+$compiledLeaf = 'hp_colors_rewrite_v2_qollock_compiled'
+$buildLeaf = '_hp_colors_rewrite_v2_qollock_build'
+if ($UltimateDebug) {
+    $compiledLeaf = 'hp_colors_rewrite_v2_qollock_ultdebug_compiled'
+    $buildLeaf = '_hp_colors_rewrite_v2_qollock_ultdebug_build'
+}
+$compiledOut = Join-Path $root $compiledLeaf
+$buildRoot = Join-Path $root $buildLeaf
 $stageSource = Join-Path $buildRoot 'hp_colors_rewrite_v2_qollock'
 $refreshRoot = Join-Path $buildRoot 'refresh'
 $stageOutput = Join-Path $buildRoot 'hp_colors_rewrite_v2_qollock_compiled'
@@ -32,11 +40,14 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
 )
 $vpkOut = Join-Path $root 'pak02_dir.vpk'
 $vpkDest = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak02_dir.vpk'
+if ($UltimateDebug) { $vpkOut = Join-Path $root 'pak02_dir.qollock-ultdebug.vpk' }
 
 $manifestPath = Join-Path $supportSrc 'qollock-source.sha256'
 $contractPath = Join-Path $supportSrc 'pak02-contract.json'
 $refreshScript = Join-Path $root 'scripts\refresh-hp-colors-rewrite-qollock.js'
 $timerValidator = Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-timers.js'
+$ultimateDebugInjector = Join-Path $root 'scripts\instrument-hpv2-ultimate-debug.js'
+$ultimateDebugValidator = Join-Path $root 'scripts\validate-hp-colors-rewrite-v2-ultimate-debug.test.js'
 $canonicalEscapeMenu = Join-Path $canonicalSrc 'panorama\layout\hud_escape_menu.xml'
 if ([string]::IsNullOrWhiteSpace($Source2ViewerPath)) {
     $Source2ViewerPath = Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'
@@ -208,8 +219,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n[2/5] Preparing Closure ADVANCED compatibility runtime..." -ForegroundColor Cyan
-Remove-TreeUnderRoot -Path $compiledOut -RootPath $root -ExpectedLeaf 'hp_colors_rewrite_v2_qollock_compiled'
-Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_v2_qollock_build'
+Remove-TreeUnderRoot -Path $compiledOut -RootPath $root -ExpectedLeaf $compiledLeaf
+Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf $buildLeaf
 if (Test-Path -LiteralPath $vpkOut) {
     Remove-Item -LiteralPath $vpkOut -Force
 }
@@ -301,13 +312,31 @@ try {
             -SourceRoot $canonicalClosureTestRoot `
             -QollockSourceRoot $stageSource
     }
+    if ($UltimateDebug) {
+        # Instrument only after the clean staged validators; then check ADVANCED output.
+        & node $ultimateDebugInjector `
+            (Join-Path $canonicalSrc 'panorama\scripts\test_topbar_pickups.js') `
+            (Join-Path $stageSource 'panorama\scripts\test_topbar_pickups.js')
+        if ($LASTEXITCODE -ne 0) { throw 'Ultimate debug injection failed' }
+        Invoke-HpColorsRewriteClosureAdvanced `
+            -StageSourceRoot $stageSource `
+            -ScriptRelativePaths @('panorama\scripts\test_topbar_pickups.js') `
+            -WorkRoot $buildRoot
+        $previousDebugSource = $env:HP_COLORS_ULTIMATE_DEBUG_SOURCE_ROOT
+        try {
+            $env:HP_COLORS_ULTIMATE_DEBUG_SOURCE_ROOT = $stageSource
+            & node --test $ultimateDebugValidator
+            if ($LASTEXITCODE -ne 0) { throw 'Closure ultimate debug validation failed' }
+        }
+        finally { $env:HP_COLORS_ULTIMATE_DEBUG_SOURCE_ROOT = $previousDebugSource }
+    }
 
     Write-Host "`n[3/5] Compiling HP Colors Rewrite v2 QOLLOCK runtime..." -ForegroundColor Cyan
     Invoke-Source2Compiler -CompilerPath $compiler -SourceDir $stageSource -RequiredOutputs $requiredCompiled -TimeoutSeconds 120
     Move-Item -LiteralPath $stageOutput -Destination $compiledOut
 }
 finally {
-    Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf '_hp_colors_rewrite_v2_qollock_build'
+    Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf $buildLeaf
 }
 Write-Host "  Compiled OK -> $compiledOut" -ForegroundColor Green
 
@@ -357,8 +386,9 @@ if ($unresolvedIncludes.Count -gt 0) {
 Write-Host "  Escape-menu includes OK -> all resolve against pak02, pinned QOLLOCK or stock" -ForegroundColor Green
 Write-Host "  Packed OK -> $vpkOut" -ForegroundColor Green
 
-if ($SkipDeploy) {
+if ($SkipDeploy -or $UltimateDebug) {
     Write-Host "`n[5/5] Deployment skipped." -ForegroundColor Yellow
+    if ($UltimateDebug) { Write-Host "  Ultimate diagnostic VPK -> $vpkOut (replace pak02 only after explicit approval)" -ForegroundColor Yellow }
     Write-Host 'HP Colors Rewrite v2 QOLLOCK build complete' -ForegroundColor Green
     return
 }
