@@ -1295,6 +1295,8 @@
 	background-color: rgba(12, 12, 12, 0.6);
 	border-radius: 10px;
 	world-blur: ingameHudBlur;
+	/* The lead glow spills a few px past the pill's edge. */
+	overflow: noclip;
 }
 
 #NetWorthImg
@@ -1412,29 +1414,52 @@
 	margin-right: 0px;
 }
 
-/* Lead glow inside the pill: fills the button (same rounded box) under the icon and text, brightest at the rim and
-   softer in the middle so the percent stays readable. The script writes the inline opacity of one of them
-   (0 inside +-2 %, 1 from 30 %). */
+/* Lead glow: a soft ring on the pill's edge, spilling a little inside and outside (user request 2026-10-12: around the
+   button, toned down). Each glow panel is 8 px larger than the pill on every side so the gaussian blur has room; its
+   ring sits on the pill's rim. The script writes the inline opacity of one of them (0 inside +-2 %, 1 from 30 %). */
 .networth-glow
 {
-	width: 100%;
-	height: 100%;
-	border-radius: 10px;
+	width: 157px;
+	height: 60px;
+	horizontal-align: center;
+	vertical-align: center;
+	blur: gaussian( 3 );
 	opacity: 0;
 	transition-property: opacity;
 	transition-duration: 0.4s;
 }
 
-.networth-glow-ally
+.networth-glow-ring
 {
-	background-color: gradient( radial, 50% 50%, 0% 0%, 75% 120%, from( rgba(64, 150, 255, 0.18) ), color-stop( 0.6, rgba(64, 150, 255, 0.45) ), to( rgba(64, 150, 255, 0.95) ) );
-	border: 1px solid rgba(64, 150, 255, 0.9);
+	width: 143px;
+	height: 46px;
+	horizontal-align: center;
+	vertical-align: center;
+	border-radius: 11px;
 }
 
-.networth-glow-enemy
+#BTSlotWorth.bt-side-t .networth-glow,
+#BTSlotWorth.bt-side-b .networth-glow
 {
-	background-color: gradient( radial, 50% 50%, 0% 0%, 75% 120%, from( rgba(255, 60, 60, 0.18) ), color-stop( 0.6, rgba(255, 60, 60, 0.45) ), to( rgba(255, 60, 60, 0.95) ) );
-	border: 1px solid rgba(255, 60, 60, 0.9);
+	width: 92px;
+	height: 100px;
+}
+
+#BTSlotWorth.bt-side-t .networth-glow-ring,
+#BTSlotWorth.bt-side-b .networth-glow-ring
+{
+	width: 78px;
+	height: 86px;
+}
+
+.networth-glow-ally .networth-glow-ring
+{
+	border: 3px solid rgba(64, 150, 255, 0.6);
+}
+
+.networth-glow-enemy .networth-glow-ring
+{
+	border: 3px solid rgba(255, 70, 70, 0.6);
 }
 
 .bt-slot #NetWorthPingButton

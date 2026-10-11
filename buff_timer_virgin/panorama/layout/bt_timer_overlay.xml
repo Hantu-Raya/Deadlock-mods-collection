@@ -50,11 +50,11 @@
 			</Panel>
 		</Panel>
 		<!-- Team net worth: our lead in percent. The script sets nw-ahead/nw-behind/nw-even/nw-unknown and the inline
-		     opacity of one glow (blue ahead, red behind; full at 30 %). The glows fill the pill, under its icon and text. -->
+		     opacity of one glow (blue ahead, red behind; full at 30 %). Each glow is a soft ring on the pill's edge. -->
 		<Panel id="BTSlotWorth" class="bt-slot bt-slot-pill bt-side-l" hittest="false">
 			<Panel id="NetWorth" class="nw-unknown" hittest="false">
-				<Panel id="NetWorthGlowAlly" class="networth-glow networth-glow-ally" hittest="false" />
-				<Panel id="NetWorthGlowEnemy" class="networth-glow networth-glow-enemy" hittest="false" />
+				<Panel id="NetWorthGlowAlly" class="networth-glow networth-glow-ally" hittest="false"><Panel class="networth-glow-ring" hittest="false" /></Panel>
+				<Panel id="NetWorthGlowEnemy" class="networth-glow networth-glow-enemy" hittest="false"><Panel class="networth-glow-ring" hittest="false" /></Panel>
 				<Panel id="NetWorthImg" hittest="false" />
 				<Label id="NetWorthText" text="--" hittest="false" />
 			</Panel>
