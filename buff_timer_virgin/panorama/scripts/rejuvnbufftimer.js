@@ -2182,11 +2182,13 @@
     return null;
   }
 
-  // Rescans at most every 5 s, or at once when a cached label is gone.
+  // Rescans every 5 s, or at once when a panel it found is gone. A source that was simply not there (no score labels,
+  // rows not built yet) waits for the 5 s rescan: re-walking the top bar every second for it cost ~100 native calls
+  // (GPT-6.1-Sol audit 2026-10-12).
   function nwResolve(topBar, nowMs) {
-    const stale = (list) => !list || !list.every(panelValid);
-    if (nowMs - NW.rowsMs < NW_ROWS_RESCAN_MS && !stale(NW.amber) && !stale(NW.sapphire) &&
-        panelValid(NW.labelF) && panelValid(NW.labelE)) return;
+    const gone = (list) => list !== null && !list.every(panelValid);
+    if (nowMs - NW.rowsMs < NW_ROWS_RESCAN_MS && !gone(NW.amber) && !gone(NW.sapphire) &&
+        (NW.labelF === null || panelValid(NW.labelF)) && (NW.labelE === null || panelValid(NW.labelE))) return;
     NW.rowsMs = nowMs;
     NW.amber = nwTeamRows(topBar, "TeamFriendly");
     NW.sapphire = nwTeamRows(topBar, "TeamEnemy");
@@ -2284,8 +2286,9 @@
     writePanelStyle("worthGlowEnemy", UI.worthGlowEnemy, "opacity", pct < 0 ? glow : "0");
   }
 
+  // A live run notices the hideout only every 60 s (loop); the top bar is not read there (audit 2026-10-12).
   function updateNetWorth(nowMs) {
-    renderNetWorth(readNetWorth(nowMs));
+    renderNetWorth(isHideout() ? null : readNetWorth(nowMs));
   }
 
   function resetNetWorth() {

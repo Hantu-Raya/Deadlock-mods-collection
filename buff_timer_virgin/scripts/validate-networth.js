@@ -252,6 +252,35 @@ check('street brawl (stock hides team net worth) gives "--"', () => {
   assert.equal(opacity(pill(game).ally), 0);
 });
 
+// GPT-6.1-Sol audit 2026-10-12, finding 1: a source that is simply absent (no score labels, rows not built yet) made
+// every 1 s pass re-walk the top bar. Absent sources wait for the 5 s rescan; only a found panel that dies is re-found
+// at once.
+check('absent top-bar sources are looked up at most every 5 s', () => {
+  const game = ready();
+  topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1, labels: false });
+  let lookups = 0;
+  const find = game.topBar.FindChildTraverse.bind(game.topBar);
+  game.topBar.FindChildTraverse = (id) => { if (id === 'TeamScoreFriendly') lookups++; return find(id); };
+  tick(game, 180, 12);
+  assert.ok(lookups <= 3, `score label lookups in 12 s: ${lookups}`);
+  assert.equal(game.ids.NetWorthText.text, '+25%', 'rows alone still give the value');
+});
+
+// Audit finding 2: the timer notices the hideout only every 60 s while a run is live; the net worth lane must not keep
+// reading the top bar there.
+check('hideout: no top-bar reads, "--"', () => {
+  const game = ready();
+  const bar = topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  tick(game, 180, 2);
+  assert.equal(game.ids.NetWorthText.text, '+25%');
+  game.rootPanel.AddClass('connectedToHideout');
+  tick(game, 182, 1);
+  const before = { ...bar.reads };
+  tick(game, 183, 5);
+  assert.deepEqual(bar.reads, before, 'no SoulsValue or ScoreLabel reads in the hideout');
+  assert.equal(game.ids.NetWorthText.text, '--');
+});
+
 check('switched off: no top-bar reads; back on: fresh value on the next tick', () => {
   const game = ready();
   const bar = topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
