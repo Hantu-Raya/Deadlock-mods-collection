@@ -34,9 +34,9 @@
   const BT_STORE_PREFIX = "BTS1:";
   // 3 adds the optional timer layout "t"; 4 the optional custom colours "c" and glow strength "k"; 5 the optional
   // minimap size "t"."m" and spot "t"."mp", borderless "b" and opacity "o"; 6 the optional map location label "t"."lc";
-  // 7 the optional switched-off widgets "x" (older builds read a newer schema as a newer save, not a damaged one).
-  // Older saves load.
-  const BT_SCHEMA = 7;
+  // 7 the optional switched-off widgets "x" (older builds read a newer schema as a newer save, not a damaged one); 8
+  // the team net worth pill: layout slot "t"."w" and WIDGETS bit 32. Older saves load.
+  const BT_SCHEMA = 8;
   const BT_REPLY_TIMEOUT_S = 5;
   const BT_HELLO_RETRY_S = 8;
   const BT_READY_TIMEOUT_MS = 30000;
@@ -70,11 +70,14 @@
   // WIDGETS switches. A set bit switches the widget off: the timer hides it and stops its logic. The mask is record "x"
   // (only when not 0) and the int attribute bt_widgets_off on #hud_minimap, which the timer reads every loop tick.
   // Claims covers both claim boxes and the Bridge side glows. Never renumber the bits: saves store them.
+  // Souls (bit 32, schema 8) is the team net worth pill.
   const BT_WIDGETS = [
     { row: "BTWidgetBuff", bit: 1 }, { row: "BTWidgetRejuv", bit: 2 }, { row: "BTWidgetRift", bit: 4 },
-    { row: "BTWidgetUrn", bit: 8 }, { row: "BTWidgetClaims", bit: 16 }
+    { row: "BTWidgetUrn", bit: 8 }, { row: "BTWidgetClaims", bit: 16 }, { row: "BTWidgetWorth", bit: 32 }
   ];
-  const BT_WIDGETS_ALL = 31;
+  const BT_WIDGETS_ALL = 63;
+  // Bits a schema 7 record may carry.
+  const BT_WIDGETS_ALL_S7 = 31;
   const BT_WIDGET_CLAIMS = 16;
   // One-click presets. Schema 1 (first settings build) stored indices into this list, so never reorder or remove entries.
   const BT_PRESETS = ["#FFE14D", "#4DD2FF", "#FFFFFF", "#FF4D4D", "#FF9A3D", "#5CFF6B", "#3DFFE0", "#FF4DFF", "#A970FF", "#FF8FC8"];
@@ -139,11 +142,11 @@
   // timer's edit layer).
   const BT_LAYOUT_SLOTS = [
     ["b", "BTSlotBuff", true], ["r", "BTSlotRejuv", true], ["f", "BTSlotRift", true], ["u", "BTSlotUrn", true],
-    ["cl", "BTSlotClaimL", false], ["cr", "BTSlotClaimR", false]
+    ["cl", "BTSlotClaimL", false], ["cr", "BTSlotClaimR", false], ["w", "BTSlotWorth", true]
   ];
   const BT_LAYOUT_SIDES = ["l", "r", "t", "b"];
   // The pills can also hide their icon (side "n"); showing it again uses the default side.
-  const BT_ICON_DEFAULT_SIDE = { "b": "r", "r": "l" };
+  const BT_ICON_DEFAULT_SIDE = { "b": "r", "r": "l", "w": "l" };
   const BT_LAYOUT_CORNERS = ["TL", "TR", "BL", "BR"];
   const BT_LAYOUT_SNAP = 8;
   const BT_LAYOUT_TICK_S = 0.02;
@@ -334,7 +337,8 @@
         layout[key] = loc.slice();
         continue;
       }
-      if (!BT_LAYOUT_SLOTS.some((slot) => slot[0] === key)) return null;
+      // "w" (the net worth pill) is a schema 8 slot.
+      if (!BT_LAYOUT_SLOTS.some((slot) => slot[0] === key) || (key === "w" && schema < 8)) return null;
       const entry = value[key];
       if (!Array.isArray(entry) || entry.length !== 4) return null;
       const x = entry[0];
@@ -398,7 +402,7 @@
     const opacity = schema >= 5 && data["o"] !== undefined ? data["o"] : BT_OPACITY_MAX;
     if (!btIsFlag(border) || !Number.isInteger(opacity) || opacity < BT_OPACITY_MIN || opacity > BT_OPACITY_MAX) return result;
     const widgetsOff = schema >= 7 && data["x"] !== undefined ? data["x"] : 0;
-    if (!Number.isInteger(widgetsOff) || widgetsOff < 0 || widgetsOff > BT_WIDGETS_ALL) return result;
+    if (!Number.isInteger(widgetsOff) || widgetsOff < 0 || widgetsOff > (schema >= 8 ? BT_WIDGETS_ALL : BT_WIDGETS_ALL_S7)) return result;
     result.layout = layout;
     result.kind = "valid";
     result.colors["up"] = up;

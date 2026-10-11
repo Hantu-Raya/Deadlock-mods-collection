@@ -719,7 +719,7 @@ step('the map location label moves and turns inside the minimap box; DONE saves 
   game.advance(2000);
   assert.equal(game.stats.writes, writes + 1, 'DONE saves once');
   const body = JSON.parse(profile.disk.get(KEY).slice(14));
-  assert.equal(body.s, 7, 'saves with the label are schema 7');
+  assert.equal(body.s, 8, 'saves with the label are schema 8');
   assert.deepEqual(body.t.lc, [-100, -60, 15], 'the label is saved as its offset from stock and its turn');
 
   // Next launch: applied while the label is hidden (nothing to measure); it travels and scales with the minimap.

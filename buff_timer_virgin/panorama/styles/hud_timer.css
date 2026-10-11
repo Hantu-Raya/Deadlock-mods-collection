@@ -1285,3 +1285,164 @@
 {
 	wash-color: #FFEFD7;
 }
+
+/* Team net worth pill (#BTSlotWorth): the soul icon and our lead in percent. Default icon left; the side classes on the
+   slot move it (l/r/t/b) or hide it (n). */
+#NetWorth
+{
+	width: 100%;
+	height: 100%;
+	background-color: rgba(12, 12, 12, 0.6);
+	border-radius: 10px;
+	world-blur: ingameHudBlur;
+}
+
+#NetWorthImg
+{
+	horizontal-align: left;
+	vertical-align: center;
+	width: 25%;
+	height: 70%;
+	margin-left: 9%;
+	background-image: url("s2r://panorama/images/hud/icons/icon_soul.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+#NetWorthText
+{
+	horizontal-align: right;
+	vertical-align: center;
+	width: 64%;
+	margin-right: 4%;
+	font-size: 22px;
+	font-weight: semi-bold;
+	font-family: sansMono;
+	text-align: center;
+	text-overflow: shrink;
+	letter-spacing: 1px;
+	color: #c8c8c8;
+	text-shadow: 0px 0px 4px 2.0 black;
+}
+
+#NetWorth.nw-ahead #NetWorthText
+{
+	color: #8fcbff;
+}
+
+#NetWorth.nw-behind #NetWorthText
+{
+	color: #ff8a8a;
+}
+
+#NetWorth.nw-unknown #NetWorthText
+{
+	color: #808080;
+}
+
+#BTSlotWorth.bt-side-r #NetWorthImg
+{
+	horizontal-align: right;
+	margin-left: 0px;
+	margin-right: 9%;
+}
+
+#BTSlotWorth.bt-side-r #NetWorthText
+{
+	horizontal-align: left;
+	margin-right: 0px;
+	margin-left: 4%;
+}
+
+#BTSlotWorth.bt-side-t #NetWorthImg,
+#BTSlotWorth.bt-side-b #NetWorthImg
+{
+	horizontal-align: center;
+	width: 46%;
+	height: 42%;
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+#BTSlotWorth.bt-side-t #NetWorthImg
+{
+	vertical-align: top;
+	margin-top: 8%;
+}
+
+#BTSlotWorth.bt-side-b #NetWorthImg
+{
+	vertical-align: bottom;
+	margin-bottom: 8%;
+}
+
+#BTSlotWorth.bt-side-t #NetWorthText,
+#BTSlotWorth.bt-side-b #NetWorthText
+{
+	horizontal-align: center;
+	width: 92%;
+	height: 42%;
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+#BTSlotWorth.bt-side-t #NetWorthText
+{
+	vertical-align: bottom;
+	margin-bottom: 6%;
+}
+
+#BTSlotWorth.bt-side-b #NetWorthText
+{
+	vertical-align: top;
+	margin-top: 6%;
+}
+
+#BTSlotWorth.bt-side-n #NetWorthImg
+{
+	visibility: collapse;
+}
+
+#BTSlotWorth.bt-side-n #NetWorthText
+{
+	horizontal-align: center;
+	width: 92%;
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+/* Lead glow behind the pill: the script writes the inline opacity of one of them (0 inside +-2 %, 1 from 30 %). */
+.networth-glow
+{
+	width: 150%;
+	height: 220%;
+	horizontal-align: center;
+	vertical-align: center;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.4s;
+}
+
+.networth-glow-ally
+{
+	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( rgba(64, 150, 255, 0.9) ), color-stop( 0.55, rgba(64, 150, 255, 0.35) ), to( rgba(64, 150, 255, 0) ) );
+}
+
+.networth-glow-enemy
+{
+	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( rgba(255, 60, 60, 0.9) ), color-stop( 0.55, rgba(255, 60, 60, 0.35) ), to( rgba(255, 60, 60, 0) ) );
+}
+
+.bt-slot #NetWorthPingButton
+{
+	width: 100%;
+	height: 100%;
+	horizontal-align: left;
+	vertical-align: top;
+}
+
+.bt-layout-edit .bt-slot #NetWorthPingButton
+{
+	visibility: collapse;
+}

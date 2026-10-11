@@ -78,7 +78,9 @@
     rejuvMiniCard: "RejuvMiniCard", rejuvMiniTime: "RejuvMiniTime",
     riftCard: "RiftTimerCard", riftTime: "RiftTimerTime", riftSubTime: "RiftTimerSub",
     urnCard: "UrnTimerCard", urnTime: "UrnTimerTime", urnSubTime: "UrnTimerSub",
-    rejuvPing: "RejuvPingButton", buffPing: "BuffPingButton"
+    rejuvPing: "RejuvPingButton", buffPing: "BuffPingButton",
+    worth: "NetWorth", worthText: "NetWorthText", worthGlowAlly: "NetWorthGlowAlly", worthGlowEnemy: "NetWorthGlowEnemy",
+    worthPing: "NetWorthPingButton"
   };
   const TIMER_HOSTS = [null, null, null, null];
   // TimerOverlayFrame (the movable widget layer, including the claim boxes) sits in .clamp_width; BTTimerDock is an
@@ -103,7 +105,9 @@
     { key: "u", id: "BTSlotUrn", kind: "card", side: "t", x: 222.2, y: 31.2, bit: 8 },
     // Claim boxes: the old buff_claim.css spots (30% in from each side, 8% up from the bottom of the 440 box).
     { key: "cl", id: "BTSlotClaimL", kind: "claim", side: "t", x: 132, y: 356.8, bit: 16 },
-    { key: "cr", id: "BTSlotClaimR", kind: "claim", side: "t", x: 260, y: 356.8, bit: 16 }
+    { key: "cr", id: "BTSlotClaimR", kind: "claim", side: "t", x: 260, y: 356.8, bit: 16 },
+    // Team net worth: centred above the dock, clear of the Rift/Urn cards.
+    { key: "w", id: "BTSlotWorth", kind: "pill", side: "l", x: 149.5, y: -16, bit: 32 }
   ];
   // WIDGETS switches: the settings script writes the switched-off bits as the int attribute bt_widgets_off on
   // #hud_minimap. A switched-off widget is collapsed (.bt-widget-off on its slot and edit chrome) and its logic is
@@ -113,7 +117,8 @@
   const WIDGET_RIFT = 4;
   const WIDGET_URN = 8;
   const WIDGET_CLAIMS = 16;
-  const WIDGETS_ALL = 31;
+  const WIDGET_WORTH = 32;
+  const WIDGETS_ALL = 63;
   const WIDGETS_READ_MS = 250;
   const LAYOUT_SIDES = ["l", "r", "t", "b"];
   // Pills only: "n" = no icon (just the time, on the horizontal pill). Side classes cover all five.
@@ -190,6 +195,11 @@
     UI.urnSubTime = overlay.FindChildTraverse(PANEL_IDS.urnSubTime);
     UI.rejuvPing = overlay.FindChildTraverse(PANEL_IDS.rejuvPing);
     UI.buffPing = overlay.FindChildTraverse(PANEL_IDS.buffPing);
+    UI.worth = overlay.FindChildTraverse(PANEL_IDS.worth);
+    UI.worthText = overlay.FindChildTraverse(PANEL_IDS.worthText);
+    UI.worthGlowAlly = overlay.FindChildTraverse(PANEL_IDS.worthGlowAlly);
+    UI.worthGlowEnemy = overlay.FindChildTraverse(PANEL_IDS.worthGlowEnemy);
+    UI.worthPing = overlay.FindChildTraverse(PANEL_IDS.worthPing);
     UI.glowLeft = glow.FindChildTraverse(PANEL_IDS.glowLeft);
     UI.glowRight = glow.FindChildTraverse(PANEL_IDS.glowRight);
     UI.claimLeft = overlay.FindChildTraverse(PANEL_IDS.claimLeft);
@@ -243,7 +253,7 @@
   // Read by isDue() with runtime strings, so the keys are quoted (Closure ADVANCED renames bare keys).
   const LAST_TICK = {
     "rejuv": 0, "bridge": 0, "miniCard": 0, "claim": 0, "scan": 0,
-    "linger": 0, "pretrack": 0, "monitor": 0, "prune": 0, "objective": 0
+    "linger": 0, "pretrack": 0, "monitor": 0, "prune": 0, "objective": 0, "worth": 0
   };
   const _nearestTargets = [];
   const _minimapSnapshot = {
@@ -480,6 +490,7 @@
     resetClipPanel(UI.rLabClip, rejuvClip);
     const buffClip = "rect(0%,100%,100%,100%)";
     resetClipPanel(UI.buffLabClip, buffClip);
+    resetNetWorth();
   }
   function gTime(nowMs = Date.now()) {
     const n = Number.isFinite(nowMs) ? nowMs : Date.now();
@@ -2088,6 +2099,197 @@
     }
   }
 
+  // Team net worth pill. Two top-bar sources, each a range of souls per team:
+  // - Row SoulsValue labels, in ABSOLUTE team panels: TeamFriendly is Amber and TeamEnemy Sapphire whatever the local
+  //   team (stock layout team="2"/"3"; live 2026-10-07, feeder_feed/design.md). Rows read "906", "1.4k" or "45k".
+  // - The team ScoreLabels, which are RELATIVE: client 6774 rva 1bbb260 gives TeamScoreFriendly the local team's total
+  //   (TeamScoreEnemy the other), exact below 1000 souls, else floor(total / 1000) + "k".
+  // The estimate is the overlap of both ranges; the label alone when the rows cannot be read or disagree with it (a
+  // missing row, wrong sides); the rows alone without labels. The local team comes from HUD localPlayerTeam1 (Amber) /
+  // localPlayerTeam2 (Sapphire); spectators have neither and get "--", never a made-up verdict or 0.
+  const NW_INTERVAL_MS = 1000;
+  const NW_ROWS_RESCAN_MS = 5000;
+  // Glow: full at a 30 % lead, none inside +-2 %, in 1 % steps (one write per step change).
+  const NW_GLOW_FULL = 30;
+  const NW_GLOW_MIN = 2;
+  const NW_MOODS = ["nw-ahead", "nw-behind", "nw-even", "nw-unknown"];
+  // amber/sapphire: cached row SoulsValue labels (null: not readable); labelF/labelE: the ScoreLabels; last: the
+  // shown estimate {f, e, pct} for the chat button, null while unknown.
+  const NW = {
+    /** @type {?Array<*>} */ amber: null,
+    /** @type {?Array<*>} */ sapphire: null,
+    /** @type {?} */ labelF: null,
+    /** @type {?} */ labelE: null,
+    rowsMs: -Infinity,
+    /** @type {?} */ last: null
+  };
+
+  // Souls text -> [low, high], or null. Exact integers (also comma-grouped). Rows: "12.3k" cut or rounded to 100
+  // (-50..+99), "45k" (-500..+999). Labels: whole thousands cut down (+0..+999).
+  /** @param {*} text @param {boolean=} label @return {?Array<number>} */
+  function soulsRange(text, label) {
+    if (typeof text !== "string") return null;
+    const t = text.replace(/<[^>]*>/g, "").trim().toLowerCase();
+    if (/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(t)) {
+      const exact = Number(t.replace(/,/g, ""));
+      return Number.isSafeInteger(exact) ? [exact, exact] : null;
+    }
+    const m = /^(\d+)(?:\.(\d))?k$/.exec(t);
+    if (!m) return null;
+    const v = Number(m[1]) * 1000 + (m[2] ? Number(m[2]) * 100 : 0);
+    if (!Number.isSafeInteger(v)) return null;
+    if (label) return m[2] ? null : [v, v + 999];
+    return m[2] ? [v - 50, v + 99] : [v - 500, v + 999];
+  }
+
+  // The SoulsValue labels of one top-bar team panel (rows are leaves of TeamX > PlayerContents > PlayersContainer).
+  /** @return {?Array<*>} */
+  function nwTeamRows(topBar, id) {
+    let team = null;
+    try { team = topBar.FindChildTraverse(id); } catch {}
+    if (!panelValid(team)) return null;
+    const labels = [];
+    const visit = (panel, depth) => {
+      if (depth > 5 || !panelValid(panel)) return;
+      if (panel.paneltype === "CitadelHudTopBarPlayer") {
+        labels.push(panel.FindChildTraverse("SoulsValue"));
+        return;
+      }
+      const count = panel.GetChildCount();
+      for (let i = 0; i < count; i++) visit(panel.GetChild(i), depth + 1);
+    };
+    try { visit(team, 0); } catch { return null; }
+    return labels.length > 0 && labels.every(panelValid) ? labels : null;
+  }
+
+  function nwScoreLabel(topBar, id) {
+    try {
+      const score = topBar.FindChildTraverse(id);
+      const found = panelValid(score) ? score.FindChildrenWithClassTraverse("ScoreLabel") : null;
+      return found && found.length > 0 && panelValid(found[0]) ? found[0] : null;
+    } catch {}
+    return null;
+  }
+
+  // Rescans at most every 5 s, or at once when a cached label is gone.
+  function nwResolve(topBar, nowMs) {
+    const stale = (list) => !list || !list.every(panelValid);
+    if (nowMs - NW.rowsMs < NW_ROWS_RESCAN_MS && !stale(NW.amber) && !stale(NW.sapphire) &&
+        panelValid(NW.labelF) && panelValid(NW.labelE)) return;
+    NW.rowsMs = nowMs;
+    NW.amber = nwTeamRows(topBar, "TeamFriendly");
+    NW.sapphire = nwTeamRows(topBar, "TeamEnemy");
+    NW.labelF = nwScoreLabel(topBar, "TeamScoreFriendly");
+    NW.labelE = nwScoreLabel(topBar, "TeamScoreEnemy");
+  }
+
+  /** @return {?Array<number>} */
+  function nwRowsRange(labels) {
+    if (!labels) return null;
+    let low = 0;
+    let high = 0;
+    for (let i = 0; i < labels.length; i++) {
+      if (!panelValid(labels[i])) return null;
+      let range = null;
+      try { range = soulsRange(labels[i].text); } catch {}
+      if (!range) return null;
+      low += range[0];
+      high += range[1];
+    }
+    return [Math.max(0, low), high];
+  }
+
+  /** @return {?Array<number>} */
+  function nwLabelRange(label) {
+    if (!panelValid(label)) return null;
+    try { return soulsRange(label.text, true); } catch {}
+    return null;
+  }
+
+  // One team's souls: the middle of the overlap, or of whichever source is usable.
+  /** @return {?number} */
+  function nwEstimate(rows, label) {
+    if (rows && label) {
+      const low = Math.max(rows[0], label[0]);
+      const high = Math.min(rows[1], label[1]);
+      if (low <= high) return (low + high) / 2;
+    }
+    const range = label || rows;
+    return range ? (range[0] + range[1]) / 2 : null;
+  }
+
+  /** @return {?Array<number>} [ours, theirs] */
+  function readNetWorth(nowMs) {
+    let topBar = UI.topBar;
+    if (!panelValid(topBar) && panelValid(UI.root)) {
+      try { topBar = UI.root.FindChildTraverse("TopBar"); } catch { topBar = null; }
+      UI.topBar = topBar;
+    }
+    if (!panelValid(topBar) || !panelValid(UI.hud)) return null;
+    let local = 0;
+    try {
+      // Stock hides team net worth in Street Brawl.
+      if (topBar.BHasClass("gStreetBrawl")) return null;
+      local = UI.hud.BHasClass("localPlayerTeam1") ? 1 : UI.hud.BHasClass("localPlayerTeam2") ? 2 : 0;
+    } catch { return null; }
+    if (local === 0) return null;
+    nwResolve(topBar, nowMs);
+    const ownRows = nwRowsRange(local === 1 ? NW.amber : NW.sapphire);
+    const otherRows = nwRowsRange(local === 1 ? NW.sapphire : NW.amber);
+    const ours = nwEstimate(ownRows, nwLabelRange(NW.labelF));
+    const theirs = nwEstimate(otherRows, nwLabelRange(NW.labelE));
+    return ours === null || theirs === null ? null : [ours, theirs];
+  }
+
+  function writeWorthMood(mood) {
+    if (WRITE_CACHE["worthMood"] === mood) return;
+    let done = true;
+    for (const cls of NW_MOODS) done = setPanelClass(UI.worth, cls, cls === mood) && done;
+    if (done) WRITE_CACHE["worthMood"] = mood;
+  }
+
+  /** @param {?Array<number>} worth */
+  function renderNetWorth(worth) {
+    if (!worth) {
+      NW.last = null;
+      writeText("worthText", null, "--", UI.worthText, null);
+      writeWorthMood("nw-unknown");
+      writePanelStyle("worthGlowAlly", UI.worthGlowAlly, "opacity", "0");
+      writePanelStyle("worthGlowEnemy", UI.worthGlowEnemy, "opacity", "0");
+      return;
+    }
+    const ours = worth[0];
+    const theirs = worth[1];
+    // Lead as a share of the richer team: antisymmetric and within +-100 % (QOLLOCK and topbar_rank use the same).
+    const top = Math.max(ours, theirs);
+    const pct = top > 0 ? (ours - theirs) / top * 100 : 0;
+    const shown = Math.round(pct);
+    NW.last = { f: ours, e: theirs, pct: shown };
+    writeText("worthText", null, (shown > 0 ? "+" : "") + (shown === 0 ? 0 : shown) + "%", UI.worthText, null);
+    writeWorthMood(shown > 0 ? "nw-ahead" : shown < 0 ? "nw-behind" : "nw-even");
+    const steps = Math.min(NW_GLOW_FULL, Math.round(Math.abs(pct)));
+    const glow = steps < NW_GLOW_MIN ? "0" : String(Math.round(steps / NW_GLOW_FULL * 1000) / 1000);
+    writePanelStyle("worthGlowAlly", UI.worthGlowAlly, "opacity", pct > 0 ? glow : "0");
+    writePanelStyle("worthGlowEnemy", UI.worthGlowEnemy, "opacity", pct < 0 ? glow : "0");
+  }
+
+  function updateNetWorth(nowMs) {
+    renderNetWorth(readNetWorth(nowMs));
+  }
+
+  function resetNetWorth() {
+    NW.amber = null;
+    NW.sapphire = null;
+    NW.labelF = null;
+    NW.labelE = null;
+    NW.rowsMs = -Infinity;
+    renderNetWorth(null);
+  }
+
+  function formatSouls(value) {
+    return value >= 1000 ? (value / 1000).toFixed(1) + "k" : String(Math.round(value));
+  }
+
   function writeSideGlow(sideIndex, type, enemyClaimed) {
     const side = SIDES[sideIndex];
     const panel = side?.glow;
@@ -2559,6 +2761,15 @@
     sendTimerChatMessage("buff", gTime());
   }
 
+  // Posts the shown estimate; an unknown one ("--") posts nothing.
+  function handleWorthPingActivate() {
+    if (!timerAlive()) { retire(); return; }
+    if (!running || Layout.editing || !widgetOn(WIDGET_WORTH) || !NW.last) return;
+    const shown = NW.last.pct;
+    TeamChatIntent.send("Souls " + (shown > 0 ? "+" : "") + shown + "% (" + formatSouls(NW.last.f) + " vs " +
+      formatSouls(NW.last.e) + ")", Date.now());
+  }
+
   function buildTimerChatMessage(kind, now) {
     // gTime() is -1 without a readable clock: no message rather than a made-up timer.
     if (!running || !(now >= 0)) return "";
@@ -2853,6 +3064,7 @@
       LAST_TICK["scan"] = 0;
     }
     if (turnedOn & WIDGET_BUFF) LAST_TICK["bridge"] = 0;
+    if (turnedOn & WIDGET_WORTH) LAST_TICK["worth"] = 0;
     if (turnedOn & (WIDGET_RIFT | WIDGET_URN)) LAST_TICK["objective"] = 0;
     // The Bridge respawn edge passed unseen: open a scan window so spawns that are up now are tracked again.
     if ((turnedOn & WIDGET_CLAIMS) && running) {
@@ -2991,6 +3203,7 @@
 
     if (claimsOn && isDue("claim", realNowMs, 100)) updateClaims(realNowMs);
     if (rejuvOn && isDue("scan", realNowMs, spawnWait ? 250 : 3000)) doScan(realNowMs);
+    if (widgetOn(WIDGET_WORTH) && isDue("worth", realNowMs, NW_INTERVAL_MS)) updateNetWorth(realNowMs);
 
     if (!widgetOn(WIDGET_RIFT) && !widgetOn(WIDGET_URN)) {
       _riftHot = false;
@@ -3129,6 +3342,9 @@
     } catch {}
     try {
       if (panelValid(UI.buffPing)) UI.buffPing["SetPanelEvent"]("onactivate", handleBuffPingActivate);
+    } catch {}
+    try {
+      if (panelValid(UI.worthPing)) UI.worthPing["SetPanelEvent"]("onactivate", handleWorthPingActivate);
     } catch {}
     publishLayoutApi();
     placeSlots(true);

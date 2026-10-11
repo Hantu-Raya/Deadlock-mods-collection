@@ -249,6 +249,12 @@ $widgetsValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-widget-t
 if ($LASTEXITCODE -ne 0) {
     throw "Widget toggle validator failed with exit code $LASTEXITCODE"
 }
+# Team net worth pill: row/label ranges, Sapphire sides, glow scale, switch, chat and the schema 8 slot.
+$networthValidator = Join-Path $root 'buff_timer_virgin\scripts\validate-networth.js'
+& node $networthValidator
+if ($LASTEXITCODE -ne 0) {
+    throw "Net worth validator failed with exit code $LASTEXITCODE"
+}
 foreach ($script in @($compressedScript, $compressedSettingsScript)) {
     $stagedSource = [System.IO.File]::ReadAllText($script)
     $productionSource = [regex]::Replace(
@@ -310,7 +316,11 @@ $scriptInfo = Assert-ClosureOutput -Path $compressedScript -MinBytes 8192 -Requi
     'HudMinimapContainer',
     'file://{resources}/layout/bt_timer_overlay.xml',
     'file://{resources}/layout/bt_minimap_glow.xml',
-    'file://{resources}/layout/bt_linger_layer.xml'
+    'file://{resources}/layout/bt_linger_layer.xml',
+    'NetWorthText',
+    'TeamScoreFriendly',
+    'localPlayerTeam2',
+    'CitadelHudTopBarPlayer'
 )
 Remove-Item -LiteralPath $closureExterns -Force
 Write-Host "  Closure ADVANCED OK -> $compressedScript ($([math]::Round($scriptInfo.Length / 1KB, 1)) KB)" -ForegroundColor Green
@@ -353,7 +363,8 @@ $settingsInfo = Assert-ClosureOutput -Path $compressedSettingsScript -MinBytes 4
     'bt-glow-off',
     'bt_settings_gen',
     'bt_widgets_off',
-    'BTWidgetClaims'
+    'BTWidgetClaims',
+    'BTWidgetWorth'
 )
 Remove-Item -LiteralPath $settingsExterns -Force
 Write-Host "  Closure ADVANCED OK -> $compressedSettingsScript ($([math]::Round($settingsInfo.Length / 1KB, 1)) KB)" -ForegroundColor Green

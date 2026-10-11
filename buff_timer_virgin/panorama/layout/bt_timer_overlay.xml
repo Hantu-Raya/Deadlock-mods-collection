@@ -49,6 +49,17 @@
 				<Label id="UrnTimerTime" class="objective-timer-time" text="" />
 			</Panel>
 		</Panel>
+		<!-- Team net worth: our lead in percent. The script sets nw-ahead/nw-behind/nw-even/nw-unknown and the inline
+		     opacity of one glow (blue ahead, red behind; full at 30 %). Glows sit behind the pill, outside its box. -->
+		<Panel id="BTSlotWorth" class="bt-slot bt-slot-pill bt-side-l" hittest="false">
+			<Panel id="NetWorthGlowAlly" class="networth-glow networth-glow-ally" hittest="false" />
+			<Panel id="NetWorthGlowEnemy" class="networth-glow networth-glow-enemy" hittest="false" />
+			<Panel id="NetWorth" class="nw-unknown" hittest="false">
+				<Panel id="NetWorthImg" hittest="false" />
+				<Label id="NetWorthText" text="--" hittest="false" />
+			</Panel>
+			<Button id="NetWorthPingButton" class="timer-ping-button networth-ping-button" hittestchildren="false" />
+		</Panel>
 		<!-- Bridge buff claim boxes (formerly ClaimOverlayRoot). The script adds active/ally-claim/enemy-claim, and
 		     bt-claim-sample while editing an idle box. -->
 		<Panel id="BTSlotClaimL" class="bt-slot bt-slot-claim bt-side-t" hittest="false">
@@ -133,6 +144,18 @@
 				<Button id="BTSlotUrnSideR" class="bt-edit-side bt-edit-side-r" />
 				<Button id="BTSlotUrnSideT" class="bt-edit-side bt-edit-side-t" />
 				<Button id="BTSlotUrnSideB" class="bt-edit-side bt-edit-side-b" />
+			</Panel>
+			<Panel id="BTSlotWorthChrome" class="bt-edit-chrome" hittest="false">
+				<Panel id="BTSlotWorthOutline" class="bt-edit-outline" hittest="false" />
+				<Panel id="BTSlotWorthHandleTL" class="bt-edit-handle bt-handle-tl" />
+				<Panel id="BTSlotWorthHandleTR" class="bt-edit-handle bt-handle-tr" />
+				<Panel id="BTSlotWorthHandleBL" class="bt-edit-handle bt-handle-bl" />
+				<Panel id="BTSlotWorthHandleBR" class="bt-edit-handle bt-handle-br" />
+				<Button id="BTSlotWorthSideL" class="bt-edit-side bt-edit-side-l" />
+				<Button id="BTSlotWorthSideR" class="bt-edit-side bt-edit-side-r" />
+				<Button id="BTSlotWorthSideT" class="bt-edit-side bt-edit-side-t" />
+				<Button id="BTSlotWorthSideB" class="bt-edit-side bt-edit-side-b" />
+				<Button id="BTSlotWorthIconToggle" class="bt-edit-icon" />
 			</Panel>
 			<!-- Claim boxes have no icon/label side to choose: corner handles only. -->
 			<Panel id="BTSlotClaimLChrome" class="bt-edit-chrome" hittest="false">

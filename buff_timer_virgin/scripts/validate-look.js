@@ -133,7 +133,7 @@ step('colours and strength save only when changed, restore after restart and fit
   game.ids.BTGlowStrength.drag(120);
   game.advance(2000);
   const body = savedBody(profile);
-  assert.equal(body.s, 7, 'schema 7');
+  assert.equal(body.s, 8, 'schema 8');
   assert.deepEqual(body.c, { e: '#FF9A3D' }, 'only the changed colour is stored');
   assert.equal(body.k, 120);
   const again = ready({ profile }).game;
@@ -143,16 +143,16 @@ step('colours and strength save only when changed, restore after restart and fit
   again.advance(300);
   assert.equal(glow(again, 1).rgb, rgb('#FF9A3D'), 'restored colour is painted');
   assert.equal(again.stats.writes, 0, 'restoring does not write');
-  // Worst case: every colour changed, strength set, all six widgets moved, the minimap moved and resized and the
-  // location label moved and turned still fits the page's 512 chars.
+  // Worst case: every colour changed, strength set, all seven widgets moved and five switched off, the minimap moved and
+  // resized and the location label moved and turned still fits the page's 512 chars.
   const t = {};
-  for (const key of ['b', 'r', 'f', 'u', 'cl', 'cr']) t[key] = [0.1234, 0.5678, 1.25, 'r'];
+  for (const key of ['b', 'r', 'f', 'u', 'cl', 'cr', 'w']) t[key] = [0.1234, 0.5678, 1.25, 'r'];
   for (const key of ['f', 'u', 'cl', 'cr']) t[key][3] = 't';
   t.m = 1.35;
   t.mp = [0.12345, 0.56789];
   t.lc = [-999.9, -999.9, -165, 1.75];
-  const full = record(JSON.stringify({ s: 6, u: '#111111', d: '#222222', l: 0, g: 0, t,
-    c: { a: '#333333', e: '#444444', w: '#555555', p: '#666666', v: '#777777', m: '#888888' }, k: 150, b: 0, o: 25 }));
+  const full = record(JSON.stringify({ s: 8, u: '#111111', d: '#222222', l: 0, g: 0, t,
+    c: { a: '#333333', e: '#444444', w: '#555555', p: '#666666', v: '#777777', m: '#888888' }, k: 150, b: 0, o: 25, x: 62 }));
   const big = createProfile({ [KEY]: full });
   const worst = ready({ profile: big }).game;
   assert.equal(worst.state().phase, 'ready', 'worst-case record loads');

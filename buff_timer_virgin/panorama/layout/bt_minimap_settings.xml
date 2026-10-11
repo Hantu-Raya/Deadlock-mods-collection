@@ -26,7 +26,8 @@
 					<Button id="BTWidgetRejuv" class="bt-widget-chip"><Label text="Rejuv" hittest="false" /></Button>
 					<Button id="BTWidgetRift" class="bt-widget-chip"><Label text="Rift" hittest="false" /></Button>
 					<Button id="BTWidgetUrn" class="bt-widget-chip"><Label text="Urn" hittest="false" /></Button>
-					<Button id="BTWidgetClaims" class="bt-widget-chip bt-widget-chip-last"><Label text="Claims" hittest="false" /></Button>
+					<Button id="BTWidgetClaims" class="bt-widget-chip"><Label text="Claims" hittest="false" /></Button>
+					<Button id="BTWidgetWorth" class="bt-widget-chip bt-widget-chip-last"><Label text="Souls" hittest="false" /></Button>
 				</Panel>
 				<Label class="bt-settings-section" text="ENEMY MARKERS" />
 				<Button id="BTUpColor" class="bt-color-row">

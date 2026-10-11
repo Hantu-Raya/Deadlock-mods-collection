@@ -177,7 +177,7 @@ step('minified scripts move, resize and turn the map location label, save it and
   game.click('BTLayoutDone');
   game.advance(2000);
   const saved = JSON.parse(profile.disk.get(KEY).slice(14));
-  assert.equal(saved.s, 7);
+  assert.equal(saved.s, 8);
   assert.deepEqual(saved.t.lc, [-200, -150, 90, 1.5], 'the label is saved');
   assert.equal(game.persp.classes.has('in_map_district'), false, 'DONE hides the label outside a district again');
   const again = ready(profile);
@@ -270,6 +270,39 @@ step('minified WIDGETS switches hide slots, freeze the Bridge label, save the ma
   const again = ready(profile);
   assert.equal(again.minimap.GetAttributeInt('bt_widgets_off', 0), 16, 'restored mask');
   assert.ok(again.ids.BTSlotClaimL.classes.has('bt-widget-off') && !again.ids.BTSlotBuff.classes.has('bt-widget-off'), 'restored slots');
+});
+
+// Failure mode: Closure renames a net worth field (row cache, mood, tick key) so the shipped pill stays at "--", lights
+// the wrong glow, or its WIDGETS bit 32 is dropped.
+step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 32 and saves it', () => {
+  const { makePanel } = require('./bt-test-harness.js');
+  const profile = createProfile();
+  const game = launch(profile, { withTimer: true, clock: '3:00' });
+  game.advance(2500);
+  const top = game.topBar;
+  // Absolute rows: Amber 4000 in TeamFriendly, our Sapphire 3000 in TeamEnemy; relative labels: ours first.
+  for (const [id, values] of [['TeamFriendly', ['2000', '2000']], ['TeamEnemy', ['1500', '1500']]]) {
+    const rows = makePanel('PlayersContainer', 'Panel', makePanel(id, 'CitadelHudTopBarTeam', top));
+    for (const value of values) makePanel('SoulsValue', 'Label', makePanel('', 'CitadelHudTopBarPlayer', rows)).text = value;
+  }
+  for (const [id, text] of [['TeamScoreFriendly', '3<span class="demote">k</span>'], ['TeamScoreEnemy', '4<span class="demote">k</span>']]) {
+    const label = makePanel('', 'Label', null);
+    label.text = text;
+    makePanel(id, 'Panel', top).FindChildrenWithClassTraverse = (name) => (name === 'ScoreLabel' ? [label] : []);
+  }
+  game.rootPanel.AddClass('localPlayerTeam2');
+  game.clock.text = '3:02';
+  game.advance(2000);
+  assert.ok(game.ids.BTSlotWorth.classes.has('bt-placed'), 'pill placed at its default spot');
+  assert.equal(game.ids.NetWorthText.text, '-25%');
+  assert.equal(game.ids.NetWorthGlowEnemy.style.opacity, '0.833', 'red glow at 25/30');
+  assert.equal(game.ids.NetWorthGlowAlly.style.opacity, '0');
+  assert.ok(game.ids.NetWorth.classes.has('nw-behind'));
+  game.toggleMenu();
+  game.click('BTWidgetWorth');
+  game.advance(2000);
+  assert.ok(game.ids.BTSlotWorth.classes.has('bt-widget-off'), 'Souls switch hides the pill');
+  assert.equal(JSON.parse(profile.disk.get(KEY).slice(14)).x, 32, 'bit 32 saved');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });

@@ -20,9 +20,9 @@ const check = (name, fn) => {
 const SWITCHES = [
   ['BTWidgetBuff', 'BTSlotBuff', 1], ['BTWidgetRejuv', 'BTSlotRejuv', 2],
   ['BTWidgetRift', 'BTSlotRift', 4], ['BTWidgetUrn', 'BTSlotUrn', 8],
-  ['BTWidgetClaims', 'BTSlotClaimL', 16],
+  ['BTWidgetClaims', 'BTSlotClaimL', 16], ['BTWidgetWorth', 'BTSlotWorth', 32],
 ];
-const slots = ['BTSlotBuff', 'BTSlotRejuv', 'BTSlotRift', 'BTSlotUrn', 'BTSlotClaimL', 'BTSlotClaimR'];
+const slots = ['BTSlotBuff', 'BTSlotRejuv', 'BTSlotRift', 'BTSlotUrn', 'BTSlotClaimL', 'BTSlotClaimR', 'BTSlotWorth'];
 const saved = (profile) => JSON.parse(profile.disk.get(KEY).slice(14));
 const time = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 function tick(game, seconds, count = 1) {
@@ -50,7 +50,7 @@ function expectMask(game, mask) {
 }
 function expectChromes(game, mask) {
   for (const [index, slot] of slots.entries()) {
-    const bit = index === 5 ? 16 : 1 << index;
+    const bit = [1, 2, 4, 8, 16, 16, 32][index];
     assert.equal(game.ids[`${slot}Chrome`].BHasClass('bt-widget-off'), !!(mask & bit), `${slot} edit chrome visibility`);
   }
 }
@@ -103,7 +103,7 @@ check('loading locks switches; defaults publish mask zero without a save or redu
   assert.equal(writes, before, 'zero mask writes stay cached');
 });
 
-check('all five real switches gate slots and chromes, and the disabled mask saves/restores', () => {
+check('all six real switches gate slots and chromes, and the disabled mask saves/restores', () => {
   const profile = createProfile();
   const game = ready(profile);
   let mask = 0;
@@ -122,20 +122,20 @@ check('all five real switches gate slots and chromes, and the disabled mask save
     expectMask(game, mask);
     assert.equal(maskWrites, before + 1, `${id} publishes one changed mask`);
   }
-  expectMask(game, 31);
+  expectMask(game, 63);
   game.click('BTLayoutButton');
   game.advance(300);
-  expectChromes(game, 31);
+  expectChromes(game, 63);
   game.click('BTLayoutDone');
   game.advance(2200);
-  assert.equal(saved(profile).s, 7);
-  assert.equal(saved(profile).x, 31);
+  assert.equal(saved(profile).s, 8);
+  assert.equal(saved(profile).x, 63);
   const second = ready(profile);
-  expectMask(second, 31);
+  expectMask(second, 63);
   assert.equal(second.stats.writes, 0, 'restoring does not save again');
   second.click('BTWidgetBuff');
   second.advance(2000);
-  assert.equal(saved(profile).x, 30);
+  assert.equal(saved(profile).x, 62);
 });
 
 check('disabled lanes stop writing labels, scanning charges and observing Rift warnings; idle snapshot stops', () => {
@@ -163,7 +163,7 @@ check('disabled lanes stop writing labels, scanning charges and observing Rift w
   game.toggleLinger();
   for (const [id] of SWITCHES) game.click(id);
   game.advance(1000);
-  expectMask(game, 31);
+  expectMask(game, 63);
   const before = Object.fromEntries(labels.map(([id, label]) => [id, label.writes]));
   const scanBefore = chargeReads(), warningBefore = warningReads(), snapshotBefore = snapshots();
   tick(game, 186, 5);
@@ -280,7 +280,7 @@ check('schema 6 loads enabled, malformed x blocks, newer schema blocks, RESET ke
   assert.equal(legacy.stats.writes, 0);
   legacy.click('BTWidgetUrn');
   legacy.advance(2000);
-  assert.equal(saved(old).s, 7);
+  assert.equal(saved(old).s, 8);
   assert.equal(saved(old).x, 8);
   for (const x of [-1, 32, 1.5, '2', null, {}, true]) {
     const profile = createProfile({ [KEY]: record(JSON.stringify({ s: 7, ...base, x })) });
@@ -292,7 +292,7 @@ check('schema 6 loads enabled, malformed x blocks, newer schema blocks, RESET ke
     game.advance(1800);
     assert.equal(game.stats.writes, 0, 'blocked edits are session-only');
   }
-  const newer = launch(createProfile({ [KEY]: record(JSON.stringify({ s: 8, ...base, x: 31 })) }), { withTimer: true, clock: '3:00' });
+  const newer = launch(createProfile({ [KEY]: record(JSON.stringify({ s: 9, ...base, x: 31 })) }), { withTimer: true, clock: '3:00' });
   newer.advance(2000);
   assert.equal(newer.state().phase, 'blocked');
   assert.match(newer.state().status, /NEWER SAVE/);

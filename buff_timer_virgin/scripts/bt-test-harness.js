@@ -448,7 +448,7 @@ function launch(profile, options = {}) {
   const startInstance = () => runScript(source, 'bt_minimap_settings.js');
   const startTimer = () => runScript(timerSource, 'rejuvnbufftimer.js');
   const game = {
-    advance, stats, ids, markers, minimap, hudCore, overlay, mapMarkers, clamp, persp, rootPanel, clock, shared,
+    advance, stats, ids, markers, minimap, hudCore, overlay, mapMarkers, clamp, persp, rootPanel, clock, shared, topBar,
     minimapContainer, minimapBlur, minimapFrame, location: null,
     timer: opts.withTimer ? startTimer() : null,
     test: null,

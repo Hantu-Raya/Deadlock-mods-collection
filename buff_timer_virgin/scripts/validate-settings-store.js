@@ -277,12 +277,12 @@ step('schema-1 palette saves migrate; damaged and newer saves block writes until
   assert.equal(migrated.stats.writes, 0, 'migration alone does not write');
   migrated.toggleLinger();
   migrated.advance(2000);
-  assert.equal(JSON.parse(legacy.disk.get(KEY).slice(14)).s, 7, 'first edit rewrites the legacy record as the current schema (7)');
+  assert.equal(JSON.parse(legacy.disk.get(KEY).slice(14)).s, 8, 'first edit rewrites the legacy record as the current schema (8)');
 
   for (const [label, stored, status] of [
     ['damaged', 'BTS1.00000000.{"s":2,"u":"#111111","d":"#222222","l":1,"g":1}', 'SAVE DAMAGED - RESET TO REPAIR'],
     ['bad colour', record('{"s":2,"u":"red","d":"#222222","l":1,"g":1}'), 'SAVE DAMAGED - RESET TO REPAIR'],
-    ['newer', record('{"s":8,"u":"#111111","d":"#222222","l":1,"g":1,"x":"future"}'), 'NEWER SAVE - RESET TO OVERWRITE'],
+    ['newer', record('{"s":9,"u":"#111111","d":"#222222","l":1,"g":1,"x":"future"}'), 'NEWER SAVE - RESET TO OVERWRITE'],
   ]) {
     const profile = createProfile({ [KEY]: stored });
     const game = launch(profile);
