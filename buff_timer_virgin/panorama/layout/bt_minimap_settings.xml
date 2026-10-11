@@ -34,6 +34,11 @@
 					<Label class="bt-row-label" text="Souls pill icon" />
 					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
 				</Button>
+				<!-- Rift + Souls in one card: WIDGETS mask bit 64 (on = combined; needs Rift and Souls both on). -->
+				<Button id="BTRiftWorthToggle" class="bt-switch-row bt-timer-only">
+					<Label class="bt-row-label" text="Rift + Souls in one card" />
+					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
+				</Button>
 				<Label class="bt-settings-section" text="ENEMY MARKERS" />
 				<Button id="BTUpColor" class="bt-color-row">
 					<Panel id="BTUpColorArrow" class="bt-color-arrow bt-arrow-up" hittest="false" />

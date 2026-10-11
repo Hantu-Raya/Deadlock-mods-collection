@@ -8,6 +8,7 @@
     btSpectrumHost: "BTSpectrumHost", btHexEntry: "BTColorHexEntry",
     btBrightnessHost: "BTBrightnessHost", btBrightnessValue: "BTBrightnessValue",
     btLinger: "BTLingerToggle", btGlow: "BTGlowToggle", btBorder: "BTBorderToggle", btWorthIcon: "BTWorthIconToggle",
+    btRiftWorth: "BTRiftWorthToggle",
     btOpacityHost: "BTMapOpacityHost", btOpacityValue: "BTMapOpacityValue",
     btStatus: "BTSettingsStatus", btReset: "BTSettingsReset",
     btResetLabel: "BTSettingsResetLabel", btStore: "BTSettingsStore",
@@ -74,12 +75,14 @@
   // WIDGETS switches. A set bit switches the widget off: the timer hides it and stops its logic. The mask is record "x"
   // (only when not 0) and the int attribute bt_widgets_off on #hud_minimap, which the timer reads every loop tick.
   // Claims covers both claim boxes and the Bridge side glows. Never renumber the bits: saves store them.
-  // Souls (bit 32, schema 8) is the team net worth pill.
+  // Souls (bit 32, schema 8) is the team net worth pill. Bit 64 (schema 8) is not a widget but the "Rift + Souls in one
+  // card" switch: set = combined (the timer applies it only while Rift and Souls are both on).
   const BT_WIDGETS = [
     { row: "BTWidgetBuff", bit: 1 }, { row: "BTWidgetRejuv", bit: 2 }, { row: "BTWidgetRift", bit: 4 },
     { row: "BTWidgetUrn", bit: 8 }, { row: "BTWidgetClaims", bit: 16 }, { row: "BTWidgetWorth", bit: 32 }
   ];
-  const BT_WIDGETS_ALL = 63;
+  const BT_RIFT_WORTH = 64;
+  const BT_WIDGETS_ALL = 127;
   // Bits a schema 7 record may carry.
   const BT_WIDGETS_ALL_S7 = 31;
   const BT_WIDGET_CLAIMS = 16;
@@ -548,6 +551,7 @@
     setPanelClass(UI.btGlow, "on", BtSettings.glow);
     setPanelClass(UI.btBorder, "on", BtSettings.border);
     setPanelClass(UI.btWorthIcon, "on", btWorthIconShown());
+    setPanelClass(UI.btRiftWorth, "on", (BtSettings.widgetsOff & BT_RIFT_WORTH) !== 0);
     for (let i = 0; i < BT_WIDGETS.length; i++) {
       setPanelClass(UI.widgetRows[i], "on", (BtSettings.widgetsOff & BT_WIDGETS[i].bit) === 0);
     }
@@ -644,6 +648,7 @@
     btBind(UI.btGlow, "onactivate", btToggleGlow);
     btBind(UI.btBorder, "onactivate", btToggleBorder);
     btBind(UI.btWorthIcon, "onactivate", btToggleWorthIcon);
+    btBind(UI.btRiftWorth, "onactivate", () => btToggleWidget(BT_RIFT_WORTH));
     for (let i = 0; i < BT_WIDGETS.length; i++) {
       const bit = BT_WIDGETS[i].bit;
       btBind(UI.widgetRows[i], "onactivate", () => btToggleWidget(bit));
@@ -1637,6 +1642,7 @@
     UI.btGlow = find(PANEL_IDS.btGlow);
     UI.btBorder = find(PANEL_IDS.btBorder);
     UI.btWorthIcon = find(PANEL_IDS.btWorthIcon);
+    UI.btRiftWorth = find(PANEL_IDS.btRiftWorth);
     UI.widgetRows = BT_WIDGETS.map((widget) => find(widget.row));
     UI.btOpacityHost = find(PANEL_IDS.btOpacityHost);
     UI.btOpacityValue = find(PANEL_IDS.btOpacityValue);

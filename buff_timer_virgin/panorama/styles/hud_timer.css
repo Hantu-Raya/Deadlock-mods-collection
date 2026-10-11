@@ -156,6 +156,15 @@
 #RiftTimerCard
 {
 	margin-left: 39.5%;
+	/* The glows overlap; #RiftTimerBody carries the label flow. */
+	flow-children: none;
+}
+
+#RiftTimerBody
+{
+	width: 100%;
+	height: 100%;
+	flow-children: down;
 }
 
 #UrnTimerCard
@@ -988,19 +997,30 @@
 }
 
 /* Rift/Urn cards: label above (default), below, left or right of the time. */
-.bt-slot-card.bt-side-b .objective-timer-card
+.bt-slot-card.bt-side-b .objective-timer-card,
+.bt-slot-card.bt-side-b #RiftTimerBody
 {
 	flow-children: up;
 }
 
-.bt-slot-card.bt-side-l .objective-timer-card
+.bt-slot-card.bt-side-l .objective-timer-card,
+.bt-slot-card.bt-side-l #RiftTimerBody
 {
 	flow-children: right;
 }
 
-.bt-slot-card.bt-side-r .objective-timer-card
+.bt-slot-card.bt-side-r .objective-timer-card,
+.bt-slot-card.bt-side-r #RiftTimerBody
 {
 	flow-children: left;
+}
+
+/* #RiftTimerCard has no flow of its own (see above). */
+.bt-slot-card.bt-side-b #RiftTimerCard,
+.bt-slot-card.bt-side-l #RiftTimerCard,
+.bt-slot-card.bt-side-r #RiftTimerCard
+{
+	flow-children: none;
 }
 
 .bt-slot-card.bt-side-l .objective-timer-sub,
@@ -1449,6 +1469,116 @@
 }
 
 .bt-layout-edit .bt-slot #NetWorthPingButton
+{
+	visibility: collapse;
+}
+
+/* Rift + Souls in one card (menu switch; the timer sets .bt-rift-worth on #BTSlotRift while Rift and Souls are both
+   on). Slot sizes must match LAYOUT_BASE "riftworth": 44x40 label on top/bottom (a third row), 120x22 label left/right
+   (one wider row). The lead row, its glows and its chat button exist only then. */
+.bt-slot .rift-worth-part
+{
+	visibility: collapse;
+}
+
+.bt-slot.bt-rift-worth .rift-worth-part
+{
+	visibility: visible;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-t,
+.bt-slot-card.bt-rift-worth.bt-side-b
+{
+	width: 44px;
+	height: 40px;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l,
+.bt-slot-card.bt-rift-worth.bt-side-r
+{
+	width: 120px;
+	height: 22px;
+}
+
+#RiftWorthGlowAlly,
+#RiftWorthGlowEnemy
+{
+	border-radius: 6px;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-t .objective-timer-sub,
+.bt-slot-card.bt-rift-worth.bt-side-b .objective-timer-sub
+{
+	height: 24%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-t .objective-timer-time,
+.bt-slot-card.bt-rift-worth.bt-side-b .objective-timer-time
+{
+	height: 42%;
+}
+
+.rift-worth-text
+{
+	width: 100%;
+	height: 34%;
+	horizontal-align: center;
+	text-align: center;
+	font-size: 11px;
+	font-weight: semi-bold;
+	font-family: sansMono;
+	letter-spacing: 1px;
+	text-overflow: shrink;
+	color: #c8c8c8;
+	text-shadow: 0px 0px 3px 1.5 black;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l .objective-timer-sub,
+.bt-slot-card.bt-rift-worth.bt-side-r .objective-timer-sub
+{
+	width: 28%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l .objective-timer-time,
+.bt-slot-card.bt-rift-worth.bt-side-r .objective-timer-time
+{
+	width: 38%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l .rift-worth-text,
+.bt-slot-card.bt-rift-worth.bt-side-r .rift-worth-text
+{
+	width: 34%;
+	height: fit-children;
+	vertical-align: center;
+	font-size: 12px;
+}
+
+.rift-worth-text.nw-ahead
+{
+	color: #8fcbff;
+}
+
+.rift-worth-text.nw-behind
+{
+	color: #ff8a8a;
+}
+
+.rift-worth-text.nw-unknown
+{
+	color: #808080;
+}
+
+.bt-slot #RiftWorthPingButton
+{
+	width: 100%;
+	height: 100%;
+	horizontal-align: left;
+	vertical-align: top;
+	border-radius: 6px;
+}
+
+.bt-layout-edit .bt-slot #RiftWorthPingButton
 {
 	visibility: collapse;
 }

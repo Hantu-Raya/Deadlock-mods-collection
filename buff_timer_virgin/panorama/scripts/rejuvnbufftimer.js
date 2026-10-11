@@ -80,7 +80,9 @@
     urnCard: "UrnTimerCard", urnTime: "UrnTimerTime", urnSubTime: "UrnTimerSub",
     rejuvPing: "RejuvPingButton", buffPing: "BuffPingButton",
     worth: "NetWorth", worthText: "NetWorthText", worthGlowAlly: "NetWorthGlowAlly", worthGlowEnemy: "NetWorthGlowEnemy",
-    worthPing: "NetWorthPingButton"
+    worthPing: "NetWorthPingButton",
+    riftWorthText: "RiftWorthText", riftWorthGlowAlly: "RiftWorthGlowAlly", riftWorthGlowEnemy: "RiftWorthGlowEnemy",
+    riftWorthPing: "RiftWorthPingButton"
   };
   const TIMER_HOSTS = [null, null, null, null];
   // TimerOverlayFrame (the movable widget layer, including the claim boxes) sits in .clamp_width; BTTimerDock is an
@@ -95,7 +97,9 @@
   // x/y are the old spots inside the 440 dock. A model entry is [x fraction, y fraction, scale 0.5-2, side l|r|t|b].
   // Looked up by the runtime strings spec.kind and "h"/"v", so the keys are quoted: Closure ADVANCED renames bare keys.
   const LAYOUT_BASE = {
-    "pill": { "h": [141, 44], "v": [76, 84] }, "card": { "h": [82, 22], "v": [44, 26] }, "claim": { "h": [48, 48], "v": [48, 48] }
+    "pill": { "h": [141, 44], "v": [76, 84] }, "card": { "h": [82, 22], "v": [44, 26] }, "claim": { "h": [48, 48], "v": [48, 48] },
+    // The Rift card with the Souls lead in it (riftWorthCombined): a third row, or one wider row with the label beside.
+    "riftworth": { "h": [120, 22], "v": [44, 40] }
   };
   // bit: the WIDGETS switch that hides the slot (see WIDGET_* below).
   const LAYOUT_SLOTS = [
@@ -118,7 +122,10 @@
   const WIDGET_URN = 8;
   const WIDGET_CLAIMS = 16;
   const WIDGET_WORTH = 32;
-  const WIDGETS_ALL = 63;
+  // Not a widget: set = "Rift + Souls in one card" (menu switch). Takes effect only while Rift and Souls are both on;
+  // then the pill slot is hidden and the Rift card shows the lead (riftWorthCombined).
+  const WIDGET_RIFT_WORTH = 64;
+  const WIDGETS_ALL = 127;
   const WIDGETS_READ_MS = 250;
   const LAYOUT_SIDES = ["l", "r", "t", "b"];
   // Pills only: "n" = no icon (just the time, on the horizontal pill). Side classes cover all five.
@@ -204,6 +211,10 @@
     UI.worthGlowAlly = overlay.FindChildTraverse(PANEL_IDS.worthGlowAlly);
     UI.worthGlowEnemy = overlay.FindChildTraverse(PANEL_IDS.worthGlowEnemy);
     UI.worthPing = overlay.FindChildTraverse(PANEL_IDS.worthPing);
+    UI.riftWorthText = overlay.FindChildTraverse(PANEL_IDS.riftWorthText);
+    UI.riftWorthGlowAlly = overlay.FindChildTraverse(PANEL_IDS.riftWorthGlowAlly);
+    UI.riftWorthGlowEnemy = overlay.FindChildTraverse(PANEL_IDS.riftWorthGlowEnemy);
+    UI.riftWorthPing = overlay.FindChildTraverse(PANEL_IDS.riftWorthPing);
     UI.glowLeft = glow.FindChildTraverse(PANEL_IDS.glowLeft);
     UI.glowRight = glow.FindChildTraverse(PANEL_IDS.glowRight);
     UI.claimLeft = overlay.FindChildTraverse(PANEL_IDS.claimLeft);
@@ -1020,7 +1031,8 @@
     // packs full-size widgets into half the room); moved widgets keep their own scale.
     const scale = entry ? entry[2] : Math.max(0.5, Math.min(2, metrics.dockScale));
     // Vertical only with the icon on top or bottom; "n" (no icon) is the horizontal pill.
-    const base = LAYOUT_BASE[spec.kind][side === "t" || side === "b" ? "v" : "h"];
+    const kind = spec.key === "f" && riftWorthCombined() ? "riftworth" : spec.kind;
+    const base = LAYOUT_BASE[kind][side === "t" || side === "b" ? "v" : "h"];
     // Width resizes on its own (entry[4], a fraction of the stock width; absent = 1).
     const factor = entry && entry.length > 4 ? entry[4] : 1;
     const size = factor === 1 ? base : [base[0] * factor, base[1]];
@@ -1100,7 +1112,7 @@
       if (!parts) continue;
       const rect = layoutRect(spec, metrics);
       // A drag moves one widget: the others keep what they were given.
-      const placed = (Layout.editing ? "e" : "n") + rect.x + "," + rect.y + "," + rect.s + rect.side + "," + rect.bw;
+      const placed = (Layout.editing ? "e" : "n") + rect.x + "," + rect.y + "," + rect.s + rect.side + "," + rect.bw + "," + rect.bh;
       if (force !== true && placed === parts.placed) continue;
       const slot = parts.slot;
       const chrome = parts.chrome;
@@ -1281,7 +1293,7 @@
     const spot = model["mp"];
     const loc = model["lc"];
     return sig + "|m" + (model["m"] === undefined ? "-" : model["m"]) + "|" + (spot ? spot.join(",") : "-") +
-      "|l" + (loc ? loc.join(",") : "-");
+      "|l" + (loc ? loc.join(",") : "-") + (riftWorthCombined() ? "|rw" : "");
   }
   function layoutPlacedRecently(modelSig, nowMs) {
     return modelSig === Layout.modelSig && nowMs - Layout.measuredMs < LAYOUT_REMEASURE_MS;
@@ -2254,21 +2266,28 @@
     return ours === null || theirs === null ? null : [ours, theirs];
   }
 
-  function writeWorthMood(mood) {
-    if (WRITE_CACHE["worthMood"] === mood) return;
+  function writeWorthMood(cacheKey, panel, mood) {
+    if (WRITE_CACHE[cacheKey] === mood) return;
     let done = true;
-    for (const cls of NW_MOODS) done = setPanelClass(UI.worth, cls, cls === mood) && done;
-    if (done) WRITE_CACHE["worthMood"] = mood;
+    for (const cls of NW_MOODS) done = setPanelClass(panel, cls, cls === mood) && done;
+    if (done) WRITE_CACHE[cacheKey] = mood;
   }
 
   /** @param {?Array<number>} worth */
   function renderNetWorth(worth) {
+    // One target: the pill, or the Rift card's lead row while combined. The other keeps its last value (hidden) and
+    // is rendered again on the lane pass after the switch (setWidgetsOff); its write caches stay its own.
+    const card = riftWorthCombined();
+    const text = card ? UI.riftWorthText : UI.worthText;
+    const ally = card ? UI.riftWorthGlowAlly : UI.worthGlowAlly;
+    const enemy = card ? UI.riftWorthGlowEnemy : UI.worthGlowEnemy;
+    const key = card ? "riftWorth" : "worth";
     if (!worth) {
       NW.last = null;
-      writeText("worthText", null, "--", UI.worthText, null);
-      writeWorthMood("nw-unknown");
-      writePanelStyle("worthGlowAlly", UI.worthGlowAlly, "opacity", "0");
-      writePanelStyle("worthGlowEnemy", UI.worthGlowEnemy, "opacity", "0");
+      writeText(key + "Text", null, "--", text, null);
+      writeWorthMood(key + "Mood", card ? UI.riftWorthText : UI.worth, "nw-unknown");
+      writePanelStyle(key + "GlowAlly", ally, "opacity", "0");
+      writePanelStyle(key + "GlowEnemy", enemy, "opacity", "0");
       return;
     }
     const ours = worth[0];
@@ -2278,12 +2297,12 @@
     const pct = top > 0 ? (ours - theirs) / top * 100 : 0;
     const shown = Math.round(pct);
     NW.last = { f: ours, e: theirs, pct: shown };
-    writeText("worthText", null, (shown > 0 ? "+" : "") + (shown === 0 ? 0 : shown) + "%", UI.worthText, null);
-    writeWorthMood(shown > 0 ? "nw-ahead" : shown < 0 ? "nw-behind" : "nw-even");
+    writeText(key + "Text", null, (shown > 0 ? "+" : "") + (shown === 0 ? 0 : shown) + "%", text, null);
+    writeWorthMood(key + "Mood", card ? UI.riftWorthText : UI.worth, shown > 0 ? "nw-ahead" : shown < 0 ? "nw-behind" : "nw-even");
     const steps = Math.min(NW_GLOW_FULL, Math.round(Math.abs(pct)));
     const glow = steps < NW_GLOW_MIN ? "0" : String(Math.round(steps / NW_GLOW_FULL * 1000) / 1000);
-    writePanelStyle("worthGlowAlly", UI.worthGlowAlly, "opacity", pct > 0 ? glow : "0");
-    writePanelStyle("worthGlowEnemy", UI.worthGlowEnemy, "opacity", pct < 0 ? glow : "0");
+    writePanelStyle(key + "GlowAlly", ally, "opacity", pct > 0 ? glow : "0");
+    writePanelStyle(key + "GlowEnemy", enemy, "opacity", pct < 0 ? glow : "0");
   }
 
   // A live run notices the hideout only every 60 s (loop); the top bar is not read there (audit 2026-10-12).
@@ -3058,12 +3077,19 @@
   function widgetOn(bit) {
     return (_widgetsOff & bit) === 0;
   }
+  // "Rift + Souls in one card": the switch is on and both widgets are on.
+  function riftWorthCombined() {
+    return (_widgetsOff & (WIDGET_RIFT | WIDGET_WORTH | WIDGET_RIFT_WORTH)) === WIDGET_RIFT_WORTH;
+  }
   // A switched-off widget stops at once (claims and glows cleared, Rift not hot; loopTickMs drops Rejuv's fast tick);
   // one switched back on renders on its next lane pass instead of waiting out its interval.
   function setWidgetsOff(next, nowMs) {
     const turnedOff = next & ~_widgetsOff;
     const turnedOn = _widgetsOff & ~next;
+    const wasCombined = riftWorthCombined();
     _widgetsOff = next;
+    // The lead moves between the pill and the card: render it in its new place on the next lane pass.
+    if (riftWorthCombined() !== wasCombined) LAST_TICK["worth"] = 0;
     if (turnedOff & WIDGET_CLAIMS) stopClaimTracking(nowMs);
     if (turnedOff & WIDGET_RIFT) {
       _riftHot = false;
@@ -3118,9 +3144,12 @@
         done = false;
         continue;
       }
-      const off = (_widgetsOff & spec.bit) !== 0;
+      // Combined, the pill's slot is hidden and the Rift slot carries the lead row (and the larger size).
+      const combined = riftWorthCombined();
+      const off = (_widgetsOff & spec.bit) !== 0 || (combined && spec.bit === WIDGET_WORTH);
       if (!setPanelClass(parts.slot, "bt-widget-off", off)) done = false;
       if (parts.chrome) setPanelClass(parts.chrome, "bt-widget-off", off);
+      if (spec.bit === WIDGET_RIFT && !setPanelClass(parts.slot, "bt-rift-worth", combined)) done = false;
     }
     if (done) _widgetsShown = _widgetsOff;
   }
@@ -3359,6 +3388,9 @@
     } catch {}
     try {
       if (panelValid(UI.worthPing)) UI.worthPing["SetPanelEvent"]("onactivate", handleWorthPingActivate);
+    } catch {}
+    try {
+      if (panelValid(UI.riftWorthPing)) UI.riftWorthPing["SetPanelEvent"]("onactivate", handleWorthPingActivate);
     } catch {}
     publishLayoutApi();
     placeSlots(true);

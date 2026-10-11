@@ -37,11 +37,20 @@
 			</Panel>
 			<Button id="BuffPingButton" class="timer-ping-button buff-ping-button" hittestchildren="false" />
 		</Panel>
+		<!-- Rift card. With the menu's "Rift + Souls in one card" (.bt-rift-worth on the slot) it also shows the team
+		     net worth lead as a third row, the lead glow behind the whole card, and a chat button that posts the lead.
+		     The glows come first so they draw under the text; the body carries the flow. -->
 		<Panel id="BTSlotRift" class="bt-slot bt-slot-card bt-side-t" hittest="false">
 			<Panel id="RiftTimerCard" class="objective-timer-card rift-objective-card" hittest="false">
-				<Label id="RiftTimerSub" class="objective-timer-sub" text="RIFT" />
-				<Label id="RiftTimerTime" class="objective-timer-time" text="" />
+				<Panel id="RiftWorthGlowAlly" class="networth-glow networth-glow-ally rift-worth-part" hittest="false" />
+				<Panel id="RiftWorthGlowEnemy" class="networth-glow networth-glow-enemy rift-worth-part" hittest="false" />
+				<Panel id="RiftTimerBody" class="objective-timer-body" hittest="false">
+					<Label id="RiftTimerSub" class="objective-timer-sub" text="RIFT" />
+					<Label id="RiftTimerTime" class="objective-timer-time" text="" />
+					<Label id="RiftWorthText" class="rift-worth-text rift-worth-part nw-unknown" text="--" hittest="false" />
+				</Panel>
 			</Panel>
+			<Button id="RiftWorthPingButton" class="timer-ping-button networth-ping-button rift-worth-part" hittestchildren="false" />
 		</Panel>
 		<Panel id="BTSlotUrn" class="bt-slot bt-slot-card bt-side-t" hittest="false">
 			<Panel id="UrnTimerCard" class="objective-timer-card urn-objective-card" hittest="false">

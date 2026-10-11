@@ -19,6 +19,10 @@
 //  9. Street Brawl (stock hides team net worth) or no top bar: made-up numbers.
 // 10. The pill's chat button posts an unknown value, or posts while editing the layout.
 // 11. Saves: schema 8 with the "w" slot and mask bit 32 must round-trip; a schema 7 record cannot carry them.
+// 12. Rift + Souls in one card (menu switch, mask bit 64, user choice 2026-10-12): the pill stays visible next to the
+//     card, both show the lead (double writes), the card keeps its old size so the extra row overflows or the editor
+//     outline is wrong, switching Rift or Souls off leaves nothing (the other widget must show alone), the card's
+//     click posts nothing, or the hidden target shows a stale value when the switch flips back.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -334,7 +338,7 @@ check('schema 8 saves the moved pill and bit 32; schema 7 records cannot carry t
   for (const body of [
     '{"s":7,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"x":32}',
     '{"s":7,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":{"w":[0.1,0.2,1,"l"]}}',
-    '{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"x":64}',
+    '{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"x":128}',
   ]) {
     const old = launch(createProfile({ [KEY]: record(body) }), { withTimer: true, clock: '3:00' });
     old.advance(2000);
@@ -458,6 +462,119 @@ check('the pill is a movable widget: default spot, chrome, icon toggle', () => {
   game.click('BTSlotWorthSideR');
   game.advance(300);
   assert.ok(game.ids.BTSlotWorth.BHasClass('bt-side-r'), 'icon on the right');
+});
+
+const card = (game) => ({
+  text: game.ids.RiftWorthText.text,
+  ally: game.ids.RiftWorthGlowAlly.style.opacity,
+  enemy: game.ids.RiftWorthGlowEnemy.style.opacity,
+  ahead: game.ids.RiftWorthText.BHasClass('nw-ahead'),
+  behind: game.ids.RiftWorthText.BHasClass('nw-behind'),
+});
+const combined = (game) => game.ids.BTSlotRift.BHasClass('bt-rift-worth');
+
+check('combine switch: the lead moves into the Rift card, the pill goes, the glow fills the card; saved', () => {
+  const profile = createProfile();
+  const game = ready(profile);
+  const bar = topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  tick(game, 180, 2);
+  game.toggleMenu();
+  assert.ok(!game.ids.BTRiftWorthToggle.BHasClass('on'), 'separate by default');
+  assert.ok(!combined(game));
+  game.click('BTRiftWorthToggle');
+  tick(game, 182, 1);
+  assert.ok(game.ids.BTRiftWorthToggle.BHasClass('on'), 'switch renders on');
+  assert.ok(combined(game), 'Rift card shows the lead row');
+  assert.ok(game.ids.BTSlotWorth.BHasClass('bt-widget-off'), 'pill hidden');
+  assert.ok(game.ids.BTSlotWorthChrome.BHasClass('bt-widget-off'), 'pill edit chrome hidden');
+  let c = card(game);
+  assert.equal(c.text, '+25%', 'lead in the card on the next tick');
+  assert.equal(opacity(c.ally), 0.833);
+  assert.equal(opacity(c.enemy), 0);
+  assert.ok(c.ahead && !c.behind);
+  assert.notEqual(game.ids.RiftTimerTime.text, '', 'the Rift time stays');
+  const kids = game.ids.RiftTimerCard.children.map((child) => child.id);
+  assert.deepEqual(kids.slice(0, 2), ['RiftWorthGlowAlly', 'RiftWorthGlowEnemy'], 'glows first in the card: under the text');
+  // Updates go to the card only.
+  const pillBefore = pill(game).text;
+  bar.amberTeam.rows[0].souls.text = '2900';
+  bar.setTotals(6000, 3000, 1);
+  tick(game, 183, 1);
+  assert.equal(card(game).text, '+50%');
+  assert.equal(pill(game).text, pillBefore, 'the hidden pill is not written');
+  game.advance(2200);
+  assert.equal(saved(profile).x, 64, 'bit 64 saved');
+  const again = ready(profile);
+  topbar(again, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  tick(again, 180, 2);
+  assert.ok(combined(again), 'restored after restart');
+  assert.equal(card(again).text, '+25%');
+  // Switching it back: the pill shows the current value at once, the card loses the row.
+  game.click('BTRiftWorthToggle');
+  tick(game, 186, 1);
+  assert.ok(!combined(game));
+  assert.ok(!game.ids.BTSlotWorth.BHasClass('bt-widget-off'), 'pill back');
+  assert.equal(pill(game).text, '+50%', 'fresh value in the pill');
+  game.advance(2200);
+  assert.equal(saved(profile).x, undefined);
+});
+
+check('combined: Rift off leaves the pill alone, Souls off leaves the plain Rift card', () => {
+  const game = ready();
+  const bar = topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  tick(game, 180, 1);
+  game.toggleMenu();
+  game.click('BTRiftWorthToggle');
+  game.click('BTWidgetRift');
+  tick(game, 181, 2);
+  assert.ok(game.ids.BTSlotRift.BHasClass('bt-widget-off'), 'Rift off');
+  assert.ok(!game.ids.BTSlotWorth.BHasClass('bt-widget-off'), 'the pill shows instead');
+  assert.equal(pill(game).text, '+25%');
+  game.click('BTWidgetRift');
+  game.click('BTWidgetWorth');
+  tick(game, 183, 1);
+  assert.ok(!game.ids.BTSlotRift.BHasClass('bt-widget-off'), 'Rift back');
+  assert.ok(!combined(game), 'no lead row without Souls');
+  assert.ok(game.ids.BTSlotWorth.BHasClass('bt-widget-off'));
+  const before = { ...bar.reads };
+  tick(game, 184, 4);
+  assert.deepEqual(bar.reads, before, 'no top-bar reads with Souls off');
+  game.click('BTWidgetWorth');
+  tick(game, 188, 1);
+  assert.ok(combined(game), 'both on again: combined again');
+  assert.equal(card(game).text, '+25%');
+});
+
+check('combined card: larger box for the third row, click posts the lead (not while editing)', () => {
+  const game = ready();
+  topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  const sent = [];
+  game.timer.TeamChatIntent.send = (message) => { sent.push(message); return true; };
+  tick(game, 180, 2);
+  game.toggleMenu();
+  game.click('BTLayoutButton');
+  game.advance(300);
+  const s = parseFloat(game.ids.BTSlotRift.style.uiScale) / 100;
+  const outline = () => [parseFloat(game.ids.BTSlotRiftOutline.style.width) / s, parseFloat(game.ids.BTSlotRiftOutline.style.height) / s];
+  const near = (got, want, what) => assert.ok(Math.abs(got[0] - want[0]) <= 0.3 && Math.abs(got[1] - want[1]) <= 0.3, `${what}: ${got} vs ${want}`);
+  near(outline(), [44, 26], 'plain card');
+  game.click('BTLayoutCancel');
+  game.advance(300);
+  game.toggleMenu();
+  game.click('BTRiftWorthToggle');
+  tick(game, 182, 1);
+  game.click('RiftWorthPingButton');
+  assert.deepEqual(sent, ['Souls +25% (4.0k vs 3.0k)']);
+  game.click('BTLayoutButton');
+  game.advance(300);
+  near(outline(), [44, 40], 'combined card, label on top: a third row');
+  assert.ok(game.ids.BTSlotWorthChrome.BHasClass('bt-widget-off'), 'no pill chrome in the editor');
+  game.click('RiftWorthPingButton');
+  assert.equal(sent.length, 1, 'no post while editing');
+  game.click('BTSlotRiftSideL');
+  game.advance(300);
+  near(outline(), [120, 22], 'combined card, label on the left: one wider row');
+  game.click('BTLayoutCancel');
 });
 
 const report = { generatedAt: new Date().toISOString(), checks };
