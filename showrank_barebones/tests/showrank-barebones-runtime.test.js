@@ -160,7 +160,7 @@ function playerRoster(heroes, prefix = '') { const friendly = new Panel('Citadel
 function wirePlayerRoster(h, card, roster, accountForIndex) { h.attach(roster.friendly); h.attach(roster.enemy); roster.bars.forEach((bar) => h.evaluate(bar.root)); roster.rows.forEach((player, index) => { h.evaluate(player.root); h.on(player.mainContents, () => setProfileAccount(card, accountForIndex(index))); }); }
 
 function harness(options = {}) {
-  const scheduled = [], events = [], handlers = new Map(), dollars = [], openedUrls = [], openedProfiles = [], copiedAccounts = [], closedContexts = [], nativeContextDismissals = [], trace = [];
+  const scheduled = [], events = [], handlers = new Map(), dollars = [], openedUrls = [], openedProfiles = [], copiedAccounts = [], closedContexts = [], nativeContextDismissals = [], trace = [], messages = [];
   const scheduledDelays = new WeakMap();
   const work = createWork();
   let currentTime = 0;
@@ -258,7 +258,7 @@ function harness(options = {}) {
     };
   }
   return {
-    documentRoot, gameClock, averageFriendly, averageEnemy, events, dollars, openedUrls, openedProfiles, copiedAccounts, closedContexts, nativeContextDismissals, trace,
+    documentRoot, gameClock, averageFriendly, averageEnemy, events, dollars, openedUrls, openedProfiles, copiedAccounts, closedContexts, nativeContextDismissals, trace, messages,
     attach(panel) {
       panel.setWork(work);
       if (!panel.parent) documentRoot.add(panel);
@@ -271,16 +271,20 @@ function harness(options = {}) {
         Schedule: (delay, callback) => enqueue(delay, callback),
         DispatchEvent: dispatch,
         CreatePanel: (type, parent, id) => options.createPanel ? options.createPanel(type, parent, id) : parent.add(new Panel(type, { id })),
+        Msg: (line) => messages.push(String(line)),
       };
       dollars.push(dollar);
-      vm.runInNewContext(source, {
+      const sandbox = {
         $: dollar,
         DismissAllContextMenus: () => dismissNativeContext('DismissAllContextMenus'),
         DropInputFocus: () => dismissNativeContext('DropInputFocus'),
         GameUI: new Proxy({}, { get() { throw new Error('global HUD traversal'); } }),
         Players: new Proxy({}, { get() { throw new Error('player API access'); } }),
         Entities: new Proxy({}, { get() { throw new Error('entity API access'); } }),
-      }, { filename: 'showrank_barebones.js' });
+      };
+      // Diagnostics windows are wall-clock based; the virtual clock follows scheduler time.
+      if (options.virtualDate) sandbox.Date = { now: () => 1.7e12 + Math.round(currentTime * 1000) };
+      vm.runInNewContext(source, sandbox, { filename: 'showrank_barebones.js' });
       return dollar;
     },
     on(panel, callback) { handlers.set(panel, callback); },
@@ -774,6 +778,38 @@ for (const [label, options] of [
   h.runDelay(0.5);
   h.advance(3);
   assert.strictEqual(h.pending(), 0, 'the eight-minute boundary leaves no recurring work');
+}
+
+// Missing-toast icons use the stock compiled small-icon files (heroes.vdata m_strIconImageSmall, build 6774).
+{
+  const h = harness();
+  h.gameClock.text = '0:30';
+  const topbarRoot = new Panel('CitadelHudTopBar', { id: 'TopBar' });
+  const notificationRoot = topbarRoot.add(new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }));
+  const bars = ['Vindicta', 'Rat King', 'Baba', 'Vyper'].map((hero, index) => {
+    const bar = topbar(hero, `MissingIcon-${index}`);
+    bar.root.AddClass('HealthVisible');
+    topbarRoot.add(bar.root);
+    return bar;
+  });
+  h.attach(topbarRoot);
+  bars.forEach((bar) => h.evaluate(bar.root));
+  bars.forEach((bar) => bar.root.RemoveClass('HealthVisible'));
+  h.runDelay(0.5);
+  h.runDelay(0);
+  assert.deepStrictEqual(
+    notificationRoot.FindChildrenWithClassTraverse('ShowRankBarebonesMissingToastIcon').map((icon) => icon.images),
+    [
+      ['s2r://panorama/images/heroes/hornet_sm_png.vtex'],
+      ['s2r://panorama/images/heroes/ratking_sm_psd.vtex'],
+      ['s2r://panorama/images/heroes/baba_sm_psd.vtex'],
+      ['s2r://panorama/images/heroes/kali_sm_psd.vtex'],
+    ],
+    'PNG-sourced and newly released heroes resolve to their stock compiled icons',
+  );
+  h.gameClock.text = '8:00';
+  h.runDelay(0.5);
+  h.advance(3);
 }
 
 
@@ -1375,6 +1411,7 @@ for (const playerCount of [6, 12]) {
 }
 {
   const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES.slice(0, 7), 'Unsupported');
+  h.attach(new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }));
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(401 + index));
   h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
   assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'an unsupported seven-slot snapshot is rendered but never cached as complete');
@@ -1677,6 +1714,51 @@ for (const [name, scenario] of regressions) {
   try { scenario(); } catch (error) { regressionFailures.push(`${name}: ${error.message.split('\n')[0]}`); }
 }
 assert.deepStrictEqual(regressionFailures, [], 'runtime regression scenarios');
+
+// Diagnostics build only: the staged, instrumented (and minified) runtime emits bounded [SRBDIAG] reports.
+if (process.env.SHOWRANK_BAREBONES_DIAG === '1') {
+  const diag = require(path.join(repositoryDir, 'scripts', 'showrank-barebones-diag'));
+  const h = harness({ virtualDate: true });
+  const card = profile('100'); const menu = escape(); const roster = playerRoster(STANDARD_HEROES, 'Diag');
+  h.gameClock.text = '0:30';
+  h.attach(new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }));
+  h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(401 + index));
+  roster.bars[7].root.AddClass('HealthVisible');
+  h.advance(5);
+  roster.bars[7].root.RemoveClass('HealthVisible');
+  h.advance(60);
+  const menuDollar = h.evaluate(menu.root);
+  menuDollar.ShowRankBarebonesEscapeOpen(); h.advance(30);
+  h.documentRoot.classes.delete('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOut(); h.advance(1);
+  h.gameClock.text = '8:00'; h.advance(20);
+  assert.strictEqual(h.pending(), 0, 'diagnostics add no recurring schedules of their own');
+  const lines = h.messages.filter((line) => line.startsWith(diag.TAG));
+  assert.ok(lines.every((line) => line.length <= diag.MAX_LINE), 'every report fits one bounded console line');
+  const { records, problems } = diag.parseLog(lines.join('\n'));
+  const summary = diag.summarize(records);
+  if (process.env.SHOWRANK_BAREBONES_DIAG_ARTIFACT) {
+    fs.mkdirSync(path.dirname(process.env.SHOWRANK_BAREBONES_DIAG_ARTIFACT), { recursive: true });
+    fs.writeFileSync(process.env.SHOWRANK_BAREBONES_DIAG_ARTIFACT, `${lines.join('\n')}\n\n${diag.markdown(summary, problems)}\n`);
+  }
+  assert.deepStrictEqual(problems, [], 'every emitted report parses and validates');
+  const topbar = summary.topbar, escapeKind = summary.escape;
+  assert.ok(topbar && escapeKind, 'topbar and Escape contexts both report');
+  const leader = topbar.callbacks.find((row) => row.label === 'startMissingLeader@0.5');
+  assert.ok(leader && leader.n >= 100, 'the 0.5 s missing leader tick is attributed by its scheduling function');
+  assert.ok(topbar.callbacks.some((row) => row.label === 'boot' && row.n === 12), 'each topbar context records its boot');
+  assert.ok(topbar.functions.some((row) => row.name === 'refreshMissingSession' && row.n >= 100), 'host function calls are counted by name');
+  assert.ok(topbar.callbacks.some((row) => row.label.startsWith('scheduleMissingToastRefresh@')), 'the missing transition reaches the toast refresh');
+  assert.deepStrictEqual(topbar.lastMissingSnapshot && topbar.lastMissingSnapshot.slice(0, 2), [12, 1], 'the leader context reports the live twelve-record session');
+  assert.ok(escapeKind.callbacks.some((row) => row.label === 'on:EscapeOpen'), 'native Escape handlers are timed');
+  assert.ok(escapeKind.callbacks.some((row) => /^(collectEscapeRows|probeNextRow|inspectRow)@/.test(row.label)), 'Escape steps keep their caller label through scheduleEscape');
+  assert.ok(escapeKind.dispatchEvent >= 13, 'engine dispatches (Players tab plus twelve row activations) are counted');
+  assert.ok(topbar.createPanel >= 2, 'toast panel creation is counted');
+  const span = (name) => (escapeKind.spans || []).find((row) => row.name === name);
+  assert.strictEqual(span('activate') && span('activate').n, 12, 'each ShowRank row activation dispatch is timed once');
+  assert.ok(span('cardScan') && span('cardScan').n >= 24, 'profile-card scans before and after every activation are timed');
+  assert.ok(Object.values(summary).every((k) => k.callbacks.every((row) => !row.label.startsWith('psc@'))), 'other scripts\' schedules are unattributed, not labelled psc');
+  console.log(`showrank barebones diagnostics scenario passed (${lines.length} reports)`);
+}
 
 
 console.log('showrank barebones runtime tests passed');

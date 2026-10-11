@@ -32,12 +32,14 @@
     var MISSING_HERO_ICON_FILES = {
         "abrams": "bull_sm_psd.vtex",
         "apollo": "fencer_sm_psd.vtex",
+        "baba": "baba_sm_psd.vtex",
         "bebop": "bebop_sm_psd.vtex",
         "billy": "punkgoat_sm_psd.vtex",
         "cadence": "cadence_sm_psd.vtex",
         "calico": "nano_sm_psd.vtex",
         "celeste": "unicorn_sm_psd.vtex",
         "drifter": "drifter_sm_psd.vtex",
+        "druid": "druid_sm_psd.vtex",
         "dynamo": "sumo_sm_psd.vtex",
         "fathom": "slork_sm_psd.vtex",
         "fortuna": "fortuna_sm_psd.vtex",
@@ -61,6 +63,7 @@
         "paige": "bookworm_sm_psd.vtex",
         "paradox": "chrono_sm_psd.vtex",
         "pocket": "synth_sm_psd.vtex",
+        "rat king": "ratking_sm_psd.vtex",
         "raven": "operative_sm_psd.vtex",
         "rem": "familiar_sm_psd.vtex",
         "rutger": "rutger_sm_psd.vtex",
@@ -74,12 +77,11 @@
         "the boss": "yakuza_sm_psd.vtex",
         "the doorman": "doorman_sm_psd.vtex",
         "thumper": "thumper_sm_psd.vtex",
-        "tokamak": "tokamak_sm_psd.vtex",
         "trapper": "trapper_sm_psd.vtex",
         "vandal": "vandal_sm_psd.vtex",
         "venator": "priest_sm_psd.vtex",
         "victor": "frank_sm_psd.vtex",
-        "vindicta": "hornet_sm_psd.vtex",
+        "vindicta": "hornet_sm_png.vtex",
         "viscous": "viscous_sm_psd.vtex",
         "vyper": "kali_sm_psd.vtex",
         "warden": "warden_sm_psd.vtex",
@@ -808,21 +810,21 @@
             setPanelClass(record.root, MISSING_WINDOW_CLASS, expired);
         }
         setMissingActive(shared, record, false);
-        record.missingHealthArmed = record.missingHealthWasVisible = false;
+        record.missingHealthWasVisible = false;
     }
     function refreshMissingPlayer(shared, record, seconds) {
         var visible;
         var unavailable;
         if (!record || !record.active || !isValid(record.root)) {
-            return false;
+            return;
         }
         if (seconds === null) {
             resetMissingPlayer(shared, record, false);
-            return true;
+            return;
         }
         if (seconds >= MISSING_WINDOW_END_SECONDS) {
             resetMissingPlayer(shared, record, true);
-            return true;
+            return;
         }
         if (record.missingWindowExpired !== false) {
             record.missingWindowExpired = false;
@@ -834,9 +836,8 @@
             setMissingActive(shared, record, false);
         }
         if (visible) {
-            record.missingHealthArmed = true;
             record.missingHealthWasVisible = true;
-        } else if (!unavailable && record.missingHealthArmed && record.missingHealthWasVisible) {
+        } else if (!unavailable && record.missingHealthWasVisible) {
             record.missingHealthWasVisible = false;
             setMissingActive(shared, record, true);
         }
@@ -987,8 +988,7 @@
                     record.observedLeaderPulse !== shared.missingLeaderPulse;
                 record.observedLeaderToken = shared.missingLeaderToken;
                 record.observedLeaderPulse = shared.missingLeaderPulse;
-                record.staleLeaderChecks = changed ? 0: record.staleLeaderChecks + 1;
-                if (record.staleLeaderChecks >= 1) {
+                if (!changed) {
                     promoteMissingLeader(shared);
                 }
             }
@@ -1000,8 +1000,7 @@
     function newMissingRecord(root) {
         return {
             root: root,
-            active: true,
-            staleLeaderChecks: 0
+            active: true
         };
     }
     function registerMissingRecord(shared, root) {
@@ -1041,7 +1040,6 @@
                 record.active = true;
                 record.observedLeaderToken = shared.missingLeaderToken;
                 record.observedLeaderPulse = shared.missingLeaderPulse;
-                record.staleLeaderChecks = 0;
                 refreshMissingSession(shared);
                 return;
             }
@@ -1297,7 +1295,6 @@
             targets: targets,
             topbarCount: candidates.length,
             sideFactsRead: false,
-            allTeamSidesKnown: false,
             readiness: {
                 rankTargetsReady: candidates.length === roots.length && targets.length === roots.length,
                 completeUniqueTopbarRoster: candidates.length > 0 && uniqueHeroCount === candidates.length,
@@ -1312,10 +1309,9 @@
         var friendlyCount = 0;
         var enemyCount = 0;
         if (!snapshot || snapshot.sideFactsRead) {
-            return !!(snapshot && snapshot.allTeamSidesKnown);
+            return !!(snapshot && snapshot.readiness.teamSidesReady);
         }
         snapshot.sideFactsRead = true;
-        snapshot.allTeamSidesKnown = true;
         candidates = snapshot.candidates;
         for (index = 0; index < candidates.length; index += 1) {
             side = detectTopbarTeamSide(candidates[index].root);
@@ -1324,13 +1320,11 @@
                 friendlyCount += 1;
             } else if (side === "enemy") {
                 enemyCount += 1;
-            } else {
-                snapshot.allTeamSidesKnown = false;
             }
         }
-        snapshot.readiness.teamSidesReady = snapshot.allTeamSidesKnown &&
+        snapshot.readiness.teamSidesReady = candidates.length === 2 * TEAM_AVERAGE_ACCOUNTS &&
             friendlyCount === TEAM_AVERAGE_ACCOUNTS && enemyCount === TEAM_AVERAGE_ACCOUNTS;
-        return snapshot.allTeamSidesKnown;
+        return snapshot.readiness.teamSidesReady;
     }
     function buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay) {
         var rowCounts = Object.create(null);
@@ -1599,7 +1593,7 @@
         var index;
         account = canonicalAccountOrNull(account);
         if (!roster || !hero || !account) {
-            return false;
+            return;
         }
         for (index = 0; index < roster.probes.length; index += 1) {
             if (roster.probes[index].hero === hero) {
@@ -1611,7 +1605,6 @@
                 roster.matches[index].account = account;
             }
         }
-        return true;
     }
     function planTeamAverages(roster, writes, documentRoot) {
         var accounts = {
@@ -1630,8 +1623,7 @@
         if (!roster || roster.matches.length !== 12 || writes.length !== 12) {
             return null;
         }
-        if (!hydrateTopbarSideEvidence(roster.evidence) ||
-            !roster.evidence.readiness.teamSidesReady) {
+        if (!hydrateTopbarSideEvidence(roster.evidence)) {
             return null;
         }
         for (index = 0; index < writes.length; index += 1) {
