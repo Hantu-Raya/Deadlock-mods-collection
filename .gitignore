@@ -94,3 +94,8 @@ citadel_events/
 
 # Local deep-work progress
 .slim/deepwork/
+
+# Local logs, screenshots and backups
+/logs/
+.playwright-cli/
+*.bak
