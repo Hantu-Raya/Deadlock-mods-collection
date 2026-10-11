@@ -106,14 +106,26 @@
     var names = Object.create(null);
     for (var index = 0; index < message.players.length; index++) {
       var item = message.players[index];
-      if (!Array.isArray(item) || item.length !== 3 || typeof item[0] !== "string" ||
+      if (!Array.isArray(item) || item.length !== 4 || typeof item[0] !== "string" ||
           !item[0] || item[0].length > 256 || item[0] !== item[0].trim().toUpperCase() ||
           names[item[0]] || typeof item[1] !== "number" || !isFinite(item[1]) ||
           item[1] < 0 || item[1] > 360 || typeof item[2] !== "number" ||
-          !isFinite(item[2]) || item[2] < 0 || item[2] > 360 || item[1] === 360 && item[2] !== 0) return false;
+          !isFinite(item[2]) || item[2] < 0 || item[2] > 360 || item[1] === 360 && item[2] !== 0 ||
+          typeof item[3] !== "string" || item[3].length > 256 || item[3] !== item[3].trim().toUpperCase()) return false;
       names[item[0]] = true;
     }
     return true;
+  }
+
+  // Player names win; a hero alias matches only when exactly one entry carries it.
+  function ultimateEntryIndex(players, name) {
+    var alias = -1;
+    if (!name) return -1;
+    for (var index = 0; index < players.length; index++) {
+      if (players[index][0] === name) return index;
+      if (players[index][3] === name) alias = alias === -1 ? index : -2;
+    }
+    return alias < 0 ? -1 : alias;
   }
   function configFeatureEnabled(key) {
     return config.enabled !== false && config[key] !== false;
@@ -251,12 +263,13 @@
     var owned = ultimateTimerEnabled() && playerUnit === true && !context.BAscendantHasClass("LocalPlayer");
     var ready = owned ? findUltimatePanels(false) : valid(ultimateBackground);
     var panel = ultimateKillStreak && ultimateKillStreak.panel;
+    // The renderer records its owned anchor; only a flame still inside it is adopted.
     if (owned && ready && (!valid(panel) || !panel.HPV2KillStreakAdoption ||
-        panel.GetParent() !== ultimateBackground.GetParent()))
+        panel.GetParent() !== panel.HPV2KillStreakAdoption.owner))
       panel = context.FindChildTraverse("KillStreakIndicator");
     var adoption = owned && ready && valid(panel) && panel.HPV2KillStreakAdoption &&
       panel.BHasClass("HPColorsRewriteKillStreakAdopted") &&
-      panel.GetParent() === ultimateBackground.GetParent() ? panel.HPV2KillStreakAdoption : null;
+      panel.GetParent() === panel.HPV2KillStreakAdoption.owner ? panel.HPV2KillStreakAdoption : null;
     if (ultimateKillStreak !== adoption) {
       if (ultimateKillStreak) setTimerStyle(ultimateKillStreak.panel, "preTransformScale2d",
         ultimateKillStreak.scale, "killStreakScale");
@@ -292,16 +305,13 @@
     ultimateAt = message.at;
     if (!valid(namePanel)) namePanel = context.FindChildTraverse("name");
     var name = readName(namePanel);
-    var entry = null;
-    if (name !== localPlayerName) {
-      for (var index = 0; index < message.players.length; index++) {
-        if (message.players[index][0] === name) entry = message.players[index];
-      }
-    }
+    var index = name !== localPlayerName ? ultimateEntryIndex(message.players, name) : -1;
+    var entry = index >= 0 ? message.players[index] : null;
     if (!entry || entry[1] === 360) { clearUltimate(); return; }
     if (!findUltimatePanels(false)) { clearUltimate(); return; }
     if (!valid(ultimateReady)) ultimateReady = ultimateBackground.FindChildTraverse("unit_ult_ready_icon");
-    if (!valid(ultimateReady) || ultimateReady.visible !== false) { clearUltimate(); return; }
+    // Stock readiness is CSS-driven by has_ultimate, not the panel's visible flag.
+    if (!valid(ultimateReady) || ultimateReady.BAscendantHasClass("has_ultimate")) { clearUltimate(); return; }
     if (!findUltimatePanels(true, ultimateBackground)) { clearUltimate(); return; }
     if (!valid(ultimateFill)) { clearUltimate(); return; }
     if (!ultimateName && !setTimerStyle(ultimateOverlay, "visibility", "visible")) return;
@@ -312,7 +322,9 @@
 
   function countRowNames() {
     var names = [];
+    var heroes = [];
     var counts = Object.create(null);
+    var heroCounts = Object.create(null);
     var name;
     var localName = "";
     for (var local = 0; local < localPlayerLabels.length; local++) {
@@ -324,8 +336,19 @@
       name = readName(rows[index].label);
       names.push(name);
       if (name) counts[name] = (counts[name] || 0) + 1;
+      name = readName(rows[index].heroLabel);
+      heroes.push(name);
+      if (name) heroCounts[name] = (heroCounts[name] || 0) + 1;
     }
-    return { names: names, counts: counts, localName: localName };
+    return { names: names, heroes: heroes, counts: counts, heroCounts: heroCounts, localName: localName };
+  }
+
+  // Live world bars can show hero names where the top bar shows player names
+  // (bots carry hero names in both). Alias only when no other row claims the name.
+  function heroAlias(scan, index) {
+    var hero = scan.heroes[index];
+    return hero && hero.length <= 256 && scan.heroCounts[hero] === 1 &&
+      (scan.names[index] === hero ? scan.counts[hero] === 1 : !scan.counts[hero]) ? hero : "";
   }
 
   function ultimateTick() {
@@ -357,7 +380,7 @@
           Math.round(Math.min(360, (angle - previous.angle) * 1000 / (now - previous.at)) * 100) / 100 : 0;
         row.ultimateSample = { player: player, angle: angle, at: now, unlocked: unlocked, since: sessionStartedAt };
         if (angle === null) continue;
-        players.push([player, angle, rate]);
+        players.push([player, angle, rate, heroAlias(scan, rowIndex)]);
         states.push([player, unlocked ? angle === 360 ? 2 : 1 : 0]);
         var sent = lastUltimatePlayers[player];
         // The first cooldown sample publishes rate 0; send as soon as a moving rate exists.
@@ -570,7 +593,7 @@
     if (!valid(panel)) return "";
     var name = panel.text;
     if (typeof name !== "string") return "";
-    return name === "{s:name}" || name === "{s:player_name}" ? "" : name.trim().toUpperCase();
+    return name === "{s:name}" || name === "{s:player_name}" || name === "{s:hero_name}" ? "" : name.trim().toUpperCase();
   }
 
   function snapshotRoot() {
@@ -910,31 +933,43 @@
     return units;
   }
 
+  function topBarRowOwner(label) {
+    var owner = label.GetParent();
+    while (valid(owner) && owner !== topBar &&
+      (owner.paneltype || owner.type) !== "CitadelHudTopBarPlayer") owner = owner.GetParent();
+    return valid(owner) && owner !== topBar ? owner : null;
+  }
+
   function findRows() {
     var next = [];
     localPlayerLabels.length = 0;
     var labels = topBar.FindChildrenWithClassTraverse("PlayerName");
+    var heroLabels = topBar.FindChildrenWithClassTraverse("HeroName");
+    var heroOwners = [];
+    for (var hero = 0; hero < heroLabels.length; hero++)
+      heroOwners.push(valid(heroLabels[hero]) ? topBarRowOwner(heroLabels[hero]) : null);
     for (var index = 0; index < labels.length; index++) {
       var label = labels[index];
       if (!valid(label)) continue;
-      var owner = label.GetParent();
-      while (valid(owner) && owner !== topBar &&
-        (owner.paneltype || owner.type) !== "CitadelHudTopBarPlayer") owner = owner.GetParent();
-      if (!valid(owner) || owner === topBar) continue;
+      var owner = topBarRowOwner(label);
+      if (!owner) continue;
       if (owner.BHasClass("LocalPlayer")) {
         localPlayerLabels.push(label);
         continue;
       }
       var ultimate = owner.FindChildTraverse("UltimateStatus");
       if (!valid(ultimate)) continue;
+      var heroIndex = heroOwners.indexOf(owner);
       var row = null;
       for (var old = 0; old < rows.length; old++) {
         if (rows[old].label === label && rows[old].ultimate === ultimate) row = rows[old];
       }
-      next.push(row || {
+      row = row || {
         label: label, ultimate: ultimate, container: null, left: null, right: null, icons: [], glyphs: [],
         rings: [], progressModels: [], progressClips: [], mask: -1, styleRevision: -1, styleCache: {}
-      });
+      };
+      row.heroLabel = heroIndex >= 0 ? heroLabels[heroIndex] : null;
+      next.push(row);
     }
     for (var previous = 0; previous < rows.length; previous++) {
       if (next.indexOf(rows[previous]) < 0) render(rows[previous], 0);
@@ -1154,8 +1189,11 @@
     for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       var row = rows[rowIndex];
       var player = scan.names[rowIndex];
-      if (affectedName !== undefined && player !== affectedName && player !== previousName) continue;
+      var hero = heroAlias(scan, rowIndex);
+      if (affectedName !== undefined && player !== affectedName && player !== previousName &&
+          (!hero || hero !== affectedName && hero !== previousName)) continue;
       var unit = player && scan.counts[player] === 1 ? units[player] : null;
+      if (!unit && hero) unit = units[hero];
       var blocked = rowUnavailable(row, now, player);
       var mask = pickupTimersEnabled() && !blocked && unit && unit !== -1 &&
         unit.at >= (row.acceptAfter || 0) ? unit.mask : 0;
@@ -1323,7 +1361,9 @@
       } else {
         if (worldWakeHook && !worldAwake) return;
         if (!refreshPlayerUnit()) {
-          if (!worldWakeHook) scheduleWorldTick();
+          // The renderer can wake before CLASS_PLAYER lands; keep reclassifying, or a
+          // cached nonhero drops every later scan gate and ultimate snapshot.
+          scheduleWorldTick();
           return;
         }
         applyUltimateBaseScale();
@@ -1332,7 +1372,7 @@
           if (now < ultimateAt || now - ultimateAt >= 12000 ||
               readName(namePanel) !== ultimateName || ultimateName === localPlayerName ||
               context.BAscendantHasClass("LocalPlayer") || !valid(ultimateReady) ||
-              ultimateReady.visible !== false) clearUltimate();
+              ultimateReady.BAscendantHasClass("has_ultimate")) clearUltimate();
         }
         sampleUnit();
       }

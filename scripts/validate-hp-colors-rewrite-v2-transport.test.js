@@ -447,12 +447,12 @@ test('pickup re-broadcast only when the published fit stops predicting', () => {
 test('ultimate snapshots use a 2 s heartbeat and correct prediction or state changes', () => {
   let now = 0, angle = 90, unlocked = true, ready = false, present = true;
   const sent = [];
-  const box = timerFunctions(['parseUltimateClip', 'ultimateTick'], {
+  const box = timerFunctions(['parseUltimateClip', 'heroAlias', 'ultimateTick'], {
     Date: { now: () => now }, JSON, Math, Number, String, isFinite,
     stopped: false, context: {}, sessionStartedAt: 0, lastUltimateKey: '', lastUltimateSentAt: 0,
     lastUltimatePlayers: Object.create(null), ULTIMATE_PREDICT_TOLERANCE: 15,
     valid: () => true, ultimateTimerEnabled: () => true,
-    countRowNames: () => ({ names: [present ? 'HAZE' : ''], counts: { HAZE: 1 } }),
+    countRowNames: () => ({ names: [present ? 'HAZE' : ''], counts: { HAZE: 1 }, heroes: ['SEVEN'], heroCounts: { SEVEN: 1 } }),
     rows: [{
       ultimate: {}, ultimateBackground: { style: { get clip() { return 'radial(50% 50%, 0deg, ' + angle + 'deg)'; } } },
       label: { BAscendantHasClass: name => name === 'UltimateUnlocked' ? unlocked : name === 'UltimateCooldownReady' && ready },
@@ -462,15 +462,15 @@ test('ultimate snapshots use a 2 s heartbeat and correct prediction or state cha
   for (now = 0; now <= 16000; now += 1000) box.ultimateTick();
   assert.deepEqual(sent.map(item => item[0]), [0, 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000]);
   now = 17000; angle = 105; box.ultimateTick();
-  assert.deepEqual(sent.at(-1), [17000, [['HAZE', 105, 15]]], 'first moving rate publishes immediately');
+  assert.deepEqual(sent.at(-1), [17000, [['HAZE', 105, 15, 'SEVEN']]], 'first moving rate publishes immediately');
   now = 18000; angle = 134.5; box.ultimateTick();
   assert.equal(sent.length, 10, 'sub-tolerance observation does not broadcast');
   now = 19000; angle = 150; box.ultimateTick();
   assert.equal(sent.at(-1)[0], 19000, 'exactly 15 degrees corrects immediately');
   now = 20000; ready = true; box.ultimateTick();
-  assert.deepEqual(sent.at(-1)[1], [['HAZE', 360, 0]]);
+  assert.deepEqual(sent.at(-1)[1], [['HAZE', 360, 0, 'SEVEN']]);
   now = 21000; unlocked = ready = false; box.ultimateTick();
-  assert.deepEqual(sent.at(-1)[1], [['HAZE', 0, 0]], 'locked has no predicted progress');
+  assert.deepEqual(sent.at(-1)[1], [['HAZE', 0, 0, 'SEVEN']], 'locked has no predicted progress');
   now = 22000; unlocked = true; angle = 0; box.ultimateTick();
   assert.equal(sent.at(-1)[0], 22000, 'unlock is a state change even at the same zero angle');
   now = 23000; present = false; box.ultimateTick();
@@ -480,5 +480,38 @@ test('ultimate snapshots use a 2 s heartbeat and correct prediction or state cha
   now = 25000; angle = NaN; box.ultimateTick();
   assert.deepEqual(sent.at(-1)[1], [], 'unknown native clip is omitted');
   now = 26000; angle = 90; box.ultimateTick();
-  assert.deepEqual(sent.at(-1)[1], [['HAZE', 90, 0]], 'first known sample has unknown rate');
+  assert.deepEqual(sent.at(-1)[1], [['HAZE', 90, 0, 'SEVEN']], 'first known sample has unknown rate');
+});
+
+// Live world bars publish pickups under the overhead name, which can be the hero
+// name while the top bar row shows a persona name. A shared hero name must not match.
+test('pickup records match a top bar row by unique hero alias', () => {
+  const rendered = [];
+  const row = (player, hero) => ({ player, hero, label: {} });
+  const run = (rows, records) => {
+    rendered.length = 0;
+    const box = timerFunctions(['heroAlias', 'readUnits', 'renderRows'], {
+      Date: { now: () => 1000 }, ttl: 12000, receivedRecords: records, rows,
+      pickupTimersEnabled: () => true, rowUnavailable: () => false,
+      render: (item, mask) => rendered.push([item.player, mask]),
+      countRowNames: () => {
+        const scan = { names: [], heroes: [], counts: Object.create(null), heroCounts: Object.create(null) };
+        for (const item of rows) {
+          scan.names.push(item.player); scan.heroes.push(item.hero);
+          scan.counts[item.player] = (scan.counts[item.player] || 0) + 1;
+          scan.heroCounts[item.hero] = (scan.heroCounts[item.hero] || 0) + 1;
+        }
+        return scan;
+      },
+    });
+    box.renderRows('RAT KING');
+    return rendered.slice();
+  };
+  const record = { 'RAT KING': { name: 'RAT KING', at: 900, mask: 3, progress: null } };
+  assert.deepEqual(run([row('XX PERSONA XX', 'RAT KING'), row('ALLY', 'APOLLO')], record),
+    [['XX PERSONA XX', 3]], 'hero alias receives the overhead-name record');
+  assert.deepEqual(run([row('XX PERSONA XX', 'RAT KING'), row('ALLY', 'RAT KING')], record),
+    [], 'a hero shown on two rows is not an alias');
+  assert.deepEqual(run([row('RAT KING', 'APOLLO'), row('XX PERSONA XX', 'RAT KING')], record),
+    [['RAT KING', 3]], 'a player name beats another row\'s hero alias');
 });

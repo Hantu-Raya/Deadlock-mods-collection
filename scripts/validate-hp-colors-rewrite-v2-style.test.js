@@ -1723,7 +1723,7 @@ test('OLD lifts the player name one 6px row per extra 1,000 max HP when enabled'
 // bounds in game (HP text and level badge cut while shaking); the name stays still.
 test('damage wiggle animates one full-canvas frame holding bar, HP text and name', () => {
   const xml = fs.readFileSync(path.resolve(sourceRoot, '../layout/unit_status_overlay_v2.xml'), 'utf8');
-  assert.match(xml, /<Panel id="HPV2MotionFrame"[^>]*hittest="false"[^>]*>\s*<Panel id="HPV2NameAnchor"[^>]*>\s*<Label id="name" text="\{s:name\}" \/>/);
+  assert.match(xml, /<Panel id="HPV2MotionFrame"[^>]*hittest="false"[^>]*>\s*<Panel id="HPV2KillStreakAnchor"[^>]*hittest="false"[^>]*\/>\s*<Panel id="HPV2NameAnchor"[^>]*>\s*<Label id="name" text="\{s:name\}" \/>/);
   const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body]) => ({
     selectors: selectors.replace(/\/\*[\s\S]*?\*\//g, '').split(',').map(selector => selector.trim()),
@@ -1732,6 +1732,9 @@ test('damage wiggle animates one full-canvas frame holding bar, HP text and name
   const frame = rules.find(rule => rule.selectors.includes('.WindowRoot #HPV2MotionFrame'));
   assert.match(frame.body, /width:\s*100%;[\s\S]*height:\s*100%;/, 'frame covers the whole canvas');
   assert.match(frame.body, /transform-origin:\s*50% 40\.48%;/, 'stock bar pivot');
+  const flameAnchor = rules.find(rule => rule.selectors.includes('.WindowRoot #HPV2KillStreakAnchor'));
+  assert.match(flameAnchor.body, /z-index:\s*-1;/, 'flame paints below name and bar');
+  assert.equal(css.includes('HPColorsRewriteKillStreakOwner'), false, 'old compact-owner rule is gone');
   assert.equal(rules.some(rule => rule.selectors.some(selector => /#HPV2MotionFrame #/.test(selector))), false,
     'children need no compact-frame compensation');
   const selectorsWith = pattern => rules.filter(rule => pattern.test(rule.body)).flatMap(rule => rule.selectors);
@@ -1938,7 +1941,7 @@ function bootTimers(classes, values = {}) {
   return fixture;
 }
 
-const ultimateSnapshot = (fixture, players) => ({ magic_word: 'HPV2_ULTIMATE_SNAPSHOT', since: 0, at: fixture.harness.now, players: players.map(entry => entry.length === 2 ? [...entry, 0] : entry) });
+const ultimateSnapshot = (fixture, players) => ({ magic_word: 'HPV2_ULTIMATE_SNAPSHOT', since: 0, at: fixture.harness.now, players: players.map(entry => [entry[0], entry[1], entry.length === 2 ? 0 : entry[2], entry[3] || '']) });
 
 // Failure modes: every native tick broadcasts; prediction freezes or declares ready early.
 test('ultimate cooldowns broadcast sparsely and animate locally without stepping', () => {
@@ -1958,7 +1961,7 @@ test('ultimate cooldowns broadcast sparsely and animate locally without stepping
     harness.scheduler.runFor(1000);
   }
   assert.equal(messages().length, 31, 'first moving rate then 2 s heartbeats, not 60 broadcasts');
-  assert.deepEqual(messages()[1].players, [['HAZE', 6, 6]], 'moving rate publishes at the first 1 s sample');
+  assert.deepEqual(messages()[1].players, [['HAZE', 6, 6, '']], 'moving rate publishes at the first 1 s sample');
   const hero = bootTimers(['player', 'enemy', 'CLASS_PLAYER']);
   hero.ultIcon.visible = false;
   hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 90, 6]]));
@@ -1985,6 +1988,25 @@ test('ultimate cooldowns broadcast sparsely and animate locally without stepping
   assert.equal(delayed.ultOverlay.FindChildTraverse('HPV2UltimateFill').style.clip, 'radial(50% 50%, 0deg, 138deg)', 'elapsed starts at snapshot at, not receipt');
   delayed.harness.scheduler.runFor(4000);
   assert.equal(delayed.ultOverlay.style.visibility, 'collapse', 'stale prediction expires at 12 s');
+});
+
+// Failure modes: CSS-collapsed ready art still has visible=true, so cooldowns are rejected;
+// the native has_ultimate class must end a ring even before the next HUD snapshot.
+test('ultimate cooldown uses the native ready class rather than panel visibility', () => {
+  for (const relation of ['enemy', 'friend']) {
+    const hero = bootTimers(['player', relation, 'CLASS_PLAYER']);
+    hero.ultIcon.visible = true;
+    hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 90, 6]]));
+    assert.equal(hero.ultOverlay.style.visibility, 'visible', relation + ' CSS-collapsed ready icon does not block cooldown');
+    hero.harness.scheduler.runFor(3000);
+    assert.equal(hero.ultOverlay.FindChildTraverse('HPV2UltimateFill').style.clip,
+      'radial(50% 50%, 0deg, 108deg)', relation + ' reconciliation preserves progress');
+    hero.world.AddClass('has_ultimate');
+    hero.harness.scheduler.runFor(3000);
+    assert.equal(hero.ultOverlay.style.visibility, 'collapse', relation + ' native ready class clears progress');
+    hero.timerEvent(ultimateSnapshot(hero, [['HAZE', 120, 6]]));
+    assert.equal(hero.ultOverlay.style.visibility, 'collapse', relation + ' ready rejects delayed cooldown');
+  }
 });
 
 
@@ -2055,11 +2077,11 @@ test('scan caching still detects late optional parts and reused-panel class chan
 
 test('stock CSS differs only by permanent healthbar mask and outer-background deletions', () => {
   const css = fs.readFileSync(path.resolve(sourceRoot, '../styles/unit_status_v2.css'), 'utf8').replace(/\r\n/g, '\n');
-  // Frozen 2026-10-01 (6728, SteamTracking 573a4129) stock prefix minus the three healthbar masks
+  // Frozen 2026-10-09 (6774, SteamTracking 2d87734c) stock prefix minus the three healthbar masks
   // and nine container background declarations, with six emptied relation rules removed.
   // No other stock declarations, geometry, inner backing, or critical effects may change.
   const prefix = css.split('/* Rewrite-owned additions')[0];
-  assert.equal(require('node:crypto').createHash('sha256').update(prefix).digest('hex'), 'd0152146ee5a12c498cacdd3840307d0cac91204bf332575b68ae0f679ad3653');
+  assert.equal(require('node:crypto').createHash('sha256').update(prefix).digest('hex'), 'b066b50329f0b8c1ee092256bb6de2b19c927f93e97fdfa32be88a916b6fa23a');
   for (const [, selector, body] of prefix.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     if (/\.UnitHealthbarContainer(?:[.\s]|$)/.test(selector))
       assert.doesNotMatch(body, /background-color\s*:/);
@@ -2387,7 +2409,7 @@ test('CRITICAL uses brightness-only feedback on owned bars, not a geometry anima
   assert.match(frames, /brightness:\s*2/);
   assert.doesNotMatch(frames, /pre-transform-scale2d|transform:|margin|height|width/);
   assert.match(owned, /\.player\.health_critical \.ShowCriticalState\.HPColorsRewriteBarLines \.UnitHealthbarContainer[\s\S]*?\{[^}]*margin-left:\s*13px;/);
-  assert.match(stock, /#CriticalIndicator\s*\{[^}]*ignore-parent-flow:\s*true;[^}]*margin-top:\s*86px;/);
+  assert.match(stock, /#CriticalIndicator\s*\{[^}]*ignore-parent-flow:\s*true;[^}]*margin-top:\s*80px;/);
   assert.match(stock, /@keyframes 'healthCritFlash3'[\s\S]*pre-transform-scale2d:\s*1\.15;[\s\S]*transform:\s*rotateY/);
 
   const values = { ...accessoryValues, positionX: 100, positionY: -380 };
@@ -3148,9 +3170,29 @@ test("OLD outline returns after the engine briefly drops its health lines", () =
   assert.equal(shownPips(fixture, "HPV2PipOutline").length, 29);
 });
 
+// Failure mode (2026-10-10 audit, GPT-6.1-Sol): skipping the same-pass OLD relayout
+// after a failed owned-panel creation leaves the first scan with no grid until the
+// next paint. The pass's second layout must retry any missing OLD container.
+test("OLD retries a failed first grid creation within the same scan", () => {
+  for (const id of ["HPV2PipGrid", "HPV2PipEmpty", "HPV2PipFill"]) {
+    let attempts = 0;
+    const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old" }, ({ harness, primary }) => {
+      setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2900, 2);
+      const create = harness.$.CreatePanel;
+      harness.$.CreatePanel = (type, parent, panelId, ...rest) => {
+        if (panelId === id && attempts++ === 0) throw new Error("one-shot " + id + " failure");
+        return create(type, parent, panelId, ...rest);
+      };
+    });
+    assert.equal(attempts, 2, id + " is retried in the same scan");
+    assert.equal(shownPips(fixture, "HPV2PipEmpty").length, 29, id + " failure still draws the grid on boot");
+    assert.equal(fixture.window.BHasClass("HPColorsRewriteBarPips"), true);
+  }
+});
+
 test("OLD enemy outline recovers on health-only paint after a transient surface collapse", () => {
-  const source = rendererSource.replace('function applyCustomization(bar, restoring) {',
-    'function applyCustomization(bar, restoring) { $.__outlineBar = bar; $.__syncOldOutline = syncOldOutline;');
+  const source = rendererSource.replace('function applyCustomization(bar, restoring, oldLaidOut) {',
+    'function applyCustomization(bar, restoring, oldLaidOut) { $.__outlineBar = bar; $.__syncOldOutline = syncOldOutline;');
   const fixture = makeOwnershipFixture(["player", "enemy"], { barMask: "old", enemyKillMarkerEnabled: true },
     ({ primary }) => setEngineLines(primary.FindChildTraverse("UnitHealthbarLines"), 2850, 2), null, source);
   const bar = fixture.harness.$.__outlineBar;
@@ -3443,6 +3485,13 @@ function enablePickupOrdering(parent) {
 function preparePlayerPickups(parts) {
   enablePickupOrdering(parts.window);
   enablePickupOrdering(parts.unitInfo);
+  const motion = parts.window.add(new MockPanel('HPV2MotionFrame'));
+  motion.add(new MockPanel('HPV2KillStreakAnchor'));
+  motion.add(new MockPanel('HPV2NameAnchor')).add(new MockPanel('name', { text: 'Enemy' }));
+  parts.status.SetParent(motion);
+  parts.container.SetParent(motion);
+  // Includes execute on the XML WindowRoot, not its UnitStatus child.
+  parts.harness.contextPanel = parts.window;
   parts.window.add(new MockPanel('KillStreakIndicator', { style: {
     marginTop: '48px', marginLeft: '44px', preTransformScale2d: '0.9',
     animationName: 'TagGroove1', visibility: 'collapse',
@@ -3455,23 +3504,25 @@ function preparePlayerPickups(parts) {
 function playerPickups(fixture) {
   return {
     ks: fixture.window.FindChildTraverse('KillStreakIndicator'),
+    flameAnchor: fixture.window.FindChildTraverse('HPV2KillStreakAnchor'),
     anchor: fixture.window.FindChildTraverse('HPV2RejuvenatorAnchor'),
     rejuv: fixture.window.FindChildTraverse('RejuvenatorActive'),
   };
 }
 
-test('native kill streak adopts before ultimate, survives full resolves and restores order/styles', () => {
+test('native kill streak adopts into the first motion anchor, survives full resolves and restores order/styles', () => {
   const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, preparePlayerPickups);
-  const { ks, anchor } = playerPickups(fixture);
-  assert.equal(ks.GetParent(), fixture.unitInfo);
-  assert.equal(fixture.unitInfo.Children()[0], ks);
-  assert.equal(fixture.unitInfo.Children()[1], fixture.ultBackground);
+  const { ks, anchor, flameAnchor } = playerPickups(fixture);
+  assert.ok(ks.GetParent() === flameAnchor, 'flame adopts after initial placement');
+  assert.ok(flameAnchor.Children()[0] === ks, 'flame is the first anchor child');
+  assert.equal(flameAnchor.GetParent().Children()[0], flameAnchor);
+  assert.equal(flameAnchor.GetParent().Children()[1].id, 'HPV2NameAnchor');
   assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), true);
   const adoption = ks.HPV2KillStreakAdoption;
   fixture.harness.scheduler.runFor(12000);
   assert.equal(ks.HPV2KillStreakAdoption, adoption, 'periodic resolve must not reset the bar');
   fixture.update({ accessoryAnchorEnabled: false, widthScale: 230, heightScale: 160, ultOffsetX: 200, ultOffsetY: 100 });
-  assert.equal(ks.GetParent(), fixture.unitInfo, 'native parent follows anchored and unanchored movement');
+  assert.ok(ks.GetParent() === flameAnchor, 'native parent follows anchored and unanchored movement');
   assert.equal(ks.style.animationName, 'TagGroove1');
   assert.equal(ks.Children()[0].BHasClass('KSImage'), true);
   ks.style.preTransformScale2d = '1.5';
@@ -3554,7 +3605,7 @@ test('timer mirrors adopted kill-streak size and restores on release, replacemen
   fixture.update({ ultimateTimerSize: 200 });
   fixture.harness.scheduler.runFor(3000);
   assert.equal(ks.style.preTransformScale2d, '2');
-  fixture.status.HPV2PickupStop();
+  fixture.window.HPV2PickupStop();
   assert.equal(ks.style.preTransformScale2d, '0.9');
   fixture.primary.DeleteAsync();
   fixture.harness.scheduler.runByDelay(1);
@@ -3581,21 +3632,194 @@ test('hidden pickup owners still release on master-off, LocalPlayer and non-play
   }
 });
 
-test('replaced native kill streak adopts before background and restores its original order on release', () => {
+test('replaced root-level native kill streak adopts and restores its original order on release', () => {
   const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], { ultimateTimerSize: 150 }, preparePlayerPickups);
   runInVm(fs.readFileSync(path.join(sourceRoot, 'test_topbar_pickups.js'), 'utf8'), fixture.context);
   const old = playerPickups(fixture).ks;
-  old.SetParent(fixture.window);
-  const next = fixture.unitInfo.add(new MockPanel('KillStreakIndicator', { style: { preTransformScale2d: '0.7' } }));
+  old.SetParent(fixture.harness.root);
+  const next = fixture.window.add(new MockPanel('KillStreakIndicator', { style: { preTransformScale2d: '0.7' } }));
+  fixture.window.MoveChildBefore(next, playerPickups(fixture).anchor);
   fixture.harness.scheduler.runByDelay(1);
   assert.equal(old.HPV2KillStreakAdoption, undefined);
   assert.equal(old.style.preTransformScale2d, '0.9');
-  assert.equal(fixture.unitInfo.Children()[0], next);
+  assert.ok(old.GetParent() === fixture.harness.root, 'release preserves engine-detached parent rather than resurrecting retired leaf');
+  assert.ok(playerPickups(fixture).flameAnchor.Children()[0] === next, 'root-level replacement adopts after placement');
   fixture.harness.scheduler.runFor(3000);
   assert.equal(next.style.preTransformScale2d, '1.5');
   fixture.update({ enabled: false });
-  assert.equal(next.GetParent(), fixture.unitInfo, 'already native in group: release restores that parent');
-  assert.ok(fixture.unitInfo.Children().indexOf(next) > fixture.unitInfo.Children().indexOf(fixture.ultBackground));
+  assert.equal(next.GetParent(), fixture.window, 'engine replacement starts as a WindowRoot child');
+  assert.equal(fixture.window.Children().indexOf(next) + 1,
+    fixture.window.Children().indexOf(playerPickups(fixture).anchor));
   assert.equal(next.style.preTransformScale2d, '0.7');
   assert.equal(next.BHasClass('HPColorsRewriteKillStreakAdopted'), false);
+});
+
+test('flame placement follows measured ultimate centre/height with anchoring, offsets, size and OLD rows', () => {
+  for (const role of ['enemy', 'friend']) for (const anchored of [false, true])
+    for (const rows of [0, 1, 2, 3, 4]) for (const size of [25, 100, 200]) for (const sign of [-1, 1]) {
+      const values = { accessoryAnchorEnabled: anchored, barMask: rows ? 'old' : 'none',
+        widthScale: 230, heightScale: 160, positionX: 120, positionY: -80,
+        ultOffsetX: sign * 170, ultOffsetY: sign * -90, ultimateTimerSize: size };
+      const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', role], values, parts => {
+        preparePlayerPickups(parts);
+        parts.inner.actuallayoutheight = 12;
+        if (rows) setEngineLines(parts.primary.FindChildTraverse('UnitHealthbarLines'), rows * 1000, 1);
+      });
+      const { ks, flameAnchor } = playerPickups(fixture);
+      const round = value => Math.round(value * 100) / 100;
+      // Stock ultimate center (61,78), bar left70.5/centerY74 and primary76x18.
+      const wantedX = 61 - 38 * (2.3 - 1) + (anchored ? 12 : 0) + sign * 17 * (anchored ? 1 : 2.3);
+      const lift = rows ? (rows * 6 / 2 - 9 + 2.5) * 1.6 : 0;
+      const wantedY = anchored ? 78 - 8 - lift - sign * 9 : 74 - (74 - 78) * 1.6 - sign * 9 * 1.6;
+      const title = `${role}/anchor${anchored}/rows${rows}/size${size}/sign${sign}`;
+      assert.equal(flameAnchor.style.transform,
+        `translate3d(${round(wantedX - 16)}px, ${round(wantedY - 11 - 20)}px, 0px)`, title);
+      assert.ok(ks.GetParent() === flameAnchor, title);
+      runInVm(fs.readFileSync(path.join(sourceRoot, 'test_topbar_pickups.js'), 'utf8'), fixture.context);
+      assert.equal(ks.style.preTransformScale2d, String(size / 100), title);
+      assert.equal(ks.style.animationName, 'TagGroove1', 'engine animation stays native');
+      assert.equal(ks.style.visibility, 'collapse', 'engine visibility stays native');
+    }
+});
+
+test('flame waits for measurable placement and legacy layouts without an anchor leave it stock', () => {
+  for (const missing of ['anchor', 'measurement']) {
+    const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, parts => {
+      preparePlayerPickups(parts);
+      if (missing === 'anchor') parts.window.FindChildTraverse('HPV2KillStreakAnchor').DeleteAsync();
+      else parts.unitInfo.actuallayoutheight = 0;
+    });
+    const ks = playerPickups(fixture).ks;
+    fixture.harness.scheduler.runFor(6000);
+    assert.ok(ks.GetParent() === fixture.window, missing);
+    assert.equal(ks.HPV2KillStreakAdoption, undefined, missing);
+    assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), false, missing);
+    if (missing === 'measurement') {
+      fixture.unitInfo.actuallayoutheight = 22;
+      fixture.harness.scheduler.runFor(1500);
+      assert.ok(ks.GetParent() === playerPickups(fixture).flameAnchor, 'late measurement places then adopts');
+    }
+  }
+});
+
+test('a rejected flame-anchor placement never adopts at the origin and retries on the scan cadence', () => {
+  let reject = true;
+  const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, parts => {
+    preparePlayerPickups(parts);
+    const anchor = parts.window.FindChildTraverse('HPV2KillStreakAnchor');
+    const style = anchor.style;
+    anchor.style = new Proxy(style, { set(target, key, value) {
+      if (reject && key === 'transform') throw new Error('native placement unavailable');
+      return Reflect.set(target, key, value);
+    } });
+  });
+  const { ks, flameAnchor } = playerPickups(fixture);
+  assert.ok(ks.GetParent() === fixture.window, 'no adoption until transform write succeeds');
+  assert.equal(ks.HPV2KillStreakAdoption, undefined);
+  reject = false;
+  fixture.harness.scheduler.runFor(6000);
+  assert.ok(ks.GetParent() === flameAnchor, 'retry adopts after successful placement');
+  assert.ok(flameAnchor.style.transform);
+});
+
+test('flame release/re-adopt restores parent order scale and class across every ownership transition', () => {
+  for (const transition of ['master', 'local', 'kind', 'replacement', 'teardown']) {
+    const source = rendererSource.replace(styleSeam, '$.__teardown = teardown;\n' + styleSeam);
+    const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, preparePlayerPickups, null, source);
+    const { ks, anchor, flameAnchor } = playerPickups(fixture);
+    assert.ok(ks.GetParent() === flameAnchor, transition + ' starts owned');
+    ks.style.preTransformScale2d = '2';
+    if (transition === 'master') fixture.update({ enabled: false });
+    if (transition === 'local') { fixture.world.AddClass('LocalPlayer'); fixture.harness.scheduler.runFor(1000); }
+    if (transition === 'kind') {
+      fixture.world.RemoveClass('player'); fixture.world.RemoveClass('CLASS_PLAYER'); fixture.world.AddClass('creature');
+      fixture.harness.scheduler.runFor(1000);
+    }
+    if (transition === 'replacement') {
+      ks.SetParent(fixture.harness.root);
+      fixture.window.add(new MockPanel('KillStreakIndicator'));
+      fixture.harness.scheduler.runFor(1000);
+    }
+    if (transition === 'teardown') fixture.context.$.__teardown();
+    const stockParent = transition === 'replacement' ? fixture.harness.root : fixture.window;
+    assert.ok(ks.GetParent() === stockParent, transition + ' released parent');
+    if (transition !== 'replacement')
+      assert.equal(fixture.window.Children().indexOf(ks) + 1, fixture.window.Children().indexOf(anchor), transition + ' stock order');
+    assert.equal(ks.style.preTransformScale2d, '0.9', transition);
+    assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), false, transition);
+    assert.equal(ks.HPV2KillStreakAdoption, undefined, transition);
+    if (transition === 'replacement' || transition === 'teardown') continue;
+    fixture.world.RemoveClass('LocalPlayer'); fixture.world.RemoveClass('creature');
+    fixture.world.AddClass('player'); fixture.world.AddClass('CLASS_PLAYER');
+    fixture.update({});
+    assert.ok(ks.GetParent() === flameAnchor, transition + ' re-adopts');
+    assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), true, transition + ' cached class must be renewed');
+  }
+});
+
+test('flame-anchor transform and adopted class repair native drift on existing scans', () => {
+  for (const drift of ['transform', 'class']) {
+    const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, preparePlayerPickups);
+    const { ks, flameAnchor } = playerPickups(fixture);
+    const transform = flameAnchor.style.transform;
+    if (drift === 'transform') flameAnchor.style.transform = 'translate3d(0px, 0px, 0px)';
+    else ks.RemoveClass('HPColorsRewriteKillStreakAdopted');
+    fixture.harness.scheduler.runFor(6000);
+    assert.equal(flameAnchor.style.transform, transform, drift);
+    assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), true, drift + ' must repair independently');
+  }
+});
+
+test('a rebuilt bar reuses an already-adopted flame stock origin without sharing the old record', () => {
+  const seam = '$.__pickupOwnership = { adopt: applyKillStreak, release: releaseKillStreak }; return;\n';
+  const context = createVmContext(createPanoramaHarness());
+  runInVm(contractSource, context);
+  runInVm(rendererSource.replace(styleSeam, seam + styleSeam), context);
+  const stock = new MockPanel('stock');
+  enablePickupOrdering(stock);
+  const before = stock.add(new MockPanel('before'));
+  const flame = stock.add(new MockPanel('KillStreakIndicator', { style: { preTransformScale2d: '0.75' } }));
+  const after = stock.add(new MockPanel('after'));
+  const owner = new MockPanel('HPV2KillStreakAnchor');
+  const original = { parts: { killStreak: flame, killStreakAnchor: owner }, applied: {}, killStreakPlaced: false };
+  context.$.__pickupOwnership.adopt(original, true);
+  assert.ok(flame.GetParent() === stock, 'no adoption before placement');
+  assert.equal(flame.HPV2KillStreakAdoption, undefined);
+  original.killStreakPlaced = true;
+  context.$.__pickupOwnership.adopt(original, true);
+  const record = flame.HPV2KillStreakAdoption;
+  flame.style.preTransformScale2d = '2';
+  const rebuilt = { parts: original.parts, applied: {}, killStreakPlaced: true };
+  context.$.__pickupOwnership.adopt(rebuilt, true);
+  assert.notEqual(flame.HPV2KillStreakAdoption, record);
+  assert.ok(flame.HPV2KillStreakAdoption.parent === stock);
+  context.$.__pickupOwnership.release(rebuilt);
+  assert.deepEqual(stock.Children().map(panel => panel.id), [before.id, flame.id, after.id]);
+  assert.equal(flame.style.preTransformScale2d, '0.75');
+  assert.equal(flame.BHasClass('HPColorsRewriteKillStreakAdopted'), false);
+  assert.equal(flame.HPV2KillStreakAdoption, undefined);
+});
+
+test('flame placement uses the ultimate owner own-axis normalized height', () => {
+  const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, parts => {
+    preparePlayerPickups(parts);
+    parts.unitInfo.actualuiscale_y = 2;
+    parts.unitInfo.actuallayoutheight = 40;
+  });
+  const { flameAnchor } = playerPickups(fixture);
+  // 20 CSS-pixel owner, centreY78: top is 78-10-20, not 78-40/2-20.
+  assert.equal(flameAnchor.style.transform, 'translate3d(45px, 48px, 0px)');
+});
+
+test('flame release preserves an originally present adopted class rather than removing foreign ownership', () => {
+  const fixture = makeOwnershipFixture(['player', 'CLASS_PLAYER', 'enemy'], {}, parts => {
+    preparePlayerPickups(parts);
+    parts.window.FindChildTraverse('KillStreakIndicator').AddClass('HPColorsRewriteKillStreakAdopted');
+  });
+  const ks = playerPickups(fixture).ks;
+  fixture.update({ enabled: false });
+  assert.ok(ks.GetParent() === fixture.window);
+  assert.equal(ks.BHasClass('HPColorsRewriteKillStreakAdopted'), true);
+  assert.equal(ks.style.preTransformScale2d, '0.9');
+  assert.equal(ks.HPV2KillStreakAdoption, undefined);
 });

@@ -839,6 +839,10 @@ test('saves keep only non-default values, and a restart fills the rest', () => {
   assert.equal(body.values.ultOffsetY, -29);
   assert.equal(body.values.levelOffsetY, -29);
   assert.equal(Object.hasOwn(body.values, 'nameAlign'), false);
+  for (const key of ['unkillableOffsetX', 'unkillableOffsetY']) {
+    assert.equal(Object.hasOwn(body.values, key), false, key + ' zero is omitted from durable saves');
+    assert.equal(Object.hasOwn(body.userPresets[0].values, key), false, key + ' zero is omitted from presets');
+  }
   assert.ok(profile.disk.get(KEY_CURRENT).length < 3000, 'a typical save is one chunk');
 
   const restart = launch(profile, { label: 'sparse restore' });
@@ -848,6 +852,8 @@ test('saves keep only non-default values, and a restart fills the rest', () => {
   assert.equal(restart.renderer().ultOffsetY, -29);
   assert.equal(restart.renderer().levelOffsetY, -29);
   assert.equal(restart.renderer().nameAlign, 'center');
+  assert.equal(restart.renderer().unkillableOffsetX, 0);
+  assert.equal(restart.renderer().unkillableOffsetY, 0);
   assert.equal(menuState(restart).userPresets[0].values.enemyLow, '#FD4949');
   record(restart, { recordChars: profile.disk.get(KEY_CURRENT).length });
 });
@@ -1594,4 +1600,37 @@ test('obsolete local metadata and settings are ignored on load and omitted from 
   assertOtherModsUntouched(profile);
   record(first);
   record(second);
+});
+
+test('UNKILLABLE offsets retain nonzero values through sparse schema-4 save and real menu restart', () => {
+  const profile = createProfile();
+  const first = launch(profile, { label: 'unkillable offsets save' });
+  first.run(2000);
+  openEditor(first);
+  panelById(first.harness, 'HPColorsCategoryOverview').events.onactivate();
+  panelById(first.harness, 'HPColorsTab2').events.onactivate();
+  panelById(first.harness, 'HPColorsAdvancedToggle').events.onactivate();
+  for (const [axis, value] of [['X', -17], ['Y', 23]]) {
+    const entry = panelById(first.harness, 'HPColorsUnkillableOffset' + axis + 'Entry');
+    entry.text = String(value);
+    entry.events.ontextentrysubmit();
+    first.run(1000);
+    assert.equal(first.renderer()['unkillableOffset' + axis], value);
+  }
+  createPreset(first, 'Unkillable');
+  closeEditor(first);
+  first.run(4000);
+  const body = JSON.parse(storedRecord(profile).body);
+  for (const values of [body.values, body.userPresets[0].values]) {
+    assert.equal(values.unkillableOffsetX, -17);
+    assert.equal(values.unkillableOffsetY, 23);
+  }
+  record(first);
+  const restart = launch(profile, { label: 'unkillable offsets restore' });
+  restart.run(6000);
+  assert.equal(restart.renderer().unkillableOffsetX, -17);
+  assert.equal(restart.renderer().unkillableOffsetY, 23);
+  assert.equal(menuState(restart).userPresets[0].values.unkillableOffsetX, -17);
+  assert.equal(menuState(restart).userPresets[0].values.unkillableOffsetY, 23);
+  record(restart);
 });

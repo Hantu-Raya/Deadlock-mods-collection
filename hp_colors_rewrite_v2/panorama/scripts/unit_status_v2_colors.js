@@ -29,25 +29,33 @@
   var LEVEL_BASE_MARGIN_TOP = 67.5;
   var UNIT_INFO_BASE_MARGIN_LEFT = 50;
   var UNIT_INFO_BASE_MARGIN_TOP = 67;
-  // Stock #CriticalIndicator and #AssassinateIndicator: center-aligned with
-  // margin-right 30 / margin-top 86, so their centers sit at canvas center
-  // -15px, 21.5px left of the 79x18 player bar center. CRITICAL is 50x~16
-  // (center 11px below the bar's bottom edge); ASSASSINATE's 8px label about
-  // 40x10 (8px below). The renderer translates their owned full-canvas
-  // anchors (never their margins, which relayout the world panel) and adds
+  // Stock 6774 #CriticalIndicator (margins -8/22, top 80) and #AssassinateIndicator
+  // (margins 0/30, top 86) are center-aligned containers whose padded (6px 8px)
+  // labels carry margin-right 10/12, so both label centers sit at canvas center
+  // -20px, 26.5px left of the 79x18 player bar center (+6.5px). #UnkillableIndicator
+  // (margins 20/0, top 72, unpadded 18px label capped at 70px) centers at canvas
+  // +10px on the bar's 83px bottom edge. CSS estimates, not live measurements:
+  // CRITICAL's 12px label ~60x28 (center 11px below the bar's bottom edge),
+  // ASSASSINATE's 8px label ~56x22 (14px below), UNKILLABLE ~70x22. The renderer
+  // translates their owned full-canvas anchors (never their margins, which
+  // relayout the world panel) by the bar's own center/bottom-edge movement plus
   // the user's unscaled X/Y offsets, keeping the label inside the canvas.
-  var STATUS_TAG_BAR_DX = -21.5;
   var STATUS_TAG_BAR_HALF_HEIGHT = 9;
   var STATUS_TAGS = [
-    { part: "critical", anchor: "criticalAnchor", gap: 11, halfWidth: 25, halfHeight: 8,
+    { part: "critical", anchor: "criticalAnchor", centerX: -20, top: 80, gap: 11, halfWidth: 30, halfHeight: 14,
       offsetX: "criticalOffsetX", offsetY: "criticalOffsetY" },
-    { part: "assassinate", anchor: "assassinateAnchor", gap: 8, halfWidth: 20, halfHeight: 5,
+    { part: "assassinate", anchor: "assassinateAnchor", centerX: -20, top: 86, gap: 14, halfWidth: 28, halfHeight: 11,
       offsetX: "assassinateOffsetX", offsetY: "assassinateOffsetY" },
+    { part: "unkillable", anchor: "unkillableAnchor", centerX: 10, top: 72, gap: 0, halfWidth: 35, halfHeight: 11,
+      offsetX: "unkillableOffsetX", offsetY: "unkillableOffsetY" },
   ];
   // Written explicitly on release: a null inline write may not clear in game.
   var STATUS_TAG_STOCK_TRANSFORM = "translate3d(0px, 0px, 0px)";
   var STATUS_TAG_STOCK_SCALE = "1";
-  var STATUS_TAG_TOP = 86;
+  // Adopted flame (stock 32x45) sits centred on the ultimate, its top 20px above
+  // the icon's top edge (2.2.3 placement, 7.5px above centred).
+  var KILL_STREAK_HALF_WIDTH = 16;
+  var KILL_STREAK_LIFT = 20;
   // Accessory panels rebased onto the full canvas; property names are
   // precomputed so the per-tick rebase allocates nothing.
   var STOCK_ACCESSORIES = [
@@ -680,7 +688,9 @@
     var counterRow = findWithin(counterContainer, "hp_counter_row");
     var criticalAnchor = rootChildren.HPV2CriticalAnchor || null;
     var assassinateAnchor = rootChildren.HPV2AssassinateAnchor || null;
+    var unkillableAnchor = rootChildren.HPV2UnkillableAnchor || null;
     var rejuvAnchor = rootChildren.HPV2RejuvenatorAnchor || null;
+    var killStreakAnchor = motionChildren.HPV2KillStreakAnchor || null;
     var pipGrid = primaryChildren.HPV2PipGrid || null;
     var gridChildren = childIndex(pipGrid);
     return {
@@ -699,9 +709,14 @@
       critical: directChild(criticalAnchor, "CriticalIndicator"),
       assassinateAnchor: assassinateAnchor,
       assassinate: directChild(assassinateAnchor, "AssassinateIndicator"),
+      unkillableAnchor: unkillableAnchor,
+      unkillable: directChild(unkillableAnchor, "UnkillableIndicator"),
       rejuvAnchor: rejuvAnchor,
       rejuv: directChild(rejuvAnchor, "RejuvenatorActive"),
-      killStreak: unitInfoChildren.KillStreakIndicator || rootChildren.KillStreakIndicator || null,
+      // The adopted flame lives in the motion frame's first (z-index -1) anchor.
+      killStreakAnchor: killStreakAnchor,
+      killStreak: directChild(killStreakAnchor, "KillStreakIndicator") ||
+        rootChildren.KillStreakIndicator || null,
       fill: innerChildren.unit_healthbar_lagging || null,
       healing: innerChildren.unit_healthbar_healing || null,
       delta: innerChildren.unit_healthbar_delta || null,
@@ -2314,6 +2329,13 @@
     );
     setOwnedClass(
       bar.parts && bar.parts.windowRoot,
+      "HPColorsRewriteHideUnkillable",
+      player && !config.unkillableIndicatorVisible,
+      bar.applied,
+      "hideUnkillableClass",
+    );
+    setOwnedClass(
+      bar.parts && bar.parts.windowRoot,
       "HPColorsRewriteHidePlayerName",
       player && !config.playerNamesVisible,
       bar.applied,
@@ -2336,9 +2358,14 @@
     if (
       hasClass(root, "HPColorsRewriteHideCritical") !==
         (player && !config.criticalIndicatorVisible) ||
+      hasClass(root, "HPColorsRewriteHideUnkillable") !==
+        (player && !config.unkillableIndicatorVisible) ||
       hasClass(root, "HPColorsRewriteHidePlayerName") !==
         (player && !config.playerNamesVisible)
     ) return true;
+    var flame = bar.killStreakAdoption;
+    if (flame && isValid(flame.panel) && !hasClass(flame.panel, "HPColorsRewriteKillStreakAdopted"))
+      return true;
     return false;
   }
 
@@ -3189,6 +3216,7 @@
     bar[panelKey] = panel;
     bar[key + "CenterX"] = x + width / 2;
     bar[key + "CenterY"] = y + height / 2;
+    bar[key + "Height"] = height;
     bar.dirty = true;
     return true;
   }
@@ -3213,14 +3241,13 @@
     if (!adoption) return;
     var panel = adoption.panel;
     try {
-      if (isValid(adoption.owner))
-        adoption.owner.SetHasClass("HPColorsRewriteKillStreakOwner", adoption.ownerClass);
       if (isValid(panel)) {
         panel.SetHasClass("HPColorsRewriteKillStreakAdopted", adoption.panelClass);
         setStyle(panel, "preTransformScale2d", adoption.scale, null, "", true);
         delete panel.HPV2KillStreakAdoption;
-        if (isValid(adoption.parent)) {
-          if (panelParent(panel) !== adoption.parent) panel.SetParent(adoption.parent);
+        // A flame the engine already moved out (replaced/retired) is not resurrected.
+        if (isValid(adoption.parent) && panelParent(panel) === adoption.owner) {
+          panel.SetParent(adoption.parent);
           if (isValid(adoption.next) && panelParent(adoption.next) === adoption.parent)
             adoption.parent.MoveChildBefore(panel, adoption.next);
           else if (isValid(adoption.previous) && panelParent(adoption.previous) === adoption.parent)
@@ -3231,33 +3258,32 @@
     bar.killStreakAdoption = null;
   }
 
+  // The flame moves into the motion frame's first anchor (z-index -1): behind the
+  // name and bar like stock, while still shaking with them. applyBarGeometry
+  // places the anchor on the ultimate; adoption waits for that placement.
   function applyKillStreak(bar, active) {
     var panel = bar.parts.killStreak;
-    var owner = bar.parts.unitInfo;
-    var background = bar.parts.ultBackground;
+    var owner = bar.parts.killStreakAnchor;
     if (bar.killStreakAdoption && (!active || bar.killStreakAdoption.panel !== panel ||
         bar.killStreakAdoption.owner !== owner)) releaseKillStreak(bar);
-    if (!active || !isValid(panel) || !isValid(owner) || !isValid(background)) return;
-    var adopting = !bar.killStreakAdoption;
-    if (adopting) {
-      var parent = panelParent(panel);
-      var children = panelChildren(parent);
+    if (!active || !bar.killStreakPlaced || !isValid(panel) || !isValid(owner)) return;
+    if (!bar.killStreakAdoption) {
+      // A bar rebuilt while the flame stays adopted keeps the stock origin.
+      var prior = panelParent(panel) === owner ? panel.HPV2KillStreakAdoption : null;
+      var parent = prior ? prior.parent : panelParent(panel);
+      var children = prior ? [] : panelChildren(parent);
       var index = children.indexOf(panel);
       bar.killStreakAdoption = {
         panel: panel, owner: owner, parent: parent,
-        previous: children[index - 1] || null, next: children[index + 1] || null,
-        scale: panel.style.preTransformScale2d || "1",
-        panelClass: hasClass(panel, "HPColorsRewriteKillStreakAdopted"),
-        ownerClass: hasClass(owner, "HPColorsRewriteKillStreakOwner"),
+        previous: prior ? prior.previous : children[index - 1] || null,
+        next: prior ? prior.next : children[index + 1] || null,
+        scale: prior ? prior.scale : panel.style.preTransformScale2d || "1",
+        panelClass: prior ? prior.panelClass : hasClass(panel, "HPColorsRewriteKillStreakAdopted"),
       };
       panel.HPV2KillStreakAdoption = bar.killStreakAdoption;
     }
     try {
-      if (panelParent(panel) !== owner) {
-        panel.SetParent(owner);
-        owner.MoveChildBefore(panel, background);
-      } else if (adopting) owner.MoveChildBefore(panel, background);
-      setOwnedClass(owner, "HPColorsRewriteKillStreakOwner", true, bar.applied, "killStreakOwnerClass");
+      if (panelParent(panel) !== owner) panel.SetParent(owner);
       setOwnedClass(panel, "HPColorsRewriteKillStreakAdopted", true, bar.applied, "killStreakAdoptedClass");
     } catch { releaseKillStreak(bar); }
   }
@@ -3399,31 +3425,54 @@
         bar.applied,
         "unitInfoAnchorMarginTop",
       );
+      // The 32x45 flame is centred on the icon and starts 20px above its top.
+      var flameLeft = Math.round((unitInfoCenterX - KILL_STREAK_HALF_WIDTH) * 100) / 100;
+      var flameTop = Math.round((unitInfoCenterY - bar.unitInfoAnchorHeight / 2 -
+        KILL_STREAK_LIFT) * 100) / 100;
+      var flameTransform = "translate3d(" + pixels(flameLeft) + ", " + pixels(flameTop) + ", 0px)";
+      setStyle(bar.parts.killStreakAnchor, "transform", flameTransform,
+        bar.applied, "killStreakAnchorTransform");
+      // Adopt only once the anchor really holds this placement.
+      bar.killStreakPlaced = bar.applied.killStreakAnchorTransform === flameTransform;
     }
     bar.geometryChanged = false;
   }
 
-  // Stock CRITICAL/ASSASSINATE sit below the player bar. Their own animation
-  // owns the stock panel's transform, so translate the owned full-canvas
-  // anchor around it (no layout pass), scale the stock panel uniformly
-  // without distortion, then add the user's unscaled X/Y offsets. The label
-  // stays inside the world canvas: outside it the engine stops drawing it.
+  // Stock CRITICAL/ASSASSINATE/UNKILLABLE sit at the player bar's bottom edge.
+  // Their own animation owns the stock panel's transform, so translate the owned
+  // full-canvas anchor around it (no layout pass) by the bar's measured movement:
+  // its centre (the bar keeps its centre through width/height scaling, so width
+  // alone never moves a label) and its bottom edge. Text scales with bar height,
+  // capped so the label fits the canvas, then the user's unscaled X/Y offsets
+  // apply. The label stays inside the world canvas (outside it the engine stops
+  // drawing it): the nearest legal position wins.
   function applyStatusTagGeometry(bar, active) {
-    var scaleX = config.widthScale / 100;
-    var scaleY = config.heightScale / 100;
-    var scale = active ? Math.round(Math.sqrt(scaleX * scaleY) * 100) / 100 : 1;
+    var scaleY = Math.round(config.heightScale) / 100;
     var width = bar.canvasWidth > 0 ? bar.canvasWidth : 200;
     var height = bar.canvasHeight > 0 ? bar.canvasHeight : 210;
+    var barDx = 0;
+    var barDy = 0;
+    if (active) {
+      var visual = bar.visualRect;
+      if (bar.geometryReady && bar.primaryHeight > 0) {
+        barDx = visual.centerX - (bar.stackX + bar.primaryX + bar.primaryWidth / 2);
+        barDy = visual.top + visual.height - (bar.stackY + bar.primaryY + bar.primaryHeight);
+      } else {
+        barDx = nativePx(config.positionX);
+        barDy = nativePx(config.positionY) + STATUS_TAG_BAR_HALF_HEIGHT * (scaleY - 1);
+      }
+    }
     for (var index = 0; index < STATUS_TAGS.length; index++) {
       var tag = STATUS_TAGS[index];
       var transform = STATUS_TAG_STOCK_TRANSFORM;
+      var scale = 1;
       if (active) {
-        var centerX = width / 2 - 15;
-        var centerY = STATUS_TAG_TOP + tag.halfHeight;
-        var dx = nativePx(config.positionX) + STATUS_TAG_BAR_DX * (scaleX - 1) +
-          config[tag.offsetX];
-        var dy = nativePx(config.positionY) + STATUS_TAG_BAR_HALF_HEIGHT * (scaleY - 1) +
-          tag.gap * (scale - 1) + config[tag.offsetY];
+        scale = Math.min(scaleY, Math.floor(Math.min(width / (2 * tag.halfWidth),
+          height / (2 * tag.halfHeight)) * 100) / 100);
+        var centerX = width / 2 + tag.centerX;
+        var centerY = tag.top + tag.halfHeight;
+        var dx = barDx + (config[tag.offsetX] || 0);
+        var dy = barDy + tag.gap * (scale - 1) + (config[tag.offsetY] || 0);
         var reachX = tag.halfWidth * scale;
         var reachY = tag.halfHeight * scale;
         dx = Math.max(reachX - centerX, Math.min(width - reachX - centerX, dx));
@@ -3453,6 +3502,9 @@
     ["critical", "preTransformScale2d", "criticalScale"],
     ["assassinateAnchor", "transform", "assassinateAnchorTransform"],
     ["assassinate", "preTransformScale2d", "assassinateScale"],
+    ["unkillableAnchor", "transform", "unkillableAnchorTransform"],
+    ["unkillable", "preTransformScale2d", "unkillableScale"],
+    ["killStreakAnchor", "transform", "killStreakAnchorTransform"],
     ["levelContainer", "marginLeft", "levelAnchorMarginLeft", "levelAnchorBaseLeft", LEVEL_BASE_MARGIN_LEFT],
     ["levelContainer", "marginTop", "levelAnchorMarginTop", "levelAnchorBaseTop", LEVEL_BASE_MARGIN_TOP],
     ["unitInfo", "marginLeft", "unitInfoAnchorMarginLeft", "unitInfoAnchorBaseLeft", UNIT_INFO_BASE_MARGIN_LEFT],
@@ -3468,9 +3520,10 @@
       if (entry.length > 3) {
         var base = bar[entry[3]];
         value = pixels(base === undefined ? entry[4] : base);
-      } else if (entry[0] === "criticalAnchor" || entry[0] === "assassinateAnchor") {
+      } else if (entry[0] === "criticalAnchor" || entry[0] === "assassinateAnchor" ||
+          entry[0] === "unkillableAnchor" || entry[0] === "killStreakAnchor") {
         value = STATUS_TAG_STOCK_TRANSFORM;
-      } else if (entry[0] === "critical" || entry[0] === "assassinate") {
+      } else if (entry[0] === "critical" || entry[0] === "assassinate" || entry[0] === "unkillable") {
         value = STATUS_TAG_STOCK_SCALE;
       } else if (entry[1] === "transformOrigin") {
         value = bar.stockTransformOrigin || "50% 40.48%";
@@ -3479,6 +3532,7 @@
       }
       setStyle(bar.parts[entry[0]], entry[1], value, bar.applied, entry[2], true);
     }
+    if (!accessoriesOnly) bar.killStreakPlaced = false;
     rebaseStockGeometry(bar);
   }
 
@@ -3551,7 +3605,9 @@
     bar.markerGeometryChanged = false;
   }
 
-  function applyActiveCustomization(bar, panelBaseline, healthOnly) {
+  // oldLaidOut: this synchronous pass already ran layoutOld for the current surface.
+  // A failed owned-panel creation in that layout still retries here.
+  function applyActiveCustomization(bar, panelBaseline, healthOnly, oldLaidOut) {
     if (!healthOnly) {
       var pickupOwned = bar.surface === "player" && !bar.parts.unitStatus.BAscendantHasClass("LocalPlayer");
       applyKillStreak(bar, pickupOwned);
@@ -3763,8 +3819,11 @@
       bar.applied,
       "ultWashColor",
     );
-    applyOldPips(bar);
+    if (oldLaidOut && (config.barMask !== "old" || bar.parts.pipEmpty && bar.parts.pipFill)) paintOld(bar);
+    else applyOldPips(bar);
     if (!healthOnly || bar.geometryChanged) applyBarGeometry(bar, panelBaseline);
+    // The first placement happens in applyBarGeometry; adopt in the same pass.
+    if (pickupOwned && !bar.killStreakAdoption) applyKillStreak(bar, true);
     applyReadout(
       bar,
       readoutKeys,
@@ -3784,7 +3843,7 @@
     bar.healthDirty = false;
   }
 
-  function applyCustomization(bar, restoring) {
+  function applyCustomization(bar, restoring, oldLaidOut) {
     if (!config.enabled) {
       releaseKillStreak(bar);
       applyRejuvenator(bar, false);
@@ -3793,6 +3852,7 @@
     if (!bar.dirty && !bar.healthDirty) return;
     var healthOnly = !bar.dirty;
     var panelBaseline = bar.panelBaseline || {};
+    var laidOutSurface = bar.surface;
     bar.surface = resolveSurface(bar, config);
     if (restoring || !isComplete(bar.parts)) bar.surface = "";
     if (!healthOnly) {
@@ -3812,7 +3872,7 @@
     }
     if (bar.pulseRole && bar.pulseRole !== bar.role) clearPulse(bar);
     bar.pulseRole = bar.role;
-    applyActiveCustomization(bar, panelBaseline, healthOnly);
+    applyActiveCustomization(bar, panelBaseline, healthOnly, !!oldLaidOut && bar.surface === laidOutSurface);
   }
 
   function restoreBarOwnership(bar, fallbackParent) {
@@ -4089,7 +4149,7 @@
     if (scanStyleDrift(bar) || layoutStyleDrift(bar) || appearanceStyleDrift(bar))
       bar.dirty = true;
     // applyCustomization places the name itself; one pass per tick is enough.
-    if (bar.dirty || bar.healthDirty) applyCustomization(bar);
+    if (bar.dirty || bar.healthDirty) applyCustomization(bar, false, true);
     else applyPlayerName(bar);
     bar.dormant = !bar.surface && !bar.dirty;
   }
@@ -4138,6 +4198,8 @@
     bar.unitInfoAnchorPanel = null;
     bar.unitInfoAnchorCenterX = 0;
     bar.unitInfoAnchorCenterY = 0;
+    bar.unitInfoAnchorHeight = 0;
+    bar.killStreakPlaced = false;
     bar.pipSignature = null;
     bar.pipContainer = null;
     (bar.pipPool || []).forEach(function (pip) {
@@ -4358,7 +4420,7 @@
     if (nativeReadoutEnabled(bar) && !bar.nativeReadoutOwned) bar.dirty = true;
     bar.dormant = !bar.surface && !bar.dirty;
     if (bar.dirty || bar.healthDirty) {
-      applyCustomization(bar);
+      applyCustomization(bar, false, true);
       return true;
     }
     // A dirty pass repaints pip colors, readout placement and the name itself.

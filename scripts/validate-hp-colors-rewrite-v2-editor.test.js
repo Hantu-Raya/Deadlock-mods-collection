@@ -3883,8 +3883,8 @@ test('a missing Units color control keeps menu boot retryable', () => {
 
 
 test('Appearance toggles publish exact keys and reset/Undo only their section', () => {
-  const keys = ['criticalIndicatorVisible', 'playerNamesVisible'];
-  const ids = ['HPColorsCriticalIndicatorToggle', 'HPColorsPlayerNamesToggle'];
+  const keys = ['criticalIndicatorVisible', 'unkillableIndicatorVisible', 'playerNamesVisible'];
+  const ids = ['HPColorsCriticalIndicatorToggle', 'HPColorsUnkillableIndicatorToggle', 'HPColorsPlayerNamesToggle'];
   const fixture = bootMenu({ version: 1, values: { widthScale: 123 }, scopes: [] });
   openEditor(fixture);
   panel(fixture, 'HPColorsTab2').events.onactivate();
@@ -3931,6 +3931,20 @@ test('each required Appearance panel supports explicit boot retry without duplic
     panel(fixture, 'HPColorsCriticalIndicatorToggle').events.onactivate();
     assert.equal(readConfig(fixture).values.criticalIndicatorVisible, false, id);
   }
+});
+
+// Failure mode: older composed layouts (QOLLOCK copy before refresh, legacy pak01) lack the
+// UNKILLABLE row; it must stay optional so the editor boots without retries.
+test('a layout without the UNKILLABLE LABEL row still boots and edits once', () => {
+  const fixture = bootMenu(undefined, {
+    beforeBoot(harness) { harness.root.FindChildTraverse('HPColorsUnkillableIndicatorVisibleRow').DeleteAsync(); },
+  });
+  assert.equal(fixture.harness.scheduler.jobs.some(job => job.delay === 0.5), false, 'no boot retry');
+  openEditor(fixture);
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  panel(fixture, 'HPColorsCriticalIndicatorToggle').events.onactivate();
+  assert.equal(readConfig(fixture).values.criticalIndicatorVisible, false);
+  assert.equal(readConfig(fixture).values.unkillableIndicatorVisible, true);
 });
 
 test('restored editor has twelve tabs and retains CSS-pixel legacy input', () => {
@@ -4087,7 +4101,7 @@ test('ADVANCED holds movement, sizing and tuning numbers; colors, toggles and st
     'allyPipColorEnabled', 'enemyStaminaColor', 'pickupGunColor', 'pickupGlyphColor',
     'damageShakeEnabled', 'barMask', 'readoutFont'])
     assert.ok(!advanced.includes(key), key);
-  assert.equal(advanced.length, 64);
+  assert.equal(advanced.length, 66);
 });
 
 test('always-visible tuning never unhides feature-off rows or hides ready-icon color', () => {
@@ -4196,6 +4210,9 @@ test('task pages own every key once with structural sections and optional Advanc
       "criticalOffsetY",
       "assassinateOffsetX",
       "assassinateOffsetY",
+      "unkillableIndicatorVisible",
+      "unkillableOffsetX",
+      "unkillableOffsetY",
       "playerNamesVisible",
       "enemyNameColorEnabled",
       "enemyNameColor",
@@ -4397,7 +4414,7 @@ test('task pages own every key once with structural sections and optional Advanc
   ]);
   const keys = categories.flatMap(category => category.tabs.flatMap(tab => tab.keys));
   assert.deepEqual([...keys].sort(), Object.keys(shippedDefaults).sort());
-  assert.equal(new Set(keys).size, 155);
+  assert.equal(new Set(keys).size, 158);
   assert.equal(categories.flatMap(category => category.tabs).length, 12);
   for (const category of categories) assert.ok(category.tabs.length <= 4);
   const ids = Array.from(layoutSource.matchAll(/\bid="(HPColors[^"]+)"/g), match => match[1]);
@@ -5160,7 +5177,7 @@ function visibleSettingRows(fixture, pageId) {
 // Failure modes: side/fold must not touch settings/history/save/replay/timers;
 // nested gates must stay stronger than Advanced; resets must include invisible
 // allies and conditions; legacy routing must not inherit the new rail positions.
-test("closed disclosures yield 62 default rows across all presentations, at most ten per page", () => {
+test("closed disclosures yield 63 default rows across all presentations, at most ten per page", () => {
   const fixture = bootMenu(undefined, { tree: true });
   openEditor(fixture);
   const categories = extractArrayDeclaration(canonicalMenuSource, 'CATEGORY_DEFS');
@@ -5180,7 +5197,7 @@ test("closed disclosures yield 62 default rows across all presentations, at most
     }
   }
   // Colors, toggles and styles are basic; sizes, offsets and tuning numbers sit under ADVANCED.
-  assert.equal(union.size, 62);
+  assert.equal(union.size, 63);
   assert.equal(max, 10);
   panel(fixture, 'HPColorsCategoryOverview').events.onactivate();
   assert.equal(visibleSettingRows(fixture, 'HPColorsSettingsOverviewStatus').length, 2);
@@ -5317,7 +5334,7 @@ test('actual legacy four-rail hierarchy boots without selector, folds, store, or
 });
 
 
-test("all 154 settings rows remain reachable with parents enabled and Advanced open; Players basic stays bounded", () => {
+test("all 157 settings rows remain reachable with parents enabled and Advanced open; Players basic stays bounded", () => {
   const values = { ...shippedDefaults };
   for (const key of Object.keys(values)) if (typeof values[key] === 'boolean') values[key] = true;
   Object.assign(values, { enabled: false, hudHealthColorMode: 'custom', ultMode: 'custom',
@@ -5348,7 +5365,7 @@ test("all 154 settings rows remain reachable with parents enabled and Advanced o
       }
     }
   }
-  assert.equal(all.size, 154);
+  assert.equal(all.size, 157);
   assert.equal(readConfig(fixture).values.enabled, false, 'master-off does not prevent preparation');
   assert.equal(panel(fixture, 'HPColorsAdvancedToggle').BHasClass('Active'), false, 'Presets has its own guide, not Advanced');
   assert.equal(panel(fixture, 'HPColorsTabStrip').BHasClass('SinglePage'), true);
@@ -5546,4 +5563,108 @@ test('Pickups owns Rejuvenator: basic scale, Advanced offsets/tilt, conditions, 
   for (const key of Object.keys(values)) assert.equal(readConfig(fixture).values[key], shippedDefaults[key]);
   panel(fixture, 'HPColorsUndoButton').events.onactivate();
   for (const [key, value] of Object.entries(values)) assert.equal(readConfig(fixture).values[key], value);
+});
+
+test('UNKILLABLE offsets are Advanced pixel sliders with gating, conditions, reset and one-entry Undo', () => {
+  const fixture = bootMenu(undefined, { tree: true });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  for (const axis of ['X', 'Y'])
+    assert.equal(panel(fixture, 'HPColorsUnkillableOffset' + axis + 'Row').BHasClass('TuningCollapsed'), true);
+  panel(fixture, 'HPColorsAdvancedToggle').events.onactivate();
+  for (const [axis, bound] of [['X', 200], ['Y', 210]]) {
+    const base = 'HPColorsUnkillableOffset' + axis;
+    const key = 'unkillableOffset' + axis;
+    const entry = panel(fixture, base + 'Entry');
+    const slider = panel(fixture, base + 'Slider');
+    assert.equal(panel(fixture, base + 'Row').BHasClass('TuningCollapsed'), false);
+    assert.equal(slider.min, -bound);
+    assert.equal(slider.max, bound);
+    entry.text = '-999';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], -bound);
+    entry.text = '999';
+    entry.events.ontextentrysubmit();
+    assert.equal(readConfig(fixture).values[key], bound);
+    slider.events.onmousedown();
+    slider.value = 17; slider.events.onvaluechanged();
+    slider.value = 19; slider.events.onvaluechanged();
+    slider.events.onmouseup();
+    assert.equal(readConfig(fixture).values[key], 19);
+    panel(fixture, 'HPColorsUndoButton').events.onactivate();
+    assert.equal(readConfig(fixture).values[key], bound, 'one Undo restores the whole slider drag');
+    panel(fixture, 'HPColorsCondition_' + key).events.onactivate();
+    const conditionEntry = panel(fixture, 'HPColorsConditionNumberEntry');
+    conditionEntry.text = '-31';
+    conditionEntry.events.ontextentrysubmit();
+    panel(fixture, 'HPColorsConditionApplyButton').events.onactivate();
+    assert.equal(readMenuState(fixture).conditions[key].value, -31);
+  }
+  panel(fixture, 'HPColorsUnkillableIndicatorToggle').events.onactivate();
+  for (const axis of ['X', 'Y']) {
+    const row = panel(fixture, 'HPColorsUnkillableOffset' + axis + 'Row');
+    assert.equal(row.BHasClass('FeatureOff'), true, 'Advanced never overrides the native label visibility gate');
+  }
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(panel(fixture, 'HPColorsUnkillableOffsetXRow').BHasClass('FeatureOff'), false);
+  requestReset(fixture);
+  confirmReset(fixture);
+  for (const key of ['unkillableOffsetX', 'unkillableOffsetY']) {
+    assert.equal(readMenuState(fixture).values[key], 0);
+    assert.equal(readMenuState(fixture).conditions[key], undefined);
+  }
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(readMenuState(fixture).values.unkillableOffsetX, 200);
+  assert.equal(readMenuState(fixture).values.unkillableOffsetY, 210);
+  assert.equal(readMenuState(fixture).conditions.unkillableOffsetX.value, -31);
+  assert.equal(readMenuState(fixture).conditions.unkillableOffsetY.value, -31);
+});
+
+test('UNKILLABLE offsets edit/reset in a hero scope without overwriting Base', () => {
+  const values = { unkillableOffsetX: 7, unkillableOffsetY: -9 };
+  const fixture = bootMenu({ version: 1, offsetVersion: 2, values, scopes: [], userPresets: [
+    { id: 'user_0001', name: 'Base', mode: 'all', heroes: [], values, conditions: {} },
+  ] });
+  openEditor(fixture);
+  panel(fixture, 'HPColorsCategoryPresets').events.onactivate();
+  panel(fixture, 'HPColorsCurrentScopeSelected').events.onactivate();
+  scopeOption(fixture, 'hero_shiv').events.onactivate();
+  panel(fixture, 'HPColorsScopeCloseButton').events.onactivate();
+  panel(fixture, 'HPColorsCategoryOverview').events.onactivate();
+  panel(fixture, 'HPColorsTab2').events.onactivate();
+  for (const [axis, value] of [['X', 21], ['Y', -23]]) {
+    const entry = panel(fixture, 'HPColorsUnkillableOffset' + axis + 'Entry');
+    entry.text = String(value); entry.events.ontextentrysubmit();
+    assert.equal(currentScope(fixture).values['unkillableOffset' + axis], value);
+  }
+  assert.equal(readMenuState(fixture).values.unkillableOffsetX, 7);
+  assert.equal(readMenuState(fixture).values.unkillableOffsetY, -9);
+  assert.equal(readConfig(fixture).values.unkillableOffsetX, 21);
+  requestReset(fixture); confirmReset(fixture);
+  assert.equal(currentScope(fixture).values.unkillableOffsetX, 7, 'hero reset inherits Base');
+  assert.equal(currentScope(fixture).values.unkillableOffsetY, -9);
+  panel(fixture, 'HPColorsUndoButton').events.onactivate();
+  assert.equal(currentScope(fixture).values.unkillableOffsetX, 21);
+  assert.equal(currentScope(fixture).values.unkillableOffsetY, -23);
+});
+
+test('missing optional UNKILLABLE offset sliders never block legacy/composed editor boot', () => {
+  for (const missing of ['X', 'Y', 'both']) {
+    const fixture = bootMenu(undefined, { beforeBoot(harness) {
+      for (const axis of missing === 'both' ? ['X', 'Y'] : [missing])
+        for (const suffix of ['Row', 'SliderHost', 'Entry'])
+          harness.root.FindChildTraverse('HPColorsUnkillableOffset' + axis + suffix)?.DeleteAsync();
+    } });
+    const dispatches = configDispatches(fixture).length;
+    assert.ok(dispatches > 0, missing);
+    fixture.harness.$.HPColorsMenuBoot();
+    assert.equal(configDispatches(fixture).length, dispatches, 'warm boot stays idempotent');
+    openEditor(fixture);
+    panel(fixture, 'HPColorsTab2').events.onactivate();
+    panel(fixture, 'HPColorsUnkillableIndicatorToggle').events.onactivate();
+    assert.equal(readConfig(fixture).values.unkillableIndicatorVisible, false);
+    assert.equal(readConfig(fixture).values.unkillableOffsetX, 0);
+    assert.equal(readConfig(fixture).values.unkillableOffsetY, 0);
+    assert.equal(fixture.harness.scheduler.jobs.some(job => job.delay === 0.5), false);
+  }
 });

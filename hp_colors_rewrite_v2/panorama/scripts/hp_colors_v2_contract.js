@@ -170,6 +170,9 @@
     rejuvOffsetY: 0,
     rejuvTilt: 6,
     rejuvScale: 100,
+    unkillableIndicatorVisible: true,
+    unkillableOffsetX: 0,
+    unkillableOffsetY: 0,
   };
 
   var HPV2_EXTENSION_KEYS = [
@@ -266,6 +269,9 @@
     "rejuvOffsetY",
     "rejuvTilt",
     "rejuvScale",
+    "unkillableIndicatorVisible",
+    "unkillableOffsetX",
+    "unkillableOffsetY",
   ];
   var CODEC_KEYS = [
     "enabled",
@@ -411,6 +417,7 @@
     barOutlineCustomColor: true,
     enabled: true,
     criticalIndicatorVisible: true,
+    unkillableIndicatorVisible: true,
     playerNamesVisible: true,
     enemyNameColorEnabled: true,
     allyNameColorEnabled: true,
@@ -559,6 +566,8 @@
     criticalOffsetY: [-210, 210],
     assassinateOffsetX: [-200, 200],
     assassinateOffsetY: [-210, 210],
+    unkillableOffsetX: [-200, 200],
+    unkillableOffsetY: [-210, 210],
     pipOpacity: [0, 100],
     damageShakeIntensity: [1, 10],
     nameTilt: [-360, 360],

@@ -50,6 +50,7 @@
 		<CitadelStatusEffect id="StatusEffects" />
 		<Panel id="TargetableIndicator" />
 		<Panel id="HPV2MotionFrame" hittest="false" hittestchildren="false">
+			<Panel id="HPV2KillStreakAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false" />
 			<Panel id="HPV2NameAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
 				<Label id="name" text="{s:name}" />
 			</Panel>
@@ -109,8 +110,10 @@
 				<Label text="#Citadel_Hud_Assassinate" />
 			</Panel>
 		</Panel>
-		<Panel id="UnkillableIndicator">
-			<Label text="#Citadel_Hud_Unkillable" />
+		<Panel id="HPV2UnkillableAnchor" class="HPV2StatusTagAnchor" hittest="false" hittestchildren="false">
+			<Panel id="UnkillableIndicator">
+				<Label text="#Citadel_Hud_Unkillable" />
+			</Panel>
 		</Panel>
 	</Panel>
 </root>

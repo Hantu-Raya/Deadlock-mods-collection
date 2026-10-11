@@ -200,8 +200,19 @@ try {
         $barebonesTopbarPath = Join-Path $root 'showrank_barebones\panorama\layout\citadel_hud_top_bar.xml'
         [xml]$topbar = [System.IO.File]::ReadAllText($topbarPath)
         [xml]$barebonesTopbar = [System.IO.File]::ReadAllText($barebonesTopbarPath)
-        foreach ($include in $barebonesTopbar.SelectNodes("/root/styles/include[contains(@src,'showrank_barebones')]")) {
-            [void]$topbar.root.styles.AppendChild($topbar.ImportNode($include, $true))
+        # Import every ShowRank topbar style the HP topbar lacks, in ShowRank order. The missing-enemy
+        # toast reuses stock GenericAnnouncement classes from citadel_hud_game_announcements.
+        $topbarStyles = $topbar.SelectSingleNode('/root/styles')
+        foreach ($include in $barebonesTopbar.SelectNodes('/root/styles/include')) {
+            $src = $include.GetAttribute('src')
+            if ($null -eq $topbar.SelectSingleNode("/root/styles/include[@src='$src']")) {
+                [void]$topbarStyles.AppendChild($topbar.ImportNode($include, $true))
+            }
+        }
+        foreach ($requiredStyle in @('citadel_hud_game_announcements.vcss_c', 'showrank_barebones_topbar.vcss_c')) {
+            if ($null -eq $topbar.SelectSingleNode("/root/styles/include[contains(@src,'$requiredStyle')]")) {
+                throw "Composed ShowRank topbar is missing style include: $requiredStyle"
+            }
         }
         foreach ($panelId in @('ShowRankBarebonesNotificationRoot', 'ShowRankBarebonesTeamAverageLayer')) {
             $rankLayer = $barebonesTopbar.SelectSingleNode("//*[@id='$panelId']")

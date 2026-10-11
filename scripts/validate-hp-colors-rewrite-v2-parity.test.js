@@ -92,7 +92,7 @@ test('v2 contract removes retired color exclusions and ghoul opacity and shares 
   assert.equal(contract.codecDefaults.enemyLow, '#E16161');
   assert.equal(contract.codecDefaults.enemyHigh, '#00FF00');
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 93);
+  assert.equal(contract.extensionKeys.length, 96);
   assert.deepEqual(plain(contract.extensionKeys).slice(41, 47), [
     'npcEnemyEnabled',
     'npcAllyEnabled',
@@ -371,7 +371,7 @@ test('round native format retirement preserves slots and appends independent nam
     assert.equal(Object.hasOwn(contract.booleanKeys, key), false, key);
     assert.equal(contract.settingMeta[key], undefined, key);
   }
-  assert.equal(contract.extensionKeys.length, 93);
+  assert.equal(contract.extensionKeys.length, 96);
   assert.deepEqual(Array.from(contract.extensionKeys.slice(56)), [
     'enemyPipColorEnabled', 'enemyPipColor',
     'allyPipColorEnabled', 'allyPipColor', 'pipOpacity', 'staminaShape',
@@ -386,6 +386,8 @@ test('round native format retirement preserves slots and appends independent nam
     "barOutlineEnabled", "barOutlineThickness", "barOutlineOpacity", "barOutlineColor",
     "barOutlineCustomColor", "allyBarOutlineColor",
     "rejuvOffsetX", "rejuvOffsetY", "rejuvTilt", "rejuvScale",
+    "unkillableIndicatorVisible",
+    "unkillableOffsetX", "unkillableOffsetY",
   ]);
   assert.equal(contract.keys.includes('readoutFormat'), false);
   assert.equal(contract.keys.includes('allyReadoutFormat'), false);
@@ -499,6 +501,8 @@ test('follow-up controls append typed extension slots with frozen sparse default
     barOutlineEnabled: true, barOutlineThickness: 1, barOutlineOpacity: 100, barOutlineColor: "#000000",
     barOutlineCustomColor: false, allyBarOutlineColor: "#000000",
     rejuvOffsetX: 0, rejuvOffsetY: 0, rejuvTilt: 6, rejuvScale: 100,
+    unkillableIndicatorVisible: true,
+    unkillableOffsetX: 0, unkillableOffsetY: 0,
   };
   assert.deepEqual(plain(contract.extensionKeys).slice(56), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
@@ -541,10 +545,35 @@ test('follow-up controls append typed extension slots with frozen sparse default
   }
 });
 
+// Failure modes: the new UNKILLABLE toggle shifts older slots, is emitted by untouched
+// codes (breaking 2.2.4 imports), or is lost through codes, presets and conditions.
+test('UNKILLABLE LABEL appends human slot 94 and only travels when switched off', () => {
+  const { contract, state } = bootState();
+  assert.equal(contract.extensionKeys[93], 'unkillableIndicatorVisible');
+  for (const values of [contract.defaults, contract.sparseDefaults, contract.codecDefaults])
+    assert.equal(values.unkillableIndicatorVisible, true);
+  assert.equal(contract.settingMeta.unkillableIndicatorVisible.type, 'boolean');
+  assert.equal(contract.settingMeta.unkillableIndicatorVisible.conditionEligible, true);
+  const untouched = JSON.parse(oneEffect(send(state, 'settings_copy'), 'clipboard_write').text.slice(5));
+  assert.equal(untouched.hpv2.values.some(([index]) => index === 93), false);
+  send(state, 'setting_edit', { key: 'unkillableIndicatorVisible', value: false });
+  const raw = oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.deepEqual(JSON.parse(raw.slice(5)).hpv2.values.at(-1), [93, false]);
+  const destination = bootState().state;
+  send(destination, 'settings_import', { raw });
+  assert.equal(destination.read().values.unkillableIndicatorVisible, false);
+  send(state, 'preset_save', { name: 'No unkillable' });
+  const preset = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const presetDestination = bootState().state;
+  send(presetDestination, 'preset_import', { raw: preset });
+  send(presetDestination, 'preset_apply', { id: JSON.parse(preset.slice(6)).records[0].id });
+  assert.equal(presetDestination.read().effectiveValues.unkillableIndicatorVisible, false);
+});
+
 test('Rejuvenator appends human slots 90–93 with typed bounds, sparse defaults and transfer', () => {
   const { contract, state } = bootState();
   const defaults = { rejuvOffsetX: 0, rejuvOffsetY: 0, rejuvTilt: 6, rejuvScale: 100 };
-  assert.deepEqual(plain(contract.extensionKeys.slice(89)), Object.keys(defaults));
+  assert.deepEqual(plain(contract.extensionKeys.slice(89, 93)), Object.keys(defaults));
   for (const [key, value] of Object.entries(defaults)) {
     for (const values of [contract.defaults, contract.sparseDefaults, contract.codecDefaults]) assert.equal(values[key], value, key);
     assert.equal(contract.settingMeta[key].conditionEligible, true);
@@ -575,4 +604,52 @@ test('Rejuvenator appends human slots 90–93 with typed bounds, sparse defaults
   send(presetDestination, 'preset_apply', { id });
   for (const [key, value] of Object.entries(values)) assert.equal(presetDestination.read().effectiveValues[key], value, key);
   assert.equal(presetDestination.read().currentScope.conditions.rejuvScale.value, 175);
+});
+
+test('UNKILLABLE offsets append wire 94/95, omit zero defaults and retain old imports', () => {
+  const { contract, state } = bootState();
+  assert.deepEqual(plain(contract.extensionKeys.slice(94)), ['unkillableOffsetX', 'unkillableOffsetY']);
+  for (const [key, bound] of [['unkillableOffsetX', 200], ['unkillableOffsetY', 210]]) {
+    for (const defaults of [contract.defaults, contract.codecDefaults, contract.sparseDefaults])
+      assert.equal(defaults[key], 0, key);
+    assert.equal(contract.settingMeta[key].conditionEligible, true);
+    assert.equal(contract.normalizeValue(key, -bound - 1), -bound);
+    assert.equal(contract.normalizeValue(key, bound + 1), bound);
+    assert.equal(contract.normalizeValue(key, 12.6), 13);
+    assert.equal(contract.validateSettingValue(key, 'bad'), false);
+  }
+  const copy = () => oneEffect(send(state, 'settings_copy'), 'clipboard_write').text;
+  assert.equal(JSON.parse(copy().slice(5)).hpv2.values.some(([index]) => index >= 94), false);
+  for (const [key, value] of [['unkillableOffsetX', 17], ['unkillableOffsetY', -23]])
+    send(state, 'setting_edit', { key, value });
+  send(state, 'condition_set', { key: 'unkillableOffsetY', slot: 4, minTier: 3, value: 41 });
+  const raw = copy();
+  assert.deepEqual(JSON.parse(raw.slice(5)).hpv2.values.slice(-2), [[94, 17], [95, -23]]);
+  const destination = bootState().state;
+  assert.equal(send(destination, 'settings_import', { raw }).outcome.status, 'committed');
+  assert.equal(destination.read().values.unkillableOffsetX, 17);
+  assert.equal(destination.read().values.unkillableOffsetY, -23);
+  assert.equal(destination.read().conditions.unkillableOffsetY.value, 41);
+  send(state, 'preset_save', { name: 'Unkillable offsets' });
+  const preset = oneEffect(send(state, 'preset_copy_selected'), 'clipboard_write').text;
+  const presetDestination = bootState().state;
+  send(presetDestination, 'preset_import', { raw: preset });
+  send(presetDestination, 'preset_apply', { id: JSON.parse(preset.slice(6)).records[0].id });
+  assert.equal(presetDestination.read().effectiveValues.unkillableOffsetX, 17);
+  assert.equal(presetDestination.read().effectiveValues.unkillableOffsetY, -23);
+  assert.equal(presetDestination.read().currentScope.conditions.unkillableOffsetY.value, 41);
+  for (const raw of ['HPCR2{"v":[],"c":{}}',
+    'HPCR2{"v":[],"c":{},"hpv2":{"v":1,"values":[],"conditions":{}}}',
+    'HPCR2{"v":[],"c":{},"hpv2":{"v":2,"values":[[93,false]],"conditions":{}}}']) {
+    const oldDestination = bootState().state;
+    assert.equal(send(oldDestination, 'settings_import', { raw }).outcome.status, 'committed');
+    assert.equal(oldDestination.read().values.unkillableOffsetX, 0);
+    assert.equal(oldDestination.read().values.unkillableOffsetY, 0);
+  }
+  send(state, 'setting_edit', { key: 'unkillableOffsetX', value: 0 });
+  const zeroed = send(state, 'setting_edit', { key: 'unkillableOffsetY', value: 0 });
+  assert.equal(JSON.parse(copy().slice(5)).hpv2.values.some(([index]) => index >= 94), false);
+  const snapshot = JSON.parse(oneEffect(zeroed, 'session_replace').raw);
+  assert.equal(snapshot.values.unkillableOffsetX, 0, 'session transport remains a full snapshot');
+  assert.equal(snapshot.values.unkillableOffsetY, 0);
 });

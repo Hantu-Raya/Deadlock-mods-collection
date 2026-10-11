@@ -151,7 +151,8 @@ const XML_REWRITE_OWNED_IDS = new Set([
   'hp_counter_container',
 ]);
 // Owned passive wrappers: compared as if their stock children sat in place.
-const XML_REWRITE_WRAPPER_IDS = new Set(["HPV2MotionFrame", "HPV2NameAnchor", "HPV2CriticalAnchor", "HPV2AssassinateAnchor", "HPV2RejuvenatorAnchor"]);
+const XML_REWRITE_WRAPPER_IDS = new Set(["HPV2MotionFrame", "HPV2NameAnchor", "HPV2CriticalAnchor", "HPV2AssassinateAnchor",
+  "HPV2UnkillableAnchor", "HPV2RejuvenatorAnchor", "HPV2KillStreakAnchor"]);
 
 function parseXmlStructure(source) {
   const roots = [];
@@ -531,7 +532,8 @@ function makeStatusFixture(
       findCounts: harness.findCounts,
       operationCounts: harness.operationCounts,
     }));
-    for (const [anchorId, id] of [['HPV2CriticalAnchor', 'CriticalIndicator'], ['HPV2AssassinateAnchor', 'AssassinateIndicator']]) {
+    for (const [anchorId, id] of [['HPV2CriticalAnchor', 'CriticalIndicator'], ['HPV2AssassinateAnchor', 'AssassinateIndicator'],
+      ['HPV2UnkillableAnchor', 'UnkillableIndicator']]) {
       const anchor = siblingWindow.add(new MockPanel(anchorId, {
         findCounts: harness.findCounts,
         operationCounts: harness.operationCounts,
@@ -541,10 +543,6 @@ function makeStatusFixture(
         operationCounts: harness.operationCounts,
       }));
     }
-    siblingWindow.add(new MockPanel('UnkillableIndicator', {
-      findCounts: harness.findCounts,
-      operationCounts: harness.operationCounts,
-    }));
     const siblingInfo = siblingStatus.add(new MockPanel('InfoHealthContainer', {
       actuallayoutwidth: 100,
       actuallayoutheight: 40,
@@ -745,7 +743,11 @@ function makeStatusFixture(
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
-  const unkillable = windowRoot.add(new MockPanel('UnkillableIndicator', {
+  const unkillableAnchor = windowRoot.add(new MockPanel('HPV2UnkillableAnchor', {
+    findCounts: harness.findCounts,
+    operationCounts: harness.operationCounts,
+  }));
+  const unkillable = unkillableAnchor.add(new MockPanel('UnkillableIndicator', {
     findCounts: harness.findCounts,
     operationCounts: harness.operationCounts,
   }));
@@ -883,7 +885,7 @@ function makeStatusFixture(
     stockPip: null, siblingCounter, siblingFill, staminaContainer, staminaIcons,
     levelContainer, unitInfo, levelLabel, unitShieldbarValue: shieldValue,
     secondaryShieldFill: shield.bulletShield, namePanel, rejuvenator, critical,
-    assassinate, unkillable, criticalAnchor, assassinateAnchor,
+    assassinate, unkillable, criticalAnchor, assassinateAnchor, unkillableAnchor,
   };
 }
 
@@ -1777,10 +1779,10 @@ test('CRITICAL tracks player bar position and scale through its anchor, then res
     assert.equal(panel.style.marginTop || '', '', 'stock margins untouched');
     assert.equal(panel.style.transform || '', '', 'stock animation keeps transform');
   }
-  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [19.68, 19.19]);
-  assert.equal(fixture.critical.style.preTransformScale2d, '1.09');
+  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [30, 16]);
+  assert.equal(fixture.critical.style.preTransformScale2d, '0.8');
   dispatchColorSnapshot(fixture, 2, { ...values, positionX: -300, positionY: -200 });
-  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [-40.32, -20.81]);
+  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [-30, -24]);
   dispatchColorSnapshot(fixture, 3, { ...values, enabled: false });
   // Release writes stock values explicitly; null may not clear in game.
   for (const [anchor, panel] of [[fixture.criticalAnchor, fixture.critical],
@@ -1795,26 +1797,107 @@ test('CRITICAL and ASSASSINATE offsets add one-to-one and stay inside the canvas
   const values = { enabled: true, widthScale: 148, heightScale: 80,
     positionX: 300, positionY: 200 };
   const fixture = makeStatusFixture('enemy', values);
-  assert.deepEqual(readoutTranslation(fixture.assassinateAnchor), [19.68, 18.92],
-    'same slot as CRITICAL; shorter label keeps its bar gap');
-  assert.equal(fixture.assassinate.style.preTransformScale2d, '1.09');
+  // 6774 stock: both labels center at canvas -20px; ASSASSINATE sits 14px below the bar.
+  assert.deepEqual(readoutTranslation(fixture.assassinateAnchor), [30, 15.4],
+    'width does not move the column; its lower stock slot keeps its bar gap');
+  assert.equal(fixture.assassinate.style.preTransformScale2d, '0.8');
   dispatchColorSnapshot(fixture, 2, { ...values, criticalOffsetX: 10, criticalOffsetY: -5,
     assassinateOffsetX: -20, assassinateOffsetY: 6 });
-  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [29.68, 14.19]);
-  assert.deepEqual(readoutTranslation(fixture.assassinateAnchor), [-0.32, 24.92]);
+  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [40, 11]);
+  assert.deepEqual(readoutTranslation(fixture.assassinateAnchor), [10, 21.4]);
   fixture.criticalAnchor.styleWrites.length = 0;
   dispatchColorSnapshot(fixture, 3, { ...values, criticalOffsetX: 11, criticalOffsetY: -5,
     assassinateOffsetX: -20, assassinateOffsetY: 6 });
-  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [30.68, 14.19], 'one pixel per unit');
+  assert.deepEqual(readoutTranslation(fixture.criticalAnchor), [41, 11], 'one pixel per unit');
   assert.deepEqual(fixture.critical.styleWrites.filter(({ property }) => /^margin/.test(property)), []);
   dispatchColorSnapshot(fixture, 4, { ...values, criticalOffsetX: 200, criticalOffsetY: 210,
     assassinateOffsetX: -200, assassinateOffsetY: -210 });
   const [cx, cy] = readoutTranslation(fixture.criticalAnchor);
   const [ax, ay] = readoutTranslation(fixture.assassinateAnchor);
   assert.ok(cx < 200 && cy < 210 && ax > -200 && ay > -210, 'extreme offsets clamp');
-  assert.ok(cx > 29.68 && ax < -0.32, 'clamped offsets still move toward the requested edge');
+  assert.ok(cx > 40 && ax < 10, 'clamped offsets still move toward the requested edge');
   dispatchColorSnapshot(fixture, 5, { enabled: false, assassinateOffsetX: 15 });
   assert.deepEqual(readoutTranslation(fixture.assassinateAnchor), [0, 0]);
+});
+
+// Failure modes: UNKILLABLE stays at its stock spot while the bar it covers is resized
+// or moved, its toggle leaves it visible (or hides it on NPCs), or release leaves it moved.
+test('UNKILLABLE follows player bar position and scale, hides with its toggle and restores', () => {
+  const values = { enabled: true, widthScale: 148, heightScale: 80, positionX: 300, positionY: 200 };
+  const fixture = makeStatusFixture('enemy', values);
+  assert.equal(fixture.unkillable.style.marginLeft || '', '', 'stock margins untouched');
+  assert.equal(fixture.unkillable.style.transform || '', '', 'stock animation keeps transform');
+  // 6774 stock: label center 10px right of canvas center (3.5px right of the bar center),
+  // centered on the bar's bottom edge.
+  assert.deepEqual(readoutTranslation(fixture.unkillableAnchor), [30, 18.2]);
+  assert.equal(fixture.unkillable.style.preTransformScale2d, '0.8');
+  assert.equal(fixture.windowRoot.BHasClass('HPColorsRewriteHideUnkillable'), false);
+  dispatchColorSnapshot(fixture, 2, { ...values, unkillableIndicatorVisible: false });
+  assert.equal(fixture.windowRoot.BHasClass('HPColorsRewriteHideUnkillable'), true);
+  assert.equal(fixture.windowRoot.BHasClass('HPColorsRewriteHideCritical'), false, 'independent of CRITICAL');
+  fixture.windowRoot.RemoveClass('HPColorsRewriteHideUnkillable');
+  fixture.harness.scheduler.runByDelay(1);
+  assert.equal(fixture.windowRoot.BHasClass('HPColorsRewriteHideUnkillable'), true, 'drift repair restores the hide');
+  dispatchColorSnapshot(fixture, 3, { ...values, enabled: false, unkillableIndicatorVisible: false });
+  assert.deepEqual(readoutTranslation(fixture.unkillableAnchor), [0, 0]);
+  assert.equal(fixture.unkillable.style.preTransformScale2d, '1');
+  assert.equal(fixture.windowRoot.BHasClass('HPColorsRewriteHideUnkillable'), false, 'master off shows stock');
+});
+
+test('status labels preserve stock and follow height/bottom, never width, with nearest canvas fit', () => {
+  // Independent stock bounds from client 6774: [part, center offset, top, half W/H, gap].
+  const tags = [['critical', -20, 80, 30, 14, 11], ['assassinate', -20, 86, 28, 11, 14],
+    ['unkillable', 10, 72, 35, 11, 0]];
+  const scenarios = [[100, 100, 200], [148, 80, 200], [300, 100, 200],
+    [100, 300, 200], [100, 300, 240], [300, 150, 200], [400, 200, 200], [400, 400, 200], [400, 400, 300]];
+  for (const role of ['enemy', 'ally']) for (const [widthScale, heightScale, canvasWidth] of scenarios) {
+    const values = { enabled: true, widthScale, heightScale, positionX: 0, positionY: 0 };
+    const fixture = makeStatusFixture(role, values);
+    fixture.infoHealth.actuallayoutwidth = canvasWidth;
+    fixture.harness.scheduler.runFor(1000);
+    dispatchColorSnapshot(fixture, 2, values);
+    for (const [part, column, top, halfW, halfH, gap] of tags) {
+      const scale = Math.min(heightScale / 100, Math.floor(Math.min(canvasWidth / (2 * halfW), 210 / (2 * halfH)) * 100) / 100);
+      const stockCenter = [canvasWidth / 2 + column, top + halfH];
+      const wanted = [stockCenter[0], stockCenter[1] + 9 * (heightScale / 100 - 1) + gap * (scale - 1)];
+      const nearest = [Math.max(halfW * scale, Math.min(canvasWidth - halfW * scale, wanted[0])),
+        Math.max(halfH * scale, Math.min(210 - halfH * scale, wanted[1]))];
+      const expected = nearest.map((center, axis) => Math.round((center - stockCenter[axis]) * 100) / 100);
+      const actual = readoutTranslation(fixture[part + 'Anchor']);
+      const label = fixture[part];
+      const title = `${role}/${part}/${widthScale}x${heightScale}/${canvasWidth}`;
+      assert.deepEqual(actual, expected, title);
+      assert.equal(label.style.preTransformScale2d, String(scale), title);
+      for (const axis of [0, 1]) {
+        const center = stockCenter[axis] + actual[axis];
+        const reach = (axis ? halfH : halfW) * scale;
+        assert.ok(center - reach >= -0.01 && center + reach <= (axis ? 210 : canvasWidth) + 0.01, title);
+      }
+      if (heightScale === 100) assert.deepEqual(actual, [0, 0], '100% height/zero offsets is exact stock even with width-only changes');
+    }
+    dispatchColorSnapshot(fixture, 3, { ...values, enabled: false });
+    for (const [part] of tags) {
+      assert.deepEqual(readoutTranslation(fixture[part + 'Anchor']), [0, 0]);
+      assert.equal(fixture[part].style.preTransformScale2d, '1');
+    }
+  }
+});
+
+test('all status offsets add signed pixels before saturation and ignore accessory/OLD name policy', () => {
+  for (const role of ['enemy', 'ally']) for (const sign of [-1, 1]) {
+    const fixture = makeStatusFixture(role, { widthScale: 148, heightScale: 80, positionX: 0, positionY: 0 });
+    const values = { widthScale: 148, heightScale: 80, positionX: 50, positionY: -50,
+      accessoryAnchorEnabled: false, nameRiseWithPips: true,
+      criticalOffsetX: sign * 12, criticalOffsetY: sign * 7,
+      assassinateOffsetX: sign * 12, assassinateOffsetY: sign * 7,
+      unkillableOffsetX: sign * 12, unkillableOffsetY: sign * 7 };
+    dispatchColorSnapshot(fixture, 2, values);
+    for (const [part, baseY] of [['critical', -4], ['assassinate', -4.6], ['unkillable', -1.8]])
+      assert.deepEqual(readoutTranslation(fixture[part + 'Anchor']), [5 + sign * 12, Math.round((-5 + baseY + sign * 7) * 100) / 100]);
+    const before = ['critical', 'assassinate', 'unkillable'].map(part => readoutTranslation(fixture[part + 'Anchor']));
+    dispatchColorSnapshot(fixture, 3, { ...values, accessoryAnchorEnabled: true, nameRiseWithPips: false, barMask: 'old' });
+    assert.deepEqual(['critical', 'assassinate', 'unkillable'].map(part => readoutTranslation(fixture[part + 'Anchor'])), before);
+  }
 });
 
 test('v2 maps positive and negative legacy position units without moving UnitStatus', () => {
@@ -2570,6 +2653,7 @@ test('Appearance collapse CSS leaves stock critical effects intact', () => {
   const css = read(stylePath);
   for (const [owner, id] of [
     ['HPColorsRewriteHideCritical', 'CriticalIndicator'],
+    ['HPColorsRewriteHideUnkillable', 'UnkillableIndicator'],
     ['HPColorsRewriteHidePlayerName', 'name'],
   ]) {
     const expression = new RegExp('\\.WindowRoot\\.' + owner + ' #' + id + '\\s*\\{([^}]+)\\}');
@@ -2882,4 +2966,19 @@ test("colour pulse uses cached render-only coverage and releases its clip", () =
     assert.equal(overlay.BHasClass("HPColorsRewriteColorPulse"), false, release);
   }
   assert.match(read(stylePath).match(/\.WindowRoot #hp_colors_pulse_overlay\s*\{([^}]+)\}/)[1], /width:\s*100%/);
+});
+
+test('signed extreme status offsets saturate at the exact nearest legal canvas corner', () => {
+  for (const role of ['enemy', 'ally']) for (const sign of [-1, 1]) {
+    const fixture = makeStatusFixture(role, { widthScale: 300, heightScale: 150, positionX: 0, positionY: 0,
+      criticalOffsetX: sign * 200, criticalOffsetY: sign * 210,
+      assassinateOffsetX: sign * 200, assassinateOffsetY: sign * 210,
+      unkillableOffsetX: sign * 200, unkillableOffsetY: sign * 210 });
+    for (const [part, cx, cy, halfW, halfH] of [['critical', 80, 94, 30, 14],
+      ['assassinate', 80, 97, 28, 11], ['unkillable', 110, 83, 35, 11]]) {
+      const edge = [sign < 0 ? halfW * 1.5 : 200 - halfW * 1.5,
+        sign < 0 ? halfH * 1.5 : 210 - halfH * 1.5];
+      assert.deepEqual(readoutTranslation(fixture[part + 'Anchor']), [edge[0] - cx, edge[1] - cy], role + '/' + part);
+    }
+  }
 });

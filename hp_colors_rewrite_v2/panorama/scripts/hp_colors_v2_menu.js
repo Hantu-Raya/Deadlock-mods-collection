@@ -108,6 +108,9 @@
             "criticalOffsetY",
             "assassinateOffsetX",
             "assassinateOffsetY",
+            "unkillableIndicatorVisible",
+            "unkillableOffsetX",
+            "unkillableOffsetY",
             "playerNamesVisible",
             "enemyNameColorEnabled",
             "enemyNameColor",
@@ -641,6 +644,8 @@
     "criticalOffsetY",
     "assassinateOffsetX",
     "assassinateOffsetY",
+    "unkillableOffsetX",
+    "unkillableOffsetY",
     "nameOutlineWidth",
     "nameAlign",
     "nameOffsetX",
@@ -756,6 +761,7 @@
     { id: "HPColorsAllyNameColorToggle", key: "allyNameColorEnabled" },
     { id: "HPColorsMasterToggle", key: "enabled" },
     { id: "HPColorsCriticalIndicatorToggle", key: "criticalIndicatorVisible" },
+    { id: "HPColorsUnkillableIndicatorToggle", key: "unkillableIndicatorVisible" },
     { id: "HPColorsPlayerNamesToggle", key: "playerNamesVisible" },
     { id: "HPColorsNameRiseToggle", key: "nameRiseWithPips" },
     { id: "HPColorsDamageShakeToggle", key: "damageShakeEnabled" },
@@ -998,6 +1004,8 @@
     { base: "HPColorsCriticalOffsetY", key: "criticalOffsetY", min: -210, max: 210 },
     { base: "HPColorsAssassinateOffsetX", key: "assassinateOffsetX", min: -200, max: 200 },
     { base: "HPColorsAssassinateOffsetY", key: "assassinateOffsetY", min: -210, max: 210 },
+    { base: "HPColorsUnkillableOffsetX", key: "unkillableOffsetX", min: -200, max: 200, optional: true },
+    { base: "HPColorsUnkillableOffsetY", key: "unkillableOffsetY", min: -210, max: 210, optional: true },
     { base: "HPColorsWidth", key: "widthScale", min: 60, max: 400 },
     { base: "HPColorsHeight", key: "heightScale", min: 60, max: 400 },
     { base: "HPColorsPositionX", key: "positionX", min: -2000, max: 2000, displayScale: 0.1 },
@@ -1299,11 +1307,14 @@
     "allyNameColorEnabled": "HPColorsAllyNameColorEnableRow",
     "enabled": "HPColorsEnabledRow",
     "criticalIndicatorVisible": "HPColorsCriticalIndicatorVisibleRow",
+    "unkillableIndicatorVisible": "HPColorsUnkillableIndicatorVisibleRow",
     "playerNamesVisible": "HPColorsPlayerNamesVisibleRow",
     "criticalOffsetX": "HPColorsCriticalOffsetXRow",
     "criticalOffsetY": "HPColorsCriticalOffsetYRow",
     "assassinateOffsetX": "HPColorsAssassinateOffsetXRow",
     "assassinateOffsetY": "HPColorsAssassinateOffsetYRow",
+    "unkillableOffsetX": "HPColorsUnkillableOffsetXRow",
+    "unkillableOffsetY": "HPColorsUnkillableOffsetYRow",
     "npcEnemyEnabled": "HPColorsNpcEnemyEnabledRow",
     "npcAllyEnabled": "HPColorsNpcAllyEnabledRow",
     "npcNeutralEnabled": "HPColorsNpcNeutralEnabledRow",
@@ -4813,6 +4824,20 @@
     return isValid(row) ? row : null;
   }
 
+  // The contract's setting metadata owns value types; a mode option makes the control an enum.
+  var settingTypes = null;
+  function settingType(key) {
+    if (!settingTypes) {
+      var view = currentView();
+      var settings = view && view.schema ? view.schema.settings : null;
+      if (!settings) return "unknown";
+      settingTypes = {};
+      for (var index = 0; index < settings.length; index++)
+        settingTypes[settings[index].key] = settings[index].type;
+    }
+    return settingTypes[key] || "unknown";
+  }
+
   function registerConditionControl(panel, key, min, max, option, increment) {
     if (
       !Object.prototype.hasOwnProperty.call(DEFAULTS, key) ||
@@ -4824,21 +4849,7 @@
 
     var control = conditionControls[key];
     if (!control) {
-      var defaultValue = DEFAULTS[key];
-      var defaultIsString = false;
-      try {
-        defaultIsString = defaultValue === String(defaultValue);
-      } catch {}
-      var type =
-        defaultValue === true || defaultValue === false
-          ? "boolean"
-          : Number.isFinite(defaultValue)
-            ? "number"
-            : defaultIsString
-              ? "enum"
-              : "unknown";
-      if (COLOR_KEYS[key]) type = "color";
-      if (option !== undefined) type = "enum";
+      var type = option !== undefined ? "enum" : settingType(key);
       var titles = findChildrenWithClass(row, "HPColorsSettingTitle");
       control = {
         title: titles.length ? readPanelText(titles[0]) : key,
@@ -5600,6 +5611,7 @@
     if (/^(enemyName|allyName|nameSize|nameOutlineWidth|nameAlign|nameOffset|nameTilt)/.test(key)) return values.playerNamesVisible;
     if (key === "hpTextAlign") return values.readoutVisible || values.allyReadoutVisible;
     if (key === "criticalOffsetX" || key === "criticalOffsetY") return values.criticalIndicatorVisible;
+    if (key === "unkillableOffsetX" || key === "unkillableOffsetY") return values.unkillableIndicatorVisible;
     if (/^allyReadout/.test(key) && key !== "allyReadoutVisible") return values.allyReadoutVisible;
     if (/^readout/.test(key) && key !== "readoutVisible") return values.readoutVisible;
     if (/^enemyPulse/.test(key) && key !== "enemyPulseEnabled") return values.enemyPulseEnabled;
@@ -5672,6 +5684,7 @@
     if (/^(enemyName|allyName)/.test(key)) return controlPanel(key.indexOf("enemy") === 0 ? "HPColorsEnemyNameColorToggle" : "HPColorsAllyNameColorToggle");
     if (/^name/.test(key)) return ui.playerNamesToggle;
     if (/^criticalOffset/.test(key)) return ui.criticalIndicatorToggle;
+    if (/^unkillableOffset/.test(key)) return controlPanel("HPColorsUnkillableIndicatorToggle");
     if (/^enemyPulseReadout(?:Size|Offset)/.test(key)) return controlPanel("HPColorsEnemyPulseReadoutModifiersToggle");
     if (/^enemyPulse/.test(key)) return controlPanel("HPColorsEnemyPulseToggle");
     if (/^allyPulse/.test(key)) return controlPanel("HPColorsAllyPulseToggle");

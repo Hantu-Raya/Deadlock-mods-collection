@@ -46,7 +46,7 @@
 	ui-scale: 180%;
 }
 
-.midboss #UnitStatus
+.midboss #UnitStatus,.chesspiece #UnitStatus
 {
 	visibility: collapse;
 }
@@ -1086,39 +1086,27 @@
 {
 	horizontal-align: center;
 	ignore-parent-flow: true;
-	margin-top: 86px;
-	margin-left: 0px;
-	background-image: url("s2r://panorama/images/hud/healthbar/critical_text_png.vtex");
-	background-size: contain;
-	background-repeat: no-repeat;
-	width: 50px;
-	margin-right: 30px;
-	animation-name: TagGroove1;
-	animation-duration: 2s;
-	animation-iteration-count: infinite;
+	margin-top: 80px;
+	margin-left: -8px;
+	margin-right: 22px;
 	visibility: collapse;
 }
 
 #CriticalIndicator Label
 {
-	font-size: 13px;
+	font-size: 12px;
+	color: white;
 	font-family: block;
 	text-transform: uppercase;
-	text-shadow: 0px 0px 55.0 #b82323;
+	text-shadow: 0px 0px 5.0 colorEnemy;
 	text-overflow: shrink;
-	margin-left: 2px;
-	opacity: 0;
-	text-shadow: 0px 0px 55.0 offWhite;
-	color: colorEnemy;
+	text-align: center;
+	margin-right: 10px;
+	padding: 6px 8px;
+	max-width: 76px;
 	animation-name: TagGroove1;
 	animation-duration: 2s;
 	animation-iteration-count: infinite;
-	animation-frame-time: 1s;
-}
-
-.Language_japanese #CriticalIndicator Label
-{
-	max-height: 18px;
 }
 
 .health_critical .ShowCriticalState #CriticalIndicator
@@ -1146,6 +1134,9 @@
 	text-transform: uppercase;
 	text-overflow: shrink;
 	margin-left: 2px;
+	padding: 6px 8px;
+	max-width: 76px;
+	margin-right: 12px;
 	text-shadow: 0px 0px 4.0 offBlack;
 	color: white;
 	animation-name: TagGroove1;
@@ -2415,6 +2406,11 @@
 	visibility: collapse;
 }
 
+.WindowRoot.HPColorsRewriteHideUnkillable #UnkillableIndicator
+{
+	visibility: collapse;
+}
+
 .WindowRoot.HPColorsRewriteHidePlayerName #name
 {
 	visibility: collapse;
@@ -2425,7 +2421,7 @@
 	transform: none;
 }
 
-/* Stationary full-canvas wrappers around the stock CRITICAL/ASSASSINATE
+/* Stationary full-canvas wrappers around the stock CRITICAL/ASSASSINATE/UNKILLABLE
    panels. The stock panels keep their own margins and TagGroove1 transform;
    the renderer moves the wrapper with translate3d so offset edits never
    relayout the world panel (margin edits jumped and vanished until redraw). */
@@ -2437,21 +2433,21 @@
 	overflow: noclip;
 }
 
-/* Adopt the native flame behind the ultimate without participating in flow. */
-.WindowRoot .unit_info_panel.HPColorsRewriteKillStreakOwner
+/* The flame anchor is the motion frame's first child at stock's z-index -1, so the
+   adopted native flame paints behind the name and bar yet shakes with them. The
+   renderer translates the anchor to the flame's top-left corner. */
+.WindowRoot #HPV2KillStreakAnchor
 {
-	flow-children: none;
-	overflow: noclip;
+	z-index: -1;
 }
 
 .WindowRoot #KillStreakIndicator.HPColorsRewriteKillStreakAdopted
 {
 	margin: 0px;
-	horizontal-align: center;
-	vertical-align: center;
+	horizontal-align: left;
+	vertical-align: top;
 	ignore-parent-flow: true;
 	overflow: noclip;
-	z-index: 2;
 }
 
 

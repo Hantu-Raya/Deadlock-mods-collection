@@ -238,7 +238,7 @@ Object.assign(overlaySandbox, {
   ultimateTimerEnabled: () => true, validUltimates: () => true,
   sessionStartedAt: 100, ultimateAt: 0, localPlayerName: "LOCAL",
   namePanel: { IsValid: () => true, text: "PLAYER" }, readName: panel => panel.text,
-  ultimateReady: { IsValid: () => true, visible: false }, ultimateProgressPending: false,
+  ultimateReady: { IsValid: () => true, visible: false, BAscendantHasClass: () => false }, ultimateProgressPending: false,
   clearUltimate: () => assert.fail("valid cooldown must not clear"), paintUltimateProgress() {},
 });
 overlaySandbox.context.BAscendantHasClass = () => false;
@@ -246,27 +246,28 @@ overlaySandbox.context.FindChildTraverse = id => {
   if (id === "unit_info_bg") { ultimateBackgroundLookups++; return ultBackground; }
   return null;
 };
-vm.runInContext(timerSource.match(/^  function receiveUltimates\([^]*?^  }/m)[0], overlaySandbox);
-overlaySandbox.receiveUltimates({ at: 1000, players: [["PLAYER", 90, 6]] }, 1000);
+vm.runInContext(["ultimateEntryIndex", "receiveUltimates"].map(name =>
+  timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"))[0]).join("\n"), overlaySandbox);
+overlaySandbox.receiveUltimates({ at: 1000, players: [["PLAYER", 90, 6, ""]] }, 1000);
 assert.equal(ultimateBackgroundLookups, 1, "cooldown reuses its just-validated background");
 assert.equal(overlaySandbox.ultimateModel.angle, 90);
 let ultimateClears = 0;
 overlaySandbox.clearUltimate = () => { ultimateClears++; overlaySandbox.ultimateName = ""; };
-overlaySandbox.receiveUltimates({ at: 2000, players: [["PLAYER", 360, 0]] }, 2000);
+overlaySandbox.receiveUltimates({ at: 2000, players: [["PLAYER", 360, 0, ""]] }, 2000);
 assert.equal(ultimateClears, 1, "ready ultimate clears the cooldown without resolving panels");
 const replacementBackground = { ...ultBackground, style: { preTransformScale2d: "1" },
-  children: { unit_ult_ready_icon: { IsValid: () => true, visible: false } } };
+  children: { unit_ult_ready_icon: { IsValid: () => true, visible: false, BAscendantHasClass: () => false } } };
 overlaySandbox.context.FindChildTraverse = id => {
   if (id === "unit_info_bg") { ultimateBackgroundLookups++; return replacementBackground; }
   return null;
 };
-overlaySandbox.receiveUltimates({ at: 3000, players: [["PLAYER", 180, 6]] }, 3000);
+overlaySandbox.receiveUltimates({ at: 3000, players: [["PLAYER", 180, 6, ""]] }, 3000);
 assert.equal(ultimateBackgroundLookups, 2, "next snapshot resolves a replacement background once");
 assert.equal(overlaySandbox.ultimateOverlay.GetParent(), replacementBackground);
 assert.equal(overlayCreates, 6, "replacement background gets its own overlay artwork");
 assert.equal(overlaySandbox.ultimateModel.angle, 180);
-replacementBackground.children.unit_ult_ready_icon.visible = true;
-overlaySandbox.receiveUltimates({ at: 4000, players: [["PLAYER", 180, 6]] }, 4000);
+replacementBackground.children.unit_ult_ready_icon.BAscendantHasClass = name => name === "has_ultimate";
+overlaySandbox.receiveUltimates({ at: 4000, players: [["PLAYER", 180, 6, ""]] }, 4000);
 assert.equal(ultimateClears, 2, "native ready icon still blocks a cooldown overlay");
 function pure(name) {
   const match = timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"));
@@ -278,7 +279,7 @@ function pure(name) {
 const nativeFunctions = [
   "setCachedStyle", "pickupColor", "pickupBackground", "setNativePickupStyle",
   "restoreNativePickupStyles", "styleNativePickup", "sampleUnitPickups", "sampleUnit",
-  "findRows",
+  "topBarRowOwner", "findRows",
 ].map(name => {
   const match = timerSource.match(new RegExp("^  function " + name + "\\([^]*?^  }", "m"));
   assert.ok(match, `Missing native timer function ${name}`);
@@ -492,19 +493,29 @@ const validUltimates = pure("validUltimates");
 assert.equal(parseUltimateClip("radial(50% 50%, 0deg, 40.588818deg)"), 40.588818);
 assert.equal(parseUltimateClip("radial(50% 50%, 0deg, -1deg)"), null);
 assert.equal(parseUltimateClip("radial(50% 50%, 0deg, 361deg)"), null);
-const snapshot = { magic_word: "HPV2_ULTIMATE_SNAPSHOT", at: 1000, since: 100, players: [["COOLDOWN", 90, 6], ["READY", 360, 0]] };
+const snapshot = { magic_word: "HPV2_ULTIMATE_SNAPSHOT", at: 1000, since: 100, players: [["COOLDOWN", 90, 6, ""], ["READY", 360, 0, ""]] };
 assert.equal(validUltimates(snapshot, 12999, 100, 900), true);
 assert.equal(validUltimates(snapshot, 13000, 100, 900), false);
 assert.equal(validUltimates(snapshot, 999, 100, 900), false);
 assert.equal(validUltimates(snapshot, 1000, 101, 900), false);
 assert.equal(validUltimates(snapshot, 1000, 100, 1001), false);
-assert.equal(validUltimates({ ...snapshot, players: [["A", 90, 0], ["A", 360, 0]] }, 1000, 100, 900), false);
+assert.equal(validUltimates({ ...snapshot, players: [["A", 90, 0, ""], ["A", 360, 0, ""]] }, 1000, 100, 900), false);
 assert.equal(validUltimates({ ...snapshot, players: [] }, 1000, 100, 900), true);
 for (const rate of [-1, NaN, Infinity, "6", 361, undefined])
-  assert.equal(validUltimates({ ...snapshot, players: [["A", 90, rate]] }, 1000, 100, 900), false);
-assert.equal(validUltimates({ ...snapshot, players: [["READY", 360, 6]] }, 1000, 100, 900), false);
+  assert.equal(validUltimates({ ...snapshot, players: [["A", 90, rate, ""]] }, 1000, 100, 900), false);
+assert.equal(validUltimates({ ...snapshot, players: [["READY", 360, 6, ""]] }, 1000, 100, 900), false);
 assert.equal(validUltimates({ ...snapshot, players: [["OLD", 90]] }, 1000, 100, 900), false);
-assert.equal(validUltimates({ ...snapshot, players: Array.from({ length: 13 }, (_, n) => ["P" + n, 90, 6]) }, 1000, 100, 900), false);
+assert.equal(validUltimates({ ...snapshot, players: [["OLD", 90, 6]] }, 1000, 100, 900), false, "alias slot is required");
+for (const alias of [null, 5, "rat king", " RAT KING", "X".repeat(257)])
+  assert.equal(validUltimates({ ...snapshot, players: [["A", 90, 6, alias]] }, 1000, 100, 900), false);
+const ultimateEntryIndex = pure("ultimateEntryIndex");
+const aliased = [["ENEMY ONE", 90, 6, "RAT KING"], ["ENEMY TWO", 90, 6, "APOLLO"], ["APOLLO", 90, 6, "HAZE"]];
+assert.equal(ultimateEntryIndex(aliased, "RAT KING"), 0, "a unique hero alias matches its row");
+assert.equal(ultimateEntryIndex(aliased, "APOLLO"), 2, "a player name beats another row's hero alias");
+assert.equal(ultimateEntryIndex(aliased, ""), -1, "an empty overhead name never matches an empty alias");
+assert.equal(ultimateEntryIndex([["A", 90, 6, ""], ["B", 90, 6, ""]], ""), -1);
+assert.equal(ultimateEntryIndex([["A", 90, 6, "HAZE"], ["B", 90, 6, "HAZE"]], "HAZE"), -1, "a shared alias is ambiguous");
+assert.equal(validUltimates({ ...snapshot, players: Array.from({ length: 13 }, (_, n) => ["P" + n, 90, 6, ""]) }, 1000, 100, 900), false);
 const fit = pure("fitProgress");
 assert.equal(fit({ angle: -300, at: 1000 }, { angle: -270, at: 4000 }, { angle: -240, at: 7000 }).rate, 10);
 assert.equal(fit({ angle: -300, at: 1000 }, { angle: -270, at: 4000 }, { angle: -350, at: 7000 }).rate, 0);
@@ -612,6 +623,106 @@ const beforeStaleDispatch = timerDispatches;
 for (const task of stale) task.callback();
 assert.equal(scheduled.length, 0, "disabled features do not reschedule old callbacks");
 assert.equal(timerDispatches, beforeStaleDispatch, "disabled callbacks do not publish");
+
+// Failure modes: one absolute team is skipped, CSS-ready artwork rejects valid
+// cooldowns, a bar woken before CLASS_PLAYER lands caches "nonhero" and drops
+// every later gate/snapshot (live 2026-10-10: hero=true, player=false for 40 s),
+// or live bars label units with hero names while the top bar keeps persona names
+// (live 2026-10-09: 801 no_match, zero slots; bots match because their player
+// name is their hero name). A hero name shared by two rows must never match.
+// Run the actual HUD publisher and world consumer, including Closure output.
+const { MockPanel, createPanoramaHarness, createVmContext, runInVm } = require("./hp-colors-panorama-test-adapter");
+const ultimateRuns = [];
+for (const [localTeam, lateHeroClass, overhead] of [[1, false, "player"], [2, false, "player"],
+  [1, true, "player"], [2, true, "player"], [1, false, "hero"], [2, false, "hero"], [2, true, "hero"],
+  [1, false, "bot"], [1, false, "ambiguousHero"]]) {
+  const values = { enabled: true, pickupTimersEnabled: false, pickupSize: 22,
+    ultimateTimerEnabled: true, ultimateTimerSize: 100, ultimateTimerDarkness: 70 };
+  const hud = createPanoramaHarness({ now: 1000 });
+  hud.root.AddClass("localPlayerTeam" + localTeam);
+  const bar = hud.root.add(new MockPanel("TopBar", { classes: ["HPV2PickupTopBar"] }));
+  bar.SetAttributeString("hp_colors_v2_config", JSON.stringify({
+    magic_word: "HP_COLORS_V2_CONFIG", version: 2, revision: 1, values,
+  }));
+  const enemyTeam = localTeam === 1 ? 2 : 1;
+  let enemyClip;
+  for (const team of [1, 2]) {
+    const container = bar.add(new MockPanel(team === 1 ? "TeamFriendly" : "TeamEnemy"));
+    const player = container.add(new MockPanel("Player" + team, {
+      paneltype: "CitadelHudTopBarPlayer", classes: ["UltimateUnlocked"],
+    }));
+    const enemy = team === enemyTeam;
+    const info = player.add(new MockPanel("PlayerInfo"));
+    info.add(new MockPanel("PlayerName", {
+      classes: ["PlayerName"], text: overhead === "bot" ? enemy ? "Rat King" : "Apollo" :
+        enemy ? overhead === "player" ? "ENEMY" : "xX Persona Xx" : "ALLY",
+    }));
+    info.add(new MockPanel("HeroName", {
+      classes: ["HeroName"], text: enemy || overhead === "ambiguousHero" ? "Rat King" : "Apollo",
+    }));
+    const bg = player.add(new MockPanel("UltimateStatus")).add(new MockPanel("UltimateStatusBG", {
+      style: { clip: "radial(50% 50%, 0deg, 90deg)" },
+    }));
+    if (enemy) enemyClip = bg;
+  }
+  const world = createPanoramaHarness({ now: 1000 });
+  if (!lateHeroClass) world.root.AddClass("CLASS_PLAYER");
+  world.root.AddClass("enemy");
+  world.root.add(new MockPanel("name", { text: overhead === "player" ? "ENEMY" : "Rat King" }));
+  const background = world.root.add(new MockPanel("unit_info_bg"));
+  const ready = background.add(new MockPanel("unit_ult_ready_icon")); // visible=true, CSS collapses it
+  Object.assign(world.root, {
+    HPV2GetNormalizedConfig: () => values, HPV2OnConfigChanged: () => () => {},
+    HPV2GetUltimateProgressColor: () => "#FFFFFF",
+    HPV2OnWake(callback) { callback(true); return () => {}; },
+  });
+  runInVm(runtimeTimerSource, createVmContext(world));
+  if (lateHeroClass) {
+    // Renderer already reported awake; no further wake transition will arrive.
+    world.root.AddClass("CLASS_PLAYER");
+    world.scheduler.runFor(3000);
+    hud.now = world.now; // the dispatch bridge copies hud.now into world.now
+  }
+  const dispatch = hud.$.DispatchEvent;
+  hud.$.DispatchEvent = (event, raw) => {
+    dispatch(event, raw);
+    world.now = hud.now;
+    world.root.HPV2OnPickupMessage(raw);
+  };
+  hud.contextPanel = bar;
+  const hudContext = createVmContext(hud);
+  runInVm(fs.readFileSync(path.join(sourceRoot, "panorama/scripts/hp_colors_v2_contract.js"), "utf8"), hudContext);
+  runInVm(runtimeTimerSource, hudContext);
+  const overlay = background.FindChildTraverse("HPV2UltimateOverlay");
+  const label = "local team " + localTeam + (lateHeroClass ? " after a late hero class" : "") +
+    " with " + overhead + " overhead names";
+  if (overhead === "ambiguousHero") {
+    hud.scheduler.runFor(3000);
+    world.scheduler.runFor(3000);
+    assert.ok(!overlay || overlay.style.visibility !== "visible", "a hero name on two rows never matches: " + label);
+    assert.deepEqual(hud.logs.concat(world.logs), [], "real scripts produce no errors");
+    ultimateRuns.push({ localTeam, lateHeroClass, overhead, matched: false });
+    continue;
+  }
+  assert.ok(overlay, "enemy cooldown creates artwork on " + label);
+  const fill = overlay.FindChildTraverse("HPV2UltimateFill");
+  assert.equal(fill.style.clip, "radial(50% 50%, 0deg, 90deg)");
+  enemyClip.style.clip = "radial(50% 50%, 0deg, 96deg)";
+  hud.scheduler.runFor(1000);
+  world.scheduler.runFor(1000);
+  const progress = fill.style.clip;
+  assert.equal(progress, "radial(50% 50%, 0deg, 102deg)", "enemy progress extrapolates from the native rate");
+  world.root.AddClass("has_ultimate");
+  world.scheduler.runFor(3000);
+  assert.equal(overlay.style.visibility, "collapse", "native ready class wins before another snapshot");
+  assert.equal(ready.visible, true, "timer never mutates native ready visibility");
+  assert.deepEqual(hud.logs.concat(world.logs), [], "real scripts produce no errors");
+  ultimateRuns.push({ localTeam, lateHeroClass, overhead, enemyContainer: enemyTeam === 1 ? "TeamFriendly" : "TeamEnemy",
+    progress, readyVisibility: overlay.style.visibility });
+}
+fs.mkdirSync(path.join(repoRoot, ".tmp"), { recursive: true });
+fs.writeFileSync(path.join(repoRoot, ".tmp/hpv2-enemy-ultimate-e2e.json"),
+  JSON.stringify({ sourceRoot, runs: ultimateRuns }, null, 2) + "\n");
 
 // Renderer wake notifications replace the separate 3s classification loop on dormant bars.
 let heroActive = false;

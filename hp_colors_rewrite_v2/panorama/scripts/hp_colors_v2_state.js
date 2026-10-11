@@ -554,13 +554,6 @@
     return pairs;
   }
 
-  function canonicalRecordValues(values) {
-    return canonicalValuePairs(
-      normalizeValues(values, CODEC_DEFAULTS),
-      CODEC_KEYS,
-    );
-  }
-
   function filterNormalizedConditions(normalized, includeExtension) {
     var result = {};
     var key;
@@ -711,7 +704,7 @@
       return { error: "INVALID HPV2 PRESET CONDITIONS" };
     return {
       values: normalizeValues(changed, CODEC_DEFAULTS),
-      conditions: nullableConditions(conditions, true),
+      conditions: nullableFilteredConditions(conditions, true),
       // v3 came only from the withdrawn centered-HP-text test build; its
       // offsets are read as bar-relative v2 values without conversion.
       offsetVersion: source.v === 3 ? 2 : source.v,
@@ -1563,7 +1556,7 @@
     function sameRows(a, b) {
       if (a.length !== b.length) return false;
       for (var i = 0; i < a.length; i++) {
-        if (a[i] !== b[i] && JSON.stringify(a[i]) !== JSON.stringify(b[i])) return false;
+        if (!sameProjection(a[i], b[i])) return false;
       }
       return true;
     }
@@ -2725,13 +2718,15 @@
       }, { code: "BAKED_RESTORED" });
     }
     function handleSettingsCopy() {
+      var values = normalizeValues(editableValues(), CODEC_DEFAULTS);
+      var conditions = normalizeConditions(editableConditions());
       var payload = {
-        v: canonicalRecordValues(editableValues()),
-        c: filterConditions(editableConditions(), false),
+        v: canonicalValuePairs(values, CODEC_KEYS),
+        c: filterNormalizedConditions(conditions, false),
         hpv2: {
           v: 2,
-          values: canonicalValuePairs(editableValues(), EXTENSION_KEYS),
-          conditions: filterConditions(editableConditions(), true),
+          values: canonicalValuePairs(values, EXTENSION_KEYS),
+          conditions: filterNormalizedConditions(conditions, true),
         },
       };
       var text = "HPCR2" + JSON.stringify(payload);

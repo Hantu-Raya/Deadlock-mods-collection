@@ -85,7 +85,7 @@ test('shared settings contract owns immutable defaults and normalization policy'
   assert.equal(Object.isFrozen(contract.keys), true);
   assert.equal(Object.isFrozen(contract.settingMeta), true);
   assert.equal(contract.codecKeys.length, 72);
-  assert.equal(contract.extensionKeys.length, 93);
+  assert.equal(contract.extensionKeys.length, 96);
   assert.deepEqual(contract.extensionKeys.slice(68, 70), ['nameAlign', 'hpTextAlign']);
   for (const key of ['nameAlign', 'hpTextAlign']) {
     assert.equal(contract.defaults[key], key === 'nameAlign' ? 'center' : 'left');
@@ -3661,7 +3661,7 @@ test('hpv2 v3 imports offsets and conditions unchanged then exports v2', () => {
 });
 
 test('new appended controls preserve the frozen sparse baseline and transfer', () => {
-  assert.equal(EXTENSION_KEYS.length, 93);
+  assert.equal(EXTENSION_KEYS.length, 96);
   assert.deepEqual(EXTENSION_KEYS.slice(67, 74), ['allyPulseReadout', 'nameAlign', 'hpTextAlign',
     'criticalOffsetX', 'criticalOffsetY', 'assassinateOffsetX', 'assassinateOffsetY']);
   for (const defaults of [CODEC_DEFAULTS, CONTRACT.sparseDefaults, DEFAULTS]) {
@@ -3732,7 +3732,7 @@ test('bar mask appends a NONE-default enum slot that transfers, resets and rejec
 // Failure modes: OLD normalizes to NONE, is lost through codes/presets/saves/conditions,
 // or the slot count grows instead of reusing slot 74.
 test('bar style OLD reuses slot 74 and survives codes, presets, saves and conditions', () => {
-  assert.equal(EXTENSION_KEYS.length, 93);
+  assert.equal(EXTENSION_KEYS.length, 96);
   assert.equal(CONTRACT.normalizeValue('barMask', 'old'), 'old');
   const state = createState();
   assert.equal(send(state, 'setting_edit', { key: 'barMask', value: 'old' }).status, 'committed');
