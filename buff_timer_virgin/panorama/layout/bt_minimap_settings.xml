@@ -29,6 +29,11 @@
 					<Button id="BTWidgetClaims" class="bt-widget-chip"><Label text="Claims" hittest="false" /></Button>
 					<Button id="BTWidgetWorth" class="bt-widget-chip bt-widget-chip-last"><Label text="Souls" hittest="false" /></Button>
 				</Panel>
+				<!-- The net worth pill's soul icon (layout side "n" when off, like the edit-mode eye). -->
+				<Button id="BTWorthIconToggle" class="bt-switch-row bt-timer-only">
+					<Label class="bt-row-label" text="Souls pill icon" />
+					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
+				</Button>
 				<Label class="bt-settings-section" text="ENEMY MARKERS" />
 				<Button id="BTUpColor" class="bt-color-row">
 					<Panel id="BTUpColorArrow" class="bt-color-arrow bt-arrow-up" hittest="false" />

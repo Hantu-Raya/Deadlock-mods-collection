@@ -1412,13 +1412,14 @@
 	margin-right: 0px;
 }
 
-/* Lead glow behind the pill: the script writes the inline opacity of one of them (0 inside +-2 %, 1 from 30 %). */
+/* Lead glow inside the pill: fills the button (same rounded box) under the icon and text, brightest at the rim and
+   softer in the middle so the percent stays readable. The script writes the inline opacity of one of them
+   (0 inside +-2 %, 1 from 30 %). */
 .networth-glow
 {
-	width: 150%;
-	height: 220%;
-	horizontal-align: center;
-	vertical-align: center;
+	width: 100%;
+	height: 100%;
+	border-radius: 10px;
 	opacity: 0;
 	transition-property: opacity;
 	transition-duration: 0.4s;
@@ -1426,12 +1427,14 @@
 
 .networth-glow-ally
 {
-	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( rgba(64, 150, 255, 0.9) ), color-stop( 0.55, rgba(64, 150, 255, 0.35) ), to( rgba(64, 150, 255, 0) ) );
+	background-color: gradient( radial, 50% 50%, 0% 0%, 75% 120%, from( rgba(64, 150, 255, 0.18) ), color-stop( 0.6, rgba(64, 150, 255, 0.45) ), to( rgba(64, 150, 255, 0.95) ) );
+	border: 1px solid rgba(64, 150, 255, 0.9);
 }
 
 .networth-glow-enemy
 {
-	background-color: gradient( radial, 50% 50%, 0% 0%, 50% 50%, from( rgba(255, 60, 60, 0.9) ), color-stop( 0.55, rgba(255, 60, 60, 0.35) ), to( rgba(255, 60, 60, 0) ) );
+	background-color: gradient( radial, 50% 50%, 0% 0%, 75% 120%, from( rgba(255, 60, 60, 0.18) ), color-stop( 0.6, rgba(255, 60, 60, 0.45) ), to( rgba(255, 60, 60, 0.95) ) );
+	border: 1px solid rgba(255, 60, 60, 0.9);
 }
 
 .bt-slot #NetWorthPingButton

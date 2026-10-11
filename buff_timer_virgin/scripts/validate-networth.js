@@ -132,6 +132,9 @@ check('Amber player: row sums, signed percent, blue glow scaled to 30 %', () => 
   assert.equal(opacity(p.ally), 0.833, 'blue at 25/30');
   assert.equal(opacity(p.enemy), 0, 'red off');
   assert.ok(p.ahead && !p.behind && !p.unknown);
+  // The glow fills the button itself (user request 2026-10-12), drawn under the icon and the text.
+  const kids = game.ids.NetWorth.children.map((child) => child.id);
+  assert.deepEqual(kids, ['NetWorthGlowAlly', 'NetWorthGlowEnemy', 'NetWorthImg', 'NetWorthText'], 'glows inside #NetWorth, first');
 });
 
 check('Sapphire player: absolute rows and relative labels both resolve to a red deficit', () => {
@@ -308,6 +311,33 @@ check('schema 8 saves the moved pill and bit 32; schema 7 records cannot carry t
     old.advance(2000);
     assert.equal(old.state().phase, 'blocked', `${body} is damaged`);
   }
+});
+
+// User request 2026-10-12: the soul icon has its own on/off switch in the menu (same model as the edit-mode eye: side
+// "n"), which keeps the pill where it is, survives a restart and is undone by switching it back on.
+check('menu switch turns the soul icon off and on, keeps the spot and saves it', () => {
+  const profile = createProfile();
+  const game = ready(profile);
+  tick(game, 180, 1);
+  const spot = game.ids.BTSlotWorth.style.position;
+  game.toggleMenu();
+  assert.ok(game.ids.BTWorthIconToggle.BHasClass('on'), 'icon shown by default');
+  game.click('BTWorthIconToggle');
+  game.advance(300);
+  assert.ok(game.ids.BTSlotWorth.BHasClass('bt-side-n'), 'icon hidden');
+  assert.ok(!game.ids.BTWorthIconToggle.BHasClass('on'), 'switch renders off');
+  assert.equal(game.ids.BTSlotWorth.style.position, spot, 'the pill stays where it was');
+  game.advance(2000);
+  assert.equal(saved(profile).t.w[3], 'n', 'hidden icon saved');
+  const again = ready(profile);
+  tick(again, 180, 1);
+  assert.ok(again.ids.BTSlotWorth.BHasClass('bt-side-n'), 'hidden icon restored');
+  again.toggleMenu();
+  assert.ok(!again.ids.BTWorthIconToggle.BHasClass('on'));
+  again.click('BTWorthIconToggle');
+  again.advance(2300);
+  assert.ok(again.ids.BTSlotWorth.BHasClass('bt-side-l'), 'icon back on its default side');
+  assert.equal(saved(profile).t.w[3], 'l');
 });
 
 check('the pill is a movable widget: default spot, chrome, icon toggle', () => {

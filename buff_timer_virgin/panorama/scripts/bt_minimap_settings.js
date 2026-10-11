@@ -7,7 +7,7 @@
     btEditor: "BTColorEditor", btPresetRow: "BTPresetRow",
     btSpectrumHost: "BTSpectrumHost", btHexEntry: "BTColorHexEntry",
     btBrightnessHost: "BTBrightnessHost", btBrightnessValue: "BTBrightnessValue",
-    btLinger: "BTLingerToggle", btGlow: "BTGlowToggle", btBorder: "BTBorderToggle",
+    btLinger: "BTLingerToggle", btGlow: "BTGlowToggle", btBorder: "BTBorderToggle", btWorthIcon: "BTWorthIconToggle",
     btOpacityHost: "BTMapOpacityHost", btOpacityValue: "BTMapOpacityValue",
     btStatus: "BTSettingsStatus", btReset: "BTSettingsReset",
     btResetLabel: "BTSettingsResetLabel", btStore: "BTSettingsStore",
@@ -541,6 +541,7 @@
     setPanelClass(UI.btLinger, "on", BtSettings.linger);
     setPanelClass(UI.btGlow, "on", BtSettings.glow);
     setPanelClass(UI.btBorder, "on", BtSettings.border);
+    setPanelClass(UI.btWorthIcon, "on", btWorthIconShown());
     for (let i = 0; i < BT_WIDGETS.length; i++) {
       setPanelClass(UI.widgetRows[i], "on", (BtSettings.widgetsOff & BT_WIDGETS[i].bit) === 0);
     }
@@ -636,6 +637,7 @@
     btBind(UI.btLinger, "onactivate", btToggleLinger);
     btBind(UI.btGlow, "onactivate", btToggleGlow);
     btBind(UI.btBorder, "onactivate", btToggleBorder);
+    btBind(UI.btWorthIcon, "onactivate", btToggleWorthIcon);
     for (let i = 0; i < BT_WIDGETS.length; i++) {
       const bit = BT_WIDGETS[i].bit;
       btBind(UI.widgetRows[i], "onactivate", () => btToggleWidget(bit));
@@ -823,6 +825,25 @@
   function btToggleGlow() {
     if (!btEditable()) return;
     BtSettings.glow = !BtSettings.glow;
+    btChanged();
+  }
+  // The net worth pill's soul icon. Same model as the edit-mode eye (layout side "n"): hiding pins the pill at its
+  // current spot and size (an untouched pill has no entry yet); showing puts the icon back on its default side.
+  function btWorthIconShown() {
+    const entry = BtSettings.layout["w"];
+    return !entry || entry[3] !== "n";
+  }
+  function btToggleWorthIcon() {
+    if (!btEditable() || BtLayout.editing) return;
+    const api = btLayoutApi();
+    const metrics = api ? btLayoutMetrics(api) : null;
+    const rect = metrics ? metrics["slots"]["w"] : null;
+    if (!rect) return;
+    const side = btWorthIconShown() ? "n" : BT_ICON_DEFAULT_SIDE["w"];
+    const layout = btLayoutCopy(BtSettings.layout);
+    layout["w"] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side);
+    BtSettings.layout = layout;
+    btLayoutPush();
     btChanged();
   }
   function btToggleBorder() {
@@ -1601,6 +1622,7 @@
     UI.btLinger = find(PANEL_IDS.btLinger);
     UI.btGlow = find(PANEL_IDS.btGlow);
     UI.btBorder = find(PANEL_IDS.btBorder);
+    UI.btWorthIcon = find(PANEL_IDS.btWorthIcon);
     UI.widgetRows = BT_WIDGETS.map((widget) => find(widget.row));
     UI.btOpacityHost = find(PANEL_IDS.btOpacityHost);
     UI.btOpacityValue = find(PANEL_IDS.btOpacityValue);
