@@ -1,0 +1,355 @@
+10/06 20:39:14 [PanoramaScript] [FF] t=0.00 boot
+10/06 20:39:15 [PanoramaScript] [FF] t=1.09 watching #EventFeed
+10/06 20:39:19 [PanoramaScript] [FF] t=5.75 reset (match started)
+10/06 20:42:38 [PanoramaScript] [FF] t=203.99 NEW #1 Panel
+10/06 20:43:07 [PanoramaScript] [FF] t=233.16 reset (match started)
+10/06 20:45:36 [PanoramaScript] [FF] t=382.62 TOPBAR rows=12 [friendly:THE DOORMAN(69) enemy:SHIV(19) friendly:HOLLIDAY(14) friendly:BEBOP(15) friendly:YAMATO(27) enemy:SINCLAIR(60) friendly:RAT KING(84) enemy:ABRAMS(6) enemy:VENATOR(65) enemy:LASH(31) friendly:SEVEN(2) enemy:VINDICTA(3)]
+10/06 20:45:36 [PanoramaScript] [FF] t=382.62 INPUT SoulsValue="1.4k" parsed=1400 "1.4k" parsed=1400 "1.7k" parsed=1700 "1.5k" parsed=1500 GameTime="2:29" seconds=149
+10/06 20:45:36 [PanoramaScript] [FF] t=382.62 NEW #2 non-hero -> non-hero souls=498 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:45:36 [PanoramaScript] [FF] t=382.62 ASSIST #2 feed BEBOP(15)
+10/06 20:45:36 [PanoramaScript] [FF] t=382.62 CB #2 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=2:29 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:47:19 [PanoramaScript] [FF] t=485.57 reset (match started)
+10/06 20:47:50 [PanoramaScript] [FF] t=516.50 TOPBAR rows=12 [friendly:YAMATO(27) friendly:THE DOORMAN(69) friendly:RAT KING(84) enemy:SHIV(19) friendly:HOLLIDAY(14) enemy:ABRAMS(6) enemy:VENATOR(65) enemy:LASH(31) enemy:SINCLAIR(60) enemy:VINDICTA(3) friendly:SEVEN(2) friendly:BEBOP(15)]
+10/06 20:47:50 [PanoramaScript] [FF] t=516.50 NEW #3 non-hero -> non-hero souls=492 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:47:50 [PanoramaScript] [FF] t=516.50 ASSIST #3 feed BEBOP(15)
+10/06 20:47:50 [PanoramaScript] [FF] t=516.50 CB #3 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=4:33 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:47:57 [PanoramaScript] [FF] t=523.61 NEW #4 non-hero -> non-hero souls=655 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:47:57 [PanoramaScript] [FF] t=523.61 ASSIST #4 feed SINCLAIR(60)
+10/06 20:47:57 [PanoramaScript] [FF] t=523.61 CB #4 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=4:40 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:47:59 [PanoramaScript] [FF] t=525.79 NEW #5 non-hero -> SOUL BAG souls=96 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:48:08 [PanoramaScript] [FF] t=534.54 NEW #6 non-hero -> non-hero souls=634 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:48:08 [PanoramaScript] [FF] t=534.54 ASSIST #6 feed LASH(31)
+10/06 20:48:08 [PanoramaScript] [FF] t=534.54 CB #6 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=4:51 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:48:13 [PanoramaScript] [FF] t=539.14 NEW #7 CitadelHudBossKilled
+10/06 20:48:15 [PanoramaScript] [FF] t=541.46 NEW #8 non-hero -> non-hero souls=722 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:48:15 [PanoramaScript] [FF] t=541.46 ASSIST #8 feed VINDICTA(3)
+10/06 20:48:15 [PanoramaScript] [FF] t=541.46 CB #8 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=4:58 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:48:18 [PanoramaScript] [FF] t=544.09 NEW #9 non-hero -> non-hero souls=715 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:48:18 [PanoramaScript] [FF] t=544.09 ASSIST #9 feed SEVEN(2)
+10/06 20:48:18 [PanoramaScript] [FF] t=544.09 CB #9 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=5:01 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:48:18 [PanoramaScript] [FF] t=544.81 NEW #10 non-hero -> non-hero souls=519 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:48:18 [PanoramaScript] [FF] t=544.81 ASSIST #10 feed LASH(31)
+10/06 20:48:18 [PanoramaScript] [FF] t=544.81 CB #10 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=5:01 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:48:38 [PanoramaScript] [FF] t=563.99 NEW #11 non-hero -> non-hero souls=584 assists=0 kind=death [enemyDied,hasGold]
+10/06 20:48:38 [PanoramaScript] [FF] t=563.99 CB #11 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=5:21 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:49:45 [PanoramaScript] [FF] t=630.90 NEW #12 non-hero -> non-hero souls=632 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:49:45 [PanoramaScript] [FF] t=630.90 ASSIST #12 feed SHIV(19),LASH(31)
+10/06 20:49:45 [PanoramaScript] [FF] t=630.90 CB #12 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=6:28 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:50:00 [PanoramaScript] [FF] t=646.57 NEW #13 non-hero -> non-hero souls=456 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:50:00 [PanoramaScript] [FF] t=646.57 ASSIST #13 feed SHIV(19),LASH(31)
+10/06 20:50:00 [PanoramaScript] [FF] t=646.57 CB #13 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=6:43 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:50:21 [PanoramaScript] [FF] t=667.65 NEW #14 non-hero -> non-hero souls=692 assists=0 kind=death [enemyDied,hasGold]
+10/06 20:50:21 [PanoramaScript] [FF] t=667.65 CB #14 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=7:04 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:50:57 [PanoramaScript] [FF] t=703.45 NEW #15 non-hero -> non-hero souls=750 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:50:57 [PanoramaScript] [FF] t=703.45 ASSIST #15 feed HOLLIDAY(14),THE DOORMAN(69)
+10/06 20:50:57 [PanoramaScript] [FF] t=703.45 CB #15 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=7:40 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:50:59 [PanoramaScript] [FF] t=705.25 NEW #16 non-hero -> SOUL BAG souls=218 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:51:20 [PanoramaScript] [FF] t=726.36 NEW #17 non-hero -> non-hero souls=760 assists=0 kind=death [enemyDied,hasGold]
+10/06 20:51:20 [PanoramaScript] [FF] t=726.36 CB #17 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=8:03 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:51:31 [PanoramaScript] [FF] t=737.05 NEW #18 non-hero -> non-hero souls=519 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:51:31 [PanoramaScript] [FF] t=737.05 ASSIST #18 feed LASH(31),SINCLAIR(60)
+10/06 20:51:31 [PanoramaScript] [FF] t=737.05 CB #18 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=8:14 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:52:01 [PanoramaScript] [FF] t=767.34 NEW #19 non-hero -> non-hero souls=1,196 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:52:01 [PanoramaScript] [FF] t=767.34 ASSIST #19 feed RAT KING(84)
+10/06 20:52:01 [PanoramaScript] [FF] t=767.34 CB #19 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=8:44 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:52:02 [PanoramaScript] [FF] t=768.60 NEW #20 non-hero -> SOUL BAG souls=183 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:52:14 [PanoramaScript] [FF] t=780.16 NEW #21 non-hero -> non-hero souls=809 assists=0 kind=death [enemyDied,hasGold]
+10/06 20:52:14 [PanoramaScript] [FF] t=780.16 CB #21 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=8:57 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:52:14 [PanoramaScript] [FF] t=780.48 NEW #22 CitadelHudBossKilled
+10/06 20:53:09 [PanoramaScript] [FF] t=835.47 NEW #23 CitadelHudBossKilled
+10/06 20:53:11 [PanoramaScript] [FF] t=837.45 NEW #24 non-hero -> non-hero souls=800 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:53:11 [PanoramaScript] [FF] t=837.45 ASSIST #24 feed SINCLAIR(60)
+10/06 20:53:11 [PanoramaScript] [FF] t=837.45 CB #24 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=9:54 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:53:30 [PanoramaScript] [FF] t=855.96 NEW #25 non-hero -> Picked Up! souls=0 assists=0 kind=other [IdolPickedUp]
+10/06 20:53:38 [PanoramaScript] [FF] t=864.24 NEW #26 non-hero -> non-hero souls=520 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:53:38 [PanoramaScript] [FF] t=864.24 ASSIST #26 feed SHIV(19),VINDICTA(3),LASH(31),ABRAMS(6)
+10/06 20:53:38 [PanoramaScript] [FF] t=864.24 CB #26 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=10:21 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:53:40 [PanoramaScript] [FF] t=866.16 NEW #27 non-hero -> non-hero souls=504 assists=3 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 20:53:40 [PanoramaScript] [FF] t=866.16 ASSIST #27 feed VINDICTA(3),SINCLAIR(60),ABRAMS(6)
+10/06 20:53:40 [PanoramaScript] [FF] t=866.16 CB #27 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=10:23 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:53:41 [PanoramaScript] [FF] t=867.44 NEW #28 non-hero -> Soul Bag souls=529 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:54:05 [PanoramaScript] [FF] t=891.03 NEW #29 non-hero -> RETURNED! souls=950 assists=0 kind=other [hasGold,IdolReturned]
+10/06 20:54:27 [PanoramaScript] [FF] t=913.18 NEW #30 CitadelHudBossKilled
+10/06 20:54:45 [PanoramaScript] [FF] t=930.84 NEW #31 CitadelHudBossKilled
+10/06 20:54:45 [PanoramaScript] [FF] t=931.16 NEW #32 non-hero -> non-hero souls=1,165 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:54:45 [PanoramaScript] [FF] t=931.16 ASSIST #32 feed HOLLIDAY(14)
+10/06 20:54:45 [PanoramaScript] [FF] t=931.16 CB #32 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=11:28 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:54:56 [PanoramaScript] [FF] t=942.37 NEW #33 non-hero -> non-hero souls=846 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:54:56 [PanoramaScript] [FF] t=942.37 ASSIST #33 feed HOLLIDAY(14),RAT KING(84)
+10/06 20:54:56 [PanoramaScript] [FF] t=942.37 CB #33 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=11:39 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:54:58 [PanoramaScript] [FF] t=944.12 NEW #34 non-hero -> SOUL BAG souls=409 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:55:55 [PanoramaScript] [FF] t=1001.74 NEW #35 non-hero -> non-hero souls=1,005 assists=0 kind=death [enemyDied,hasGold]
+10/06 20:55:55 [PanoramaScript] [FF] t=1001.74 CB #35 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=12:05 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:56:02 [PanoramaScript] [FF] t=1008.40 NEW #36 non-hero -> SOUL BAG souls=246 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:56:56 [PanoramaScript] [FF] t=1062.58 NEW #37 non-hero -> non-hero souls=471 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:56:56 [PanoramaScript] [FF] t=1062.58 ASSIST #37 feed SHIV(19),SINCLAIR(60),ABRAMS(6),VENATOR(65)
+10/06 20:56:56 [PanoramaScript] [FF] t=1062.58 CB #37 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=13:06 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:57:08 [PanoramaScript] [FF] t=1074.10 NEW #38 non-hero -> non-hero souls=476 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:57:08 [PanoramaScript] [FF] t=1074.10 ASSIST #38 feed LASH(31),SINCLAIR(60),ABRAMS(6),VENATOR(65)
+10/06 20:57:08 [PanoramaScript] [FF] t=1074.10 CB #38 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=13:18 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:57:19 [PanoramaScript] [FF] t=1085.04 NEW #39 non-hero -> non-hero souls=612 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:57:19 [PanoramaScript] [FF] t=1085.04 ASSIST #39 feed SHIV(19),LASH(31),SINCLAIR(60)
+10/06 20:57:19 [PanoramaScript] [FF] t=1085.04 CB #39 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=13:29 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:57:20 [PanoramaScript] [FF] t=1086.38 NEW #40 non-hero -> SOUL BAG souls=472 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:57:27 [PanoramaScript] [FF] t=1093.21 NEW #41 non-hero -> RIFT SECURED! souls=1,482 assists=2 kind=other [hasGold,hasAssists,KothCompleted]
+10/06 20:57:28 [PanoramaScript] [FF] t=1094.05 NEW #42 non-hero -> non-hero souls=1,574 assists=0 kind=death [teammateDied,hasGold]
+10/06 20:57:28 [PanoramaScript] [FF] t=1094.05 CB #42 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=13:38 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:57:30 [PanoramaScript] [FF] t=1096.04 NEW #43 non-hero -> non-hero souls=619 assists=3 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 20:57:30 [PanoramaScript] [FF] t=1096.04 ASSIST #43 feed SHIV(19),ABRAMS(6),VENATOR(65)
+10/06 20:57:30 [PanoramaScript] [FF] t=1096.04 CB #43 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=13:40 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:57:30 [PanoramaScript] [FF] t=1096.04 NEW #44 non-hero -> Soul Bag souls=265 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 20:57:31 [PanoramaScript] [FF] t=1097.29 NEW #45 non-hero -> SOUL BAG souls=632 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/06 20:57:38 [PanoramaScript] [FF] t=1104.41 NEW #46 non-hero -> non-hero souls=1,024 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:57:38 [PanoramaScript] [FF] t=1104.41 ASSIST #46 feed VENATOR(65)
+10/06 20:57:38 [PanoramaScript] [FF] t=1104.41 CB #46 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=13:48 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:57:54 [PanoramaScript] [FF] t=1120.50 NEW #47 non-hero -> non-hero souls=767 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:57:54 [PanoramaScript] [FF] t=1120.50 ASSIST #47 feed LASH(31),ABRAMS(6)
+10/06 20:57:54 [PanoramaScript] [FF] t=1120.50 CB #47 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=14:04 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:57:57 [PanoramaScript] [FF] t=1122.94 NEW #48 non-hero -> non-hero souls=1,041 assists=1 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 20:57:57 [PanoramaScript] [FF] t=1122.94 ASSIST #48 feed SHIV(19)
+10/06 20:57:57 [PanoramaScript] [FF] t=1122.94 CB #48 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=14:06 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:58:11 [PanoramaScript] [FF] t=1136.82 NEW #49 non-hero -> non-hero souls=1,497 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:58:11 [PanoramaScript] [FF] t=1136.82 ASSIST #49 feed HOLLIDAY(14)
+10/06 20:58:11 [PanoramaScript] [FF] t=1136.82 CB #49 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=14:20 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:58:36 [PanoramaScript] [FF] t=1162.77 NEW #50 non-hero -> non-hero souls=1,729 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:58:36 [PanoramaScript] [FF] t=1162.77 ASSIST #50 feed SEVEN(2)
+10/06 20:58:36 [PanoramaScript] [FF] t=1162.77 CB #50 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=14:46 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:58:38 [PanoramaScript] [FF] t=1163.83 NEW #51 non-hero -> non-hero souls=798 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 20:58:38 [PanoramaScript] [FF] t=1163.83 ASSIST #51 feed SINCLAIR(60),ABRAMS(6)
+10/06 20:58:38 [PanoramaScript] [FF] t=1163.83 CB #51 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=14:47 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 20:59:03 [PanoramaScript] [FF] t=1189.51 NEW #52 CitadelHudBossKilled
+10/06 20:59:37 [PanoramaScript] [FF] t=1222.87 NEW #53 non-hero -> PICKED UP! souls=0 assists=0 kind=other [has_killstreak,IdolPickedUp]
+10/06 20:59:59 [PanoramaScript] [FF] t=1245.00 NEW #54 non-hero -> non-hero souls=1,043 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 20:59:59 [PanoramaScript] [FF] t=1245.00 ASSIST #54 feed HOLLIDAY(14),BEBOP(15)
+10/06 20:59:59 [PanoramaScript] [FF] t=1245.00 CB #54 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=16:08 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:00:01 [PanoramaScript] [FF] t=1247.41 NEW #55 non-hero -> RETURNED! souls=1,300 assists=0 kind=other [hasGold,has_killstreak,IdolReturned]
+10/06 21:00:05 [PanoramaScript] [FF] t=1251.50 NEW #56 non-hero -> non-hero souls=991 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:00:05 [PanoramaScript] [FF] t=1251.50 ASSIST #56 feed SEVEN(2),BEBOP(15)
+10/06 21:00:05 [PanoramaScript] [FF] t=1251.50 CB #56 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=16:15 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:01:28 [PanoramaScript] [FF] t=1334.33 NEW #57 non-hero -> non-hero souls=996 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:01:28 [PanoramaScript] [FF] t=1334.33 ASSIST #57 feed HOLLIDAY(14),RAT KING(84)
+10/06 21:01:28 [PanoramaScript] [FF] t=1334.33 CB #57 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=17:38 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:02:14 [PanoramaScript] [FF] t=1380.50 NEW #58 non-hero -> non-hero souls=1,400 assists=0 kind=death [enemyDied,hasGold,has_killstreak]
+10/06 21:02:14 [PanoramaScript] [FF] t=1380.50 CB #58 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=18:24 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:02:16 [PanoramaScript] [FF] t=1382.70 NEW #59 non-hero -> SOUL BAG souls=185 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/06 21:03:11 [PanoramaScript] [FF] t=1437.60 NEW #60 non-hero -> non-hero souls=1,343 assists=1 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 21:03:11 [PanoramaScript] [FF] t=1437.60 ASSIST #60 feed SINCLAIR(60)
+10/06 21:03:11 [PanoramaScript] [FF] t=1437.60 CB #60 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=19:21 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:03:30 [PanoramaScript] [FF] t=1455.96 NEW #61 non-hero -> RIFT SECURED! souls=2,814 assists=0 kind=other [hasGold,KothCompleted]
+10/06 21:03:36 [PanoramaScript] [FF] t=1462.27 NEW #62 non-hero -> non-hero souls=1,563 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:03:36 [PanoramaScript] [FF] t=1462.27 ASSIST #62 feed THE DOORMAN(69)
+10/06 21:03:36 [PanoramaScript] [FF] t=1462.27 CB #62 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=19:46 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:03:37 [PanoramaScript] [FF] t=1463.54 NEW #63 non-hero -> SOUL BAG souls=292 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:03:37 [PanoramaScript] [FF] t=1463.65 NEW #64 non-hero -> non-hero souls=1,463 assists=1 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 21:03:37 [PanoramaScript] [FF] t=1463.65 ASSIST #64 feed ABRAMS(6)
+10/06 21:03:37 [PanoramaScript] [FF] t=1463.65 CB #64 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=19:47 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:03:39 [PanoramaScript] [FF] t=1465.12 NEW #65 non-hero -> SOUL BAG souls=886 assists=0 kind=other [hasGold,SoulBagPickup]
+10/06 21:03:47 [PanoramaScript] [FF] t=1473.11 NEW #66 non-hero -> non-hero souls=1,377 assists=1 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 21:03:47 [PanoramaScript] [FF] t=1473.11 ASSIST #66 feed SHIV(19)
+10/06 21:03:47 [PanoramaScript] [FF] t=1473.11 CB #66 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=19:56 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:03:48 [PanoramaScript] [FF] t=1474.36 NEW #67 CitadelHudBossKilled
+10/06 21:03:50 [PanoramaScript] [FF] t=1476.56 NEW #68 non-hero -> non-hero souls=1,019 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:03:50 [PanoramaScript] [FF] t=1476.56 ASSIST #68 feed LASH(31),SINCLAIR(60)
+10/06 21:03:50 [PanoramaScript] [FF] t=1476.56 CB #68 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=20:00 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:04:32 [PanoramaScript] [FF] t=1518.01 NEW #69 non-hero -> PICKED UP! souls=0 assists=0 kind=other [IdolPickedUp]
+10/06 21:04:50 [PanoramaScript] [FF] t=1536.77 NEW #70 non-hero -> non-hero souls=1,347 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:04:50 [PanoramaScript] [FF] t=1536.77 ASSIST #70 feed SEVEN(2),RAT KING(84)
+10/06 21:04:50 [PanoramaScript] [FF] t=1536.77 CB #70 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=21:00 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:04:57 [PanoramaScript] [FF] t=1543.03 NEW #71 non-hero -> non-hero souls=1,288 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:04:57 [PanoramaScript] [FF] t=1543.03 ASSIST #71 feed HOLLIDAY(14),SEVEN(2),RAT KING(84)
+10/06 21:04:57 [PanoramaScript] [FF] t=1543.03 CB #71 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=21:07 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:05:00 [PanoramaScript] [FF] t=1546.72 NEW #72 non-hero -> non-hero souls=881 assists=3 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 21:05:00 [PanoramaScript] [FF] t=1546.72 ASSIST #72 feed LASH(31),SINCLAIR(60),ABRAMS(6)
+10/06 21:05:00 [PanoramaScript] [FF] t=1546.72 CB #72 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=21:10 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:05:09 [PanoramaScript] [FF] t=1555.72 NEW #73 non-hero -> non-hero souls=1,257 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:05:09 [PanoramaScript] [FF] t=1555.72 ASSIST #73 feed SEVEN(2),RAT KING(84),YAMATO(27),BEBOP(15)
+10/06 21:05:09 [PanoramaScript] [FF] t=1555.72 CB #73 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=21:19 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:05:11 [PanoramaScript] [FF] t=1557.19 NEW #74 non-hero -> SOUL BAG souls=328 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:05:16 [PanoramaScript] [FF] t=1562.61 NEW #75 CitadelHudBossKilled
+10/06 21:05:29 [PanoramaScript] [FF] t=1575.44 NEW #76 non-hero -> non-hero souls=1,216 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:05:29 [PanoramaScript] [FF] t=1575.44 ASSIST #76 feed HOLLIDAY(14),YAMATO(27)
+10/06 21:05:29 [PanoramaScript] [FF] t=1575.44 CB #76 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=21:39 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:05:31 [PanoramaScript] [FF] t=1577.02 NEW #77 non-hero -> SOUL BAG souls=384 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:06:02 [PanoramaScript] [FF] t=1608.10 NEW #78 <no killer> -> EXPIRED... souls=0 assists=0 kind=other [noKiller,IdolReturned]
+10/06 21:06:05 [PanoramaScript] [FF] t=1611.27 NEW #79 non-hero -> SOUL BAG souls=1,262 assists=0 kind=other [hasGold,SoulBagPickup]
+10/06 21:06:32 [PanoramaScript] [FF] t=1637.94 NEW #80 non-hero -> non-hero souls=734 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:06:32 [PanoramaScript] [FF] t=1637.94 ASSIST #80 feed SHIV(19),LASH(31),SINCLAIR(60),ABRAMS(6)
+10/06 21:06:32 [PanoramaScript] [FF] t=1637.94 CB #80 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=22:41 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:06:33 [PanoramaScript] [FF] t=1639.32 NEW #81 non-hero -> SOUL BAG souls=364 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:06:48 [PanoramaScript] [FF] t=1654.73 NEW #82 non-hero -> non-hero souls=795 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:06:48 [PanoramaScript] [FF] t=1654.73 ASSIST #82 feed SHIV(19),VINDICTA(3),LASH(31),ABRAMS(6)
+10/06 21:06:48 [PanoramaScript] [FF] t=1654.73 CB #82 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=22:58 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:06:50 [PanoramaScript] [FF] t=1656.65 NEW #83 non-hero -> non-hero souls=743 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:06:50 [PanoramaScript] [FF] t=1656.65 ASSIST #83 feed SHIV(19),VINDICTA(3),LASH(31),ABRAMS(6)
+10/06 21:06:50 [PanoramaScript] [FF] t=1656.65 CB #83 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=23:00 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:06:52 [PanoramaScript] [FF] t=1658.27 NEW #84 non-hero -> Soul Bag souls=829 assists=0 kind=other [hasGold,SoulBagPickup]
+10/06 21:06:57 [PanoramaScript] [FF] t=1663.27 NEW #85 non-hero -> non-hero souls=746 assists=4 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 21:06:57 [PanoramaScript] [FF] t=1663.27 ASSIST #85 feed SHIV(19),VINDICTA(3),LASH(31),ABRAMS(6)
+10/06 21:06:57 [PanoramaScript] [FF] t=1663.27 CB #85 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=23:07 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:06:57 [PanoramaScript] [FF] t=1663.49 NEW #86 non-hero -> SOUL BAG souls=921 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:07:20 [PanoramaScript] [FF] t=1686.05 NEW #87 CitadelHudBossKilled
+10/06 21:07:37 [PanoramaScript] [FF] t=1703.57 NEW #88 CitadelHudBossKilled
+ [FF] t=1710.19 NEW #89 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [has_killstreak,isRejuvenatorPickup]
+10/06 21:07:44 [PanoramaScript] [FF] t=1710.19 SKIP #89 invalid feed souls
+10/06 21:07:44 [PanoramaScript] [FF] t=1710.19 NEW #90 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/06 21:07:44 [PanoramaScript] [FF] t=1710.19 SKIP #90 invalid feed souls
+ [FF] t=1710.51 NEW #91 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/06 21:07:44 [PanoramaScript] [FF] t=1710.51 SKIP #91 invalid feed souls
+10/06 21:08:02 [PanoramaScript] [FF] t=1728.78 NEW #92 non-hero -> REVIVED! souls=- assists=0 kind=other [isRejuvenatorUsed]
+10/06 21:08:02 [PanoramaScript] [FF] t=1728.78 SKIP #92 invalid feed souls
+10/06 21:08:08 [PanoramaScript] [FF] t=1734.11 NEW #93 non-hero -> non-hero souls=1,627 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:08:08 [PanoramaScript] [FF] t=1734.11 ASSIST #93 feed LASH(31)
+10/06 21:08:08 [PanoramaScript] [FF] t=1734.11 CB #93 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=24:18 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:08:11 [PanoramaScript] [FF] t=1737.49 NEW #94 non-hero -> non-hero souls=1,006 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:08:11 [PanoramaScript] [FF] t=1737.49 ASSIST #94 feed HOLLIDAY(14),THE DOORMAN(69),RAT KING(84),BEBOP(15)
+10/06 21:08:11 [PanoramaScript] [FF] t=1737.49 CB #94 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=24:21 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:08:13 [PanoramaScript] [FF] t=1739.04 NEW #95 non-hero -> Soul Bag souls=480 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:08:22 [PanoramaScript] [FF] t=1748.31 NEW #96 non-hero -> non-hero souls=1,211 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:08:22 [PanoramaScript] [FF] t=1748.31 ASSIST #96 feed LASH(31),SINCLAIR(60)
+10/06 21:08:22 [PanoramaScript] [FF] t=1748.31 CB #96 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=24:32 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:09:43 [PanoramaScript] [FF] t=1829.50 NEW #97 non-hero -> RIFT SECURED! souls=4,146 assists=1 kind=other [hasGold,hasAssists,has_killstreak,KothCompleted]
+10/06 21:10:20 [PanoramaScript] [FF] t=1866.44 NEW #98 non-hero -> non-hero souls=1,273 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:10:20 [PanoramaScript] [FF] t=1866.44 ASSIST #98 feed HOLLIDAY(14),THE DOORMAN(69),RAT KING(84)
+10/06 21:10:20 [PanoramaScript] [FF] t=1866.44 CB #98 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=26:30 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:10:24 [PanoramaScript] [FF] t=1870.48 NEW #99 non-hero -> Revived! souls=- assists=0 kind=other [has_killstreak,isRejuvenatorUsed]
+10/06 21:10:24 [PanoramaScript] [FF] t=1870.48 SKIP #99 invalid feed souls
+10/06 21:10:34 [PanoramaScript] [FF] t=1879.92 NEW #100 non-hero -> non-hero souls=1,076 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:10:34 [PanoramaScript] [FF] t=1879.92 ASSIST #100 feed LASH(31),SINCLAIR(60),ABRAMS(6)
+10/06 21:10:34 [PanoramaScript] [FF] t=1879.92 CB #100 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=26:43 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:10:45 [PanoramaScript] [FF] t=1890.83 NEW #101 <no killer> -> EXPIRED... souls=0 assists=0 kind=other [noKiller,IdolReturned]
+10/06 21:10:45 [PanoramaScript] [FF] t=1891.28 NEW #102 non-hero -> non-hero souls=1,272 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:10:45 [PanoramaScript] [FF] t=1891.28 ASSIST #102 feed THE DOORMAN(69),RAT KING(84),BEBOP(15)
+10/06 21:10:45 [PanoramaScript] [FF] t=1891.28 CB #102 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=26:55 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:10:46 [PanoramaScript] [FF] t=1892.53 NEW #103 non-hero -> REVIVED! souls=- assists=0 kind=other [isRejuvenatorUsed]
+10/06 21:10:46 [PanoramaScript] [FF] t=1892.53 SKIP #103 invalid feed souls
+10/06 21:10:48 [PanoramaScript] [FF] t=1894.22 NEW #104 non-hero -> non-hero souls=1,437 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:10:48 [PanoramaScript] [FF] t=1894.22 ASSIST #104 feed THE DOORMAN(69),RAT KING(84),BEBOP(15)
+10/06 21:10:48 [PanoramaScript] [FF] t=1894.22 CB #104 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=26:58 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:10:59 [PanoramaScript] [FF] t=1904.97 NEW #105 non-hero -> non-hero souls=1,324 assists=3 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/06 21:10:59 [PanoramaScript] [FF] t=1904.97 ASSIST #105 feed THE DOORMAN(69),RAT KING(84),BEBOP(15)
+10/06 21:10:59 [PanoramaScript] [FF] t=1904.97 CB #105 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=27:08 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:11:27 [PanoramaScript] [FF] t=1933.62 NEW #106 non-hero -> non-hero souls=2,023 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:11:27 [PanoramaScript] [FF] t=1933.62 ASSIST #106 feed VINDICTA(3)
+10/06 21:11:27 [PanoramaScript] [FF] t=1933.62 CB #106 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=27:37 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:11:28 [PanoramaScript] [FF] t=1934.57 NEW #107 non-hero -> SOUL BAG souls=967 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:12:57 [PanoramaScript] [FF] t=2022.98 NEW #108 non-hero -> non-hero souls=2,525 assists=0 kind=death [teammateDied,hasGold]
+10/06 21:12:57 [PanoramaScript] [FF] t=2022.98 CB #108 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=29:06 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:13:20 [PanoramaScript] [FF] t=2046.12 NEW #109 non-hero -> non-hero souls=1,926 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:13:20 [PanoramaScript] [FF] t=2046.12 ASSIST #109 feed VENATOR(65)
+10/06 21:13:20 [PanoramaScript] [FF] t=2046.12 CB #109 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=29:30 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:13:49 [PanoramaScript] [FF] t=2075.21 NEW #110 CitadelHudBossKilled
+10/06 21:13:49 [PanoramaScript] [FF] t=2075.63 NEW #111 non-hero -> non-hero souls=1,190 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:13:49 [PanoramaScript] [FF] t=2075.63 ASSIST #111 feed LASH(31),SINCLAIR(60),VENATOR(65)
+10/06 21:13:49 [PanoramaScript] [FF] t=2075.63 CB #111 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=29:59 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:13:54 [PanoramaScript] [FF] t=2080.24 NEW #112 non-hero -> non-hero souls=1,323 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:13:54 [PanoramaScript] [FF] t=2080.24 ASSIST #112 feed SHIV(19),LASH(31),SINCLAIR(60)
+10/06 21:13:54 [PanoramaScript] [FF] t=2080.24 CB #112 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=30:04 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:13:56 [PanoramaScript] [FF] t=2081.94 NEW #113 non-hero -> SOUL BAG souls=1,170 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:13:59 [PanoramaScript] [FF] t=2085.50 NEW #114 non-hero -> non-hero souls=1,195 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:13:59 [PanoramaScript] [FF] t=2085.50 ASSIST #114 feed SHIV(19),LASH(31),SINCLAIR(60)
+10/06 21:13:59 [PanoramaScript] [FF] t=2085.50 CB #114 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=30:09 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:14:01 [PanoramaScript] [FF] t=2087.29 NEW #115 non-hero -> SOUL BAG souls=274 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/06 21:15:04 [PanoramaScript] [FF] t=2150.08 NEW #116 CitadelHudBossKilled
+10/06 21:15:10 [PanoramaScript] [FF] t=2156.43 NEW #117 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/06 21:15:10 [PanoramaScript] [FF] t=2156.43 SKIP #117 invalid feed souls
+10/06 21:15:10 [PanoramaScript] [FF] t=2156.64 NEW #118 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [has_killstreak,isRejuvenatorPickup]
+10/06 21:15:10 [PanoramaScript] [FF] t=2156.64 SKIP #118 invalid feed souls
+10/06 21:15:11 [PanoramaScript] [FF] t=2156.85 NEW #119 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/06 21:15:11 [PanoramaScript] [FF] t=2156.85 SKIP #119 invalid feed souls
+10/06 21:15:13 [PanoramaScript] [FF] t=2159.05 NEW #120 non-hero -> PICKED UP! souls=0 assists=0 kind=other [has_killstreak,IdolPickedUp]
+10/06 21:15:16 [PanoramaScript] [FF] t=2162.05 NEW #121 non-hero -> Revived! souls=- assists=0 kind=other [isRejuvenatorUsed]
+10/06 21:15:16 [PanoramaScript] [FF] t=2162.05 SKIP #121 invalid feed souls
+10/06 21:15:22 [PanoramaScript] [FF] t=2167.85 NEW #122 non-hero -> non-hero souls=885 assists=5 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:15:22 [PanoramaScript] [FF] t=2167.85 ASSIST #122 feed SHIV(19),LASH(31),SINCLAIR(60),ABRAMS(6),VENATOR(65)
+10/06 21:15:22 [PanoramaScript] [FF] t=2167.85 CB #122 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=31:31 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:15:24 [PanoramaScript] [FF] t=2170.31 NEW #123 non-hero -> SOUL BAG souls=298 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:15:31 [PanoramaScript] [FF] t=2177.45 NEW #124 non-hero -> non-hero souls=1,355 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:15:31 [PanoramaScript] [FF] t=2177.45 ASSIST #124 feed HOLLIDAY(14),SEVEN(2),RAT KING(84),YAMATO(27)
+10/06 21:15:31 [PanoramaScript] [FF] t=2177.45 CB #124 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=31:41 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:15:35 [PanoramaScript] [FF] t=2181.70 NEW #125 non-hero -> Soul Bag souls=313 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/06 21:15:41 [PanoramaScript] [FF] t=2186.97 NEW #126 <no killer> -> Expired... souls=0 assists=0 kind=other [noKiller,IdolReturned]
+10/06 21:15:53 [PanoramaScript] [FF] t=2199.06 NEW #127 non-hero -> non-hero souls=1,000 assists=4 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 21:15:53 [PanoramaScript] [FF] t=2199.06 ASSIST #127 feed SHIV(19),VINDICTA(3),LASH(31),ABRAMS(6)
+10/06 21:15:53 [PanoramaScript] [FF] t=2199.06 CB #127 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=32:03 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:16:30 [PanoramaScript] [FF] t=2235.88 NEW #128 non-hero -> REVIVED! souls=- assists=0 kind=other [has_killstreak,isRejuvenatorUsed]
+10/06 21:16:30 [PanoramaScript] [FF] t=2235.88 SKIP #128 invalid feed souls
+10/06 21:16:38 [PanoramaScript] [FF] t=2244.42 NEW #129 non-hero -> non-hero souls=1,563 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:16:38 [PanoramaScript] [FF] t=2244.42 ASSIST #129 feed LASH(31),VENATOR(65)
+10/06 21:16:38 [PanoramaScript] [FF] t=2244.42 CB #129 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=32:48 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:16:59 [PanoramaScript] [FF] t=2265.58 NEW #130 non-hero -> non-hero souls=2,192 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:16:59 [PanoramaScript] [FF] t=2265.58 ASSIST #130 feed THE DOORMAN(69),SEVEN(2),BEBOP(15)
+10/06 21:16:59 [PanoramaScript] [FF] t=2265.58 CB #130 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=33:09 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:17:00 [PanoramaScript] [FF] t=2266.09 NEW #131 CitadelHudBossKilled
+10/06 21:17:35 [PanoramaScript] [FF] t=2301.00 NEW #132 non-hero -> RIFT SECURED! souls=5,922 assists=0 kind=other [hasGold,KothCompleted]
+10/06 21:17:59 [PanoramaScript] [FF] t=2325.21 NEW #133 non-hero -> REVIVED! souls=- assists=0 kind=other [isRejuvenatorUsed]
+10/06 21:17:59 [PanoramaScript] [FF] t=2325.21 SKIP #133 invalid feed souls
+10/06 21:18:09 [PanoramaScript] [FF] t=2335.53 NEW #134 non-hero -> non-hero souls=1,863 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:18:09 [PanoramaScript] [FF] t=2335.53 ASSIST #134 feed THE DOORMAN(69),SEVEN(2),BEBOP(15)
+10/06 21:18:09 [PanoramaScript] [FF] t=2335.53 CB #134 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=34:19 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:18:31 [PanoramaScript] [FF] t=2357.53 NEW #135 non-hero -> non-hero souls=1,819 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:18:31 [PanoramaScript] [FF] t=2357.53 ASSIST #135 feed SEVEN(2),RAT KING(84),BEBOP(15)
+10/06 21:18:31 [PanoramaScript] [FF] t=2357.53 CB #135 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=34:41 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:19:05 [PanoramaScript] [FF] t=2391.01 NEW #136 non-hero -> non-hero souls=1,764 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:19:05 [PanoramaScript] [FF] t=2391.01 ASSIST #136 feed HOLLIDAY(14),THE DOORMAN(69),SEVEN(2)
+10/06 21:19:05 [PanoramaScript] [FF] t=2391.01 CB #136 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=35:14 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:19:11 [PanoramaScript] [FF] t=2397.17 NEW #137 non-hero -> PICKED UP! souls=0 assists=0 kind=other [IdolPickedUp]
+10/06 21:19:19 [PanoramaScript] [FF] t=2405.33 NEW #138 non-hero -> non-hero souls=2,217 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:19:19 [PanoramaScript] [FF] t=2405.33 ASSIST #138 feed SEVEN(2),YAMATO(27)
+10/06 21:19:19 [PanoramaScript] [FF] t=2405.33 CB #138 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=35:29 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:19:20 [PanoramaScript] [FF] t=2406.07 NEW #139 CitadelHudBossKilled
+10/06 21:19:41 [PanoramaScript] [FF] t=2427.00 NEW #140 non-hero -> non-hero souls=1,221 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:19:41 [PanoramaScript] [FF] t=2427.00 ASSIST #140 feed HOLLIDAY(14),THE DOORMAN(69),RAT KING(84),YAMATO(27),BEBOP(15)
+10/06 21:19:41 [PanoramaScript] [FF] t=2427.00 CB #140 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=35:50 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:19:46 [PanoramaScript] [FF] t=2432.80 NEW #141 CitadelHudBossKilled
+10/06 21:19:48 [PanoramaScript] [FF] t=2434.34 NEW #142 CitadelHudBossKilled
+10/06 21:19:53 [PanoramaScript] [FF] t=2439.18 NEW #143 non-hero -> non-hero souls=1,610 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:19:53 [PanoramaScript] [FF] t=2439.18 ASSIST #143 feed HOLLIDAY(14),THE DOORMAN(69),RAT KING(84),BEBOP(15)
+10/06 21:19:53 [PanoramaScript] [FF] t=2439.18 CB #143 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=36:03 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:19:56 [PanoramaScript] [FF] t=2442.11 NEW #144 CitadelHudBossKilled
+10/06 21:19:57 [PanoramaScript] [FF] t=2443.05 NEW #145 non-hero -> non-hero souls=1,799 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/06 21:19:57 [PanoramaScript] [FF] t=2443.05 ASSIST #145 feed SHIV(19),VENATOR(65)
+10/06 21:19:57 [PanoramaScript] [FF] t=2443.05 CB #145 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=36:06 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:19:58 [PanoramaScript] [FF] t=2444.00 NEW #146 non-hero -> non-hero souls=1,253 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:19:58 [PanoramaScript] [FF] t=2444.00 ASSIST #146 feed HOLLIDAY(14),THE DOORMAN(69),SEVEN(2),YAMATO(27),BEBOP(15)
+10/06 21:19:58 [PanoramaScript] [FF] t=2444.00 CB #146 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=36:07 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:20:00 [PanoramaScript] [FF] t=2446.34 NEW #147 CitadelHudBossKilled
+10/06 21:20:15 [PanoramaScript] [FF] t=2461.47 NEW #148 CitadelHudBossKilled
+10/06 21:20:27 [PanoramaScript] [FF] t=2473.17 NEW #149 non-hero -> non-hero souls=1,218 assists=4 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/06 21:20:27 [PanoramaScript] [FF] t=2473.17 ASSIST #149 feed HOLLIDAY(14),THE DOORMAN(69),RAT KING(84),BEBOP(15)
+10/06 21:20:27 [PanoramaScript] [FF] t=2473.17 CB #149 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=36:36 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:20:32 [PanoramaScript] [FF] t=2477.82 NEW #150 CitadelHudBossKilled
+10/06 21:20:34 [PanoramaScript] [FF] t=2479.84 NEW #151 CitadelHudBossKilled
+10/06 21:20:38 [PanoramaScript] [FF] t=2484.42 NEW #152 CitadelHudBossKilled
+10/06 21:20:41 [PanoramaScript] [FF] t=2487.19 NEW #153 <no killer> -> EXPIRED... souls=0 assists=0 kind=other [noKiller,IdolReturned]
+10/06 21:20:53 [PanoramaScript] [FF] t=2499.67 NEW #154 CitadelHudBossKilled
+10/06 21:21:03 [PanoramaScript] [FF] t=2509.08 NEW #155 non-hero -> non-hero souls=1,200 assists=4 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/06 21:21:03 [PanoramaScript] [FF] t=2509.08 ASSIST #155 feed HOLLIDAY(14),THE DOORMAN(69),RAT KING(84),BEBOP(15)
+10/06 21:21:03 [PanoramaScript] [FF] t=2509.08 CB #155 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=37:13 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:22:15 [PanoramaScript] [FF] t=2581.78 NEW #156 non-hero -> non-hero souls=1,401 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:22:15 [PanoramaScript] [FF] t=2581.78 ASSIST #156 feed HOLLIDAY(14),THE DOORMAN(69),SEVEN(2),RAT KING(84),YAMATO(27)
+10/06 21:22:15 [PanoramaScript] [FF] t=2581.78 CB #156 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=38:25 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:22:23 [PanoramaScript] [FF] t=2589.66 NEW #157 non-hero -> non-hero souls=1,152 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:22:23 [PanoramaScript] [FF] t=2589.66 ASSIST #157 feed HOLLIDAY(14),THE DOORMAN(69),SEVEN(2),YAMATO(27),BEBOP(15)
+10/06 21:22:23 [PanoramaScript] [FF] t=2589.66 CB #157 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=38:33 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:22:49 [PanoramaScript] [FF] t=2615.31 NEW #158 CitadelHudBossKilled
+10/06 21:22:53 [PanoramaScript] [FF] t=2619.20 NEW #159 non-hero -> non-hero souls=1,144 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:22:53 [PanoramaScript] [FF] t=2619.20 ASSIST #159 feed HOLLIDAY(14),THE DOORMAN(69),RAT KING(84),YAMATO(27),BEBOP(15)
+10/06 21:22:53 [PanoramaScript] [FF] t=2619.20 CB #159 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=39:03 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:22:56 [PanoramaScript] [FF] t=2621.82 NEW #160 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/06 21:22:56 [PanoramaScript] [FF] t=2621.82 SKIP #160 invalid feed souls
+10/06 21:22:56 [PanoramaScript] [FF] t=2622.34 NEW #161 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [has_killstreak,isRejuvenatorPickup]
+10/06 21:22:56 [PanoramaScript] [FF] t=2622.34 SKIP #161 invalid feed souls
+10/06 21:22:56 [PanoramaScript] [FF] t=2622.66 NEW #162 non-hero -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/06 21:22:56 [PanoramaScript] [FF] t=2622.66 SKIP #162 invalid feed souls
+10/06 21:23:00 [PanoramaScript] [FF] t=2626.07 NEW #163 non-hero -> non-hero souls=1,146 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/06 21:23:00 [PanoramaScript] [FF] t=2626.07 ASSIST #163 feed HOLLIDAY(14),THE DOORMAN(69),SEVEN(2),RAT KING(84),YAMATO(27)
+10/06 21:23:00 [PanoramaScript] [FF] t=2626.07 CB #163 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=39:09 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:23:03 [PanoramaScript] [FF] t=2629.11 NEW #164 non-hero -> REVIVED! souls=- assists=0 kind=other [isRejuvenatorUsed]
+10/06 21:23:03 [PanoramaScript] [FF] t=2629.11 SKIP #164 invalid feed souls
+10/06 21:23:06 [PanoramaScript] [FF] t=2632.40 NEW #165 non-hero -> non-hero souls=1,078 assists=5 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/06 21:23:06 [PanoramaScript] [FF] t=2632.40 ASSIST #165 feed HOLLIDAY(14),THE DOORMAN(69),SEVEN(2),RAT KING(84),BEBOP(15)
+10/06 21:23:06 [PanoramaScript] [FF] t=2632.40 CB #165 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=39:16 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:23:44 [PanoramaScript] [FF] t=2670.12 NEW #166 non-hero -> non-hero souls=1,122 assists=5 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/06 21:23:44 [PanoramaScript] [FF] t=2670.12 ASSIST #166 feed HOLLIDAY(14),THE DOORMAN(69),SEVEN(2),RAT KING(84),BEBOP(15)
+10/06 21:23:44 [PanoramaScript] [FF] t=2670.12 CB #166 status=unknown mult=1.00 extra=0 bonus=0 victimTeam=undefined killerTeam=undefined victim=undefined avg=undefined clock=39:54 K=0 A=0 O=0 soulsCrossCheck=unavailable reason=unknown-inputs chosenBonus=0 base=?
+10/06 21:24:01 [PanoramaScript] [FF] t=2687.77 reset (match started)

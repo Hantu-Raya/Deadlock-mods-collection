@@ -1,0 +1,6 @@
+10/06 07:22:40 [PanoramaScript] [KF-P] t=0.00 boot
+10/06 07:22:40 [PanoramaScript] [KF-P] t=0.00 watching #EventFeed under HudDataFeed#DataFeed
+10/06 07:23:07 [PanoramaScript] [KF-P] t=26.76 TOPBAR root=Panel#CitadelHudRoot heroNameLabels=8 rows=6 [friendly:SEVEN/2 friendly:TARGETDUMMY/55 enemy:TARGETDUMMY/55 enemy:TARGETDUMMY/55 enemy:TARGETDUMMY/55 enemy:VENATOR/65] firstRejected=Label<CitadelHeroLogo#HeaderHeroLogo<Panel#HeroHeader<Panel#PopularItemsHeader<Panel#ModsContainer<CitadelShopModsRecommended#ShopModsRecommended<Panel#ShopModListsContainer<Panel#ShopModsContainer<Panel#MainPanel<Panel#Shop<CitadelHudHeroShop#CitadelHudHeroShop<Panel<CitadelHud#Hud<Panel#CitadelHudRoot
+10/06 07:23:07 [PanoramaScript] [KF-P] t=26.76 IMG CitadelHeroImage members beyond Panel: SetHeroID() SetImage() SetImageFromFile() SetImageFromPanel() SetScaling()
+10/06 07:23:07 [PanoramaScript] [KF-P] t=26.76 NEW #1 SEVEN(2) -> VENATOR(65) souls=376 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:23:07 [PanoramaScript] [KF-P] t=26.76 DATA #1 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists"],"killerSide":"friendly","victimSide":"enemy","gold":"376","bagGold":"376","assists":["assister"],"killer":{"hero":"SEVEN","heroId":2,"side":"friendly"},"victim":{"hero":"VENATOR","heroId":65,"side":"enemy"}}

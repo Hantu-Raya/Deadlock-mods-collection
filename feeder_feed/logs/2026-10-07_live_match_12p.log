@@ -1,0 +1,358 @@
+10/07 19:25:03 [PanoramaScript] [FF] t=0.00 boot
+10/07 19:25:04 [PanoramaScript] [FF] t=1.34 watching #EventFeed
+10/07 19:25:09 [PanoramaScript] [FF] t=6.05 reset (match started)
+10/07 19:25:40 [PanoramaScript] [FF] t=36.72 reset (match started)
+10/07 19:27:12 GameTime: 1.5, Base Bounty: 277, Total Bounty: 402, VictimValue: 600
+10/07 19:27:12 Comeback Inactive
+10/07 19:27:12 Killer: hero_gigawatt, Dying: hero_atlas, Number of Assisters: 1
+10/07 19:27:12 [PanoramaScript] [FF] t=128.98 TOPBAR rows=3 [enemy:ABRAMS(6) friendly:SEVEN(2) friendly:INFERNUS(1)]
+10/07 19:27:12 [PanoramaScript] [FF] t=128.99 INPUT SoulsValue="906" parsed=906 "600" parsed=600 "600" parsed=600 GameTime="1:32" seconds=92
+10/07 19:27:12 [PanoramaScript] [FF] t=128.99 NEW #1 SEVEN(2) -> ABRAMS(6) souls=444 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:27:12 [PanoramaScript] [FF] t=128.99 ASSIST #1 feed INFERNUS(1)
+10/07 19:27:12 [PanoramaScript] [FF] t=128.99 CB #1 status=exact mult=1.00 extra=0 bonus=125 victimTeam=600 killerTeam=1506 victim=600 avg=753 clock=1:32 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=125 base=319
+10/07 19:34:47 [PanoramaScript] [FF] t=583.80 NEW #2 Panel
+10/07 19:35:16 [PanoramaScript] [FF] t=612.88 reset (match started)
+10/07 19:36:15 [PanoramaScript] [FF] t=671.74 TOPBAR rows=12 [friendly:BABA(88) friendly:CELESTE(81) friendly:SILVER(80) friendly:VINDICTA(3) enemy:ABRAMS(6) enemy:VENATOR(65) enemy:RAT KING(84) enemy:PAIGE(67) enemy:REM(79) friendly:LASH(31) friendly:SHIV(19) enemy:HAZE(13)]
+10/07 19:36:15 [PanoramaScript] [FF] t=671.74 NEW #3 SILVER(80) -> PAIGE(67) souls=412 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:36:15 [PanoramaScript] [FF] t=671.74 ASSIST #3 feed SHIV(19)
+10/07 19:36:15 [PanoramaScript] [FF] t=671.74 CB #3 status=exact mult=1.00 extra=0 bonus=125 victimTeam=4914 killerTeam=5106 victim=823 avg=851 clock=0:58 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=125 base=287
+10/07 19:36:35 [PanoramaScript] [FF] t=692.53 NEW #4 SILVER(80) -> VENATOR(65) souls=306 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:36:35 [PanoramaScript] [FF] t=692.53 ASSIST #4 feed SHIV(19)
+10/07 19:36:35 [PanoramaScript] [FF] t=692.53 CB #4 status=exact mult=1.00 extra=0 bonus=0 victimTeam=5839 killerTeam=5798 victim=816 avg=966 clock=1:19 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=306
+10/07 19:37:22 [PanoramaScript] [FF] t=739.35 NEW #5 PAIGE(67) -> SILVER(80) souls=525 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:37:22 [PanoramaScript] [FF] t=739.35 ASSIST #5 feed VENATOR(65)
+10/07 19:37:22 [PanoramaScript] [FF] t=739.35 CB #5 status=estimate mult=1.39 extra=49 bonus=125 victimTeam=7900 killerTeam=8300 victim=1600 avg=1383 clock=2:06 K=15 A=10 O=6 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=125 base=351
+10/07 19:38:44 [PanoramaScript] [FF] t=821.42 NEW #6 VENATOR(65) -> SILVER(80) souls=554 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:38:44 [PanoramaScript] [FF] t=821.42 ASSIST #6 feed PAIGE(67)
+10/07 19:38:44 [PanoramaScript] [FF] t=821.42 CB #6 status=exact mult=1.00 extra=0 bonus=125 victimTeam=11800 killerTeam=13100 victim=2000 avg=2183 clock=3:28 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=125 base=429
+10/07 19:38:47 [PanoramaScript] [FF] t=823.71 NEW #7 SHIV(19) -> SOUL BAG souls=102 assists=0 kind=other [hasGold,SoulBagPickup]
+10/07 19:38:48 [PanoramaScript] [FF] t=824.85 NEW #8 PAIGE(67) -> SHIV(19) souls=433 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:38:48 [PanoramaScript] [FF] t=824.85 ASSIST #8 feed VENATOR(65)
+10/07 19:38:48 [PanoramaScript] [FF] t=824.85 CB #8 status=exact mult=1.00 extra=0 bonus=0 victimTeam=11900 killerTeam=13900 victim=2000 avg=2316 clock=3:32 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=433
+10/07 19:38:49 [PanoramaScript] [FF] t=825.99 NEW #9 PAIGE(67) -> SOUL BAG souls=98 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:39:31 [PanoramaScript] [FF] t=868.38 NEW #10 BABA(88) -> ABRAMS(6) souls=671 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:39:31 [PanoramaScript] [FF] t=868.38 ASSIST #10 feed LASH(31)
+10/07 19:39:31 [PanoramaScript] [FF] t=868.38 CB #10 status=exact mult=1.39 extra=71 bonus=125 victimTeam=16800 killerTeam=15200 victim=2400 avg=2533 clock=4:15 K=21 A=14 O=9 soulsCrossCheck=match reason=clock-paid chosenBonus=125 base=475
+10/07 19:39:31 [PanoramaScript] [FF] t=868.58 NEW #11 LASH(31) -> SOUL BAG souls=146 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:40:12 [PanoramaScript] [FF] t=909.13 NEW #12 BABA(88) -> ABRAMS(6) souls=614 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:40:12 [PanoramaScript] [FF] t=909.13 ASSIST #12 feed LASH(31)
+10/07 19:40:12 [PanoramaScript] [FF] t=909.13 CB #12 status=exact mult=1.51 extra=101 bonus=0 victimTeam=20600 killerTeam=17800 victim=2800 avg=2966 clock=4:56 K=30 A=19 O=13 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=513
+10/07 19:41:09 [PanoramaScript] [FF] t=966.06 NEW #13 PAIGE(67) -> BABA(88) souls=424 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:41:09 [PanoramaScript] [FF] t=966.06 ASSIST #13 feed RAT KING(84),ABRAMS(6)
+10/07 19:41:09 [PanoramaScript] [FF] t=966.06 CB #13 status=estimate mult=1.12 extra=4 bonus=0 victimTeam=21700 killerTeam=24000 victim=4200 avg=4000 clock=5:53 K=2 A=1 O=0 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=420
+10/07 19:41:09 [PanoramaScript] [FF] t=966.38 NEW #14 ABRAMS(6) -> SOUL BAG souls=76 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:41:26 [PanoramaScript] [FF] t=983.48 NEW #15 RAT KING(84) -> LASH(31) souls=557 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:41:26 [PanoramaScript] [FF] t=983.48 ASSIST #15 feed PAIGE(67),ABRAMS(6)
+10/07 19:41:26 [PanoramaScript] [FF] t=983.48 CB #15 status=exact mult=1.00 extra=0 bonus=125 victimTeam=22500 killerTeam=25700 victim=4100 avg=4283 clock=6:10 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=125 base=432
+10/07 19:42:10 [PanoramaScript] [FF] t=1026.77 NEW #16 CitadelHudBossKilled
+10/07 19:42:36 [PanoramaScript] [FF] t=1053.41 NEW #17 PAIGE(67) -> LASH(31) souls=482 assists=2 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 19:42:36 [PanoramaScript] [FF] t=1053.41 ASSIST #17 feed RAT KING(84),ABRAMS(6)
+10/07 19:42:36 [PanoramaScript] [FF] t=1053.41 CB #17 status=exact mult=1.00 extra=0 bonus=0 victimTeam=28200 killerTeam=30600 victim=5000 avg=5100 clock=7:20 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=482
+10/07 19:42:52 [PanoramaScript] [FF] t=1069.20 NEW #18 SILVER(80) -> HAZE(13) souls=811 assists=0 kind=death [enemyDied,hasGold]
+10/07 19:42:52 [PanoramaScript] [FF] t=1069.20 CB #18 status=exact mult=1.30 extra=86 bonus=0 victimTeam=31400 killerTeam=29400 victim=3900 avg=4900 clock=7:36 K=26 A=18 O=12 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=725
+10/07 19:42:53 [PanoramaScript] [FF] t=1069.95 NEW #19 HAZE(13) -> SILVER(80) souls=801 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:42:53 [PanoramaScript] [FF] t=1069.95 ASSIST #19 feed REM(79)
+10/07 19:42:53 [PanoramaScript] [FF] t=1069.95 CB #19 status=estimate mult=1.09 extra=9 bonus=125 victimTeam=29500 killerTeam=31900 victim=5500 avg=5316 clock=7:37 K=3 A=2 O=1 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=125 base=667
+10/07 19:43:42 [PanoramaScript] [FF] t=1118.99 NEW #20 CitadelHudBossKilled
+10/07 19:43:42 [PanoramaScript] [FF] t=1119.43 NEW #21 PAIGE(67) -> LASH(31) souls=529 assists=2 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 19:43:42 [PanoramaScript] [FF] t=1119.43 ASSIST #21 feed REM(79),ABRAMS(6)
+10/07 19:43:42 [PanoramaScript] [FF] t=1119.43 CB #21 status=exact mult=1.00 extra=0 bonus=0 victimTeam=33400 killerTeam=36300 victim=5500 avg=6050 clock=8:26 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=529
+10/07 19:43:50 [PanoramaScript] [FF] t=1127.60 NEW #22 BABA(88) -> PAIGE(67) souls=863 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:43:50 [PanoramaScript] [FF] t=1127.60 ASSIST #22 feed SILVER(80),VINDICTA(3)
+10/07 19:43:50 [PanoramaScript] [FF] t=1127.60 CB #22 status=estimate mult=2.04 extra=329 bonus=0 victimTeam=36800 killerTeam=34400 victim=7200 avg=5733 clock=8:34 K=99 A=58 O=38 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=534
+10/07 19:43:52 [PanoramaScript] [FF] t=1128.89 NEW #23 BABA(88) -> SOUL BAG souls=821 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:44:02 [PanoramaScript] [FF] t=1138.74 NEW #24 ABRAMS(6) -> BABA(88) souls=621 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:44:02 [PanoramaScript] [FF] t=1138.74 ASSIST #24 feed HAZE(13),RAT KING(84),REM(79)
+10/07 19:44:02 [PanoramaScript] [FF] t=1138.74 CB #24 status=estimate mult=1.34 extra=50 bonus=125 victimTeam=36300 killerTeam=37000 victim=7000 avg=6166 clock=8:45 K=16 A=8 O=5 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=125 base=446
+10/07 19:44:03 [PanoramaScript] [FF] t=1139.93 NEW #25 ABRAMS(6) -> SOUL BAG souls=755 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:44:15 [PanoramaScript] [FF] t=1151.72 NEW #26 SILVER(80) -> ABRAMS(6) souls=533 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:44:15 [PanoramaScript] [FF] t=1151.72 ASSIST #26 feed CELESTE(81),LASH(31),BABA(88)
+10/07 19:44:15 [PanoramaScript] [FF] t=1151.72 CB #26 status=estimate mult=1.29 extra=79 bonus=0 victimTeam=38400 killerTeam=36100 victim=5600 avg=6016 clock=8:58 K=24 A=13 O=8 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=454
+10/07 19:44:15 [PanoramaScript] [FF] t=1152.45 NEW #27 RAT KING(84) -> SOUL BAG souls=725 assists=0 kind=other [hasGold,SoulBagPickup]
+10/07 19:44:18 [PanoramaScript] [FF] t=1154.80 NEW #28 RAT KING(84) -> SILVER(80) souls=456 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:44:18 [PanoramaScript] [FF] t=1154.80 ASSIST #28 feed PAIGE(67),REM(79),ABRAMS(6)
+10/07 19:44:18 [PanoramaScript] [FF] t=1154.80 CB #28 status=exact mult=1.00 extra=0 bonus=0 victimTeam=36500 killerTeam=39500 victim=6400 avg=6583 clock=9:02 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=456
+10/07 19:44:57 [PanoramaScript] [FF] t=1193.69 NEW #29 LASH(31) -> PAIGE(67) souls=783 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:44:57 [PanoramaScript] [FF] t=1193.69 ASSIST #29 feed BABA(88),VINDICTA(3),CELESTE(81)
+10/07 19:44:57 [PanoramaScript] [FF] t=1193.69 CB #29 status=estimate mult=2.03 extra=179 bonus=125 victimTeam=43100 killerTeam=38600 victim=7700 avg=6433 clock=9:40 K=54 A=29 O=19 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=125 base=479
+10/07 19:45:03 [PanoramaScript] [FF] t=1200.30 NEW #30 LASH(31) -> RAT KING(84) souls=568 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:45:03 [PanoramaScript] [FF] t=1200.30 ASSIST #30 feed BABA(88),VINDICTA(3),CELESTE(81)
+10/07 19:45:03 [PanoramaScript] [FF] t=1200.30 CB #30 status=estimate mult=1.44 extra=85 bonus=0 victimTeam=43200 killerTeam=40300 victim=7000 avg=6716 clock=9:47 K=25 A=14 O=9 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=483
+10/07 19:45:03 [PanoramaScript] [FF] t=1200.52 NEW #31 CELESTE(81) -> SOUL BAG souls=453 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:45:03 [PanoramaScript] [FF] t=1200.52 NEW #32 BABA(88) -> ABRAMS(6) souls=525 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:45:03 [PanoramaScript] [FF] t=1200.52 ASSIST #32 feed VINDICTA(3),CELESTE(81),LASH(31)
+10/07 19:45:03 [PanoramaScript] [FF] t=1200.52 CB #32 status=estimate mult=1.26 extra=42 bonus=0 victimTeam=42700 killerTeam=40800 victim=6000 avg=6800 clock=9:47 K=13 A=7 O=4 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=483
+10/07 19:45:08 [PanoramaScript] [FF] t=1204.72 NEW #33 VENATOR(65) -> SHIV(19) souls=867 assists=0 kind=death [teammateDied,hasGold]
+10/07 19:45:08 [PanoramaScript] [FF] t=1204.72 CB #33 status=exact mult=1.03 extra=0 bonus=0 victimTeam=41300 killerTeam=42700 victim=7200 avg=7116 clock=9:51 K=0 A=0 O=0 soulsCrossCheck=mismatch reason=clock-paid chosenBonus=0 base=867
+10/07 19:45:32 [PanoramaScript] [FF] t=1229.08 NEW #34 SILVER(80) -> PICKED UP! souls=0 assists=0 kind=other [IdolPickedUp]
+10/07 19:46:00 [PanoramaScript] [FF] t=1256.95 NEW #35 SILVER(80) -> RETURNED! souls=950 assists=0 kind=other [hasGold,IdolReturned]
+10/07 19:46:32 [PanoramaScript] [FF] t=1289.41 NEW #36 VENATOR(65) -> SILVER(80) souls=880 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:46:32 [PanoramaScript] [FF] t=1289.41 ASSIST #36 feed REM(79)
+10/07 19:46:32 [PanoramaScript] [FF] t=1289.41 CB #36 status=exact mult=1.02 extra=0 bonus=0 victimTeam=48500 killerTeam=51200 victim=8600 avg=8533 clock=11:16 K=0 A=0 O=0 soulsCrossCheck=mismatch reason=clock-paid chosenBonus=0 base=880
+10/07 19:46:34 [PanoramaScript] [FF] t=1291.44 NEW #37 PAIGE(67) -> BABA(88) souls=880 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:46:34 [PanoramaScript] [FF] t=1291.44 ASSIST #37 feed ABRAMS(6)
+10/07 19:46:34 [PanoramaScript] [FF] t=1291.44 CB #37 status=exact mult=1.00 extra=0 bonus=0 victimTeam=48600 killerTeam=51400 victim=8400 avg=8566 clock=11:18 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=880
+10/07 19:46:36 [PanoramaScript] [FF] t=1292.93 NEW #38 PAIGE(67) -> SOUL BAG souls=899 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:48:02 [PanoramaScript] [FF] t=1379.52 NEW #39 CitadelHudBossKilled
+10/07 19:48:04 [PanoramaScript] [FF] t=1381.63 NEW #40 LASH(31) -> RIFT SECURED! souls=1,866 assists=2 kind=other [hasGold,hasAssists,KothCompleted]
+10/07 19:48:06 [PanoramaScript] [FF] t=1383.35 NEW #41 BABA(88) -> ABRAMS(6) souls=530 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:48:06 [PanoramaScript] [FF] t=1383.35 ASSIST #41 feed SILVER(80),VINDICTA(3),CELESTE(81),LASH(31)
+10/07 19:48:06 [PanoramaScript] [FF] t=1383.35 CB #41 status=estimate mult=1.36 extra=66 bonus=0 victimTeam=62600 killerTeam=57400 victim=8000 avg=9566 clock=12:50 K=20 A=10 O=6 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=464
+10/07 19:48:08 [PanoramaScript] [FF] t=1384.86 NEW #42 BABA(88) -> SOUL BAG souls=987 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:48:09 [PanoramaScript] [FF] t=1386.10 NEW #43 VENATOR(65) -> SILVER(80) souls=717 assists=2 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 19:48:09 [PanoramaScript] [FF] t=1386.10 ASSIST #43 feed RAT KING(84),REM(79)
+10/07 19:48:09 [PanoramaScript] [FF] t=1386.10 CB #43 status=exact mult=1.00 extra=0 bonus=0 victimTeam=58300 killerTeam=62600 victim=9800 avg=10433 clock=12:53 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=717
+10/07 19:48:14 [PanoramaScript] [FF] t=1390.98 NEW #44 VINDICTA(3) -> REM(79) souls=783 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:48:14 [PanoramaScript] [FF] t=1390.98 ASSIST #44 feed BABA(88),CELESTE(81),LASH(31)
+10/07 19:48:14 [PanoramaScript] [FF] t=1390.98 CB #44 status=estimate mult=1.37 extra=64 bonus=125 victimTeam=63900 killerTeam=58300 victim=8100 avg=9716 clock=12:58 K=20 A=10 O=7 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=125 base=594
+10/07 19:48:19 [PanoramaScript] [FF] t=1396.01 NEW #45 CitadelHudBossKilled
+10/07 19:48:21 [PanoramaScript] [FF] t=1398.18 NEW #46 BABA(88) -> RAT KING(84) souls=647 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:48:21 [PanoramaScript] [FF] t=1398.18 ASSIST #46 feed VINDICTA(3),CELESTE(81),LASH(31)
+10/07 19:48:21 [PanoramaScript] [FF] t=1398.18 CB #46 status=estimate mult=1.00 extra=48 bonus=0 victimTeam=64100 killerTeam=62800 victim=9800 avg=10466 clock=13:05 K=14 A=8 O=5 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=599
+10/07 19:48:21 [PanoramaScript] [FF] t=1398.51 NEW #47 CELESTE(81) -> Soul Bag souls=427 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:48:31 [PanoramaScript] [FF] t=1407.97 NEW #48 CitadelHudBossKilled
+10/07 19:48:41 [PanoramaScript] [FF] t=1417.85 NEW #49 PAIGE(67) -> SHIV(19) souls=1,088 assists=0 kind=death [teammateDied,hasGold]
+10/07 19:48:41 [PanoramaScript] [FF] t=1417.85 CB #49 status=exact mult=1.00 extra=0 bonus=0 victimTeam=63000 killerTeam=69100 victim=11000 avg=11516 clock=13:25 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1088
+10/07 19:48:44 [PanoramaScript] [FF] t=1421.04 NEW #50 CitadelHudBossKilled
+10/07 19:48:44 [PanoramaScript] [FF] t=1421.15 NEW #51 SHIV(19) -> PAIGE(67) souls=1,553 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:48:44 [PanoramaScript] [FF] t=1421.15 ASSIST #51 feed SILVER(80)
+10/07 19:48:44 [PanoramaScript] [FF] t=1421.15 CB #51 status=estimate mult=2.07 extra=424 bonus=125 victimTeam=70100 killerTeam=70000 victim=16000 avg=11666 clock=13:28 K=127 A=81 O=54 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=125 base=1004
+10/07 19:48:46 [PanoramaScript] [FF] t=1423.05 NEW #52 SILVER(80) -> SOUL BAG souls=942 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:49:43 [PanoramaScript] [FF] t=1480.63 NEW #53 HAZE(13) -> CELESTE(81) souls=1,069 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:49:43 [PanoramaScript] [FF] t=1480.63 ASSIST #53 feed PAIGE(67)
+10/07 19:49:43 [PanoramaScript] [FF] t=1480.63 CB #53 status=estimate mult=1.34 extra=8 bonus=0 victimTeam=76000 killerTeam=74200 victim=13000 avg=12366 clock=14:27 K=3 A=1 O=1 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1061
+10/07 19:49:45 [PanoramaScript] [FF] t=1481.89 NEW #54 HAZE(13) -> SOUL BAG souls=521 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:50:29 [PanoramaScript] [FF] t=1526.03 NEW #55 LASH(31) -> PAIGE(67) souls=1,135 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:50:29 [PanoramaScript] [FF] t=1526.03 ASSIST #55 feed BABA(88),VINDICTA(3)
+10/07 19:50:29 [PanoramaScript] [FF] t=1526.03 CB #55 status=estimate mult=2.00 extra=319 bonus=0 victimTeam=82000 killerTeam=77000 victim=16000 avg=12833 clock=15:13 K=96 A=56 O=37 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=816
+10/07 19:50:32 [PanoramaScript] [FF] t=1529.37 NEW #56 VINDICTA(3) -> SOUL BAG souls=317 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:50:35 [PanoramaScript] [FF] t=1531.88 NEW #57 BABA(88) -> PICKED UP! souls=0 assists=0 kind=other [IdolPickedUp]
+10/07 19:50:58 [PanoramaScript] [FF] t=1555.22 NEW #58 BABA(88) -> RETURNED! souls=1,300 assists=0 kind=other [hasGold,IdolReturned]
+10/07 19:51:01 [PanoramaScript] [FF] t=1558.57 NEW #59 REM(79) -> SILVER(80) souls=964 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:51:01 [PanoramaScript] [FF] t=1558.57 ASSIST #59 feed RAT KING(84),ABRAMS(6)
+10/07 19:51:01 [PanoramaScript] [FF] t=1558.57 CB #59 status=exact mult=1.00 extra=0 bonus=125 victimTeam=81000 killerTeam=84000 victim=14000 avg=14000 clock=15:45 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=125 base=839
+10/07 19:51:21 [PanoramaScript] [FF] t=1578.63 NEW #60 HAZE(13) -> CELESTE(81) souls=853 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:51:21 [PanoramaScript] [FF] t=1578.63 ASSIST #60 feed RAT KING(84),REM(79)
+10/07 19:51:21 [PanoramaScript] [FF] t=1578.63 CB #60 status=exact mult=1.00 extra=0 bonus=0 victimTeam=82000 killerTeam=87000 victim=13000 avg=14500 clock=16:05 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=853
+10/07 19:51:32 [PanoramaScript] [FF] t=1588.80 NEW #61 SHIV(19) -> RAT KING(84) souls=947 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:51:32 [PanoramaScript] [FF] t=1588.80 ASSIST #61 feed VINDICTA(3),LASH(31)
+10/07 19:51:32 [PanoramaScript] [FF] t=1588.80 CB #61 status=estimate mult=1.29 extra=86 bonus=0 victimTeam=87000 killerTeam=83000 victim=14000 avg=13833 clock=16:16 K=26 A=15 O=10 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=861
+10/07 19:51:33 [PanoramaScript] [FF] t=1590.25 NEW #62 ABRAMS(6) -> VINDICTA(3) souls=710 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:51:33 [PanoramaScript] [FF] t=1590.25 ASSIST #62 feed HAZE(13),PAIGE(67),REM(79)
+10/07 19:51:33 [PanoramaScript] [FF] t=1590.25 CB #62 status=exact mult=1.00 extra=0 bonus=0 victimTeam=83000 killerTeam=86000 victim=13000 avg=14333 clock=16:17 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=710
+10/07 19:51:34 [PanoramaScript] [FF] t=1591.49 NEW #63 SHIV(19) -> SOUL BAG souls=192 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:51:50 [PanoramaScript] [FF] t=1607.07 NEW #64 SHIV(19) -> PAIGE(67) souls=1,481 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:51:50 [PanoramaScript] [FF] t=1607.07 ASSIST #64 feed LASH(31)
+10/07 19:51:50 [PanoramaScript] [FF] t=1607.07 CB #64 status=estimate mult=1.58 extra=298 bonus=0 victimTeam=88000 killerTeam=85000 victim=16000 avg=14166 clock=16:34 K=89 A=57 O=38 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1183
+10/07 19:51:57 [PanoramaScript] [FF] t=1613.75 NEW #65 LASH(31) -> ABRAMS(6) souls=1,190 assists=1 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/07 19:51:57 [PanoramaScript] [FF] t=1613.75 ASSIST #65 feed SHIV(19)
+10/07 19:51:57 [PanoramaScript] [FF] t=1613.75 CB #65 status=exact mult=1.00 extra=0 bonus=0 victimTeam=88000 killerTeam=87000 victim=12000 avg=14500 clock=16:40 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1190
+10/07 19:51:57 [PanoramaScript] [FF] t=1614.49 NEW #66 SHIV(19) -> SOUL BAG souls=256 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:52:11 [PanoramaScript] [FF] t=1627.72 NEW #67 SILVER(80) -> REM(79) souls=1,202 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:52:11 [PanoramaScript] [FF] t=1627.72 ASSIST #67 feed SHIV(19)
+10/07 19:52:11 [PanoramaScript] [FF] t=1627.72 CB #67 status=exact mult=1.00 extra=0 bonus=0 victimTeam=89000 killerTeam=88000 victim=11000 avg=14666 clock=16:54 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1202
+10/07 19:52:22 [PanoramaScript] [FF] t=1638.83 NEW #68 HAZE(13) -> SILVER(80) souls=1,294 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:52:22 [PanoramaScript] [FF] t=1638.83 ASSIST #68 feed RAT KING(84)
+10/07 19:52:22 [PanoramaScript] [FF] t=1638.83 CB #68 status=estimate mult=1.23 extra=80 bonus=0 victimTeam=91000 killerTeam=89000 victim=15000 avg=14833 clock=17:06 K=24 A=16 O=10 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1214
+10/07 19:52:34 [PanoramaScript] [FF] t=1651.38 NEW #69 VINDICTA(3) -> VENATOR(65) souls=1,562 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:52:34 [PanoramaScript] [FF] t=1651.38 ASSIST #69 feed BABA(88)
+10/07 19:52:34 [PanoramaScript] [FF] t=1651.38 CB #69 status=estimate mult=1.91 extra=337 bonus=0 victimTeam=92000 killerTeam=92000 victim=20000 avg=15333 clock=17:18 K=101 A=64 O=43 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1225
+10/07 19:52:35 [PanoramaScript] [FF] t=1652.55 NEW #70 BABA(88) -> SOUL BAG souls=964 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:53:10 [PanoramaScript] [FF] t=1687.12 NEW #71 BABA(88) -> ABRAMS(6) souls=1,260 assists=1 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:53:10 [PanoramaScript] [FF] t=1687.12 ASSIST #71 feed VINDICTA(3)
+10/07 19:53:10 [PanoramaScript] [FF] t=1687.12 CB #71 status=exact mult=1.00 extra=0 bonus=0 victimTeam=93000 killerTeam=98000 victim=12000 avg=16333 clock=17:54 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1260
+10/07 19:53:28 [PanoramaScript] [FF] t=1704.91 NEW #72 VINDICTA(3) -> HAZE(13) souls=1,022 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:53:28 [PanoramaScript] [FF] t=1704.91 ASSIST #72 feed BABA(88),CELESTE(81)
+10/07 19:53:28 [PanoramaScript] [FF] t=1704.91 CB #72 status=estimate mult=1.23 extra=79 bonus=0 victimTeam=93000 killerTeam=99000 victim=18000 avg=16500 clock=18:12 K=24 A=14 O=9 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=943
+10/07 19:53:53 [PanoramaScript] [FF] t=1730.05 NEW #73 CitadelHudBossKilled
+10/07 19:54:03 [PanoramaScript] [FF] t=1739.86 NEW #74 REM(79) -> CELESTE(81) souls=914 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:54:03 [PanoramaScript] [FF] t=1739.86 ASSIST #74 feed RAT KING(84),PAIGE(67),VENATOR(65)
+10/07 19:54:03 [PanoramaScript] [FF] t=1739.86 CB #74 status=estimate mult=1.39 extra=116 bonus=0 victimTeam=106000 killerTeam=96000 victim=15000 avg=16000 clock=18:47 K=35 A=19 O=12 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=798
+10/07 19:54:09 [PanoramaScript] [FF] t=1746.35 NEW #75 LASH(31) -> Rift Secured! souls=2,592 assists=0 kind=other [hasGold,has_killstreak,KothCompleted]
+10/07 19:54:11 [PanoramaScript] [FF] t=1748.63 NEW #76 HAZE(13) -> SILVER(80) souls=707 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:54:11 [PanoramaScript] [FF] t=1748.63 ASSIST #76 feed RAT KING(84),PAIGE(67),REM(79),VENATOR(65),ABRAMS(6)
+10/07 19:54:11 [PanoramaScript] [FF] t=1748.63 CB #76 status=estimate mult=1.57 extra=135 bonus=0 victimTeam=108000 killerTeam=97000 victim=17000 avg=16166 clock=18:55 K=40 A=19 O=12 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=572
+10/07 19:54:12 [PanoramaScript] [FF] t=1749.59 NEW #77 PAIGE(67) -> Soul Bag souls=254 assists=0 kind=other [hasGold,SoulBagPickup]
+10/07 19:54:18 [PanoramaScript] [FF] t=1754.84 NEW #78 VENATOR(65) -> BABA(88) souls=830 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:54:18 [PanoramaScript] [FF] t=1754.84 ASSIST #78 feed HAZE(13),RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 19:54:18 [PanoramaScript] [FF] t=1754.84 CB #78 status=estimate mult=1.99 extra=256 bonus=0 victimTeam=108000 killerTeam=99000 victim=20000 avg=16500 clock=19:02 K=76 A=36 O=24 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=574
+10/07 19:54:27 [PanoramaScript] [FF] t=1763.82 NEW #79 HAZE(13) -> SHIV(19) souls=757 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:54:27 [PanoramaScript] [FF] t=1763.82 ASSIST #79 feed RAT KING(84),PAIGE(67),REM(79),VENATOR(65),ABRAMS(6)
+10/07 19:54:27 [PanoramaScript] [FF] t=1763.82 CB #79 status=estimate mult=1.74 extra=179 bonus=0 victimTeam=108000 killerTeam=100000 victim=19000 avg=16666 clock=19:10 K=54 A=25 O=16 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=578
+10/07 19:54:42 [PanoramaScript] [FF] t=1779.05 NEW #80 CitadelHudBossKilled
+10/07 19:55:02 [PanoramaScript] [FF] t=1799.21 NEW #81 CELESTE(81) -> PAIGE(67) souls=983 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:55:02 [PanoramaScript] [FF] t=1799.21 ASSIST #81 feed SILVER(80),VINDICTA(3),LASH(31)
+10/07 19:55:02 [PanoramaScript] [FF] t=1799.21 CB #81 status=estimate mult=1.07 extra=26 bonus=125 victimTeam=105000 killerTeam=111000 victim=19000 avg=18500 clock=19:46 K=8 A=4 O=3 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=125 base=832
+10/07 19:55:03 [PanoramaScript] [FF] t=1800.57 NEW #82 LASH(31) -> SOUL BAG souls=210 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/07 19:55:12 [PanoramaScript] [FF] t=1808.88 NEW #83 VINDICTA(3) -> REM(79) souls=838 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:55:12 [PanoramaScript] [FF] t=1808.88 ASSIST #83 feed SILVER(80),CELESTE(81),LASH(31)
+10/07 19:55:12 [PanoramaScript] [FF] t=1808.88 CB #83 status=exact mult=1.00 extra=0 bonus=0 victimTeam=107000 killerTeam=113000 victim=14000 avg=18833 clock=19:56 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=838
+10/07 19:55:24 [PanoramaScript] [FF] t=1821.02 NEW #84 ABRAMS(6) -> CELESTE(81) souls=1,666 assists=0 kind=death [teammateDied,hasGold]
+10/07 19:55:24 [PanoramaScript] [FF] t=1821.02 CB #84 status=estimate mult=1.32 extra=158 bonus=0 victimTeam=115000 killerTeam=107000 victim=17000 avg=17833 clock=20:08 K=48 A=33 O=22 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1508
+10/07 19:55:31 [PanoramaScript] [FF] t=1828.59 NEW #85 LASH(31) -> VENATOR(65) souls=1,611 assists=0 kind=death [enemyDied,hasGold,has_killstreak]
+10/07 19:55:31 [PanoramaScript] [FF] t=1828.59 CB #85 status=estimate mult=1.24 extra=94 bonus=0 victimTeam=109000 killerTeam=115000 victim=21000 avg=19166 clock=20:15 K=29 A=20 O=13 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1517
+10/07 19:55:35 [PanoramaScript] [FF] t=1831.86 NEW #86 VINDICTA(3) -> ABRAMS(6) souls=1,398 assists=1 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/07 19:55:35 [PanoramaScript] [FF] t=1831.86 ASSIST #86 feed SILVER(80)
+10/07 19:55:35 [PanoramaScript] [FF] t=1831.86 CB #86 status=exact mult=1.00 extra=0 bonus=0 victimTeam=110000 killerTeam=118000 victim=16000 avg=19666 clock=20:19 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1398
+10/07 19:55:36 [PanoramaScript] [FF] t=1833.21 NEW #87 SILVER(80) -> Soul Bag souls=307 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:55:43 [PanoramaScript] [FF] t=1839.80 NEW #88 VINDICTA(3) -> Picked Up! souls=0 assists=0 kind=other [has_killstreak,IdolPickedUp]
+10/07 19:56:21 [PanoramaScript] [FF] t=1878.50 NEW #89 PAIGE(67) -> LASH(31) souls=923 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:56:21 [PanoramaScript] [FF] t=1878.50 ASSIST #89 feed HAZE(13),RAT KING(84),REM(79),VENATOR(65)
+10/07 19:56:21 [PanoramaScript] [FF] t=1878.50 CB #89 status=estimate mult=1.80 extra=232 bonus=0 victimTeam=121000 killerTeam=113000 victim=22000 avg=18833 clock=21:05 K=69 A=35 O=23 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=691
+10/07 19:56:23 [PanoramaScript] [FF] t=1880.01 NEW #90 BABA(88) -> HAZE(13) souls=936 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:56:23 [PanoramaScript] [FF] t=1880.01 ASSIST #90 feed SILVER(80),VINDICTA(3),SHIV(19)
+10/07 19:56:23 [PanoramaScript] [FF] t=1880.01 CB #90 status=estimate mult=1.20 extra=57 bonus=0 victimTeam=113000 killerTeam=122000 victim=22000 avg=20333 clock=21:07 K=18 A=9 O=6 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=879
+10/07 19:56:23 [PanoramaScript] [FF] t=1880.32 NEW #91 VINDICTA(3) -> PAIGE(67) souls=691 assists=4 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/07 19:56:23 [PanoramaScript] [FF] t=1880.32 ASSIST #91 feed BABA(88),SILVER(80),LASH(31),SHIV(19)
+10/07 19:56:23 [PanoramaScript] [FF] t=1880.32 CB #91 status=exact mult=1.00 extra=0 bonus=0 victimTeam=113000 killerTeam=125000 victim=20000 avg=20833 clock=21:07 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=691
+10/07 19:56:25 [PanoramaScript] [FF] t=1881.71 NEW #92 BABA(88) -> SOUL BAG souls=216 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:56:29 [PanoramaScript] [FF] t=1886.15 NEW #93 SILVER(80) -> REM(79) souls=694 assists=4 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:56:29 [PanoramaScript] [FF] t=1886.15 ASSIST #93 feed BABA(88),VINDICTA(3),LASH(31),SHIV(19)
+10/07 19:56:29 [PanoramaScript] [FF] t=1886.15 CB #93 status=exact mult=1.00 extra=0 bonus=0 victimTeam=113000 killerTeam=126000 victim=15000 avg=21000 clock=21:13 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=694
+10/07 19:56:30 [PanoramaScript] [FF] t=1887.55 NEW #94 VENATOR(65) -> SILVER(80) souls=849 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:56:30 [PanoramaScript] [FF] t=1887.55 ASSIST #94 feed RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 19:56:30 [PanoramaScript] [FF] t=1887.55 CB #94 status=estimate mult=1.61 extra=154 bonus=0 victimTeam=126000 killerTeam=113000 victim=20000 avg=18833 clock=21:14 K=47 A=23 O=15 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=695
+10/07 19:56:37 [PanoramaScript] [FF] t=1894.00 NEW #95 VINDICTA(3) -> ABRAMS(6) souls=1,076 assists=2 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/07 19:56:37 [PanoramaScript] [FF] t=1894.00 ASSIST #95 feed BABA(88),SHIV(19)
+10/07 19:56:37 [PanoramaScript] [FF] t=1894.00 CB #95 status=exact mult=1.00 extra=0 bonus=0 victimTeam=113000 killerTeam=126000 victim=16000 avg=21000 clock=21:21 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1076
+10/07 19:56:48 [PanoramaScript] [FF] t=1904.91 NEW #96 VINDICTA(3) -> Returned! souls=914 assists=0 kind=other [hasGold,has_killstreak,IdolReturned]
+10/07 19:56:58 [PanoramaScript] [FF] t=1914.98 NEW #97 SHIV(19) -> SOUL BAG souls=191 assists=0 kind=other [hasGold,SoulBagPickup]
+10/07 19:59:05 [PanoramaScript] [FF] t=2041.99 NEW #98 BABA(88) -> REM(79) souls=1,738 assists=0 kind=death [enemyDied,hasGold]
+10/07 19:59:05 [PanoramaScript] [FF] t=2041.99 CB #98 status=exact mult=1.00 extra=0 bonus=0 victimTeam=135000 killerTeam=148000 victim=18000 avg=24666 clock=23:49 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1738
+10/07 19:59:06 [PanoramaScript] [FF] t=2043.15 NEW #99 BABA(88) -> SOUL BAG souls=309 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:59:36 [PanoramaScript] [FF] t=2073.17 NEW #100 CELESTE(81) -> ABRAMS(6) souls=992 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 19:59:36 [PanoramaScript] [FF] t=2073.17 ASSIST #100 feed BABA(88),VINDICTA(3),LASH(31)
+10/07 19:59:36 [PanoramaScript] [FF] t=2073.17 CB #100 status=exact mult=1.00 extra=0 bonus=0 victimTeam=137000 killerTeam=151000 victim=19000 avg=25166 clock=24:20 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=992
+10/07 19:59:38 [PanoramaScript] [FF] t=2075.07 NEW #101 CELESTE(81) -> SOUL BAG souls=414 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 19:59:48 [PanoramaScript] [FF] t=2084.97 NEW #102 VENATOR(65) -> LASH(31) souls=1,279 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:59:48 [PanoramaScript] [FF] t=2084.97 ASSIST #102 feed HAZE(13),RAT KING(84),PAIGE(67)
+10/07 19:59:48 [PanoramaScript] [FF] t=2084.97 CB #102 status=estimate mult=1.56 extra=279 bonus=0 victimTeam=150000 killerTeam=139000 victim=25000 avg=23166 clock=24:32 K=84 A=45 O=30 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1000
+10/07 19:59:58 [PanoramaScript] [FF] t=2094.69 NEW #103 VENATOR(65) -> BABA(88) souls=1,647 assists=2 kind=death [teammateDied,hasGold,hasAssists]
+10/07 19:59:58 [PanoramaScript] [FF] t=2094.69 ASSIST #103 feed RAT KING(84),PAIGE(67)
+10/07 19:59:58 [PanoramaScript] [FF] t=2094.69 CB #103 status=estimate mult=1.81 extra=428 bonus=0 victimTeam=151000 killerTeam=142000 victim=28000 avg=23666 clock=24:41 K=128 A=75 O=50 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1219
+10/07 19:59:59 [PanoramaScript] [FF] t=2095.85 NEW #104 RAT KING(84) -> Soul Bag souls=566 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 20:00:10 [PanoramaScript] [FF] t=2107.09 NEW #105 VENATOR(65) -> CELESTE(81) souls=881 assists=4 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:00:10 [PanoramaScript] [FF] t=2107.09 ASSIST #105 feed HAZE(13),RAT KING(84),PAIGE(67),REM(79)
+10/07 20:00:10 [PanoramaScript] [FF] t=2107.09 CB #105 status=exact mult=1.28 extra=86 bonus=0 victimTeam=151000 killerTeam=143000 victim=23000 avg=23833 clock=24:54 K=26 A=13 O=8 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=795
+10/07 20:00:10 [PanoramaScript] [FF] t=2107.09 NEW #106 CELESTE(81) -> HAZE(13) souls=1,269 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/07 20:00:10 [PanoramaScript] [FF] t=2107.09 ASSIST #106 feed SILVER(80),VINDICTA(3)
+10/07 20:00:10 [PanoramaScript] [FF] t=2107.09 CB #106 status=estimate mult=1.08 extra=41 bonus=0 victimTeam=143000 killerTeam=151000 victim=26000 avg=25166 clock=24:54 K=12 A=7 O=5 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1228
+10/07 20:00:16 [PanoramaScript] [FF] t=2113.49 NEW #107 VENATOR(65) -> SOUL BAG souls=370 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/07 20:00:18 [PanoramaScript] [FF] t=2114.66 NEW #108 VENATOR(65) -> SILVER(80) souls=1,127 assists=3 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:00:18 [PanoramaScript] [FF] t=2114.66 ASSIST #108 feed RAT KING(84),PAIGE(67),REM(79)
+10/07 20:00:18 [PanoramaScript] [FF] t=2114.66 CB #108 status=estimate mult=1.31 extra=112 bonus=0 victimTeam=153000 killerTeam=143000 victim=23000 avg=23833 clock=25:01 K=34 A=18 O=12 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1015
+10/07 20:00:32 [PanoramaScript] [FF] t=2129.32 NEW #109 CitadelHudBossKilled
+10/07 20:00:39 [PanoramaScript] [FF] t=2135.79 NEW #110 VENATOR(65) -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [has_killstreak,isRejuvenatorPickup]
+10/07 20:00:39 [PanoramaScript] [FF] t=2135.79 SKIP #110 invalid feed souls
+10/07 20:00:39 [PanoramaScript] [FF] t=2136.00 NEW #111 RAT KING(84) -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/07 20:00:39 [PanoramaScript] [FF] t=2136.00 SKIP #111 invalid feed souls
+10/07 20:00:39 [PanoramaScript] [FF] t=2136.42 NEW #112 ABRAMS(6) -> Soul Bag souls=645 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 20:00:40 [PanoramaScript] [FF] t=2137.35 NEW #113 REM(79) -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/07 20:00:40 [PanoramaScript] [FF] t=2137.35 SKIP #113 invalid feed souls
+10/07 20:00:59 [PanoramaScript] [FF] t=2156.22 NEW #114 CitadelHudBossKilled
+10/07 20:01:11 [PanoramaScript] [FF] t=2167.80 NEW #115 LASH(31) -> RIFT SECURED! souls=4,146 assists=0 kind=other [hasGold,KothCompleted]
+10/07 20:01:26 [PanoramaScript] [FF] t=2182.69 NEW #116 BABA(88) -> PICKED UP! souls=0 assists=0 kind=other [IdolPickedUp]
+10/07 20:01:31 [PanoramaScript] [FF] t=2188.07 NEW #117 SILVER(80) -> SOUL BAG souls=286 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 20:01:52 [PanoramaScript] [FF] t=2208.67 NEW #118 BABA(88) -> RETURNED! souls=2,000 assists=0 kind=other [hasGold,IdolReturned]
+10/07 20:02:23 [PanoramaScript] [FF] t=2240.35 NEW #119 VENATOR(65) -> SILVER(80) souls=942 assists=4 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:02:23 [PanoramaScript] [FF] t=2240.35 ASSIST #119 feed RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 20:02:23 [PanoramaScript] [FF] t=2240.35 CB #119 status=estimate mult=1.28 extra=86 bonus=0 victimTeam=171000 killerTeam=162000 victim=25000 avg=27000 clock=27:07 K=26 A=13 O=8 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=856
+10/07 20:02:29 [PanoramaScript] [FF] t=2246.26 NEW #120 VENATOR(65) -> BABA(88) souls=1,053 assists=4 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:02:29 [PanoramaScript] [FF] t=2246.26 ASSIST #120 feed RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 20:02:29 [PanoramaScript] [FF] t=2246.26 CB #120 status=exact mult=1.57 extra=194 bonus=0 victimTeam=171000 killerTeam=165000 victim=31000 avg=27500 clock=27:13 K=59 A=29 O=19 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=859
+10/07 20:02:46 [PanoramaScript] [FF] t=2262.71 NEW #121 HAZE(13) -> Revived! souls=- assists=0 kind=other [isRejuvenatorUsed]
+10/07 20:02:46 [PanoramaScript] [FF] t=2262.71 SKIP #121 invalid feed souls
+10/07 20:03:06 [PanoramaScript] [FF] t=2283.63 NEW #122 VINDICTA(3) -> HAZE(13) souls=1,444 assists=2 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/07 20:03:06 [PanoramaScript] [FF] t=2283.63 ASSIST #122 feed LASH(31),SHIV(19)
+10/07 20:03:06 [PanoramaScript] [FF] t=2283.63 CB #122 status=estimate mult=1.16 extra=92 bonus=0 victimTeam=169000 killerTeam=175000 victim=31000 avg=29166 clock=27:50 K=27 A=16 O=11 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1352
+10/07 20:03:13 [PanoramaScript] [FF] t=2290.32 NEW #123 CitadelHudBossKilled
+10/07 20:05:43 [PanoramaScript] [FF] t=2440.61 NEW #124 VINDICTA(3) -> PICKED UP! souls=0 assists=0 kind=other [has_killstreak,IdolPickedUp]
+10/07 20:06:28 [PanoramaScript] [FF] t=2485.18 NEW #125 PAIGE(67) -> RETURNED! souls=2,350 assists=0 kind=other [hasGold,IdolReturned]
+10/07 20:06:52 [PanoramaScript] [FF] t=2509.40 NEW #126 BABA(88) -> ABRAMS(6) souls=1,351 assists=3 kind=death [enemyDied,hasGold,hasAssists]
+10/07 20:06:52 [PanoramaScript] [FF] t=2509.40 ASSIST #126 feed SILVER(80),CELESTE(81),LASH(31)
+10/07 20:06:52 [PanoramaScript] [FF] t=2509.40 CB #126 status=estimate mult=1.20 extra=104 bonus=0 victimTeam=202000 killerTeam=198000 victim=31000 avg=33000 clock=31:36 K=31 A=17 O=11 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1247
+10/07 20:06:53 [PanoramaScript] [FF] t=2510.56 NEW #127 BABA(88) -> SOUL BAG souls=1,169 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 20:07:11 [PanoramaScript] [FF] t=2528.00 NEW #128 VINDICTA(3) -> PAIGE(67) souls=1,368 assists=3 kind=death [enemyDied,hasGold,hasAssists,has_killstreak]
+10/07 20:07:11 [PanoramaScript] [FF] t=2528.00 ASSIST #128 feed BABA(88),SILVER(80),CELESTE(81)
+10/07 20:07:11 [PanoramaScript] [FF] t=2528.01 CB #128 status=exact mult=1.22 extra=111 bonus=0 victimTeam=204000 killerTeam=201000 victim=34000 avg=33500 clock=31:55 K=33 A=18 O=12 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1257
+10/07 20:07:12 [PanoramaScript] [FF] t=2529.28 NEW #129 VINDICTA(3) -> SOUL BAG souls=562 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/07 20:07:20 [PanoramaScript] [FF] t=2536.75 NEW #130 CitadelHudBossKilled
+10/07 20:07:58 [PanoramaScript] [FF] t=2575.60 NEW #131 HAZE(13) -> VINDICTA(3) souls=2,551 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:07:58 [PanoramaScript] [FF] t=2575.60 ASSIST #131 feed RAT KING(84)
+10/07 20:07:58 [PanoramaScript] [FF] t=2575.60 CB #131 status=exact mult=1.52 extra=440 bonus=0 victimTeam=210000 killerTeam=213000 victim=43000 avg=35500 clock=32:42 K=132 A=84 O=56 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=2111
+10/07 20:08:02 [PanoramaScript] [FF] t=2578.77 NEW #132 HAZE(13) -> SHIV(19) souls=2,114 assists=1 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:08:02 [PanoramaScript] [FF] t=2578.77 ASSIST #132 feed RAT KING(84)
+10/07 20:08:02 [PanoramaScript] [FF] t=2578.77 CB #132 status=exact mult=1.00 extra=0 bonus=0 victimTeam=210000 killerTeam=213000 victim=33000 avg=35500 clock=32:46 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=2114
+10/07 20:08:22 [PanoramaScript] [FF] t=2598.68 NEW #133 BABA(88) -> HAZE(13) souls=2,004 assists=2 kind=death [enemyDied,hasGold,hasAssists]
+10/07 20:08:22 [PanoramaScript] [FF] t=2598.68 ASSIST #133 feed CELESTE(81),LASH(31)
+10/07 20:08:22 [PanoramaScript] [FF] t=2598.68 CB #133 status=exact mult=1.68 extra=429 bonus=0 victimTeam=217000 killerTeam=210000 victim=41000 avg=35000 clock=33:05 K=129 A=75 O=50 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1575
+10/07 20:08:31 [PanoramaScript] [FF] t=2607.75 NEW #134 SILVER(80) -> Rift Secured! souls=5,970 assists=0 kind=other [hasGold,KothCompleted]
+10/07 20:08:32 [PanoramaScript] [FF] t=2609.13 NEW #135 SILVER(80) -> REM(79) souls=2,329 assists=0 kind=death [enemyDied,hasGold]
+10/07 20:08:32 [PanoramaScript] [FF] t=2609.13 CB #135 status=exact mult=1.00 extra=0 bonus=0 victimTeam=217000 killerTeam=217000 victim=31000 avg=36166 clock=33:16 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=2329
+10/07 20:08:34 [PanoramaScript] [FF] t=2611.35 NEW #136 VENATOR(65) -> BABA(88) souls=1,417 assists=3 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:08:34 [PanoramaScript] [FF] t=2611.35 ASSIST #136 feed RAT KING(84),PAIGE(67),ABRAMS(6)
+10/07 20:08:34 [PanoramaScript] [FF] t=2611.35 CB #136 status=exact mult=1.22 extra=111 bonus=0 victimTeam=220000 killerTeam=218000 victim=37000 avg=36333 clock=33:18 K=33 A=18 O=12 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1306
+10/07 20:08:35 [PanoramaScript] [FF] t=2612.07 NEW #137 VENATOR(65) -> SOUL BAG souls=433 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/07 20:09:01 [PanoramaScript] [FF] t=2638.13 NEW #138 VENATOR(65) -> SILVER(80) souls=1,603 assists=2 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:09:01 [PanoramaScript] [FF] t=2638.13 ASSIST #138 feed PAIGE(67),ABRAMS(6)
+10/07 20:09:01 [PanoramaScript] [FF] t=2638.13 CB #138 status=exact mult=1.00 extra=0 bonus=0 victimTeam=220000 killerTeam=223000 victim=34000 avg=37166 clock=33:45 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1603
+10/07 20:09:12 [PanoramaScript] [FF] t=2648.82 NEW #139 VENATOR(65) -> CELESTE(81) souls=1,610 assists=2 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:09:12 [PanoramaScript] [FF] t=2648.82 ASSIST #139 feed PAIGE(67),ABRAMS(6)
+10/07 20:09:12 [PanoramaScript] [FF] t=2648.82 CB #139 status=exact mult=1.00 extra=0 bonus=0 victimTeam=221000 killerTeam=226000 victim=34000 avg=37666 clock=33:55 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1610
+10/07 20:09:19 [PanoramaScript] [FF] t=2655.78 NEW #140 CitadelHudBossKilled
+10/07 20:09:42 [PanoramaScript] [FF] t=2679.09 NEW #141 CitadelHudBossKilled
+10/07 20:09:50 [PanoramaScript] [FF] t=2686.95 NEW #142 RAT KING(84) -> LASH(31) souls=1,350 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:09:50 [PanoramaScript] [FF] t=2686.95 ASSIST #142 feed PAIGE(67),VENATOR(65),ABRAMS(6)
+10/07 20:09:50 [PanoramaScript] [FF] t=2686.95 CB #142 status=exact mult=1.00 extra=0 bonus=0 victimTeam=224000 killerTeam=233000 victim=38000 avg=38833 clock=34:34 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1350
+10/07 20:09:50 [PanoramaScript] [FF] t=2686.95 NEW #143 RAT KING(84) -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/07 20:09:50 [PanoramaScript] [FF] t=2686.95 SKIP #143 invalid feed souls
+10/07 20:09:51 [PanoramaScript] [FF] t=2687.80 NEW #144 PAIGE(67) -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/07 20:09:51 [PanoramaScript] [FF] t=2687.80 SKIP #144 invalid feed souls
+10/07 20:09:51 [PanoramaScript] [FF] t=2688.02 NEW #145 ABRAMS(6) -> VINDICTA(3) souls=1,542 assists=3 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:09:51 [PanoramaScript] [FF] t=2688.02 ASSIST #145 feed RAT KING(84),PAIGE(67),VENATOR(65)
+10/07 20:09:51 [PanoramaScript] [FF] t=2688.02 CB #145 status=estimate mult=1.38 extra=191 bonus=0 victimTeam=224000 killerTeam=234000 victim=45000 avg=39000 clock=34:35 K=58 A=31 O=20 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1351
+10/07 20:09:51 [PanoramaScript] [FF] t=2688.02 NEW #146 ABRAMS(6) -> CAPTURED REJUVENATOR souls=- assists=0 kind=other [isRejuvenatorPickup]
+10/07 20:09:51 [PanoramaScript] [FF] t=2688.02 SKIP #146 invalid feed souls
+10/07 20:10:07 [PanoramaScript] [FF] t=2704.01 NEW #147 VENATOR(65) -> SOUL BAG souls=254 assists=0 kind=bag [hasGold,has_killstreak,SoulBagPickup,SoulBagStolen]
+10/07 20:10:43 [PanoramaScript] [FF] t=2740.64 NEW #148 BABA(88) -> PICKED UP! souls=0 assists=0 kind=other [IdolPickedUp]
+10/07 20:11:03 [PanoramaScript] [FF] t=2760.08 NEW #149 BABA(88) -> RETURNED! souls=2,700 assists=0 kind=other [hasGold,IdolReturned]
+10/07 20:12:21 [PanoramaScript] [FF] t=2838.15 NEW #150 CitadelHudBossKilled
+10/07 20:12:26 [PanoramaScript] [FF] t=2843.35 NEW #151 CitadelHudBossKilled
+10/07 20:12:35 [PanoramaScript] [FF] t=2851.99 NEW #152 VENATOR(65) -> BABA(88) souls=1,029 assists=5 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:12:35 [PanoramaScript] [FF] t=2851.99 ASSIST #152 feed HAZE(13),RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 20:12:35 [PanoramaScript] [FF] t=2851.99 CB #152 status=exact mult=1.00 extra=0 bonus=0 victimTeam=242000 killerTeam=267000 victim=40000 avg=44500 clock=37:19 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1029
+10/07 20:12:38 [PanoramaScript] [FF] t=2855.63 NEW #153 VENATOR(65) -> LASH(31) souls=1,030 assists=5 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:12:38 [PanoramaScript] [FF] t=2855.63 ASSIST #153 feed HAZE(13),RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 20:12:38 [PanoramaScript] [FF] t=2855.63 CB #153 status=exact mult=1.00 extra=0 bonus=0 victimTeam=241000 killerTeam=268000 victim=40000 avg=44666 clock=37:22 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1030
+10/07 20:12:45 [PanoramaScript] [FF] t=2861.95 NEW #154 ABRAMS(6) -> SILVER(80) souls=1,033 assists=5 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:12:45 [PanoramaScript] [FF] t=2861.95 ASSIST #154 feed HAZE(13),RAT KING(84),PAIGE(67),REM(79),VENATOR(65)
+10/07 20:12:45 [PanoramaScript] [FF] t=2861.95 CB #154 status=exact mult=1.00 extra=0 bonus=0 victimTeam=241000 killerTeam=268000 victim=37000 avg=44666 clock=37:29 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1033
+10/07 20:12:49 [PanoramaScript] [FF] t=2866.35 NEW #155 ABRAMS(6) -> SOUL BAG souls=341 assists=0 kind=bag [hasGold,SoulBagPickup,SoulBagStolen]
+10/07 20:12:58 [PanoramaScript] [FF] t=2874.65 NEW #156 CitadelHudBossKilled
+10/07 20:12:58 [PanoramaScript] [FF] t=2875.29 NEW #157 ABRAMS(6) -> CELESTE(81) souls=1,147 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:12:58 [PanoramaScript] [FF] t=2875.29 ASSIST #157 feed RAT KING(84),PAIGE(67),REM(79),VENATOR(65)
+10/07 20:12:58 [PanoramaScript] [FF] t=2875.29 CB #157 status=exact mult=1.00 extra=0 bonus=0 victimTeam=241000 killerTeam=272000 victim=37000 avg=45333 clock=37:42 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1147
+10/07 20:13:01 [PanoramaScript] [FF] t=2877.74 NEW #158 CitadelHudBossKilled
+10/07 20:13:07 [PanoramaScript] [FF] t=2883.99 NEW #159 ABRAMS(6) -> SHIV(19) souls=1,151 assists=4 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:13:07 [PanoramaScript] [FF] t=2883.99 ASSIST #159 feed RAT KING(84),PAIGE(67),REM(79),VENATOR(65)
+10/07 20:13:07 [PanoramaScript] [FF] t=2883.99 CB #159 status=exact mult=1.00 extra=0 bonus=0 victimTeam=241000 killerTeam=274000 victim=41000 avg=45666 clock=37:51 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1151
+10/07 20:13:10 [PanoramaScript] [FF] t=2886.96 NEW #160 CitadelHudBossKilled
+10/07 20:13:13 [PanoramaScript] [FF] t=2889.97 NEW #161 CitadelHudBossKilled
+10/07 20:13:20 [PanoramaScript] [FF] t=2896.84 NEW #162 CitadelHudBossKilled
+10/07 20:13:32 [PanoramaScript] [FF] t=2909.51 NEW #163 HAZE(13) -> VINDICTA(3) souls=1,177 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:13:32 [PanoramaScript] [FF] t=2909.51 ASSIST #163 feed RAT KING(84),PAIGE(67),REM(79),VENATOR(65)
+10/07 20:13:32 [PanoramaScript] [FF] t=2909.51 CB #163 status=estimate mult=1.02 extra=13 bonus=0 victimTeam=242000 killerTeam=280000 victim=47000 avg=46666 clock=38:16 K=4 A=2 O=1 soulsCrossCheck=mismatch reason=nearest-clock-candidate chosenBonus=0 base=1164
+10/07 20:13:35 [PanoramaScript] [FF] t=2912.20 NEW #164 CitadelHudBossKilled
+10/07 20:13:51 [PanoramaScript] [FF] t=2927.79 NEW #165 VENATOR(65) -> BABA(88) souls=1,491 assists=3 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:13:51 [PanoramaScript] [FF] t=2927.79 ASSIST #165 feed RAT KING(84),PAIGE(67),REM(79)
+10/07 20:13:51 [PanoramaScript] [FF] t=2927.79 CB #165 status=exact mult=1.00 extra=0 bonus=0 victimTeam=244000 killerTeam=283000 victim=40000 avg=47166 clock=38:35 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1491
+10/07 20:14:01 [PanoramaScript] [FF] t=2938.43 NEW #166 RAT KING(84) -> SILVER(80) souls=1,176 assists=4 kind=death [teammateDied,hasGold,hasAssists]
+10/07 20:14:01 [PanoramaScript] [FF] t=2938.43 ASSIST #166 feed PAIGE(67),REM(79),VENATOR(65),ABRAMS(6)
+10/07 20:14:01 [PanoramaScript] [FF] t=2938.43 CB #166 status=exact mult=1.00 extra=0 bonus=0 victimTeam=247000 killerTeam=288000 victim=37000 avg=48000 clock=38:45 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1176
+10/07 20:14:22 [PanoramaScript] [FF] t=2959.07 NEW #167 VENATOR(65) -> CELESTE(81) souls=1,186 assists=4 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:14:22 [PanoramaScript] [FF] t=2959.07 ASSIST #167 feed RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 20:14:22 [PanoramaScript] [FF] t=2959.07 CB #167 status=exact mult=1.00 extra=0 bonus=0 victimTeam=248000 killerTeam=292000 victim=38000 avg=48666 clock=39:06 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1186
+10/07 20:14:31 [PanoramaScript] [FF] t=2968.11 NEW #168 VENATOR(65) -> SHIV(19) souls=1,077 assists=5 kind=death [teammateDied,hasGold,hasAssists,has_killstreak]
+10/07 20:14:31 [PanoramaScript] [FF] t=2968.11 ASSIST #168 feed HAZE(13),RAT KING(84),PAIGE(67),REM(79),ABRAMS(6)
+10/07 20:14:31 [PanoramaScript] [FF] t=2968.11 CB #168 status=exact mult=1.00 extra=0 bonus=0 victimTeam=248000 killerTeam=293000 victim=42000 avg=48833 clock=39:15 K=0 A=0 O=0 soulsCrossCheck=match reason=clock-paid chosenBonus=0 base=1077
+10/07 20:14:47 [PanoramaScript] [FF] t=2984.19 reset (match started)

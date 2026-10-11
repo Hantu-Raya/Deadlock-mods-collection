@@ -1,0 +1,23 @@
+10/06 07:16:02 [PanoramaScript] [KF-P] t=0.00 boot
+10/06 07:16:02 [PanoramaScript] [KF-P] t=0.00 watching #EventFeed under HudDataFeed#DataFeed
+10/06 07:17:14 [PanoramaScript] [KF-P] t=71.75 IMG CitadelHeroImage members beyond Panel: SetHeroID() SetImage() SetImageFromFile() SetImageFromPanel() SetScaling()
+10/06 07:17:14 [PanoramaScript] [KF-P] t=71.75 NEW #1 ? -> ? souls=419 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:17:14 [PanoramaScript] [KF-P] t=71.75 DATA #1 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists"],"killerSide":"friendly","victimSide":"enemy","gold":"419","bagGold":"419","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:22 [PanoramaScript] [KF-P] t=79.93 CHANGED #1 ? -> ? souls=419 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:17:22 [PanoramaScript] [KF-P] t=79.93 DATA #1 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists","fade_out"],"killerSide":"friendly","victimSide":"enemy","gold":"419","bagGold":"419","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:23 [PanoramaScript] [KF-P] t=80.94 GONE #1 after 9.2s
+10/06 07:17:34 [PanoramaScript] [KF-P] t=92.04 NEW #2 ? -> ? souls=313 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:17:34 [PanoramaScript] [KF-P] t=92.04 DATA #2 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists"],"killerSide":"friendly","victimSide":"enemy","gold":"313","bagGold":"313","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:39 [PanoramaScript] [KF-P] t=96.96 NEW #3 ? -> ? souls=318 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:17:39 [PanoramaScript] [KF-P] t=96.96 DATA #3 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists"],"killerSide":"friendly","victimSide":"enemy","gold":"318","bagGold":"318","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:41 [PanoramaScript] [KF-P] t=98.49 NEW #4 ? -> ? souls=319 assists=1 [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 07:17:41 [PanoramaScript] [KF-P] t=98.49 DATA #4 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists","has_killstreak"],"killerSide":"friendly","victimSide":"enemy","gold":"319","bagGold":"319","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:43 [PanoramaScript] [KF-P] t=100.92 CHANGED #2 ? -> ? souls=313 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:17:43 [PanoramaScript] [KF-P] t=100.92 DATA #2 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists","fade_out"],"killerSide":"friendly","victimSide":"enemy","gold":"313","bagGold":"313","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:44 [PanoramaScript] [KF-P] t=101.94 GONE #2 after 9.9s
+10/06 07:17:48 [PanoramaScript] [KF-P] t=105.90 CHANGED #3 ? -> ? souls=318 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:17:48 [PanoramaScript] [KF-P] t=105.90 DATA #3 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists","fade_out"],"killerSide":"friendly","victimSide":"enemy","gold":"318","bagGold":"318","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:49 [PanoramaScript] [KF-P] t=106.91 CHANGED #4 ? -> ? souls=319 assists=1 [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 07:17:49 [PanoramaScript] [KF-P] t=106.91 DATA #4 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists","has_killstreak","fade_out"],"killerSide":"friendly","victimSide":"enemy","gold":"319","bagGold":"319","assists":["assister"],"killer":{"unresolved":"top bar not found"},"victim":{"unresolved":"top bar not found"}}
+10/06 07:17:49 [PanoramaScript] [KF-P] t=106.91 GONE #3 after 9.9s
+10/06 07:17:50 [PanoramaScript] [KF-P] t=107.93 GONE #4 after 9.4s

@@ -1,0 +1,12 @@
+10/06 07:30:33 [PanoramaScript] [KF-P] t=0.00 boot
+10/06 07:30:33 [PanoramaScript] [KF-P] t=0.00 watching #EventFeed
+10/06 07:30:56 [PanoramaScript] [KF-P] t=22.94 NEW #1 friendly -> enemy souls=374 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:30:56 [PanoramaScript] [KF-P] t=22.94 DATA #1 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists"],"killer":"friendly","victim":"enemy","souls":"374","assists":1}
+10/06 07:31:05 [PanoramaScript] [KF-P] t=31.87 GONE #1 after 8.9s
+10/06 07:31:08 [PanoramaScript] [KF-P] t=35.02 NEW #2 friendly -> enemy souls=260 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:31:08 [PanoramaScript] [KF-P] t=35.02 DATA #2 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists"],"killer":"friendly","victim":"enemy","souls":"260","assists":1}
+10/06 07:31:12 [PanoramaScript] [KF-P] t=39.44 NEW #3 friendly -> enemy souls=265 assists=1 [enemyDied,hasGold,hasAssists]
+10/06 07:31:12 [PanoramaScript] [KF-P] t=39.44 DATA #3 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists"],"killer":"friendly","victim":"enemy","souls":"265","assists":1}
+10/06 07:31:15 [PanoramaScript] [KF-P] t=41.68 NEW #4 friendly -> enemy souls=267 assists=1 [enemyDied,hasGold,hasAssists,has_killstreak]
+10/06 07:31:15 [PanoramaScript] [KF-P] t=41.68 DATA #4 {"type":"CitadelHudInfoFeed","cls":["enemyDied","hasGold","hasAssists","has_killstreak"],"killer":"friendly","victim":"enemy","souls":"267","assists":1}
+10/06 07:31:18 [PanoramaScript] [KF-P] t=44.93 GONE #2 after 9.9s
