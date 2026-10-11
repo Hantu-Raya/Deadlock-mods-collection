@@ -14,6 +14,7 @@
 # Compiled/Generated directories
 *_compiled/
 *_terser/
+*_closure/
 /dist/
 /_showrank_variant_build/
 
@@ -49,6 +50,11 @@ pak*.bak-*
 pak*.vpk.*-bak-*
 diff*.txt
 help.txt
+
+# Local research, plans and screenshots (kept on disk)
+/.scratch/
+/.unlazy/
+/hp_colors_v2_bar_styles.png
 
 # Editor/System files
 .vscode/
