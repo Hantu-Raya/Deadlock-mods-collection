@@ -1417,7 +1417,7 @@
 /* Lead glow: a soft round ring around the pill, spilling a little inside and outside its edge (user requests
    2026-10-12: around the button, toned down, only the glow rounder). The pill keeps its 10 px corners; the ring is a
    capsule (an ellipse with the icon on top or bottom) about 6 px outside the pill so the pill's corners stay inside it.
-   Each glow panel leaves room for the gaussian blur. Sizes are percentages so a stretched pill (model "ww") keeps its
+   Each glow panel leaves room for the gaussian blur. Sizes are percentages so a stretched pill (width factor) keeps its
    glow. The script writes the inline opacity of one of them (0 inside +-2 %, 1 from 30 %). */
 .networth-glow
 {

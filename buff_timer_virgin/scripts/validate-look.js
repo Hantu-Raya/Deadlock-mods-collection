@@ -146,12 +146,11 @@ step('colours and strength save only when changed, restore after restart and fit
   // Worst case: every colour changed, strength set, all seven widgets moved and five switched off, the minimap moved and
   // resized and the location label moved and turned still fits the page's 512 chars.
   const t = {};
-  for (const key of ['b', 'r', 'f', 'u', 'cl', 'cr', 'w']) t[key] = [0.1234, 0.5678, 1.25, 'r'];
+  for (const key of ['b', 'r', 'f', 'u', 'cl', 'cr', 'w']) t[key] = [0.1234, 0.5678, 1.25, 'r', 1.95];
   for (const key of ['f', 'u', 'cl', 'cr']) t[key][3] = 't';
   t.m = 1.35;
   t.mp = [0.12345, 0.56789];
   t.lc = [-999.9, -999.9, -165, 1.75];
-  t.ww = 1.95;
   const full = record(JSON.stringify({ s: 8, u: '#111111', d: '#222222', l: 0, g: 0, t,
     c: { a: '#333333', e: '#444444', w: '#555555', p: '#666666', v: '#777777', m: '#888888' }, k: 150, b: 0, o: 25, x: 62 }));
   const big = createProfile({ [KEY]: full });

@@ -34,12 +34,6 @@
 					<Label class="bt-row-label" text="Souls pill icon" />
 					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
 				</Button>
-				<!-- The net worth pill's width (60-200 % of stock); corner handles in the layout editor keep the aspect. -->
-				<Panel class="bt-strength-row bt-timer-only" hittest="false">
-					<Label class="bt-strength-label" text="Souls width" />
-					<Panel id="BTWorthWidthHost" class="bt-strength-host" hittest="false" hittestchildren="true" />
-					<Label id="BTWorthWidthValue" class="bt-strength-value" text="100%" />
-				</Panel>
 				<Label class="bt-settings-section" text="ENEMY MARKERS" />
 				<Button id="BTUpColor" class="bt-color-row">
 					<Panel id="BTUpColorArrow" class="bt-color-arrow bt-arrow-up" hittest="false" />

@@ -125,9 +125,10 @@
   const LAYOUT_SIDE_CLASSES = ["l", "r", "t", "b", "n"];
   const LAYOUT_HANDLES = ["HandleTL", "HandleTR", "HandleBL", "HandleBR"];
   const LAYOUT_CHROME_PAD = 22;
-  // Net worth pill width (model "ww", a fraction of its stock width): an inline width on its slot.
-  const LAYOUT_WORTH_WIDTH_MIN = 0.6;
-  const LAYOUT_WORTH_WIDTH_MAX = 2;
+  // Width factor of a widget (optional fifth element of its model entry, a fraction of its stock width): an inline
+  // width on its slot, so width and height resize separately.
+  const LAYOUT_WIDTH_MIN = 0.6;
+  const LAYOUT_WIDTH_MAX = 2;
   const LAYOUT_REMEASURE_MS = 1000;
   // Minimap size (model "m", a fraction of stock): inline ui-scale on #minimap_persp, which scales the whole minimap
   // (and BTTimerDock inside it) around its bottom-right anchor. The dock is 440 layout px wide at stock size.
@@ -1020,15 +1021,16 @@
     const scale = entry ? entry[2] : Math.max(0.5, Math.min(2, metrics.dockScale));
     // Vertical only with the icon on top or bottom; "n" (no icon) is the horizontal pill.
     const base = LAYOUT_BASE[spec.kind][side === "t" || side === "b" ? "v" : "h"];
-    // The net worth pill's width can change on its own (model "ww", a fraction of its stock width).
-    const size = spec.key === "w" && Layout.model["ww"] !== undefined ? [base[0] * Layout.model["ww"], base[1]] : base;
+    // Width resizes on its own (entry[4], a fraction of the stock width; absent = 1).
+    const factor = entry && entry.length > 4 ? entry[4] : 1;
+    const size = factor === 1 ? base : [base[0] * factor, base[1]];
     const w = size[0] * scale;
     const h = size[1] * scale;
     const x = entry ? entry[0] * metrics.w : metrics.dockX + spec.x * metrics.dockScale;
     const y = entry ? entry[1] * metrics.h : metrics.dockY + spec.y * metrics.dockScale;
     return {
       x: Math.max(0, Math.min(metrics.w - w, x)), y: Math.max(0, Math.min(metrics.h - h, y)),
-      w: w, h: h, s: scale, side: side, bw: size[0], bh: size[1]
+      w: w, h: h, s: scale, side: side, bw: size[0], bh: size[1], wf: factor
     };
   }
   // Settings sends the saved or draft model; anything malformed falls back to that widget's (or the minimap's) default.
@@ -1037,13 +1039,15 @@
     if (!model || typeof model !== "object") return clean;
     for (const spec of LAYOUT_SLOTS) {
       const entry = model[spec.key];
-      if (!Array.isArray(entry) || entry.length !== 4) continue;
+      if (!Array.isArray(entry) || (entry.length !== 4 && entry.length !== 5)) continue;
       const x = Number(entry[0]);
       const y = Number(entry[1]);
       const s = Number(entry[2]);
       const sideOk = LAYOUT_SIDES.indexOf(entry[3]) >= 0 || (spec.kind === "pill" && entry[3] === "n");
       if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1 && s >= 0.5 && s <= 2) || !sideOk) continue;
       clean[spec.key] = [x, y, s, entry[3]];
+      const factor = entry.length === 5 ? Number(entry[4]) : 1;
+      if (factor >= LAYOUT_WIDTH_MIN && factor <= LAYOUT_WIDTH_MAX && factor !== 1) clean[spec.key].push(Math.round(factor * 100) / 100);
     }
     const map = model["m"];
     if (typeof map === "number" && map >= LAYOUT_MAP_SCALE_MIN && map <= LAYOUT_MAP_SCALE_MAX && map !== 1) {
@@ -1059,10 +1063,6 @@
         Math.abs(loc[0]) <= LAYOUT_LOC_MAX && Math.abs(loc[1]) <= LAYOUT_LOC_MAX && loc[2] >= -180 && loc[2] <= 180 &&
         (loc.length === 3 || (loc[3] >= LAYOUT_LOC_SCALE_MIN && loc[3] <= LAYOUT_LOC_SCALE_MAX))) {
       clean["lc"] = loc.slice();
-    }
-    const width = model["ww"];
-    if (typeof width === "number" && width >= LAYOUT_WORTH_WIDTH_MIN && width <= LAYOUT_WORTH_WIDTH_MAX && width !== 1) {
-      clean["ww"] = Math.round(width * 100) / 100;
     }
     return clean;
   }
@@ -1106,8 +1106,8 @@
       const chrome = parts.chrome;
       cachedWrite(slot, "position", round(rect.x) + "px " + round(rect.y) + "px 0px");
       cachedWrite(slot, "uiScale", Math.round(rect.s * 100) + "%");
-      // Inline width only for a stretched net worth pill; null hands it back to the side's CSS size.
-      if (spec.key === "w") cachedWrite(slot, "width", Layout.model["ww"] === undefined ? null : round(rect.bw) + "px");
+      // Inline width only for a stretched widget; null hands it back to the side's CSS size.
+      cachedWrite(slot, "width", rect.wf === 1 ? null : round(rect.bw) + "px");
       // Side classes only change with the side (the first placement also clears the XML default); the slot and its
       // chrome are this script's own panels, so nothing else changes them in between.
       if (parts.side !== rect.side) {
@@ -1281,7 +1281,7 @@
     const spot = model["mp"];
     const loc = model["lc"];
     return sig + "|m" + (model["m"] === undefined ? "-" : model["m"]) + "|" + (spot ? spot.join(",") : "-") +
-      "|l" + (loc ? loc.join(",") : "-") + "|w" + (model["ww"] === undefined ? "-" : model["ww"]);
+      "|l" + (loc ? loc.join(",") : "-");
   }
   function layoutPlacedRecently(modelSig, nowMs) {
     return modelSig === Layout.modelSig && nowMs - Layout.measuredMs < LAYOUT_REMEASURE_MS;
@@ -1307,7 +1307,7 @@
     const slots = {};
     for (const spec of LAYOUT_SLOTS) {
       const rect = layoutRect(spec, metrics);
-      slots[spec.key] = { "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h, "s": rect.s, "side": rect.side, "bw": rect.bw, "bh": rect.bh };
+      slots[spec.key] = { "x": rect.x, "y": rect.y, "w": rect.w, "h": rect.h, "s": rect.s, "side": rect.side, "bw": rect.bw, "bh": rect.bh, "wf": rect.wf };
     }
     // The dock in window px: the settings script opens its edit bar just above (or below) it.
     const dock = layoutFinite(metrics.dockWinW) && metrics.dockWinW > 0

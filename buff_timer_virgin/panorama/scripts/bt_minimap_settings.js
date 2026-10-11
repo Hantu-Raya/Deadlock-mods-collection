@@ -9,7 +9,6 @@
     btBrightnessHost: "BTBrightnessHost", btBrightnessValue: "BTBrightnessValue",
     btLinger: "BTLingerToggle", btGlow: "BTGlowToggle", btBorder: "BTBorderToggle", btWorthIcon: "BTWorthIconToggle",
     btOpacityHost: "BTMapOpacityHost", btOpacityValue: "BTMapOpacityValue",
-    btWorthWidthHost: "BTWorthWidthHost", btWorthWidthValue: "BTWorthWidthValue",
     btStatus: "BTSettingsStatus", btReset: "BTSettingsReset",
     btResetLabel: "BTSettingsResetLabel", btStore: "BTSettingsStore",
     btLayoutButton: "BTLayoutButton", btLayoutBar: "BTLayoutBar",
@@ -65,10 +64,10 @@
   const BT_OPACITY_MIN = 20;
   const BT_OPACITY_MAX = 100;
   const BT_OPACITY_STEP = 5;
-  // Net worth pill width in percent of its stock width (layout model "ww" holds it as a fraction; absent = 100).
-  const BT_WORTH_WIDTH_MIN = 60;
-  const BT_WORTH_WIDTH_MAX = 200;
-  const BT_WORTH_WIDTH_STEP = 5;
+  // Widget width factor (schema 8: optional fifth element of a layout entry, a fraction of the stock width). The
+  // layout editor's corner handles set it together with the scale, so width and height resize separately.
+  const BT_WIDTH_MIN = 0.6;
+  const BT_WIDTH_MAX = 2;
   // Minimap size in percent of stock (layout model key "m" holds it as a fraction; absent = 100).
   const BT_MAP_SCALE_MIN = 50;
   const BT_MAP_SCALE_MAX = 150;
@@ -276,7 +275,7 @@
       if (!layout) layout = {};
       layout[slot[0]] = entry.slice();
     }
-    for (const key of ["m", "mp", "lc", "ww"]) {
+    for (const key of ["m", "mp", "lc"]) {
       const value = BtSettings.layout[key];
       if (value === undefined) continue;
       if (!layout) layout = {};
@@ -321,12 +320,6 @@
     if (value === undefined) return layout;
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     for (const key of Object.keys(value)) {
-      if (key === "ww" && schema >= 8) {
-        const width = btWorthWidthPercent(value[key]);
-        if (width === 0) return null;
-        layout[key] = width / 100;
-        continue;
-      }
       if (key === "m") {
         const size = btMapScalePercent(value[key]);
         if (size === 0) return null;
@@ -351,14 +344,16 @@
       // "w" (the net worth pill) is a schema 8 slot.
       if (!BT_LAYOUT_SLOTS.some((slot) => slot[0] === key) || (key === "w" && schema < 8)) return null;
       const entry = value[key];
-      if (!Array.isArray(entry) || entry.length !== 4) return null;
+      // [x, y, scale, side] or, stretched (schema 8), [x, y, scale, side, width 0.6-2].
+      if (!Array.isArray(entry) || (entry.length !== 4 && !(entry.length === 5 && schema >= 8))) return null;
       const x = entry[0];
       const y = entry[1];
       const s = entry[2];
       if (typeof x !== "number" || typeof y !== "number" || typeof s !== "number") return null;
       if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1 && s >= 0.5 && s <= 2)) return null;
       if (BT_LAYOUT_SIDES.indexOf(entry[3]) < 0 && !(entry[3] === "n" && BT_ICON_DEFAULT_SIDE[key])) return null;
-      layout[key] = [x, y, s, entry[3]];
+      if (entry.length === 5 && !(typeof entry[4] === "number" && entry[4] >= BT_WIDTH_MIN && entry[4] <= BT_WIDTH_MAX)) return null;
+      layout[key] = entry.length === 5 && entry[4] !== 1 ? [x, y, s, entry[3], entry[4]] : [x, y, s, entry[3]];
     }
     return layout;
   }
@@ -558,9 +553,6 @@
     }
     setPanelClass(UI.btPanel, "bt-claims-off", (BtSettings.widgetsOff & BT_WIDGET_CLAIMS) !== 0);
     setPanelText(UI.btOpacityValue, BtSettings.opacity + "%");
-    const worthWidth = btWorthWidth();
-    setPanelText(UI.btWorthWidthValue, worthWidth + "%");
-    btSyncSlider(UI.btWorthWidth, worthWidth);
     btSyncSlider(UI.btOpacity, BtSettings.opacity);
     setPanelText(UI.btStatus, BtStore.status);
     setPanelText(UI.btResetLabel, BtStore.resetArmed ? "CONFIRM RESET" : "RESET");
@@ -743,31 +735,6 @@
     BtSettings.opacity = value;
     btChanged();
   }
-  // Net worth pill width (layout model "ww"). Changes the saved layout directly; the timer resizes the pill and its
-  // edit box. Locked while editing the layout (the menu is closed then anyway).
-  function btWorthWidth() {
-    const width = BtSettings.layout["ww"];
-    return width === undefined ? 100 : Math.round(width * 100);
-  }
-  function btOnWorthWidth() {
-    if (!btEditable() || BtLayout.editing) {
-      btSyncSlider(UI.btWorthWidth, btWorthWidth());
-      return;
-    }
-    let value = btSliderValue(UI.btWorthWidth);
-    if (!isFinite(value)) return;
-    value = Math.round(Math.max(BT_WORTH_WIDTH_MIN, Math.min(BT_WORTH_WIDTH_MAX, value)) / BT_WORTH_WIDTH_STEP) * BT_WORTH_WIDTH_STEP;
-    if (value === btWorthWidth()) {
-      btSyncSlider(UI.btWorthWidth, value);
-      return;
-    }
-    const layout = btLayoutCopy(BtSettings.layout);
-    if (value === 100) delete layout["ww"];
-    else layout["ww"] = value / 100;
-    BtSettings.layout = layout;
-    btLayoutPush();
-    btChanged();
-  }
   function btOnStrength() {
     if (!btEditable()) {
       btSyncSlider(UI.btStrength, BtSettings.strength);
@@ -880,7 +847,7 @@
     if (!rect) return;
     const side = btWorthIconShown() ? "n" : BT_ICON_DEFAULT_SIDE["w"];
     const layout = btLayoutCopy(BtSettings.layout);
-    layout["w"] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side);
+    layout["w"] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side, rect["wf"]);
     BtSettings.layout = layout;
     btLayoutPush();
     btChanged();
@@ -1126,13 +1093,7 @@
     if (model["m"] !== undefined) copy["m"] = model["m"];
     if (model["mp"] !== undefined) copy["mp"] = model["mp"].slice();
     if (model["lc"] !== undefined) copy["lc"] = model["lc"].slice();
-    if (model["ww"] !== undefined) copy["ww"] = model["ww"];
     return copy;
-  }
-  // Model "ww" (a fraction of the pill's stock width) -> whole percent; 0 when it is not a valid width.
-  function btWorthWidthPercent(value) {
-    if (typeof value !== "number" || !(value >= BT_WORTH_WIDTH_MIN / 100 && value <= BT_WORTH_WIDTH_MAX / 100)) return 0;
-    return Math.round(value * 100);
   }
   // Model "m" (a fraction of the stock size) -> whole percent; 0 when it is not a valid size.
   function btMapScalePercent(value) {
@@ -1286,9 +1247,13 @@
     }
     return best;
   }
-  function btLayoutEntry(drag, x, y, scale, side) {
+  /** @param {number=} width */
+  function btLayoutEntry(drag, x, y, scale, side, width) {
     const fraction = (value, total) => Math.round(btLayoutClamp(value / total, 0, 1) * 10000) / 10000;
-    return [fraction(x, drag.w), fraction(y, drag.h), scale, side];
+    const entry = [fraction(x, drag.w), fraction(y, drag.h), scale, side];
+    // The width factor is stored only when the widget is stretched.
+    if (width !== undefined && width !== 1) entry.push(width);
+    return entry;
   }
   function btLayoutSide(api, key, side) {
     if (!BtLayout.editing || api !== btLayoutApi() || !BtLayout.draft) return;
@@ -1298,7 +1263,7 @@
     // Without its icon a pill has no vertical layout (the chrome hides those arrows too).
     if (rect["side"] === "n" && (side === "t" || side === "b")) return;
     btLayoutDragStop();
-    BtLayout.draft[key] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side);
+    BtLayout.draft[key] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side, rect["wf"]);
     btLayoutPush();
   }
   // Hides a pill's icon (side "n", just the time) or shows it again on the pill's default side.
@@ -1309,7 +1274,7 @@
     if (!rect) return;
     btLayoutDragStop();
     const side = rect["side"] === "n" ? BT_ICON_DEFAULT_SIDE[key] : "n";
-    BtLayout.draft[key] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side);
+    BtLayout.draft[key] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side, rect["wf"]);
     btLayoutPush();
   }
   // The engine moves our invisible proxy with the cursor (proven in game); the widget follows the proxy's offset
@@ -1337,8 +1302,8 @@
       // Label only: its centre, dashed-box size, turn, offset (minimap px), layer px per minimap px, stock centre, knob.
       cx: rect["cx"], cy: rect["cy"], deg: rect["deg"], dx: rect["dx"], dy: rect["dy"], f: rect["f"],
       sx: rect["sx"], sy: rect["sy"], kx: rect["kx"], ky: rect["ky"],
-      // Net worth pill: its width factor at drag start (corner handles resize width and height separately).
-      ww: key === "w" && BtLayout.draft && BtLayout.draft["ww"] !== undefined ? BtLayout.draft["ww"] : 1
+      // Widgets: the width factor at drag start (kept by moves, changed by corner handles).
+      wf: rect["wf"] === undefined ? 1 : rect["wf"]
     };
     BtLayout.dragHnd = btSchedule(BT_LAYOUT_TICK_S, btLayoutDragTick);
     return true;
@@ -1488,11 +1453,6 @@
       // At the stock spot, turn and size the timer hands the label back to the stock CSS.
       if (entry.length === 3 && entry[0] === 0 && entry[1] === 0 && entry[2] === BT_LOC_DEG) delete BtLayout.draft["lc"];
       else BtLayout.draft["lc"] = entry;
-    } else if (drag.key === "w" && drag.corner) {
-      const resized = btLayoutResizeWorth(drag, dx, dy);
-      BtLayout.draft["w"] = resized.entry;
-      if (resized.width === 1) delete BtLayout.draft["ww"];
-      else BtLayout.draft["ww"] = resized.width;
     } else {
       BtLayout.draft[drag.key] = drag.corner ? btLayoutResize(drag, dx, dy) : btLayoutMove(drag, dx, dy);
     }
@@ -1554,37 +1514,23 @@
   function btLayoutMove(drag, dx, dy) {
     const x = btLayoutClamp(btLayoutSnap(drag.x + dx, drag.rw, drag.w), 0, drag.w - drag.rw);
     const y = btLayoutClamp(btLayoutSnap(drag.y + dy, drag.rh, drag.h), 0, drag.h - drag.rh);
-    return btLayoutEntry(drag, x, y, drag.s, drag.side);
+    return btLayoutEntry(drag, x, y, drag.s, drag.side, drag.wf);
   }
-  // Uniform scale from the axis that moved more; the corner opposite the handle stays put.
+  // Corner handles resize width and height separately (user request 2026-10-12, first for the net worth pill, then
+  // every widget): up/down sets the scale (height and text size, 50-200 %), and the on-screen width follows the cursor,
+  // kept as the width factor at that scale (60-200 % of stock). The corner opposite the handle stays put.
   function btLayoutResize(drag, dx, dy) {
     const right = drag.corner.charAt(1) === "R";
     const bottom = drag.corner.charAt(0) === "B";
-    const byX = (drag.rw + (right ? dx : -dx)) / drag.bw;
-    const byY = (drag.rh + (bottom ? dy : -dy)) / drag.bh;
-    const raw = Math.abs(byX - drag.s) >= Math.abs(byY - drag.s) ? byX : byY;
-    const scale = Math.round(btLayoutClamp(raw, 0.5, 2) * 100) / 100;
-    const w = drag.bw * scale;
-    const h = drag.bh * scale;
-    const x = btLayoutClamp(right ? drag.x : drag.x + drag.rw - w, 0, drag.w - w);
-    const y = btLayoutClamp(bottom ? drag.y : drag.y + drag.rh - h, 0, drag.h - h);
-    return btLayoutEntry(drag, x, y, scale, drag.side);
-  }
-  // The net worth pill resizes freely (user request 2026-10-12): up/down sets its scale (height and text size), and its
-  // width on screen follows the cursor, kept as the width factor "ww" (60-200 % of stock at that scale). The corner
-  // opposite the handle stays put.
-  function btLayoutResizeWorth(drag, dx, dy) {
-    const right = drag.corner.charAt(1) === "R";
-    const bottom = drag.corner.charAt(0) === "B";
-    const stockW = drag.bw / drag.ww;
+    const stockW = drag.bw / drag.wf;
     const scale = Math.round(btLayoutClamp((drag.rh + (bottom ? dy : -dy)) / drag.bh, 0.5, 2) * 100) / 100;
     const raw = (drag.rw + (right ? dx : -dx)) / (stockW * scale);
-    const width = Math.round(btLayoutClamp(raw, BT_WORTH_WIDTH_MIN / 100, BT_WORTH_WIDTH_MAX / 100) * 100) / 100;
+    const width = Math.round(btLayoutClamp(raw, BT_WIDTH_MIN, BT_WIDTH_MAX) * 100) / 100;
     const w = stockW * width * scale;
     const h = drag.bh * scale;
     const x = btLayoutClamp(right ? drag.x : drag.x + drag.rw - w, 0, drag.w - w);
     const y = btLayoutClamp(bottom ? drag.y : drag.y + drag.rh - h, 0, drag.h - h);
-    return { entry: btLayoutEntry(drag, x, y, scale, drag.side), width: width };
+    return btLayoutEntry(drag, x, y, scale, drag.side, width);
   }
   // Like a widget corner: uniform scale from the axis that moved more, the minimap's opposite corner stays put. The
   // #minimap_persp box (what the spot places) keeps its offset to the minimap at the new scale.
@@ -1694,8 +1640,6 @@
     UI.widgetRows = BT_WIDGETS.map((widget) => find(widget.row));
     UI.btOpacityHost = find(PANEL_IDS.btOpacityHost);
     UI.btOpacityValue = find(PANEL_IDS.btOpacityValue);
-    UI.btWorthWidthHost = find(PANEL_IDS.btWorthWidthHost);
-    UI.btWorthWidthValue = find(PANEL_IDS.btWorthWidthValue);
     UI.btStatus = find(PANEL_IDS.btStatus);
     UI.btReset = find(PANEL_IDS.btReset);
     UI.btResetLabel = find(PANEL_IDS.btResetLabel);
@@ -1763,9 +1707,6 @@
     btSyncSlider(UI.btStrength, BtSettings.strength);
     UI.btOpacity = btBuildSlider(UI.btOpacityHost, "BTMapOpacity", "bt-strength", BT_OPACITY_MIN, BT_OPACITY_MAX, BT_OPACITY_STEP, btOnOpacity);
     btSyncSlider(UI.btOpacity, BtSettings.opacity);
-    UI.btWorthWidth = btBuildSlider(UI.btWorthWidthHost, "BTWorthWidth", "bt-strength", BT_WORTH_WIDTH_MIN, BT_WORTH_WIDTH_MAX,
-      BT_WORTH_WIDTH_STEP, btOnWorthWidth);
-    btSyncSlider(UI.btWorthWidth, btWorthWidth());
     btBindControls();
     btApplyToHud();
     btRefreshMenu();

@@ -43,7 +43,10 @@ function slotState(game, key) {
   const match = /^(-?[\d.]+)px (-?[\d.]+)px/.exec(String(panel.style.position || ''));
   const sides = ['l', 'r', 't', 'b', 'n'].filter((side) => panel.classes.has(`bt-side-${side}`));
   const scale = panel.style.uiScale === undefined ? 1 : parseFloat(panel.style.uiScale) / 100;
-  return { panel, x: match ? Number(match[1]) : NaN, y: match ? Number(match[2]) : NaN, sides, scale, placed: panel.classes.has('bt-placed') };
+  // Width factor (2026-10-12: corners resize width and height separately): inline slot width / the CSS base width.
+  const base = { pill: sides.includes('t') || sides.includes('b') ? 76 : 141, card: sides.includes('t') || sides.includes('b') ? 44 : 82, claim: 48 }[DEFAULTS[key].kind || 'pill'];
+  const width = panel.style.width ? parseFloat(panel.style.width) / base : 1;
+  return { panel, x: match ? Number(match[1]) : NaN, y: match ? Number(match[2]) : NaN, sides, scale, width, placed: panel.classes.has('bt-placed') };
 }
 function expectDefaults(game, message) {
   for (const key of Object.keys(DEFAULTS)) {
@@ -226,36 +229,46 @@ step('dragging moves live with UI scale, snaps to centre lines, clamps on screen
   assert.equal(again.stats.writes, 0, 'restoring does not write');
 });
 
-step('corner handles scale uniformly around the opposite corner, clamped to 50-200%', () => {
+// User request 2026-10-12: every widget's corners resize its width and height separately. Up/down sets the scale
+// (height and text size, 50-200 %), the on-screen width follows the cursor (width factor 60-200 % of stock at that
+// scale); the corner opposite the handle stays put.
+step('corner handles resize width and height separately around the opposite corner, clamped', () => {
   const { game } = ready();
   game.toggleMenu();
   enterEdit(game);
   const s0 = slotState(game, 'r');
-  // Bottom-right handle: +70.5 layout px in x = 1.5x; the top-left corner stays put.
+  // Bottom-right handle: +70.5 layout px in x only = 150 % wide, same height; the top-left corner stays put.
   const br = game.ids.BTSlotRejuvHandleBR;
   const brWin = { x: (s0.x + 141) * SCALE, y: (s0.y + 44) * SCALE };
   drag(game, br, brWin, { x: brWin.x + 70.5 * SCALE, y: brWin.y });
   let s = slotState(game, 'r');
-  near(s.scale, 1.5, 'BR drag scales to 150%', 0.01);
+  near(s.scale, 1, 'sideways drag keeps the scale', 0.01);
+  near(s.width, 1.5, 'sideways drag widens to 150%', 0.01);
   near(s.x, s0.x, 'top-left x fixed');
   near(s.y, s0.y, 'top-left y fixed');
+  // Up/down: the scale changes and the on-screen width (141 x 1.5) is kept.
+  drag(game, br, brWin, { x: brWin.x, y: brWin.y + 22 * SCALE });
+  s = slotState(game, 'r');
+  near(s.scale, 1.5, 'down drag scales to 150%', 0.01);
+  near(141 * s.width * s.scale, 211.5, 'on-screen width kept', 1.5);
   // Starts away from window (0,0): that is the proxy host's origin, which the runtime treats as "no cursor".
   const o = { x: 10, y: 10 };
-  drag(game, br, o, { x: o.x + 3000 * SCALE, y: o.y });
+  drag(game, br, o, { x: o.x, y: o.y + 3000 * SCALE });
   near(slotState(game, 'r').scale, 2, 'scale clamps at 200%', 0.01);
-  drag(game, br, o, { x: o.x - 3000 * SCALE, y: o.y });
-  near(slotState(game, 'r').scale, 0.5, 'scale clamps at 50%', 0.01);
-  drag(game, br, o, { x: o.x + (141 * 0.5) * SCALE, y: o.y });
+  drag(game, br, o, { x: o.x + 3000 * SCALE, y: o.y });
+  near(slotState(game, 'r').width, 2, 'width clamps at 200%', 0.01);
+  drag(game, br, o, { x: o.x - 3000 * SCALE, y: o.y - 3000 * SCALE });
   s = slotState(game, 'r');
-  near(s.scale, 1, 'back to 100%', 0.01);
-  const brX = s.x + 141;
-  const brY = s.y + 44;
+  near(s.scale, 0.5, 'scale clamps at 50%', 0.01);
+  near(s.width, 0.6, 'width clamps at 60%', 0.01);
+  const brX = s.x + 141 * s.width * s.scale;
+  const brY = s.y + 44 * s.scale;
   const tl = game.ids.BTSlotRejuvHandleTL;
-  drag(game, tl, { x: s.x * SCALE, y: s.y * SCALE }, { x: (s.x + 35.25) * SCALE, y: s.y * SCALE });
+  drag(game, tl, { x: s.x * SCALE, y: s.y * SCALE }, { x: (s.x - 20) * SCALE, y: (s.y - 11) * SCALE });
   s = slotState(game, 'r');
-  near(s.scale, 0.75, 'TL drag inward shrinks to 75%', 0.01);
-  near(s.x + 141 * 0.75, brX, 'bottom-right x fixed', 0.2);
-  near(s.y + 44 * 0.75, brY, 'bottom-right y fixed', 0.2);
+  near(s.scale, 0.75, 'TL drag up grows to 75%', 0.01);
+  near(s.x + 141 * s.width * s.scale, brX, 'bottom-right x fixed', 1.5);
+  near(s.y + 44 * s.scale, brY, 'bottom-right y fixed', 0.2);
 });
 
 step('claim boxes move and scale like the other widgets and show a sample claim while editing', () => {
@@ -282,14 +295,15 @@ step('claim boxes move and scale like the other widgets and show a sample claim 
   near(slotState(game, 'cl').y, s0.y - 240, 'claim box moved y', 0.2);
   const moved = slotState(game, 'cl');
   const br = game.ids.BTSlotClaimLHandleBR;
-  drag(game, br, { x: 10, y: 10 }, { x: 10 + 24 * SCALE, y: 10 });
+  drag(game, br, { x: 10, y: 10 }, { x: 10 + 24 * SCALE, y: 10 + 24 * SCALE });
   near(slotState(game, 'cl').scale, 1.5, 'claim box corner scales to 150%', 0.01);
+  near(slotState(game, 'cl').width, 1, 'a diagonal drag keeps the claim box square', 0.01);
   near(slotState(game, 'cl').x, moved.x, 'claim box top-left kept');
   game.click('BTLayoutDone');
   assert.equal(boxL.classes.has('bt-claim-sample'), false, 'DONE removes the sample');
   game.advance(2000);
   const t = savedLayout(profile);
-  assert.deepEqual([t.cl[2], t.cl[3]], [1.5, 't'], 'claim box scale saved');
+  assert.deepEqual(t.cl.slice(2), [1.5, 't'], 'claim box scale saved, no width factor at 100%');
   assert.equal(t.cr, undefined, 'untouched right box keeps its default');
   const again = ready({ profile }).game;
   near(slotState(again, 'cl').x, moved.x, 'claim box restored after restart', 0.2);
@@ -311,13 +325,15 @@ step('the Bridge pill resizes from its corners, and a hovered widget\'s chrome c
   const tl = game.ids.BTSlotBuffHandleTL;
   drag(game, tl, { x: s0.x * SCALE, y: s0.y * SCALE }, { x: (s0.x - 70.5) * SCALE, y: s0.y * SCALE });
   let s = slotState(game, 'b');
-  near(s.scale, 1.5, 'Bridge TL drag outward scales to 150%', 0.01);
+  near(s.scale, 1, 'Bridge TL drag sideways keeps the scale', 0.01);
+  near(s.width, 1.5, 'Bridge TL drag outward widens to 150%', 0.01);
   near(s.x + 141 * 1.5, s0.x + 141, 'Bridge bottom-right x fixed', 0.2);
-  near(s.y + 44 * 1.5, s0.y + 44, 'Bridge bottom-right y fixed', 0.2);
+  near(s.y + 44, s0.y + 44, 'Bridge bottom-right y fixed', 0.2);
   const br = game.ids.BTSlotBuffHandleBR;
   drag(game, br, { x: 10, y: 10 }, { x: 10 - 70.5 * SCALE, y: 10 });
   s = slotState(game, 'b');
-  near(s.scale, 1, 'Bridge BR drag inward back to 100%', 0.01);
+  near(s.width, 1, 'Bridge BR drag inward back to 100%', 0.01);
+  assert.equal(game.ids.BTSlotBuff.style.width, null, 'stock width hands back to the CSS');
   game.click('BTLayoutCancel');
   game.click('BTSlotRift', 'onmouseover');
   assert.equal(front(), 'BTSlotBuffChrome', 'outside edit mode hovering changes nothing');

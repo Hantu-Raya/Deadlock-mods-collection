@@ -340,48 +340,9 @@ check('menu switch turns the soul icon off and on, keeps the spot and saves it',
   assert.equal(saved(profile).t.w[3], 'l');
 });
 
-// User request 2026-10-12: the pill's width can change on its own (corner handles keep the aspect). Menu slider
-// "Souls width" 60-200 % (layout model "ww", saved in "t" only when not 100 %); the edit chrome follows it.
-check('width slider stretches only the pill, its edit box follows, it saves and RESET LAYOUT clears it', () => {
-  const profile = createProfile();
-  const game = ready(profile);
-  tick(game, 180, 1);
-  const slot = game.ids.BTSlotWorth;
-  const height = slot.style.height;
-  game.toggleMenu();
-  game.ids.BTWorthWidth.drag(150);
-  game.advance(300);
-  assert.equal(slot.style.width, '211.5px', '141 px x 150 %');
-  assert.equal(slot.style.height, height, 'height untouched');
-  assert.equal(game.ids.BTWorthWidthValue.text, '150%');
-  game.advance(2000);
-  assert.equal(saved(profile).t.ww, 1.5);
-  game.click('BTLayoutButton');
-  game.advance(300);
-  const scale = parseFloat(slot.style.uiScale) / 100;
-  const outline = parseFloat(game.ids.BTSlotWorthOutline.style.width);
-  assert.ok(Math.abs(outline - 211.5 * scale) <= 0.2, `edit outline ${outline} follows the width`);
-  game.click('BTSlotWorthSideT');
-  game.advance(300);
-  assert.equal(slot.style.width, '114px', 'vertical pill: 76 px x 150 %');
-  game.click('BTLayoutReset');
-  game.advance(300);
-  assert.equal(slot.style.width, null, 'RESET LAYOUT hands the width back to the CSS');
-  game.click('BTLayoutDone');
-  game.advance(2200);
-  assert.equal(saved(profile).t, undefined, 'no layout left to save');
-  const again = ready(createProfile({ [KEY]: record('{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":{"ww":0.6}}') }));
-  tick(again, 180, 1);
-  assert.equal(again.ids.BTSlotWorth.style.width, '84.6px', 'saved width restored');
-  for (const bad of ['{"ww":0.5}', '{"ww":2.5}', '{"ww":"1.5"}']) {
-    const game2 = launch(createProfile({ [KEY]: record(`{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":${bad}}`) }), { withTimer: true, clock: '3:00' });
-    game2.advance(2000);
-    assert.equal(game2.state().phase, 'blocked', `${bad} is damaged`);
-  }
-});
-
-// User request 2026-10-12: in the layout editor the pill's corner handles resize its width and height separately
-// (other widgets keep the uniform scale). Sideways only: wider, same height and text size; up/down only: the scale.
+// User requests 2026-10-12: in the layout editor every widget's corner handles resize its width and height
+// separately. Sideways only: wider, same height and text size; up/down only: the scale, on-screen width kept. The width
+// factor is the optional fifth element of the widget's layout entry (0.6-2, only when not 1).
 function dragHandle(game, panel, dxLayout, dyLayout) {
   const callbacks = {};
   panel.events.DragStart(panel, callbacks);
@@ -395,7 +356,7 @@ function dragHandle(game, panel, dxLayout, dyLayout) {
   panel.events.DragEnd(panel, proxy);
   game.advance(40);
 }
-check('editor corner handles stretch the pill sideways without changing its height', () => {
+check('editor corner handles stretch any widget sideways without changing its height', () => {
   const profile = createProfile();
   const game = ready(profile);
   tick(game, 180, 1);
@@ -408,9 +369,19 @@ check('editor corner handles stretch the pill sideways without changing its heig
   dragHandle(game, game.ids.BTSlotWorthHandleBR, 70.5 * s, 0);
   assert.equal(slot.style.uiScale, scale, 'sideways drag keeps the scale (height, text size)');
   assert.equal(slot.style.width, '211.5px', '141 px + 70.5 px at this scale: 150 %');
+  const outline = parseFloat(game.ids.BTSlotWorthOutline.style.width);
+  assert.ok(Math.abs(outline - 211.5 * s) <= 0.2, `edit outline ${outline} follows the width`);
+  game.click('BTSlotWorthSideT');
+  game.advance(300);
+  assert.equal(slot.style.width, '114px', 'vertical pill keeps the factor: 76 px x 150 %');
+  game.click('BTSlotWorthSideL');
+  game.advance(300);
   game.click('BTLayoutDone');
   game.advance(2200);
-  assert.equal(saved(profile).t.ww, 1.5);
+  assert.equal(saved(profile).t.w[4], 1.5, 'width factor saved as the fifth entry element');
+  const again = ready(profile);
+  tick(again, 180, 1);
+  assert.equal(again.ids.BTSlotWorth.style.width, '211.5px', 'width restored after restart');
   // Up/down: the scale changes, the pill keeps its width on screen.
   game.toggleMenu();
   game.click('BTLayoutButton');
@@ -420,16 +391,28 @@ check('editor corner handles stretch the pill sideways without changing its heig
   assert.ok(Math.abs(s2 - 1.5 * s) < 0.011, `up/down drag scales the height (${s2})`);
   const shown = (slot.style.width ? parseFloat(slot.style.width) : 141) * s2;
   assert.ok(Math.abs(shown - 211.5 * s) <= 3, `width on screen kept: ${shown} vs ${211.5 * s}`);
-  game.click('BTLayoutDone');
-  game.advance(2200);
-  // Other widgets keep the uniform corner scale.
-  game.toggleMenu();
-  game.click('BTLayoutButton');
+  // The other widgets stretch the same way.
+  for (const [handle, id, base] of [['BTSlotBuffHandleBR', 'BTSlotBuff', 141], ['BTSlotRiftHandleBR', 'BTSlotRift', 44],
+    ['BTSlotClaimLHandleBR', 'BTSlotClaimL', 48]]) {
+    const panel = game.ids[id];
+    const before = panel.style.uiScale;
+    const k = parseFloat(before) / 100;
+    dragHandle(game, game.ids[handle], base * 0.5 * k, 0);
+    assert.equal(panel.style.uiScale, before, `${id}: sideways drag keeps the scale`);
+    assert.equal(panel.style.width, `${base * 1.5}px`, `${id}: 150 % wide`);
+  }
+  game.click('BTLayoutReset');
   game.advance(300);
-  const buff = game.ids.BTSlotBuff;
-  dragHandle(game, game.ids.BTSlotBuffHandleBR, 70.5, 0);
-  assert.equal(buff.style.width, undefined, 'the Bridge pill is never stretched');
-  assert.notEqual(buff.style.uiScale, '100%');
+  assert.equal(slot.style.width, null, 'RESET LAYOUT hands the width back to the CSS');
+  game.click('BTLayoutCancel');
+  for (const bad of ['[0.1,0.2,1,"l",0.5]', '[0.1,0.2,1,"l",2.5]', '[0.1,0.2,1,"l","1.5"]']) {
+    const game2 = launch(createProfile({ [KEY]: record(`{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":{"b":${bad}}}`) }), { withTimer: true, clock: '3:00' });
+    game2.advance(2000);
+    assert.equal(game2.state().phase, 'blocked', `${bad} is damaged`);
+  }
+  const old = launch(createProfile({ [KEY]: record('{"s":7,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":{"b":[0.1,0.2,1,"l",1.5]}}') }), { withTimer: true, clock: '3:00' });
+  old.advance(2000);
+  assert.equal(old.state().phase, 'blocked', 'a schema 7 record cannot carry a width factor');
 });
 
 check('the pill is a movable widget: default spot, chrome, icon toggle', () => {

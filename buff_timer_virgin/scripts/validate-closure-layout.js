@@ -85,8 +85,10 @@ step('minified settings enters edit mode, drags, scales, flips and saves', () =>
   drag(game, start.panel, -300, -200);
   near(slot(game, 'b').x, start.x - 300, 'dragged x');
   near(slot(game, 'b').y, start.y - 200, 'dragged y');
-  drag(game, game.ids.BTSlotRejuvHandleBR, 70.5, 0);
+  // Corners resize width and height separately: a diagonal drag scales evenly, a sideways one only widens.
+  drag(game, game.ids.BTSlotRejuvHandleBR, 70.5, 22);
   near(slot(game, 'r').scale, 1.5, 'corner scale', 0.01);
+  assert.equal(slot(game, 'r').panel.style.width, null, 'an even scale keeps the stock width');
   game.click('BTSlotRiftSideL');
   assert.equal(slot(game, 'f').panel.classes.has('bt-side-l'), true, 'side arrow applied');
   game.click('BTSlotBuffIconToggle');
@@ -302,25 +304,28 @@ step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 
   game.click('BTWorthIconToggle');
   game.advance(300);
   assert.ok(game.ids.BTSlotWorth.classes.has('bt-side-n'), 'menu switch hides the soul icon');
-  game.ids.BTWorthWidth.drag(150);
-  game.advance(300);
-  assert.equal(game.ids.BTSlotWorth.style.width, '211.5px', 'width slider stretches the pill');
   game.click('BTWidgetWorth');
   game.advance(2000);
   assert.ok(game.ids.BTSlotWorth.classes.has('bt-widget-off'), 'Souls switch hides the pill');
   const body = JSON.parse(profile.disk.get(KEY).slice(14));
   assert.equal(body.x, 32, 'bit 32 saved');
   assert.equal(body.t.w[3], 'n', 'hidden icon saved');
-  assert.equal(body.t.ww, 1.5, 'width saved');
-  // The pill's corner handles resize width and height separately (sideways: width only).
+  // Corner handles resize width and height separately (sideways: width only), for every widget.
   game.click('BTWidgetWorth');
   game.click('BTLayoutButton');
   game.advance(300);
-  const slot = game.ids.BTSlotWorth;
-  const scale = slot.style.uiScale;
-  drag(game, game.ids.BTSlotWorthHandleBR, 70.5 * parseFloat(scale) / 100, 0);
-  assert.equal(slot.style.uiScale, scale, 'sideways corner drag keeps the scale');
-  assert.equal(slot.style.width, '282px', '150 % + 50 % of stock');
+  for (const [id, base] of [['BTSlotWorth', 141], ['BTSlotBuff', 141]]) {
+    const slot = game.ids[id];
+    const scale = slot.style.uiScale;
+    drag(game, game.ids[`${id}HandleBR`], 70.5 * parseFloat(scale) / 100, 0);
+    assert.equal(slot.style.uiScale, scale, `${id}: sideways corner drag keeps the scale`);
+    assert.equal(slot.style.width, `${base * 1.5}px`, `${id}: 150 % wide`);
+  }
+  game.click('BTLayoutDone');
+  game.advance(2000);
+  const after = JSON.parse(profile.disk.get(KEY).slice(14));
+  assert.equal(after.t.w[4], 1.5, 'pill width factor saved');
+  assert.equal(after.t.b[4], 1.5, 'Bridge width factor saved');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
