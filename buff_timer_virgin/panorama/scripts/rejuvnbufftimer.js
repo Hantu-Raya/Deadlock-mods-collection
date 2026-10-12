@@ -137,6 +137,9 @@
   // width on its slot, so width and height resize separately.
   const LAYOUT_WIDTH_MIN = 0.6;
   const LAYOUT_WIDTH_MAX = 2;
+  // A stacked widget (label above/below) at least this much wider than tall gets .bt-wide: the combined Rift card then
+  // lays its rows out as two columns instead of one centred column (user screenshot 2026-10-12).
+  const LAYOUT_WIDE_RATIO = 1.35;
   const LAYOUT_REMEASURE_MS = 1000;
   // Minimap size (model "m", a fraction of stock): inline ui-scale on #minimap_persp, which scales the whole minimap
   // (and BTTimerDock inside it) around its bottom-right anchor. The dock is 440 layout px wide at stock size.
@@ -1123,6 +1126,7 @@
       cachedWrite(slot, "uiScale", Math.round(rect.s * 100) + "%");
       // Inline width only for a stretched widget; null hands it back to the side's CSS size.
       cachedWrite(slot, "width", rect.wf === 1 ? null : round(rect.bw) + "px");
+      setPanelClass(slot, "bt-wide", (rect.side === "t" || rect.side === "b") && rect.bw >= LAYOUT_WIDE_RATIO * rect.bh);
       // Side classes only change with the side (the first placement also clears the XML default); the slot and its
       // chrome are this script's own panels, so nothing else changes them in between.
       if (parts.side !== rect.side) {

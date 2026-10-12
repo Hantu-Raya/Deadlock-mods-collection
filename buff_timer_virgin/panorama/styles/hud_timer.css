@@ -1650,6 +1650,86 @@
 	font-size: 10px;
 }
 
+/* Stretched combined card (.bt-wide, set by the timer from 1.35x as wide as tall, label above/below): two columns,
+   RIFT + time on the left and lead + resist on the right, each centred in the height, so the width is used instead
+   of leaving empty space beside one narrow column. Larger text since each column only has two rows. */
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t #RiftTimerBody,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b #RiftTimerBody
+{
+	flow-children: none;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-sub,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-sub,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-time,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-time
+{
+	width: 50%;
+	horizontal-align: left;
+	vertical-align: top;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-worth-text,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-worth-text,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-res-text,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-res-text
+{
+	width: 50%;
+	horizontal-align: right;
+	vertical-align: top;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-sub,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-sub
+{
+	height: 24%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-time,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-time
+{
+	height: 46%;
+	font-size: 16px;
+}
+
+/* Label above: RIFT over the time; label below: the time over RIFT. */
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-sub
+{
+	margin-top: 15%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-time
+{
+	margin-top: 39%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-time
+{
+	margin-top: 15%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-sub
+{
+	margin-top: 61%;
+}
+
+/* Right column, either side: the lead over the resist. */
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-worth-text,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-worth-text
+{
+	height: 40%;
+	margin-top: 17%;
+	font-size: 13px;
+}
+
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-res-text,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-res-text
+{
+	height: 26%;
+	margin-top: 57%;
+	font-size: 10px;
+}
+
 .rift-worth-text.nw-ahead
 {
 	color: #8fcbff;

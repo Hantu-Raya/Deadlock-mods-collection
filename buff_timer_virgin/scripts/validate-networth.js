@@ -30,6 +30,9 @@
 //     the cap does not follow the clock, unknown souls show a made-up number, -7.5 % rounds to -7 while +7.5 % rounds
 //     to +8, the chat line drops the resist, or the combined card has no room for it. (Without a readable clock the
 //     whole timer loop pauses, so every widget, this one included, keeps its last value.)
+// 14. Stretched combined card (user screenshot 2026-10-12): the four rows stay one centred column with empty space
+//     left and right. From 1.35x as wide as tall (label above/below) the slot gets .bt-wide and the CSS lays the card
+//     out as two columns (RIFT + time | lead + resist). Must follow live drags, the side, and switching combine off.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -648,6 +651,44 @@ check('Rift comeback resist: unknown souls show "RES --", never a guess; the res
   game.topBar.AddClass('gStreetBrawl');
   tick(game, 241, 2);
   assert.equal(pill(game).res, 'RES --', 'no souls (Street Brawl): no resist either');
+});
+
+// Failure mode 14.
+check('stretched combined card switches to two columns (.bt-wide) only when wide enough', () => {
+  const wide = (game) => game.ids.BTSlotRift.BHasClass('bt-wide');
+  const start = (entry) => {
+    const game = launch(createProfile({ [KEY]: record(`{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1,"t":{"f":${entry}},"x":64}`) }), { withTimer: true, clock: '3:00' });
+    game.advance(2000);
+    topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+    tick(game, 180, 2);
+    return game;
+  };
+  let game = start('[0.3,0.6,1,"t"]');
+  assert.ok(combined(game));
+  assert.ok(!wide(game), '48x52: one column');
+  game = start('[0.3,0.6,1,"t",1.4]');
+  assert.ok(!wide(game), '67x52 is not enough for two columns');
+  game = start('[0.3,0.6,1,"t",1.5]');
+  assert.ok(wide(game), '72x52: two columns');
+  game = start('[0.3,0.6,1,"b",2]');
+  assert.ok(wide(game), 'label below too');
+  game = start('[0.3,0.6,1,"l",2]');
+  assert.ok(!wide(game), 'label beside is already one row');
+  // Live: drag wider in the editor, then turn combining off (plain card is its own layout).
+  game = start('[0.3,0.6,1,"t"]');
+  game.toggleMenu();
+  game.click('BTLayoutButton');
+  game.advance(300);
+  const k = parseFloat(game.ids.BTSlotRift.style.uiScale) / 100;
+  dragHandle(game, game.ids.BTSlotRiftHandleBR, 48 * k, 0);
+  assert.ok(wide(game), 'a live drag to 2x switches at once');
+  game.click('BTLayoutDone');
+  game.advance(300);
+  game.click('BTRiftWorthToggle');
+  tick(game, 183, 1);
+  assert.ok(!combined(game));
+  const css = read('panorama', 'styles', 'hud_timer.css');
+  assert.match(css, /\.bt-rift-worth\.bt-wide\.bt-side-t[^{]*\{[^}]*flow-children: none/, 'two-column CSS for the wide combined card');
 });
 
 const report = { generatedAt: new Date().toISOString(), checks };
