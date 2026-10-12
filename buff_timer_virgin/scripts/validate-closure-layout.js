@@ -292,9 +292,13 @@ step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 
   assert.equal(game.ids.NetWorthGlowAlly.style.opacity, '0');
   assert.ok(game.ids.NetWorth.classes.has('nw-behind'));
   game.toggleMenu();
-  game.click('BTWorthIconToggle');
+  game.click('BTLayoutButton');
   game.advance(300);
-  assert.ok(game.ids.BTSlotWorth.classes.has('bt-side-n'), 'menu switch hides the soul icon');
+  game.click('BTSlotWorthIconToggle');
+  game.advance(300);
+  assert.ok(game.ids.BTSlotWorth.classes.has('bt-side-n'), 'the edit-mode eye hides the soul icon');
+  game.click('BTLayoutDone');
+  game.advance(300);
   game.click('BTWidgetWorth');
   game.advance(2000);
   assert.ok(game.ids.BTSlotWorth.classes.has('bt-widget-off'), 'Souls switch hides the pill');

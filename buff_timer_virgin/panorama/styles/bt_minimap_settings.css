@@ -147,6 +147,37 @@
     }
 }
 
+/* What is new since an older save (the script sets .bt-row-new on BT_NEW_ROWS while the menu is open after an update):
+   three 1 s green beats, the stock shop's IsNewItem rhythm. Removed on close, so it does not replay. */
+.bt-row-new
+{
+    animation-name: bt-row-new;
+    animation-duration: 1s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: 3;
+}
+
+@keyframes 'bt-row-new'
+{
+    0%
+    {
+        brightness: 1;
+        background-color: #6EDC5A00;
+    }
+
+    50%
+    {
+        brightness: 1.8;
+        background-color: #6EDC5A55;
+    }
+
+    100%
+    {
+        brightness: 1;
+        background-color: #6EDC5A00;
+    }
+}
+
 .bt-settings-panel
 {
     visibility: collapse;

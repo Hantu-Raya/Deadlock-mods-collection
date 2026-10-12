@@ -375,28 +375,33 @@ check('schema 8 saves the moved pill and bit 32; schema 7 records cannot carry t
   }
 });
 
-// User request 2026-10-12: the soul icon has its own on/off switch in the menu (same model as the edit-mode eye: side
-// "n"), which keeps the pill where it is, survives a restart and is undone by switching it back on.
-check('menu switch turns the soul icon off and on, keeps the spot and saves it', () => {
+// User request 2026-10-12: the menu's "Souls pill icon" switch was removed (the edit-mode eye does the same). The eye
+// hides the icon, keeps the pill where it is, survives a restart and brings it back on its default side.
+check('the soul icon has one switch, the edit-mode eye: hides, saves, restores, comes back', () => {
+  assert.doesNotMatch(read('panorama', 'layout', 'bt_minimap_settings.xml'), /BTWorthIconToggle|Souls pill icon/, 'no menu switch');
   const profile = createProfile();
   const game = ready(profile);
   tick(game, 180, 1);
   const spot = game.ids.BTSlotWorth.style.position;
   game.toggleMenu();
-  assert.ok(game.ids.BTWorthIconToggle.BHasClass('on'), 'icon shown by default');
-  game.click('BTWorthIconToggle');
+  game.click('BTLayoutButton');
+  game.advance(300);
+  game.click('BTSlotWorthIconToggle');
   game.advance(300);
   assert.ok(game.ids.BTSlotWorth.BHasClass('bt-side-n'), 'icon hidden');
-  assert.ok(!game.ids.BTWorthIconToggle.BHasClass('on'), 'switch renders off');
+  game.click('BTLayoutDone');
+  game.advance(2300);
   assert.equal(game.ids.BTSlotWorth.style.position, spot, 'the pill stays where it was');
-  game.advance(2000);
   assert.equal(saved(profile).t.w[3], 'n', 'hidden icon saved');
   const again = ready(profile);
   tick(again, 180, 1);
   assert.ok(again.ids.BTSlotWorth.BHasClass('bt-side-n'), 'hidden icon restored');
   again.toggleMenu();
-  assert.ok(!again.ids.BTWorthIconToggle.BHasClass('on'));
-  again.click('BTWorthIconToggle');
+  again.click('BTLayoutButton');
+  again.advance(300);
+  again.click('BTSlotWorthIconToggle');
+  again.advance(300);
+  again.click('BTLayoutDone');
   again.advance(2300);
   assert.ok(again.ids.BTSlotWorth.BHasClass('bt-side-l'), 'icon back on its default side');
   assert.equal(saved(profile).t.w[3], 'l');

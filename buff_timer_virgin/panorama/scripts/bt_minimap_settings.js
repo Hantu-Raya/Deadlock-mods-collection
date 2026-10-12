@@ -7,7 +7,7 @@
     btEditor: "BTColorEditor", btPresetRow: "BTPresetRow",
     btSpectrumHost: "BTSpectrumHost", btHexEntry: "BTColorHexEntry",
     btBrightnessHost: "BTBrightnessHost", btBrightnessValue: "BTBrightnessValue",
-    btLinger: "BTLingerToggle", btGlow: "BTGlowToggle", btBorder: "BTBorderToggle", btWorthIcon: "BTWorthIconToggle",
+    btLinger: "BTLingerToggle", btGlow: "BTGlowToggle", btBorder: "BTBorderToggle",
     btRiftWorth: "BTRiftWorthToggle",
     btOpacityHost: "BTMapOpacityHost", btOpacityValue: "BTMapOpacityValue",
     btStatus: "BTSettingsStatus", btReset: "BTSettingsReset",
@@ -122,16 +122,20 @@
   // phase: idle -> hello -> read -> ready | blocked (unreadable save, RESET overwrites) | unavailable (session only)
   // hint: the gear's onboarding pulse, set by the read: "bt-hint-new" (no save: new player, endless like the stock
   // hero card's newplayer_glow) or "bt-hint-updated" (a save from an older schema, so there are new features: three
-  // beats like the stock shop's IsNewItem); "" otherwise. Opening the menu ends it and saves the current settings at
-  // BT_SCHEMA, so the next launch is quiet. Announcing a feature that adds no saved field still needs a schema bump.
+  // beats like the stock shop's IsNewItem); "" otherwise. hintFrom: the schema that save was written at. Opening the
+  // menu ends the hint, makes the rows added since hintFrom beat three times (newSince; cleared on close, so they do
+  // not replay) and saves the current settings at BT_SCHEMA, so the next launch is quiet. Announcing a feature that
+  // adds no saved field still needs a schema bump and a BT_NEW_ROWS entry.
   const BtStore = {
     /** @type {?} */ panel: null,
     seq: 0, phase: "idle", helloId: "", helloHnd: null, startMs: 0,
     pendingId: "", pendingOp: "", timeoutHnd: null, readRetried: false,
     savedRecord: "", sentRecord: "", saveHnd: null, retry: 0,
-    status: "LOADING", resetArmed: false, resetHnd: null, hint: ""
+    status: "LOADING", resetArmed: false, resetHnd: null, hint: "", hintFrom: BT_SCHEMA, newSince: BT_SCHEMA
   };
   const BT_HINTS = ["bt-hint-new", "bt-hint-updated"];
+  // Menu rows and the schema that added them: they beat (.bt-row-new) when an older save opens the menu.
+  const BT_NEW_ROWS = [["BTWidgetWorth", 8], ["BTRiftWorthToggle", 8], ["BTLayoutButton", 8]];
   // Inline colour editor shared by every colour row. seed is the spectrum position the script last wrote; the engine
   // echoes it through onvaluechanged (possibly a frame later), and that echo must not replace a colour that is off the
   // spectrum. base is the colour last picked by row, preset, spectrum or hex: brightness scales it, so dimming to
@@ -540,6 +544,9 @@
     setPanelClass(UI.btPanel, "open", _btMenuOpen);
     setPanelClass(UI.btGear, "open", _btMenuOpen);
     for (const hint of BT_HINTS) setPanelClass(UI.btGear, hint, BtStore.hint === hint);
+    for (let i = 0; i < BT_NEW_ROWS.length; i++) {
+      setPanelClass(UI.newRows[i], "bt-row-new", _btMenuOpen && BtStore.newSince < BT_NEW_ROWS[i][1]);
+    }
     if (!_btMenuOpen) return;
     setPanelClass(UI.btPanel, "loading", !btEditable());
     // The timer's presence class controls whether its '?' and glow rows are shown.
@@ -558,7 +565,6 @@
     setPanelClass(UI.btLinger, "on", BtSettings.linger);
     setPanelClass(UI.btGlow, "on", BtSettings.glow);
     setPanelClass(UI.btBorder, "on", BtSettings.border);
-    setPanelClass(UI.btWorthIcon, "on", btWorthIconShown());
     setPanelClass(UI.btRiftWorth, "on", (BtSettings.widgetsOff & BT_RIFT_WORTH) !== 0);
     for (let i = 0; i < BT_WIDGETS.length; i++) {
       setPanelClass(UI.widgetRows[i], "on", (BtSettings.widgetsOff & BT_WIDGETS[i].bit) === 0);
@@ -655,7 +661,6 @@
     btBind(UI.btLinger, "onactivate", btToggleLinger);
     btBind(UI.btGlow, "onactivate", btToggleGlow);
     btBind(UI.btBorder, "onactivate", btToggleBorder);
-    btBind(UI.btWorthIcon, "onactivate", btToggleWorthIcon);
     btBind(UI.btRiftWorth, "onactivate", () => btToggleWidget(BT_RIFT_WORTH));
     for (let i = 0; i < BT_WIDGETS.length; i++) {
       const bit = BT_WIDGETS[i].bit;
@@ -848,25 +853,6 @@
     BtSettings.glow = !BtSettings.glow;
     btChanged();
   }
-  // The net worth pill's soul icon. Same model as the edit-mode eye (layout side "n"): hiding pins the pill at its
-  // current spot and size (an untouched pill has no entry yet); showing puts the icon back on its default side.
-  function btWorthIconShown() {
-    const entry = BtSettings.layout["w"];
-    return !entry || entry[3] !== "n";
-  }
-  function btToggleWorthIcon() {
-    if (!btEditable() || BtLayout.editing) return;
-    const api = btLayoutApi();
-    const metrics = api ? btLayoutMetrics(api) : null;
-    const rect = metrics ? metrics["slots"]["w"] : null;
-    if (!rect) return;
-    const side = btWorthIconShown() ? "n" : BT_ICON_DEFAULT_SIDE["w"];
-    const layout = btLayoutCopy(BtSettings.layout);
-    layout["w"] = btLayoutEntry({ w: metrics["w"], h: metrics["h"] }, rect["x"], rect["y"], rect["s"], side, rect["wf"]);
-    BtSettings.layout = layout;
-    btLayoutPush();
-    btChanged();
-  }
   function btToggleBorder() {
     if (!btEditable()) return;
     BtSettings.border = !BtSettings.border;
@@ -879,12 +865,15 @@
   }
   function btToggleMenu() {
     _btMenuOpen = !_btMenuOpen;
-    // The player found the menu: end the hint and record it (a save at the current schema).
+    // The player found the menu: end the hint, show what is new since their save, and record it (a save at the
+    // current schema).
     if (_btMenuOpen && BtStore.hint) {
+      if (BtStore.hint === "bt-hint-updated") BtStore.newSince = BtStore.hintFrom;
       BtStore.hint = "";
       btScheduleSave();
     }
     if (!_btMenuOpen) {
+      BtStore.newSince = BT_SCHEMA;
       btCloseEditor();
       // Closing sends a pending edit now instead of after the delay; an untouched menu writes nothing.
       if (BtStore.saveHnd !== null) btFlushSave();
@@ -892,11 +881,12 @@
     }
     btRefreshMenu();
   }
-  // TEST rows: show a hint as a new or updating player would see it. The menu closes because opening it is what ends
-  // the hint; the save is not touched (the next open's save finds nothing changed).
+  // TEST rows: show a hint as a new player, or one updating from the previous schema, would see it. The menu closes
+  // because opening it is what ends the hint; the save is not touched (the next open's save finds nothing changed).
   function btPreviewHint(hint) {
     if (_btMenuOpen) btToggleMenu();
     BtStore.hint = hint;
+    BtStore.hintFrom = BT_SCHEMA - 1;
     btRefreshMenu();
   }
   // An unreadable save blocks writes; RESET needs a second click within 3 s to overwrite it.
@@ -1054,7 +1044,10 @@
       BtStore.savedRecord = stored;
       BtStore.phase = "ready";
       // schema 1 has no "s"; anything below BT_SCHEMA was written before the newest features.
-      if (!(result.schema >= BT_SCHEMA)) BtStore.hint = "bt-hint-updated";
+      if (!(result.schema >= BT_SCHEMA)) {
+        BtStore.hint = "bt-hint-updated";
+        BtStore.hintFrom = result.schema >= 1 ? result.schema : 1;
+      }
       btApplyToHud();
       btSetStatus("SAVED");
     } else if (result.kind === "absent") {
@@ -1666,8 +1659,8 @@
     UI.btLinger = find(PANEL_IDS.btLinger);
     UI.btGlow = find(PANEL_IDS.btGlow);
     UI.btBorder = find(PANEL_IDS.btBorder);
-    UI.btWorthIcon = find(PANEL_IDS.btWorthIcon);
     UI.btRiftWorth = find(PANEL_IDS.btRiftWorth);
+    UI.newRows = BT_NEW_ROWS.map((row) => find(row[0]));
     UI.widgetRows = BT_WIDGETS.map((widget) => find(widget.row));
     UI.btOpacityHost = find(PANEL_IDS.btOpacityHost);
     UI.btOpacityValue = find(PANEL_IDS.btOpacityValue);

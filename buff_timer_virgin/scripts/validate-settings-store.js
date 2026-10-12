@@ -472,6 +472,11 @@ step('the timer reads minimap classes, mirrors glow and clears active lingers wi
 //  4. Recording "seen" writes over a damaged/newer save or writes while offline.
 //  5. A gear click while still loading clears the hint before it was ever shown.
 //  6. The ring is clipped by the 30 px gear, or the animations are not the stock 2 s endless / 1 s x 3 beats.
+//  7. After an update the menu does not show WHICH settings are new (user 2026-10-12: "the pulse will show the new
+//     settings"): the rows added since the save's schema must beat 3 times when the menu opens, older rows must not,
+//     and the beat must not replay on every later open.
+// The settings added in schema 8 (Souls pill, Rift + Souls card, width resizing in the layout editor).
+const NEW_ROWS = ['BTWidgetWorth', 'BTRiftWorthToggle', 'BTLayoutButton'];
 step('gear hint: endless pulse for a new player, 3 beats after an update, gone once the menu was opened', () => {
   const gear = (game) => ['bt-hint-new', 'bt-hint-updated'].filter((c) => game.ids.BTSettingsGear.classes.has(c));
   // 5 + 1: a click while loading does not count as seeing the hint.
@@ -486,6 +491,7 @@ step('gear hint: endless pulse for a new player, 3 beats after an update, gone o
   assert.equal(game.stats.writes, 0, 'showing the hint writes nothing');
   game.toggleMenu();
   assert.deepEqual(gear(game), [], 'opening the menu ends it');
+  assert.deepEqual(NEW_ROWS.filter((id) => game.ids[id].classes.has('bt-row-new')), [], 'a new player gets no per-row beats: everything is new');
   game.advance(2500);
   assert.equal(game.stats.writes, 1, 'and records it with one save of the current settings');
   assert.equal(JSON.parse(profile.disk.get(KEY).slice(14)).s, 8, 'written at the current schema');
@@ -502,12 +508,24 @@ step('gear hint: endless pulse for a new player, 3 beats after an update, gone o
   assert.deepEqual(gear(updated), ['bt-hint-updated'], 'older save: new-features pulse');
   updated.toggleMenu();
   assert.deepEqual(gear(updated), []);
+  // 7: the settings added in schema 8 beat in the open menu; older ones do not.
+  const fresh = (g) => NEW_ROWS.filter((id) => g.ids[id].classes.has('bt-row-new'));
+  assert.deepEqual(fresh(updated), NEW_ROWS, 'schema 8 rows pulse');
+  for (const id of ['BTWidgetBuff', 'BTWidgetClaims', 'BTBorderToggle']) assert.ok(!updated.ids[id].classes.has('bt-row-new'), `${id} is not new`);
+  updated.toggleMenu();
+  assert.deepEqual(fresh(updated), [], 'cleared on close');
+  updated.toggleMenu();
+  assert.deepEqual(fresh(updated), [], 'not replayed on the next open');
+  updated.toggleMenu();
   updated.advance(2500);
   const body = JSON.parse(old.disk.get(KEY).slice(14));
   assert.deepEqual([body.s, body.u, body.x], [8, '#112233', 16], 'rewritten at schema 8 with the same settings');
   const after = launch(old);
   after.advance(2000);
   assert.deepEqual(gear(after), [], 'quiet once seen');
+  after.toggleMenu();
+  assert.deepEqual(fresh(after), [], 'no new rows once seen');
+  after.toggleMenu();
   assert.equal(after.state().up, '#112233');
   // 1 + 4: damaged, newer and offline: no hint and no write.
   for (const [label, store, options] of [
@@ -529,6 +547,7 @@ step('gear hint: endless pulse for a new player, 3 beats after an update, gone o
   assert.match(css, /\.bt-settings-gear\s*\{[^}]*overflow: noclip;/, 'the gear does not clip the ring');
   assert.match(css, /\.bt-hint-new #BTGearHint\s*\{[^}]*animation-duration: 2s;[^}]*animation-iteration-count: infinite;/);
   assert.match(css, /\.bt-hint-updated #BTGearHint\s*\{[^}]*animation-duration: 1s;[^}]*animation-iteration-count: 3;/);
+  assert.match(css, /\.bt-row-new\s*\{[^}]*animation-duration: 1s;[^}]*animation-iteration-count: 3;/, 'new rows: stock IsNewItem beats');
 });
 
 // User request 2026-10-12: a test button to see the hint as a new (or updating) player without clearing the save.
@@ -551,6 +570,9 @@ step('test buttons preview the new-player and update hints without touching the 
   assert.deepEqual(gear(), [], 'opening ends it');
   game.click('BTHintTestUpdated');
   assert.deepEqual(gear(), ['bt-hint-updated'], 'three-beat update preview');
+  assert.equal(game.state().menuOpen, false);
+  game.toggleMenu();
+  assert.deepEqual(NEW_ROWS.filter((id) => game.ids[id].classes.has('bt-row-new')), NEW_ROWS, 'the update preview opens on the new rows beating, as after a real update from schema 7');
   game.toggleMenu();
   game.advance(5000);
   assert.equal(game.stats.writes, 0, 'previews never write');

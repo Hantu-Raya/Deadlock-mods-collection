@@ -29,11 +29,6 @@
 					<Button id="BTWidgetClaims" class="bt-widget-chip"><Label text="Claims" hittest="false" /></Button>
 					<Button id="BTWidgetWorth" class="bt-widget-chip bt-widget-chip-last"><Label text="Souls" hittest="false" /></Button>
 				</Panel>
-				<!-- The net worth pill's soul icon (layout side "n" when off, like the edit-mode eye). -->
-				<Button id="BTWorthIconToggle" class="bt-switch-row bt-timer-only">
-					<Label class="bt-row-label" text="Souls pill icon" />
-					<Panel class="bt-switch" hittest="false"><Panel class="bt-switch-handle" hittest="false" /></Panel>
-				</Button>
 				<!-- Rift + Souls in one card: WIDGETS mask bit 64 (on = combined; needs Rift and Souls both on). -->
 				<Button id="BTRiftWorthToggle" class="bt-switch-row bt-timer-only">
 					<Label class="bt-row-label" text="Rift + Souls in one card" />
