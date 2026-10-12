@@ -687,8 +687,16 @@ check('stretched combined card switches to two columns (.bt-wide) only when wide
   game.click('BTRiftWorthToggle');
   tick(game, 183, 1);
   assert.ok(!combined(game));
+  // Live 2026-10-12: placing four flat labels with percentage margins put the rows at the wrong heights and pushed the
+  // resist off the card. Two real column panels, centred by flow, with no percentage margins.
+  const kids = (id) => game.ids[id].children.map((child) => child.id);
+  assert.deepEqual(kids('RiftTimerBody'), ['RiftTimerMain', 'RiftWorthCol'], 'two column panels in the body');
+  assert.deepEqual(kids('RiftTimerMain'), ['RiftTimerSub', 'RiftTimerTime']);
+  assert.deepEqual(kids('RiftWorthCol'), ['RiftWorthText', 'RiftWorthRes']);
   const css = read('panorama', 'styles', 'hud_timer.css');
-  assert.match(css, /\.bt-rift-worth\.bt-wide\.bt-side-t[^{]*\{[^}]*flow-children: none/, 'two-column CSS for the wide combined card');
+  const wideRules = css.match(/[^}]*\.bt-wide[^{]*\{[^}]*\}/g) || [];
+  assert.ok(wideRules.some((rule) => /#RiftTimerBody[^{]*\{[^}]*flow-children: right/.test(rule)), 'wide body flows the columns side by side');
+  for (const rule of wideRules) assert.doesNotMatch(rule, /margin-(top|bottom):\s*[\d.]+%/, 'no percentage margins in the wide layout');
 });
 
 const report = { generatedAt: new Date().toISOString(), checks };

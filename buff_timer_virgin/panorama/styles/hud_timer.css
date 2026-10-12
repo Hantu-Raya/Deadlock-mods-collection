@@ -160,7 +160,10 @@
 	flow-children: none;
 }
 
-#RiftTimerBody
+/* Ids on purpose: a class rule cannot override an id rule, so the side and stretch rules below name the ids too. */
+#RiftTimerBody,
+#RiftTimerMain,
+#RiftWorthCol
 {
 	width: 100%;
 	height: 100%;
@@ -998,19 +1001,25 @@
 
 /* Rift/Urn cards: label above (default), below, left or right of the time. */
 .bt-slot-card.bt-side-b .objective-timer-card,
-.bt-slot-card.bt-side-b #RiftTimerBody
+.bt-slot-card.bt-side-b #RiftTimerBody,
+.bt-slot-card.bt-side-b #RiftTimerMain,
+.bt-slot-card.bt-side-b #RiftWorthCol
 {
 	flow-children: up;
 }
 
 .bt-slot-card.bt-side-l .objective-timer-card,
-.bt-slot-card.bt-side-l #RiftTimerBody
+.bt-slot-card.bt-side-l #RiftTimerBody,
+.bt-slot-card.bt-side-l #RiftTimerMain,
+.bt-slot-card.bt-side-l #RiftWorthCol
 {
 	flow-children: right;
 }
 
 .bt-slot-card.bt-side-r .objective-timer-card,
-.bt-slot-card.bt-side-r #RiftTimerBody
+.bt-slot-card.bt-side-r #RiftTimerBody,
+.bt-slot-card.bt-side-r #RiftTimerMain,
+.bt-slot-card.bt-side-r #RiftWorthCol
 {
 	flow-children: left;
 }
@@ -1576,16 +1585,31 @@
 	border-radius: 6px;
 }
 
+/* Stacked (label above/below): RIFT + time take 52 % of the body, lead + resist 48 % (rows 18/34/26/22 % of the
+   card). Label beside: one row, RIFT + time 46 % of the width, lead + resist 54 %. Percentages are of the column. */
+.bt-slot-card.bt-rift-worth.bt-side-t #RiftTimerMain,
+.bt-slot-card.bt-rift-worth.bt-side-b #RiftTimerMain
+{
+	height: 52%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-t #RiftWorthCol,
+.bt-slot-card.bt-rift-worth.bt-side-b #RiftWorthCol
+{
+	width: 100%;
+	height: 48%;
+}
+
 .bt-slot-card.bt-rift-worth.bt-side-t .objective-timer-sub,
 .bt-slot-card.bt-rift-worth.bt-side-b .objective-timer-sub
 {
-	height: 18%;
+	height: 35%;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-t .objective-timer-time,
 .bt-slot-card.bt-rift-worth.bt-side-b .objective-timer-time
 {
-	height: 34%;
+	height: 65%;
 }
 
 .rift-worth-text,
@@ -1603,28 +1627,41 @@
 
 .rift-worth-text
 {
-	height: 26%;
+	height: 54%;
 	font-size: 11px;
 	color: #c8c8c8;
 }
 
 .rift-res-text
 {
-	height: 22%;
+	height: 46%;
 	font-size: 9px;
 	color: #808080;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l #RiftTimerMain,
+.bt-slot-card.bt-rift-worth.bt-side-r #RiftTimerMain
+{
+	width: 46%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l #RiftWorthCol,
+.bt-slot-card.bt-rift-worth.bt-side-r #RiftWorthCol
+{
+	width: 54%;
+	height: 100%;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l .objective-timer-sub,
 .bt-slot-card.bt-rift-worth.bt-side-r .objective-timer-sub
 {
-	width: 18%;
+	width: 39%;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l .objective-timer-time,
 .bt-slot-card.bt-rift-worth.bt-side-r .objective-timer-time
 {
-	width: 28%;
+	width: 61%;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l .rift-worth-text,
@@ -1639,94 +1676,64 @@
 .bt-slot-card.bt-rift-worth.bt-side-l .rift-worth-text,
 .bt-slot-card.bt-rift-worth.bt-side-r .rift-worth-text
 {
-	width: 24%;
+	width: 44%;
 	font-size: 12px;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l .rift-res-text,
 .bt-slot-card.bt-rift-worth.bt-side-r .rift-res-text
 {
-	width: 30%;
+	width: 56%;
 	font-size: 10px;
 }
 
-/* Stretched combined card (.bt-wide, set by the timer from 1.35x as wide as tall, label above/below): two columns,
-   RIFT + time on the left and lead + resist on the right, each centred in the height, so the width is used instead
-   of leaving empty space beside one narrow column. Larger text since each column only has two rows. */
+/* Stretched combined card (.bt-wide, set by the timer from 1.35x as wide as tall, label above/below): the two column
+   panels side by side, each as tall as its text and centred in the card's height, so the width is used instead of
+   one narrow centred column. Flow and centring only: percentage margins put the rows at the wrong heights live
+   (2026-10-12). Larger text since each column has two rows. Lead over resist on either side. */
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-t #RiftTimerBody,
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-b #RiftTimerBody
 {
-	flow-children: none;
+	flow-children: right;
 }
 
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-sub,
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-sub,
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-time,
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-time
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t #RiftTimerMain,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b #RiftTimerMain,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t #RiftWorthCol,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b #RiftWorthCol
 {
 	width: 50%;
-	horizontal-align: left;
-	vertical-align: top;
+	height: fit-children;
+	vertical-align: center;
 }
 
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-worth-text,
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-worth-text,
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-res-text,
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-res-text
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b #RiftWorthCol
 {
-	width: 50%;
-	horizontal-align: right;
-	vertical-align: top;
+	flow-children: down;
 }
 
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-sub,
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-sub
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-col Label,
+.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-col Label
 {
-	height: 24%;
+	width: 100%;
+	height: fit-children;
 }
 
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-time,
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-time
 {
-	height: 46%;
 	font-size: 16px;
 }
 
-/* Label above: RIFT over the time; label below: the time over RIFT. */
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-sub
-{
-	margin-top: 15%;
-}
-
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .objective-timer-time
-{
-	margin-top: 39%;
-}
-
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-time
-{
-	margin-top: 15%;
-}
-
-.bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .objective-timer-sub
-{
-	margin-top: 61%;
-}
-
-/* Right column, either side: the lead over the resist. */
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-worth-text,
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-worth-text
 {
-	height: 40%;
-	margin-top: 17%;
 	font-size: 13px;
 }
 
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-t .rift-res-text,
 .bt-slot-card.bt-rift-worth.bt-wide.bt-side-b .rift-res-text
 {
-	height: 26%;
-	margin-top: 57%;
 	font-size: 10px;
 }
 
