@@ -326,14 +326,14 @@ check('chat button posts the shown value, never an unknown one, never while edit
   bar.setLocal(1);
   tick(game, 182, 2);
   game.click('NetWorthPingButton');
-  assert.deepEqual(sent, ['Souls +25% (4.0k vs 3.0k), Rift resist: enemy 13%']);
+  assert.deepEqual(sent, ['Souls +25%, Rift resist: enemy 13%']);
   bar.amberTeam.rows[0].souls.text = '400';
   bar.setTotals(3500, 3000, 1);
   bar.sapphireTeam.rows[0].souls.text = '1100';
   bar.setTotals(3500, 3500, 1);
   tick(game, 184, 2);
   game.click('NetWorthPingButton');
-  assert.equal(sent[1], 'Souls 0% (3.5k vs 3.5k), Rift resist: none', 'even: nobody gets resist');
+  assert.equal(sent[1], 'Souls 0%, Rift resist: none', 'even: nobody gets resist');
 });
 
 check('schema 8 saves the moved pill and bit 32; schema 7 records cannot carry them', () => {
@@ -582,7 +582,7 @@ check('combined card: larger box for the lead and resist rows, click posts both 
   game.click('BTRiftWorthToggle');
   tick(game, 182, 1);
   game.click('RiftWorthPingButton');
-  assert.deepEqual(sent, ['Souls +25% (4.0k vs 3.0k), Rift resist: enemy 13%']);
+  assert.deepEqual(sent, ['Souls +25%, Rift resist: enemy 13%']);
   game.click('BTLayoutButton');
   game.advance(300);
   near(outline(), [48, 52], 'combined card, label on top: lead and resist rows');

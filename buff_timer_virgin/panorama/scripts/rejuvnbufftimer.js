@@ -2151,7 +2151,7 @@
   const RIFT_RES_CAP = 40;
   const RES_OWNERS = ["rs-ours", "rs-theirs", "rs-none"];
   // amber/sapphire: cached row SoulsValue labels (null: not readable); labelF/labelE: the ScoreLabels; last: the
-  // shown estimate {f, e, pct, res, owner} for the chat button, null while unknown.
+  // shown estimate {pct, res, owner} for the chat button, null while unknown.
   const NW = {
     /** @type {?Array<*>} */ amber: null,
     /** @type {?Array<*>} */ sapphire: null,
@@ -2324,7 +2324,7 @@
     const resist = riftComebackResist(pct, gameSec);
     // The trailing team gets it: us when behind.
     const owner = !resist ? "rs-none" : pct < 0 ? "rs-ours" : "rs-theirs";
-    NW.last = { f: ours, e: theirs, pct: shown, res: resist, owner: owner };
+    NW.last = { pct: shown, res: resist, owner: owner };
     writeText(key + "Text", null, (shown > 0 ? "+" : "") + shown + "%", text, null);
     writeWorthMood(key + "Mood", card ? UI.riftWorthText : UI.worth, shown > 0 ? "nw-ahead" : shown < 0 ? "nw-behind" : "nw-even");
     writeText(key + "Res", null, "RES " + resist + "%", res, null);
@@ -2347,10 +2347,6 @@
     NW.labelE = null;
     NW.rowsMs = -Infinity;
     renderNetWorth(null);
-  }
-
-  function formatSouls(value) {
-    return value >= 1000 ? (value / 1000).toFixed(1) + "k" : String(Math.round(value));
   }
 
   function writeSideGlow(sideIndex, type, enemyClaimed) {
@@ -2830,10 +2826,9 @@
     if (!running || Layout.editing || !widgetOn(WIDGET_WORTH) || !NW.last) return;
     const last = NW.last;
     const shown = last.pct;
-    const res = ", Rift resist: " +
-      (last.owner === "rs-ours" ? "us " + last.res + "%" : last.owner === "rs-theirs" ? "enemy " + last.res + "%" : "none");
-    TeamChatIntent.send("Souls " + (shown > 0 ? "+" : "") + shown + "% (" + formatSouls(last.f) + " vs " +
-      formatSouls(last.e) + ")" + res, Date.now());
+    const res = last.owner === "rs-ours" ? "us " + last.res + "%" : last.owner === "rs-theirs" ? "enemy " + last.res + "%" : "none";
+    // "Souls +25%, Rift resist: enemy 13%" (user 2026-10-12: no "(4.0k vs 3.0k)").
+    TeamChatIntent.send("Souls " + (shown > 0 ? "+" : "") + shown + "%, Rift resist: " + res, Date.now());
   }
 
   function buildTimerChatMessage(kind, now) {
