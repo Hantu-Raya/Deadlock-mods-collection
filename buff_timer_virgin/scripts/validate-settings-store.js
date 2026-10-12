@@ -531,6 +531,32 @@ step('gear hint: endless pulse for a new player, 3 beats after an update, gone o
   assert.match(css, /\.bt-hint-updated #BTGearHint\s*\{[^}]*animation-duration: 1s;[^}]*animation-iteration-count: 3;/);
 });
 
+// User request 2026-10-12: a test button to see the hint as a new (or updating) player without clearing the save.
+// Failure modes: the preview leaves the menu open (the open menu is what ends the hint, so it would look broken), it
+// writes or changes the save, or the next open does not end it.
+step('test buttons preview the new-player and update hints without touching the save', () => {
+  const stored = record('{"s":8,"u":"#112233","d":"#4DD2FF","l":1,"g":1}');
+  const profile = createProfile({ [KEY]: stored });
+  const game = launch(profile);
+  game.advance(2000);
+  const gear = () => ['bt-hint-new', 'bt-hint-updated'].filter((c) => game.ids.BTSettingsGear.classes.has(c));
+  assert.deepEqual(gear(), [], 'current save: quiet');
+  game.toggleMenu();
+  game.click('BTHintTestNew');
+  assert.equal(game.state().menuOpen, false, 'the preview closes the menu, as a new player sees it');
+  assert.deepEqual(gear(), ['bt-hint-new']);
+  game.advance(5000);
+  assert.deepEqual(gear(), ['bt-hint-new'], 'still pulsing until the menu is opened');
+  game.toggleMenu();
+  assert.deepEqual(gear(), [], 'opening ends it');
+  game.click('BTHintTestUpdated');
+  assert.deepEqual(gear(), ['bt-hint-updated'], 'three-beat update preview');
+  game.toggleMenu();
+  game.advance(5000);
+  assert.equal(game.stats.writes, 0, 'previews never write');
+  assert.equal(profile.disk.get(KEY), stored, 'save untouched');
+});
+
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
 fs.writeFileSync(path.join(root, '.tmp', 'bt-settings-e2e.json'), JSON.stringify({ page: PAGE_PATH, passed: transcript }, null, 2));
 console.log(`[BT SETTINGS PASS] ${transcript.length} end-to-end scenarios; artifact .tmp/bt-settings-e2e.json`);

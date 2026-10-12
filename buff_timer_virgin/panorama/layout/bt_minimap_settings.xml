@@ -118,6 +118,17 @@
 					<Label class="bt-row-label" text="Move and resize widgets" />
 					<Label class="bt-layout-row-go" text="EDIT" />
 				</Button>
+				<!-- Test: show the gear's onboarding hint as a new player (endless) or an updating one (3 beats) would see
+				     it. Closes the menu (opening it ends the hint); never touches the save. -->
+				<Label class="bt-settings-section" text="TEST" />
+				<Button id="BTHintTestNew" class="bt-layout-row">
+					<Label class="bt-row-label" text="New-player gear pulse" />
+					<Label class="bt-layout-row-go" text="SHOW" />
+				</Button>
+				<Button id="BTHintTestUpdated" class="bt-layout-row">
+					<Label class="bt-row-label" text="Update gear pulse (3 beats)" />
+					<Label class="bt-layout-row-go" text="SHOW" />
+				</Button>
 				<Panel class="bt-settings-footer" hittest="false">
 					<Label id="BTSettingsStatus" class="bt-settings-status" text="LOADING" />
 					<Button id="BTSettingsReset" class="bt-settings-reset">
