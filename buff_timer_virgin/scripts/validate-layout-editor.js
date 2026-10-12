@@ -90,8 +90,11 @@ const winOf = (key, game, dx = 0, dy = 0) => {
   const state = slotState(game, key);
   return { x: state.x * SCALE + dx, y: state.y * SCALE + dy };
 };
+// A returning player (a current-schema save with the defaults): a fresh profile would get the gear's onboarding hint,
+// whose first menu open writes once (validate-settings-store.js covers that).
+const seenProfile = () => createProfile({ [KEY]: record('{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1}') });
 function ready(options = {}) {
-  const profile = options.profile || createProfile();
+  const profile = options.profile || seenProfile();
   const game = launch(profile, Object.assign({ withTimer: true }, options));
   game.layer = () => game.ids.TimerOverlayFrame;
   game.advance(2500);

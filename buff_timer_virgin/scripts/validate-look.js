@@ -19,8 +19,11 @@ const { root, KEY, createProfile, record, launch } = require('./bt-test-harness.
 const transcript = [];
 const step = (name, fn) => { fn(); transcript.push(name); };
 
+// A returning player (a current-schema save with the defaults): a fresh profile would get the gear's onboarding hint,
+// whose first menu open writes once (validate-settings-store.js covers that).
+const seenProfile = () => createProfile({ [KEY]: record('{"s":8,"u":"#FFE14D","d":"#4DD2FF","l":1,"g":1}') });
 function ready(options = {}) {
-  const profile = options.profile || createProfile();
+  const profile = options.profile || seenProfile();
   const game = launch(profile, Object.assign({ withTimer: true, clock: '10:00' }, options));
   game.advance(2500);
   return { game, profile };

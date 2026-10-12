@@ -351,6 +351,21 @@ step('minified combined card restores bit 64, shows lead and resist, goes two-co
   assert.ok(again.ids.BTSlotRift.classes.has('bt-rift-worth') && again.ids.BTSlotRift.classes.has('bt-wide'), 'restored after restart');
 });
 
+// Closure renames the hint state or the decoded schema: the shipped gear never pulses, or pulses forever.
+step('minified gear hint: new player pulses until the menu opens, then the save keeps it quiet', () => {
+  const profile = createProfile();
+  const game = launch(profile, { withTimer: true, clock: '3:00' });
+  game.advance(2500);
+  assert.ok(game.ids.BTSettingsGear.classes.has('bt-hint-new'), 'no save: pulse');
+  game.toggleMenu();
+  assert.ok(!game.ids.BTSettingsGear.classes.has('bt-hint-new'), 'opened: gone');
+  game.advance(2500);
+  assert.equal(JSON.parse(profile.disk.get(KEY).slice(14)).s, 8, 'seen, saved at schema 8');
+  const again = launch(profile, { withTimer: true, clock: '3:00' });
+  again.advance(2500);
+  assert.ok(!again.ids.BTSettingsGear.classes.has('bt-hint-new') && !again.ids.BTSettingsGear.classes.has('bt-hint-updated'), 'quiet next launch');
+});
+
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
 fs.writeFileSync(path.join(root, '.tmp', 'bt-closure-layout.json'), JSON.stringify({ scripts: dir, passed: transcript }, null, 2));
 console.log(`[BT CLOSURE PASS] ${transcript.length} scenarios on minified scripts; artifact .tmp/bt-closure-layout.json`);

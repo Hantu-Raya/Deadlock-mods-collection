@@ -125,7 +125,10 @@
 					</Button>
 				</Panel>
 			</Panel>
+			<!-- #BTGearHint: onboarding ring (.bt-hint-new / .bt-hint-updated on the gear, set by the script), a green
+			     circle that swells and fades behind the icon. -->
 			<Button id="BTSettingsGear" class="bt-settings-gear">
+				<Panel id="BTGearHint" hittest="false" />
 				<Image class="bt-settings-gear-icon" src="s2r://panorama/images/icons/settings_global.vsvg" hittest="false" />
 			</Button>
 			<Panel class="bt-settings-store-wrap" hittest="false" hittestchildren="false">

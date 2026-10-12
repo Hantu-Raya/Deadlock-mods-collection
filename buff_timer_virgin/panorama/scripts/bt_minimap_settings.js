@@ -119,13 +119,18 @@
     return colors;
   }
   // phase: idle -> hello -> read -> ready | blocked (unreadable save, RESET overwrites) | unavailable (session only)
+  // hint: the gear's onboarding pulse, set by the read: "bt-hint-new" (no save: new player, endless like the stock
+  // hero card's newplayer_glow) or "bt-hint-updated" (a save from an older schema, so there are new features: three
+  // beats like the stock shop's IsNewItem); "" otherwise. Opening the menu ends it and saves the current settings at
+  // BT_SCHEMA, so the next launch is quiet. Announcing a feature that adds no saved field still needs a schema bump.
   const BtStore = {
     /** @type {?} */ panel: null,
     seq: 0, phase: "idle", helloId: "", helloHnd: null, startMs: 0,
     pendingId: "", pendingOp: "", timeoutHnd: null, readRetried: false,
     savedRecord: "", sentRecord: "", saveHnd: null, retry: 0,
-    status: "LOADING", resetArmed: false, resetHnd: null
+    status: "LOADING", resetArmed: false, resetHnd: null, hint: ""
   };
+  const BT_HINTS = ["bt-hint-new", "bt-hint-updated"];
   // Inline colour editor shared by every colour row. seed is the spectrum position the script last wrote; the engine
   // echoes it through onvaluechanged (possibly a frame later), and that echo must not replace a colour that is off the
   // spectrum. base is the colour last picked by row, preset, spectrum or hex: brightness scales it, so dimming to
@@ -373,7 +378,7 @@
   // absent | valid | corrupt | unsupported (newer schema). Only valid records are applied.
   function btDecode(record) {
     const result = {
-      kind: "absent", /** @type {!Object} */ colors: btDefaultColors(), strength: BT_STRENGTH_DEFAULT,
+      kind: "absent", schema: 0, /** @type {!Object} */ colors: btDefaultColors(), strength: BT_STRENGTH_DEFAULT,
       linger: true, glow: true, border: true, opacity: BT_OPACITY_MAX, widgetsOff: 0,
       /** @type {!Object} */ layout: {}
     };
@@ -414,6 +419,7 @@
     if (!Number.isInteger(widgetsOff) || widgetsOff < 0 || widgetsOff > (schema >= 8 ? BT_WIDGETS_ALL : BT_WIDGETS_ALL_S7)) return result;
     result.layout = layout;
     result.kind = "valid";
+    result.schema = schema;
     result.colors["up"] = up;
     result.colors["down"] = down;
     for (const key of Object.keys(custom)) result.colors[key] = custom[key];
@@ -532,6 +538,7 @@
   function btRefreshMenu() {
     setPanelClass(UI.btPanel, "open", _btMenuOpen);
     setPanelClass(UI.btGear, "open", _btMenuOpen);
+    for (const hint of BT_HINTS) setPanelClass(UI.btGear, hint, BtStore.hint === hint);
     if (!_btMenuOpen) return;
     setPanelClass(UI.btPanel, "loading", !btEditable());
     // The timer's presence class controls whether its '?' and glow rows are shown.
@@ -869,6 +876,11 @@
   }
   function btToggleMenu() {
     _btMenuOpen = !_btMenuOpen;
+    // The player found the menu: end the hint and record it (a save at the current schema).
+    if (_btMenuOpen && BtStore.hint) {
+      BtStore.hint = "";
+      btScheduleSave();
+    }
     if (!_btMenuOpen) {
       btCloseEditor();
       // Closing sends a pending edit now instead of after the delay; an untouched menu writes nothing.
@@ -1031,10 +1043,13 @@
       BtSettings.layout = result.layout;
       BtStore.savedRecord = stored;
       BtStore.phase = "ready";
+      // schema 1 has no "s"; anything below BT_SCHEMA was written before the newest features.
+      if (!(result.schema >= BT_SCHEMA)) BtStore.hint = "bt-hint-updated";
       btApplyToHud();
       btSetStatus("SAVED");
     } else if (result.kind === "absent") {
       BtStore.phase = "ready";
+      BtStore.hint = "bt-hint-new";
       btSetStatus("DEFAULTS");
     } else {
       BtStore.phase = "blocked";

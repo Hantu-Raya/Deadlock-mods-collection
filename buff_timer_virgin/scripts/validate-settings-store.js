@@ -462,6 +462,75 @@ step('the timer reads minimap classes, mirrors glow and clears active lingers wi
   assert.ok(lingerLayer.FindChildTraverse('LingerQ_e2'), 'a new disappearance lingers after re-enabling');
 });
 
+// Onboarding hint on the gear (user request 2026-10-12; stock 6774 patterns: hero card newplayer_glow, 2 s, endless,
+// for new players; shop CitadelModIcon.IsNewItem isNewItem, 1 s x 3, for new things). Failure modes:
+//  1. No pulse for a new player (no save), or a pulse while loading, offline or with a damaged/newer save (state the
+//     script does not know).
+//  2. The pulse comes back every launch after the player has opened the menu (nothing records that it was seen).
+//  3. A save from an older build (lower schema, so newer features exist) gets no 3-beat pulse, the pulse loops, or a
+//     current save pulses too.
+//  4. Recording "seen" writes over a damaged/newer save or writes while offline.
+//  5. A gear click while still loading clears the hint before it was ever shown.
+//  6. The ring is clipped by the 30 px gear, or the animations are not the stock 2 s endless / 1 s x 3 beats.
+step('gear hint: endless pulse for a new player, 3 beats after an update, gone once the menu was opened', () => {
+  const gear = (game) => ['bt-hint-new', 'bt-hint-updated'].filter((c) => game.ids.BTSettingsGear.classes.has(c));
+  // 5 + 1: a click while loading does not count as seeing the hint.
+  const profile = createProfile();
+  const game = launch(profile);
+  assert.deepEqual(gear(game), [], 'no hint while loading');
+  game.toggleMenu();
+  game.toggleMenu();
+  game.advance(2000);
+  assert.equal(game.state().status, 'DEFAULTS');
+  assert.deepEqual(gear(game), ['bt-hint-new'], 'no save: new-player pulse');
+  assert.equal(game.stats.writes, 0, 'showing the hint writes nothing');
+  game.toggleMenu();
+  assert.deepEqual(gear(game), [], 'opening the menu ends it');
+  game.advance(2500);
+  assert.equal(game.stats.writes, 1, 'and records it with one save of the current settings');
+  assert.equal(JSON.parse(profile.disk.get(KEY).slice(14)).s, 8, 'written at the current schema');
+  game.toggleMenu();
+  const again = launch(profile);
+  again.advance(2000);
+  assert.equal(again.state().status, 'SAVED');
+  assert.deepEqual(gear(again), [], '2: quiet on the next launch');
+  // 3: an older save (schema 7: before the Souls pill and the combined card) gets the 3-beat pulse once.
+  const old = createProfile({ [KEY]: record('{"s":7,"u":"#112233","d":"#4DD2FF","l":1,"g":1,"x":16}') });
+  const updated = launch(old);
+  updated.advance(2000);
+  assert.equal(updated.state().status, 'SAVED');
+  assert.deepEqual(gear(updated), ['bt-hint-updated'], 'older save: new-features pulse');
+  updated.toggleMenu();
+  assert.deepEqual(gear(updated), []);
+  updated.advance(2500);
+  const body = JSON.parse(old.disk.get(KEY).slice(14));
+  assert.deepEqual([body.s, body.u, body.x], [8, '#112233', 16], 'rewritten at schema 8 with the same settings');
+  const after = launch(old);
+  after.advance(2000);
+  assert.deepEqual(gear(after), [], 'quiet once seen');
+  assert.equal(after.state().up, '#112233');
+  // 1 + 4: damaged, newer and offline: no hint and no write.
+  for (const [label, store, options] of [
+    ['damaged', { [KEY]: 'BTS1.00000000.{}' }, {}],
+    ['newer', { [KEY]: record('{"s":99,"u":"#112233","d":"#4DD2FF","l":1,"g":1}') }, {}],
+    ['offline', {}, { commit: false }],
+  ]) {
+    const p = createProfile(store);
+    const g = launch(p, options);
+    g.advance(31000);
+    assert.deepEqual(gear(g), [], `${label}: no hint`);
+    g.toggleMenu();
+    g.advance(3000);
+    assert.equal(g.stats.writes, 0, `${label}: opening the menu writes nothing`);
+  }
+  // 6: stock-style animations on a ring inside the gear, which must not clip it.
+  assert.match(settingsLayout, /<Button id="BTSettingsGear"[^>]*>\s*<Panel id="BTGearHint"/, 'the ring is the gear\'s first child, under the icon');
+  const css = read('panorama', 'styles', 'bt_minimap_settings.css');
+  assert.match(css, /\.bt-settings-gear\s*\{[^}]*overflow: noclip;/, 'the gear does not clip the ring');
+  assert.match(css, /\.bt-hint-new #BTGearHint\s*\{[^}]*animation-duration: 2s;[^}]*animation-iteration-count: infinite;/);
+  assert.match(css, /\.bt-hint-updated #BTGearHint\s*\{[^}]*animation-duration: 1s;[^}]*animation-iteration-count: 3;/);
+});
+
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
 fs.writeFileSync(path.join(root, '.tmp', 'bt-settings-e2e.json'), JSON.stringify({ page: PAGE_PATH, passed: transcript }, null, 2));
 console.log(`[BT SETTINGS PASS] ${transcript.length} end-to-end scenarios; artifact .tmp/bt-settings-e2e.json`);

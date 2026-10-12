@@ -32,10 +32,14 @@
     opacity: 0.6;
     transition-property: opacity;
     transition-duration: 0.12s;
+    /* The onboarding ring swells past the gear's edge. */
+    overflow: noclip;
 }
 
 .bt-settings-gear:hover,
-.bt-settings-gear.open
+.bt-settings-gear.open,
+.bt-settings-gear.bt-hint-new,
+.bt-settings-gear.bt-hint-updated
 {
     opacity: 1;
 }
@@ -47,6 +51,100 @@
     horizontal-align: center;
     vertical-align: center;
     wash-color: #FFEFD7;
+}
+
+/* Onboarding hint (the script sets the class from the save it read; opening the menu removes it). A green ring
+   swells and fades from the gear's edge while the icon brightens, the stock "new" language:
+   - .bt-hint-new (no save, a new player): every 2 s, endless, like the hero card's newplayer_glow;
+   - .bt-hint-updated (an older save, new features): three 1 s beats, like the shop's CitadelModIcon.IsNewItem.
+   Collapsed otherwise, so the idle gear draws nothing extra. */
+#BTGearHint
+{
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid #6EDC5A;
+    background-color: #6EDC5A22;
+    opacity: 0;
+    visibility: collapse;
+}
+
+.bt-hint-new #BTGearHint,
+.bt-hint-updated #BTGearHint
+{
+    visibility: visible;
+}
+
+.bt-hint-new #BTGearHint
+{
+    animation-name: bt-gear-ring;
+    animation-duration: 2s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: infinite;
+}
+
+.bt-hint-updated #BTGearHint
+{
+    animation-name: bt-gear-ring;
+    animation-duration: 1s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 3;
+}
+
+.bt-hint-new .bt-settings-gear-icon
+{
+    animation-name: bt-gear-glow;
+    animation-duration: 2s;
+    animation-iteration-count: infinite;
+}
+
+.bt-hint-updated .bt-settings-gear-icon
+{
+    animation-name: bt-gear-glow;
+    animation-duration: 1s;
+    animation-iteration-count: 3;
+}
+
+@keyframes 'bt-gear-ring'
+{
+    0%
+    {
+        opacity: 0.95;
+        pre-transform-scale2d: 1;
+    }
+
+    70%
+    {
+        opacity: 0;
+        pre-transform-scale2d: 1.8;
+    }
+
+    100%
+    {
+        opacity: 0;
+        pre-transform-scale2d: 1.8;
+    }
+}
+
+@keyframes 'bt-gear-glow'
+{
+    0%
+    {
+        brightness: 1;
+        wash-color: #FFEFD7;
+    }
+
+    50%
+    {
+        brightness: 2;
+        wash-color: #A8F096;
+    }
+
+    100%
+    {
+        brightness: 1;
+        wash-color: #FFEFD7;
+    }
 }
 
 .bt-settings-panel
