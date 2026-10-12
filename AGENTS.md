@@ -50,6 +50,7 @@ Important lanes:
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
 - `test_hpv2/` — standalone pak04 pickup indicators; read `test_hpv2/AGENTS.md` before changing its runtime, relay layouts, or `build_test_hpv2.ps1`.
 - `feeder_feed/` — pak08 FEEDER FEED tab in the damage report (kill-feed donors/recipients with server bounty and comeback math); read `feeder_feed/AGENTS.md` first.
+- `fps/` — gameinfo/ConVar performance research; `fps/gameinfo_bench/` is the A/B benchmark harness. Read `fps/AGENTS.md` (ask before every benchmark launch; user hard limits) first.
 - `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
 - `anitaui/`, `soul_timer/`, `self_hp/`, `passive_items_mod/` — Anita UI settings host, unsecured soul-drain countdown, self health bar override, and passive items driven by generated JS config.
 - `abilities/scripts/` — mutable VData baselines and Python text transforms.

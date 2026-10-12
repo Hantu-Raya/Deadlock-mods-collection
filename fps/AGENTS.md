@@ -2,7 +2,7 @@
 
 **Project:** Deadlock FPS Optimization Configs  
 **Type:** Source 2 Console Commands & CVAR Research  
-**Updated:** 2026-05-14
+**Updated:** 2026-10-12
 
 ## OVERVIEW
 
@@ -10,6 +10,31 @@ This directory is a research corpus plus current live-state audit material for
 Deadlock Source 2 performance settings. Do not treat one config file as the
 single source of truth; re-check the latest captured live config and ETW/perf
 notes before recommending changes.
+
+## GAMEINFO A/B BENCHMARKS (client 6774, Oct 2026)
+
+Tools and run protocol: `gameinfo_bench/README.md`. Run output, game-file copies and round
+reports stay in gitignored `.scratch/gameinfo_opt/` (latest: `r5_3way_20261012/ablate/REPORT.md`).
+
+- **Ask the user before every benchmark set**, even inside a benchmark task. `harness3.py ab` kills
+  `deadlock.exe` and relaunches it repeatedly with `-insecure`; never use that session online.
+- A clear win with no visual change may be installed: back up first as
+  `<file>.pre-<tag>-<yyyymmdd>.bak`, install, then report the hash. Ask before anything that trades
+  CPU, visuals or gameplay readability for FPS.
+- Benchmark the **installed** `citadel/gameinfo.gi` + `cfg/perf_r3.cfg`, not old copies. perf_r3.cfg
+  re-applies values after auto.cfg and overrides gameinfo for some keys; read live values with
+  `--cvars` instead of trusting the .gi.
+- Noise is about 1.1 FPS per 300 s run. One pair resolves about 5%, ABBA about 3%, and 1–2% needs 5+ pairs. Don't
+  screen many batches with single short pairs. Revert groups of uncertain-sign tweaks, then
+  bisect. Visual removals (shadows, lighting, fog, textures) get value-tuning only.
+- FPS is the FrameTotal profiler count; 6774 has no Present row. Watch `frame_to_present_ratio`.
+- Static RE notes: `E:\dll\ablation_debate_re_notes_20261012.md`. Put new DLL dumps and IDBs under `E:\dll`.
+
+Hard limits from the user: `r_size_cull_threshold` ≤ 0.9 (breakables and golden statues vanish
+above it); never `cloth_update false`; keep the particle timestep effectively 0 (the user's
+`r_particle_min_timestep 0.0015`, not 0.008333 or higher); no Vulkan; no fps cap or render-scale
+changes; no `-tools` launch; never hide unit-status names (breaks HP Colors v2). Thread pool: the user
+keeps 7 workers.
 
 ## KEY FILES
 
@@ -25,6 +50,7 @@ notes before recommending changes.
 | `cvarlist_2_3.md` | Full CVAR dump from Feb 3, 2026 build | 508KB |
 | `cvarlist_comparison_report.md` | Diff analysis between builds | 9KB |
 | `gpu_rendering_commands_feb3.md` | GPU/Rendering commands reference | 21KB |
+| `gameinfo_bench/` | Tracked A/B harness, variant builder and published-page generator | dir |
 
 ## MAIN CONFIG SECTIONS
 
@@ -133,8 +159,9 @@ fpsnew_organized.txt (final config)
 | `mat_async_shader_load "0"` | Causes stutter | Set to "1" |
 | `cl_particle_sim_fallback_threshold_ms "0"` | No particle fallback | Use "1" or "5" |
 | `cloth_update "0"` | Conflicts with newer ETW rules for this setup | Keep "1" unless fresh evidence says otherwise |
-| `thread_pool_option "6"` | Rejected in wave results | Do not re-recommend without new evidence |
-| `r_texture_pool_size "512"` | Rejected in wave results | Do not re-recommend without new evidence |
+| `thread_pool_option "6"` / `max_threads` | 2026-10-12: 15 workers, +2.8% FPS but +39% CPU (5.5 → 7.7 cores); user keeps 7 workers. Every other mode, stock included, is already 7 on a 5700X | Don't install without asking |
+| `r_texture_pool_size` low values | It is a minimum floor, not a cap (RE). On 16 GB VRAM 256 or 512 changes nothing | Treat textures as a visual lever only |
+| `iv_parallel_restore "0"`, `animgraph_parallel_postdataupdate "false"`, `cl_interp_parallel "0"` | 2026-10-12: cost 3.3% / 2.8% / 2.4% FPS (≈8% together); serialize client work | Keep stock (1 / true / 1) |
 | `panorama_worldpanel_update_cull*` | Rejected/unsafe in recent retests | Do not re-recommend without new evidence |
 
 ## COMMANDS TO AVOID
@@ -161,6 +188,6 @@ These commands don't exist in Deadlock (Source 2):
 - Before new recommendations, re-parse the current target config and exclude
   commands already present. Keep output paste-ready when the user asks for a
   snippet.
-- Do not recommend N03/N05 retest candidates, `thread_pool_option "6"`,
-  `r_texture_pool_size "512"`, `panorama_worldpanel_update_cull*`, or
-  `cloth_update "0"` unless a newer local test overturns the May 2026 evidence.
+- Do not recommend N03/N05 retest candidates, `panorama_worldpanel_update_cull*` or
+  `cloth_update "0"` unless a newer local test overturns the May 2026 evidence. The Oct 2026
+  benchmark section above supersedes older thread-pool and texture-pool advice.
