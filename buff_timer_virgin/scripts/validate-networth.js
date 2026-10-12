@@ -741,6 +741,28 @@ check('combine switch while the loop is paused: no stale value in the newly show
   assert.equal(pill(other).res, 'RES --');
 });
 
+// GPT-6.1-Sol audit RA2: without a team's ScoreLabel its rows are the only source, and a top bar still building could
+// list only some of that team's players, giving a confident but wrong lead. Rows alone are trusted only when both teams
+// resolved the same number of rows (matched-row-count corroboration, not a full-roster proof: equal partial rosters
+// still pass, an unverified native edge). A team with its label is unaffected.
+check('rows without a team label count only when both teams resolved as many rows', () => {
+  const game = ready();
+  const bar = topbar(game, { amber: AMBER, sapphire: ['600'], local: 1, labels: false });
+  tick(game, 180, 2);
+  assert.equal(pill(game).text, '--', '(a) 6 rows vs 1 row and no labels: unknown');
+  assert.equal(pill(game).res, 'RES --');
+  const both = ready();
+  topbar(both, { amber: AMBER, sapphire: SAPPHIRE, local: 1, labels: false });
+  tick(both, 180, 2);
+  assert.equal(pill(both).text, '+25%', '(c) equal counts, rows only: still supported');
+  const labelled = ready();
+  const lb = topbar(labelled, { amber: AMBER, sapphire: ['600'], local: 1 });
+  lb.setTotals(4000, 3000, 1);
+  tick(labelled, 180, 2);
+  // Theirs from the 3k label alone: 3000..3999, middle 3499.5 -> (4000 - 3499.5) / 4000 = 12.5 %.
+  assert.equal(pill(labelled).text, '+13%', '(b) labels present: the label covers the short team on its own');
+});
+
 const report = { generatedAt: new Date().toISOString(), checks };
 const outPath = path.join(root, '.tmp', 'bt-networth-e2e.json');
 fs.mkdirSync(path.dirname(outPath), { recursive: true });

@@ -2250,15 +2250,17 @@
     return null;
   }
 
-  // One team's souls: the middle of the overlap, or of whichever source is usable.
+  // One team's souls: the middle of the overlap, or the label alone. Rows alone (no usable label) only with
+  // rowsAlone: both teams resolved as many rows (GPT-6.1-Sol audit RA2: a top bar still building could list only
+  // some players). This corroborates, it does not prove a full roster: equal partial rosters still pass.
   /** @return {?number} */
-  function nwEstimate(rows, label) {
+  function nwEstimate(rows, label, rowsAlone) {
     if (rows && label) {
       const low = Math.max(rows[0], label[0]);
       const high = Math.min(rows[1], label[1]);
       if (low <= high) return (low + high) / 2;
     }
-    const range = label || rows;
+    const range = label || (rowsAlone ? rows : null);
     return range ? (range[0] + range[1]) / 2 : null;
   }
 
@@ -2280,8 +2282,9 @@
     nwResolve(topBar, nowMs);
     const ownRows = nwRowsRange(local === 1 ? NW.amber : NW.sapphire);
     const otherRows = nwRowsRange(local === 1 ? NW.sapphire : NW.amber);
-    const ours = nwEstimate(ownRows, nwLabelRange(NW.labelF));
-    const theirs = nwEstimate(otherRows, nwLabelRange(NW.labelE));
+    const matched = NW.amber !== null && NW.sapphire !== null && NW.amber.length === NW.sapphire.length;
+    const ours = nwEstimate(ownRows, nwLabelRange(NW.labelF), matched);
+    const theirs = nwEstimate(otherRows, nwLabelRange(NW.labelE), matched);
     return ours === null || theirs === null ? null : [ours, theirs];
   }
 

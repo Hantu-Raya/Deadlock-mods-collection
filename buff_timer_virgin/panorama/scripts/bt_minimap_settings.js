@@ -11,7 +11,6 @@
     btRiftWorth: "BTRiftWorthToggle",
     btOpacityHost: "BTMapOpacityHost", btOpacityValue: "BTMapOpacityValue",
     btStatus: "BTSettingsStatus", btReset: "BTSettingsReset",
-    btHintTestNew: "BTHintTestNew", btHintTestUpdated: "BTHintTestUpdated",
     btResetLabel: "BTSettingsResetLabel", btStore: "BTSettingsStore",
     btLayoutButton: "BTLayoutButton", btLayoutBar: "BTLayoutBar",
     btLayoutDone: "BTLayoutDone", btLayoutCancel: "BTLayoutCancel", btLayoutReset: "BTLayoutReset",
@@ -667,8 +666,6 @@
       btBind(UI.widgetRows[i], "onactivate", () => btToggleWidget(bit));
     }
     btBind(UI.btReset, "onactivate", btResetSettings);
-    btBind(UI.btHintTestNew, "onactivate", () => btPreviewHint("bt-hint-new"));
-    btBind(UI.btHintTestUpdated, "onactivate", () => btPreviewHint("bt-hint-updated"));
     for (const target of BT_COLORS) {
       const row = UI.colorRows[target.key];
       if (row) btBind(row.row, "onactivate", () => btSelectRow(target.key));
@@ -863,30 +860,25 @@
     BtSettings.widgetsOff ^= bit;
     btChanged();
   }
+  // The player has the menu open with the save loaded: end the hint, show what is new since their save, and record
+  // it (a save at the current schema). Called on open, and after the read when the menu was opened while loading.
+  function btAckHint() {
+    if (!_btMenuOpen || !BtStore.hint || BtStore.phase !== "ready") return;
+    if (BtStore.hint === "bt-hint-updated") BtStore.newSince = BtStore.hintFrom;
+    BtStore.hint = "";
+    btScheduleSave();
+  }
   function btToggleMenu() {
     _btMenuOpen = !_btMenuOpen;
-    // The player found the menu: end the hint, show what is new since their save, and record it (a save at the
-    // current schema).
-    if (_btMenuOpen && BtStore.hint) {
-      if (BtStore.hint === "bt-hint-updated") BtStore.newSince = BtStore.hintFrom;
-      BtStore.hint = "";
-      btScheduleSave();
-    }
+    btAckHint();
     if (!_btMenuOpen) {
       BtStore.newSince = BT_SCHEMA;
       btCloseEditor();
-      // Closing sends a pending edit now instead of after the delay; an untouched menu writes nothing.
+      // Closing sends a pending edit (or the hint's save) now instead of after the delay; an untouched menu with
+      // nothing pending writes nothing.
       if (BtStore.saveHnd !== null) btFlushSave();
       try { $.DispatchEvent("DropInputFocus", UI.btGear); } catch {}
     }
-    btRefreshMenu();
-  }
-  // TEST rows: show a hint as a new player, or one updating from the previous schema, would see it. The menu closes
-  // because opening it is what ends the hint; the save is not touched (the next open's save finds nothing changed).
-  function btPreviewHint(hint) {
-    if (_btMenuOpen) btToggleMenu();
-    BtStore.hint = hint;
-    BtStore.hintFrom = BT_SCHEMA - 1;
     btRefreshMenu();
   }
   // An unreadable save blocks writes; RESET needs a second click within 3 s to overwrite it.
@@ -1043,16 +1035,18 @@
       BtSettings.layout = result.layout;
       BtStore.savedRecord = stored;
       BtStore.phase = "ready";
-      // schema 1 has no "s"; anything below BT_SCHEMA was written before the newest features.
-      if (!(result.schema >= BT_SCHEMA)) {
+      // A save written below BT_SCHEMA predates the newest features.
+      if (result.schema < BT_SCHEMA) {
         BtStore.hint = "bt-hint-updated";
-        BtStore.hintFrom = result.schema >= 1 ? result.schema : 1;
+        BtStore.hintFrom = result.schema;
       }
+      btAckHint();
       btApplyToHud();
       btSetStatus("SAVED");
     } else if (result.kind === "absent") {
       BtStore.phase = "ready";
       BtStore.hint = "bt-hint-new";
+      btAckHint();
       btSetStatus("DEFAULTS");
     } else {
       BtStore.phase = "blocked";
@@ -1666,8 +1660,6 @@
     UI.btOpacityValue = find(PANEL_IDS.btOpacityValue);
     UI.btStatus = find(PANEL_IDS.btStatus);
     UI.btReset = find(PANEL_IDS.btReset);
-    UI.btHintTestNew = find(PANEL_IDS.btHintTestNew);
-    UI.btHintTestUpdated = find(PANEL_IDS.btHintTestUpdated);
     UI.btResetLabel = find(PANEL_IDS.btResetLabel);
     UI.btStore = find(PANEL_IDS.btStore);
     UI.btLayoutButton = find(PANEL_IDS.btLayoutButton);

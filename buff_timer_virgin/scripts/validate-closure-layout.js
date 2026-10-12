@@ -15,7 +15,7 @@ for (const name of ['rejuvnbufftimer.js', 'bt_minimap_settings.js']) {
   assert.ok(fs.existsSync(path.join(dir, name)), `${name} exists in ${dir}`);
 }
 process.env.BT_SCRIPTS_DIR = dir;
-const { root, KEY, SCALE, createProfile, launch, makePanel, dragBy: drag } = require('./bt-test-harness.js');
+const { root, KEY, SCALE, createProfile, record, launch, makePanel, dragBy: drag } = require('./bt-test-harness.js');
 
 const transcript = [];
 const step = (name, fn) => { fn(); transcript.push(name); };
@@ -355,8 +355,9 @@ step('minified combined card restores bit 64, shows lead and resist, goes two-co
   assert.ok(again.ids.BTSlotRift.classes.has('bt-rift-worth') && again.ids.BTSlotRift.classes.has('bt-wide'), 'restored after restart');
 });
 
-// Closure renames the hint state or the decoded schema: the shipped gear never pulses, or pulses forever.
-step('minified gear hint: new player pulses until the menu opens, then the save keeps it quiet', () => {
+// Closure renames the hint state, the decoded schema or the new-row fields (hintFrom, newSince, UI.newRows): the
+// shipped gear never pulses, pulses forever, or the new settings never beat (GPT-6.1-Sol audit RA3).
+step('minified gear hint: new player and older save, new rows beat once, then the save keeps it quiet', () => {
   const profile = createProfile();
   const game = launch(profile, { withTimer: true, clock: '3:00' });
   game.advance(2500);
@@ -368,6 +369,20 @@ step('minified gear hint: new player pulses until the menu opens, then the save 
   const again = launch(profile, { withTimer: true, clock: '3:00' });
   again.advance(2500);
   assert.ok(!again.ids.BTSettingsGear.classes.has('bt-hint-new') && !again.ids.BTSettingsGear.classes.has('bt-hint-updated'), 'quiet next launch');
+  const NEW_ROWS = ['BTWidgetWorth', 'BTRiftWorthToggle', 'BTLayoutButton'];
+  const old = createProfile({ [KEY]: record('{"s":7,"u":"#112233","d":"#4DD2FF","l":1,"g":1}') });
+  const updated = launch(old, { withTimer: true, clock: '3:00' });
+  updated.advance(2500);
+  assert.ok(updated.ids.BTSettingsGear.classes.has('bt-hint-updated'), 'older save: 3-beat pulse');
+  updated.toggleMenu();
+  assert.deepEqual(NEW_ROWS.filter((id) => updated.ids[id].classes.has('bt-row-new')), NEW_ROWS, 'schema 8 rows beat');
+  assert.ok(!updated.ids.BTWidgetBuff.classes.has('bt-row-new'), 'older rows do not');
+  updated.toggleMenu();
+  updated.toggleMenu();
+  assert.ok(NEW_ROWS.every((id) => !updated.ids[id].classes.has('bt-row-new')), 'no replay on the next open');
+  updated.toggleMenu();
+  updated.advance(2500);
+  assert.equal(JSON.parse(old.disk.get(KEY).slice(14)).s, 8, 'upgraded to schema 8');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });

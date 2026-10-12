@@ -472,6 +472,9 @@ step('the timer reads minimap classes, mirrors glow and clears active lingers wi
 //  4. Recording "seen" writes over a damaged/newer save or writes while offline.
 //  5. A gear click while still loading clears the hint before it was ever shown.
 //  6. The ring is clipped by the 30 px gear, or the animations are not the stock 2 s endless / 1 s x 3 beats.
+//  8. (GPT-6.1-Sol audit RA1) The menu was opened while loading and left open: when the save arrives the player is
+//     already looking at it, so the hint must end at once (new rows beat, one save) instead of pulsing on.
+//  9. Release: no TEST rows ship in the menu (they were a development preview, removed 2026-10-12).
 //  7. After an update the menu does not show WHICH settings are new (user 2026-10-12: "the pulse will show the new
 //     settings"): the rows added since the save's schema must beat 3 times when the menu opens, older rows must not,
 //     and the beat must not replay on every later open.
@@ -541,6 +544,23 @@ step('gear hint: endless pulse for a new player, 3 beats after an update, gone o
     g.advance(3000);
     assert.equal(g.stats.writes, 0, `${label}: opening the menu writes nothing`);
   }
+  // 8: opened during loading and left open.
+  for (const [label, store, rows] of [
+    ['no save', {}, []],
+    ['older save', { [KEY]: record('{"s":7,"u":"#112233","d":"#4DD2FF","l":1,"g":1}') }, NEW_ROWS],
+  ]) {
+    const p = createProfile(store);
+    const g = launch(p);
+    g.toggleMenu();
+    g.advance(2000);
+    assert.equal(g.state().phase, 'ready', label);
+    assert.deepEqual(gear(g), [], `${label}: the open menu ends the hint once loaded`);
+    assert.deepEqual(NEW_ROWS.filter((id) => g.ids[id].classes.has('bt-row-new')), rows, `${label}: new rows beat`);
+    g.advance(2000);
+    assert.equal(g.stats.writes, 1, `${label}: recorded with one save`);
+  }
+  // 9: no TEST rows in the release menu.
+  assert.doesNotMatch(settingsLayout, /BTHintTest|text="TEST"/, 'no TEST rows ship');
   // 6: stock-style animations on a ring inside the gear, which must not clip it.
   assert.match(settingsLayout, /<Button id="BTSettingsGear"[^>]*>\s*<Panel id="BTGearHint"/, 'the ring is the gear\'s first child, under the icon');
   const css = read('panorama', 'styles', 'bt_minimap_settings.css');
@@ -548,35 +568,6 @@ step('gear hint: endless pulse for a new player, 3 beats after an update, gone o
   assert.match(css, /\.bt-hint-new #BTGearHint\s*\{[^}]*animation-duration: 2s;[^}]*animation-iteration-count: infinite;/);
   assert.match(css, /\.bt-hint-updated #BTGearHint\s*\{[^}]*animation-duration: 1s;[^}]*animation-iteration-count: 3;/);
   assert.match(css, /\.bt-row-new\s*\{[^}]*animation-duration: 1s;[^}]*animation-iteration-count: 3;/, 'new rows: stock IsNewItem beats');
-});
-
-// User request 2026-10-12: a test button to see the hint as a new (or updating) player without clearing the save.
-// Failure modes: the preview leaves the menu open (the open menu is what ends the hint, so it would look broken), it
-// writes or changes the save, or the next open does not end it.
-step('test buttons preview the new-player and update hints without touching the save', () => {
-  const stored = record('{"s":8,"u":"#112233","d":"#4DD2FF","l":1,"g":1}');
-  const profile = createProfile({ [KEY]: stored });
-  const game = launch(profile);
-  game.advance(2000);
-  const gear = () => ['bt-hint-new', 'bt-hint-updated'].filter((c) => game.ids.BTSettingsGear.classes.has(c));
-  assert.deepEqual(gear(), [], 'current save: quiet');
-  game.toggleMenu();
-  game.click('BTHintTestNew');
-  assert.equal(game.state().menuOpen, false, 'the preview closes the menu, as a new player sees it');
-  assert.deepEqual(gear(), ['bt-hint-new']);
-  game.advance(5000);
-  assert.deepEqual(gear(), ['bt-hint-new'], 'still pulsing until the menu is opened');
-  game.toggleMenu();
-  assert.deepEqual(gear(), [], 'opening ends it');
-  game.click('BTHintTestUpdated');
-  assert.deepEqual(gear(), ['bt-hint-updated'], 'three-beat update preview');
-  assert.equal(game.state().menuOpen, false);
-  game.toggleMenu();
-  assert.deepEqual(NEW_ROWS.filter((id) => game.ids[id].classes.has('bt-row-new')), NEW_ROWS, 'the update preview opens on the new rows beating, as after a real update from schema 7');
-  game.toggleMenu();
-  game.advance(5000);
-  assert.equal(game.stats.writes, 0, 'previews never write');
-  assert.equal(profile.disk.get(KEY), stored, 'save untouched');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
