@@ -62,7 +62,7 @@ def run_plot():
             f'<div class="track"><span class="range" style="left:{pct(min(fps[a]), *AXIS)};width:calc({pct(max(fps[a]), *AXIS)} - {pct(min(fps[a]), *AXIS)})"></span>'
             f'{dots}<span class="mean" style="left:{pct(mean(fps[a]), *AXIS)}"></span></div>'
             f'<div class="val"><b>{mean(fps[a]):.1f}</b><small>{gap}</small></div></div>')
-    return (f'<div class="plot" role="img" aria-label="Average FPS: '
+    return ('<div class="plot" role="img" aria-label="Average FPS: '
             + "; ".join(f"{a} {mean(fps[a]):.1f}" for a in ARMS)
             + f'">{"".join(rows)}<div class="row axis" aria-hidden="true"><div></div><div class="track">{ticks}</div><div class="unit">FPS</div></div></div>')
 
@@ -76,7 +76,7 @@ def pair_plot():
             f'<div class="row t-{TONE[other]}"><div class="name">vs {e(other)} <small>pair {n}</small></div>'
             f'<div class="track"><span class="bar" style="left:{pct(d, *DIFF)};right:0"></span></div>'
             f'<div class="val"><b>{d:+.1f}</b><small>{b:.1f} vs {a:.1f}</small></div></div>')
-    return (f'<div class="plot pairs" role="img" aria-label="Their FPS minus Hantu\'s in each back-to-back pair: '
+    return ('<div class="plot pairs" role="img" aria-label="Their FPS minus Hantu\'s in each back-to-back pair: '
             + "; ".join(f"{o} pair {n} {b - a:+.1f}" for o, n, a, b in pairs)
             + f'">{"".join(rows)}<div class="row axis" aria-hidden="true"><div></div><div class="track">{ticks}</div><div class="unit">FPS</div></div></div>')
 
@@ -135,7 +135,7 @@ def update_plot():
     return (f'<div class="plot" role="img" aria-label="Hantu\'s FPS before fix {mean(before_fps):.1f}, after fix {mean(after_fps):.1f}">'
             + "".join(rows) + f'<div class="row axis" aria-hidden="true"><div></div><div class="track">{ticks}</div><div class="unit">FPS</div></div></div>')
 
-title = f"Hantu's gameinfo vs Sqooky vs CompyLock: Deadlock FPS benchmark"
+title = "Hantu's gameinfo vs Sqooky vs CompyLock: Deadlock FPS benchmark"
 summary = (f"Hantu's averaged {base:.1f} FPS, {lead['Sqooky 3.5.1']:.1f}% more than Sqooky 3.5.1 "
            f"and {lead['CompyLock']:.1f}% more than CompyLock, on the same recorded match.")
 

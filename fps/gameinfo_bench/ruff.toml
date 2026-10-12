@@ -1,0 +1,7 @@
+# Bug-finding rules only; the scripts keep their compact style.
+# Run from the repo root:  uvx ruff check fps/gameinfo_bench
+target-version = "py312"
+line-length = 140
+
+[lint]
+select = ["F", "E9", "B", "PLE"]

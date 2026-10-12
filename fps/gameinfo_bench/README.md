@@ -9,6 +9,16 @@ copies and working files stay in gitignored `.scratch/gameinfo_opt/`.
 | `harness3.py` | Restarted A/B runs, effective-value dumps, paired statistics |
 | `inventory.py` | Diff a gameinfo against stock → `inventory.json` |
 | `build_variants.py` | Revert (`--revert`, `--batches`) or value (`--set`) variants of gi + cfg |
+
+Checks after editing these scripts (from the repo root):
+
+```powershell
+uvx ruff check fps/gameinfo_bench                 # bug-finding rules, config in ruff.toml
+cd fps/gameinfo_bench; py harness3.py --self-check   # offline parser/stats/launch-arg checks
+```
+
+Builder changes should reproduce existing variants byte for byte (compare against a prior
+round's `variants/` with `cmp`) before any launch.
 | `kv.py` | Span-preserving gameinfo parser used by the two scripts above |
 | `make_html.py` | Builds the published 3-way page and preview card from cited run folders |
 
