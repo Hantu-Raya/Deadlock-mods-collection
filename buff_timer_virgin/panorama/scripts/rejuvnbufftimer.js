@@ -80,9 +80,9 @@
     urnCard: "UrnTimerCard", urnTime: "UrnTimerTime", urnSubTime: "UrnTimerSub",
     rejuvPing: "RejuvPingButton", buffPing: "BuffPingButton",
     worth: "NetWorth", worthText: "NetWorthText", worthGlowAlly: "NetWorthGlowAlly", worthGlowEnemy: "NetWorthGlowEnemy",
-    worthPing: "NetWorthPingButton",
+    worthRes: "NetWorthRes", worthPing: "NetWorthPingButton",
     riftWorthText: "RiftWorthText", riftWorthGlowAlly: "RiftWorthGlowAlly", riftWorthGlowEnemy: "RiftWorthGlowEnemy",
-    riftWorthPing: "RiftWorthPingButton"
+    riftWorthRes: "RiftWorthRes", riftWorthPing: "RiftWorthPingButton"
   };
   const TIMER_HOSTS = [null, null, null, null];
   // TimerOverlayFrame (the movable widget layer, including the claim boxes) sits in .clamp_width; BTTimerDock is an
@@ -98,8 +98,9 @@
   // Looked up by the runtime strings spec.kind and "h"/"v", so the keys are quoted: Closure ADVANCED renames bare keys.
   const LAYOUT_BASE = {
     "pill": { "h": [141, 44], "v": [76, 84] }, "card": { "h": [82, 22], "v": [44, 26] }, "claim": { "h": [48, 48], "v": [48, 48] },
-    // The Rift card with the Souls lead in it (riftWorthCombined): a third row, or one wider row with the label beside.
-    "riftworth": { "h": [120, 22], "v": [44, 40] }
+    // The Rift card with the Souls lead and the comeback resist in it (riftWorthCombined): rows 3 and 4, or one wider
+    // row with the label beside.
+    "riftworth": { "h": [160, 22], "v": [48, 52] }
   };
   // bit: the WIDGETS switch that hides the slot (see WIDGET_* below).
   const LAYOUT_SLOTS = [
@@ -211,9 +212,11 @@
     UI.worthGlowAlly = overlay.FindChildTraverse(PANEL_IDS.worthGlowAlly);
     UI.worthGlowEnemy = overlay.FindChildTraverse(PANEL_IDS.worthGlowEnemy);
     UI.worthPing = overlay.FindChildTraverse(PANEL_IDS.worthPing);
+    UI.worthRes = overlay.FindChildTraverse(PANEL_IDS.worthRes);
     UI.riftWorthText = overlay.FindChildTraverse(PANEL_IDS.riftWorthText);
     UI.riftWorthGlowAlly = overlay.FindChildTraverse(PANEL_IDS.riftWorthGlowAlly);
     UI.riftWorthGlowEnemy = overlay.FindChildTraverse(PANEL_IDS.riftWorthGlowEnemy);
+    UI.riftWorthRes = overlay.FindChildTraverse(PANEL_IDS.riftWorthRes);
     UI.riftWorthPing = overlay.FindChildTraverse(PANEL_IDS.riftWorthPing);
     UI.glowLeft = glow.FindChildTraverse(PANEL_IDS.glowLeft);
     UI.glowRight = glow.FindChildTraverse(PANEL_IDS.glowRight);
@@ -2132,12 +2135,23 @@
   // localPlayerTeam2 (Sapphire); spectators have neither and get "--", never a made-up verdict or 0.
   const NW_INTERVAL_MS = 1000;
   const NW_ROWS_RESCAN_MS = 5000;
-  // Glow: full at a 30 % lead, none inside +-2 %, in 1 % steps (one write per step change).
-  const NW_GLOW_FULL = 30;
+  // Glow: full at a 15 % lead, none inside +-2 %, in 1 % steps (one write per step change). 15 % is where the Rift
+  // comeback bonus is full, so the glow also reads as "how strong the trailing team's Rift bonus is".
+  const NW_GLOW_FULL = 15;
   const NW_GLOW_MIN = 2;
   const NW_MOODS = ["nw-ahead", "nw-behind", "nw-even", "nw-unknown"];
+  // Rift comeback resist (client/server 6774). misc.vdata citadel_koth_cashin > modifier_koth_comeback_bonuses:
+  // m_flResistMaxAtStart 10, m_flResistMaxPerMinute 1, m_flResistMaxCap 40. server.dll rva c17e70: trailing factor =
+  // RemapValClamped(1 - ours / theirs, citadel_trailingteam_bias_threshold_min 0, _max 0.15, 0, 1); rva b92800 (and
+  // its bullet/debuff twins): resist = factor x min(10 + 1 x game seconds / 60, 40) %. 1 - ours / theirs is exactly
+  // the lead below (share of the richer team), so the pill's own percent drives it.
+  const RIFT_RES_FULL_LEAD = 15;
+  const RIFT_RES_START = 10;
+  const RIFT_RES_PER_MIN = 1;
+  const RIFT_RES_CAP = 40;
+  const RES_OWNERS = ["rs-ours", "rs-theirs", "rs-none"];
   // amber/sapphire: cached row SoulsValue labels (null: not readable); labelF/labelE: the ScoreLabels; last: the
-  // shown estimate {f, e, pct} for the chat button, null while unknown.
+  // shown estimate {f, e, pct, res, owner} for the chat button, null while unknown.
   const NW = {
     /** @type {?Array<*>} */ amber: null,
     /** @type {?Array<*>} */ sapphire: null,
@@ -2266,19 +2280,27 @@
     return ours === null || theirs === null ? null : [ours, theirs];
   }
 
-  function writeWorthMood(cacheKey, panel, mood) {
+  function writeWorthMood(cacheKey, panel, mood, moods = NW_MOODS) {
     if (WRITE_CACHE[cacheKey] === mood) return;
     let done = true;
-    for (const cls of NW_MOODS) done = setPanelClass(panel, cls, cls === mood) && done;
+    for (const cls of moods) done = setPanelClass(panel, cls, cls === mood) && done;
     if (done) WRITE_CACHE[cacheKey] = mood;
   }
 
-  /** @param {?Array<number>} worth */
-  function renderNetWorth(worth) {
-    // One target: the pill, or the Rift card's lead row while combined. The other keeps its last value (hidden) and
+  // Whole-percent resist the trailing team gets inside the Rift aura. gameSec is the loop's clock (it only runs with
+  // a readable one).
+  function riftComebackResist(pct, gameSec) {
+    const cap = Math.min(RIFT_RES_CAP, RIFT_RES_START + RIFT_RES_PER_MIN * Math.max(0, gameSec) / 60);
+    return Math.round(Math.min(1, Math.abs(pct) / RIFT_RES_FULL_LEAD) * cap);
+  }
+
+  /** @param {?Array<number>} worth @param {number=} gameSec */
+  function renderNetWorth(worth, gameSec = 0) {
+    // One target: the pill, or the Rift card's rows while combined. The other keeps its last value (hidden) and
     // is rendered again on the lane pass after the switch (setWidgetsOff); its write caches stay its own.
     const card = riftWorthCombined();
     const text = card ? UI.riftWorthText : UI.worthText;
+    const res = card ? UI.riftWorthRes : UI.worthRes;
     const ally = card ? UI.riftWorthGlowAlly : UI.worthGlowAlly;
     const enemy = card ? UI.riftWorthGlowEnemy : UI.worthGlowEnemy;
     const key = card ? "riftWorth" : "worth";
@@ -2286,6 +2308,8 @@
       NW.last = null;
       writeText(key + "Text", null, "--", text, null);
       writeWorthMood(key + "Mood", card ? UI.riftWorthText : UI.worth, "nw-unknown");
+      writeText(key + "Res", null, "RES --", res, null);
+      writeWorthMood(key + "ResOwner", res, "rs-none", RES_OWNERS);
       writePanelStyle(key + "GlowAlly", ally, "opacity", "0");
       writePanelStyle(key + "GlowEnemy", enemy, "opacity", "0");
       return;
@@ -2295,10 +2319,16 @@
     // Lead as a share of the richer team: antisymmetric and within +-100 % (QOLLOCK and topbar_rank use the same).
     const top = Math.max(ours, theirs);
     const pct = top > 0 ? (ours - theirs) / top * 100 : 0;
-    const shown = Math.round(pct);
-    NW.last = { f: ours, e: theirs, pct: shown };
-    writeText(key + "Text", null, (shown > 0 ? "+" : "") + (shown === 0 ? 0 : shown) + "%", text, null);
+    // Rounded away from zero on halves both ways (Math.round alone gives +8 but -7 for +-7.5).
+    const shown = Math.sign(pct) * Math.round(Math.abs(pct)) || 0;
+    const resist = riftComebackResist(pct, gameSec);
+    // The trailing team gets it: us when behind.
+    const owner = !resist ? "rs-none" : pct < 0 ? "rs-ours" : "rs-theirs";
+    NW.last = { f: ours, e: theirs, pct: shown, res: resist, owner: owner };
+    writeText(key + "Text", null, (shown > 0 ? "+" : "") + shown + "%", text, null);
     writeWorthMood(key + "Mood", card ? UI.riftWorthText : UI.worth, shown > 0 ? "nw-ahead" : shown < 0 ? "nw-behind" : "nw-even");
+    writeText(key + "Res", null, "RES " + resist + "%", res, null);
+    writeWorthMood(key + "ResOwner", res, owner, RES_OWNERS);
     const steps = Math.min(NW_GLOW_FULL, Math.round(Math.abs(pct)));
     const glow = steps < NW_GLOW_MIN ? "0" : String(Math.round(steps / NW_GLOW_FULL * 1000) / 1000);
     writePanelStyle(key + "GlowAlly", ally, "opacity", pct > 0 ? glow : "0");
@@ -2306,8 +2336,8 @@
   }
 
   // A live run notices the hideout only every 60 s (loop); the top bar is not read there (audit 2026-10-12).
-  function updateNetWorth(nowMs) {
-    renderNetWorth(isHideout() ? null : readNetWorth(nowMs));
+  function updateNetWorth(nowMs, gameSec) {
+    renderNetWorth(isHideout() ? null : readNetWorth(nowMs), gameSec);
   }
 
   function resetNetWorth() {
@@ -2798,9 +2828,12 @@
   function handleWorthPingActivate() {
     if (!timerAlive()) { retire(); return; }
     if (!running || Layout.editing || !widgetOn(WIDGET_WORTH) || !NW.last) return;
-    const shown = NW.last.pct;
-    TeamChatIntent.send("Souls " + (shown > 0 ? "+" : "") + shown + "% (" + formatSouls(NW.last.f) + " vs " +
-      formatSouls(NW.last.e) + ")", Date.now());
+    const last = NW.last;
+    const shown = last.pct;
+    const res = ", Rift resist: " +
+      (last.owner === "rs-ours" ? "us " + last.res + "%" : last.owner === "rs-theirs" ? "enemy " + last.res + "%" : "none");
+    TeamChatIntent.send("Souls " + (shown > 0 ? "+" : "") + shown + "% (" + formatSouls(last.f) + " vs " +
+      formatSouls(last.e) + ")" + res, Date.now());
   }
 
   function buildTimerChatMessage(kind, now) {
@@ -3246,7 +3279,7 @@
 
     if (claimsOn && isDue("claim", realNowMs, 100)) updateClaims(realNowMs);
     if (rejuvOn && isDue("scan", realNowMs, spawnWait ? 250 : 3000)) doScan(realNowMs);
-    if (widgetOn(WIDGET_WORTH) && isDue("worth", realNowMs, NW_INTERVAL_MS)) updateNetWorth(realNowMs);
+    if (widgetOn(WIDGET_WORTH) && isDue("worth", realNowMs, NW_INTERVAL_MS)) updateNetWorth(realNowMs, gameNowSec);
 
     if (!widgetOn(WIDGET_RIFT) && !widgetOn(WIDGET_URN)) {
       _riftHot = false;

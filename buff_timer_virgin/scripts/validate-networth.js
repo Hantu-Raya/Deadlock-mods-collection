@@ -23,6 +23,13 @@
 //     card, both show the lead (double writes), the card keeps its old size so the extra row overflows or the editor
 //     outline is wrong, switching Rift or Souls off leaves nothing (the other widget must show alone), the card's
 //     click posts nothing, or the hidden target shows a stale value when the switch flips back.
+// 13. Rift comeback (user request 2026-10-12; misc.vdata modifier_koth_comeback_bonuses, server.dll 6774 rva c17e70 and
+//     b92800): the trailing team gets bullet/spirit/debuff resist inside the Rift aura = clamp(deficit / 15 %, 0, 1) x
+//     min(10 + game minutes, 40) %, deficit = (theirs - ours) / theirs (convar citadel_trailingteam_bias_threshold_max
+//     0.15). Failure modes: the wrong team gets the resist, the 15 % ramp or the time cap is wrong (old glow used 30 %),
+//     the cap does not follow the clock, unknown souls show a made-up number, -7.5 % rounds to -7 while +7.5 % rounds
+//     to +8, the chat line drops the resist, or the combined card has no room for it. (Without a readable clock the
+//     whole timer loop pauses, so every widget, this one included, keeps its last value.)
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -109,6 +116,8 @@ const pill = (game) => ({
   ahead: game.ids.NetWorth.BHasClass('nw-ahead'),
   behind: game.ids.NetWorth.BHasClass('nw-behind'),
   unknown: game.ids.NetWorth.BHasClass('nw-unknown'),
+  res: game.ids.NetWorthRes.text,
+  resOwner: ['rs-ours', 'rs-theirs', 'rs-none'].filter((c) => game.ids.NetWorthRes.BHasClass(c)),
 });
 const opacity = (value) => Number(value === undefined || value === null ? 0 : value);
 
@@ -127,18 +136,18 @@ check('real layouts carry the pill, its chrome, its WIDGETS chip and the stock s
   assert.doesNotMatch(css, /box-shadow|clip-path/);
 });
 
-check('Amber player: row sums, signed percent, blue glow scaled to 30 %', () => {
+check('Amber player: row sums, signed percent, blue glow full at the 15 % comeback cap', () => {
   const game = ready();
   topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
   tick(game, 180, 2);
   const p = pill(game);
   assert.equal(p.text, '+25%', '(4000 - 3000) / 4000');
-  assert.equal(opacity(p.ally), 0.833, 'blue at 25/30');
+  assert.equal(opacity(p.ally), 1, 'blue, full from a 15 % lead');
   assert.equal(opacity(p.enemy), 0, 'red off');
   assert.ok(p.ahead && !p.behind && !p.unknown);
   // The glow fills the button itself (user request 2026-10-12), drawn under the icon and the text.
   const kids = game.ids.NetWorth.children.map((child) => child.id);
-  assert.deepEqual(kids, ['NetWorthGlowAlly', 'NetWorthGlowEnemy', 'NetWorthImg', 'NetWorthText'], 'glows inside #NetWorth, first');
+  assert.deepEqual(kids, ['NetWorthGlowAlly', 'NetWorthGlowEnemy', 'NetWorthImg', 'NetWorthText', 'NetWorthRes'], 'glows inside #NetWorth, first');
 });
 
 check('Sapphire player: absolute rows and relative labels both resolve to a red deficit', () => {
@@ -148,7 +157,7 @@ check('Sapphire player: absolute rows and relative labels both resolve to a red 
   tick(game, 180, 2);
   const p = pill(game);
   assert.equal(p.text, '-25%');
-  assert.equal(opacity(p.enemy), 0.833);
+  assert.equal(opacity(p.enemy), 1);
   assert.equal(opacity(p.ally), 0);
   assert.ok(p.behind && !p.ahead);
 });
@@ -195,7 +204,7 @@ check('label and rows intersect for a tighter estimate; k-formatted rows parse',
   // Ours: rows 61800..62694 (each -50..+99) overlap the label 62000..62999 -> 62000..62694, mid 62347; theirs 59700..60594
   // on label 60000..60999 -> mid 60297. (62347 - 60297) / 62347 = 3.3 %.
   assert.equal(pill(game).text, '+3%');
-  assert.ok(opacity(pill(game).ally) > 0 && opacity(pill(game).ally) < 0.2);
+  assert.equal(opacity(pill(game).ally), 0.2, '3 % of the 15 % ramp');
 });
 
 check('neutral band, caps, zero totals and one empty side', () => {
@@ -216,7 +225,7 @@ check('neutral band, caps, zero totals and one empty side', () => {
   tick(game, 184, 2);
   p = pill(game);
   assert.equal(p.text, '+44%');
-  assert.equal(opacity(p.ally), 1, 'glow capped at 30 %');
+  assert.equal(opacity(p.ally), 1, 'glow capped at 15 %');
   bar.amberTeam.rows[0].souls.text = '0';
   bar.sapphireTeam.rows[0].souls.text = '0';
   bar.setTotals(0, 0, 1);
@@ -317,7 +326,14 @@ check('chat button posts the shown value, never an unknown one, never while edit
   bar.setLocal(1);
   tick(game, 182, 2);
   game.click('NetWorthPingButton');
-  assert.deepEqual(sent, ['Souls +25% (4.0k vs 3.0k)']);
+  assert.deepEqual(sent, ['Souls +25% (4.0k vs 3.0k), Rift resist: enemy 13%']);
+  bar.amberTeam.rows[0].souls.text = '400';
+  bar.setTotals(3500, 3000, 1);
+  bar.sapphireTeam.rows[0].souls.text = '1100';
+  bar.setTotals(3500, 3500, 1);
+  tick(game, 184, 2);
+  game.click('NetWorthPingButton');
+  assert.equal(sent[1], 'Souls 0% (3.5k vs 3.5k), Rift resist: none', 'even: nobody gets resist');
 });
 
 check('schema 8 saves the moved pill and bit 32; schema 7 records cannot carry them', () => {
@@ -468,6 +484,7 @@ const card = (game) => ({
   text: game.ids.RiftWorthText.text,
   ally: game.ids.RiftWorthGlowAlly.style.opacity,
   enemy: game.ids.RiftWorthGlowEnemy.style.opacity,
+  res: game.ids.RiftWorthRes.text,
   ahead: game.ids.RiftWorthText.BHasClass('nw-ahead'),
   behind: game.ids.RiftWorthText.BHasClass('nw-behind'),
 });
@@ -489,7 +506,8 @@ check('combine switch: the lead moves into the Rift card, the pill goes, the glo
   assert.ok(game.ids.BTSlotWorthChrome.BHasClass('bt-widget-off'), 'pill edit chrome hidden');
   let c = card(game);
   assert.equal(c.text, '+25%', 'lead in the card on the next tick');
-  assert.equal(opacity(c.ally), 0.833);
+  assert.equal(c.res, 'RES 13%', 'enemy resist in the card');
+  assert.equal(opacity(c.ally), 1);
   assert.equal(opacity(c.enemy), 0);
   assert.ok(c.ahead && !c.behind);
   assert.notEqual(game.ids.RiftTimerTime.text, '', 'the Rift time stays');
@@ -545,7 +563,7 @@ check('combined: Rift off leaves the pill alone, Souls off leaves the plain Rift
   assert.equal(card(game).text, '+25%');
 });
 
-check('combined card: larger box for the third row, click posts the lead (not while editing)', () => {
+check('combined card: larger box for the lead and resist rows, click posts both (not while editing)', () => {
   const game = ready();
   topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
   const sent = [];
@@ -564,17 +582,72 @@ check('combined card: larger box for the third row, click posts the lead (not wh
   game.click('BTRiftWorthToggle');
   tick(game, 182, 1);
   game.click('RiftWorthPingButton');
-  assert.deepEqual(sent, ['Souls +25% (4.0k vs 3.0k)']);
+  assert.deepEqual(sent, ['Souls +25% (4.0k vs 3.0k), Rift resist: enemy 13%']);
   game.click('BTLayoutButton');
   game.advance(300);
-  near(outline(), [44, 40], 'combined card, label on top: a third row');
+  near(outline(), [48, 52], 'combined card, label on top: lead and resist rows');
   assert.ok(game.ids.BTSlotWorthChrome.BHasClass('bt-widget-off'), 'no pill chrome in the editor');
   game.click('RiftWorthPingButton');
   assert.equal(sent.length, 1, 'no post while editing');
   game.click('BTSlotRiftSideL');
   game.advance(300);
-  near(outline(), [120, 22], 'combined card, label on the left: one wider row');
+  near(outline(), [160, 22], 'combined card, label on the left: one wider row');
   game.click('BTLayoutCancel');
+});
+
+// Failure mode 13. Resist = clamp(deficit / 15 %, 0, 1) x min(10 + minutes, 40) %, given to the trailing team.
+check('Rift comeback resist: trailing team, full at a 15 % deficit, cap 10 % + 1 %/min up to 40 %', () => {
+  const game = ready();
+  const bar = topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  tick(game, 180, 2);
+  let p = pill(game);
+  assert.equal(p.res, 'RES 13%', '25 % lead at 3:01 -> full ramp x (10 + 3) %');
+  assert.deepEqual(p.resOwner, ['rs-theirs'], 'we lead: the enemy gets it');
+  tick(game, 1200, 2);
+  assert.equal(pill(game).res, 'RES 30%', '20:01 -> cap 30 %');
+  tick(game, 2700, 2);
+  assert.equal(pill(game).res, 'RES 40%', '45:01 -> capped at 40 %');
+  // 7.5 % deficit (4000 vs 3700): half the ramp; 20:00 -> 15 %.
+  bar.sapphireTeam.rows[0].souls.text = '1300';
+  bar.setTotals(4000, 3700, 1);
+  tick(game, 1200, 2);
+  p = pill(game);
+  assert.equal(p.text, '+8%');
+  assert.equal(p.res, 'RES 15%');
+  assert.equal(opacity(p.ally), 0.533, 'glow 8/15');
+  // Same match from Sapphire: we trail, so the resist is ours.
+  bar.setLocal(2);
+  bar.setTotals(4000, 3700, 2);
+  tick(game, 1202, 2);
+  p = pill(game);
+  assert.equal(p.text, '-8%');
+  assert.equal(p.res, 'RES 15%');
+  assert.deepEqual(p.resOwner, ['rs-ours'], 'we trail: our team gets it');
+  // Even: nobody.
+  bar.sapphireTeam.rows[0].souls.text = '1600';
+  bar.setTotals(4000, 4000, 2);
+  tick(game, 1204, 2);
+  p = pill(game);
+  assert.equal(p.res, 'RES 0%');
+  assert.deepEqual(p.resOwner, ['rs-none']);
+});
+
+check('Rift comeback resist: unknown souls show "RES --", never a guess; the resist follows the clock', () => {
+  const game = ready();
+  const bar = topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 0 });
+  assert.equal(pill(game).res, 'RES --', 'before the first read');
+  tick(game, 180, 2);
+  assert.equal(pill(game).res, 'RES --', 'spectator');
+  assert.deepEqual(pill(game).resOwner, ['rs-none']);
+  bar.setLocal(1);
+  bar.setTotals(4000, 3000, 1);
+  tick(game, 182, 2);
+  assert.equal(pill(game).res, 'RES 13%');
+  tick(game, 239, 2);
+  assert.equal(pill(game).res, 'RES 14%', 'the cap grows 1 % per game minute with unchanged souls');
+  game.topBar.AddClass('gStreetBrawl');
+  tick(game, 241, 2);
+  assert.equal(pill(game).res, 'RES --', 'no souls (Street Brawl): no resist either');
 });
 
 const report = { generatedAt: new Date().toISOString(), checks };

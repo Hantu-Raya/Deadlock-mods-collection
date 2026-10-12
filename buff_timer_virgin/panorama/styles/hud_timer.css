@@ -1306,8 +1306,9 @@
 	wash-color: #FFEFD7;
 }
 
-/* Team net worth pill (#BTSlotWorth): the soul icon and our lead in percent. Default icon left; the side classes on the
-   slot move it (l/r/t/b) or hide it (n). */
+/* Team net worth pill (#BTSlotWorth): the soul icon, our lead in percent and, under it, the Rift comeback resist of
+   the trailing team ("RES 13%": blue when our team gets it, red when the enemy does). Default icon left; the side
+   classes on the slot move it (l/r/t/b) or hide it (n). The lead is the main number; the resist line is smaller. */
 #NetWorth
 {
 	width: 100%;
@@ -1332,20 +1333,37 @@
 	background-position: center;
 }
 
-#NetWorthText
+#NetWorthText,
+#NetWorthRes
 {
 	horizontal-align: right;
-	vertical-align: center;
 	width: 64%;
 	margin-right: 4%;
-	font-size: 22px;
-	font-weight: semi-bold;
 	font-family: sansMono;
+	font-weight: semi-bold;
 	text-align: center;
 	text-overflow: shrink;
 	letter-spacing: 1px;
+}
+
+#NetWorthText
+{
+	vertical-align: top;
+	height: 58%;
+	margin-top: 4%;
+	font-size: 20px;
 	color: #c8c8c8;
 	text-shadow: 0px 0px 4px 2.0 black;
+}
+
+#NetWorthRes
+{
+	vertical-align: bottom;
+	height: 30%;
+	margin-bottom: 8%;
+	font-size: 10px;
+	color: #808080;
+	text-shadow: 0px 0px 3px 1.5 black;
 }
 
 #NetWorth.nw-ahead #NetWorthText
@@ -1363,6 +1381,19 @@
 	color: #808080;
 }
 
+/* Resist owner, shared by the pill and the combined Rift card: the same blue/red as the lead and the glows. */
+#NetWorthRes.rs-ours,
+.rift-res-text.rs-ours
+{
+	color: #8fcbff;
+}
+
+#NetWorthRes.rs-theirs,
+.rift-res-text.rs-theirs
+{
+	color: #ff8a8a;
+}
+
 #BTSlotWorth.bt-side-r #NetWorthImg
 {
 	horizontal-align: right;
@@ -1370,19 +1401,21 @@
 	margin-right: 9%;
 }
 
-#BTSlotWorth.bt-side-r #NetWorthText
+#BTSlotWorth.bt-side-r #NetWorthText,
+#BTSlotWorth.bt-side-r #NetWorthRes
 {
 	horizontal-align: left;
 	margin-right: 0px;
 	margin-left: 4%;
 }
 
+/* Icon above or below: icon, lead and resist stacked (icon 34 %, lead 30 %, resist 18 % of the height). */
 #BTSlotWorth.bt-side-t #NetWorthImg,
 #BTSlotWorth.bt-side-b #NetWorthImg
 {
 	horizontal-align: center;
 	width: 46%;
-	height: 42%;
+	height: 34%;
 	margin-left: 0px;
 	margin-right: 0px;
 }
@@ -1390,35 +1423,58 @@
 #BTSlotWorth.bt-side-t #NetWorthImg
 {
 	vertical-align: top;
-	margin-top: 8%;
+	margin-top: 6%;
 }
 
 #BTSlotWorth.bt-side-b #NetWorthImg
 {
 	vertical-align: bottom;
-	margin-bottom: 8%;
+	margin-bottom: 6%;
+}
+
+#BTSlotWorth.bt-side-t #NetWorthText,
+#BTSlotWorth.bt-side-b #NetWorthText,
+#BTSlotWorth.bt-side-t #NetWorthRes,
+#BTSlotWorth.bt-side-b #NetWorthRes
+{
+	horizontal-align: center;
+	vertical-align: top;
+	width: 92%;
+	margin-left: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
 }
 
 #BTSlotWorth.bt-side-t #NetWorthText,
 #BTSlotWorth.bt-side-b #NetWorthText
 {
-	horizontal-align: center;
-	width: 92%;
-	height: 42%;
-	margin-left: 0px;
-	margin-right: 0px;
+	height: 30%;
+}
+
+#BTSlotWorth.bt-side-t #NetWorthRes,
+#BTSlotWorth.bt-side-b #NetWorthRes
+{
+	height: 18%;
 }
 
 #BTSlotWorth.bt-side-t #NetWorthText
 {
-	vertical-align: bottom;
-	margin-bottom: 6%;
+	margin-top: 42%;
+}
+
+#BTSlotWorth.bt-side-t #NetWorthRes
+{
+	margin-top: 74%;
 }
 
 #BTSlotWorth.bt-side-b #NetWorthText
 {
-	vertical-align: top;
 	margin-top: 6%;
+}
+
+#BTSlotWorth.bt-side-b #NetWorthRes
+{
+	margin-top: 38%;
 }
 
 #BTSlotWorth.bt-side-n #NetWorthImg
@@ -1426,7 +1482,8 @@
 	visibility: collapse;
 }
 
-#BTSlotWorth.bt-side-n #NetWorthText
+#BTSlotWorth.bt-side-n #NetWorthText,
+#BTSlotWorth.bt-side-n #NetWorthRes
 {
 	horizontal-align: center;
 	width: 92%;
@@ -1438,7 +1495,7 @@
    2026-10-12: glow in the middle, not at the edges; replaces the blurred edge ring). One radial gradient per panel
    (stock `gradient( radial, ... )` syntax), no blur layer, kept faint because the earlier fill was too intense. The
    radii are percentages of the pill, so a stretched pill (width factor) stretches the glow with it. The script writes
-   the inline opacity of one of them (0 inside +-2 %, 1 from 30 %). */
+   the inline opacity of one of them (0 inside +-2 %, 1 from a 15 % lead, where the Rift comeback is full). */
 .networth-glow
 {
 	width: 100%;
@@ -1474,8 +1531,9 @@
 }
 
 /* Rift + Souls in one card (menu switch; the timer sets .bt-rift-worth on #BTSlotRift while Rift and Souls are both
-   on). Slot sizes must match LAYOUT_BASE "riftworth": 44x40 label on top/bottom (a third row), 120x22 label left/right
-   (one wider row). The lead row, its glows and its chat button exist only then. */
+   on): RIFT, the time, our lead and the trailing team's comeback resist. Slot sizes must match LAYOUT_BASE
+   "riftworth": 48x52 label on top/bottom (four rows), 160x22 label left/right (one wider row). The lead and resist
+   rows, their glows and the chat button exist only then. */
 .bt-slot .rift-worth-part
 {
 	visibility: collapse;
@@ -1489,15 +1547,27 @@
 .bt-slot-card.bt-rift-worth.bt-side-t,
 .bt-slot-card.bt-rift-worth.bt-side-b
 {
-	width: 44px;
-	height: 40px;
+	width: 48px;
+	height: 52px;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l,
 .bt-slot-card.bt-rift-worth.bt-side-r
 {
-	width: 120px;
+	width: 160px;
 	height: 22px;
+}
+
+/* The Rift's warning/window/confirmed wash tints every child, which would turn the blue/red lead and resist teal or
+   brown right when they matter. In the combined card the teal background and the teal RIFT/time colours carry those
+   states instead. */
+.bt-slot.bt-rift-worth #RiftTimerCard.rift-warning,
+.bt-slot.bt-rift-worth #RiftTimerCard.rift-window,
+.bt-slot.bt-rift-worth #RiftTimerCard.rift-confirmed
+{
+	/* White is the stock no-wash value. */
+	wash-color: #ffffff;
+	background-color: rgba(6, 52, 56, 0.92);
 }
 
 #RiftWorthGlowAlly,
@@ -1509,49 +1579,75 @@
 .bt-slot-card.bt-rift-worth.bt-side-t .objective-timer-sub,
 .bt-slot-card.bt-rift-worth.bt-side-b .objective-timer-sub
 {
-	height: 24%;
+	height: 18%;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-t .objective-timer-time,
 .bt-slot-card.bt-rift-worth.bt-side-b .objective-timer-time
 {
-	height: 42%;
+	height: 34%;
 }
 
-.rift-worth-text
+.rift-worth-text,
+.rift-res-text
 {
 	width: 100%;
-	height: 34%;
 	horizontal-align: center;
 	text-align: center;
-	font-size: 11px;
 	font-weight: semi-bold;
 	font-family: sansMono;
 	letter-spacing: 1px;
 	text-overflow: shrink;
-	color: #c8c8c8;
 	text-shadow: 0px 0px 3px 1.5 black;
+}
+
+.rift-worth-text
+{
+	height: 26%;
+	font-size: 11px;
+	color: #c8c8c8;
+}
+
+.rift-res-text
+{
+	height: 22%;
+	font-size: 9px;
+	color: #808080;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l .objective-timer-sub,
 .bt-slot-card.bt-rift-worth.bt-side-r .objective-timer-sub
 {
-	width: 28%;
+	width: 18%;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l .objective-timer-time,
 .bt-slot-card.bt-rift-worth.bt-side-r .objective-timer-time
 {
-	width: 38%;
+	width: 28%;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l .rift-worth-text,
+.bt-slot-card.bt-rift-worth.bt-side-r .rift-worth-text,
+.bt-slot-card.bt-rift-worth.bt-side-l .rift-res-text,
+.bt-slot-card.bt-rift-worth.bt-side-r .rift-res-text
+{
+	height: fit-children;
+	vertical-align: center;
 }
 
 .bt-slot-card.bt-rift-worth.bt-side-l .rift-worth-text,
 .bt-slot-card.bt-rift-worth.bt-side-r .rift-worth-text
 {
-	width: 34%;
-	height: fit-children;
-	vertical-align: center;
+	width: 24%;
 	font-size: 12px;
+}
+
+.bt-slot-card.bt-rift-worth.bt-side-l .rift-res-text,
+.bt-slot-card.bt-rift-worth.bt-side-r .rift-res-text
+{
+	width: 30%;
+	font-size: 10px;
 }
 
 .rift-worth-text.nw-ahead

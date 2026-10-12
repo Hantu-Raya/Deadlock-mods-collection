@@ -38,8 +38,8 @@
 			<Button id="BuffPingButton" class="timer-ping-button buff-ping-button" hittestchildren="false" />
 		</Panel>
 		<!-- Rift card. With the menu's "Rift + Souls in one card" (.bt-rift-worth on the slot) it also shows the team
-		     net worth lead as a third row, the lead glow behind the whole card, and a chat button that posts the lead.
-		     The glows come first so they draw under the text; the body carries the flow. -->
+		     net worth lead and the Rift comeback resist (rows 3 and 4), the lead glow behind the whole card, and a chat
+		     button that posts both. The glows come first so they draw under the text; the body carries the flow. -->
 		<Panel id="BTSlotRift" class="bt-slot bt-slot-card bt-side-t" hittest="false">
 			<Panel id="RiftTimerCard" class="objective-timer-card rift-objective-card" hittest="false">
 				<Panel id="RiftWorthGlowAlly" class="networth-glow networth-glow-ally rift-worth-part" hittest="false" />
@@ -48,6 +48,7 @@
 					<Label id="RiftTimerSub" class="objective-timer-sub" text="RIFT" />
 					<Label id="RiftTimerTime" class="objective-timer-time" text="" />
 					<Label id="RiftWorthText" class="rift-worth-text rift-worth-part nw-unknown" text="--" hittest="false" />
+					<Label id="RiftWorthRes" class="rift-res-text rift-worth-part rs-none" text="RES --" hittest="false" />
 				</Panel>
 			</Panel>
 			<Button id="RiftWorthPingButton" class="timer-ping-button networth-ping-button rift-worth-part" hittestchildren="false" />
@@ -58,14 +59,16 @@
 				<Label id="UrnTimerTime" class="objective-timer-time" text="" />
 			</Panel>
 		</Panel>
-		<!-- Team net worth: our lead in percent. The script sets nw-ahead/nw-behind/nw-even/nw-unknown and the inline
-		     opacity of one glow (blue ahead, red behind; full at 30 %). Each glow is a soft blob in the middle of the pill. -->
+		<!-- Team net worth: our lead in percent, and below it the Rift comeback resist of the trailing team. The script
+		     sets nw-ahead/nw-behind/nw-even/nw-unknown on #NetWorth, rs-ours/rs-theirs/rs-none on #NetWorthRes and the
+		     inline opacity of one glow (blue ahead, red behind; full at a 15 % lead, where the comeback is full). -->
 		<Panel id="BTSlotWorth" class="bt-slot bt-slot-pill bt-side-l" hittest="false">
 			<Panel id="NetWorth" class="nw-unknown" hittest="false">
 				<Panel id="NetWorthGlowAlly" class="networth-glow networth-glow-ally" hittest="false" />
 				<Panel id="NetWorthGlowEnemy" class="networth-glow networth-glow-enemy" hittest="false" />
 				<Panel id="NetWorthImg" hittest="false" />
 				<Label id="NetWorthText" text="--" hittest="false" />
+				<Label id="NetWorthRes" class="rs-none" text="RES --" hittest="false" />
 			</Panel>
 			<Button id="NetWorthPingButton" class="timer-ping-button networth-ping-button" hittestchildren="false" />
 		</Panel>

@@ -297,7 +297,9 @@ step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 
   game.advance(2000);
   assert.ok(game.ids.BTSlotWorth.classes.has('bt-placed'), 'pill placed at its default spot');
   assert.equal(game.ids.NetWorthText.text, '-25%');
-  assert.equal(game.ids.NetWorthGlowEnemy.style.opacity, '0.833', 'red glow at 25/30');
+  assert.equal(game.ids.NetWorthGlowEnemy.style.opacity, '1', 'red glow, full from a 15 % deficit');
+  assert.equal(game.ids.NetWorthRes.text, 'RES 13%', 'Rift comeback resist: full ramp x (10 + 3) % at 3:0x');
+  assert.ok(game.ids.NetWorthRes.classes.has('rs-ours'), 'we trail: the resist is ours');
   assert.equal(game.ids.NetWorthGlowAlly.style.opacity, '0');
   assert.ok(game.ids.NetWorth.classes.has('nw-behind'));
   game.toggleMenu();
