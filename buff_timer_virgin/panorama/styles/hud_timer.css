@@ -1329,25 +1329,42 @@
 	overflow: noclip;
 }
 
+/* Layout by flow only (percentage margins put rows at the wrong heights live, 2026-10-12): #NetWorthBody flows the
+   icon and #NetWorthCol (lead over resist) by the slot's side; the column is as tall as its text and centred.
+   Horizontal pill (141x44): icon box 38 %, column 58 %, then 4 % of air at the far edge. Icon above/below (76x84 base):
+   a 30 px icon row and the column, centred together. Icon off ("n"): the column alone across the pill. */
+#NetWorthBody
+{
+	width: 100%;
+	height: 100%;
+	flow-children: right;
+}
+
 #NetWorthImg
 {
-	horizontal-align: left;
-	vertical-align: center;
-	width: 25%;
+	width: 38%;
 	height: 70%;
-	margin-left: 9%;
+	vertical-align: center;
 	background-image: url("s2r://panorama/images/hud/icons/icon_soul.vsvg");
 	background-size: contain;
 	background-repeat: no-repeat;
 	background-position: center;
 }
 
+#NetWorthCol
+{
+	width: 58%;
+	height: fit-children;
+	vertical-align: center;
+	flow-children: down;
+}
+
 #NetWorthText,
 #NetWorthRes
 {
-	horizontal-align: right;
-	width: 64%;
-	margin-right: 4%;
+	width: 100%;
+	height: fit-children;
+	horizontal-align: center;
 	font-family: sansMono;
 	font-weight: semi-bold;
 	text-align: center;
@@ -1357,9 +1374,6 @@
 
 #NetWorthText
 {
-	vertical-align: top;
-	height: 58%;
-	margin-top: 4%;
 	font-size: 20px;
 	color: #c8c8c8;
 	text-shadow: 0px 0px 4px 2.0 black;
@@ -1367,9 +1381,6 @@
 
 #NetWorthRes
 {
-	vertical-align: bottom;
-	height: 30%;
-	margin-bottom: 8%;
 	font-size: 10px;
 	color: #808080;
 	text-shadow: 0px 0px 3px 1.5 black;
@@ -1403,101 +1414,41 @@
 	color: #ff8a8a;
 }
 
-#BTSlotWorth.bt-side-r #NetWorthImg
+#BTSlotWorth.bt-side-r #NetWorthBody
 {
-	horizontal-align: right;
-	margin-left: 0px;
-	margin-right: 9%;
+	flow-children: left;
 }
 
-#BTSlotWorth.bt-side-r #NetWorthText,
-#BTSlotWorth.bt-side-r #NetWorthRes
+#BTSlotWorth.bt-side-t #NetWorthBody,
+#BTSlotWorth.bt-side-b #NetWorthBody
 {
-	horizontal-align: left;
-	margin-right: 0px;
-	margin-left: 4%;
+	height: fit-children;
+	vertical-align: center;
+	flow-children: down;
 }
 
-/* Icon above or below: icon, lead and resist stacked (icon 34 %, lead 30 %, resist 18 % of the height). */
+#BTSlotWorth.bt-side-b #NetWorthBody
+{
+	flow-children: up;
+}
+
 #BTSlotWorth.bt-side-t #NetWorthImg,
 #BTSlotWorth.bt-side-b #NetWorthImg
 {
-	horizontal-align: center;
-	width: 46%;
-	height: 34%;
-	margin-left: 0px;
-	margin-right: 0px;
+	width: 100%;
+	height: 30px;
 }
 
-#BTSlotWorth.bt-side-t #NetWorthImg
+#BTSlotWorth.bt-side-t #NetWorthCol,
+#BTSlotWorth.bt-side-b #NetWorthCol,
+#BTSlotWorth.bt-side-n #NetWorthCol
 {
-	vertical-align: top;
-	margin-top: 6%;
-}
-
-#BTSlotWorth.bt-side-b #NetWorthImg
-{
-	vertical-align: bottom;
-	margin-bottom: 6%;
-}
-
-#BTSlotWorth.bt-side-t #NetWorthText,
-#BTSlotWorth.bt-side-b #NetWorthText,
-#BTSlotWorth.bt-side-t #NetWorthRes,
-#BTSlotWorth.bt-side-b #NetWorthRes
-{
-	horizontal-align: center;
-	vertical-align: top;
-	width: 92%;
-	margin-left: 0px;
-	margin-right: 0px;
-	margin-bottom: 0px;
-}
-
-#BTSlotWorth.bt-side-t #NetWorthText,
-#BTSlotWorth.bt-side-b #NetWorthText
-{
-	height: 30%;
-}
-
-#BTSlotWorth.bt-side-t #NetWorthRes,
-#BTSlotWorth.bt-side-b #NetWorthRes
-{
-	height: 18%;
-}
-
-#BTSlotWorth.bt-side-t #NetWorthText
-{
-	margin-top: 42%;
-}
-
-#BTSlotWorth.bt-side-t #NetWorthRes
-{
-	margin-top: 74%;
-}
-
-#BTSlotWorth.bt-side-b #NetWorthText
-{
-	margin-top: 6%;
-}
-
-#BTSlotWorth.bt-side-b #NetWorthRes
-{
-	margin-top: 38%;
+	width: 100%;
 }
 
 #BTSlotWorth.bt-side-n #NetWorthImg
 {
 	visibility: collapse;
-}
-
-#BTSlotWorth.bt-side-n #NetWorthText,
-#BTSlotWorth.bt-side-n #NetWorthRes
-{
-	horizontal-align: center;
-	width: 92%;
-	margin-left: 0px;
-	margin-right: 0px;
 }
 
 /* Lead glow: soft light in the middle of the pill, under the icon and the text, gone before the edges (user request

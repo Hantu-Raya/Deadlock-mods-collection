@@ -485,7 +485,24 @@ function launch(profile, options = {}) {
   return game;
 }
 
+// Drags a widget, handle or chrome panel by (dx, dy) layout px through the engine's drag events: proxy at 500/500,
+// then moved, then cleared before DragEnd (the engine's removePositionBeforeDrop).
+function dragBy(game, panel, dxLayout, dyLayout) {
+  const callbacks = {};
+  assert.equal(typeof panel.events.DragStart, 'function', `#${panel.id} DragStart bound`);
+  panel.events.DragStart(panel, callbacks);
+  const proxy = callbacks.displayPanel;
+  assert.ok(proxy && proxy.IsValid(), `#${panel.id} drag supplies a proxy`);
+  proxy.win = { x: 500, y: 500 };
+  game.advance(40);
+  proxy.win = { x: 500 + dxLayout * SCALE, y: 500 + dyLayout * SCALE };
+  game.advance(40);
+  delete proxy.win;
+  panel.events.DragEnd(panel, proxy);
+  game.advance(40);
+}
+
 module.exports = {
   root, read, source, timerSource, settingsLayout, PAGE_PATH, pageSource, PAGE_URL, KEY, HPV2_KEYS, panelIds,
-  SCALE, FLT_MAX, makePanel, makeMarker, setArrow, createProfile, record, launch,
+  SCALE, FLT_MAX, makePanel, makeMarker, setArrow, createProfile, record, launch, dragBy,
 };

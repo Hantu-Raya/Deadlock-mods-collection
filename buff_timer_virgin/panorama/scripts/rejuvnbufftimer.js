@@ -2139,8 +2139,9 @@
   // localPlayerTeam2 (Sapphire); spectators have neither and get "--", never a made-up verdict or 0.
   const NW_INTERVAL_MS = 1000;
   const NW_ROWS_RESCAN_MS = 5000;
-  // Glow: full at a 15 % lead, none inside +-2 %, in 1 % steps (one write per step change). 15 % is where the Rift
-  // comeback bonus is full, so the glow also reads as "how strong the trailing team's Rift bonus is".
+  // Glow, from the SHOWN (rounded) lead so glow and text agree: none below 2 %, full from 15 %, in 1 % steps (one
+  // write per step change). 15 % is where the Rift comeback bonus is full, so the glow also reads as "how strong the
+  // trailing team's Rift bonus is".
   const NW_GLOW_FULL = 15;
   const NW_GLOW_MIN = 2;
   const NW_MOODS = ["nw-ahead", "nw-behind", "nw-even", "nw-unknown"];
@@ -2298,45 +2299,55 @@
     return Math.round(Math.min(1, Math.abs(pct) / RIFT_RES_FULL_LEAD) * cap);
   }
 
+  // What the pill and the combined card show; renderNetWorth fills it, paintWorth copies it to one of them.
+  const NW_VIEW = { text: "--", mood: "nw-unknown", res: "RES --", owner: "rs-none", ally: "0", enemy: "0" };
+
+  // Both targets get the same values every pass (cached writes, so the hidden one costs nothing while unchanged):
+  // whichever the combine switch shows is never older than what chat posts, even when the switch flips while the
+  // loop is paused (GPT-6.1-Sol review R1).
+  function paintWorth(key, moodPanel, text, res, ally, enemy) {
+    writeText(key + "Text", null, NW_VIEW.text, text, null);
+    writeWorthMood(key + "Mood", moodPanel, NW_VIEW.mood);
+    writeText(key + "Res", null, NW_VIEW.res, res, null);
+    writeWorthMood(key + "ResOwner", res, NW_VIEW.owner, RES_OWNERS);
+    writePanelStyle(key + "GlowAlly", ally, "opacity", NW_VIEW.ally);
+    writePanelStyle(key + "GlowEnemy", enemy, "opacity", NW_VIEW.enemy);
+  }
+
   /** @param {?Array<number>} worth @param {number=} gameSec */
   function renderNetWorth(worth, gameSec = 0) {
-    // One target: the pill, or the Rift card's rows while combined. The other keeps its last value (hidden) and
-    // is rendered again on the lane pass after the switch (setWidgetsOff); its write caches stay its own.
-    const card = riftWorthCombined();
-    const text = card ? UI.riftWorthText : UI.worthText;
-    const res = card ? UI.riftWorthRes : UI.worthRes;
-    const ally = card ? UI.riftWorthGlowAlly : UI.worthGlowAlly;
-    const enemy = card ? UI.riftWorthGlowEnemy : UI.worthGlowEnemy;
-    const key = card ? "riftWorth" : "worth";
     if (!worth) {
       NW.last = null;
-      writeText(key + "Text", null, "--", text, null);
-      writeWorthMood(key + "Mood", card ? UI.riftWorthText : UI.worth, "nw-unknown");
-      writeText(key + "Res", null, "RES --", res, null);
-      writeWorthMood(key + "ResOwner", res, "rs-none", RES_OWNERS);
-      writePanelStyle(key + "GlowAlly", ally, "opacity", "0");
-      writePanelStyle(key + "GlowEnemy", enemy, "opacity", "0");
-      return;
+      NW_VIEW.text = "--";
+      NW_VIEW.mood = "nw-unknown";
+      NW_VIEW.res = "RES --";
+      NW_VIEW.owner = "rs-none";
+      NW_VIEW.ally = "0";
+      NW_VIEW.enemy = "0";
+    } else {
+      const ours = worth[0];
+      const theirs = worth[1];
+      // Lead as a share of the richer team: antisymmetric and within +-100 % (QOLLOCK and topbar_rank use the same).
+      const top = Math.max(ours, theirs);
+      const pct = top > 0 ? (ours - theirs) / top * 100 : 0;
+      // Rounded away from zero on halves both ways (Math.round alone gives +8 but -7 for +-7.5).
+      const shown = Math.sign(pct) * Math.round(Math.abs(pct)) || 0;
+      const resist = riftComebackResist(pct, gameSec);
+      // The trailing team gets it: us when behind.
+      const owner = !resist ? "rs-none" : pct < 0 ? "rs-ours" : "rs-theirs";
+      NW.last = { pct: shown, res: resist, owner: owner };
+      // The glow follows the shown lead: none below 2 %, full from 15 %.
+      const steps = Math.min(NW_GLOW_FULL, Math.abs(shown));
+      const glow = steps < NW_GLOW_MIN ? "0" : String(Math.round(steps / NW_GLOW_FULL * 1000) / 1000);
+      NW_VIEW.text = (shown > 0 ? "+" : "") + shown + "%";
+      NW_VIEW.mood = shown > 0 ? "nw-ahead" : shown < 0 ? "nw-behind" : "nw-even";
+      NW_VIEW.res = "RES " + resist + "%";
+      NW_VIEW.owner = owner;
+      NW_VIEW.ally = shown > 0 ? glow : "0";
+      NW_VIEW.enemy = shown < 0 ? glow : "0";
     }
-    const ours = worth[0];
-    const theirs = worth[1];
-    // Lead as a share of the richer team: antisymmetric and within +-100 % (QOLLOCK and topbar_rank use the same).
-    const top = Math.max(ours, theirs);
-    const pct = top > 0 ? (ours - theirs) / top * 100 : 0;
-    // Rounded away from zero on halves both ways (Math.round alone gives +8 but -7 for +-7.5).
-    const shown = Math.sign(pct) * Math.round(Math.abs(pct)) || 0;
-    const resist = riftComebackResist(pct, gameSec);
-    // The trailing team gets it: us when behind.
-    const owner = !resist ? "rs-none" : pct < 0 ? "rs-ours" : "rs-theirs";
-    NW.last = { pct: shown, res: resist, owner: owner };
-    writeText(key + "Text", null, (shown > 0 ? "+" : "") + shown + "%", text, null);
-    writeWorthMood(key + "Mood", card ? UI.riftWorthText : UI.worth, shown > 0 ? "nw-ahead" : shown < 0 ? "nw-behind" : "nw-even");
-    writeText(key + "Res", null, "RES " + resist + "%", res, null);
-    writeWorthMood(key + "ResOwner", res, owner, RES_OWNERS);
-    const steps = Math.min(NW_GLOW_FULL, Math.round(Math.abs(pct)));
-    const glow = steps < NW_GLOW_MIN ? "0" : String(Math.round(steps / NW_GLOW_FULL * 1000) / 1000);
-    writePanelStyle(key + "GlowAlly", ally, "opacity", pct > 0 ? glow : "0");
-    writePanelStyle(key + "GlowEnemy", enemy, "opacity", pct < 0 ? glow : "0");
+    paintWorth("worth", UI.worth, UI.worthText, UI.worthRes, UI.worthGlowAlly, UI.worthGlowEnemy);
+    paintWorth("riftWorth", UI.riftWorthText, UI.riftWorthText, UI.riftWorthRes, UI.riftWorthGlowAlly, UI.riftWorthGlowEnemy);
   }
 
   // A live run notices the hideout only every 60 s (loop); the top bar is not read there (audit 2026-10-12).
@@ -3118,10 +3129,7 @@
   function setWidgetsOff(next, nowMs) {
     const turnedOff = next & ~_widgetsOff;
     const turnedOn = _widgetsOff & ~next;
-    const wasCombined = riftWorthCombined();
     _widgetsOff = next;
-    // The lead moves between the pill and the card: render it in its new place on the next lane pass.
-    if (riftWorthCombined() !== wasCombined) LAST_TICK["worth"] = 0;
     if (turnedOff & WIDGET_CLAIMS) stopClaimTracking(nowMs);
     if (turnedOff & WIDGET_RIFT) {
       _riftHot = false;

@@ -66,14 +66,19 @@
 		</Panel>
 		<!-- Team net worth: our lead in percent, and below it the Rift comeback resist of the trailing team. The script
 		     sets nw-ahead/nw-behind/nw-even/nw-unknown on #NetWorth, rs-ours/rs-theirs/rs-none on #NetWorthRes and the
-		     inline opacity of one glow (blue ahead, red behind; full at a 15 % lead, where the comeback is full). -->
+		     inline opacity of one glow (blue ahead, red behind; full at a 15 % lead, where the comeback is full). The
+		     glows sit outside the body, which flows the icon and the lead/resist column by the slot's side class. -->
 		<Panel id="BTSlotWorth" class="bt-slot bt-slot-pill bt-side-l" hittest="false">
 			<Panel id="NetWorth" class="nw-unknown" hittest="false">
 				<Panel id="NetWorthGlowAlly" class="networth-glow networth-glow-ally" hittest="false" />
 				<Panel id="NetWorthGlowEnemy" class="networth-glow networth-glow-enemy" hittest="false" />
-				<Panel id="NetWorthImg" hittest="false" />
-				<Label id="NetWorthText" text="--" hittest="false" />
-				<Label id="NetWorthRes" class="rs-none" text="RES --" hittest="false" />
+				<Panel id="NetWorthBody" hittest="false">
+					<Panel id="NetWorthImg" hittest="false" />
+					<Panel id="NetWorthCol" hittest="false">
+						<Label id="NetWorthText" text="--" hittest="false" />
+						<Label id="NetWorthRes" class="rs-none" text="RES --" hittest="false" />
+					</Panel>
+				</Panel>
 			</Panel>
 			<Button id="NetWorthPingButton" class="timer-ping-button networth-ping-button" hittestchildren="false" />
 		</Panel>

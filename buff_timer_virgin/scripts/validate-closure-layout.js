@@ -15,7 +15,7 @@ for (const name of ['rejuvnbufftimer.js', 'bt_minimap_settings.js']) {
   assert.ok(fs.existsSync(path.join(dir, name)), `${name} exists in ${dir}`);
 }
 process.env.BT_SCRIPTS_DIR = dir;
-const { root, KEY, SCALE, createProfile, launch } = require('./bt-test-harness.js');
+const { root, KEY, SCALE, createProfile, launch, makePanel, dragBy: drag } = require('./bt-test-harness.js');
 
 const transcript = [];
 const step = (name, fn) => { fn(); transcript.push(name); };
@@ -34,20 +34,6 @@ function slot(game, key) {
     scale: panel.style.uiScale === undefined ? 1 : parseFloat(panel.style.uiScale) / 100,
     placed: panel.classes.has('bt-placed'),
   };
-}
-function drag(game, panel, dxLayout, dyLayout) {
-  const callbacks = {};
-  assert.equal(typeof panel.events.DragStart, 'function', `#${panel.id} DragStart bound`);
-  panel.events.DragStart(panel, callbacks);
-  const proxy = callbacks.displayPanel;
-  assert.ok(proxy && proxy.IsValid(), `#${panel.id} drag supplies a proxy`);
-  proxy.win = { x: 500, y: 500 };
-  game.advance(40);
-  proxy.win = { x: 500 + dxLayout * SCALE, y: 500 + dyLayout * SCALE };
-  game.advance(40);
-  delete proxy.win; // the engine clears the proxy position before DragEnd (removePositionBeforeDrop)
-  panel.events.DragEnd(panel, proxy);
-  game.advance(40);
 }
 function ready(profile) {
   const game = launch(profile, { withTimer: true });
@@ -276,13 +262,10 @@ step('minified WIDGETS switches hide slots, freeze the Bridge label, save the ma
 
 // Failure mode: Closure renames a net worth field (row cache, mood, tick key) so the shipped pill stays at "--", lights
 // the wrong glow, or its WIDGETS bit 32 is dropped.
-step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 32 and saves it', () => {
-  const { makePanel } = require('./bt-test-harness.js');
-  const profile = createProfile();
-  const game = launch(profile, { withTimer: true, clock: '3:00' });
-  game.advance(2500);
+// A Sapphire player's stock top bar: absolute rows (Amber 4000 in TeamFriendly, our 3000 in TeamEnemy) and
+// perspective-relative score labels (ours first), read at 3:02.
+function sapphireTopBar(game) {
   const top = game.topBar;
-  // Absolute rows: Amber 4000 in TeamFriendly, our Sapphire 3000 in TeamEnemy; relative labels: ours first.
   for (const [id, values] of [['TeamFriendly', ['2000', '2000']], ['TeamEnemy', ['1500', '1500']]]) {
     const rows = makePanel('PlayersContainer', 'Panel', makePanel(id, 'CitadelHudTopBarTeam', top));
     for (const value of values) makePanel('SoulsValue', 'Label', makePanel('', 'CitadelHudTopBarPlayer', rows)).text = value;
@@ -295,6 +278,12 @@ step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 
   game.rootPanel.AddClass('localPlayerTeam2');
   game.clock.text = '3:02';
   game.advance(2000);
+}
+step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 32 and saves it', () => {
+  const profile = createProfile();
+  const game = launch(profile, { withTimer: true, clock: '3:00' });
+  game.advance(2500);
+  sapphireTopBar(game);
   assert.ok(game.ids.BTSlotWorth.classes.has('bt-placed'), 'pill placed at its default spot');
   assert.equal(game.ids.NetWorthText.text, '-25%');
   assert.equal(game.ids.NetWorthGlowEnemy.style.opacity, '1', 'red glow, full from a 15 % deficit');
@@ -328,6 +317,38 @@ step('minified net worth pill reads a Sapphire top bar, glows red, hides on bit 
   const after = JSON.parse(profile.disk.get(KEY).slice(14));
   assert.equal(after.t.w[4], 1.5, 'pill width factor saved');
   assert.equal(after.t.b[4], 1.5, 'Bridge width factor saved');
+});
+
+// GPT-6.1-Sol review R3: Closure renames something on the combine path (mask bit 64, the "riftworth" size key, the
+// card targets, .bt-wide) so the shipped combined card stays empty, keeps the pill, or never goes two-column.
+step('minified combined card restores bit 64, shows lead and resist, goes two-column when stretched', () => {
+  const profile = createProfile();
+  const game = launch(profile, { withTimer: true, clock: '3:00' });
+  game.advance(2500);
+  game.toggleMenu();
+  game.click('BTRiftWorthToggle');
+  game.advance(300);
+  sapphireTopBar(game);
+  const slot = game.ids.BTSlotRift;
+  assert.ok(slot.classes.has('bt-rift-worth'), 'combined');
+  assert.ok(game.ids.BTSlotWorth.classes.has('bt-widget-off'), 'pill hidden');
+  assert.equal(game.ids.RiftWorthText.text, '-25%');
+  assert.equal(game.ids.RiftWorthRes.text, 'RES 13%');
+  assert.ok(game.ids.RiftWorthRes.classes.has('rs-ours'));
+  assert.equal(game.ids.NetWorthText.text, '-25%', 'the hidden pill holds the same value');
+  assert.ok(!slot.classes.has('bt-wide'), 'stock size: one column');
+  game.click('BTLayoutButton');
+  game.advance(300);
+  drag(game, game.ids.BTSlotRiftHandleBR, 48 * parseFloat(slot.style.uiScale) / 100, 0);
+  assert.equal(slot.style.width, '96px', 'combined card base 48 px, now 200 %');
+  assert.ok(slot.classes.has('bt-wide'), 'stretched: two columns');
+  game.click('BTLayoutDone');
+  game.advance(2000);
+  const body = JSON.parse(profile.disk.get(KEY).slice(14));
+  assert.equal(body.x, 64, 'bit 64 saved');
+  const again = launch(profile, { withTimer: true, clock: '3:00' });
+  again.advance(2500);
+  assert.ok(again.ids.BTSlotRift.classes.has('bt-rift-worth') && again.ids.BTSlotRift.classes.has('bt-wide'), 'restored after restart');
 });
 
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });

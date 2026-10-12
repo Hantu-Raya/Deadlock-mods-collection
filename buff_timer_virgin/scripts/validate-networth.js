@@ -22,7 +22,8 @@
 // 12. Rift + Souls in one card (menu switch, mask bit 64, user choice 2026-10-12): the pill stays visible next to the
 //     card, both show the lead (double writes), the card keeps its old size so the extra row overflows or the editor
 //     outline is wrong, switching Rift or Souls off leaves nothing (the other widget must show alone), the card's
-//     click posts nothing, or the hidden target shows a stale value when the switch flips back.
+//     click posts nothing, or the hidden target shows a stale value when the switch flips back (also while the loop
+//     is paused: no clock, or the run stopped in the hideout; GPT-6.1-Sol review R1).
 // 13. Rift comeback (user request 2026-10-12; misc.vdata modifier_koth_comeback_bonuses, server.dll 6774 rva c17e70 and
 //     b92800): the trailing team gets bullet/spirit/debuff resist inside the Rift aura = clamp(deficit / 15 %, 0, 1) x
 //     min(10 + game minutes, 40) %, deficit = (theirs - ours) / theirs (convar citadel_trailingteam_bias_threshold_max
@@ -36,7 +37,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { root, KEY, SCALE, read, createProfile, record, launch, makePanel } = require('./bt-test-harness.js');
+const { root, KEY, read, createProfile, record, launch, makePanel, dragBy: dragHandle } = require('./bt-test-harness.js');
 
 const checks = [];
 const check = (name, fn) => {
@@ -150,7 +151,16 @@ check('Amber player: row sums, signed percent, blue glow full at the 15 % comeba
   assert.ok(p.ahead && !p.behind && !p.unknown);
   // The glow fills the button itself (user request 2026-10-12), drawn under the icon and the text.
   const kids = game.ids.NetWorth.children.map((child) => child.id);
-  assert.deepEqual(kids, ['NetWorthGlowAlly', 'NetWorthGlowEnemy', 'NetWorthImg', 'NetWorthText', 'NetWorthRes'], 'glows inside #NetWorth, first');
+  assert.deepEqual(kids, ['NetWorthGlowAlly', 'NetWorthGlowEnemy', 'NetWorthBody'], 'glows inside #NetWorth, first');
+  // Live 2026-10-12 (combined card): percentage vertical margins put rows at the wrong heights. The pill lays out by
+  // flow: icon + a column (lead over resist), no percentage margins.
+  const ids = (id) => game.ids[id].children.map((child) => child.id);
+  assert.deepEqual(ids('NetWorthBody'), ['NetWorthImg', 'NetWorthCol']);
+  assert.deepEqual(ids('NetWorthCol'), ['NetWorthText', 'NetWorthRes']);
+  const css = read('panorama', 'styles', 'hud_timer.css');
+  const pillRules = css.match(/[^}]*#(?:NetWorth|BTSlotWorth)[^{]*\{[^}]*\}/g) || [];
+  assert.ok(pillRules.length > 5, 'pill rules found');
+  for (const rule of pillRules) assert.doesNotMatch(rule, /margin(?:-top|-bottom)?:\s*[^;]*\d%/, `no percentage margins: ${rule.trim().split('\n')[0]}`);
 });
 
 check('Sapphire player: absolute rows and relative labels both resolve to a red deficit', () => {
@@ -395,19 +405,6 @@ check('menu switch turns the soul icon off and on, keeps the spot and saves it',
 // User requests 2026-10-12: in the layout editor every widget's corner handles resize its width and height
 // separately. Sideways only: wider, same height and text size; up/down only: the scale, on-screen width kept. The width
 // factor is the optional fifth element of the widget's layout entry (0.6-2, only when not 1).
-function dragHandle(game, panel, dxLayout, dyLayout) {
-  const callbacks = {};
-  panel.events.DragStart(panel, callbacks);
-  const proxy = callbacks.displayPanel;
-  assert.ok(proxy && proxy.IsValid(), `#${panel.id} drag supplies a proxy`);
-  proxy.win = { x: 500, y: 500 };
-  game.advance(40);
-  proxy.win = { x: 500 + dxLayout * SCALE, y: 500 + dyLayout * SCALE };
-  game.advance(40);
-  delete proxy.win;
-  panel.events.DragEnd(panel, proxy);
-  game.advance(40);
-}
 check('editor corner handles stretch any widget sideways without changing its height', () => {
   const profile = createProfile();
   const game = ready(profile);
@@ -516,13 +513,12 @@ check('combine switch: the lead moves into the Rift card, the pill goes, the glo
   assert.notEqual(game.ids.RiftTimerTime.text, '', 'the Rift time stays');
   const kids = game.ids.RiftTimerCard.children.map((child) => child.id);
   assert.deepEqual(kids.slice(0, 2), ['RiftWorthGlowAlly', 'RiftWorthGlowEnemy'], 'glows first in the card: under the text');
-  // Updates go to the card only.
-  const pillBefore = pill(game).text;
+  // Both targets follow the same snapshot (GPT-6.1-Sol review R1): the hidden pill is never older than the card.
   bar.amberTeam.rows[0].souls.text = '2900';
   bar.setTotals(6000, 3000, 1);
   tick(game, 183, 1);
   assert.equal(card(game).text, '+50%');
-  assert.equal(pill(game).text, pillBefore, 'the hidden pill is not written');
+  assert.equal(pill(game).text, '+50%', 'the hidden pill holds the same value');
   game.advance(2200);
   assert.equal(saved(profile).x, 64, 'bit 64 saved');
   const again = ready(profile);
@@ -697,6 +693,47 @@ check('stretched combined card switches to two columns (.bt-wide) only when wide
   const wideRules = css.match(/[^}]*\.bt-wide[^{]*\{[^}]*\}/g) || [];
   assert.ok(wideRules.some((rule) => /#RiftTimerBody[^{]*\{[^}]*flow-children: right/.test(rule)), 'wide body flows the columns side by side');
   for (const rule of wideRules) assert.doesNotMatch(rule, /margin-(top|bottom):\s*[\d.]+%/, 'no percentage margins in the wide layout');
+});
+
+// Failure mode 12, GPT-6.1-Sol review R1: the switch flips while the timer lane is not running (no clock, or the run
+// stopped in the hideout). The newly shown target must not show an older value than the one chat posts.
+check('combine switch while the loop is paused: no stale value in the newly shown target', () => {
+  const game = ready();
+  const bar = topbar(game, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  const sent = [];
+  game.timer.TeamChatIntent.send = (message) => { sent.push(message); return true; };
+  tick(game, 180, 2);
+  assert.equal(pill(game).text, '+25%');
+  game.toggleMenu();
+  game.click('BTRiftWorthToggle');
+  bar.amberTeam.rows[0].souls.text = '0';
+  bar.setTotals(3100, 3000, 1);
+  tick(game, 182, 2);
+  assert.equal(card(game).text, '+3%');
+  game.clock.text = '';
+  game.advance(1000);
+  game.click('BTRiftWorthToggle');
+  game.advance(1000);
+  assert.ok(!combined(game));
+  assert.equal(pill(game).text, '+3%', 'the pill shows the value chat would post, not the one from before combining');
+  game.toggleMenu();
+  game.click('NetWorthPingButton');
+  assert.deepEqual(sent, ['Souls +3%, Rift resist: enemy 3%']);
+  // A run reset (hideout) clears both targets, so neither can come back with the old match's value.
+  const other = ready();
+  topbar(other, { amber: AMBER, sapphire: SAPPHIRE, local: 1 });
+  tick(other, 180, 2);
+  other.toggleMenu();
+  other.click('BTRiftWorthToggle');
+  tick(other, 182, 2);
+  other.rootPanel.AddClass('connectedToHideout');
+  tick(other, 184, 2);
+  assert.equal(card(other).text, '--');
+  other.click('BTRiftWorthToggle');
+  other.advance(300);
+  assert.ok(!combined(other));
+  assert.equal(pill(other).text, '--', 'the pill shown after uncombining is cleared too');
+  assert.equal(pill(other).res, 'RES --');
 });
 
 const report = { generatedAt: new Date().toISOString(), checks };
