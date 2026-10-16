@@ -36,14 +36,15 @@ SteamTracking abilities.vdata (pak01_dir/scripts)
 - `apply_healthbar_status_overrides.py` sets overhead status visibility for classified healthbar modifiers and rejects unclassified ones.
 - `inject_stock_external_refs.py` copies the stock RERL block into a compiled `vdata_c` and fails if the source icons differ from the installed game.
 - `test_active.py` holds the regression tests.
+- `dlf/scripts/spectator_status.py` imports `iter_record_spans`, `get_record_name`, `FIELD_PATTERN`, `_modifier_span` and `_set_modifier_fields`; keep their signatures or update it, then run `build_dlf.ps1`.
 
 ## Build flow
 
 - Run from the repo root: `powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1`. It resolves `py.exe` and 7-Zip, extracts stock `scripts/abilities.vdata_c` from `citadel/pak01_dir.vpk`, and builds each spec in order.
 - `-Only pak03` (any pak names) builds a subset. `-Deploy` also copies each built `pakXX_dir.vpk` into `citadel/addons`, replacing the installed one; without it only archives are written. `-Deploy` refuses to start while Deadlock runs, because the game locks addon paks. `-Only` cannot be combined with `-RefreshFromSteamTracking`.
-- `-RefreshFromSteamTracking` fetches upstream `abilities.vdata`, requires exactly one root `_include` block, removes it, and writes the same content to both baselines. Never refresh only one: `abilities.vdata` feeds pak02/03/05 and `abilities2.vdata` feeds pak04. Record the upstream revision in the commit.
+- `-RefreshFromSteamTracking` resolves GameTracking `master` to a commit SHA through the GitHub API and fetches `abilities.vdata` at that SHA (the raw CDN serves a cached previous build for `.../master/...` for a while after an update). It requires exactly one root `_include` block, removes it, and writes the same content to both baselines. Never refresh only one: `abilities.vdata` feeds pak02/03/05 and `abilities2.vdata` feeds pak04. Record the printed upstream revision in the commit.
 - Each spec restores its input from a temp baseline before transforming, so variants never stack. After packing, both inputs are restored to the post-override baseline and stage folders and root VPKs are deleted; the dated `.7z` archives (and deployed paks) are the only durable output.
-- `sr2compiler/New folder.exe` may exit nonzero or hang after writing output; the wrapper accepts existing required outputs. `[rerl] N external refs` must appear for every compile (565 on the 10_07 baseline; 561 earlier).
+- `sr2compiler/New folder.exe` may exit nonzero or hang after writing output; the wrapper accepts existing required outputs. `[rerl] N external refs` must appear for every compile (585 on 6790; 578 on 6779; 565 on the 10_07 baseline).
 
 ## Transform rules
 

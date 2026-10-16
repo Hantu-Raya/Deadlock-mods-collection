@@ -151,8 +151,17 @@ function Update-AbilityBaselinesFromSteamTracking {
         [string[]]$InputFiles
     )
 
-    $upstreamUrl = "https://raw.githubusercontent.com/SteamTracking/GameTracking-Deadlock/master/game/citadel/pak01_dir/scripts/abilities.vdata"
-    Write-Host "[update] fetch upstream abilities.vdata" -ForegroundColor Cyan
+    # raw.githubusercontent.com caches branch URLs; right after a game update
+    # .../master/... can still serve the previous build. Resolve master to a
+    # commit SHA and fetch that immutable revision instead.
+    $repo = "SteamTracking/GameTracking-Deadlock"
+    $head = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/commits/master" -Headers @{ "User-Agent" = "build_abilities_paks" }
+    $sha = [string]$head.sha
+    if ($sha -notmatch '^[0-9a-f]{40}$') { throw "Could not resolve $repo master to a commit SHA" }
+    $title = ([string]$head.commit.message -split "`n")[0]
+    if ($title.Length -gt 60) { $title = $title.Substring(0, 60) }
+    $upstreamUrl = "https://raw.githubusercontent.com/$repo/$sha/game/citadel/pak01_dir/scripts/abilities.vdata"
+    Write-Host "[update] fetch upstream abilities.vdata at $($sha.Substring(0, 10)) ($title)" -ForegroundColor Cyan
     $response = Invoke-WebRequest -Uri $upstreamUrl -UseBasicParsing
     $content = [string]$response.Content
 

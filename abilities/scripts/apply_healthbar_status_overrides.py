@@ -6,8 +6,11 @@ from active import get_record_name, iter_record_spans
 
 
 EVERYONE_RECORDS = {
+    # 6790 Artist ult: friendly-hero buff aura, same policy as vanguard_aoe_buff.
+    "ability_artist_bamboogrove",
     "ability_baba_hexing_brew",
     "ability_bookworm_knightcharge",
+    "ability_deadpack_flamethrower",
     "ability_nano_catform",
     "ability_priest_knockback",
     "ability_punkgoat_blasted",
@@ -29,6 +32,8 @@ EVERYONE_RECORDS = {
     "upgrade_siphon_bullets",
     "upgrade_surging_power",
     "upgrade_tech_overflow",
+    # Stock set EVERYONE explicitly until 6779 removed the field.
+    "upgrade_unstoppable",
     "vanguard_aoe_buff",
 }
 
