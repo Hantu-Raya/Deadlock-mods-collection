@@ -488,5 +488,11 @@ CitadelHudTopBarPlayer.Disconnected #ShowRankBarebonesMissingIndicator
 	opacity: 1;
 }
 
+#PlayerName.ShowRankBarebonesScoreboardLink:hover Label
+{
+	color: #ffffff;
+	text-decoration: underline;
+}
+
 
 /* PROFILE_STATS_COMMUNITY_STYLES: profile_stats_community/panorama/styles/profile_stats_community.css */

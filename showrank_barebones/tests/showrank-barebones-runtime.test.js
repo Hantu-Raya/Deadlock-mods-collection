@@ -182,6 +182,22 @@ function contextMenu(card) { const root = new Panel('CitadelContextMenuPlayer', 
 const STANDARD_HEROES = ['haze', 'infernus', 'vindicta', 'abrams', 'bebop', 'dynamo', 'kelvin', 'lash', 'mcginnis', 'mo_and_krill', 'paradox', 'pocket'];
 function playerRoster(heroes, prefix = '', rowOptions = {}) { const friendly = new Panel('CitadelHudTopBarTeam', { id: 'TeamFriendly' }); const enemy = new Panel('CitadelHudTopBarTeam', { id: 'TeamEnemy' }); const bars = heroes.map((hero, index) => { const bar = topbar(hero, `${prefix}Bar-${index}`); (index < heroes.length / 2 ? friendly : enemy).add(bar.root); return bar; }); return { bars, rows: heroes.map((hero, index) => row(hero, { ...rowOptions, id: `${prefix}Row-${index}` })), friendly, enemy }; }
 function wirePlayerRoster(h, card, roster, accountForIndex) { h.attach(roster.friendly); h.attach(roster.enemy); roster.bars.forEach((bar) => h.evaluate(bar.root)); roster.rows.forEach((player, index) => { h.evaluate(player.root); h.on(player.mainContents, () => setProfileAccount(card, accountForIndex(index))); }); }
+function scoreboard() {
+  const root = new Panel('CitadelPostGameScoreboardNew', { id: 'Scoreboard' });
+  const players = root.add(new Panel('Panel', { classes: ['ScoreboardScrollContainer'] })).add(new Panel('Panel', { id: 'TeamPlayers' }));
+  return {
+    root,
+    addRow(account, options = {}) {
+      const container = players.add(new Panel('Panel', { classes: ['Player'] })).add(new Panel('Panel', { classes: ['PlayerRow'] }))
+        .add(new Panel('Panel', { classes: ['PlayerInfoContainer'] })).add(new Panel('Panel', { classes: ['PlayerNameContainer'] }));
+      const attributes = options.attribute === undefined ? {} : { accountid: options.attribute };
+      const name = container.add(new Panel('CitadelUserName', { id: 'PlayerName', classes: ['ShowRankBarebonesScoreboardName'], attributes }));
+      if (account !== undefined) name.accountid = account;
+      name.add(new Panel('Label', { text: `Player ${account}` }));
+      return name;
+    },
+  };
+}
 
 function harness(options = {}) {
   const scheduled = [], events = [], handlers = new Map(), dollars = [], openedUrls = [], openedProfiles = [], copiedAccounts = [], closedContexts = [], nativeContextDismissals = [], trace = [];
@@ -2007,6 +2023,45 @@ const regressions = [
     captureBaseline('baseline.missing-shared-tick', h);
     assert.strictEqual(hideoutReads, 1, 'one shared tick uses one hideout snapshot for all twelve records');
     h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['scoreboard.name-opens-clicked-row-profile', () => {
+    const h = harness(), board = scoreboard();
+    const first = board.addRow('1001'), bot = board.addRow('0'), garbage = board.addRow('12x');
+    const dollar = h.evaluate(board.root);
+    assert.strictEqual(typeof board.root.ShowRankBarebonesScoreboardBind, 'function', 'scoreboard exports its guarded bind handler');
+    assert.strictEqual(h.pending(), 0, 'scoreboard load schedules nothing');
+    board.root.ShowRankBarebonesScoreboardBind();
+    assert.strictEqual(h.pending(), 0, 'binding schedules nothing');
+    assert.ok(first.classes.has('ShowRankBarebonesScoreboardLink'), 'a real account gets the link affordance');
+    assert.ok(!bot.classes.has('ShowRankBarebonesScoreboardLink') && !garbage.classes.has('ShowRankBarebonesScoreboardLink'), 'bots and invalid ids get no affordance');
+    first.panelEvents.onactivate();
+    assert.deepStrictEqual(h.openedProfiles, [1001], 'click opens the clicked row account');
+    first.accountid = '2002';
+    first.panelEvents.onactivate();
+    assert.deepStrictEqual(h.openedProfiles, [1001, 2002], 'account is read at click time, not bind time');
+    bot.panelEvents.onactivate(); garbage.panelEvents.onactivate();
+    assert.deepStrictEqual(h.openedProfiles, [1001, 2002], 'bots and invalid ids never navigate');
+    const late = board.addRow('3003');
+    assert.strictEqual(late.panelEvents.onactivate, undefined, 'a row created later is not bound yet');
+    board.root.ShowRankBarebonesScoreboardBind();
+    late.panelEvents.onactivate();
+    assert.deepStrictEqual(h.openedProfiles, [1001, 2002, 3003], 'the next hover binds late rows');
+    first.valid = false;
+    assert.doesNotThrow(() => first.panelEvents.onactivate(), 'a destroyed name panel is ignored');
+    assert.deepStrictEqual(h.openedProfiles, [1001, 2002, 3003], 'a destroyed name panel never navigates');
+    assert.doesNotThrow(() => board.root.ShowRankBarebonesScoreboardBind(), 'binding skips destroyed panels');
+    assert.ok(dollar);
+  }],
+  ['scoreboard.attribute-fallback-rejects-conflict', () => {
+    const h = harness(), board = scoreboard();
+    const attributeOnly = board.addRow(undefined, { attribute: '4004' });
+    const conflict = board.addRow('5005', { attribute: '6006' });
+    h.evaluate(board.root);
+    board.root.ShowRankBarebonesScoreboardBind();
+    attributeOnly.panelEvents.onactivate();
+    conflict.panelEvents.onactivate();
+    assert.deepStrictEqual(h.openedProfiles, [4004], 'attribute is a fallback; conflicting evidence never navigates');
+    assert.ok(!conflict.classes.has('ShowRankBarebonesScoreboardLink'), 'conflicting evidence gets no affordance');
   }],
 ];
 const regressionFailures = [];

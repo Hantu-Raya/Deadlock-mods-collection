@@ -102,6 +102,8 @@
     var PARTY_ACTIVE_CLASS = "ShowRankBarebonesPartyActive";
     var PARTY_SIZE_CLASS_PREFIX = "ShowRankBarebonesPartyAtLeast";
     var PARTY_COLOR_CLASS_PREFIX = "ShowRankBarebonesPartyColor";
+    var SCOREBOARD_NAME_CLASS = "ShowRankBarebonesScoreboardName";
+    var SCOREBOARD_LINK_CLASS = "ShowRankBarebonesScoreboardLink";
     var root = $.GetContextPanel();
     var state;
     var partyBridge = null;
@@ -458,8 +460,7 @@
             return false;
         }
     }
-    function openPlayerProfile(record) {
-        var account = resolveProfileAccount(record);
+    function showAccountProfile(account) {
         if (!account) {
             return false;
         }
@@ -468,6 +469,58 @@
             return true;
         } catch (ignore) {
             return false;
+        }
+    }
+    function openPlayerProfile(record) {
+        return showAccountProfile(resolveProfileAccount(record));
+    }
+    // The scoreboard sets each CitadelUserName from its row's account (0 for bots);
+    // the native `accountid` getter is primary, the XML attribute only a fallback.
+    function scoreboardNameAccount(name) {
+        var native = null;
+        var attribute;
+        if (!isValid(name)) {
+            return null;
+        }
+        try {
+            native = name.accountid;
+        } catch (ignore) {
+            native = null;
+        }
+        native = typeof native === "number" ? String(native) : (typeof native === "string" ? native : "");
+        attribute = readAttribute(name, "accountid") || "";
+        if (native && attribute && native !== attribute) {
+            return null;
+        }
+        return canonicalAccountOrNull(native || attribute);
+    }
+    function bindScoreboardName(name) {
+        var linked = !!scoreboardNameAccount(name);
+        try {
+            if (linked !== name.BHasClass(SCOREBOARD_LINK_CLASS)) {
+                if (linked) {
+                    name.AddClass(SCOREBOARD_LINK_CLASS);
+                } else {
+                    name.RemoveClass(SCOREBOARD_LINK_CLASS);
+                }
+            }
+            name.SetPanelEvent("onactivate", function () {
+                showAccountProfile(scoreboardNameAccount(name));
+            });
+        } catch (ignore) {}
+    }
+    function bindScoreboardNames(board) {
+        var names;
+        var index;
+        try {
+            names = board.FindChildrenWithClassTraverse(SCOREBOARD_NAME_CLASS);
+        } catch (ignore) {
+            return;
+        }
+        for (index = 0; names && index < names.length; index += 1) {
+            if (isValid(names[index])) {
+                bindScoreboardName(names[index]);
+            }
         }
     }
     function copyAccountId(record) {
@@ -2823,6 +2876,10 @@
             schedule(0, function () {
                 resetEscapePassAfterClose(root);
             });
+        };
+    } else if (isValid(root) && root.paneltype === "CitadelPostGameScoreboardNew") {
+        root.ShowRankBarebonesScoreboardBind = function () {
+            bindScoreboardNames(root);
         };
     }
 }

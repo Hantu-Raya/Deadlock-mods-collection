@@ -31,6 +31,7 @@ $requiredSourceAssets = @(
     'panorama/layout/citadel_hud_top_bar_player.xml',
     'panorama/layout/hud_escape_menu.xml',
     'panorama/layout/players_list_entry.xml',
+    'panorama/layout/post_game/citadel_db_post_game_scoreboard_new.xml',
     'panorama/scripts/showrank_barebones.js',
     'panorama/styles/showrank_barebones_topbar.css'
 )
@@ -42,6 +43,7 @@ $requiredCompiledAssets = @(
     'panorama/layout/citadel_hud_top_bar_player.vxml_c',
     'panorama/layout/hud_escape_menu.vxml_c',
     'panorama/layout/players_list_entry.vxml_c',
+    'panorama/layout/post_game/citadel_db_post_game_scoreboard_new.vxml_c',
     'panorama/scripts/showrank_barebones.vjs_c',
     'panorama/styles/showrank_barebones_topbar.vcss_c'
 )
@@ -222,6 +224,7 @@ function Invoke-BarebonesClosureMinification {
             'ShowRankBarebonesRankHistoryOn',
             'ShowRankBarebonesRankHistoryOff',
             'ShowRankBarebonesRankHistoryGroup',
+            'ShowRankBarebonesScoreboardBind',
             'DLRANKH1:',
             'DLPLAY1:'
         )) {

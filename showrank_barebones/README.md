@@ -20,6 +20,10 @@ Opening a profile keeps the stock match history. When match history fails to loa
 
 Below the player's name and avatar, a hexagon radar compares the viewed player with the community over the last 30 days of ranked and standard matches. Each axis is where the player's average sits among community values (50 = typical): Damage Dealer (damage per minute), Farming (net worth per minute), Tank (damage taken per minute, which also rises when feeding), Support (healing per minute), Pusher (objective damage per minute) and Early Impact (net worth and kills + assists at 10:00). The highest axis is highlighted. It describes activity, not skill.
 
+## Scoreboard profile links
+
+On the post-game and match-details scoreboard, clicking a player's name opens that player's profile. Hovering the name underlines it. Bots have no link. The account comes from the scoreboard's own name panel at click time, so a row reused for another match opens the right player.
+
 ## Source ownership
 
 The comparison implementation lives in `profile_stats_community/panorama/scripts/profile_stats_community.js` and `profile_stats_community/panorama/styles/profile_stats_community.css`. Its private viewed-profile identity policy lives in `scripts/viewed-profile-identity-policy.js`. The barebones runtime and stylesheet contain host placeholders. `scripts/profile-stats-community-composition.js` resolves them in tests and in the staged build. Do not copy the canonical implementation back into the barebones files.
