@@ -215,7 +215,15 @@ function Invoke-BarebonesClosureMinification {
             'ShowRankBarebonesCopyAccount',
             'ShowRankBarebonesEscapeOpen',
             'ShowRankBarebonesEscapeOut',
-            'ShowRankBarebonesMissingWindowExpired'
+            'ShowRankBarebonesMissingWindowExpired',
+            'ShowRankBarebonesPartyBridge',
+            'ShowRankBarebonesPartyStack',
+            'DLPARTY1:',
+            'ShowRankBarebonesRankHistoryOn',
+            'ShowRankBarebonesRankHistoryOff',
+            'ShowRankBarebonesRankHistoryGroup',
+            'DLRANKH1:',
+            'DLPLAY1:'
         )) {
             if (-not (Select-String -LiteralPath $minifiedPath -Pattern $publicFragment -SimpleMatch -Quiet)) {
                 throw "Closure Compiler output is missing required public fragment: $publicFragment"

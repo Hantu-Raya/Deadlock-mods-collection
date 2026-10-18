@@ -17,6 +17,14 @@
 				<Label class="PlayerHero" text="#Citadel_Player_Level_HeroLevel" />
 			</Panel>
 			<Image id="ShowRankBarebonesPlayerListRankImage" class="ShowRankBarebonesPlayerListRankImage" scaling="stretch-to-fit-preserve-aspect" visible="false" hittest="false" />
+			<Panel id="ShowRankBarebonesPartyStack" class="ShowRankBarebonesPartyStack" hittest="false" hittestchildren="false">
+				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon1" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
+				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon2" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
+				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon3" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
+				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon4" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
+				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon5" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
+				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon6" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
+			</Panel>
 			<Label id="ShowRankBarebonesRowHero" text="{g:citadel_hero_name:hero_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
 		</Panel>
 	</CitadelPlayersListEntry>

@@ -28,6 +28,8 @@ class Panel {
       children: [],
       parent: null,
       images: [],
+      urls: [],
+      htmlEvents: Object.create(null),
       panelEvents: Object.create(null),
       _work: null,
       beforeIsValid: options.beforeIsValid || null,
@@ -88,6 +90,11 @@ class Panel {
     if (!this.valid) throw new Error(`invalid image ${this.id}`);
     this.images.push(url);
   }
+  SetURL(url) {
+    recordPanelCall(this, 'SetURL', [url]);
+    if (!this.valid) throw new Error(`invalid HTML panel ${this.id}`);
+    this.urls.push(url);
+  }
   DeleteAsync() {
     recordPanelCall(this, 'DeleteAsync', []);
     this.valid = false;
@@ -119,6 +126,7 @@ function createWork() {
     FindChildTraverse: 0,
     FindChildrenWithClassTraverse: 0,
     SetImage: 0,
+    SetURL: 0,
     AddClass: 0,
     RemoveClass: 0,
     DeleteAsync: 0,
@@ -142,7 +150,23 @@ function profilePage(account, options = {}) {
   const profileInfo = root.add(new Panel('Panel', { id: 'ProfileInfo' }));
   const witness = profileInfo.add(new Panel('Label', { id: 'ShowRankBarebonesProfilePageAccount', text: options.witness === undefined ? account : options.witness }));
   const image = profileInfo.add(new Panel('Panel', { id: 'ShowRankBarebonesProfilePageRankHost' })).add(new Panel('Image', { id: 'ShowRankBarebonesProfilePageRankImage', valid: options.imageValid, visible: options.imageVisible }));
-  return { root, witness, image };
+  if (!options.rankHistory && !options.playstyle) return { root, witness, image };
+  root.classes.add('PageVisible');
+  const parts = { root, witness, image };
+  if (options.playstyle) {
+    const playHost = root.add(new Panel('Panel', { id: 'ShowRankBarebonesPlaystyle' }));
+    parts.playHost = playHost;
+    parts.playStatus = playHost.add(new Panel('Label', { id: 'ShowRankBarebonesPlaystyleStatus', text: '' }));
+    parts.playChart = playHost.add(new Panel('CitadelHTMLPanel', { id: 'ShowRankBarebonesPlaystyleChart' }));
+  }
+  if (!options.rankHistory) return parts;
+  const rightPanel = root.add(new Panel('Panel', { id: 'RightPanelMock', classes: ['RightPanel'] }));
+  const asyncHistory = rightPanel.add(new Panel('AsyncDataPanel', { id: 'AsyncHistoryMock', classes: ['AsyncMatchHistory', options.asyncState || 'AsyncLoadingState'] }));
+  const host = rightPanel.add(new Panel('Panel', { id: 'ShowRankBarebonesRankHistory' }));
+  const status = host.add(new Panel('Label', { id: 'ShowRankBarebonesRankHistoryStatus', text: '' }));
+  const groups = Object.fromEntries([1, 5, 10, 25].map((size) => [size, host.add(new Panel('Button', { id: `ShowRankBarebonesRankHistoryGroup${size}` }))]));
+  const chart = host.add(new Panel('CitadelHTMLPanel', { id: 'ShowRankBarebonesRankHistoryChart' }));
+  return { ...parts, asyncHistory, host, status, groups, chart };
 }
 function setProfilePageAccount(page, account) { page.witness.text = account; page.root.attributes.accountid = account; delete page.root.attributes.steamid; }
 function topbar(hero, id = `Topbar-${hero}`) {
@@ -151,12 +175,12 @@ function topbar(hero, id = `Topbar-${hero}`) {
   const image = root.add(new Panel('Panel', { id: 'HeroContents' })).add(new Panel('Image', { id: 'ShowRankBarebonesTopbarRankImage', visible: false }));
   return { root, heroLabel, image };
 }
-function row(hero, options = {}) { const root = new Panel('CitadelPlayersListEntry', { id: options.id || `Row-${hero}`, classes: ['ShowRankBarebonesPlayerRow'] }); const mainContents = root.add(new Panel('Panel', { id: 'MainContents', valid: options.mainValid })); const heroLabel = mainContents.add(new Panel('Label', { id: 'ShowRankBarebonesRowHero', text: hero })); const image = mainContents.add(new Panel('Image', { id: 'ShowRankBarebonesPlayerListRankImage', visible: false })); return { root, mainContents, heroLabel, image }; }
-function escape() { const root = new Panel('CitadelHudEscapeMenu', { id: 'Escape' }); return { root, playersTab: root.add(new Panel('TabButton', { id: 'PlayersTab' })) }; }
+function row(hero, options = {}) { const root = new Panel('CitadelPlayersListEntry', { id: options.id || `Row-${hero}`, classes: ['ShowRankBarebonesPlayerRow'] }); const mainContents = root.add(new Panel('Panel', { id: 'MainContents', valid: options.mainValid })); const heroLabel = mainContents.add(new Panel('Label', { id: 'ShowRankBarebonesRowHero', text: hero })); const image = mainContents.add(new Panel('Image', { id: 'ShowRankBarebonesPlayerListRankImage', visible: false })); const stack = options.party ? mainContents.add(new Panel('Panel', { id: 'ShowRankBarebonesPartyStack', classes: ['ShowRankBarebonesPartyStack'] })) : null; return { root, mainContents, heroLabel, image, stack }; }
+function escape(options = {}) { const root = new Panel('CitadelHudEscapeMenu', { id: 'Escape' }); const playersTab = root.add(new Panel('TabButton', { id: 'PlayersTab' })); const bridge = options.bridge ? root.add(new Panel('CitadelHTMLPanel', { id: 'ShowRankBarebonesPartyBridge', visible: false })) : null; return { root, playersTab, bridge }; }
 function addContextRow(parent, id, text) { const rowPanel = parent.add(new Panel('Panel', { id, classes: ['MenuRow'] })); return rowPanel.add(new Panel('TextButton', { id: 'MenuButton', text })); }
 function contextMenu(card) { const root = new Panel('CitadelContextMenuPlayer', { id: 'PersonalContextMenu' }); root.add(card.root); const options = root.add(new Panel('Panel', { id: 'MenuOptionsPanel' })); const statlockerButton = addContextRow(options, 'ShowRankBarebonesStatlockerRow', 'Statlocker Profile'); const copyButton = addContextRow(options, 'ShowRankBarebonesCopyAccountRow', 'Copy Account ID'); const playerProfileButton = addContextRow(root, 'ProfileStatsCommunityPlayerProfileRow', 'Player Profile'); return { root, statlockerButton, copyButton, playerProfileButton }; }
 const STANDARD_HEROES = ['haze', 'infernus', 'vindicta', 'abrams', 'bebop', 'dynamo', 'kelvin', 'lash', 'mcginnis', 'mo_and_krill', 'paradox', 'pocket'];
-function playerRoster(heroes, prefix = '') { const friendly = new Panel('CitadelHudTopBarTeam', { id: 'TeamFriendly' }); const enemy = new Panel('CitadelHudTopBarTeam', { id: 'TeamEnemy' }); const bars = heroes.map((hero, index) => { const bar = topbar(hero, `${prefix}Bar-${index}`); (index < heroes.length / 2 ? friendly : enemy).add(bar.root); return bar; }); return { bars, rows: heroes.map((hero, index) => row(hero, { id: `${prefix}Row-${index}` })), friendly, enemy }; }
+function playerRoster(heroes, prefix = '', rowOptions = {}) { const friendly = new Panel('CitadelHudTopBarTeam', { id: 'TeamFriendly' }); const enemy = new Panel('CitadelHudTopBarTeam', { id: 'TeamEnemy' }); const bars = heroes.map((hero, index) => { const bar = topbar(hero, `${prefix}Bar-${index}`); (index < heroes.length / 2 ? friendly : enemy).add(bar.root); return bar; }); return { bars, rows: heroes.map((hero, index) => row(hero, { ...rowOptions, id: `${prefix}Row-${index}` })), friendly, enemy }; }
 function wirePlayerRoster(h, card, roster, accountForIndex) { h.attach(roster.friendly); h.attach(roster.enemy); roster.bars.forEach((bar) => h.evaluate(bar.root)); roster.rows.forEach((player, index) => { h.evaluate(player.root); h.on(player.mainContents, () => setProfileAccount(card, accountForIndex(index))); }); }
 
 function harness(options = {}) {
@@ -271,6 +295,7 @@ function harness(options = {}) {
         Schedule: (delay, callback) => enqueue(delay, callback),
         DispatchEvent: dispatch,
         CreatePanel: (type, parent, id) => options.createPanel ? options.createPanel(type, parent, id) : parent.add(new Panel(type, { id })),
+        RegisterEventHandler: (name, panel, callback) => { assert.ok(panel instanceof Panel, 'HTML events register on a local panel'); panel.htmlEvents[name] = callback; },
       };
       dollars.push(dollar);
       vm.runInNewContext(source, {
@@ -1235,7 +1260,7 @@ for (const playerCount of [6, 12]) {
   );
   assertTopbarEvidenceBudget(
     delayedWork,
-    { heroReads: 24, rowHeroReads: 48, textReads: 120, findChild: 427, getParent: 157 },
+    { heroReads: 24, rowHeroReads: 48, textReads: 120, findChild: 429, getParent: 157 },
     'delayed twelve-player pass',
   );
   const delayedScans = rootRosterScans(delayedWork);
@@ -1274,7 +1299,7 @@ for (const playerCount of [6, 12]) {
   );
   assertTopbarEvidenceBudget(
     completedWork,
-    { heroReads: 24, rowHeroReads: 48, textReads: 120, findChild: 427, getParent: 157 },
+    { heroReads: 24, rowHeroReads: 48, textReads: 120, findChild: 429, getParent: 157 },
     'complete twelve-player pass',
   );
   const completedRoster = h.documentRoot.__showrank_barebones_state_v1.completedRoster;
@@ -1500,6 +1525,285 @@ for (const playerCount of [6, 12]) {
 
 {
   const h = harness(); const bar = topbar('haze'), menu = escape(); h.evaluate(bar.root); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); assert.ok(h.drain() <= 9, 'missing rows, late attachment, and final cleanup complete within a 16.25-second bound'); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'missing rows leave stale ranks cleared');
+}
+// Rank History. Failure modes: auto-opening over a loaded history; missing a late failure; keeping an old
+// account's chart after a profile change or page leave; stale, foreign or malformed status titles revealing a
+// chart; a chart that never answers; group buttons refetching the wrong account; a watcher that never stops.
+const RANK_HISTORY_URL = 'https://hantu-raya.github.io/deadlock-stats-bridge/rank-history.html';
+function rankHistoryPage(options = {}) {
+  const h = harness(); const page = profilePage(options.account || '487348881', { rankHistory: true, ...options });
+  const dollar = h.evaluate(page.root);
+  const state = (name) => page.root.classes.has(`ShowRankBarebonesRankHistory${name}`);
+  return {
+    h, page, dollar, state,
+    chartUrls: () => page.chart.urls.slice(),
+    lastRequest() {
+      const url = new URL(page.chart.urls.at(-1));
+      assert.strictEqual(`${url.origin}${url.pathname}`, RANK_HISTORY_URL, 'the chart loads only the rank-history page');
+      return url;
+    },
+    fire(name, value) { page.chart.htmlEvents[name](page.chart, value); },
+    title(body) { return `DLRANKH1:${JSON.stringify({ v: 1, ...body })}`; },
+    setAsync(stateClass) { ['AsyncLoadingState', 'AsyncSuccessState', 'AsyncFailureState'].forEach((name) => page.asyncHistory.classes.delete(name)); page.asyncHistory.classes.add(stateClass); },
+  };
+}
+{
+  const r = rankHistoryPage({ asyncState: 'AsyncLoadingState' });
+  r.h.advance(1); r.setAsync('AsyncSuccessState'); r.h.advance(3);
+  assert.deepStrictEqual(r.chartUrls(), [], 'a loaded match history never auto-opens Rank History');
+  assert.strictEqual(r.state('On') || r.state('Fallback'), false);
+  assert.strictEqual(r.h.pending(), 1, 'once history loads with Rank History closed, only the slow sentinel remains');
+  r.page.root.ShowRankBarebonesRankHistoryOn();
+  assert.strictEqual(r.state('On'), true, 'the tab selects Rank History through an owned class');
+  const first = r.lastRequest();
+  assert.deepStrictEqual(Object.fromEntries(first.searchParams), { protocol: '1', request: first.searchParams.get('request'), account_id: '487348881', group: '5' }, 'manual open requests the viewed account with five-game groups');
+  assert.ok(r.page.groups[5].classes.has('ShowRankBarebonesRankHistorySelected'), 'the default group button is selected');
+  assert.strictEqual(r.page.status.text, 'LOADING RANK HISTORY');
+  r.fire('HTMLTitle', 'Deadlock Rank History');
+  r.fire('HTMLTitle', r.title({ request: 'stale', kind: 'ready', points: 3 }));
+  r.fire('HTMLURLChanged', `https://example.invalid/rank-history.html?x#${encodeURIComponent(r.title({ request: first.searchParams.get('request'), kind: 'ready', points: 3 }))}`);
+  assert.strictEqual(r.page.host.classes.has('ShowRankBarebonesChartLoaded'), false, 'normal, stale and foreign titles do not reveal the chart');
+  r.fire('HTMLURLChanged', `${r.page.chart.urls.at(-1)}#${encodeURIComponent(r.title({ request: first.searchParams.get('request'), kind: 'ready', points: 3 }))}`);
+  assert.strictEqual(r.page.host.classes.has('ShowRankBarebonesChartLoaded'), true, 'the current status reveals the chart');
+  assert.strictEqual(r.page.status.text, '');
+  assert.notStrictEqual(r.page.chart.urls.at(-1), 'about:blank', 'a ready chart stays loaded while shown');
+  r.page.root.ShowRankBarebonesRankHistoryGroup(10);
+  assert.strictEqual(r.lastRequest().searchParams.get('group'), '10');
+  assert.ok(r.page.groups[10].classes.has('ShowRankBarebonesRankHistorySelected') && !r.page.groups[5].classes.has('ShowRankBarebonesRankHistorySelected'), 'the selected group moves');
+  assert.strictEqual(r.page.host.classes.has('ShowRankBarebonesChartLoaded'), false, 'a group change hides the old chart until its status arrives');
+  const before = r.chartUrls().length;
+  r.page.root.ShowRankBarebonesRankHistoryGroup(3);
+  r.page.root.ShowRankBarebonesRankHistoryGroup(10);
+  assert.strictEqual(r.chartUrls().length, before, 'invalid or unchanged groups do not reload');
+  r.page.root.ShowRankBarebonesRankHistoryOff();
+  assert.strictEqual(r.state('On'), false, 'a stock tab exits Rank History');
+  assert.strictEqual(r.page.chart.urls.at(-1), 'about:blank', 'closing unloads the chart');
+  r.h.advance(2);
+  assert.strictEqual(r.h.pending(), 1, 'closing returns to the slow sentinel');
+}
+{
+  const r = rankHistoryPage({ asyncState: 'AsyncLoadingState' });
+  r.h.advance(12);
+  assert.deepStrictEqual(r.chartUrls(), [], 'loading history does not open the chart');
+  r.setAsync('AsyncFailureState'); r.h.advance(0.5);
+  assert.strictEqual(r.state('Fallback'), true, 'a late match-history failure auto-opens Rank History');
+  const nonce = r.lastRequest().searchParams.get('request');
+  r.fire('HTMLTitle', r.title({ request: nonce, kind: 'error', code: 'rate_limit' }));
+  assert.strictEqual(r.page.host.classes.has('ShowRankBarebonesChartLoaded'), true, 'page-rendered error text is shown');
+  r.setAsync('AsyncSuccessState'); r.h.advance(0.5);
+  assert.strictEqual(r.state('Fallback'), false, 'recovered match history removes the automatic fallback');
+  assert.strictEqual(r.page.chart.urls.at(-1), 'about:blank');
+  r.h.advance(2);
+  assert.strictEqual(r.h.pending(), 1);
+}
+{
+  const r = rankHistoryPage({ asyncState: 'AsyncFailureState' });
+  r.h.advance(0.5);
+  assert.strictEqual(r.state('Fallback'), true);
+  r.h.advance(30);
+  assert.strictEqual(r.page.status.text, 'RANK HISTORY UNAVAILABLE', 'a chart that never answers times out visibly');
+  r.page.root.classes.delete('PageVisible'); r.h.advance(0.5);
+  assert.strictEqual(r.state('Fallback'), false, 'leaving the page clears the fallback');
+  assert.strictEqual(r.page.chart.urls.at(-1), 'about:blank', 'leaving the page unloads the chart');
+  r.h.advance(2); r.h.resetWork();
+  r.h.advance(10);
+  const hidden = r.h.snapshotWork();
+  assert.ok(hidden.callbacks <= 5, `a hidden page runs only the 2-second sentinel: ${hidden.callbacks}`);
+  assert.deepStrictEqual(hidden.panelCalls.text, {}, 'the hidden sentinel reads no account labels');
+  assert.strictEqual(hidden.panelCalls.SetURL, 0);
+  const loads = r.chartUrls().filter((url) => url !== 'about:blank').length;
+  // Return by keyboard/back: no hover, no tab click. The page reappears loading, then fails later.
+  setProfilePageAccount(r.page, '1424351890');
+  r.setAsync('AsyncLoadingState'); r.page.root.classes.add('PageVisible'); r.h.advance(2.5);
+  assert.strictEqual(r.state('Fallback'), false, 'a re-entered page that is still loading does not open the chart');
+  r.h.advance(6); r.setAsync('AsyncFailureState'); r.h.advance(0.5);
+  assert.strictEqual(r.state('Fallback'), true, 're-entry without pointer activity still catches the later failure');
+  assert.strictEqual(r.lastRequest().searchParams.get('account_id'), '1424351890', 'the chart follows the newly viewed account');
+  assert.strictEqual(r.chartUrls().filter((url) => url !== 'about:blank').length, loads + 1);
+  r.page.root.classes.delete('PageVisible'); r.h.advance(30);
+  r.page.root.valid = false; r.h.advance(4);
+  assert.strictEqual(r.h.pending(), 0, 'a destroyed page stops every callback');
+}
+{
+  const r = rankHistoryPage({ asyncState: 'AsyncSuccessState' });
+  r.h.advance(1);
+  r.page.root.ShowRankBarebonesRankHistoryOn();
+  setProfilePageAccount(r.page, '1424351890'); r.h.advance(0.5);
+  assert.strictEqual(r.state('On'), false, 'a profile change drops the manual Rank History selection');
+  assert.strictEqual(r.page.chart.urls.at(-1), 'about:blank', 'the old account chart is unloaded');
+  r.page.root.ShowRankBarebonesRankHistoryOn();
+  r.page.witness.text = '999'; r.h.advance(0.5);
+  assert.strictEqual(r.state('On'), false, 'conflicting identity evidence closes the chart');
+  assert.strictEqual(r.page.chart.urls.at(-1), 'about:blank');
+  r.page.root.ShowRankBarebonesRankHistoryOn();
+  assert.strictEqual(r.state('On'), false, 'Rank History cannot open without a verified account');
+  r.h.advance(30);
+  assert.strictEqual(r.h.pending(), 1);
+}
+// Playstyle radar. Failure modes: radar disabled because Rank History panels are missing; a visible profile switch
+// (no hover, unchanged history state) keeping the old account's radar; stale/foreign titles; a page that never
+// answers; hidden pages keeping the HTML loaded; a Rank History error blanking the radar.
+const PLAYSTYLE_URL = 'https://hantu-raya.github.io/deadlock-stats-bridge/playstyle.html';
+function playRequest(page) {
+  const url = new URL(page.playChart.urls.at(-1));
+  assert.strictEqual(`${url.origin}${url.pathname}`, PLAYSTYLE_URL, 'the radar loads only the playstyle page');
+  return url;
+}
+const playTitle = (body) => `DLPLAY1:${JSON.stringify({ v: 1, ...body })}`;
+{
+  const h = harness(); const page = profilePage('487348881', { playstyle: true });
+  h.evaluate(page.root);
+  const first = playRequest(page);
+  assert.deepStrictEqual([...first.searchParams.keys()], ['protocol', 'request', 'account_id'], 'the radar request carries only protocol, nonce and account');
+  assert.strictEqual(first.searchParams.get('account_id'), '487348881', 'a page without Rank History panels still loads the radar for the verified account');
+  assert.strictEqual(page.playStatus.text, 'LOADING PLAYSTYLE');
+  page.playChart.htmlEvents.HTMLTitle(page.playChart, playTitle({ request: 'stale', kind: 'ready', axes: 6 }));
+  page.playChart.htmlEvents.HTMLTitle(page.playChart, 'Deadlock Playstyle');
+  assert.strictEqual(page.playHost.classes.has('ShowRankBarebonesChartLoaded'), false, 'stale and normal titles stay hidden');
+  page.playChart.htmlEvents.HTMLTitle(page.playChart, playTitle({ request: first.searchParams.get('request'), kind: 'ready', axes: 6 }));
+  assert.strictEqual(page.playHost.classes.has('ShowRankBarebonesChartLoaded'), true, 'the current status reveals the radar');
+  h.advance(3);
+  // Profile switch on a visible page: no hover, no history-state change.
+  setProfilePageAccount(page, '1424351890'); h.advance(2.1);
+  assert.strictEqual(playRequest(page).searchParams.get('account_id'), '1424351890', 'the sentinel notices a visible profile switch');
+  assert.strictEqual(page.playHost.classes.has('ShowRankBarebonesChartLoaded'), false, 'the old radar is hidden until the new status arrives');
+  h.advance(30);
+  assert.strictEqual(page.playStatus.text, 'PLAYSTYLE UNAVAILABLE', 'a radar page that never answers times out visibly');
+  page.root.classes.delete('PageVisible'); h.advance(2.1);
+  assert.strictEqual(page.playChart.urls.at(-1), 'about:blank', 'leaving the page unloads the radar');
+  page.root.classes.add('PageVisible'); h.advance(2.1);
+  assert.strictEqual(playRequest(page).searchParams.get('account_id'), '1424351890', 'returning reloads the radar without pointer activity');
+  page.root.valid = false; h.advance(4);
+  assert.strictEqual(h.pending(), 0);
+}
+{
+  const h = harness(); const page = profilePage('487348881', { playstyle: true, rankHistory: true, asyncState: 'AsyncFailureState' });
+  h.evaluate(page.root); h.advance(0.5);
+  const rankNonce = new URL(page.chart.urls.at(-1)).searchParams.get('request');
+  page.chart.htmlEvents.HTMLTitle(page.chart, `DLRANKH1:${JSON.stringify({ v: 1, request: rankNonce, kind: 'error', code: 'rate_limit' })}`);
+  page.chart.htmlEvents.HTMLTitle(page.chart, playTitle({ request: playRequest(page).searchParams.get('request'), kind: 'ready', axes: 6 }));
+  assert.strictEqual(page.playHost.classes.has('ShowRankBarebonesChartLoaded'), false, 'a status from the other chart cannot reveal the radar');
+  page.playChart.htmlEvents.HTMLTitle(page.playChart, playTitle({ request: playRequest(page).searchParams.get('request'), kind: 'ready', axes: 6 }));
+  assert.strictEqual(page.playHost.classes.has('ShowRankBarebonesChartLoaded'), true);
+  assert.strictEqual(page.host.classes.has('ShowRankBarebonesChartLoaded'), true, 'both charts keep independent status');
+  const playLoads = page.playChart.urls.length;
+  page.root.ShowRankBarebonesRankHistoryGroup(10);
+  assert.strictEqual(page.playChart.urls.length, playLoads, 'a Rank History group change does not reload the radar');
+  page.root.valid = false; h.advance(4);
+}
+// Party markers. Failure modes: the bridge panel can be absent (HP Colors composition) or never answer;
+// titles can be the page's normal title, stale, foreign, oversized, malformed or an error; groups can name
+// unknown, cross-team or repeated accounts; duplicate title/fragment delivery must not rewrite rows;
+// same-match reopen must not refetch; hideout must clear stacks and drop row panels.
+const PARTY_URL = 'https://hantu-raya.github.io/deadlock-stats-bridge/party.html';
+function partyMatch(options = {}) {
+  const h = harness(); const card = profile('101'), menu = escape({ bridge: options.bridge !== false });
+  const roster = playerRoster(options.heroes || STANDARD_HEROES, options.prefix || 'Party', { party: true });
+  h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
+  const dollar = h.evaluate(menu.root);
+  return {
+    h, menu, roster,
+    open() { h.documentRoot.classes.add('ShowEscapeMenu'); dollar.ShowRankBarebonesEscapeOpen(); h.advance(10); },
+    close() { h.documentRoot.classes.delete('ShowEscapeMenu'); dollar.ShowRankBarebonesEscapeOut(); h.advance(1); },
+    fire(name, value) { menu.bridge.htmlEvents[name](menu.bridge, value); },
+  };
+}
+function partyRequest(menu) {
+  const url = new URL(menu.bridge.urls.at(-1));
+  assert.strictEqual(`${url.origin}${url.pathname}`, PARTY_URL, 'party requests load only the party bridge page');
+  return url;
+}
+function partyTitle(request, body) { return typeof body === 'string' ? body : `DLPARTY1:${JSON.stringify({ v: 1, request, ...body })}`; }
+function stackState(stack) {
+  if (!stack.classes.has('ShowRankBarebonesPartyActive')) return null;
+  const colors = [0, 1, 2, 3, 4, 5].filter((index) => stack.classes.has(`ShowRankBarebonesPartyColor${index}`));
+  let size = 2;
+  while (stack.classes.has(`ShowRankBarebonesPartyAtLeast${size + 1}`)) size += 1;
+  return `${size}:${colors.join(',')}`;
+}
+{
+  const m = partyMatch(); m.open();
+  const request = partyRequest(m.menu);
+  assert.deepStrictEqual([...request.searchParams.keys()], ['protocol', 'request', 'friendly', 'enemy'], 'party request carries only protocol, nonce and team accounts');
+  assert.strictEqual(request.searchParams.get('protocol'), '1');
+  assert.strictEqual(request.searchParams.get('friendly'), '301,302,303,304,305,306', 'friendly accounts come from ancestry-proven TeamFriendly slots');
+  assert.strictEqual(request.searchParams.get('enemy'), '307,308,309,310,311,312', 'enemy accounts come from ancestry-proven TeamEnemy slots');
+  const nonce = request.searchParams.get('request');
+  assert.match(nonce, /^[A-Za-z0-9_-]{1,64}$/);
+  assert.strictEqual(m.menu.bridge.urls.length, 1, 'one bridge request per completed roster');
+  const title = partyTitle(nonce, { kind: 'ok', groups: [[307, 309, 308], [301, 303]] });
+  m.fire('HTMLTitle', 'Deadlock Party Bridge');
+  m.fire('HTMLTitle', partyTitle('stale', { kind: 'ok', groups: [[301, 302]] }));
+  m.fire('HTMLURLChanged', `https://example.invalid/party.html#${encodeURIComponent(title)}`);
+  assert.ok(m.roster.rows.every((player) => stackState(player.stack) === null), 'normal titles, stale nonces and foreign pages render nothing');
+  m.fire('HTMLURLChanged', `${m.menu.bridge.urls[0]}#${encodeURIComponent(title)}`);
+  assert.deepStrictEqual(
+    m.roster.rows.map((player) => stackState(player.stack)),
+    ['2:0', null, '2:0', null, null, null, '3:1', '3:1', '3:1', null, null, null],
+    'each group stacks one icon per member with one color per group',
+  );
+  assert.strictEqual(m.menu.bridge.urls.at(-1), 'about:blank', 'the bridge unloads after its result');
+  m.h.resetWork();
+  m.fire('HTMLTitle', title);
+  const duplicate = m.h.snapshotWork();
+  assert.strictEqual(duplicate.panelCalls.AddClass + duplicate.panelCalls.RemoveClass, 0, 'a duplicate title delivery writes no classes');
+  m.close(); m.h.resetWork(); m.open();
+  const replay = m.h.snapshotWork();
+  assert.strictEqual(m.menu.bridge.urls.length, 2, 'same-match reopen reuses the party result without a second request');
+  assert.strictEqual(replay.panelCalls.AddClass + replay.panelCalls.RemoveClass, 0, 'unchanged replay writes no stack classes');
+  assert.strictEqual(stackState(m.roster.rows[0].stack), '2:0', 'replay keeps the rendered stacks');
+  m.close();
+  m.h.documentRoot.classes.add('connectedToHideout'); m.h.evaluate(topbar('', 'PartyHideoutBar').root);
+  assert.strictEqual(m.h.documentRoot.__showrank_barebones_state_v1.party, null, 'hideout drops party state and its row panels');
+  assert.ok(m.roster.rows.every((player) => stackState(player.stack) === null), 'hideout clears every party stack');
+}
+// A reused row whose hero no longer maps to exactly one roster account must lose the previous player's stack.
+{
+  const m = partyMatch({ prefix: 'PartyReused' }); m.open();
+  const nonce = partyRequest(m.menu).searchParams.get('request');
+  m.fire('HTMLTitle', partyTitle(nonce, { kind: 'ok', groups: [[307, 309, 308], [301, 303]] }));
+  assert.strictEqual(stackState(m.roster.rows[0].stack), '2:0');
+  assert.strictEqual(stackState(m.roster.rows[6].stack), '3:1');
+  m.close();
+  m.roster.rows[0].heroLabel.text = 'calico';
+  m.roster.rows[6].heroLabel.text = STANDARD_HEROES[7];
+  m.open();
+  assert.strictEqual(m.menu.bridge.urls.filter((url) => url !== 'about:blank').length, 1, 'replay still reuses the party result');
+  assert.strictEqual(stackState(m.roster.rows[0].stack), null, 'a row now showing an unmatched hero drops the old stack');
+  assert.strictEqual(stackState(m.roster.rows[6].stack), null, 'a row now showing an ambiguous duplicate hero drops the old stack');
+  assert.strictEqual(stackState(m.roster.rows[2].stack), '2:0', 'unchanged party rows keep their stacks');
+  assert.strictEqual(stackState(m.roster.rows[7].stack), '3:1', 'the row that still owns the duplicated hero keeps its stack');
+}
+for (const [label, body, ignored] of [
+  ['cross-team group', { kind: 'ok', groups: [[301, 307]] }],
+  ['unknown account', { kind: 'ok', groups: [[301, 999]] }],
+  ['repeated account', { kind: 'ok', groups: [[301, 302], [302, 303]] }],
+  ['single member', { kind: 'ok', groups: [[301]] }],
+  ['oversized group', { kind: 'ok', groups: [[301, 302, 303, 304, 305, 306, 307]] }],
+  ['string accounts', { kind: 'ok', groups: [['301', '302']] }],
+  ['bridge error', { kind: 'error', code: 'rate_limit' }],
+  ['wrong protocol', { v: 2, kind: 'ok', groups: [[301, 302]] }, true],
+  ['oversized title', `DLPARTY1:${' '.repeat(2100)}`, true],
+  ['malformed json', 'DLPARTY1:{', true],
+]) {
+  const m = partyMatch({ prefix: `PartyBad${label.replace(/\W/g, '')}` }); m.open();
+  const firstNonce = partyRequest(m.menu).searchParams.get('request');
+  m.fire('HTMLTitle', partyTitle(firstNonce, body));
+  assert.ok(m.roster.rows.every((player) => stackState(player.stack) === null), `${label}: renders no party stack`);
+  if (ignored) {
+    assert.strictEqual(m.menu.bridge.urls.length, 1, `${label}: ignored titles keep waiting for a valid result`);
+    m.h.advance(25);
+  }
+  assert.strictEqual(m.menu.bridge.urls.at(-1), 'about:blank', `${label}: the bridge unloads after failure or timeout`);
+  m.close(); m.open();
+  assert.notStrictEqual(partyRequest(m.menu).searchParams.get('request'), firstNonce, `${label}: the next Escape opening retries with a new nonce`);
+}
+{
+  const m = partyMatch({ heroes: STANDARD_HEROES.slice(0, 6), prefix: 'PartySix' }); m.open();
+  assert.deepStrictEqual(m.menu.bridge.urls, [], 'rosters without proven six-versus-six sides send no party request');
+  const plain = partyMatch({ bridge: false, prefix: 'PartyNoBridge' }); plain.open(); plain.h.drain();
+  assert.ok(plain.roster.rows.every((player) => stackState(player.stack) === null), 'a missing bridge panel leaves ranks only');
+  assert.strictEqual(plain.h.pending(), 0, 'a missing bridge panel schedules no party timeout');
 }
 // Failure modes: stale owners must not close replacements; canceled owners must release;
 // changed row bindings must not receive old witnesses; startup must preserve newer verified renders.

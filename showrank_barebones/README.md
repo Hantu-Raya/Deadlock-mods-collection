@@ -4,6 +4,22 @@
 
 The dashboard profile page also includes `Stats vs Community` for the viewed account. The player context menu keeps StatLocker and account-copy actions, and adds `Player Profile` through the same selected-account checks. These features ship in the ShowRank package. No separate Profile Stats VPK is required.
 
+## Party stacks
+
+After the Escape scan has verified all twelve accounts and both team sides, a hidden HTML panel loads `party.html` from the `deadlock-stats-bridge` GitHub Pages site. The page reads Steam friend lists from deadlock-api and groups players who are friends on the same team. Each group member's Players row gets a stack of stock `icon_player` icons, one per group member, to the left of the rank badge. Each group gets its own color: yellow, blue, red, green, purple, then orange.
+
+This is a heuristic. Steam friends matched onto the same team by chance look like a party, and players with private friend lists on both sides are missed. No stack means "not detected", not "solo". Results stay cached for the rest of the match; hideout clears them. HP Colors v2's composed Escape menu has no party bridge, so stacks don't appear there.
+
+## Rank History
+
+The dashboard profile page has a `Rank History` tab next to `Match History` and `Showcase`. It draws the viewed player's ranked badge after each match, oldest to newest, with tier badges, tier lines and dates. `Group by` averages 1, 5, 10 or 25 games per point. The chart comes from the `rank-history.html` page on the `deadlock-stats-bridge` GitHub Pages site, which reads deadlock-api match history.
+
+Opening a profile keeps the stock match history. When match history fails to load, Rank History opens on its own in that space instead of the "FAILED TO LOAD MATCH HISTORY" text.
+
+## Playstyle radar
+
+Below the player's name and avatar, a hexagon radar compares the viewed player with the community over the last 30 days of ranked and standard matches. Each axis is where the player's average sits among community values (50 = typical): Damage Dealer (damage per minute), Farming (net worth per minute), Tank (damage taken per minute, which also rises when feeding), Support (healing per minute), Pusher (objective damage per minute) and Early Impact (net worth and kills + assists at 10:00). The highest axis is highlighted. It describes activity, not skill.
+
 ## Source ownership
 
 The comparison implementation lives in `profile_stats_community/panorama/scripts/profile_stats_community.js` and `profile_stats_community/panorama/styles/profile_stats_community.css`. Its private viewed-profile identity policy lives in `scripts/viewed-profile-identity-policy.js`. The barebones runtime and stylesheet contain host placeholders. `scripts/profile-stats-community-composition.js` resolves them in tests and in the staged build. Do not copy the canonical implementation back into the barebones files.

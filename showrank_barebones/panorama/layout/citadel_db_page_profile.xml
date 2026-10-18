@@ -95,13 +95,18 @@
 								</Panel>
 							</Panel>
 						</Panel>
+						<Panel id="ShowRankBarebonesPlaystyle" class="ShowRankBarebonesPlaystyle" hittest="false" hittestchildren="false">
+							<Label id="ShowRankBarebonesPlaystyleStatus" class="ShowRankBarebonesPlaystyleStatus" text="" />
+							<CitadelHTMLPanel id="ShowRankBarebonesPlaystyleChart" class="ShowRankBarebonesPlaystyleChart" hittest="false" acceptsfocus="false" />
+						</Panel>
 					</Panel>
 					<Panel class="RightPanel">
 						<AsyncDataPanel class="AsyncMatchHistory" state="{d:match_history_state}" error-text="#Citadel_ProfileMatchHistory_Failed">
 							<Panel id="MatchHistoryArea" class="AsyncSuccessContainer">
 								<Panel class="titleArea">
-									<Label id="matchHistoryLabel" class="smallTitle" text="#Citadel_Profile_MatchHistory" onactivate="CitadelProfileShowMatchHistoryTab( 0 )" />
-									<Label id="showcaseLabel" class="smallTitle" text="#Citadel_Profile_Showcase" onactivate="CitadelProfileShowMatchHistoryTab( 1 )" />
+									<Label id="matchHistoryLabel" class="smallTitle" text="#Citadel_Profile_MatchHistory" onactivate="CitadelProfileShowMatchHistoryTab( 0 ); if ($.GetContextPanel().ShowRankBarebonesRankHistoryOff) $.GetContextPanel().ShowRankBarebonesRankHistoryOff();" />
+									<Label id="showcaseLabel" class="smallTitle" text="#Citadel_Profile_Showcase" onactivate="CitadelProfileShowMatchHistoryTab( 1 ); if ($.GetContextPanel().ShowRankBarebonesRankHistoryOff) $.GetContextPanel().ShowRankBarebonesRankHistoryOff();" />
+									<Label id="ShowRankBarebonesRankHistoryLabel" class="smallTitle" text="Rank History" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryOn) $.GetContextPanel().ShowRankBarebonesRankHistoryOn();" />
 									<Panel id="MatchHistoryButton">
 										<Label class="smallTitle" text="#Citadel_Profile_MatchHistory_ViewAll" />
 										<Panel id="allHistoryIcon" />
@@ -114,6 +119,20 @@
 								<Panel id="ShowcaseList" />
 							</Panel>
 						</AsyncDataPanel>
+						<Panel id="ShowRankBarebonesRankHistory" class="ShowRankBarebonesRankHistory">
+							<Panel class="ShowRankBarebonesRankHistoryBar">
+								<Label class="ShowRankBarebonesRankHistoryTitle smallTitle" text="Rank History" />
+								<Panel class="ShowRankBarebonesRankHistoryGroups">
+									<Label class="ShowRankBarebonesRankHistoryGroupBy" text="Group by" />
+									<Button id="ShowRankBarebonesRankHistoryGroup1" class="ShowRankBarebonesRankHistoryGroup" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryGroup) $.GetContextPanel().ShowRankBarebonesRankHistoryGroup( 1 );"><Label text="GAME" /></Button>
+									<Button id="ShowRankBarebonesRankHistoryGroup5" class="ShowRankBarebonesRankHistoryGroup" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryGroup) $.GetContextPanel().ShowRankBarebonesRankHistoryGroup( 5 );"><Label text="5 GAMES" /></Button>
+									<Button id="ShowRankBarebonesRankHistoryGroup10" class="ShowRankBarebonesRankHistoryGroup" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryGroup) $.GetContextPanel().ShowRankBarebonesRankHistoryGroup( 10 );"><Label text="10 GAMES" /></Button>
+									<Button id="ShowRankBarebonesRankHistoryGroup25" class="ShowRankBarebonesRankHistoryGroup" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryGroup) $.GetContextPanel().ShowRankBarebonesRankHistoryGroup( 25 );"><Label text="25 GAMES" /></Button>
+								</Panel>
+								<Label id="ShowRankBarebonesRankHistoryStatus" class="ShowRankBarebonesRankHistoryStatus" text="" />
+							</Panel>
+							<CitadelHTMLPanel id="ShowRankBarebonesRankHistoryChart" class="ShowRankBarebonesRankHistoryChart" hittest="false" acceptsfocus="false" />
+						</Panel>
 						<Panel id="GamesPlayed">
 							<Panel id="StatsContent">
 								<Panel id="HeroList" />
