@@ -2689,19 +2689,62 @@
         return panelHasClass(charts.asyncPanel, "AsyncFailureState") ? "failure" :
             panelHasClass(charts.asyncPanel, "AsyncSuccessState") ? "success" : "loading";
     }
+    // Stock stats read 0 while loading, so emptiness counts only after the stats AsyncDataPanel succeeds.
+    function profileStatsState(charts) {
+        var panels;
+        if (!isValid(charts.statsPanel)) {
+            panels = findByClass(charts.page, "AsyncContents");
+            charts.statsPanel = panels && panels.length === 1 ? panels[0] : null;
+        }
+        if (!isValid(charts.gamesPlayed)) {
+            charts.gamesPlayed = findChild(charts.page, "GamesPlayedContainer");
+        }
+        if (!isValid(charts.statsPanel) || !isValid(charts.gamesPlayed)) {
+            return "missing";
+        }
+        if (!panelHasClass(charts.statsPanel, "AsyncSuccessState")) {
+            return "loading";
+        }
+        return panelHasClass(charts.gamesPlayed, "isZeroValue") ? "empty" : "filled";
+    }
     // One read of every native signal the chart controller depends on. Hidden pages read nothing else; the match
-    // history state is only watched while a Rank History chart exists ("" otherwise).
+    // history state is only watched while a Rank History chart exists ("" otherwise), and the stock stats only
+    // until this visit's VS COMMUNITY auto-open decision is made for the viewed account.
     function readProfileSnapshot(charts) {
         var active = isValid(charts.page) && panelHasClass(charts.page, "PageVisible");
+        var account = active ? resolveProfileAccount(charts.record) || "" : "";
         return {
             active: active,
-            account: active ? resolveProfileAccount(charts.record) || "" : "",
-            asyncState: !active ? "missing" : charts.rank ? profileAsyncState(charts) : ""
+            account: account,
+            asyncState: !active ? "missing" : charts.rank ? profileAsyncState(charts) : "",
+            stats: account && account !== charts.communityAccount ? profileStatsState(charts) : ""
         };
+    }
+    // Opens VS COMMUNITY once per visit and account when the loaded stock stats show no games; the user can then
+    // return to stock stats without it reopening.
+    function autoOpenCommunity(charts, snapshot) {
+        var button;
+        if (!snapshot.active) {
+            charts.communityAccount = "";
+            return;
+        }
+        if (!snapshot.stats || snapshot.stats === "loading") {
+            return;
+        }
+        charts.communityAccount = snapshot.account;
+        if (snapshot.stats !== "empty") {
+            return;
+        }
+        button = findChild(charts.page, "ProfileStatsCommunityButton", "Button");
+        if (isValid(button)) {
+            try {
+                $.DispatchEvent("Activated", button);
+            } catch (ignore) {}
+        }
     }
     // Sentinel key of a snapshot: all hidden pages share one key, visible pages combine state and account.
     function profileSnapshotKey(snapshot) {
-        return snapshot.active ? "visible|" + snapshot.asyncState + "|" + snapshot.account : "hidden";
+        return snapshot.active ? "visible|" + snapshot.asyncState + "|" + snapshot.account + "|" + snapshot.stats : "hidden";
     }
     // Applies visibility, identity and match-history state to both charts. Returns true while fast ticks are needed.
     function reconcileProfileCharts(charts, snapshot) {
@@ -2734,11 +2777,12 @@
         }
         waiting = chartWaiting(charts.rank);
         waiting = chartWaiting(charts.play) || waiting;
+        autoOpenCommunity(charts, snapshot);
         if (!active) {
             return false;
         }
-        // Loading match history and waiting charts tick fast; an unresolved account only briefly.
-        return waiting || !!account && asyncState === "loading" ||
+        // Loading match history or stats and waiting charts tick fast; an unresolved account only briefly.
+        return waiting || !!account && (asyncState === "loading" || snapshot.stats === "loading") ||
             !account && charts.idleTicks++ < PROFILE_CHART_IDLE_TICKS;
     }
     // Fast 0.5 s ticks while needed; otherwise a 2 s sentinel compares visibility, match-history state and the
@@ -2794,6 +2838,9 @@
             rank: createProfileChart(page, "DLRANKH1:", "ShowRankBarebonesRankHistory", "rank-history.html", "RANK HISTORY"),
             play: createProfileChart(page, "DLPLAY1:", "ShowRankBarebonesPlaystyle", "playstyle.html", "PLAYSTYLE"),
             asyncPanel: null,
+            statsPanel: null,
+            gamesPlayed: null,
+            communityAccount: "",
             buttons: [],
             manual: false,
             mode: "",

@@ -104,8 +104,8 @@
 						<AsyncDataPanel class="AsyncMatchHistory" state="{d:match_history_state}" error-text="#Citadel_ProfileMatchHistory_Failed">
 							<Panel id="MatchHistoryArea" class="AsyncSuccessContainer">
 								<Panel class="titleArea">
-									<Label id="matchHistoryLabel" class="smallTitle" text="#Citadel_Profile_MatchHistory" onactivate="CitadelProfileShowMatchHistoryTab( 0 ); if ($.GetContextPanel().ShowRankBarebonesRankHistoryOff) $.GetContextPanel().ShowRankBarebonesRankHistoryOff();" />
-									<Label id="showcaseLabel" class="smallTitle" text="#Citadel_Profile_Showcase" onactivate="CitadelProfileShowMatchHistoryTab( 1 ); if ($.GetContextPanel().ShowRankBarebonesRankHistoryOff) $.GetContextPanel().ShowRankBarebonesRankHistoryOff();" />
+									<Label id="matchHistoryLabel" class="smallTitle" text="#Citadel_Profile_MatchHistory" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryOff) $.GetContextPanel().ShowRankBarebonesRankHistoryOff(); $.DispatchEvent(&apos;CitadelProfileShowMatchHistoryTab&apos;, $(&apos;#matchHistoryLabel&apos;), 0);" />
+									<Label id="showcaseLabel" class="smallTitle" text="#Citadel_Profile_Showcase" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryOff) $.GetContextPanel().ShowRankBarebonesRankHistoryOff(); $.DispatchEvent(&apos;CitadelProfileShowMatchHistoryTab&apos;, $(&apos;#showcaseLabel&apos;), 1);" />
 									<Label id="ShowRankBarebonesRankHistoryLabel" class="smallTitle" text="Rank History" onactivate="if ($.GetContextPanel().ShowRankBarebonesRankHistoryOn) $.GetContextPanel().ShowRankBarebonesRankHistoryOn();" />
 									<Panel id="MatchHistoryButton">
 										<Label class="smallTitle" text="#Citadel_Profile_MatchHistory_ViewAll" />

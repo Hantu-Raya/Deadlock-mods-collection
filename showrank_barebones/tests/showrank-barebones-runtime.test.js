@@ -159,6 +159,12 @@ function profilePage(account, options = {}) {
     parts.playStatus = playHost.add(new Panel('Label', { id: 'ShowRankBarebonesPlaystyleStatus', text: '' }));
     parts.playChart = playHost.add(new Panel('CitadelHTMLPanel', { id: 'ShowRankBarebonesPlaystyleChart' }));
   }
+  if (options.stats) {
+    const statsAsync = root.add(new Panel('AsyncDataPanel', { id: 'StatsAsyncMock', classes: ['AsyncContents', options.stats === 'loading' ? 'AsyncLoadingState' : 'AsyncSuccessState'] }));
+    parts.statsAsync = statsAsync;
+    parts.communityButton = statsAsync.add(new Panel('Button', { id: 'ProfileStatsCommunityButton' }));
+    parts.gamesPlayed = statsAsync.add(new Panel('Panel', { id: 'GamesPlayedContainer', classes: ['TextStat', ...(options.stats === 'filled' ? [] : ['isZeroValue'])] }));
+  }
   if (!options.rankHistory) return parts;
   const rightPanel = root.add(new Panel('Panel', { id: 'RightPanelMock', classes: ['RightPanel'] }));
   const asyncHistory = rightPanel.add(new Panel('AsyncDataPanel', { id: 'AsyncHistoryMock', classes: ['AsyncMatchHistory', options.asyncState || 'AsyncLoadingState'] }));
@@ -1688,6 +1694,56 @@ function rankHistoryPage(options = {}) {
   assert.strictEqual(r.state('On'), false, 'Rank History cannot open without a verified account');
   r.h.advance(30);
   assert.strictEqual(r.h.pending(), 1);
+}
+// VS COMMUNITY auto-open. Failure modes: opening before stock stats load (every profile reads 0 while loading);
+// opening a profile that has games; reopening every tick and fighting a user who went back to stock; missing a
+// later empty profile or a return visit; reading stats forever on a settled page.
+{
+  const opens = (r) => r.h.events.filter((panel) => panel === r.page.communityButton).length;
+  const r = rankHistoryPage({ asyncState: 'AsyncFailureState', stats: 'loading' });
+  r.h.advance(3);
+  assert.strictEqual(opens(r), 0, 'loading stats never open VS COMMUNITY');
+  r.page.statsAsync.classes.delete('AsyncLoadingState'); r.page.statsAsync.classes.add('AsyncSuccessState');
+  r.h.advance(2.5);
+  assert.strictEqual(opens(r), 1, 'loaded empty stats open VS COMMUNITY once');
+  r.h.advance(10);
+  assert.strictEqual(opens(r), 1, 'it never reopens on the same visit, so the user can go back to stock');
+  r.h.resetWork(); r.h.advance(4);
+  assert.strictEqual(r.h.snapshotWork().queries.filter((query) => query.id === 'StatsAsyncMock' || query.id === 'GamesPlayedContainer').length, 0, 'a decided visit reads no stats');
+  r.page.root.classes.delete('PageVisible'); r.h.advance(2.5);
+  r.page.root.classes.add('PageVisible'); r.h.advance(2.5);
+  assert.strictEqual(opens(r), 2, 'returning to the empty profile opens it again');
+  setProfilePageAccount(r.page, '1424351890'); r.page.gamesPlayed.classes.delete('isZeroValue'); r.h.advance(2.5);
+  assert.strictEqual(opens(r), 2, 'a profile with games stays on stock stats');
+  setProfilePageAccount(r.page, '1424351891'); r.page.gamesPlayed.classes.add('isZeroValue'); r.h.advance(2.5);
+  assert.strictEqual(opens(r), 3, 'switching to another empty profile opens it for that account');
+}
+{
+  const r = rankHistoryPage({ asyncState: 'AsyncSuccessState', stats: 'filled' });
+  r.h.advance(5);
+  assert.ok(!r.h.events.includes(r.page.communityButton), 'filled stats never auto-open');
+}
+// Profile tab handlers. Panorama compiles an onactivate string containing script as JavaScript, where a bare
+// native event such as CitadelProfileShowMatchHistoryTab( 0 ) is an undefined function: the ReferenceError skips
+// both the native tab switch and Rank History's exit (live 6795 console.log, 2026-10-19). Run each scripted tab
+// handler the way Panorama does and require the native switch plus Rank History's exit.
+{
+  const layout = fs.readFileSync(path.join(__dirname, '..', 'panorama', 'layout', 'citadel_db_page_profile.xml'), 'utf8');
+  const handlerFor = (id) => {
+    const match = layout.match(new RegExp(`<Label id="${id}"[^>]*onactivate="([^"]*)"`));
+    assert.ok(match, `${id} has an onactivate handler`);
+    return match[1].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  };
+  for (const [id, tab] of [['matchHistoryLabel', 0], ['showcaseLabel', 1]]) {
+    const calls = [];
+    const labels = { '#matchHistoryLabel': { id: 'matchHistoryLabel' }, '#showcaseLabel': { id: 'showcaseLabel' } };
+    const context = { ShowRankBarebonesRankHistoryOff: () => calls.push('off') };
+    const dollar = (selector) => labels[selector] || null;
+    dollar.GetContextPanel = () => context;
+    dollar.DispatchEvent = (...args) => calls.push(args);
+    assert.doesNotThrow(() => vm.runInNewContext(handlerFor(id), { $: dollar }), `${id} handler runs as JavaScript`);
+    assert.deepStrictEqual(calls, ['off', ['CitadelProfileShowMatchHistoryTab', labels[`#${id}`], tab]], `${id} exits Rank History, then switches the native tab from its own label`);
+  }
 }
 // Playstyle radar. Failure modes: radar disabled because Rank History panels are missing; a visible profile switch
 // (no hover, unchanged history state) keeping the old account's radar; stale/foreign titles; a page that never

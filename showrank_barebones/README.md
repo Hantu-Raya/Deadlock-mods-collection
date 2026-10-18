@@ -16,6 +16,8 @@ The dashboard profile page has a `Rank History` tab next to `Match History` and 
 
 Opening a profile keeps the stock match history. When match history fails to load, Rank History opens on its own in that space instead of the "FAILED TO LOAD MATCH HISTORY" text.
 
+When the profile's all-time stats load with no games played (for example a private profile), `VS COMMUNITY` opens on its own. It opens once per visit, so picking a hero or All Heroes returns to the stock stats.
+
 ## Playstyle radar
 
 Below the player's name and avatar, a hexagon radar compares the viewed player with the community over the last 30 days of ranked and standard matches. Each axis is where the player's average sits among community values (50 = typical): Damage Dealer (damage per minute), Farming (net worth per minute), Tank (damage taken per minute, which also rises when feeding), Support (healing per minute), Pusher (objective damage per minute) and Early Impact (net worth and kills + assists at 10:00). The highest axis is highlighted. It describes activity, not skill.
