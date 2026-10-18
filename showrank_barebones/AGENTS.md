@@ -60,7 +60,7 @@ The stock baseline for each layout is `573a4129 (2026-10-01, build 6728)` in Ste
 - A profile change, conflicting identity or leaving the page (`PageVisible` removed) drops the Rank History choice and unloads both charts to `about:blank`.
 - One watcher per page ticks every 0.5 seconds while match history is loading or a chart waits for its status. Otherwise a 2-second sentinel compares `PageVisible`, the stock async state and the viewed account, and does a full check only when one changes, because no page-entry event is verified: returning by keyboard or back, or switching profile on a visible page, must be caught without pointer activity. Only a destroyed page stops it. An unresolved account gets fast ticks for at most ten seconds.
 - Both pages draw at the browser's current size and redraw on `resize`: Panorama un-collapses the Rank History host in the same frame it loads the page, so a fast (cached) render could otherwise stay drawn for a 0×0 or stale browser, an empty chart box.
-- Live geometry, the screen blend, SVG/WebP rendering inside the HTML panels and the cost of two visible HTML panels are not yet confirmed in game.
+- User-confirmed in game (2026-10-19): the radar, Rank History (screen blend, SVG/WebP rendering, left-side group buttons) and the P1-P6 changes work normally. Their runtime and memory cost is not measured yet; see `.scratch/hp_colors/showrank-barebones-perf/issues/01-benchmark-profile-and-match-runtime.md`.
 
 ## Reviews and change proposals
 
