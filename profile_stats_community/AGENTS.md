@@ -14,6 +14,8 @@ The player context menu has one static `Player Profile` row after the stock-owne
 
 Production logging is disabled. The comparison runtime has one 0.5-second watcher only while its view is open; stock and disabled states have no recurring callbacks. The stock XML owns `oncancel="CitadelNavigateBack();"`; runtime code never replaces it. Restoration cancels the watcher and unloads both hidden `CitadelHTMLPanel` instances to `about:blank`. Active five-second windows keep one pending watcher and stay within the established bounded panel-read budgets.
 
+After binding, the runtime exports `root.ProfileStatsCommunityOpen()`: it opens the comparison exactly like the `Stats vs Community` button and returns whether custom mode is active. It does not exist before boot binds, so a host that calls it must treat a missing export as "not ready" and retry within a bound. Only `showrank_barebones` calls it (VS COMMUNITY auto-open for empty stats); hosts that don't call it are unaffected.
+
 ## Bridge contract
 
 The bridge URL is `https://hantu-raya.github.io/deadlock-stats-bridge/bridge.html?account_id=<id>&matches=<50|100|150>&mode=<ranked|standard>&protocol=4&request=<nonce>`. `standard` is the UI name for the API's `unranked` mode. Register only the proven `HTMLTitle` and `HTMLURLChanged` events, each behind `try/catch`; the panel is noninteractive. Titles are hostile input: cap at 2048 code units, require `DLSTATS2:`, validate the exact envelope and finite values, and ignore duplicates and restored normal titles.

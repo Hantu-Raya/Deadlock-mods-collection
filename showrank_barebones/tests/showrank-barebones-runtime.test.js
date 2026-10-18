@@ -26,6 +26,7 @@ class Panel {
       visible: options.visible === undefined ? true : options.visible,
       valid: options.valid === undefined ? true : options.valid,
       children: [],
+      style: {},
       parent: null,
       images: [],
       urls: [],
@@ -85,6 +86,8 @@ class Panel {
     return found;
   }
   SetPanelEvent(name, callback) { this.panelEvents[name] = callback; }
+  GetChildCount() { return this.children.length; }
+  GetChild(index) { return this.children[index] || null; }
   SetImage(url) {
     recordPanelCall(this, 'SetImage', [url]);
     if (!this.valid) throw new Error(`invalid image ${this.id}`);
@@ -164,6 +167,18 @@ function profilePage(account, options = {}) {
     parts.statsAsync = statsAsync;
     parts.communityButton = statsAsync.add(new Panel('Button', { id: 'ProfileStatsCommunityButton' }));
     parts.gamesPlayed = statsAsync.add(new Panel('Panel', { id: 'GamesPlayedContainer', classes: ['TextStat', ...(options.stats === 'filled' ? [] : ['isZeroValue'])] }));
+    if (options.community) {
+      const add = (id, type = 'Panel', extra = {}) => statsAsync.add(new Panel(type, { id, ...extra }));
+      ['HeroList', 'StatsLeft', 'StatsRight', 'SelfName', 'ProfileStatsCommunityTitle', 'ProfileStatsCommunityPlayerHeadingLeft', 'ProfileStatsCommunityPlayerHeadingRight'].forEach((id) => add(id));
+      add('StatsBlock');
+      add('StatsTitle').add(new Panel('Label', { classes: ['statSectionName'], text: 'All Heroes' }));
+      ['ProfileStatsCommunityStatLocker', 'ProfileStatsCommunityRanked', 'ProfileStatsCommunityStandard', 'ProfileStatsCommunityDisplayCommunity', 'ProfileStatsCommunityDisplayPercentile'].forEach((id) => add(id, 'Button'));
+      add('ProfileStatsCommunityMatchCount', 'DropDown');
+      add('ProfileStatsCommunityAccount', 'Label', { text: account });
+      parts.communityPanel = add('ProfileStatsCommunityPanel');
+      parts.communityBridge = add('ProfileStatsCommunityBridge', 'CitadelHTMLPanel');
+      add('ProfileStatsCommunitySupporterTicker', 'CitadelHTMLPanel');
+    }
   }
   if (!options.rankHistory) return parts;
   const rightPanel = root.add(new Panel('Panel', { id: 'RightPanelMock', classes: ['RightPanel'] }));
@@ -1699,29 +1714,57 @@ function rankHistoryPage(options = {}) {
 // opening a profile that has games; reopening every tick and fighting a user who went back to stock; missing a
 // later empty profile or a return visit; reading stats forever on a settled page.
 {
-  const opens = (r) => r.h.events.filter((panel) => panel === r.page.communityButton).length;
-  const r = rankHistoryPage({ asyncState: 'AsyncFailureState', stats: 'loading' });
+  const shown = (r) => r.page.communityPanel.style.visibility === 'visible';
+  const requests = (r) => r.page.communityBridge.urls.filter((url) => /deadlock-stats-bridge\/bridge\.html\?/.test(url)).map((url) => new URL(url).searchParams.get('account_id'));
+  // Startup: the page is already visible with loaded empty stats when the host's first tick runs synchronously,
+  // before the comparison runtime binds (0.01 s later). The open must still happen.
+  const r = rankHistoryPage({ asyncState: 'AsyncFailureState', stats: 'empty', community: true });
+  assert.strictEqual(shown(r), false, 'nothing opens before the comparison runtime is bound');
+  r.h.advance(1.5);
+  assert.strictEqual(shown(r), true, 'already-loaded empty stats open VS COMMUNITY once the runtime binds');
+  assert.deepStrictEqual(requests(r), ['487348881'], 'the comparison requests the viewed account');
+  // The user returns to stock stats by picking a hero; the same visit never reopens it.
+  r.page.root.FindChildTraverse('StatsTitle').children[0].text = 'Abrams';
   r.h.advance(3);
-  assert.strictEqual(opens(r), 0, 'loading stats never open VS COMMUNITY');
-  r.page.statsAsync.classes.delete('AsyncLoadingState'); r.page.statsAsync.classes.add('AsyncSuccessState');
-  r.h.advance(2.5);
-  assert.strictEqual(opens(r), 1, 'loaded empty stats open VS COMMUNITY once');
+  assert.strictEqual(shown(r), false, 'picking a hero restores the stock stats');
   r.h.advance(10);
-  assert.strictEqual(opens(r), 1, 'it never reopens on the same visit, so the user can go back to stock');
+  assert.strictEqual(shown(r), false, 'it never reopens on the same visit');
+  assert.deepStrictEqual(requests(r), ['487348881']);
   r.h.resetWork(); r.h.advance(4);
   assert.strictEqual(r.h.snapshotWork().queries.filter((query) => query.id === 'StatsAsyncMock' || query.id === 'GamesPlayedContainer').length, 0, 'a decided visit reads no stats');
+  // A return visit opens it again; another empty profile opens for that account; a filled one stays stock.
   r.page.root.classes.delete('PageVisible'); r.h.advance(2.5);
   r.page.root.classes.add('PageVisible'); r.h.advance(2.5);
-  assert.strictEqual(opens(r), 2, 'returning to the empty profile opens it again');
-  setProfilePageAccount(r.page, '1424351890'); r.page.gamesPlayed.classes.delete('isZeroValue'); r.h.advance(2.5);
-  assert.strictEqual(opens(r), 2, 'a profile with games stays on stock stats');
-  setProfilePageAccount(r.page, '1424351891'); r.page.gamesPlayed.classes.add('isZeroValue'); r.h.advance(2.5);
-  assert.strictEqual(opens(r), 3, 'switching to another empty profile opens it for that account');
+  assert.strictEqual(shown(r), true, 'returning to the empty profile opens it again');
+  r.page.root.FindChildTraverse('StatsTitle').children[0].text = 'All Heroes'; r.h.advance(3);
+  setProfilePageAccount(r.page, '1424351890'); r.page.root.FindChildTraverse('ProfileStatsCommunityAccount').text = '1424351890';
+  r.page.gamesPlayed.classes.delete('isZeroValue'); r.h.advance(3);
+  assert.strictEqual(shown(r), false, 'a profile with games stays on stock stats');
+  setProfilePageAccount(r.page, '1424351891'); r.page.root.FindChildTraverse('ProfileStatsCommunityAccount').text = '1424351891';
+  r.page.gamesPlayed.classes.add('isZeroValue'); r.h.advance(3);
+  assert.strictEqual(shown(r), true, 'another empty profile opens for that account');
+  assert.strictEqual(requests(r).at(-1), '1424351891', 'the reopened comparison requests the new account');
 }
 {
-  const r = rankHistoryPage({ asyncState: 'AsyncSuccessState', stats: 'filled' });
+  const r = rankHistoryPage({ asyncState: 'AsyncSuccessState', stats: 'loading', community: true });
   r.h.advance(5);
-  assert.ok(!r.h.events.includes(r.page.communityButton), 'filled stats never auto-open');
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'collapse', 'loading stats never open VS COMMUNITY');
+  r.page.statsAsync.classes.delete('AsyncLoadingState'); r.page.statsAsync.classes.add('AsyncSuccessState');
+  r.h.advance(1);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', 'stats that finish loading empty open it');
+}
+{
+  const r = rankHistoryPage({ asyncState: 'AsyncSuccessState', stats: 'filled', community: true });
+  r.h.advance(5);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'collapse', 'filled stats never auto-open');
+}
+{
+  // The comparison runtime never binds (its panels are missing): retries stop and the settled page goes idle.
+  const r = rankHistoryPage({ asyncState: 'AsyncSuccessState', stats: 'empty' });
+  r.h.advance(10);
+  assert.strictEqual(r.h.pending(), 1, 'bounded retries leave only the idle sentinel');
+  r.h.resetWork(); r.h.advance(4);
+  assert.strictEqual(r.h.snapshotWork().queries.filter((query) => query.id === 'StatsAsyncMock' || query.id === 'GamesPlayedContainer').length, 0, 'a given-up visit reads no stats');
 }
 // Profile tab handlers. Panorama compiles an onactivate string containing script as JavaScript, where a bare
 // native event such as CitadelProfileShowMatchHistoryTab( 0 ) is an undefined function: the ReferenceError skips

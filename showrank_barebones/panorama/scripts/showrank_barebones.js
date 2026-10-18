@@ -2555,6 +2555,7 @@
     var PROFILE_CHART_IDLE_DELAY = 2.0;
     var PROFILE_CHART_TIMEOUT_TICKS = 50;
     var PROFILE_CHART_IDLE_TICKS = 20;
+    var COMMUNITY_OPEN_TRIES = 6;
     var PROFILE_CHART_LOADED_CLASS = "ShowRankBarebonesChartLoaded";
     var RANK_HISTORY_ON_CLASS = "ShowRankBarebonesRankHistoryOn";
     var RANK_HISTORY_FALLBACK_CLASS = "ShowRankBarebonesRankHistoryFallback";
@@ -2721,26 +2722,36 @@
         };
     }
     // Opens VS COMMUNITY once per visit and account when the loaded stock stats show no games; the user can then
-    // return to stock stats without it reopening.
+    // return to stock stats without it reopening. The comparison runtime binds 0.01 s after this host starts, so
+    // the account counts as decided only once its open export reports custom mode, or after bounded retries.
+    // Returns true while a retry needs a fast tick.
     function autoOpenCommunity(charts, snapshot) {
-        var button;
+        var opened = false;
+        if (!snapshot.active || snapshot.account !== charts.communityTarget) {
+            charts.communityTarget = snapshot.active ? snapshot.account : "";
+            charts.communityTries = 0;
+        }
         if (!snapshot.active) {
             charts.communityAccount = "";
-            return;
+            return false;
         }
         if (!snapshot.stats || snapshot.stats === "loading") {
-            return;
+            return false;
+        }
+        if (snapshot.stats === "empty") {
+            try {
+                opened = typeof charts.page.ProfileStatsCommunityOpen === "function" &&
+                    charts.page.ProfileStatsCommunityOpen() === true;
+            } catch (ignore) {
+                opened = false;
+            }
+            charts.communityTries += 1;
+            if (!opened && charts.communityTries < COMMUNITY_OPEN_TRIES) {
+                return true;
+            }
         }
         charts.communityAccount = snapshot.account;
-        if (snapshot.stats !== "empty") {
-            return;
-        }
-        button = findChild(charts.page, "ProfileStatsCommunityButton", "Button");
-        if (isValid(button)) {
-            try {
-                $.DispatchEvent("Activated", button);
-            } catch (ignore) {}
-        }
+        return false;
     }
     // Sentinel key of a snapshot: all hidden pages share one key, visible pages combine state and account.
     function profileSnapshotKey(snapshot) {
@@ -2777,11 +2788,12 @@
         }
         waiting = chartWaiting(charts.rank);
         waiting = chartWaiting(charts.play) || waiting;
-        autoOpenCommunity(charts, snapshot);
+        waiting = autoOpenCommunity(charts, snapshot) || waiting;
         if (!active) {
             return false;
         }
-        // Loading match history or stats and waiting charts tick fast; an unresolved account only briefly.
+        // Loading match history or stats, a pending VS COMMUNITY open and waiting charts tick fast; an
+        // unresolved account only briefly.
         return waiting || !!account && (asyncState === "loading" || snapshot.stats === "loading") ||
             !account && charts.idleTicks++ < PROFILE_CHART_IDLE_TICKS;
     }
@@ -2841,6 +2853,8 @@
             statsPanel: null,
             gamesPlayed: null,
             communityAccount: "",
+            communityTarget: "",
+            communityTries: 0,
             buttons: [],
             manual: false,
             mode: "",

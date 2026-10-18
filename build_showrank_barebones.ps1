@@ -225,6 +225,7 @@ function Invoke-BarebonesClosureMinification {
             'ShowRankBarebonesRankHistoryOff',
             'ShowRankBarebonesRankHistoryGroup',
             'ShowRankBarebonesScoreboardBind',
+            'ProfileStatsCommunityOpen',
             'DLRANKH1:',
             'DLPLAY1:'
         )) {

@@ -1954,6 +1954,12 @@
         closeSupporterTicker();
         setVisibility(customPanel, false);
         bindEvents();
+        // Hosts open the comparison programmatically through this export; it exists only once the runtime is
+        // bound, and reports whether custom mode is active afterwards.
+        root.ProfileStatsCommunityOpen = function () {
+            showCustomMode();
+            return isCustomActive();
+        };
         refreshProfileRank(currentIdentity);
         scheduleInitialRankRefreshes();
     }
