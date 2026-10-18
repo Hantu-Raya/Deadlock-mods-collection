@@ -1624,6 +1624,39 @@ function rankHistoryPage(options = {}) {
   r.page.root.valid = false; r.h.advance(4);
   assert.strictEqual(r.h.pending(), 0, 'a destroyed page stops every callback');
 }
+// One tick reads each native chart signal once: the idle sentinel hands its snapshot to the reconcile and to the
+// stored idle key, so an unchanged visible page costs exactly one PageVisible read per 2-second tick.
+{
+  const pageVisibleReads = (work) => work.queries.filter((query) => query.id === 'ProfilePage' && query.method === 'BHasClass' && query.args[0] === 'PageVisible').length;
+  const asyncReads = (work) => work.queries.filter((query) => query.id === 'AsyncHistoryMock' && query.method === 'BHasClass').length;
+  const r = rankHistoryPage({ asyncState: 'AsyncSuccessState' });
+  r.h.advance(3);
+  assert.strictEqual(r.h.pending(), 1, 'a settled visible page leaves only the idle sentinel');
+  r.h.resetWork();
+  r.h.runNext();
+  const unchanged = r.h.snapshotWork();
+  assert.strictEqual(pageVisibleReads(unchanged), 1, 'an unchanged idle tick reads PageVisible exactly once');
+  assert.strictEqual(asyncReads(unchanged), 2, 'an unchanged idle tick reads the match-history state once (failure and success checks)');
+  assert.strictEqual(r.h.pending(), 1, 'the unchanged sentinel keeps one pending callback');
+  r.h.resetWork();
+  r.h.runNext(); r.h.runNext();
+  assert.strictEqual(pageVisibleReads(r.h.snapshotWork()), 2, 'each further unchanged idle tick adds exactly one PageVisible read');
+  r.h.resetWork();
+  r.page.root.classes.delete('PageVisible');
+  r.h.runNext();
+  assert.strictEqual(pageVisibleReads(r.h.snapshotWork()), 1, 'a tick that detects the page leaving reuses its snapshot for the reconcile');
+  assert.strictEqual(r.chartUrls().filter((url) => url !== 'about:blank').length, 0, 'the hidden page keeps no chart loaded');
+  r.h.resetWork();
+  r.page.root.classes.add('PageVisible'); r.setAsync('AsyncLoadingState');
+  r.h.runNext();
+  assert.strictEqual(pageVisibleReads(r.h.snapshotWork()), 1, 'a tick that detects the page returning reads PageVisible once');
+  r.h.resetWork();
+  r.h.runNext();
+  assert.strictEqual(pageVisibleReads(r.h.snapshotWork()), 1, 'a fast loading tick also reads PageVisible once');
+  r.h.resetWork();
+  r.page.root.ShowRankBarebonesRankHistoryOn();
+  assert.strictEqual(pageVisibleReads(r.h.snapshotWork()), 1, 'the tab handler reads one fresh snapshot while the fast loop keeps running');
+}
 {
   const r = rankHistoryPage({ asyncState: 'AsyncSuccessState' });
   r.h.advance(1);

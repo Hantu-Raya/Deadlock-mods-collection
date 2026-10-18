@@ -2636,11 +2636,25 @@
         return panelHasClass(charts.asyncPanel, "AsyncFailureState") ? "failure" :
             panelHasClass(charts.asyncPanel, "AsyncSuccessState") ? "success" : "loading";
     }
-    // Applies visibility, identity and match-history state to both charts. Returns true while fast ticks are needed.
-    function reconcileProfileCharts(charts) {
+    // One read of every native signal the chart controller depends on. Hidden pages read nothing else; the match
+    // history state is only watched while a Rank History chart exists ("" otherwise).
+    function readProfileSnapshot(charts) {
         var active = isValid(charts.page) && panelHasClass(charts.page, "PageVisible");
-        var account = active ? resolveProfileAccount(charts.record) || "" : "";
-        var asyncState = active && charts.rank ? profileAsyncState(charts) : "missing";
+        return {
+            active: active,
+            account: active ? resolveProfileAccount(charts.record) || "" : "",
+            asyncState: !active ? "missing" : charts.rank ? profileAsyncState(charts) : ""
+        };
+    }
+    // Sentinel key of a snapshot: all hidden pages share one key, visible pages combine state and account.
+    function profileSnapshotKey(snapshot) {
+        return snapshot.active ? "visible|" + snapshot.asyncState + "|" + snapshot.account : "hidden";
+    }
+    // Applies visibility, identity and match-history state to both charts. Returns true while fast ticks are needed.
+    function reconcileProfileCharts(charts, snapshot) {
+        var active = snapshot.active;
+        var account = snapshot.account;
+        var asyncState = snapshot.asyncState;
         var mode;
         var waiting;
         if (account !== charts.account) {
@@ -2674,17 +2688,13 @@
         return waiting || !!account && asyncState === "loading" ||
             !account && charts.idleTicks++ < PROFILE_CHART_IDLE_TICKS;
     }
-    function profileChartsSignal(charts) {
-        if (!panelHasClass(charts.page, "PageVisible")) {
-            return "hidden";
-        }
-        return "visible|" + (charts.rank ? profileAsyncState(charts) : "") + "|" + (resolveProfileAccount(charts.record) || "");
-    }
     // Fast 0.5 s ticks while needed; otherwise a 2 s sentinel compares visibility, match-history state and the
     // viewed account, because no page-entry event is verified: returning by keyboard or back, or a profile change
     // on a visible page, must still be caught without pointer activity. Only a destroyed page stops the loop.
+    // Each tick reads one snapshot and reuses it for the sentinel compare, the reconcile and the stored key.
     function armProfileCharts(charts) {
         var token;
+        var snapshot;
         if (!charts) {
             return;
         }
@@ -2704,20 +2714,21 @@
                 charts.running = false;
                 return;
             }
+            snapshot = readProfileSnapshot(charts);
             if (charts.idle) {
-                if (profileChartsSignal(charts) === charts.idleSignal) {
+                if (profileSnapshotKey(snapshot) === charts.idleSignal) {
                     schedule(PROFILE_CHART_IDLE_DELAY, tick);
                     return;
                 }
                 charts.idle = false;
                 charts.idleTicks = 0;
             }
-            if (reconcileProfileCharts(charts)) {
+            if (reconcileProfileCharts(charts, snapshot)) {
                 schedule(PROFILE_CHART_TICK, tick);
                 return;
             }
             charts.idle = true;
-            charts.idleSignal = profileChartsSignal(charts);
+            charts.idleSignal = profileSnapshotKey(snapshot);
             schedule(PROFILE_CHART_IDLE_DELAY, tick);
         }
         tick();
@@ -2752,12 +2763,12 @@
             markRankHistoryGroup(charts);
             root.ShowRankBarebonesRankHistoryOn = function () {
                 charts.manual = !!resolveProfileAccount(record);
-                reconcileProfileCharts(charts);
+                reconcileProfileCharts(charts, readProfileSnapshot(charts));
                 armProfileCharts(charts);
             };
             root.ShowRankBarebonesRankHistoryOff = function () {
                 charts.manual = false;
-                reconcileProfileCharts(charts);
+                reconcileProfileCharts(charts, readProfileSnapshot(charts));
             };
             root.ShowRankBarebonesRankHistoryGroup = function (size) {
                 var groupIndex;
@@ -2765,7 +2776,7 @@
                     if (RANK_HISTORY_GROUPS[groupIndex] === size && charts.group !== size) {
                         charts.group = size;
                         markRankHistoryGroup(charts);
-                        reconcileProfileCharts(charts);
+                        reconcileProfileCharts(charts, readProfileSnapshot(charts));
                         armProfileCharts(charts);
                     }
                 }
