@@ -1,5 +1,6 @@
 param(
     [switch]$Install,
+    [switch]$Diagnostics,
     [switch]$KeepStaging,
     [string]$AddonsPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
 )
@@ -14,7 +15,8 @@ $compositionScript = Join-Path $root 'scripts\profile-stats-community-compositio
 $buildRoot = Join-Path $root '_showrank_barebones_build'
 $stageSource = Join-Path $buildRoot 'src'
 $stageCompiled = Join-Path $buildRoot 'src_compiled'
-$vpkOutput = Join-Path $root 'showrank_barebones_dir.vpk'
+$vpkOutputName = if ($Diagnostics) { 'showrank_barebones_diagnostics_dir.vpk' } else { 'showrank_barebones_dir.vpk' }
+$vpkOutput = Join-Path $root $vpkOutputName
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkEditCli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root 'passive_items_mod\compiler\vpkeditcli.exe'),
@@ -316,7 +318,7 @@ Assert-BarebonesAssetSet -Actual (Get-BarebonesAssetPaths -RootPath $barebonesRo
 Remove-TreeUnderRoot -Path $buildRoot -RootPath $root -ExpectedLeaf '_showrank_barebones_build'
 if (Test-Path -LiteralPath $vpkOutput) {
     Assert-PathUnderRoot -Path $vpkOutput -RootPath $root
-    if ((Split-Path -Leaf (Resolve-Path -LiteralPath $vpkOutput).Path) -ne 'showrank_barebones_dir.vpk') {
+    if ((Split-Path -Leaf (Resolve-Path -LiteralPath $vpkOutput).Path) -ne $vpkOutputName) {
         throw "Refusing to remove unexpected barebones VPK: $vpkOutput"
     }
     Remove-Item -LiteralPath $vpkOutput -Force
@@ -339,7 +341,27 @@ try {
     if ((Get-BarebonesSha256 -Path $readableRuntime) -ne (Get-BarebonesSha256 -Path $stagedRuntime)) {
         throw 'Staged barebones runtime does not exactly match the composed readable source before minification.'
     }
+    if ($Diagnostics) {
+        & node (Join-Path $root 'scripts\showrank-barebones-diagnostics.js') $stagedRuntime $stagedRuntime
+        if ($LASTEXITCODE -ne 0) { throw "ShowRank barebones diagnostics instrumentation failed with exit code $LASTEXITCODE" }
+        Copy-Item -LiteralPath $stagedRuntime -Destination $readableRuntime -Force
+        if ((Get-BarebonesSha256 -Path $readableRuntime) -ne (Get-BarebonesSha256 -Path $stagedRuntime)) {
+            throw 'Instrumented staged runtime does not exactly match the readable copy.'
+        }
+    }
     Invoke-BarebonesClosureMinification -ReadableSourcePath $readableRuntime -StagedSourcePath $stagedRuntime -TemporaryRoot (Join-Path $buildRoot 'minify')
+    $minifiedRuntimeText = [System.IO.File]::ReadAllText($stagedRuntime)
+    if ($Diagnostics) {
+        if (-not $minifiedRuntimeText.Contains('[SRB-P]')) {
+            throw 'Diagnostics build: minified runtime does not contain the [SRB-P] probe tag.'
+        }
+    } else {
+        foreach ($probeMarker in @('[SRB-P]', '__srbProbe', '__srbDollar')) {
+            if ($minifiedRuntimeText.Contains($probeMarker)) {
+                throw "Production build: minified runtime contains diagnostics probe marker: $probeMarker"
+            }
+        }
+    }
 
     $hadRuntimeOverride = Test-Path Env:SHOWRANK_BAREBONES_RUNTIME
     $previousRuntimeOverride = $env:SHOWRANK_BAREBONES_RUNTIME
@@ -375,6 +397,9 @@ try {
 
     if ($Install) {
         Install-BarebonesVpk -SourceVpk $vpkOutput
+        if ($Diagnostics) {
+            Write-Host 'Installed DIAGNOSTICS build as pak89_dir.vpk; reinstall the production build after profiling.'
+        }
     }
 } finally {
     if (-not $KeepStaging) {
