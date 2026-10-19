@@ -2012,6 +2012,24 @@ for (const state of ['loading', 'ready', 'error']) {
     assert.deepStrictEqual(calls, ['off', ['CitadelProfileShowMatchHistoryTab', labels[`#${id}`], tab]], `${id} exits Rank History, then switches the native tab from its own label`);
   }
 }
+// Profile credit. Failure modes: a bare native event in the link handler throws as JavaScript; the link opens
+// another URL; the shown version drifts from package.json; the credit sits inside the flowing page root, which
+// would push it off-screen.
+{
+  const layout = fs.readFileSync(path.join(__dirname, '..', 'panorama', 'layout', 'citadel_db_page_profile.xml'), 'utf8');
+  const { version } = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const credit = layout.match(/<Panel id="ShowRankBarebonesCredit"[^>]*>([\s\S]*?)<\/Panel>\s*<\/AsyncDataPanel>/);
+  assert.ok(credit, 'the credit is the last child of the non-flowing AsyncDataPanel');
+  const text = Array.from(credit[1].matchAll(/text="([^"]*)"/g), (match) => match[1]).join(' ');
+  assert.strictEqual(text, `ShowRank v${version} · made by hanturaya`, 'the credit shows the package version and the author');
+  const handler = credit[1].match(/<Label id="ShowRankBarebonesCreditLink"[^>]*onactivate="([^"]*)"/);
+  assert.ok(handler, 'the author name is a link');
+  const calls = [];
+  const dollar = () => null;
+  dollar.DispatchEvent = (...args) => calls.push(args);
+  assert.doesNotThrow(() => vm.runInNewContext(handler[1].replace(/&apos;/g, "'").replace(/&quot;/g, '"'), { $: dollar }), 'the link handler runs as JavaScript');
+  assert.deepStrictEqual(calls, [['ExternalBrowserGoToURL', 'https://x.com/hanturaya']], 'the link opens the author X profile');
+}
 // Playstyle radar. Failure modes: radar disabled because Rank History panels are missing; a visible profile switch
 // (no hover, unchanged history state) keeping the old account's radar; stale/foreign titles; a page that never
 // answers; hidden pages keeping the HTML loaded; a Rank History error blanking the radar.

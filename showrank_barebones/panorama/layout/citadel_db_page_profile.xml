@@ -277,6 +277,10 @@
 					</Panel>
 				</Panel>
 			</Panel>
+			<Panel id="ShowRankBarebonesCredit" class="ShowRankBarebonesCredit">
+				<Label class="ShowRankBarebonesCreditText" text="ShowRank v1.0.0 · made by" hittest="false" />
+				<Label id="ShowRankBarebonesCreditLink" class="ShowRankBarebonesCreditText ShowRankBarebonesCreditLink" text="hanturaya" onactivate="$.DispatchEvent(&apos;ExternalBrowserGoToURL&apos;, &apos;https://x.com/hanturaya&apos;);" />
+			</Panel>
 		</AsyncDataPanel>
 		<Label id="ProfileStatsCommunityAccount" text="{i:r:account_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
 	</CitadelProfilePage>

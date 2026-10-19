@@ -297,6 +297,34 @@ CitadelHudTopBarPlayer.Disconnected #ShowRankBarebonesMissingIndicator
 	visibility: collapse;
 }
 
+/* Bottom-right credit; a child of the non-flowing AsyncDataPanel, so the page root's right flow can't move it. */
+.ShowRankBarebonesCredit
+{
+	flow-children: right;
+	horizontal-align: right;
+	vertical-align: bottom;
+	margin: 0px 40px 28px 0px;
+}
+
+.ShowRankBarebonesCreditText
+{
+	margin-left: 5px;
+	font-size: 16px;
+	letter-spacing: 1px;
+	color: #ffffff80;
+}
+
+.ShowRankBarebonesCreditLink
+{
+	color: #ffffffcc;
+}
+
+.ShowRankBarebonesCreditLink:hover
+{
+	color: #ffffff;
+	text-decoration: underline;
+}
+
 /* Rank History: owned tab in the stock match-history title row, plus a chart host over the 166px
    AsyncMatchHistory slot. ShowRankBarebonesRankHistoryOn = chosen tab; ...Fallback = stock history failed. */
 #MatchHistoryArea #ShowRankBarebonesRankHistoryLabel

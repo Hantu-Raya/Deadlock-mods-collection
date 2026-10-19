@@ -36,6 +36,10 @@ Panorama traversal and writes remain in the adapter code. A complete twelve-play
 
 The host also owns one private ES5 Escape readiness module. Its single `classifyEscapeReadiness(input)` interface consumes explicit source, lifecycle, and roster-readiness facts and returns a closed preload, probe, replay, retry, finish, or stop decision. Passive top-bar evaluations remain blocked; initial open and close/reopen retry remain Explicit Escape intent. Barebones has no top-bar spinner/status surface, so every readiness decision forbids spinner writes. Panorama scans, schedules, Players-tab and row dispatches, rank and average writes, and native context cleanup remain in adapters.
 
+## Credit and version
+
+The bottom-right corner of the dashboard profile page shows `ShowRank v<version> · made by hanturaya`. Clicking `hanturaya` opens https://x.com/hanturaya. The version is `package.json`'s `version`; when releasing, bump it and the credit label in `citadel_db_page_profile.xml` together. The runtime test fails if they differ.
+
 ## Build
 
 From the collection root:
