@@ -2485,6 +2485,38 @@ const regressions = [
     assert.strictEqual(h.pending(), 0, 'the watchdog chain ends with it');
     assert.strictEqual(missingState(h).missingRecords.length, 0, 'expiry releases the records');
   }],
+  // Live 2026-10-19: a session registered in the hideout spent its 1800-check budget there and stopped at match clock 2:00.
+  ['missing.hideout-time-does-not-spend-the-match-budget', () => {
+    const h = harness({ hideout: true });
+    missingRoster(h, 'HideoutBudget');
+    h.gameClock.text = '';
+    h.advance(1000);
+    assert.strictEqual(missingState(h).missingRunning, true, 'a long hideout stay keeps the session for the next match');
+    assertTwoMissingChains(h, 'after a long hideout stay');
+    h.documentRoot.classes.delete('connectedToHideout');
+    h.gameClock.text = '0:00';
+    h.advance(470);
+    assert.strictEqual(missingState(h).missingRunning, true, 'the match still gets its full eight-minute window');
+    assertTwoMissingChains(h, 'late in the match window');
+    h.gameClock.text = '8:00';
+    h.advance(1);
+    assert.strictEqual(missingState(h).missingRunning, false, 'the clock still ends the window');
+    h.advance(1);
+    assert.strictEqual(h.pending(), 0, 'no chain survives the window');
+  }],
+  ['missing.unreadable-clock-outside-hideout-still-spends-the-budget', () => {
+    const h = harness({ hideout: true });
+    missingRoster(h, 'HideoutThenBlank');
+    h.gameClock.text = '';
+    h.advance(600);
+    h.documentRoot.classes.delete('connectedToHideout');
+    h.advance(897);
+    assert.strictEqual(missingState(h).missingRunning, true, 'the budget counts only ticks outside the hideout');
+    h.advance(5);
+    assert.strictEqual(missingState(h).missingRunning, false, 'a never-readable match clock still stops after 1800 ticks');
+    h.advance(1);
+    assert.strictEqual(h.pending(), 0, 'no chain survives budget exhaustion');
+  }],
   ['missing.health-transitions-follow-a-visible-sample', () => {
     const h = harness(), notificationRoot = h.documentRoot.add(new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }));
     h.gameClock.text = '0:30';

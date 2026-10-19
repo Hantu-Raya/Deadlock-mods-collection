@@ -978,7 +978,13 @@
                 leader = records[index];
             }
         }
-        seconds = isHideoutDocumentRoot(shared.documentRoot) ? null: readMissingWindowSeconds(leader || records[0]);
+        // The check budget covers one match: hideout ticks restart it, so a long hideout stay cannot shorten the next match's window.
+        if (isHideoutDocumentRoot(shared.documentRoot)) {
+            shared.missingChecks = 0;
+            seconds = null;
+        } else {
+            seconds = readMissingWindowSeconds(leader || records[0]);
+        }
         if (seconds !== null && seconds >= MISSING_WINDOW_END_SECONDS) {
             for (index = 0; index < records.length; index += 1) {
                 resetMissingPlayer(shared, records[index], true);
