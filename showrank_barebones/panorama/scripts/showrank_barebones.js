@@ -342,7 +342,6 @@
         }
         session.roster = null;
         session.lastPlan = null;
-        session.intent = null;
         session.root = null;
         session.shared = null;
         shared.escape = null;
@@ -1500,9 +1499,8 @@
         var topbarEvidence = topbarRoots === null ? null: readTopbarEvidenceSnapshot(topbarRoots);
         return buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay);
     }
-    function escapeReadinessDecision(source, step) {
+    function escapeReadinessDecision(step) {
         var decision = {
-            source: source,
             step: step,
             mayStartPreload: step === "start_preload",
             mayProbeRows: step === "probe_rows",
@@ -1511,7 +1509,6 @@
             shouldFinish: step === "finish",
             shouldStop: step === "source_blocked" || step === "transition_stop"
         };
-        decision.mayShowSpinner = false;
         return decision;
     }
     function classifyEscapeReadiness(input) {
@@ -1522,69 +1519,69 @@
         if (source !== "escape_open" && source !== "escape_out" && source !== "escape_continue") {
             source = "passive";
         }
-        decision = escapeReadinessDecision(source, "source_blocked");
+        decision = escapeReadinessDecision("source_blocked");
         if (source === "passive") {
             return decision;
         }
         if (!input || input.transition !== "active") {
-            return escapeReadinessDecision(source, "transition_stop");
+            return escapeReadinessDecision("transition_stop");
         }
         if (phase === "open") {
             if (source !== "escape_open") {
                 return decision;
             }
             if (input.rootChanged) {
-                return escapeReadinessDecision(source, "replace_root");
+                return escapeReadinessDecision("replace_root");
             }
             if (!input.menuOpen) {
-                return escapeReadinessDecision(source, "transition_stop");
+                return escapeReadinessDecision("transition_stop");
             }
             if (input.hasCache) {
-                return escapeReadinessDecision(source, "replay_cache");
+                return escapeReadinessDecision("replay_cache");
             }
             if (input.latched) {
-                return escapeReadinessDecision(source, "runtime_idle");
+                return escapeReadinessDecision("runtime_idle");
             }
-            return escapeReadinessDecision(source, "start_preload");
+            return escapeReadinessDecision("start_preload");
         }
         if (phase === "close") {
             if (source !== "escape_out") {
                 return decision;
             }
-            return escapeReadinessDecision(source, input.menuOpen ? "runtime_idle": "transition_stop");
+            return escapeReadinessDecision(input.menuOpen ? "runtime_idle": "transition_stop");
         }
         if (source !== "escape_continue") {
             return decision;
         }
         if (phase === "collect") {
             if (input.started) {
-                return escapeReadinessDecision(source, "runtime_idle");
+                return escapeReadinessDecision("runtime_idle");
             }
             if (Number(input.attempt) >= Number(input.retryLimit) ||
                 Number(input.probeCount) > 0 && (!readiness || !readiness.available ||
                     !readiness.supported || readiness.rowsCoverTopbars)) {
-                return escapeReadinessDecision(source, "probe_rows");
+                return escapeReadinessDecision("probe_rows");
             }
-            return escapeReadinessDecision(source, "wait_roster");
+            return escapeReadinessDecision("wait_roster");
         }
         if (phase === "probe") {
             if (input.finished) {
-                return escapeReadinessDecision(source, "runtime_idle");
+                return escapeReadinessDecision("runtime_idle");
             }
             if (Number(input.probeIndex) >= Number(input.probeCount)) {
-                return escapeReadinessDecision(source, "finish");
+                return escapeReadinessDecision("finish");
             }
-            return escapeReadinessDecision(source, "probe_rows");
+            return escapeReadinessDecision("probe_rows");
         }
         if (phase === "result") {
             if (input.invalid || input.complete ||
                 Number(input.probeIndex) >= Number(input.probeCount)) {
-                return escapeReadinessDecision(source, "finish");
+                return escapeReadinessDecision("finish");
             }
-            return escapeReadinessDecision(source, "probe_rows");
+            return escapeReadinessDecision("probe_rows");
         }
         if (phase === "finish") {
-            return escapeReadinessDecision(source, "finish");
+            return escapeReadinessDecision("finish");
         }
         return decision;
     }
@@ -2224,7 +2221,6 @@
             transition: !session.finished && escapeIsCurrent(session, session.token) ? "active": "stale"
         });
         var result;
-        session.intent = intent;
         if (!intent.shouldFinish) {
             return;
         }
@@ -2253,7 +2249,6 @@
             probeIndex: session.index,
             probeCount: session.roster.probes.length
         });
-        session.intent = intent;
         if (!intent.mayProbeRows) {
             if (intent.shouldFinish) {
                 finishEscapePass(session);
@@ -2276,7 +2271,6 @@
             probeIndex: session.index,
             probeCount: session.roster.probes.length
         });
-        session.intent = intent;
         if (intent.shouldFinish) {
             finishEscapePass(session);
         } else if (intent.mayProbeRows) {
@@ -2293,7 +2287,6 @@
             probeCount: session.roster.probes.length
         });
         var account;
-        session.intent = intent;
         if (!intent.mayProbeRows) {
             if (intent.shouldFinish) {
                 finishEscapePass(session);
@@ -2326,7 +2319,6 @@
         });
         var record;
         var snapshot;
-        session.intent = intent;
         if (intent.shouldFinish) {
             finishEscapePass(session);
             return;
@@ -2363,7 +2355,6 @@
             probeCount: 0
         });
         var roster;
-        session.intent = intent;
         if (intent.shouldStop || intent.step === "runtime_idle") {
             return;
         }
@@ -2380,7 +2371,6 @@
             probeCount: roster.probes.length,
             rosterReadiness: roster.readiness
         });
-        session.intent = intent;
         if (intent.mayProbeRows) {
             session.started = true;
             probeNextRow(session);
@@ -2392,7 +2382,7 @@
             });
         }
     }
-    function reuseCompletedRoster(shared, escapeRoot, intent) {
+    function reuseCompletedRoster(shared, escapeRoot) {
         var roster = readRosterModel(shared, null, shared.completedRoster, true);
         var session;
         var result;
@@ -2409,8 +2399,7 @@
             root: escapeRoot,
             roster: roster,
             cacheReplay: true,
-            stalePlans: 0,
-            intent: intent
+            stalePlans: 0
         };
         result = renderRoster(session, true);
         if (result === "applied" && session.lastPlan && session.lastPlan.cached) {
@@ -2471,7 +2460,7 @@
             return;
         }
         if (intent.shouldReplayCache) {
-            if (reuseCompletedRoster(shared, escapeRoot, intent)) {
+            if (reuseCompletedRoster(shared, escapeRoot)) {
                 shared.escapeOpenLatched = true;
                 shared.escapeRoot = escapeRoot;
                 return;
@@ -2501,8 +2490,7 @@
             started: false,
             finished: false,
             stalePlans: 0,
-            lastPlan: null,
-            intent: intent
+            lastPlan: null
         };
         shared.escape = session;
         clearTeamAverages(shared.documentRoot);
@@ -2535,9 +2523,6 @@
             menuOpen: isEscapeMenuOpen(escapeRoot)
         });
         if (!intent.shouldStop) {
-            if (shared.escape) {
-                shared.escape.intent = intent;
-            }
             return;
         }
         shared.escapeOpenLatched = false;
