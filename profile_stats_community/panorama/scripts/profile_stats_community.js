@@ -33,6 +33,7 @@
     var CACHE_TTL_MS = 10 * 60 * 1000;
     var CACHE_SCHEMA = "profile_stats_community_v4";
     var CONTEXT_CHECK_SECONDS = 0.5;
+    var PAGE_VISIBLE_CLASS = "PageVisible";
     var BRIDGE_ASSIGN_DELAY_SECONDS = 0.25;
 
     var REQUEST_TIMEOUT_SECONDS = 25;
@@ -281,6 +282,7 @@
     var watcherHandle = null;
     var watcherPending = false;
     var watcherCallback = null;
+    var pageSeenVisible = false;
     var bridgeAssignmentHandle = null;
     var nonceSerial = 0;
     var requestState = null;
@@ -1685,6 +1687,23 @@
         }
     }
 
+    // The stock profile page root carries PageVisible while the page is shown and loses it when the dashboard
+    // hides the page, leaving every panel valid. Only a root seen with the class counts as having left once the
+    // class is gone; a root that never carried it (standalone layouts, tests) never reports a leave.
+    function pageHasLeft() {
+        var visible;
+        try {
+            visible = isCallable(root.BHasClass) && root.BHasClass(PAGE_VISIBLE_CLASS);
+        } catch (error) {
+            return false;
+        }
+        if (visible) {
+            pageSeenVisible = true;
+            return false;
+        }
+        return pageSeenVisible;
+    }
+
     function scheduledCheck() {
         var elapsed;
         if (!isCustomActive()) {
@@ -1692,6 +1711,10 @@
         }
         if (!runtimePanelsValid()) {
             disableRuntime("panel_invalid");
+            return;
+        }
+        if (pageHasLeft()) {
+            restoreStock("page_leave");
             return;
         }
         checkIdentity();
@@ -1775,7 +1798,8 @@
             return;
         }
         currentIdentity = readIdentity();
-
+        // Latch an already visible page now, so a hide before the first watcher tick still counts as a leave.
+        pageHasLeft();
 
         enterState(STATE_LOADING);
         stockSectionSignature = textOf(stockSectionName);

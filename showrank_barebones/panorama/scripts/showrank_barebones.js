@@ -9,7 +9,7 @@
     var STARTUP_REFRESH_DELAYS = [0.25, 1.0];
     var PROFILE_REFRESH_DELAYS = [0.05, 0.15, 0.3, 0.6, 1.0, 1.5, 2.0];
     var PROFILE_HOVER_FAST_TICKS = 13;
-    var PROFILE_HOVER_MAX_TICKS = 56;
+    var PROFILE_HOVER_MAX_TICKS = 23;
     var PROFILE_HOVER_FAST_DELAY = 0.2;
     var PROFILE_HOVER_IDLE_DELAY = 1.0;
     var ESCAPE_WITNESS_DELAYS = [0.05, 0.15, 0.3, 0.6];
@@ -17,7 +17,7 @@
     var PROFILE_CONTEXT_CLOSE_DELAY = 0.5;
     var MISSING_WINDOW_END_SECONDS = 8 * 60;
     var MISSING_WINDOW_RETRY_INTERVAL = 0.5;
-    var MISSING_BACKUP_INTERVAL = 1.0;
+    var MISSING_WATCHDOG_INTERVAL = 1.0;
     var MISSING_WINDOW_MAX_RETRIES = 1800;
     var MISSING_WINDOW_CLASS = "ShowRankBarebonesMissingWindowExpired";
     var MISSING_NOTIFICATION_ROOT_ID = "ShowRankBarebonesNotificationRoot";
@@ -385,6 +385,8 @@
                     missingRunning: false,
                     missingChecks: 0,
                     missingLeaderRoot: null,
+                    missingWatchToken: 0,
+                    missingWatchRoot: null,
                     missingRecords: [],
                     missingNotificationRoot: null
                 };
@@ -395,6 +397,7 @@
                 missingSessionToken: 0,
                 missingLeaderToken: 0,
                 missingLeaderPulse: 0,
+                missingWatchToken: 0,
                 missingChecks: 0
             };
             for (name in c)if (typeof shared[name] !== "number" || !isFinite(shared[name])) {
@@ -879,7 +882,7 @@
             setPanelClass(record.root, MISSING_WINDOW_CLASS, expired);
         }
         setMissingActive(shared, record, false);
-        record.missingHealthArmed = record.missingHealthWasVisible = false;
+        record.missingHealthWasVisible = false;
     }
     function refreshMissingPlayer(shared, record, seconds) {
         var visible;
@@ -905,9 +908,8 @@
             setMissingActive(shared, record, false);
         }
         if (visible) {
-            record.missingHealthArmed = true;
             record.missingHealthWasVisible = true;
-        } else if (!unavailable && record.missingHealthArmed && record.missingHealthWasVisible) {
+        } else if (!unavailable && record.missingHealthWasVisible) {
             record.missingHealthWasVisible = false;
             setMissingActive(shared, record, true);
         }
@@ -925,6 +927,9 @@
             if (record) {
                 setMissingActive(shared, record, false);
                 record.active = false;
+                if (record.root === shared.missingWatchRoot) {
+                    shared.missingWatchRoot = null;
+                }
             }
             records.splice(index, 1);
         }
@@ -951,6 +956,7 @@
         shared.missingRecords = [];
         shared.missingNotificationRoot = null;
         shared.missingLeaderRoot = null;
+        shared.missingWatchRoot = null;
         shared.missingRunning = false;
         shared.missingChecks = 0;
         shared.missingLeaderPulse = 0;
@@ -988,6 +994,68 @@
     function missingSessionIsCurrent(s, t) {
         return !!(s && s.missingRunning && s.missingSessionToken === t);
     }
+    function missingRecordFor(records, root) {
+        var index;
+        for (index = 0; index < records.length; index += 1) {
+            if (records[index].root === root) {
+                return records[index];
+            }
+        }
+        return null;
+    }
+    function pickMissingRecord(records, avoidRoot, currentRoot) {
+        var count = records.length;
+        var from = 0;
+        var index;
+        for (index = 0; index < count; index += 1) {
+            if (records[index].root === currentRoot) {
+                from = index + 1;
+            }
+        }
+        for (index = 0; index < count; index += 1) {
+            if (records[(from + index) % count].root !== avoidRoot) {
+                return records[(from + index) % count];
+            }
+        }
+        return records[from % count];
+    }
+    function launchMissingLeader(shared, record) {
+        shared.missingLeaderRoot = record.root;
+        shared.missingLeaderToken += 1;
+        shared.missingLeaderPulse += 1;
+        try {
+            record.startLeader(shared);
+        } catch (ignore) {
+            startMissingLeader(shared);
+        }
+    }
+    function launchMissingWatchdog(shared, record) {
+        shared.missingWatchRoot = record.root;
+        shared.missingWatchToken += 1;
+        try {
+            record.startWatchdog(shared);
+        } catch (ignore) {
+            startMissingWatchdog(shared);
+        }
+    }
+    function ensureMissingChains(shared, records, replaceLeader) {
+        var leader = replaceLeader ? null: missingRecordFor(records, shared.missingLeaderRoot);
+        var watch = missingRecordFor(records, shared.missingWatchRoot);
+        if (!leader) {
+            launchMissingLeader(shared, pickMissingRecord(records, shared.missingWatchRoot, shared.missingLeaderRoot));
+        }
+        if (!watch || (watch.root === shared.missingLeaderRoot && records.length > 1)) {
+            launchMissingWatchdog(shared, pickMissingRecord(records, shared.missingLeaderRoot, shared.missingWatchRoot));
+        }
+    }
+    function repairMissingChains(shared, replaceLeader) {
+        var records = compactMissingRecords(shared);
+        if (!shared.missingRunning || !records.length) {
+            stopMissingSession(shared);
+            return;
+        }
+        ensureMissingChains(shared, records, replaceLeader);
+    }
     function startMissingLeader(shared) {
         var session = shared.missingSessionToken;
         var token = shared.missingLeaderToken;
@@ -998,7 +1066,7 @@
                 return;
             }
             if (!isValid(root)) {
-                promoteMissingLeader(shared);
+                repairMissingChains(shared, true);
                 return;
             }
             shared.missingChecks += 1;
@@ -1009,76 +1077,58 @@
                 }
                 return;
             }
+            if (!shared.missingWatchRoot) {
+                ensureMissingChains(shared, shared.missingRecords, false);
+            }
             if (missingSessionIsCurrent(shared, session) && shared.missingLeaderToken === token &&
                 shared.missingLeaderRoot === root) {
                 startMissingLeader(shared);
             }
         });
     }
-    function promoteMissingLeader(shared) {
-        var records = compactMissingRecords(shared);
-        var index;
-        if (!shared || !shared.missingRunning || !records.length) {
-            stopMissingSession(shared);
-            return;
-        }
-        for (index = 0; index < records.length; index += 1) {
-            if (isValid(records[index].root)) {
-                shared.missingLeaderRoot = records[index].root;
-                shared.missingLeaderToken += 1;
-                shared.missingLeaderPulse += 1;
-                startMissingLeader(shared);
-                return;
-            }
-        }
-        stopMissingSession(shared);
-    }
-    function scheduleMissingBackup(shared, record) {
+    function startMissingWatchdog(shared) {
         var session = shared.missingSessionToken;
-        schedule(MISSING_BACKUP_INTERVAL, function () {
-            var changed;
-            if (!missingSessionIsCurrent(shared, session) || !record.active) {
+        var token = shared.missingWatchToken;
+        var root = shared.missingWatchRoot;
+        var seenToken = shared.missingLeaderToken;
+        var seenPulse = shared.missingLeaderPulse;
+        function watchdogIsCurrent() {
+            return missingSessionIsCurrent(shared, session) && shared.missingWatchToken === token &&
+                shared.missingWatchRoot === root;
+        }
+        function watchdogTick() {
+            var stalled;
+            if (!watchdogIsCurrent()) {
                 return;
             }
-            if (!isValid(record.root)) {
-                setMissingActive(shared, record, false);
-                record.active = false;
-                compactMissingRecords(shared);
-                if (!shared.missingRecords.length) {
-                    stopMissingSession(shared);
-                } else if (!isValid(shared.missingLeaderRoot)) {
-                    promoteMissingLeader(shared);
-                }
+            if (!isValid(root)) {
+                repairMissingChains(shared, false);
                 return;
             }
-            if (!isValid(shared.missingLeaderRoot)) {
-                promoteMissingLeader(shared);
-            } else {
-                changed = record.observedLeaderToken !== shared.missingLeaderToken ||
-                    record.observedLeaderPulse !== shared.missingLeaderPulse;
-                record.observedLeaderToken = shared.missingLeaderToken;
-                record.observedLeaderPulse = shared.missingLeaderPulse;
-                record.staleLeaderChecks = changed ? 0: record.staleLeaderChecks + 1;
-                if (record.staleLeaderChecks >= 1) {
-                    promoteMissingLeader(shared);
-                }
+            stalled = !isValid(shared.missingLeaderRoot) || (seenToken === shared.missingLeaderToken &&
+                seenPulse === shared.missingLeaderPulse);
+            seenToken = shared.missingLeaderToken;
+            seenPulse = shared.missingLeaderPulse;
+            if (stalled) {
+                repairMissingChains(shared, true);
             }
-            if (missingSessionIsCurrent(shared, session) && record.active) {
-                scheduleMissingBackup(shared, record);
+            if (watchdogIsCurrent()) {
+                schedule(MISSING_WATCHDOG_INTERVAL, watchdogTick);
             }
-        });
+        }
+        schedule(MISSING_WATCHDOG_INTERVAL, watchdogTick);
     }
     function newMissingRecord(root) {
         return {
             root: root,
             active: true,
-            staleLeaderChecks: 0
+            startLeader: startMissingLeader,
+            startWatchdog: startMissingWatchdog
         };
     }
     function registerMissingRecord(shared, root) {
         var records;
         var record;
-        var index;
         if (!shared || !isValid(root)) {
             return;
         }
@@ -1087,16 +1137,13 @@
             shared.missingRunning = true;
             shared.missingChecks = 0;
             shared.missingNotificationRoot = null;
-            shared.missingLeaderRoot = root;
-            shared.missingLeaderToken += 1;
-            shared.missingLeaderPulse += 1;
+            shared.missingLeaderRoot = null;
+            shared.missingWatchRoot = null;
             record = newMissingRecord(root);
             shared.missingRecords = [record];
-            if (!refreshMissingSession(shared)) {
-                return;
+            if (refreshMissingSession(shared)) {
+                ensureMissingChains(shared, shared.missingRecords, false);
             }
-            startMissingLeader(shared);
-            scheduleMissingBackup(shared, record);
             return;
         }
         records = compactMissingRecords(shared);
@@ -1105,23 +1152,19 @@
             registerMissingRecord(shared, root);
             return;
         }
-        for (index = 0; index < records.length; index += 1) {
-            if (records[index].root === root) {
-                record = records[index];
-                resetMissingPlayer(shared, record, false);
-                record.active = true;
-                record.observedLeaderToken = shared.missingLeaderToken;
-                record.observedLeaderPulse = shared.missingLeaderPulse;
-                record.staleLeaderChecks = 0;
-                refreshMissingSession(shared);
-                return;
-            }
+        record = missingRecordFor(records, root);
+        if (record) {
+            resetMissingPlayer(shared, record, false);
+            record.active = true;
+            record.startLeader = startMissingLeader;
+            record.startWatchdog = startMissingWatchdog;
+        } else {
+            record = newMissingRecord(root);
+            records.push(record);
+            shared.missingRecords = records;
         }
-        record = newMissingRecord(root);
-        records.push(record);
-        shared.missingRecords = records;
         if (refreshMissingSession(shared) && record.active) {
-            scheduleMissingBackup(shared, record);
+            ensureMissingChains(shared, shared.missingRecords, false);
         }
     }
     function startTopbarWatch(record) {
@@ -1620,23 +1663,54 @@
         }
         return count === 1 ? accepted: null;
     }
+    var escapeHideoutMemo = null;
+    function escapeHideoutRoot(panel) {
+        var memo = escapeHideoutMemo;
+        var index;
+        var value;
+        if (!memo) {
+            return isHideoutDocumentRoot(panel);
+        }
+        for (index = 0; index < memo.panels.length; index += 1) {
+            if (memo.panels[index] === panel) {
+                return memo.values[index];
+            }
+        }
+        value = isHideoutDocumentRoot(panel);
+        memo.panels.push(panel);
+        memo.values.push(value);
+        return value;
+    }
+    function inEscapeTurn(fn) {
+        if (escapeHideoutMemo) {
+            return fn();
+        }
+        escapeHideoutMemo = {panels: [], values: []};
+        try {
+            return fn();
+        } finally {
+            escapeHideoutMemo = null;
+        }
+    }
     function escapeIsCurrent(session, token) {
         var shared = session && session.shared;
         return !!(shared && shared.escape === session && shared.escapeToken === token &&
-            !isHideoutDocumentRoot(shared.documentRoot) && isValid(session.root) && isEscapeMenuOpen(session.root));
+            !escapeHideoutRoot(shared.documentRoot) && isValid(session.root) && isEscapeMenuOpen(session.root));
     }
     function scheduleEscape(delay, session, token, callback) {
         schedule(delay, function () {
             var shared = session.shared;
-            if (escapeIsCurrent(session, token)) {
-                callback();
-            } else if (shared && shared.escape === session && shared.escapeToken === token) {
-                shared.escapeOpenLatched = false;
-                shared.escapeRoot = null;
-                shared.escapeToken += 1;
-                releaseEscapeSession(shared);
-                closePlayerCards();
-            }
+            inEscapeTurn(function () {
+                if (escapeIsCurrent(session, token)) {
+                    callback();
+                } else if (shared && shared.escape === session && shared.escapeToken === token) {
+                    shared.escapeOpenLatched = false;
+                    shared.escapeRoot = null;
+                    shared.escapeToken += 1;
+                    releaseEscapeSession(shared);
+                    closePlayerCards();
+                }
+            });
         });
     }
     function closePlayerCards() {
@@ -1659,7 +1733,7 @@
     }
     function sessionIsCurrent(session) {
         return session.cacheReplay ? isValid(session.root) && isEscapeMenuOpen(session.root) &&
-            !isHideoutDocumentRoot(session.root): escapeIsCurrent(session, session.token);
+            !escapeHideoutRoot(session.root): escapeIsCurrent(session, session.token);
     }
     function rosterTopbarTargets(roster) {
         return roster && roster.evidence ? roster.evidence.targets: null;
@@ -2414,9 +2488,14 @@
         return false;
     }
     function startEscapePass(escapeRoot) {
+        inEscapeTurn(function () {
+            startEscapePassTurn(escapeRoot);
+        });
+    }
+    function startEscapePassTurn(escapeRoot) {
         var shared = getState(escapeRoot);
         var transition = !shared || !isValid(escapeRoot) ? "unavailable":
-            isHideoutDocumentRoot(shared.documentRoot) ? "hideout": "active";
+            escapeHideoutRoot(shared.documentRoot) ? "hideout": "active";
         var intent = classifyEscapeReadiness({
             source: "escape_open",
             phase: "open",
@@ -2920,7 +2999,9 @@
         };
         $.ShowRankBarebonesEscapeOut = function () {
             schedule(0, function () {
-                resetEscapePassAfterClose(root);
+                inEscapeTurn(function () {
+                    resetEscapePassAfterClose(root);
+                });
             });
         };
     } else if (isValid(root) && root.paneltype === "CitadelPostGameScoreboardNew") {

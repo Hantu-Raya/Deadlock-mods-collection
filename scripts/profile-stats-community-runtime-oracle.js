@@ -737,6 +737,178 @@ function registerProfileStatsCommunityRuntimeTests(runtimeAdapter) {
     assertNoRuntimeWork(runtimeProbe(harness), "disabled runtime performs no recurring lifecycle or panel work");
   });
 
+  function countPageVisibleReads(harness) {
+    var counter = { reads: 0 };
+    var original = harness.root.BHasClass;
+    harness.root.BHasClass = function (name) {
+      if (name === "PageVisible") counter.reads += 1;
+      return original.call(this, name);
+    };
+    return counter;
+  }
+
+  function errorTitle(request) {
+    return "DLSTATS2:" + JSON.stringify({
+      v: 4,
+      kind: "error",
+      request: request,
+      account: 42,
+      matches: 50,
+      mode: "ranked",
+      code: "network_error",
+      status: 503,
+      retry_after: 0
+    });
+  }
+
+  test("a hidden profile page restores stock, cancels the watcher and blanks both HTML panels", function () {
+    var harness = makeHarness("42");
+    var bridge = harness.bridge;
+    var ticker = harness.map.ProfileStatsCommunitySupporterTicker;
+    var panel = harness.map.ProfileStatsCommunityPanel;
+    var status = harness.map.ProfileStatsCommunityStatus;
+    var reads;
+    var oldRequest;
+    var newRequest;
+    var writes;
+
+    harness.root.AddClass("PageVisible");
+    reads = countPageVisibleReads(harness);
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    oldRequest = requestFromUrl(bridge.urls.at(-1));
+    assert.ok(oldRequest, "the comparison is waiting on a request");
+    reads.reads = 0;
+    resetRuntimeProbe(harness);
+    harness.scheduler.advance(5);
+    assertActiveRuntimeBudget(runtimeProbe(harness), "visible page");
+    assert.equal(reads.reads, 10, "the watcher reads PageVisible once per tick");
+    assert.equal(panel.style.visibility, "visible");
+
+    harness.root.RemoveClass("PageVisible");
+    reads.reads = 0;
+    resetRuntimeProbe(harness);
+    harness.scheduler.runNext();
+    assertCloseRuntimeBudget(runtimeProbe(harness));
+    assert.equal(reads.reads, 1, "the leave tick reads PageVisible once and does no other panel scan");
+    assert.equal(panel.style.visibility, "collapse", "the comparison collapses and the stock stats show");
+    assert.equal(status.text, "", "the comparison status clears");
+    assert.equal(bridge.urls.at(-1), "about:blank", "the request panel unloads");
+    assert.equal(bridge.style.visibility, "collapse");
+    assert.equal(ticker.urls.at(-1), "about:blank", "the supporter ticker unloads");
+    assert.equal(ticker.visible, false);
+    assert.equal(ticker.style.visibility, "collapse");
+    resetRuntimeProbe(harness);
+    harness.scheduler.advance(60);
+    assertNoRuntimeWork(runtimeProbe(harness), "a hidden page runs no comparison callback");
+    assert.equal(reads.reads, 1, "a hidden page reads PageVisible no more");
+
+    // A title that arrives after the leave is ignored, whether it is the dropped request's result or its error.
+    writes = bridge.urls.length;
+    bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payloadFor(oldRequest, 10)));
+    bridge.events.HTMLTitle(bridge, errorTitle(oldRequest));
+    assert.equal(panel.style.visibility, "collapse", "a late title does not reopen the comparison");
+    assert.equal(status.text, "");
+    assert.equal(bridge.urls.length, writes, "a late title writes no URL");
+    assert.equal(harness.scheduler.pendingCount(), 0);
+
+    // The late result never reached the cache, and its nonce stays stale on the next request.
+    harness.root.AddClass("PageVisible");
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    newRequest = requestFromUrl(bridge.urls.at(-1));
+    assert.ok(newRequest && newRequest !== oldRequest, "the reopened comparison makes a new request");
+    assert.equal(harness.scheduler.pendingCount(), 1, "the reopened comparison watches again");
+    bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payloadFor(oldRequest, 10)));
+    assert.match(status.text, /Loading/, "the dropped request's nonce is stale");
+    bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payloadFor(newRequest, 10)));
+    assert.match(status.text, /loaded/, "the new request's own result renders");
+  });
+
+  test("a hidden page's finished comparison is rendered from the memory cache when it reopens", function () {
+    var harness = makeHarness("42");
+    var bridge = harness.bridge;
+    var ticker = harness.map.ProfileStatsCommunitySupporterTicker;
+    var panel = harness.map.ProfileStatsCommunityPanel;
+    var supporterUrl = "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
+    var payload;
+    var requestUrls;
+
+    function requestUrlCount() {
+      return bridge.urls.filter(function (url) { return url.indexOf("bridge.html?") !== -1; }).length;
+    }
+
+    harness.root.AddClass("PageVisible");
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    payload = payloadFor(requestFromUrl(bridge.urls.at(-1)), 10);
+    bridge.events.HTMLTitle(bridge, "DLSTATS2:" + JSON.stringify(payload));
+    assert.match(harness.map.ProfileStatsCommunityStatus.text, /loaded/);
+    requestUrls = requestUrlCount();
+
+    harness.root.RemoveClass("PageVisible");
+    harness.scheduler.runNext();
+    assert.equal(panel.style.visibility, "collapse");
+    assert.equal(ticker.urls.at(-1), "about:blank");
+    assert.equal(harness.scheduler.pendingCount(), 0);
+
+    harness.root.AddClass("PageVisible");
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    assert.equal(panel.style.visibility, "visible");
+    assert.equal(requestUrlCount(), requestUrls, "the cached comparison needs no new bridge request");
+    assert.equal(bridge.urls.at(-1), "about:blank", "the request panel stays unloaded");
+    assert.equal(ticker.urls.at(-1), supporterUrl, "the ticker loads again with the reopened comparison");
+    assert.match(harness.map.ProfileStatsCommunityStatus.text, /loaded/);
+    assertRenderedPayload(harness.map, payload);
+    assert.equal(harness.scheduler.pendingCount(), 1, "the reopened comparison watches again");
+  });
+
+  test("a hide before the first watcher tick still leaves", function () {
+    var harness = makeHarness("42");
+
+    harness.root.AddClass("PageVisible");
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    harness.root.RemoveClass("PageVisible");
+    harness.scheduler.runNext();
+
+    assert.equal(harness.map.ProfileStatsCommunityPanel.style.visibility, "collapse");
+    assert.equal(harness.bridge.urls.at(-1), "about:blank");
+    assert.equal(harness.map.ProfileStatsCommunitySupporterTicker.urls.at(-1), "about:blank");
+    assert.equal(harness.scheduler.pendingCount(), 0);
+  });
+
+  test("a profile root that never carried PageVisible keeps the comparison running", function () {
+    var harness = makeHarness("42");
+    var panel = harness.map.ProfileStatsCommunityPanel;
+    var ticker = harness.map.ProfileStatsCommunitySupporterTicker;
+    var supporterUrl = "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/";
+
+    harness.map.ProfileStatsCommunityButton.events.onactivate();
+    resetRuntimeProbe(harness);
+    harness.scheduler.advance(5);
+    assertActiveRuntimeBudget(runtimeProbe(harness), "class-less root");
+    harness.scheduler.advance(55);
+    assert.equal(panel.style.visibility, "visible", "a root without the class never reports a leave");
+    assert.equal(ticker.urls.at(-1), supporterUrl);
+    assert.equal(harness.scheduler.pendingCount(), 1);
+
+    harness.root.BHasClass = function () { throw new Error("class read unavailable"); };
+    harness.scheduler.advance(5);
+    assert.equal(panel.style.visibility, "visible", "an unreadable class is not a leave");
+    harness.root.BHasClass = undefined;
+    harness.scheduler.advance(5);
+    assert.equal(panel.style.visibility, "visible", "a root without a class reader is not a leave");
+    assert.equal(harness.scheduler.pendingCount(), 1);
+
+    // Once the root has shown the class, losing it is a leave.
+    delete harness.root.BHasClass;
+    harness.root.AddClass("PageVisible");
+    harness.scheduler.advance(1);
+    assert.equal(panel.style.visibility, "visible");
+    harness.root.RemoveClass("PageVisible");
+    harness.scheduler.advance(1);
+    assert.equal(panel.style.visibility, "collapse");
+    assert.equal(ticker.urls.at(-1), "about:blank");
+    assert.equal(harness.scheduler.pendingCount(), 0);
+  });
+
   test("rate-limit Retry-After blocks retries and filter bypasses", function () {
     var harness = makeHarness("42");
     var bridge = harness.bridge;

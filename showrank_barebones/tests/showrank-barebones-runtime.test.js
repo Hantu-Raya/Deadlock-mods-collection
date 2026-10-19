@@ -296,8 +296,9 @@ function harness(options = {}) {
     if (nativeContextDismissal) nativeContextDismissal(event);
     dispatch(event);
   }
-  function enqueue(delay, callback) {
-    const entry = { dueAt: currentTime + delay, insertionOrder: insertionOrder += 1, callback };
+  function enqueue(delay, callback, owner = null) {
+    if (owner && owner.dead) return scheduled.length;
+    const entry = { dueAt: currentTime + delay, insertionOrder: insertionOrder += 1, callback, owner };
     scheduled.push(entry);
     scheduledDelays.set(entry, delay);
     work.scheduled += 1;
@@ -355,7 +356,7 @@ function harness(options = {}) {
       if (evaluateOptions.attach !== false && !panel.parent) documentRoot.add(panel);
       const dollar = {
         GetContextPanel: () => panel,
-        Schedule: (delay, callback) => enqueue(delay, callback),
+        Schedule: (delay, callback) => enqueue(delay, callback, dollar),
         DispatchEvent: dispatch,
         CreatePanel: (type, parent, id) => options.createPanel ? options.createPanel(type, parent, id) : parent.add(new Panel(type, { id })),
         RegisterEventHandler: (name, panel, callback) => { assert.ok(panel instanceof Panel, 'HTML events register on a local panel'); panel.htmlEvents[name] = callback; },
@@ -414,6 +415,13 @@ function harness(options = {}) {
     resetWork,
     snapshotWork,
     pending() { return scheduled.length; },
+    // A script context dies with its panel: its pending $.Schedule callbacks never run and it can schedule nothing more.
+    killContext(owner) {
+      owner.dead = true;
+      for (let index = scheduled.length - 1; index >= 0; index -= 1) if (scheduled[index].owner === owner) scheduled.splice(index, 1);
+    },
+    // Context panels that own the pending callbacks with this delay (the chain holders).
+    pendingOwners(delay) { return scheduled.filter((entry) => entry.owner && scheduledDelays.get(entry) === delay).map((entry) => entry.owner.GetContextPanel()); },
   };
 }
 function assertCleared(image, description) { assert.strictEqual(image.visible, false, `${description}: hidden`); assert.deepStrictEqual(image.images, [''], `${description}: stale URL cleared`); }
@@ -485,6 +493,35 @@ function assertMissingStopped(h, notificationRoot, message) {
   assert.strictEqual(state.missingRecords.length, 0, `${message}: records released`);
   assert.strictEqual(h.pending(), 0, `${message}: no missing callbacks remain`);
   assert.strictEqual(notificationRoot.__showrank_barebones_missing_toast_state_v2, null, `${message}: toast state released`);
+}
+
+// The missing lane keeps two chains: the 0.5 s leader and one 1.0 s watchdog held by another record. Each chain
+// lives in the script context of the record that started it, so pendingOwners() names its holder.
+function assertTwoMissingChains(h, message) {
+  const state = missingState(h), leaders = h.pendingOwners(0.5), watchdogs = h.pendingOwners(1);
+  assert.strictEqual(leaders.length, 1, `${message}: exactly one leader chain`);
+  assert.strictEqual(watchdogs.length, 1, `${message}: exactly one watchdog chain`);
+  assert.strictEqual(leaders[0], state.missingLeaderRoot, `${message}: the leader chain lives in the leader record's context`);
+  assert.strictEqual(watchdogs[0], state.missingWatchRoot, `${message}: the watchdog chain lives in the watchdog record's context`);
+  assertOneMissingLeader(h, message);
+  if (activeMissingRecords(h).length > 1) assert.notStrictEqual(leaders[0], watchdogs[0], `${message}: leader and watchdog live in different contexts`);
+}
+
+function missingRoster(h, prefix, count = 12) {
+  const roster = playerRoster(STANDARD_HEROES.slice(0, count), prefix);
+  h.gameClock.text = '0:30';
+  h.attach(roster.friendly); h.attach(roster.enemy);
+  return { roster, contexts: new Map(roster.bars.map((bar) => [bar.root, h.evaluate(bar.root)])) };
+}
+
+function loseMissingContext(h, session, root) {
+  root.DeleteAsync();
+  h.killContext(session.contexts.get(root));
+}
+
+function missingHeroKeys(notificationRoot) {
+  const toast = notificationRoot.__showrank_barebones_missing_toast_state_v2;
+  return toast ? Array.from(toast.activeHeroes) : [];
 }
 
 function containsPanel(value, seen = new Set()) {
@@ -579,6 +616,17 @@ for (const invalid of ['', '0', '-1', '1.5', '1e3', '123456x', '4294967296', '90
   h.runNext(); h.runNext();
   assert.strictEqual(card.image.images.at(-1), rankUrl('123457'), 'bounded popup watch replaces the rank without another popup mouseover');
   h.drain();
+}
+// A stable hideout popup account stops its watch after about 12.8 s (the first sample restarts the count, then 13 fast and 10 slow ticks), not 45 s.
+{
+  const h = harness({ hideout: true }); const card = profile('123456'); h.evaluate(card.root);
+  h.resetWork();
+  const callbacks = h.drain();
+  const work = h.snapshotWork();
+  assert.strictEqual(callbacks, 24, 'a stable hideout popup watch runs the first sample plus 23 ticks');
+  assert.strictEqual(work.callbacksByDelay['0.2'], 14, 'the first sample and the next 13 ticks are fast');
+  assert.strictEqual(work.callbacksByDelay['1'], 10, 'the stable tail is 10 one-second ticks');
+  assert.strictEqual(card.image.images.at(-1), rankUrl('123456'), 'the stable account keeps its badge after the watch ends');
 }
 
 // Hideout dashboard profiles use the direct account witness and settle without orphaned callbacks.
@@ -743,7 +791,7 @@ for (const [label, options] of [
   assertOneMissingLeader(h, 'one active record owns the single leader lease');
 }
 
-// Twelve roles share one 0.5-second leader chain and one 1.0-second backup each.
+// Twelve roles share one 0.5-second leader chain and one 1.0-second watchdog chain.
 {
   const h = harness(); const roster = playerRoster(STANDARD_HEROES, 'LeasePolling');
   h.gameClock.text = '7:59';
@@ -753,13 +801,14 @@ for (const [label, options] of [
   h.resetWork();
   h.advance(10);
   const steady = h.snapshotWork();
-  assert.ok((steady.callbacksByDelay[0.5] || 0) <= 20, 'ten seconds runs at most twenty leader callbacks');
-  assert.ok((steady.callbacksByDelay[1] || 0) <= 120, 'ten seconds runs at most twelve one-second backup callbacks per second');
-  assert.ok(steady.callbacks <= 140, 'the coordinator stays within the combined callback budget');
+  assert.strictEqual(steady.callbacksByDelay[0.5], 20, 'ten seconds runs twenty leader callbacks');
+  assert.strictEqual(steady.callbacksByDelay[1], 10, 'ten seconds runs ten watchdog callbacks, not twelve per second');
+  assert.strictEqual(steady.callbacks, 30, 'the coordinator stays within the combined callback budget');
   assert.ok((steady.panelCalls.text.GameTime || 0) <= 20, `only the leader reads #GameTime during steady polling: ${steady.panelCalls.text.GameTime || 0}`);
   assert.strictEqual(activeMissingRecords(h).length, 12, 'all twelve loaded roles remain active');
   assert.strictEqual(new Set(activeMissingRecords(h).map((record) => record.root)).size, 12, 'active records remain unique by root');
   assertOneMissingLeader(h, 'twelve records still expose one active leader');
+  assertTwoMissingChains(h, 'twelve records hold exactly one leader chain and one watchdog chain');
 
   h.resetWork();
   h.evaluate(roster.bars[5].root);
@@ -767,11 +816,12 @@ for (const [label, options] of [
   const reread = h.snapshotWork();
   assert.strictEqual(activeMissingRecords(h).length, 12, 're-evaluating an existing root is idempotent');
   assert.strictEqual(new Set(activeMissingRecords(h).map((record) => record.root)).size, 12, 're-evaluation does not duplicate the root record');
-  assert.ok((reread.callbacksByDelay[1] || 0) <= 13, 're-evaluation adds no backup beyond twelve records plus its bounded rank refresh');
+  assert.ok((reread.callbacksByDelay[1] || 0) <= 2, 're-evaluation adds no watchdog beyond the single one plus its bounded rank refresh');
   assertOneMissingLeader(h, 're-evaluation does not create a concurrent leader');
+  assertTwoMissingChains(h, 're-evaluation adds no chain');
 }
 
-// A backup promotes an invalid leader within one second without creating a second leader.
+// The watchdog promotes an invalid leader within one second without creating a second leader.
 {
   const h = harness(); const roster = playerRoster(STANDARD_HEROES, 'LeaseInvalidLeader');
   h.gameClock.text = '7:59';
@@ -781,12 +831,13 @@ for (const [label, options] of [
   const previousLeader = missingState(h).missingLeaderRoot;
   previousLeader.valid = false;
   h.advance(1);
-  assert.notStrictEqual(missingState(h).missingLeaderRoot, previousLeader, 'a backup replaces the invalid leader within one second');
+  assert.notStrictEqual(missingState(h).missingLeaderRoot, previousLeader, 'the watchdog replaces the invalid leader within one second');
   assert.strictEqual(activeMissingRecords(h).length, 11, 'the invalid leader record is pruned');
   assertOneMissingLeader(h, 'invalid-leader failover has no concurrent leaders');
+  assertTwoMissingChains(h, 'invalid-leader failover keeps one leader chain and one watchdog chain');
 }
 
-// A valid leader whose next 0.5-second tick is lost is replaced after two backup checks.
+// A valid leader whose next 0.5-second tick is lost is replaced within two watchdog checks.
 {
   const h = harness(); const roster = playerRoster(STANDARD_HEROES, 'LeaseStalledLeader');
   h.gameClock.text = '7:59';
@@ -795,8 +846,9 @@ for (const [label, options] of [
   const leaderToken = missingState(h).missingLeaderToken;
   h.dropNextDelay(0.5);
   h.advance(2);
-  assert.ok(missingState(h).missingLeaderToken > leaderToken, 'two backup checks replace the stalled-valid leader within two seconds');
+  assert.ok(missingState(h).missingLeaderToken > leaderToken, 'two watchdog checks replace the stalled-valid leader within two seconds');
   assertOneMissingLeader(h, 'stalled-leader failover has no concurrent leaders');
+  assertTwoMissingChains(h, 'stalled-leader failover keeps one leader chain and one watchdog chain');
 }
 
 // A native visible-to-missing transition creates one Map_Event_Reminders-style toast.
@@ -1794,7 +1846,8 @@ function rankHistoryPage(options = {}) {
   r.h.resetWork(); r.h.advance(4);
   assert.strictEqual(r.h.snapshotWork().queries.filter((query) => query.id === 'StatsAsyncMock' || query.id === 'GamesPlayedContainer').length, 0, 'a given-up visit reads no stats');
 }
-// characterize.hidden-page-community: a profile page that lost PageVisible but stays valid, with VS COMMUNITY open. Pins today's behavior; a fix flips it on purpose.
+// hidden-page-community: a profile page that lost PageVisible but stays valid, with VS COMMUNITY open. The comparison runtime treats the hide
+// like any other leave: it restores the stock view, cancels its watcher and unloads both community HTML panels. Only the host's page sentinel keeps running.
 const HIDDEN_COMMUNITY_TICKER_URL = 'https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/';
 const HIDDEN_COMMUNITY_GROUPS = [['kda', 'kills_plus_assists', 'player_damage_per_health'], ['average_kills', 'average_deaths', 'average_assists'], ['accuracy', 'critical_hit_rate', 'kd'], ['player_damage_per_minute', 'damage_taken_per_minute', 'objective_damage_per_minute'], ['net_worth_per_minute', 'average_last_hits', 'average_denies'], ['self_healing_per_minute', 'player_healing_per_minute', 'heal_prevented']];
 const HIDDEN_COMMUNITY_GROUP_IDS = ['performance', 'scoreboard', 'accuracy_kd', 'damage', 'economy', 'healing'];
@@ -1824,101 +1877,118 @@ function hiddenCommunityHideMinute(r) {
   r.h.resetWork(); r.h.advance(60);
   return { before, after: hiddenCommunityCounts(r), work: r.h.snapshotWork() };
 }
+function hiddenCommunityRequestCount(r) {
+  return r.page.communityBridge.urls.filter((url) => /deadlock-stats-bridge\/bridge\.html\?/.test(url)).length;
+}
 function assertHiddenCommunityMinute(r, minute, label) {
   const { before, after, work } = minute;
-  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: VS COMMUNITY stays shown on the hidden page`);
-  assert.strictEqual(work.callbacks, 150, `${label}: a hidden minute runs 150 callbacks`);
-  assert.deepStrictEqual(work.callbacksByDelay, { 0.5: 121, 2: 29 }, `${label}: 121 are the 0.5 s comparison watcher, 29 the 2 s page sentinel`);
-  assert.strictEqual(r.h.pending(), 2, `${label}: the watcher and the sentinel both stay armed`);
-  assert.strictEqual(r.ticker.urls.at(-1), HIDDEN_COMMUNITY_TICKER_URL, `${label}: the supporter ticker stays loaded`);
-  assert.strictEqual(r.ticker.style.visibility, 'visible', `${label}: the supporter ticker stays visible`);
-  assert.strictEqual(after.ticker, before.ticker, `${label}: no ticker URL is written while hidden`);
-  assert.strictEqual(after.bridge, before.bridge, `${label}: no request URL is written while hidden`);
-  assert.deepStrictEqual([r.page.chart.urls.slice(before.rank), r.page.playChart.urls.slice(before.play)], [['about:blank'], ['about:blank']], `${label}: only the two charts unload`);
-  assert.strictEqual(work.panelCalls.SetURL, 2, `${label}: the two chart unloads are the only URL writes`);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'collapse', `${label}: the hide collapses VS COMMUNITY and shows the stock stats`);
+  assert.strictEqual(work.callbacks, 31, `${label}: a hidden minute runs 31 callbacks`);
+  assert.deepStrictEqual(work.callbacksByDelay, { 0.5: 2, 2: 29 }, `${label}: 29 are the 2 s page sentinel, one 0.5 s tick unloads the charts and one is the comparison watcher's last`);
+  assert.strictEqual(r.h.pending(), 1, `${label}: only the page sentinel stays armed`);
+  assert.strictEqual(r.ticker.urls.at(-1), 'about:blank', `${label}: the supporter ticker is unloaded`);
+  assert.strictEqual(r.ticker.style.visibility, 'collapse', `${label}: the supporter ticker is collapsed`);
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the request panel is unloaded`);
+  assert.strictEqual(r.page.communityBridge.style.visibility, 'collapse', `${label}: the request panel is collapsed`);
+  assert.deepStrictEqual([after.ticker - before.ticker, after.bridge - before.bridge], [1, 1], `${label}: each community panel gets exactly one blank write`);
+  assert.deepStrictEqual([r.page.chart.urls.slice(before.rank), r.page.playChart.urls.slice(before.play)], [['about:blank'], ['about:blank']], `${label}: the two charts unload as before`);
+  assert.strictEqual(work.panelCalls.SetURL, 4, `${label}: the two charts and the two community panels are the only URL writes`);
+  assert.deepStrictEqual({ IsValid: work.panelCalls.IsValid, GetAttributeString: work.panelCalls.GetAttributeString, BHasClass: work.panelCalls.BHasClass }, { IsValid: 122, GetAttributeString: 0, BHasClass: 31 }, `${label}: native reads per hidden minute`);
 }
 {
-  // Auto-opened while loading: the request panel keeps its URL and the ticker stays loaded for the whole hidden minute.
+  // Auto-opened while loading: the hide drops the in-flight request, blanks both community panels and leaves only the sentinel.
+  const label = 'hidden-page-community.auto';
   const r = hiddenCommunityPage(); r.h.advance(1.5);
-  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', 'characterize.hidden-page-community.auto: the empty profile auto-opened');
-  assert.ok(hiddenCommunityRequestUrl(r), 'characterize.hidden-page-community.auto: a request was loaded');
-  const requestUrl = r.page.communityBridge.urls.at(-1);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the empty profile auto-opened`);
+  assert.ok(hiddenCommunityRequestUrl(r), `${label}: a request was loaded`);
+  assert.notStrictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the request panel is loading before the hide`);
   const minute = hiddenCommunityHideMinute(r);
-  assertHiddenCommunityMinute(r, minute, 'characterize.hidden-page-community.auto');
-  assert.strictEqual(r.page.communityBridge.urls.at(-1), requestUrl, 'characterize.hidden-page-community.auto: the request panel stays on its loading request');
-  assert.strictEqual(r.page.communityBridge.style.visibility, 'visible', 'characterize.hidden-page-community.auto: the request panel stays visible');
-  assert.deepStrictEqual({ IsValid: minute.work.panelCalls.IsValid, GetAttributeString: minute.work.panelCalls.GetAttributeString, BHasClass: minute.work.panelCalls.BHasClass }, { IsValid: 2862, GetAttributeString: 240, BHasClass: 30 }, 'characterize.hidden-page-community.auto: native reads per hidden minute');
+  assertHiddenCommunityMinute(r, minute, label);
   captureBaseline('baseline.hidden-community-auto', r.h);
   r.h.resetWork(); r.h.advance(60);
   const second = r.h.snapshotWork();
-  assert.deepStrictEqual([second.callbacks, second.callbacksByDelay, second.panelCalls.SetURL], [150, { 0.5: 120, 2: 30 }, 0], 'characterize.hidden-page-community.auto: the second hidden minute runs 150 callbacks and writes no URL');
-  assert.strictEqual(r.h.pending(), 2, 'characterize.hidden-page-community.auto: nothing stops with time');
+  assert.deepStrictEqual([second.callbacks, second.callbacksByDelay, second.panelCalls.SetURL], [30, { 2: 30 }, 0], `${label}: the second hidden minute runs only the 30 sentinel ticks and writes no URL`);
+  assert.strictEqual(r.h.pending(), 1, `${label}: only the sentinel stays armed with time`);
 }
 for (const kind of ['ready', 'error']) {
-  // The comparison already has its result when the page hides: the request panel is blank, the ticker and the watcher still run.
-  const label = `characterize.hidden-page-community.${kind}`;
+  // The comparison already has its result when the page hides: the request panel is already blank and both community panels end blank.
+  const label = `hidden-page-community.${kind}`;
   const r = hiddenCommunityPage(); r.h.advance(1.5);
   hiddenCommunityDeliver(r, kind);
   assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the delivered result unloads the request panel`);
   const minute = hiddenCommunityHideMinute(r);
   assertHiddenCommunityMinute(r, minute, label);
-  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the request panel stays blank`);
   captureBaseline(`baseline.hidden-community-${kind}`, r.h);
 }
 {
-  // A title delivered after the hide: a foreign nonce is ignored, the in-flight request's own result is still accepted.
-  const label = 'characterize.hidden-page-community.stale-title';
+  // A title delivered after the hide is ignored, whether its nonce is foreign or the dropped request's own: the stock view stays,
+  // nothing is written, the result never enters the memory cache, and the old nonce stays stale on the request that follows the return.
+  const label = 'hidden-page-community.stale-title';
   const r = hiddenCommunityPage(); r.h.advance(1.5);
-  const requestUrl = r.page.communityBridge.urls.at(-1);
-  const minute = hiddenCommunityHideMinute(r);
+  const droppedNonce = hiddenCommunityRequestUrl(r).searchParams.get('request');
+  hiddenCommunityHideMinute(r);
+  const afterHide = hiddenCommunityCounts(r), requestsAfterHide = hiddenCommunityRequestCount(r);
   hiddenCommunityDeliver(r, 'ready', { request: 'stale' });
-  assert.strictEqual(r.page.communityBridge.urls.at(-1), requestUrl, `${label}: a foreign-nonce title is not accepted`);
-  assert.strictEqual(r.page.communityBridge.style.visibility, 'visible', `${label}: a foreign-nonce title leaves the request panel loading`);
   hiddenCommunityDeliver(r, 'ready');
-  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the in-flight request's result is accepted on the hidden page`);
-  assert.strictEqual(r.page.communityBridge.style.visibility, 'collapse', `${label}: acceptance collapses the request panel`);
-  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the comparison stays shown`);
-  assert.strictEqual(r.ticker.urls.at(-1), HIDDEN_COMMUNITY_TICKER_URL, `${label}: the ticker stays loaded after the accepted result`);
-  assert.strictEqual(hiddenCommunityCounts(r).bridge, minute.after.bridge + 1, `${label}: acceptance writes only the blank unload`);
-  assert.strictEqual(r.h.pending(), 2, `${label}: the watcher stays armed after the accepted result`);
+  hiddenCommunityDeliver(r, 'error');
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'collapse', `${label}: no title reopens the comparison`);
+  assert.deepStrictEqual(hiddenCommunityCounts(r), afterHide, `${label}: no title writes a URL`);
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the request panel stays blank`);
+  assert.strictEqual(r.ticker.urls.at(-1), 'about:blank', `${label}: the ticker stays blank`);
+  assert.strictEqual(r.h.pending(), 1, `${label}: the sentinel is still the only callback`);
   captureBaseline('baseline.hidden-community-stale-title', r.h);
+  r.page.root.classes.add('PageVisible'); r.h.advance(5);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the return reopens the empty profile`);
+  assert.strictEqual(hiddenCommunityRequestCount(r), requestsAfterHide + 1, `${label}: the ignored result left no cache, so the return requests again`);
+  const returnNonce = hiddenCommunityRequestUrl(r).searchParams.get('request');
+  assert.notStrictEqual(returnNonce, droppedNonce, `${label}: the new request has a new nonce`);
+  hiddenCommunityDeliver(r, 'ready', { request: droppedNonce });
+  assert.notStrictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the dropped request's nonce is stale on the new request`);
+  assert.strictEqual(r.page.communityBridge.style.visibility, 'visible', `${label}: the new request keeps loading`);
+  hiddenCommunityDeliver(r, 'ready');
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the new request's own result is accepted`);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the comparison stays shown with the new result`);
 }
 for (const state of ['loading', 'ready', 'error']) {
-  // Return without any pointer or hover call: the comparison was never closed, so it is simply still shown.
-  const label = `characterize.hidden-page-community.return-${state}`;
+  // Return without any pointer or hover call: the host's auto-open rule decides again for the empty profile. A delivered result
+  // is still in PSC's memory cache and is rendered without a new request; a dropped or failed request starts a new one.
+  const label = `hidden-page-community.return-${state}`;
   const r = hiddenCommunityPage(); r.h.advance(1.5);
   if (state !== 'loading') hiddenCommunityDeliver(r, state);
   hiddenCommunityHideMinute(r);
-  const before = hiddenCommunityCounts(r);
+  const before = hiddenCommunityCounts(r), requestsBefore = hiddenCommunityRequestCount(r);
   r.page.root.classes.add('PageVisible');
   r.h.resetWork(); r.h.advance(5);
   const work = r.h.snapshotWork(), after = hiddenCommunityCounts(r);
-  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the return shows VS COMMUNITY`);
-  assert.strictEqual(after.bridge, before.bridge, `${label}: no new request URL is set`);
-  assert.strictEqual(after.ticker, before.ticker, `${label}: the ticker is not reloaded`);
-  assert.strictEqual(r.ticker.urls.at(-1), HIDDEN_COMMUNITY_TICKER_URL, `${label}: the ticker was never blanked`);
-  assert.strictEqual(r.page.communityBridge.urls.at(-1) === 'about:blank', state !== 'loading', `${label}: the request panel keeps its pre-hide state`);
-  assert.ok(/rank-history\.html\?/.test(r.page.chart.urls.at(-1)) && /playstyle\.html\?/.test(r.page.playChart.urls.at(-1)), `${label}: only the two charts reload`);
-  assert.deepStrictEqual([work.callbacks, work.callbacksByDelay], [20, { 0.5: 19, 2: 1 }], `${label}: five visible seconds run 20 callbacks`);
-  assert.strictEqual(r.h.pending(), 2);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the return reopens VS COMMUNITY for the empty profile`);
+  assert.strictEqual(hiddenCommunityRequestCount(r), requestsBefore + (state === 'ready' ? 0 : 1), `${label}: ${state === 'ready' ? 'the cached result needs no new request' : 'a new request is made'}`);
+  assert.strictEqual(after.bridge - before.bridge, state === 'ready' ? 1 : 2, `${label}: the request panel gets its unload${state === 'ready' ? '' : ' and the new request URL'}`);
+  assert.strictEqual(r.page.communityBridge.urls.at(-1) === 'about:blank', state === 'ready', `${label}: the request panel is blank only for the cached result`);
+  assert.strictEqual(r.ticker.urls.at(-1), HIDDEN_COMMUNITY_TICKER_URL, `${label}: the ticker loads again with the reopened comparison`);
+  assert.strictEqual(after.ticker - before.ticker, 1, `${label}: the ticker is loaded once`);
+  assert.ok(/rank-history\.html\?/.test(r.page.chart.urls.at(-1)) && /playstyle\.html\?/.test(r.page.playChart.urls.at(-1)), `${label}: the two charts reload`);
+  assert.deepStrictEqual([work.callbacks, work.callbacksByDelay], [19, { 0.5: 18, 2: 1 }], `${label}: five visible seconds run 19 callbacks`);
+  assert.strictEqual(r.h.pending(), 2, `${label}: the comparison watcher and the sentinel are armed again`);
   captureBaseline(`baseline.hidden-community-return-${state}`, r.h);
 }
 {
-  // Manual open on a profile with games: hiding behaves like the auto-opened comparison.
-  const label = 'characterize.hidden-page-community.manual';
+  // Manual open on a profile with games: the hide restores stock like the auto-opened comparison, and the return stays on stock
+  // because the host's auto-open rule does not open a profile with games.
+  const label = 'hidden-page-community.manual';
   const r = hiddenCommunityPage({ stats: 'filled' }); r.h.advance(5);
   assert.strictEqual(r.page.communityPanel.style.visibility, 'collapse', `${label}: a profile with games stays on stock stats`);
   assert.strictEqual(r.h.pending(), 1, `${label}: only the sentinel runs while the comparison is closed`);
   r.page.communityButton.panelEvents.onactivate(); r.h.advance(1);
   assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the button opens VS COMMUNITY`);
-  const requestUrl = r.page.communityBridge.urls.at(-1);
+  assert.notStrictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the request panel is loading before the hide`);
   const minute = hiddenCommunityHideMinute(r);
   assertHiddenCommunityMinute(r, minute, label);
-  assert.strictEqual(r.page.communityBridge.urls.at(-1), requestUrl, `${label}: the request panel keeps its loading request`);
   captureBaseline('baseline.hidden-community-manual', r.h);
+  const before = hiddenCommunityCounts(r);
   r.page.root.classes.add('PageVisible'); r.h.resetWork(); r.h.advance(5);
-  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the return still shows VS COMMUNITY`);
-  assert.strictEqual(hiddenCommunityCounts(r).bridge, minute.after.bridge, `${label}: the return sets no new request URL`);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'collapse', `${label}: the return shows the stock stats`);
+  assert.deepStrictEqual([hiddenCommunityCounts(r).bridge, hiddenCommunityCounts(r).ticker], [before.bridge, before.ticker], `${label}: the return writes no community URL`);
+  assert.strictEqual(r.h.pending(), 1, `${label}: only the sentinel runs after the return`);
 }
 // Profile tab handlers. Panorama compiles an onactivate string containing script as JavaScript, where a bare
 // native event such as CitadelProfileShowMatchHistoryTab( 0 ) is an undefined function: the ReferenceError skips
@@ -2277,6 +2347,180 @@ const regressions = [
     assert.strictEqual(hideoutReads, 1, 'one shared tick uses one hideout snapshot for all twelve records');
     h.gameClock.text = '8:00'; h.drain();
   }],
+  ['missing.two-chains-for-twelve-players', () => {
+    const h = harness();
+    missingRoster(h, 'TwoChains');
+    h.advance(2);
+    assertTwoMissingChains(h, 'twelve players');
+    assert.strictEqual(h.pending(), 2, 'twelve players leave only the leader and the watchdog pending');
+    h.resetWork(); h.advance(60);
+    const minute = h.snapshotWork();
+    assert.strictEqual(minute.callbacksByDelay[0.5], 120, 'one minute runs 120 leader callbacks');
+    assert.strictEqual(minute.callbacksByDelay[1], 60, 'one minute runs 60 watchdog callbacks');
+    assert.strictEqual(minute.callbacks, 180, 'twelve players run 180 callbacks per minute (840 with a backup per record)');
+    assertTwoMissingChains(h, 'twelve players after one minute');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.lone-record-holds-self-watchdog', () => {
+    const h = harness(), session = missingRoster(h, 'Lone', 1), only = session.roster.bars[0].root;
+    h.advance(2);
+    assert.strictEqual(missingState(h).missingLeaderRoot, only, 'the only record leads');
+    assert.strictEqual(missingState(h).missingWatchRoot, only, 'the only record is its own watchdog');
+    assert.strictEqual(h.pending(), 2, 'a lone record still has one leader chain and one watchdog chain');
+    const token = missingState(h).missingLeaderToken;
+    h.dropNextDelay(0.5);
+    h.advance(2);
+    assert.ok(missingState(h).missingLeaderToken > token, 'the self-watchdog replaces a stalled lone leader');
+    assert.deepStrictEqual([h.pendingOwners(0.5).length, h.pendingOwners(1).length], [1, 1], 'recovery leaves one leader and one watchdog chain');
+    const second = topbar('infernus', 'Lone-second');
+    session.roster.enemy.add(second.root);
+    session.contexts.set(second.root, h.evaluate(second.root));
+    h.advance(2);
+    assert.strictEqual(missingState(h).missingLeaderRoot, only, 'a later registration does not move the leader');
+    assert.strictEqual(missingState(h).missingWatchRoot, second.root, 'the watchdog moves to the new context once another record exists');
+    assertTwoMissingChains(h, 'after the second player registers');
+    assert.strictEqual(h.pending(), 2, 'the old self-watchdog chain has ended');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.leader-context-lost-watchdog-promotes', () => {
+    const h = harness(), session = missingRoster(h, 'LeaderLost');
+    const notificationRoot = h.documentRoot.add(new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }));
+    session.roster.bars.forEach((bar) => bar.root.AddClass('HealthVisible'));
+    h.advance(2);
+    const lost = missingState(h).missingLeaderRoot, watchdog = missingState(h).missingWatchRoot;
+    loseMissingContext(h, session, lost);
+    assert.strictEqual(h.pendingOwners(0.5).length, 0, 'the lost context takes the leader chain with it');
+    h.advance(1);
+    const state = missingState(h);
+    assert.notStrictEqual(state.missingLeaderRoot, lost, 'the watchdog promotes a new leader within one watchdog period');
+    assert.strictEqual(state.missingLeaderRoot.valid, true, 'the new leader is a live record');
+    assert.strictEqual(state.missingWatchRoot, watchdog, 'the surviving watchdog keeps its seat');
+    assert.strictEqual(activeMissingRecords(h).length, 11, 'the lost record is pruned');
+    assertTwoMissingChains(h, 'after leader failover');
+    session.roster.bars.find((bar) => bar.root !== lost && bar.root !== state.missingLeaderRoot).root.RemoveClass('HealthVisible');
+    h.advance(1);
+    assert.strictEqual(notificationRoot.FindChildrenWithClassTraverse('ShowRankBarebonesMissingToastIcon').length, 1, 'the promoted leader still raises missing indicators');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.watchdog-context-lost-leader-reelects', () => {
+    const h = harness(), session = missingRoster(h, 'WatchLost');
+    h.advance(2);
+    assertTwoMissingChains(h, 'before the loss');
+    const leader = missingState(h).missingLeaderRoot, lost = missingState(h).missingWatchRoot, leaderToken = missingState(h).missingLeaderToken;
+    loseMissingContext(h, session, lost);
+    assert.strictEqual(h.pendingOwners(1).length, 0, 'the lost context takes the watchdog chain with it');
+    h.advance(0.5);
+    const state = missingState(h);
+    assert.notStrictEqual(state.missingWatchRoot, lost, 'the leader re-elects a watchdog on its next tick');
+    assert.strictEqual(state.missingWatchRoot.valid, true, 'the new watchdog is a live record');
+    assert.strictEqual(state.missingLeaderRoot, leader, 'the leader chain is untouched');
+    assert.strictEqual(state.missingLeaderToken, leaderToken, 'no new leader was launched');
+    assertTwoMissingChains(h, 'after watchdog re-election');
+    loseMissingContext(h, session, leader);
+    h.advance(1);
+    assert.notStrictEqual(missingState(h).missingLeaderRoot, leader, 'the re-elected watchdog still replaces a lost leader');
+    assertTwoMissingChains(h, 'after the re-elected watchdog promotes');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.both-chains-lost-recover-on-next-registration', () => {
+    const h = harness(), session = missingRoster(h, 'BothLost');
+    h.advance(2);
+    assertTwoMissingChains(h, 'before the loss');
+    const leader = missingState(h).missingLeaderRoot, watchdog = missingState(h).missingWatchRoot;
+    loseMissingContext(h, session, leader);
+    loseMissingContext(h, session, watchdog);
+    h.advance(10);
+    assert.strictEqual(h.pending(), 0, 'no surviving context holds a chain, so nothing recovers on its own');
+    assert.strictEqual(missingState(h).missingRunning, true, 'the session stays armed with its records');
+    const survivor = session.roster.bars.find((bar) => bar.root !== leader && bar.root !== watchdog);
+    session.contexts.set(survivor.root, h.evaluate(survivor.root));
+    assert.strictEqual(h.pendingOwners(0.5).length, 1, 'the next registration from any surviving context restores the leader in the same call');
+    h.advance(2);
+    assertTwoMissingChains(h, 'after re-registration');
+    assert.strictEqual(activeMissingRecords(h).length, 10, 'both lost records are pruned');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
+  ['missing.root-replacement-keeps-two-chains', () => {
+    for (const role of ['leader', 'watchdog', 'plain']) {
+      const h = harness(), session = missingRoster(h, `Replace-${role}`);
+      const notificationRoot = h.documentRoot.add(new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }));
+      session.roster.bars.forEach((bar) => bar.root.AddClass('HealthVisible'));
+      h.advance(2);
+      const state = missingState(h);
+      const old = role === 'leader' ? state.missingLeaderRoot : role === 'watchdog' ? state.missingWatchRoot : session.roster.bars[3].root;
+      const hero = STANDARD_HEROES[session.roster.bars.findIndex((bar) => bar.root === old)];
+      old.RemoveClass('HealthVisible');
+      h.advance(1);
+      assert.deepStrictEqual(missingHeroKeys(notificationRoot), [hero], `${role}: the old panel is missing before replacement`);
+      loseMissingContext(h, session, old);
+      const replacement = topbar(hero, `Replace-${role}-new`);
+      replacement.root.AddClass('HealthVisible');
+      session.roster.friendly.add(replacement.root);
+      session.contexts.set(replacement.root, h.evaluate(replacement.root));
+      h.advance(2);
+      const roots = activeMissingRecords(h).map((record) => record.root);
+      assert.strictEqual(roots.length, 12, `${role}: replacement keeps twelve records`);
+      assert.strictEqual(new Set(roots).size, 12, `${role}: records stay unique by root`);
+      assert.ok(!roots.includes(old), `${role}: the replaced root is pruned`);
+      assert.ok(roots.includes(replacement.root), `${role}: the replacement is registered`);
+      assert.strictEqual(roots.filter((root) => root.FindChildrenWithClassTraverse('HeroName')[0].text === hero).length, 1, `${role}: the hero has one record`);
+      assert.deepStrictEqual(missingHeroKeys(notificationRoot), [], `${role}: pruning the old panel clears its missing hero key`);
+      assertTwoMissingChains(h, `${role} replacement`);
+      replacement.root.RemoveClass('HealthVisible');
+      h.advance(1);
+      assert.deepStrictEqual(missingHeroKeys(notificationRoot), [hero], `${role}: the replacement raises the indicator exactly once`);
+      h.gameClock.text = '8:00'; h.drain();
+    }
+  }],
+  ['missing.expiry-stops-both-chains', () => {
+    const h = harness();
+    missingRoster(h, 'Expire');
+    h.advance(2);
+    assertTwoMissingChains(h, 'before expiry');
+    h.gameClock.text = '8:00';
+    h.advance(0.5);
+    assert.strictEqual(missingState(h).missingRunning, false, 'the eight-minute boundary stops the session');
+    assert.strictEqual(h.pendingOwners(0.5).length, 0, 'the leader chain ends at expiry');
+    h.advance(1);
+    assert.strictEqual(h.pending(), 0, 'the watchdog chain ends with it');
+    assert.strictEqual(missingState(h).missingRecords.length, 0, 'expiry releases the records');
+  }],
+  ['missing.health-transitions-follow-a-visible-sample', () => {
+    const h = harness(), notificationRoot = h.documentRoot.add(new Panel('Panel', { id: 'ShowRankBarebonesNotificationRoot' }));
+    h.gameClock.text = '0:30';
+    const player = topbar('Haze', 'HealthSequence');
+    h.attach(player.root);
+    h.evaluate(player.root);
+    const tick = () => { h.runDelay(0.5); return missingHeroKeys(notificationRoot); };
+    assert.deepStrictEqual(tick(), [], 'a player never seen visible is not missing');
+    player.root.AddClass('HealthVisible');
+    assert.deepStrictEqual(tick(), [], 'a visible player is not missing');
+    player.root.RemoveClass('HealthVisible');
+    assert.deepStrictEqual(tick(), ['haze'], 'visible to hidden is missing');
+    player.root.AddClass('HealthVisible');
+    assert.deepStrictEqual(tick(), [], 'visible again clears the missing state');
+    player.root.RemoveClass('HealthVisible'); player.root.AddClass('Dead');
+    assert.deepStrictEqual(tick(), [], 'a dead player is not missing');
+    player.root.RemoveClass('Dead');
+    assert.deepStrictEqual(tick(), ['haze'], 'a player who stays hidden after dying counts as missing once alive');
+    player.root.AddClass('Disconnected');
+    assert.deepStrictEqual(tick(), [], 'a disconnected player is not missing');
+    player.root.RemoveClass('Disconnected');
+    assert.deepStrictEqual(tick(), [], 'a reconnect alone does not re-raise a missing state that was already reported');
+    player.root.AddClass('HealthVisible');
+    assert.deepStrictEqual(tick(), [], 'a visible sample re-arms the player');
+    player.root.RemoveClass('HealthVisible');
+    assert.deepStrictEqual(tick(), ['haze'], 'visible to hidden after re-arming is missing');
+    assert.deepStrictEqual(tick(), ['haze'], 'a player who stays hidden stays missing without re-triggering');
+    h.evaluate(player.root);
+    assert.deepStrictEqual(missingHeroKeys(notificationRoot), [], 're-registration clears the missing state');
+    assert.deepStrictEqual(tick(), [], 'after re-registration the player must be seen visible again first');
+    player.root.AddClass('HealthVisible');
+    assert.deepStrictEqual(tick(), [], 'a visible sample after re-registration re-arms the player');
+    player.root.RemoveClass('HealthVisible');
+    assert.deepStrictEqual(tick(), ['haze'], 'visible to hidden after re-registration is missing');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
   ['scoreboard.name-opens-clicked-row-profile', () => {
     const h = harness(), board = scoreboard();
     const first = board.addRow('1001'), bot = board.addRow('0'), garbage = board.addRow('12x');
@@ -2317,6 +2561,37 @@ const regressions = [
     assert.ok(!conflict.classes.has('ShowRankBarebonesScoreboardLink'), 'conflicting evidence gets no affordance');
   }],
 ];
+const escapeReads = (work) => ({
+  hideout: work.queries.filter((q) => q.id === 'Hud' && q.method === 'BAscendantHasClass' && q.args[0] === 'connectedToHideout').length,
+  menu: work.queries.filter((q) => q.id === 'Hud' && q.method === 'BHasClass' && q.args[0] === 'ShowEscapeMenu').length,
+  total: Object.values(work.boundary).reduce((a, b) => a + b, 0),
+});
+// Escape hideout fact is read once per Escape turn, never per check; the menu-open fact is still read live.
+{
+  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Memo');
+  h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
+  const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
+  menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  const work = h.snapshotWork(); const reads = escapeReads(work);
+  console.log('escape 12-player reads', JSON.stringify(reads), 'callbacks', work.callbacks);
+  assert.ok(reads.hideout <= work.callbacks + 1, 'at most one hideout read per Escape callback plus the entry call');
+  assert.ok(reads.menu > work.callbacks, 'menu-open stays unmemoized');
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster.length, 12);
+}
+// The memo does not leak across turns: hideout appearing between two Escape callbacks stops the pass.
+{
+  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Leak');
+  h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(401 + index));
+  const menuDollar = h.evaluate(menu.root); h.drain();
+  menuDollar.ShowRankBarebonesEscapeOpen();
+  h.runNext();
+  h.documentRoot.AddClass('connectedToHideout');
+  const before = h.events.filter((panel) => panel.id === 'MainContents').length;
+  h.runNext(); h.drain();
+  assert.strictEqual(h.events.filter((panel) => panel.id === 'MainContents').length, before, 'next callback after hideout stops probing');
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.escape, null, 'hideout releases the Escape session');
+  assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster || null, null);
+}
 const regressionFailures = [];
 for (const [name, scenario] of regressions) {
   try { scenario(); } catch (error) { regressionFailures.push(`${name}: ${error.message.split('\n')[0]}`); }
@@ -2398,6 +2673,10 @@ assert.deepStrictEqual(regressionFailures, [], 'runtime regression scenarios');
   roster.bars.forEach((bar) => h.evaluate(bar.root));
   h.resetWork(); h.advance(60);
   captureBaseline('baseline.missing-12-player-60s', h);
+  const minute = h.snapshotWork();
+  assert.strictEqual(minute.callbacksByDelay[0.5], 120, 'twelve players run 120 leader callbacks in the first minute');
+  assert.strictEqual(minute.callbacksByDelay[1], 60 + 12 + 1, 'one watchdog (60), twelve startup rank refreshes and the lone self-watchdog handed off at the second registration');
+  assert.strictEqual(minute.callbacks, 205, 'the first minute runs 205 callbacks (864 with one backup chain per record)');
   h.gameClock.text = '8:00'; h.drain();
 }
 
