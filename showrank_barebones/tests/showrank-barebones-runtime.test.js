@@ -14,6 +14,8 @@ const rankUrl = (account, base = 'https://api.deadlock-api.com/v1/players', form
 const statlockerUrl = (account) => `https://statlocker.gg/profile/${account}/matches`;
 const averageUrl = (accounts, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/rank/image?account_ids=${accounts.join(',')}&format=${format}`;
 
+let mockDepth = 0;
+
 class Panel {
   constructor(type, options = {}) {
     Object.assign(this, {
@@ -26,7 +28,7 @@ class Panel {
       visible: options.visible === undefined ? true : options.visible,
       valid: options.valid === undefined ? true : options.valid,
       children: [],
-      style: {},
+      style: new Proxy({}, { set: (target, key, value) => { countBoundary(this, 'styleWrite'); target[key] = value; return true; } }),
       parent: null,
       images: [],
       urls: [],
@@ -36,13 +38,16 @@ class Panel {
       beforeIsValid: options.beforeIsValid || null,
     });
   }
-  set text(value) { this._text = value; }
+  set text(value) { countBoundary(this, 'textWrite'); this._text = value; }
   get text() {
     if (this._work && isWorkAttached(this)) {
       this._work.panelCalls.text[this.id] = (this._work.panelCalls.text[this.id] || 0) + 1;
+      countBoundary(this, 'textRead');
     }
     return this._text;
   }
+  set visible(value) { countBoundary(this, 'visibleWrite'); this._visible = value; }
+  get visible() { return this._visible; }
   setWork(work) { this._work = work; this.children.forEach((child) => child.setWork(work)); }
   add(child) { child.parent = this; if (this._work) child.setWork(this._work); this.children.push(child); return child; }
   IsValid() {
@@ -69,25 +74,35 @@ class Panel {
   FindChildTraverse(id) {
     recordPanelCall(this, 'FindChildTraverse', [id]);
     if (!this.valid) throw new Error(`invalid panel ${this.id}`);
-    for (const child of this.children) {
-      if (child.id === id) return child;
-      const nested = child.FindChildTraverse(id);
-      if (nested) return nested;
+    mockDepth += 1;
+    try {
+      for (const child of this.children) {
+        if (child.id === id) return child;
+        const nested = child.FindChildTraverse(id);
+        if (nested) return nested;
+      }
+    } finally {
+      mockDepth -= 1;
     }
     return null;
   }
   FindChildrenWithClassTraverse(className) {
     recordPanelCall(this, 'FindChildrenWithClassTraverse', [className]);
     const found = [];
-    for (const child of this.children) {
-      if (child.classes.has(className)) found.push(child);
-      found.push(...child.FindChildrenWithClassTraverse(className));
+    mockDepth += 1;
+    try {
+      for (const child of this.children) {
+        if (child.classes.has(className)) found.push(child);
+        found.push(...child.FindChildrenWithClassTraverse(className));
+      }
+    } finally {
+      mockDepth -= 1;
     }
     return found;
   }
-  SetPanelEvent(name, callback) { this.panelEvents[name] = callback; }
-  GetChildCount() { return this.children.length; }
-  GetChild(index) { return this.children[index] || null; }
+  SetPanelEvent(name, callback) { countBoundary(this, 'SetPanelEvent'); this.panelEvents[name] = callback; }
+  GetChildCount() { countBoundary(this, 'GetChildCount'); return this.children.length; }
+  GetChild(index) { countBoundary(this, 'GetChild'); return this.children[index] || null; }
   SetImage(url) {
     recordPanelCall(this, 'SetImage', [url]);
     if (!this.valid) throw new Error(`invalid image ${this.id}`);
@@ -105,10 +120,17 @@ class Panel {
   }
 }
 
+function countBoundary(panel, key) {
+  if (!panel._work || mockDepth !== 0) return;
+  panel._work.boundary[key] = (panel._work.boundary[key] || 0) + 1;
+}
+
 function recordPanelCall(panel, method, args) {
   if (!panel._work) return;
   panel._work.panelCalls[method] += 1;
   panel._work.queries.push({ method, id: panel.id, args });
+  const bucket = mockDepth === 0 ? panel._work.boundary : panel._work.visits;
+  bucket[method] = (bucket[method] || 0) + 1;
 }
 
 function isWorkAttached(panel) {
@@ -135,7 +157,7 @@ function createWork() {
     DeleteAsync: 0,
     text: {},
   };
-  return { scheduled: 0, callbacks: 0, callbacksByDelay: {}, panelCalls, queries: [] };
+  return { scheduled: 0, callbacks: 0, callbacksByDelay: {}, panelCalls, queries: [], boundary: {}, visits: {} };
 }
 
 function profile(account, options = {}) {
@@ -308,6 +330,8 @@ function harness(options = {}) {
     work.callbacksByDelay = fresh.callbacksByDelay;
     work.panelCalls = fresh.panelCalls;
     work.queries = fresh.queries;
+    work.boundary = fresh.boundary;
+    work.visits = fresh.visits;
   }
   function snapshotWork() {
     return {
@@ -316,6 +340,8 @@ function harness(options = {}) {
       callbacksByDelay: { ...work.callbacksByDelay },
       panelCalls: { ...work.panelCalls, text: { ...work.panelCalls.text } },
       queries: work.queries.map((query) => ({ ...query, args: query.args.slice() })),
+      boundary: { ...work.boundary },
+      visits: { ...work.visits },
     };
   }
   return {
@@ -428,22 +454,14 @@ function assertTopbarEvidenceBudget(snapshot, budget, label) {
   assert.ok(snapshot.panelCalls.FindChildTraverse <= budget.findChild, `${label}: child lookups stay within the measured budget`);
   assert.ok(snapshot.panelCalls.GetParent <= budget.getParent, `${label}: parent walks stay within the measured budget`);
 }
-function assertEscapeIntent(intent, sourceName, step, label) {
-  assert.deepStrictEqual(
-    JSON.parse(JSON.stringify(intent)),
-    {
-      source: sourceName,
-      step,
-      mayStartPreload: step === 'start_preload',
-      mayProbeRows: step === 'probe_rows',
-      mayShowSpinner: false,
-      shouldReplayCache: step === 'replay_cache',
-      shouldScheduleRetry: step === 'wait_roster',
-      shouldFinish: step === 'finish',
-      shouldStop: step === 'source_blocked' || step === 'transition_stop',
-    },
-    label,
-  );
+function harnessWithPanelLog() {
+  const created = [];
+  const h = harness({ createPanel: (type, parent, id) => { created.push({ type, id }); return parent.add(new Panel(type, { id })); } });
+  return { h, created };
+}
+function assertNoSpinner(h, created, label) {
+  assert.deepStrictEqual(created.filter((panel) => /spinner/i.test(`${panel.type} ${panel.id}`)), [], `${label}: no spinner panel is created`);
+  assert.deepStrictEqual(h.snapshotWork().queries.filter((query) => query.method === 'AddClass' && /spinner/i.test(String(query.args[0]))).map((query) => query.args[0]), [], `${label}: no spinner class is added`);
 }
 
 
@@ -1033,18 +1051,26 @@ for (const [label, options] of [
 
 // Explicit Escape owns preload intent; roster waiting stays bounded and spinner-free.
 {
-  const h = harness(); const menu = escape(); const menuDollar = h.evaluate(menu.root);
+  const { h, created } = harnessWithPanelLog(); const menu = escape(); const menuDollar = h.evaluate(menu.root);
   h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen();
   const session = h.documentRoot.__showrank_barebones_state_v1.escape;
-  assertEscapeIntent(session.intent, 'escape_open', 'start_preload', 'explicit Escape starts the barebones preload');
+  assert.strictEqual(h.trace[0], 'Activated:PlayersTab', 'explicit Escape open activates the native Players tab before any other native call');
   assert.deepStrictEqual(h.events.map((panel) => panel.id), ['PlayersTab'], 'preload activates only the native Players tab before roster evidence');
-  h.runNext();
-  assertEscapeIntent(session.intent, 'escape_continue', 'wait_roster', 'missing rows produce one bounded roster retry decision');
+  assert.strictEqual(h.pending(), 1, 'explicit Escape open schedules exactly one bounded witness collection');
+  assert.strictEqual(h.snapshotWork().scheduled, 1, 'the open schedules no work beyond that single collection');
+  assert.strictEqual(h.advance(0.04), 0, 'the witness collection is not due before 0.05s');
+  assert.strictEqual(h.pending(), 1, 'the early window leaves the collection pending');
+  h.runDelay(0.05);
+  assert.strictEqual(h.pending(), 1, 'missing rows leave exactly one bounded roster retry pending');
+  assert.strictEqual(h.advance(0.2), 0, 'the first roster retry is not due before 0.25s');
   assert.strictEqual(h.events.filter((panel) => panel.id === 'MainContents').length, 0, 'roster wait cannot probe a row');
+  assert.strictEqual(h.pending(), 1, 'roster wait holds one retry and no row probe');
+  assertNoSpinner(h, created, 'explicit Escape open and roster wait');
   menuDollar.ShowRankBarebonesEscapeOut(); h.runDelay(0);
   assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.escape, session, 'mouseout while Escape stays open preserves the explicit session');
-  assertEscapeIntent(session.intent, 'escape_out', 'runtime_idle', 'open-menu mouseout is an idle decision');
+  assert.strictEqual(h.pending(), 1, 'open-menu mouseout keeps the pending roster retry and schedules nothing');
+  assert.strictEqual(h.events.filter((panel) => panel.id === 'MainContents').length, 0, 'open-menu mouseout starts no row probe');
   h.documentRoot.classes.delete('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOut(); h.drain();
   assert.strictEqual(h.pending(), 0, 'close drains stale one-shot retries without recurring work');
 }
@@ -1204,14 +1230,16 @@ for (const playerCount of [6, 12]) {
 
 // One pass owns one match-centric roster read instead of caller-owned parallel collections.
 {
-  const h = harness(); const card = profile('101'), menu = escape();
+  const { h, created } = harnessWithPanelLog(); const card = profile('101'), menu = escape();
   const roster = playerRoster(['haze'], 'ModelShape');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, () => '201');
   const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.runNext();
   const session = h.documentRoot.__showrank_barebones_state_v1.escape;
   assert.ok(session && session.roster, 'the active Escape pass owns one roster read model');
-  assertEscapeIntent(session.intent, 'escape_continue', 'probe_rows', 'covered roster evidence permits sequential Direct probing without a spinner');
+  assert.deepStrictEqual(h.events.map((panel) => panel.id), ['PlayersTab', 'MainContents'], 'covered roster evidence activates exactly one MainContents probe after the Players tab');
+  assert.strictEqual(h.pending(), 1, 'the single row probe waits on one pending witness callback before any further probe');
+  assertNoSpinner(h, created, 'covered roster row probing');
   assert.deepStrictEqual(
     Object.keys(session.roster).sort(),
     ['cacheReplay', 'evidence', 'matches', 'probes', 'readiness'],
@@ -1766,6 +1794,132 @@ function rankHistoryPage(options = {}) {
   r.h.resetWork(); r.h.advance(4);
   assert.strictEqual(r.h.snapshotWork().queries.filter((query) => query.id === 'StatsAsyncMock' || query.id === 'GamesPlayedContainer').length, 0, 'a given-up visit reads no stats');
 }
+// characterize.hidden-page-community: a profile page that lost PageVisible but stays valid, with VS COMMUNITY open. Pins today's behavior; a fix flips it on purpose.
+const HIDDEN_COMMUNITY_TICKER_URL = 'https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip/';
+const HIDDEN_COMMUNITY_GROUPS = [['kda', 'kills_plus_assists', 'player_damage_per_health'], ['average_kills', 'average_deaths', 'average_assists'], ['accuracy', 'critical_hit_rate', 'kd'], ['player_damage_per_minute', 'damage_taken_per_minute', 'objective_damage_per_minute'], ['net_worth_per_minute', 'average_last_hits', 'average_denies'], ['self_healing_per_minute', 'player_healing_per_minute', 'heal_prevented']];
+const HIDDEN_COMMUNITY_GROUP_IDS = ['performance', 'scoreboard', 'accuracy_kd', 'damage', 'economy', 'healing'];
+function hiddenCommunityPage(options = {}) {
+  const r = rankHistoryPage({ asyncState: 'AsyncFailureState', stats: 'empty', community: true, playstyle: true, ...options });
+  r.ticker = r.page.root.FindChildTraverse('ProfileStatsCommunitySupporterTicker');
+  return r;
+}
+function hiddenCommunityCounts(r) {
+  return { bridge: r.page.communityBridge.urls.length, ticker: r.ticker.urls.length, rank: r.page.chart.urls.length, play: r.page.playChart.urls.length };
+}
+function hiddenCommunityRequestUrl(r) {
+  const requests = r.page.communityBridge.urls.filter((url) => /deadlock-stats-bridge\/bridge\.html\?/.test(url));
+  return requests.length ? new URL(requests.at(-1)) : null;
+}
+function hiddenCommunityDeliver(r, kind, overrides = {}) {
+  const request = hiddenCommunityRequestUrl(r).searchParams;
+  const base = { v: 4, request: request.get('request'), account: Number(request.get('account_id')), matches: Number(request.get('matches')), mode: request.get('mode') };
+  const body = kind === 'ready'
+    ? { ...base, kind: 'profile_stats', sample: 10, generated: new Date().toISOString(), groups: HIDDEN_COMMUNITY_GROUP_IDS.map((id, index) => ({ id, metrics: HIDDEN_COMMUNITY_GROUPS[index].map((metric) => [metric, 1, 1, 50]) })) }
+    : { ...base, kind: 'error', code: 'upstream_error', status: 502 };
+  r.page.communityBridge.htmlEvents.HTMLTitle(r.page.communityBridge, `DLSTATS2:${JSON.stringify({ ...body, ...overrides })}`);
+}
+function hiddenCommunityHideMinute(r) {
+  const before = hiddenCommunityCounts(r);
+  r.page.root.classes.delete('PageVisible');
+  r.h.resetWork(); r.h.advance(60);
+  return { before, after: hiddenCommunityCounts(r), work: r.h.snapshotWork() };
+}
+function assertHiddenCommunityMinute(r, minute, label) {
+  const { before, after, work } = minute;
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: VS COMMUNITY stays shown on the hidden page`);
+  assert.strictEqual(work.callbacks, 150, `${label}: a hidden minute runs 150 callbacks`);
+  assert.deepStrictEqual(work.callbacksByDelay, { 0.5: 121, 2: 29 }, `${label}: 121 are the 0.5 s comparison watcher, 29 the 2 s page sentinel`);
+  assert.strictEqual(r.h.pending(), 2, `${label}: the watcher and the sentinel both stay armed`);
+  assert.strictEqual(r.ticker.urls.at(-1), HIDDEN_COMMUNITY_TICKER_URL, `${label}: the supporter ticker stays loaded`);
+  assert.strictEqual(r.ticker.style.visibility, 'visible', `${label}: the supporter ticker stays visible`);
+  assert.strictEqual(after.ticker, before.ticker, `${label}: no ticker URL is written while hidden`);
+  assert.strictEqual(after.bridge, before.bridge, `${label}: no request URL is written while hidden`);
+  assert.deepStrictEqual([r.page.chart.urls.slice(before.rank), r.page.playChart.urls.slice(before.play)], [['about:blank'], ['about:blank']], `${label}: only the two charts unload`);
+  assert.strictEqual(work.panelCalls.SetURL, 2, `${label}: the two chart unloads are the only URL writes`);
+}
+{
+  // Auto-opened while loading: the request panel keeps its URL and the ticker stays loaded for the whole hidden minute.
+  const r = hiddenCommunityPage(); r.h.advance(1.5);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', 'characterize.hidden-page-community.auto: the empty profile auto-opened');
+  assert.ok(hiddenCommunityRequestUrl(r), 'characterize.hidden-page-community.auto: a request was loaded');
+  const requestUrl = r.page.communityBridge.urls.at(-1);
+  const minute = hiddenCommunityHideMinute(r);
+  assertHiddenCommunityMinute(r, minute, 'characterize.hidden-page-community.auto');
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), requestUrl, 'characterize.hidden-page-community.auto: the request panel stays on its loading request');
+  assert.strictEqual(r.page.communityBridge.style.visibility, 'visible', 'characterize.hidden-page-community.auto: the request panel stays visible');
+  assert.deepStrictEqual({ IsValid: minute.work.panelCalls.IsValid, GetAttributeString: minute.work.panelCalls.GetAttributeString, BHasClass: minute.work.panelCalls.BHasClass }, { IsValid: 2862, GetAttributeString: 240, BHasClass: 30 }, 'characterize.hidden-page-community.auto: native reads per hidden minute');
+  captureBaseline('baseline.hidden-community-auto', r.h);
+  r.h.resetWork(); r.h.advance(60);
+  const second = r.h.snapshotWork();
+  assert.deepStrictEqual([second.callbacks, second.callbacksByDelay, second.panelCalls.SetURL], [150, { 0.5: 120, 2: 30 }, 0], 'characterize.hidden-page-community.auto: the second hidden minute runs 150 callbacks and writes no URL');
+  assert.strictEqual(r.h.pending(), 2, 'characterize.hidden-page-community.auto: nothing stops with time');
+}
+for (const kind of ['ready', 'error']) {
+  // The comparison already has its result when the page hides: the request panel is blank, the ticker and the watcher still run.
+  const label = `characterize.hidden-page-community.${kind}`;
+  const r = hiddenCommunityPage(); r.h.advance(1.5);
+  hiddenCommunityDeliver(r, kind);
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the delivered result unloads the request panel`);
+  const minute = hiddenCommunityHideMinute(r);
+  assertHiddenCommunityMinute(r, minute, label);
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the request panel stays blank`);
+  captureBaseline(`baseline.hidden-community-${kind}`, r.h);
+}
+{
+  // A title delivered after the hide: a foreign nonce is ignored, the in-flight request's own result is still accepted.
+  const label = 'characterize.hidden-page-community.stale-title';
+  const r = hiddenCommunityPage(); r.h.advance(1.5);
+  const requestUrl = r.page.communityBridge.urls.at(-1);
+  const minute = hiddenCommunityHideMinute(r);
+  hiddenCommunityDeliver(r, 'ready', { request: 'stale' });
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), requestUrl, `${label}: a foreign-nonce title is not accepted`);
+  assert.strictEqual(r.page.communityBridge.style.visibility, 'visible', `${label}: a foreign-nonce title leaves the request panel loading`);
+  hiddenCommunityDeliver(r, 'ready');
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), 'about:blank', `${label}: the in-flight request's result is accepted on the hidden page`);
+  assert.strictEqual(r.page.communityBridge.style.visibility, 'collapse', `${label}: acceptance collapses the request panel`);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the comparison stays shown`);
+  assert.strictEqual(r.ticker.urls.at(-1), HIDDEN_COMMUNITY_TICKER_URL, `${label}: the ticker stays loaded after the accepted result`);
+  assert.strictEqual(hiddenCommunityCounts(r).bridge, minute.after.bridge + 1, `${label}: acceptance writes only the blank unload`);
+  assert.strictEqual(r.h.pending(), 2, `${label}: the watcher stays armed after the accepted result`);
+  captureBaseline('baseline.hidden-community-stale-title', r.h);
+}
+for (const state of ['loading', 'ready', 'error']) {
+  // Return without any pointer or hover call: the comparison was never closed, so it is simply still shown.
+  const label = `characterize.hidden-page-community.return-${state}`;
+  const r = hiddenCommunityPage(); r.h.advance(1.5);
+  if (state !== 'loading') hiddenCommunityDeliver(r, state);
+  hiddenCommunityHideMinute(r);
+  const before = hiddenCommunityCounts(r);
+  r.page.root.classes.add('PageVisible');
+  r.h.resetWork(); r.h.advance(5);
+  const work = r.h.snapshotWork(), after = hiddenCommunityCounts(r);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the return shows VS COMMUNITY`);
+  assert.strictEqual(after.bridge, before.bridge, `${label}: no new request URL is set`);
+  assert.strictEqual(after.ticker, before.ticker, `${label}: the ticker is not reloaded`);
+  assert.strictEqual(r.ticker.urls.at(-1), HIDDEN_COMMUNITY_TICKER_URL, `${label}: the ticker was never blanked`);
+  assert.strictEqual(r.page.communityBridge.urls.at(-1) === 'about:blank', state !== 'loading', `${label}: the request panel keeps its pre-hide state`);
+  assert.ok(/rank-history\.html\?/.test(r.page.chart.urls.at(-1)) && /playstyle\.html\?/.test(r.page.playChart.urls.at(-1)), `${label}: only the two charts reload`);
+  assert.deepStrictEqual([work.callbacks, work.callbacksByDelay], [20, { 0.5: 19, 2: 1 }], `${label}: five visible seconds run 20 callbacks`);
+  assert.strictEqual(r.h.pending(), 2);
+  captureBaseline(`baseline.hidden-community-return-${state}`, r.h);
+}
+{
+  // Manual open on a profile with games: hiding behaves like the auto-opened comparison.
+  const label = 'characterize.hidden-page-community.manual';
+  const r = hiddenCommunityPage({ stats: 'filled' }); r.h.advance(5);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'collapse', `${label}: a profile with games stays on stock stats`);
+  assert.strictEqual(r.h.pending(), 1, `${label}: only the sentinel runs while the comparison is closed`);
+  r.page.communityButton.panelEvents.onactivate(); r.h.advance(1);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the button opens VS COMMUNITY`);
+  const requestUrl = r.page.communityBridge.urls.at(-1);
+  const minute = hiddenCommunityHideMinute(r);
+  assertHiddenCommunityMinute(r, minute, label);
+  assert.strictEqual(r.page.communityBridge.urls.at(-1), requestUrl, `${label}: the request panel keeps its loading request`);
+  captureBaseline('baseline.hidden-community-manual', r.h);
+  r.page.root.classes.add('PageVisible'); r.h.resetWork(); r.h.advance(5);
+  assert.strictEqual(r.page.communityPanel.style.visibility, 'visible', `${label}: the return still shows VS COMMUNITY`);
+  assert.strictEqual(hiddenCommunityCounts(r).bridge, minute.after.bridge, `${label}: the return sets no new request URL`);
+}
 // Profile tab handlers. Panorama compiles an onactivate string containing script as JavaScript, where a bare
 // native event such as CitadelProfileShowMatchHistoryTab( 0 ) is an undefined function: the ReferenceError skips
 // both the native tab switch and Rank History's exit (live 6795 console.log, 2026-10-19). Run each scripted tab
@@ -2169,5 +2323,82 @@ for (const [name, scenario] of regressions) {
 }
 assert.deepStrictEqual(regressionFailures, [], 'runtime regression scenarios');
 
+
+// The boundary counters see only script-made calls; mock-internal traversal recursion lands in visits.
+{
+  const h = harness(); const root = new Panel('Panel', { id: 'BoundaryRoot' });
+  const middle = root.add(new Panel('Panel', { id: 'BoundaryMiddle', classes: ['BoundaryMark'] }));
+  const leaf = middle.add(new Panel('Panel', { id: 'BoundaryLeaf', classes: ['BoundaryMark'] }));
+  h.attach(root); h.resetWork();
+  assert.deepStrictEqual(root.FindChildrenWithClassTraverse('BoundaryMark'), [middle, leaf]);
+  let work = h.snapshotWork();
+  assert.strictEqual(work.boundary.FindChildrenWithClassTraverse, 1, 'one script class traversal is one boundary call');
+  assert.ok(work.visits.FindChildrenWithClassTraverse > 0, 'descendant recursion is counted as visits');
+  assert.strictEqual(work.panelCalls.FindChildrenWithClassTraverse, 1 + work.visits.FindChildrenWithClassTraverse, 'panelCalls keeps counting every visit');
+  h.resetWork();
+  assert.strictEqual(root.FindChildTraverse('BoundaryLeaf'), leaf);
+  work = h.snapshotWork();
+  assert.strictEqual(work.boundary.FindChildTraverse, 1, 'one script id traversal is one boundary call');
+  assert.ok(work.visits.FindChildTraverse > 0, 'descendant recursion is counted as visits');
+  assert.strictEqual(work.panelCalls.FindChildTraverse, 1 + work.visits.FindChildTraverse, 'panelCalls keeps counting every visit');
+}
+
+// Boundary counters cover class, text, style and visibility writes without touching panelCalls or queries.
+{
+  const h = harness(); const panel = new Panel('Label', { id: 'BoundaryWrites' });
+  h.attach(panel); h.resetWork();
+  panel.AddClass('BoundaryClass');
+  let work = h.snapshotWork();
+  assert.strictEqual(work.boundary.AddClass, 1, 'one AddClass is one boundary call');
+  h.resetWork();
+  panel.text = 'written';
+  work = h.snapshotWork();
+  assert.strictEqual(work.boundary.textWrite, 1, 'one text assignment is one textWrite');
+  assert.deepStrictEqual({ calls: work.panelCalls.text, queries: work.queries }, { calls: {}, queries: [] }, 'text writes add nothing to panelCalls or queries');
+  h.resetWork();
+  panel.style.visibility = 'collapse';
+  work = h.snapshotWork();
+  assert.strictEqual(work.boundary.styleWrite, 1, 'one style assignment is one styleWrite');
+  assert.strictEqual(panel.style.visibility, 'collapse', 'the written style value reads back');
+  h.resetWork();
+  panel.visible = false;
+  assert.strictEqual(h.snapshotWork().boundary.visibleWrite, 1, 'one visible assignment is one visibleWrite');
+  assert.strictEqual(panel.visible, false, 'the written visibility reads back');
+}
+
+// Characterize script-boundary work for repeated hover, idle chart polling, cached Escape reopen and the missing-player tick.
+{
+  const h = harness(), board = scoreboard();
+  for (let i = 0; i < 12; i += 1) board.addRow(String(1001 + i));
+  h.evaluate(board.root); h.resetWork();
+  for (let i = 0; i < 10; i += 1) board.root.ShowRankBarebonesScoreboardBind();
+  captureBaseline('baseline.scoreboard-hover-x10', h);
+  assert.strictEqual(h.snapshotWork().boundary.SetPanelEvent, 120, 'ten hovers over twelve rows rebind every name each time');
+}
+{
+  const r = rankHistoryPage({ asyncState: 'AsyncLoadingState' });
+  r.h.resetWork(); r.h.advance(60);
+  captureBaseline('baseline.chart-loading-60s', r.h);
+}
+{
+  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'HoverCached');
+  h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
+  const menuDollar = h.evaluate(menu.root); h.drain();
+  menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
+  h.resetWork();
+  for (let i = 0; i < 10; i += 1) menuDollar.ShowRankBarebonesEscapeOpen();
+  h.drain();
+  captureBaseline('baseline.escape-hover-x10-cached', h);
+  assert.strictEqual(h.snapshotWork().boundary.SetImage || 0, 0, 'cached Escape reopen makes no SetImage boundary calls');
+}
+{
+  const h = harness(), roster = playerRoster(STANDARD_HEROES, 'Missing60s');
+  h.gameClock.text = '0:30';
+  h.attach(roster.friendly); h.attach(roster.enemy);
+  roster.bars.forEach((bar) => h.evaluate(bar.root));
+  h.resetWork(); h.advance(60);
+  captureBaseline('baseline.missing-12-player-60s', h);
+  h.gameClock.text = '8:00'; h.drain();
+}
 
 console.log('showrank barebones runtime tests passed');
