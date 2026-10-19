@@ -4,6 +4,8 @@
 
 `topbar_rank/` is the alert edition of the V40D Top Bar Plus and ShowRank Barebones integration. `../topbar_rank_no_missing/` is the same rank product without missing-enemy alerts. Both produce mutually exclusive `pak89_dir.vpk` replacements.
 
+Status (2026-10-20): this lane is the old Top Bar Plus v40d merge. The browser merger (`Show-rank-merger/`) no longer reads it; it now merges the released Top Bar Plus v5 and ShowRank v1.0.0 VPKs directly. Do not update this lane for the merger.
+
 This lane does not use `showrank_common.js`, `topbar_rank_rank_bridge.js`, or `topbar_rank_v40_hud.js`. The canonical `showrank/` runtime is a separate product. Rank behavior here comes from `panorama/scripts/showrank_barebones.js`.
 
 Work in authored source and builders. Treat `*_compiled/`, `_topbar_rank_barebones*_build/`, VPKs, archives, and installed addons as generated output.
