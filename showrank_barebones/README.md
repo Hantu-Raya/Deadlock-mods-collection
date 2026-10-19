@@ -38,7 +38,9 @@ The host also owns one private ES5 Escape readiness module. Its single `classify
 
 ## Credit and version
 
-The bottom-right corner of the dashboard profile page shows `ShowRank v<version> · made by hanturaya`. Clicking `hanturaya` opens https://x.com/hanturaya. The version is `package.json`'s `version`; when releasing, bump it and the credit label in `citadel_db_page_profile.xml` together. The runtime test fails if they differ.
+The bottom-right corner of the dashboard profile page shows `ShowRank v<version> · made by hanturaya`. Clicking `hanturaya` opens https://x.com/hanturaya. The version is `package.json`'s `version`; when releasing, bump it and the credit label in `citadel_db_page_profile.xml` together. The runtime test fails if they differ. Both editions use this version.
+
+Release archives: add `-Archive` to `build_showrank_barebones.ps1` or `build_showrank_barebones_no_missing.ps1`. They write `showrank_barebones_v<version>.7z` and `showrank_barebones_no_missing_v<version>.7z` in the collection root, holding `showrank_barebones_dir.vpk` and `showrank_barebones_no_missing_dir.vpk` like the earlier GameBanana files.
 
 ## Build
 

@@ -2,6 +2,7 @@ param(
     [switch]$Install,
     [switch]$Diagnostics,
     [switch]$NoMissing,
+    [switch]$Archive,
     [switch]$KeepStaging,
     [string]$AddonsPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
 )
@@ -13,6 +14,9 @@ $root = $PSScriptRoot
 
 if ($Diagnostics -and $NoMissing) {
     throw '-Diagnostics instruments the missing lane and cannot be combined with -NoMissing.'
+}
+if ($Diagnostics -and $Archive) {
+    throw 'Diagnostics builds are not release archives.'
 }
 # -NoMissing packs the committed showrank_barebones_no_missing tree, derived by scripts/showrank-barebones-editions.js.
 $barebonesRoot = Join-Path $root $(if ($NoMissing) { 'showrank_barebones_no_missing' } else { 'showrank_barebones' })
@@ -406,6 +410,22 @@ try {
     Invoke-VpkPack -VpkEditCli $vpkEditCli -InputDir $stageCompiled -OutputPath $vpkOutput
     $packedTree = Get-PackedVpkTree -VpkEditCli $vpkEditCli -VpkPath $vpkOutput -Source2ViewerPath $source2Viewer
     Assert-BarebonesAssetSet -Actual (Get-BarebonesPackedAssetPaths -Tree $packedTree) -ExpectedAssets $requiredCompiledAssets -Label 'Packed barebones VPK'
+
+    if ($Archive) {
+        # Release archive: <edition>_v<version>.7z holding the same <edition>_dir.vpk member as earlier GameBanana files.
+        $version = (Get-Content -Raw -LiteralPath (Join-Path $root 'showrank_barebones\package.json') | ConvertFrom-Json).version
+        if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "showrank_barebones/package.json has no x.y.z version: $version" }
+        $sevenZip = Get-RepoToolPath -ToolName '7z.exe' -Candidates @(
+            'C:\Program Files\7-Zip\7z.exe',
+            'C:\Program Files (x86)\7-Zip\7z.exe',
+            (Join-Path $root '7z.exe'),
+            (Join-Path $root 'tools\7z.exe')
+        )
+        $archivePath = Join-Path $root ('{0}_v{1}.7z' -f ($vpkOutputName -replace '_dir\.vpk$', ''), $version)
+        if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }
+        Compress-Vpk7Zip -SevenZip $sevenZip -InputPath $vpkOutput -ArchivePath $archivePath -ExpectedLeaf $vpkOutputName
+        Write-Host "Release archive: $archivePath"
+    }
 
     if ($Install) {
         Install-BarebonesVpk -SourceVpk $vpkOutput

@@ -1,7 +1,6 @@
 {
   "name": "showrank-barebones-no-missing",
   "private": true,
-  "version": "1.0.0",
   "scripts": {
     "test": "node tests/showrank-barebones-runtime.test.js && node tests/profile-stats-community-runtime.test.js",
     "validate": "npm test && node --check panorama/scripts/showrank_barebones.js"

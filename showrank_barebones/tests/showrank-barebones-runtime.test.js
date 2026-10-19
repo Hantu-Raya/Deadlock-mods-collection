@@ -2023,7 +2023,7 @@ for (const state of ['loading', 'ready', 'error']) {
 // would push it off-screen.
 {
   const layout = fs.readFileSync(path.join(hostRoot, 'panorama', 'layout', 'citadel_db_page_profile.xml'), 'utf8');
-  const { version } = JSON.parse(fs.readFileSync(path.join(hostRoot, 'package.json'), 'utf8'));
+  const { version } = JSON.parse(fs.readFileSync(path.join(repositoryDir, 'showrank_barebones', 'package.json'), 'utf8'));
   const credit = layout.match(/<Panel id="ShowRankBarebonesCredit"[^>]*>([\s\S]*?)<\/Panel>\s*<\/AsyncDataPanel>/);
   assert.ok(credit, 'the credit is the last child of the non-flowing AsyncDataPanel');
   const text = Array.from(credit[1].matchAll(/text="([^"]*)"/g), (match) => match[1]).join(' ');
