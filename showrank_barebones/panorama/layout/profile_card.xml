@@ -72,7 +72,7 @@
 			<Panel id="ProfileBadgeBackground" />
 			<Image id="ShowRankBarebonesRankImage" visible="false" hittest="false" scaling="stretch-to-fit-preserve-aspect" />
 		</Panel>
-		<Label id="ShowRankBarebonesAccount" text="{i:r:account_id}" visible="false" hittest="false" />
-		<Label id="ProfileStatsCommunityContextAccount" text="{i:r:account_id}" visible="false" hittest="false" />
+		<Label id="ShowRankBarebonesAccount" text="{i:r:account_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
+		<Label id="ProfileStatsCommunityContextAccount" text="{i:r:account_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
 	</CitadelProfileCard>
 </root>

@@ -89,7 +89,7 @@
 									<Panel class="ForumIcon buttonIcon" />
 									<Label class="defaultText" text="#Citadel_JoinForum_ViewInfo" />
 								</Button>
-								<Label id="ShowRankBarebonesProfilePageAccount" text="{i:r:account_id}" visible="false" hittest="false" />
+								<Label id="ShowRankBarebonesProfilePageAccount" text="{i:r:account_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
 								<Panel id="ShowRankBarebonesProfilePageRankHost" hittest="false">
 									<Image id="ShowRankBarebonesProfilePageRankImage" visible="false" hittest="false" scaling="stretch-to-fit-preserve-aspect" />
 								</Panel>
@@ -278,6 +278,6 @@
 				</Panel>
 			</Panel>
 		</AsyncDataPanel>
-		<Label id="ProfileStatsCommunityAccount" text="{i:r:account_id}" visible="false" hittest="false" />
+		<Label id="ProfileStatsCommunityAccount" text="{i:r:account_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
 	</CitadelProfilePage>
 </root>
