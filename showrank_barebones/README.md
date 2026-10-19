@@ -68,3 +68,5 @@ npm --prefix .\showrank_barebones run validate
 | `showrank_barebones_no_missing` | None | `showrank_barebones_no_missing_dir.vpk` |
 
 The editions override the same Panorama resources and install as `pak89_dir.vpk`. Install only one edition at a time.
+
+The no-missing tree is generated from this module: `node scripts/showrank-barebones-editions.js` (from the collection root) removes the regions marked `[no-missing: cut begin]` ... `[no-missing: cut end]`. Build it with `build_showrank_barebones_no_missing.ps1`.

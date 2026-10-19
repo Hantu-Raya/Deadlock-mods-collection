@@ -15,6 +15,7 @@
     var ESCAPE_WITNESS_DELAYS = [0.05, 0.15, 0.3, 0.6];
     var ESCAPE_ROW_DELAYS = [0.25, 1.0, 2.0, 4.0, 8.0];
     var PROFILE_CONTEXT_CLOSE_DELAY = 0.5;
+    // [no-missing: cut begin] The no-missing edition (scripts/showrank-barebones-editions.js) drops these regions.
     var MISSING_WINDOW_END_SECONDS = 8 * 60;
     var MISSING_WINDOW_RETRY_INTERVAL = 0.5;
     var MISSING_WATCHDOG_INTERVAL = 1.0;
@@ -87,6 +88,7 @@
         "wrecker": "wrecker_sm_psd.vtex",
         "yamato": "yamato_sm_psd.vtex"
     };
+    // [no-missing: cut end]
     var PROFILE_CARD_CLASS = "ShowRankBarebonesProfileCard";
     var TOPBAR_PLAYER_CLASS = "ShowRankBarebonesTopbarPlayer";
     var PLAYER_ROW_CLASS = "ShowRankBarebonesPlayerRow";
@@ -364,7 +366,7 @@
     }
     function getState(panel) {
         var documentRoot = getDocumentRoot(panel);
-        var shared, c, name, t;
+        var shared;
         if (!documentRoot) {
             return null;
         }
@@ -379,6 +381,7 @@
                     completedRoster: null,
                     party: null,
                     escapeRendered: false,
+                    // [no-missing: cut begin]
                     missingSessionToken: 0,
                     missingLeaderToken: 0,
                     missingLeaderPulse: 0,
@@ -389,9 +392,12 @@
                     missingWatchRoot: null,
                     missingRecords: [],
                     missingNotificationRoot: null
+                    // [no-missing: cut end]
                 };
                 documentRoot.__showrank_barebones_state_v1 = shared;
             }
+            // [no-missing: cut begin]
+            var c, name, t;
             t = Object.prototype.toString;
             c = {
                 missingSessionToken: 0,
@@ -415,6 +421,7 @@
             if (!isValid(shared.missingNotificationRoot)) {
                 shared.missingNotificationRoot = null;
             }
+            // [no-missing: cut end]
             shared.documentRoot = documentRoot;
             if (isHideoutDocumentRoot(documentRoot)) {
                 resetProbeCache(shared);
@@ -566,6 +573,7 @@
     function schedule(delay, callback) {
         $.Schedule(delay, callback);
     }
+    // [no-missing: cut begin]
     function getMissingNotificationRoot(shared) {
         var root;
         if (!shared) {
@@ -1183,6 +1191,7 @@
             ensureMissingChains(shared, shared.missingRecords, false, record);
         }
     }
+    // [no-missing: cut end]
     function startTopbarWatch(record) {
         var index;
         if (!record) {
@@ -3006,8 +3015,11 @@
         }
     } else if (isValid(root) && root.paneltype === "CitadelHudTopBarPlayer") {
         var topbarRecord = buildTopbarRecord(root);
-        var missingShared = getState(root);
-        registerMissingRecord(missingShared, root);
+        // getState also creates the shared state and clears the probe cache in the hideout, in both editions.
+        var topbarShared = getState(root);
+        // [no-missing: cut begin]
+        registerMissingRecord(topbarShared, root);
+        // [no-missing: cut end]
         startTopbarWatch(topbarRecord);
     } else if (isValid(root) && root.paneltype === "CitadelHudEscapeMenu") {
         $.ShowRankBarebonesEscapeOpen = function () {

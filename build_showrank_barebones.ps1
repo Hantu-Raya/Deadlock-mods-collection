@@ -1,6 +1,7 @@
 param(
     [switch]$Install,
     [switch]$Diagnostics,
+    [switch]$NoMissing,
     [switch]$KeepStaging,
     [string]$AddonsPath = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
 )
@@ -10,12 +11,16 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 . (Join-Path $root 'scripts\source2_package_pipeline.ps1')
 
-$barebonesRoot = Join-Path $root 'showrank_barebones'
+if ($Diagnostics -and $NoMissing) {
+    throw '-Diagnostics instruments the missing lane and cannot be combined with -NoMissing.'
+}
+# -NoMissing packs the committed showrank_barebones_no_missing tree, derived by scripts/showrank-barebones-editions.js.
+$barebonesRoot = Join-Path $root $(if ($NoMissing) { 'showrank_barebones_no_missing' } else { 'showrank_barebones' })
 $compositionScript = Join-Path $root 'scripts\profile-stats-community-composition.js'
 $buildRoot = Join-Path $root '_showrank_barebones_build'
 $stageSource = Join-Path $buildRoot 'src'
 $stageCompiled = Join-Path $buildRoot 'src_compiled'
-$vpkOutputName = if ($Diagnostics) { 'showrank_barebones_diagnostics_dir.vpk' } else { 'showrank_barebones_dir.vpk' }
+$vpkOutputName = if ($Diagnostics) { 'showrank_barebones_diagnostics_dir.vpk' } elseif ($NoMissing) { 'showrank_barebones_no_missing_dir.vpk' } else { 'showrank_barebones_dir.vpk' }
 $vpkOutput = Join-Path $root $vpkOutputName
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $vpkEditCli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
@@ -212,14 +217,13 @@ function Invoke-BarebonesClosureMinification {
             }
         }
 
-        foreach ($publicFragment in @(
+        $publicFragments = @(
             'ShowRankBarebonesRefresh',
             'ShowRankBarebonesOpenStatlocker',
             'ShowRankBarebonesOpenPlayerProfile',
             'ShowRankBarebonesCopyAccount',
             'ShowRankBarebonesEscapeOpen',
             'ShowRankBarebonesEscapeOut',
-            'ShowRankBarebonesMissingWindowExpired',
             'ShowRankBarebonesPartyBridge',
             'ShowRankBarebonesPartyStack',
             'DLPARTY1:',
@@ -230,7 +234,15 @@ function Invoke-BarebonesClosureMinification {
             'ProfileStatsCommunityOpen',
             'DLRANKH1:',
             'DLPLAY1:'
-        )) {
+        )
+        if ($NoMissing) {
+            if (Select-String -LiteralPath $minifiedPath -Pattern 'ShowRankBarebonesMissing' -SimpleMatch -Quiet) {
+                throw 'No-missing build: minified runtime still contains the missing lane.'
+            }
+        } else {
+            $publicFragments += 'ShowRankBarebonesMissingWindowExpired'
+        }
+        foreach ($publicFragment in $publicFragments) {
             if (-not (Select-String -LiteralPath $minifiedPath -Pattern $publicFragment -SimpleMatch -Quiet)) {
                 throw "Closure Compiler output is missing required public fragment: $publicFragment"
             }
@@ -332,7 +344,7 @@ try {
         New-Item -ItemType Directory -Path (Split-Path -Parent $stagedPath) -Force | Out-Null
         Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force
     }
-    & node $compositionScript $stageSource
+    & node $compositionScript --host-root $barebonesRoot $stageSource
     if ($LASTEXITCODE -ne 0) { throw "Profile Stats Community composition failed with exit code $LASTEXITCODE" }
     Assert-BarebonesAssetSet -Actual (Get-BarebonesAssetPaths -RootPath $stageSource) -ExpectedAssets $requiredSourceAssets -Label 'Composed barebones source'
     $readableRuntime = Join-Path $buildRoot 'showrank_barebones.readable.js'

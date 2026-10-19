@@ -81,5 +81,6 @@
 				</TabContents>
 			</Panel>
 		</Panel>
+		<CitadelHTMLPanel id="ShowRankBarebonesPartyBridge" visible="false" hittest="false" acceptsfocus="false" style="width: 260px; height: 30px;" />
 	</CitadelHudEscapeMenu>
 </root>

@@ -5,12 +5,16 @@
 		<include src="s2r://panorama/styles/hud_common.vcss_c" />
 		<include src="s2r://panorama/styles/citadel_hud_top_bar.vcss_c" />
 		<include src="s2r://panorama/styles/unit_status_icons.vcss_c" />
+		<!-- [no-missing: cut begin] -->
 		<include src="s2r://panorama/styles/citadel_hud_game_announcements.vcss_c" />
+		<!-- [no-missing: cut end] -->
 		<include src="s2r://panorama/styles/showrank_barebones_topbar.vcss_c" />
 	</styles>
 	<CitadelHudTopBar hittest="false">
 		<GlobalClassListener classes="gDetailView gShopOpen gScoreboardOpen gStreetBrawl gPVE" />
+		<!-- [no-missing: cut begin] -->
 		<Panel id="ShowRankBarebonesNotificationRoot" hittest="false" />
+		<!-- [no-missing: cut end] -->
 		<Panel id="GradientBacker" />
 		<Panel class="GameClock">
 			<Label class="GameTime" id="GameTime" text="{s:game_clock}" />

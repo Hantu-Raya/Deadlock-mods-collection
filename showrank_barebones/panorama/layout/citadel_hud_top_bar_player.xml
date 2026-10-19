@@ -41,9 +41,11 @@
 						<CitadelHeroBadge id="HeroBadge" class="TopBar" />
 						<Panel id="FrogImage" />
 					</Panel>
+					<!-- [no-missing: cut begin] -->
 					<Panel id="ShowRankBarebonesMissingIndicator" hittest="false">
 						<Label text="MISSING" hittest="false" />
 					</Panel>
+					<!-- [no-missing: cut end] -->
 					<Panel class="HeroContentsCoinInnerBorder" />
 				</Panel>
 				<Panel class="HeroInnerContent">

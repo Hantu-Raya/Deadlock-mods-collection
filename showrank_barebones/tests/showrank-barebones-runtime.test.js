@@ -6,10 +6,13 @@ const path = require('path');
 const vm = require('vm');
 const repositoryDir = path.join(__dirname, '..', '..');
 const composition = require(path.join(repositoryDir, 'scripts', 'profile-stats-community-composition'));
+// SHOWRANK_BAREBONES_HOST_ROOT points the suite at an edition's module root (layouts, package.json, runtime template).
+const hostRoot = process.env.SHOWRANK_BAREBONES_HOST_ROOT || path.join(__dirname, '..');
+const NO_MISSING = path.basename(hostRoot) === 'showrank_barebones_no_missing';
 const runtimePath = process.env.SHOWRANK_BAREBONES_RUNTIME;
 const source = runtimePath
   ? fs.readFileSync(runtimePath, 'utf8')
-  : composition.composeBarebonesSources(repositoryDir).runtime;
+  : composition.composeBarebonesSources(repositoryDir, hostRoot).runtime;
 const rankUrl = (account, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/${account}/rank/image?format=${format}`;
 const statlockerUrl = (account) => `https://statlocker.gg/profile/${account}/matches`;
 const averageUrl = (accounts, base = 'https://api.deadlock-api.com/v1/players', format = 'webp') => `${base}/rank/image?account_ids=${accounts.join(',')}&format=${format}`;
@@ -776,6 +779,8 @@ for (const [label, options] of [
   assert.doesNotThrow(() => h.drain(), 'invalidated profile images are ignored during their finite retries');
 }
 
+// Missing-lane scenarios; the no-missing edition has no lane (its budget check is at the end of the file).
+if (!NO_MISSING) {
 // One document-scoped leader coordinates the early-match indicator without changing native health visibility.
 {
   const h = harness();
@@ -1071,6 +1076,7 @@ for (const [label, options] of [
   assert.strictEqual(player.root.BHasClass('ShowRankBarebonesMissingWindowExpired'), false, 'an exhausted stale-clock watcher fails open instead of suppressing native missing state');
   h.advance(3);
   assertMissingStopped(h, notificationRoot, 'stale-clock exhaustion');
+}
 }
 
 // Escape population is suppressed when hideout state is on the HUD or arrives before probing.
@@ -1995,7 +2001,7 @@ for (const state of ['loading', 'ready', 'error']) {
 // both the native tab switch and Rank History's exit (live 6795 console.log, 2026-10-19). Run each scripted tab
 // handler the way Panorama does and require the native switch plus Rank History's exit.
 {
-  const layout = fs.readFileSync(path.join(__dirname, '..', 'panorama', 'layout', 'citadel_db_page_profile.xml'), 'utf8');
+  const layout = fs.readFileSync(path.join(hostRoot, 'panorama', 'layout', 'citadel_db_page_profile.xml'), 'utf8');
   const handlerFor = (id) => {
     const match = layout.match(new RegExp(`<Label id="${id}"[^>]*onactivate="([^"]*)"`));
     assert.ok(match, `${id} has an onactivate handler`);
@@ -2016,8 +2022,8 @@ for (const state of ['loading', 'ready', 'error']) {
 // another URL; the shown version drifts from package.json; the credit sits inside the flowing page root, which
 // would push it off-screen.
 {
-  const layout = fs.readFileSync(path.join(__dirname, '..', 'panorama', 'layout', 'citadel_db_page_profile.xml'), 'utf8');
-  const { version } = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const layout = fs.readFileSync(path.join(hostRoot, 'panorama', 'layout', 'citadel_db_page_profile.xml'), 'utf8');
+  const { version } = JSON.parse(fs.readFileSync(path.join(hostRoot, 'package.json'), 'utf8'));
   const credit = layout.match(/<Panel id="ShowRankBarebonesCredit"[^>]*>([\s\S]*?)<\/Panel>\s*<\/AsyncDataPanel>/);
   assert.ok(credit, 'the credit is the last child of the non-flowing AsyncDataPanel');
   const text = Array.from(credit[1].matchAll(/text="([^"]*)"/g), (match) => match[1]).join(' ');
@@ -2670,7 +2676,7 @@ const escapeReads = (work) => ({
   assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster || null, null);
 }
 const regressionFailures = [];
-for (const [name, scenario] of regressions) {
+for (const [name, scenario] of regressions.filter(([name]) => !(NO_MISSING && name.startsWith('missing.')))) {
   try { scenario(); } catch (error) { regressionFailures.push(`${name}: ${error.message.split('\n')[0]}`); }
 }
 assert.deepStrictEqual(regressionFailures, [], 'runtime regression scenarios');
@@ -2751,9 +2757,16 @@ assert.deepStrictEqual(regressionFailures, [], 'runtime regression scenarios');
   h.resetWork(); h.advance(60);
   captureBaseline('baseline.missing-12-player-60s', h);
   const minute = h.snapshotWork();
-  assert.strictEqual(minute.callbacksByDelay[0.5], 120, 'twelve players run 120 leader callbacks in the first minute');
-  assert.strictEqual(minute.callbacksByDelay[1], 60 + 12 + 1, 'one watchdog (60), twelve startup rank refreshes and the lone self-watchdog handed off at the second registration');
-  assert.strictEqual(minute.callbacks, 205, 'the first minute runs 205 callbacks (864 with one backup chain per record)');
+  if (NO_MISSING) {
+    assert.strictEqual(minute.callbacksByDelay[0.5] || 0, 0, 'no-missing: no leader chain runs');
+    assert.strictEqual(minute.callbacks, 24, 'no-missing: the first minute runs only the two startup rank refreshes per player');
+    assert.strictEqual(roster.bars.filter((bar) => bar.root.BHasClass('ShowRankBarebonesMissingWindowExpired')).length, 0, 'no-missing: no missing-window class is written');
+    assert.strictEqual((h.documentRoot.__showrank_barebones_state_v1 || {}).missingRecords, undefined, 'no-missing: no missing records exist');
+  } else {
+    assert.strictEqual(minute.callbacksByDelay[0.5], 120, 'twelve players run 120 leader callbacks in the first minute');
+    assert.strictEqual(minute.callbacksByDelay[1], 60 + 12 + 1, 'one watchdog (60), twelve startup rank refreshes and the lone self-watchdog handed off at the second registration');
+    assert.strictEqual(minute.callbacks, 205, 'the first minute runs 205 callbacks (864 with one backup chain per record)');
+  }
   h.gameClock.text = '8:00'; h.drain();
 }
 

@@ -5,6 +5,7 @@ CitadelHudTopBarPlayer,
 	overflow: noclip;
 }
 
+/* [no-missing: cut begin] */
 #ShowRankBarebonesNotificationRoot
 {
 	width: 100%;
@@ -62,6 +63,7 @@ CitadelHudTopBarPlayer,
 	height: 34px;
 	margin: 0px 2px;
 }
+/* [no-missing: cut end] */
 
 .ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
 {
@@ -211,6 +213,7 @@ CitadelPlayersListEntry .ShowRankBarebonesPartyStack.ShowRankBarebonesPartyActiv
 .ShowRankBarebonesPartyColor5 .ShowRankBarebonesPartyIcon { wash-color: #f2994a; }
 
 
+/* [no-missing: cut begin] */
 #ShowRankBarebonesMissingIndicator
 {
 	width: 100%;
@@ -265,6 +268,7 @@ CitadelHudTopBarPlayer.Disconnected #ShowRankBarebonesMissingIndicator
 {
 	visibility: collapse;
 }
+/* [no-missing: cut end] */
 
 .ShowRankBarebonesProfilePage #ProfileInfo
 {

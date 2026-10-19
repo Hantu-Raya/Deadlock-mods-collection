@@ -5,6 +5,7 @@ CitadelHudTopBarPlayer,
 	overflow: noclip;
 }
 
+
 .ShowRankBarebonesProfileCard #ShowRankBarebonesRankImage
 {
 	width: 88px;
@@ -107,6 +108,52 @@ CitadelPlayersListEntry .ShowRankBarebonesPlayerListRankImage
 	z-index: 10;
 }
 
+/* Party stack: one icon_player per party member, overlapped like add_party, left of the rank badge. */
+CitadelPlayersListEntry .ShowRankBarebonesPartyStack
+{
+	height: 24px;
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 88px;
+	flow-children: left;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	z-index: 10;
+	visibility: collapse;
+}
+
+CitadelPlayersListEntry .ShowRankBarebonesPartyStack.ShowRankBarebonesPartyActive
+{
+	visibility: visible;
+}
+
+.ShowRankBarebonesPartyIcon
+{
+	width: 22px;
+	height: 22px;
+	margin-left: -9px;
+	wash-color: #ffffff;
+	visibility: collapse;
+}
+
+.ShowRankBarebonesPartyActive .ShowRankBarebonesPartyIcon1,
+.ShowRankBarebonesPartyActive .ShowRankBarebonesPartyIcon2,
+.ShowRankBarebonesPartyAtLeast3 .ShowRankBarebonesPartyIcon3,
+.ShowRankBarebonesPartyAtLeast4 .ShowRankBarebonesPartyIcon4,
+.ShowRankBarebonesPartyAtLeast5 .ShowRankBarebonesPartyIcon5,
+.ShowRankBarebonesPartyAtLeast6 .ShowRankBarebonesPartyIcon6
+{
+	visibility: visible;
+}
+
+.ShowRankBarebonesPartyColor0 .ShowRankBarebonesPartyIcon { wash-color: #f2c94c; }
+.ShowRankBarebonesPartyColor1 .ShowRankBarebonesPartyIcon { wash-color: #56ccf2; }
+.ShowRankBarebonesPartyColor2 .ShowRankBarebonesPartyIcon { wash-color: #eb5757; }
+.ShowRankBarebonesPartyColor3 .ShowRankBarebonesPartyIcon { wash-color: #6fcf97; }
+.ShowRankBarebonesPartyColor4 .ShowRankBarebonesPartyIcon { wash-color: #bb6bd9; }
+.ShowRankBarebonesPartyColor5 .ShowRankBarebonesPartyIcon { wash-color: #f2994a; }
+
+
 
 .ShowRankBarebonesProfilePage #ProfileInfo
 {
@@ -137,6 +184,231 @@ CitadelPlayersListEntry .ShowRankBarebonesPlayerListRankImage
 .ShowRankBarebonesProfilePage #ForumButton
 {
 	visibility: collapse;
+}
+
+/* Bottom-right credit; a child of the non-flowing AsyncDataPanel, so the page root's right flow can't move it. */
+.ShowRankBarebonesCredit
+{
+	flow-children: right;
+	horizontal-align: right;
+	vertical-align: bottom;
+	margin: 0px 40px 28px 0px;
+}
+
+.ShowRankBarebonesCreditText
+{
+	margin-left: 5px;
+	font-size: 16px;
+	letter-spacing: 1px;
+	color: #ffffff80;
+}
+
+.ShowRankBarebonesCreditLink
+{
+	color: #ffffffcc;
+}
+
+.ShowRankBarebonesCreditLink:hover
+{
+	color: #ffffff;
+	text-decoration: underline;
+}
+
+/* Rank History: owned tab in the stock match-history title row, plus a chart host over the 166px
+   AsyncMatchHistory slot. ShowRankBarebonesRankHistoryOn = chosen tab; ...Fallback = stock history failed. */
+#MatchHistoryArea #ShowRankBarebonesRankHistoryLabel
+{
+	margin-left: 20px;
+	opacity: 0.3;
+}
+
+.ShowRankBarebonesRankHistoryOn #MatchHistoryArea #ShowRankBarebonesRankHistoryLabel
+{
+	opacity: 1.0;
+}
+
+.ShowRankBarebonesRankHistoryOn #MatchHistoryArea #matchHistoryLabel,
+.ShowRankBarebonesRankHistoryOn #MatchHistoryArea #showcaseLabel
+{
+	opacity: 0.3;
+}
+
+.ShowRankBarebonesRankHistoryOn #MatchHistoryArea #MatchHistoryList,
+.ShowRankBarebonesRankHistoryOn #MatchHistoryArea #ShowcaseList,
+.ShowRankBarebonesRankHistoryOn #MatchHistoryArea #MatchHistoryButton,
+.ShowRankBarebonesRankHistoryFallback .AsyncMatchHistory .AsyncFailureContainer
+{
+	visibility: collapse;
+}
+
+.ShowRankBarebonesRankHistory
+{
+	width: 100%;
+	height: 158px;
+	margin-top: 38px;
+	ignore-parent-flow: true;
+	flow-children: down;
+	visibility: collapse;
+}
+
+.ShowRankBarebonesRankHistoryOn .ShowRankBarebonesRankHistory,
+.ShowRankBarebonesRankHistoryFallback .ShowRankBarebonesRankHistory
+{
+	visibility: visible;
+}
+
+.ShowRankBarebonesRankHistoryFallback .ShowRankBarebonesRankHistory
+{
+	height: 166px;
+	margin-top: 0px;
+}
+
+/* Transparent card: header text carries its own shadow; the chart page draws on pure black and is
+   screen-blended, so black drops out over the dashboard backdrop. */
+.ShowRankBarebonesRankHistoryBar
+{
+	width: 100%;
+	height: 34px;
+	padding: 0px 4px;
+	flow-children: right;
+}
+
+.ShowRankBarebonesRankHistoryTitle
+{
+	font-size: 14px;
+	font-weight: bold;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	color: #ffffff;
+	text-shadow: 0px 0px 4px 2.0 #000000;
+	vertical-align: middle;
+	visibility: collapse;
+}
+
+.ShowRankBarebonesRankHistoryFallback .ShowRankBarebonesRankHistoryTitle
+{
+	visibility: visible;
+}
+
+.ShowRankBarebonesRankHistoryStatus
+{
+	margin-left: 16px;
+	vertical-align: middle;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #e0e4ea;
+	text-shadow: 0px 0px 4px 2.0 #000000;
+}
+
+/* Groups sit on the left, next to the Rank History tab the user just clicked, to shorten the pointer trip. */
+.ShowRankBarebonesRankHistoryGroups
+{
+	vertical-align: middle;
+	flow-children: right;
+}
+
+.ShowRankBarebonesRankHistoryFallback .ShowRankBarebonesRankHistoryGroups
+{
+	margin-left: 20px;
+}
+
+.ShowRankBarebonesRankHistoryGroupBy
+{
+	vertical-align: middle;
+	margin-right: 10px;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	color: #e0e4ea;
+	text-shadow: 0px 0px 4px 2.0 #000000;
+}
+
+.ShowRankBarebonesRankHistoryGroup
+{
+	height: 22px;
+	margin-left: 2px;
+	padding: 0px 10px;
+	background-color: #000000b3;
+	border-radius: 3px;
+}
+
+.ShowRankBarebonesRankHistoryGroup Label
+{
+	vertical-align: middle;
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #d0d4da;
+}
+
+.ShowRankBarebonesRankHistoryGroup:hover Label
+{
+	color: #ffffff;
+}
+
+.ShowRankBarebonesRankHistoryGroup.ShowRankBarebonesRankHistorySelected
+{
+	background-color: #7ee2a8;
+}
+
+.ShowRankBarebonesRankHistoryGroup.ShowRankBarebonesRankHistorySelected Label
+{
+	color: #0d0f12;
+}
+
+.ShowRankBarebonesRankHistoryChart
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	opacity: 0;
+	-s2-mix-blend-mode: screen;
+}
+
+.ShowRankBarebonesChartLoaded .ShowRankBarebonesRankHistoryChart
+{
+	opacity: 1;
+}
+
+/* Playstyle radar: no card, anchored to the bottom of the stock .LeftPanel (no flow-children). The page
+   draws on pure black and the panel is screen-blended, so black drops out over the hero scene. */
+.ShowRankBarebonesPlaystyle
+{
+	width: 400px;
+	height: 260px;
+	horizontal-align: center;
+	vertical-align: bottom;
+}
+
+.ShowRankBarebonesPlaystyleStatus
+{
+	horizontal-align: center;
+	vertical-align: middle;
+	font-size: 14px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #ffffff;
+	text-shadow: 0px 0px 4px 2.0 #000000;
+}
+
+.ShowRankBarebonesPlaystyleChart
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	-s2-mix-blend-mode: screen;
+}
+
+.ShowRankBarebonesChartLoaded .ShowRankBarebonesPlaystyleChart
+{
+	opacity: 1;
+}
+
+#PlayerName.ShowRankBarebonesScoreboardLink:hover Label
+{
+	color: #ffffff;
+	text-decoration: underline;
 }
 
 

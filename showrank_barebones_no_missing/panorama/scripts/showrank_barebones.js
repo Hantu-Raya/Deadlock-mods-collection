@@ -9,7 +9,7 @@
     var STARTUP_REFRESH_DELAYS = [0.25, 1.0];
     var PROFILE_REFRESH_DELAYS = [0.05, 0.15, 0.3, 0.6, 1.0, 1.5, 2.0];
     var PROFILE_HOVER_FAST_TICKS = 13;
-    var PROFILE_HOVER_MAX_TICKS = 56;
+    var PROFILE_HOVER_MAX_TICKS = 23;
     var PROFILE_HOVER_FAST_DELAY = 0.2;
     var PROFILE_HOVER_IDLE_DELAY = 1.0;
     var ESCAPE_WITNESS_DELAYS = [0.05, 0.15, 0.3, 0.6];
@@ -18,8 +18,27 @@
     var PROFILE_CARD_CLASS = "ShowRankBarebonesProfileCard";
     var TOPBAR_PLAYER_CLASS = "ShowRankBarebonesTopbarPlayer";
     var PLAYER_ROW_CLASS = "ShowRankBarebonesPlayerRow";
+    var PARTY_BRIDGE_ID = "ShowRankBarebonesPartyBridge";
+    var PARTY_BRIDGE_URL = "https://hantu-raya.github.io/deadlock-stats-bridge/party.html";
+    var PARTY_TITLE_PREFIX = "DLPARTY1:";
+    var PARTY_TITLE_MAX_LENGTH = 2048;
+    var PARTY_PROTOCOL = 1;
+    var PARTY_TIMEOUT = 20.0;
+    var PARTY_MAX_SIZE = 6;
+    var PARTY_COLORS = 6;
+    var PARTY_STACK_ID = "ShowRankBarebonesPartyStack";
+    var PARTY_ACTIVE_CLASS = "ShowRankBarebonesPartyActive";
+    var PARTY_SIZE_CLASS_PREFIX = "ShowRankBarebonesPartyAtLeast";
+    var PARTY_COLOR_CLASS_PREFIX = "ShowRankBarebonesPartyColor";
+    var SCOREBOARD_NAME_CLASS = "ShowRankBarebonesScoreboardName";
+    var SCOREBOARD_LINK_CLASS = "ShowRankBarebonesScoreboardLink";
     var root = $.GetContextPanel();
     var state;
+    var partyBridge = null;
+    var partyBridgeChecked = false;
+    var partySequence = 0;
+    var partyOwner = null;
+    var profileCharts = null;
     function isValid(panel) {
         try {
             return !!(panel && panel.IsValid && panel.IsValid());
@@ -111,6 +130,19 @@
         try {
             text = panel.text;
             return typeof text === "string" ? text: null;
+        } catch (ignore) {
+        }
+    }
+    function setPanelClass(panel, className, enabled) {
+        try {
+            if (!isValid(panel)) {
+                return;
+            }
+            if (enabled && panel.AddClass) {
+                panel.AddClass(className);
+            } else if (panel.RemoveClass) {
+                panel.RemoveClass(className);
+            }
         } catch (ignore) {
         }
     }
@@ -238,7 +270,6 @@
         }
         session.roster = null;
         session.lastPlan = null;
-        session.intent = null;
         session.root = null;
         session.shared = null;
         shared.escape = null;
@@ -251,6 +282,7 @@
             clearTopbars(shared);
         }
         shared.completedRoster = null;
+        clearParty(shared);
         shared.escapeOpenLatched = false;
         shared.escapeRoot = null;
         if (shared.escape) {
@@ -273,7 +305,8 @@
                     escape: null,
                     escapeRoot: null,
                     completedRoster: null,
-                    escapeRendered: false
+                    party: null,
+                    escapeRendered: false,
                 };
                 documentRoot.__showrank_barebones_state_v1 = shared;
             }
@@ -324,8 +357,7 @@
             return false;
         }
     }
-    function openPlayerProfile(record) {
-        var account = resolveProfileAccount(record);
+    function showAccountProfile(account) {
         if (!account) {
             return false;
         }
@@ -334,6 +366,58 @@
             return true;
         } catch (ignore) {
             return false;
+        }
+    }
+    function openPlayerProfile(record) {
+        return showAccountProfile(resolveProfileAccount(record));
+    }
+    // The scoreboard sets each CitadelUserName from its row's account (0 for bots);
+    // the native `accountid` getter is primary, the XML attribute only a fallback.
+    function scoreboardNameAccount(name) {
+        var native = null;
+        var attribute;
+        if (!isValid(name)) {
+            return null;
+        }
+        try {
+            native = name.accountid;
+        } catch (ignore) {
+            native = null;
+        }
+        native = typeof native === "number" ? String(native) : (typeof native === "string" ? native : "");
+        attribute = readAttribute(name, "accountid") || "";
+        if (native && attribute && native !== attribute) {
+            return null;
+        }
+        return canonicalAccountOrNull(native || attribute);
+    }
+    function bindScoreboardName(name) {
+        var linked = !!scoreboardNameAccount(name);
+        try {
+            if (linked !== name.BHasClass(SCOREBOARD_LINK_CLASS)) {
+                if (linked) {
+                    name.AddClass(SCOREBOARD_LINK_CLASS);
+                } else {
+                    name.RemoveClass(SCOREBOARD_LINK_CLASS);
+                }
+            }
+            name.SetPanelEvent("onactivate", function () {
+                showAccountProfile(scoreboardNameAccount(name));
+            });
+        } catch (ignore) {}
+    }
+    function bindScoreboardNames(board) {
+        var names;
+        var index;
+        try {
+            names = board.FindChildrenWithClassTraverse(SCOREBOARD_NAME_CLASS);
+        } catch (ignore) {
+            return;
+        }
+        for (index = 0; names && index < names.length; index += 1) {
+            if (isValid(names[index])) {
+                bindScoreboardName(names[index]);
+            }
         }
     }
     function copyAccountId(record) {
@@ -752,9 +836,8 @@
         var topbarEvidence = topbarRoots === null ? null: readTopbarEvidenceSnapshot(topbarRoots);
         return buildRosterReadModel(rows, topbarEvidence, completedRoster, cacheReplay);
     }
-    function escapeReadinessDecision(source, step) {
+    function escapeReadinessDecision(step) {
         var decision = {
-            source: source,
             step: step,
             mayStartPreload: step === "start_preload",
             mayProbeRows: step === "probe_rows",
@@ -763,7 +846,6 @@
             shouldFinish: step === "finish",
             shouldStop: step === "source_blocked" || step === "transition_stop"
         };
-        decision.mayShowSpinner = false;
         return decision;
     }
     function classifyEscapeReadiness(input) {
@@ -774,69 +856,69 @@
         if (source !== "escape_open" && source !== "escape_out" && source !== "escape_continue") {
             source = "passive";
         }
-        decision = escapeReadinessDecision(source, "source_blocked");
+        decision = escapeReadinessDecision("source_blocked");
         if (source === "passive") {
             return decision;
         }
         if (!input || input.transition !== "active") {
-            return escapeReadinessDecision(source, "transition_stop");
+            return escapeReadinessDecision("transition_stop");
         }
         if (phase === "open") {
             if (source !== "escape_open") {
                 return decision;
             }
             if (input.rootChanged) {
-                return escapeReadinessDecision(source, "replace_root");
+                return escapeReadinessDecision("replace_root");
             }
             if (!input.menuOpen) {
-                return escapeReadinessDecision(source, "transition_stop");
+                return escapeReadinessDecision("transition_stop");
             }
             if (input.hasCache) {
-                return escapeReadinessDecision(source, "replay_cache");
+                return escapeReadinessDecision("replay_cache");
             }
             if (input.latched) {
-                return escapeReadinessDecision(source, "runtime_idle");
+                return escapeReadinessDecision("runtime_idle");
             }
-            return escapeReadinessDecision(source, "start_preload");
+            return escapeReadinessDecision("start_preload");
         }
         if (phase === "close") {
             if (source !== "escape_out") {
                 return decision;
             }
-            return escapeReadinessDecision(source, input.menuOpen ? "runtime_idle": "transition_stop");
+            return escapeReadinessDecision(input.menuOpen ? "runtime_idle": "transition_stop");
         }
         if (source !== "escape_continue") {
             return decision;
         }
         if (phase === "collect") {
             if (input.started) {
-                return escapeReadinessDecision(source, "runtime_idle");
+                return escapeReadinessDecision("runtime_idle");
             }
             if (Number(input.attempt) >= Number(input.retryLimit) ||
                 Number(input.probeCount) > 0 && (!readiness || !readiness.available ||
                     !readiness.supported || readiness.rowsCoverTopbars)) {
-                return escapeReadinessDecision(source, "probe_rows");
+                return escapeReadinessDecision("probe_rows");
             }
-            return escapeReadinessDecision(source, "wait_roster");
+            return escapeReadinessDecision("wait_roster");
         }
         if (phase === "probe") {
             if (input.finished) {
-                return escapeReadinessDecision(source, "runtime_idle");
+                return escapeReadinessDecision("runtime_idle");
             }
             if (Number(input.probeIndex) >= Number(input.probeCount)) {
-                return escapeReadinessDecision(source, "finish");
+                return escapeReadinessDecision("finish");
             }
-            return escapeReadinessDecision(source, "probe_rows");
+            return escapeReadinessDecision("probe_rows");
         }
         if (phase === "result") {
             if (input.invalid || input.complete ||
                 Number(input.probeIndex) >= Number(input.probeCount)) {
-                return escapeReadinessDecision(source, "finish");
+                return escapeReadinessDecision("finish");
             }
-            return escapeReadinessDecision(source, "probe_rows");
+            return escapeReadinessDecision("probe_rows");
         }
         if (phase === "finish") {
-            return escapeReadinessDecision(source, "finish");
+            return escapeReadinessDecision("finish");
         }
         return decision;
     }
@@ -875,23 +957,54 @@
         }
         return count === 1 ? accepted: null;
     }
+    var escapeHideoutMemo = null;
+    function escapeHideoutRoot(panel) {
+        var memo = escapeHideoutMemo;
+        var index;
+        var value;
+        if (!memo) {
+            return isHideoutDocumentRoot(panel);
+        }
+        for (index = 0; index < memo.panels.length; index += 1) {
+            if (memo.panels[index] === panel) {
+                return memo.values[index];
+            }
+        }
+        value = isHideoutDocumentRoot(panel);
+        memo.panels.push(panel);
+        memo.values.push(value);
+        return value;
+    }
+    function inEscapeTurn(fn) {
+        if (escapeHideoutMemo) {
+            return fn();
+        }
+        escapeHideoutMemo = {panels: [], values: []};
+        try {
+            return fn();
+        } finally {
+            escapeHideoutMemo = null;
+        }
+    }
     function escapeIsCurrent(session, token) {
         var shared = session && session.shared;
         return !!(shared && shared.escape === session && shared.escapeToken === token &&
-            !isHideoutDocumentRoot(shared.documentRoot) && isValid(session.root) && isEscapeMenuOpen(session.root));
+            !escapeHideoutRoot(shared.documentRoot) && isValid(session.root) && isEscapeMenuOpen(session.root));
     }
     function scheduleEscape(delay, session, token, callback) {
         schedule(delay, function () {
             var shared = session.shared;
-            if (escapeIsCurrent(session, token)) {
-                callback();
-            } else if (shared && shared.escape === session && shared.escapeToken === token) {
-                shared.escapeOpenLatched = false;
-                shared.escapeRoot = null;
-                shared.escapeToken += 1;
-                releaseEscapeSession(shared);
-                closePlayerCards();
-            }
+            inEscapeTurn(function () {
+                if (escapeIsCurrent(session, token)) {
+                    callback();
+                } else if (shared && shared.escape === session && shared.escapeToken === token) {
+                    shared.escapeOpenLatched = false;
+                    shared.escapeRoot = null;
+                    shared.escapeToken += 1;
+                    releaseEscapeSession(shared);
+                    closePlayerCards();
+                }
+            });
         });
     }
     function closePlayerCards() {
@@ -914,7 +1027,7 @@
     }
     function sessionIsCurrent(session) {
         return session.cacheReplay ? isValid(session.root) && isEscapeMenuOpen(session.root) &&
-            !isHideoutDocumentRoot(session.root): escapeIsCurrent(session, session.token);
+            !escapeHideoutRoot(session.root): escapeIsCurrent(session, session.token);
     }
     function rosterTopbarTargets(roster) {
         return roster && roster.evidence ? roster.evidence.targets: null;
@@ -1135,6 +1248,339 @@
         }
         return result;
     }
+    // Party markers: Steam friends on the same team, grouped by the hantu-raya party bridge page.
+    // Only a complete, ancestry-proven twelve-player plan may request; results are validated against it.
+    function compareAccounts(left, right) {
+        return Number(left) - Number(right);
+    }
+    function partyRosterFromPlan(plan) {
+        var roster = {
+            key: "",
+            friendly: [],
+            enemy: [],
+            sides: Object.create(null),
+            heroes: Object.create(null),
+            rows: Object.create(null)
+        };
+        var index;
+        var write;
+        var side;
+        var account;
+        if (!plan || !plan.complete || !plan.average || !plan.writes || plan.writes.length !== TEAM_AVERAGE_ACCOUNTS * 2) {
+            return null;
+        }
+        for (index = 0; index < plan.writes.length; index += 1) {
+            write = plan.writes[index];
+            side = write.record && write.record.teamSide;
+            account = canonicalAccountOrNull(write.account);
+            if (!account || (side !== "friendly" && side !== "enemy") || roster.sides[account] || !write.hero) {
+                return null;
+            }
+            roster.sides[account] = side;
+            roster.heroes[account] = write.hero;
+            roster.rows[account] = write.row || null;
+            (side === "friendly" ? roster.friendly : roster.enemy).push(account);
+        }
+        if (roster.friendly.length !== TEAM_AVERAGE_ACCOUNTS || roster.enemy.length !== TEAM_AVERAGE_ACCOUNTS) {
+            return null;
+        }
+        roster.friendly.sort(compareAccounts);
+        roster.enemy.sort(compareAccounts);
+        roster.key = roster.friendly.join(",") + "|" + roster.enemy.join(",");
+        return roster;
+    }
+    function partyBridgeUrl(party) {
+        return PARTY_BRIDGE_URL + "?protocol=" + PARTY_PROTOCOL + "&request=" + party.nonce +
+            "&friendly=" + party.friendly.join(",") + "&enemy=" + party.enemy.join(",");
+    }
+    function resolvePartyBridge() {
+        if (partyBridgeChecked) {
+            return isValid(partyBridge) ? partyBridge : null;
+        }
+        partyBridgeChecked = true;
+        partyBridge = isValid(root) ? findChild(root, PARTY_BRIDGE_ID, "CitadelHTMLPanel") : null;
+        if (!isValid(partyBridge) || typeof partyBridge.SetURL !== "function" ||
+            typeof $.RegisterEventHandler !== "function") {
+            partyBridge = null;
+            return null;
+        }
+        try {
+            $.RegisterEventHandler("HTMLTitle", partyBridge, onPartyTitle);
+            $.RegisterEventHandler("HTMLURLChanged", partyBridge, onPartyUrlChanged);
+        } catch (ignore) {
+            partyBridge = null;
+        }
+        return partyBridge;
+    }
+    function unloadPartyBridge(party) {
+        var bridge = party && party.bridge;
+        if (!party) {
+            return;
+        }
+        party.bridge = null;
+        try {
+            if (isValid(bridge)) {
+                bridge.SetURL("about:blank");
+            }
+        } catch (ignore) {
+        }
+    }
+    function setPartyStack(row, size, colorIndex) {
+        var stack = row.partyStack;
+        var key = size >= 2 ? size + ":" + colorIndex : "";
+        var index;
+        if (!isValid(stack)) {
+            stack = findChild(row.root, PARTY_STACK_ID, "Panel");
+            row.partyStack = stack;
+        }
+        if (!isValid(stack) || (stack.__showrankBarebonesParty || "") === key) {
+            return;
+        }
+        setPanelClass(stack, PARTY_ACTIVE_CLASS, !!key);
+        for (index = 3; index <= PARTY_MAX_SIZE; index += 1) {
+            setPanelClass(stack, PARTY_SIZE_CLASS_PREFIX + index, !!key && size >= index);
+        }
+        for (index = 0; index < PARTY_COLORS; index += 1) {
+            setPanelClass(stack, PARTY_COLOR_CLASS_PREFIX + index, !!key && index === colorIndex);
+        }
+        stack.__showrankBarebonesParty = key;
+    }
+    function clearParty(shared) {
+        var party = shared && shared.party;
+        var account;
+        var row;
+        if (!party) {
+            return;
+        }
+        unloadPartyBridge(party);
+        for (account in party.rows) {
+            row = party.rows[account];
+            if (row && isValid(row.partyStack)) {
+                setPartyStack(row, 0, 0);
+            }
+        }
+        party.status = "cleared";
+        shared.party = null;
+    }
+    function partyAccounts(party) {
+        return party.friendly.concat(party.enemy);
+    }
+    function partyRowFor(party, account) {
+        var row = party.rows[account];
+        return row && currentRowHero(row) === party.heroes[account] ? row : null;
+    }
+    function rescanPartyRows(shared, party) {
+        var records = scanRecords(shared.documentRoot, PLAYER_ROW_CLASS, buildRowRecord) || [];
+        var accountsByHero = Object.create(null);
+        var counts = Object.create(null);
+        var heroes = [];
+        var accounts = partyAccounts(party);
+        var index;
+        var hero;
+        for (index = 0; index < accounts.length; index += 1) {
+            accountsByHero[party.heroes[accounts[index]]] = accounts[index];
+        }
+        for (index = 0; index < records.length; index += 1) {
+            hero = currentRowHero(records[index]);
+            heroes.push(hero);
+            counts[hero] = (counts[hero] || 0) + 1;
+        }
+        for (index = 0; index < records.length; index += 1) {
+            hero = heroes[index];
+            if (hero && counts[hero] === 1 && accountsByHero[hero]) {
+                records[index].hero = hero;
+                party.rows[accountsByHero[hero]] = records[index];
+            }
+        }
+    }
+    function renderParty(shared, party) {
+        var sizes = Object.create(null);
+        var colors = Object.create(null);
+        var accounts = partyAccounts(party);
+        var previous = [];
+        var rows = [];
+        var missing = false;
+        var group;
+        var index;
+        var member;
+        var assigned;
+        for (index = 0; index < party.groups.length; index += 1) {
+            group = party.groups[index];
+            for (member = 0; member < group.length; member += 1) {
+                sizes[group[member]] = group.length;
+                colors[group[member]] = index % PARTY_COLORS;
+            }
+        }
+        for (index = 0; index < accounts.length; index += 1) {
+            if (party.rows[accounts[index]]) {
+                previous.push(party.rows[accounts[index]]);
+            }
+            rows[index] = partyRowFor(party, accounts[index]);
+            missing = missing || !rows[index];
+        }
+        if (missing && party.groups.length) {
+            rescanPartyRows(shared, party);
+            for (index = 0; index < accounts.length; index += 1) {
+                rows[index] = rows[index] || partyRowFor(party, accounts[index]);
+            }
+        }
+        // A reused row that no longer proves its account must not keep another player's stack.
+        for (index = 0; index < previous.length; index += 1) {
+            assigned = false;
+            for (member = 0; member < rows.length && !assigned; member += 1) {
+                assigned = !!rows[member] && rows[member].root === previous[index].root;
+            }
+            if (!assigned) {
+                setPartyStack(previous[index], 0, 0);
+            }
+        }
+        for (index = 0; index < accounts.length; index += 1) {
+            if (rows[index]) {
+                setPartyStack(rows[index], sizes[accounts[index]] || 0, colors[accounts[index]] || 0);
+            }
+        }
+    }
+    function readPartyGroups(value, party) {
+        var toString = Object.prototype.toString;
+        var used = Object.create(null);
+        var groups = [];
+        var group;
+        var members;
+        var side;
+        var account;
+        var index;
+        var member;
+        if (toString.call(value) !== "[object Array]" || value.length > TEAM_AVERAGE_ACCOUNTS) {
+            return null;
+        }
+        for (index = 0; index < value.length; index += 1) {
+            group = value[index];
+            if (toString.call(group) !== "[object Array]" || group.length < 2 || group.length > PARTY_MAX_SIZE) {
+                return null;
+            }
+            members = [];
+            side = "";
+            for (member = 0; member < group.length; member += 1) {
+                account = typeof group[member] === "number" && group[member] % 1 === 0 ?
+                    canonicalAccountOrNull(String(group[member])) : null;
+                if (!account || !party.sides[account] || used[account] ||
+                    (side && party.sides[account] !== side)) {
+                    return null;
+                }
+                side = party.sides[account];
+                used[account] = true;
+                members.push(account);
+            }
+            groups.push(members.sort(compareAccounts));
+        }
+        return groups.sort(function (left, right) {
+            return compareAccounts(left[0], right[0]);
+        });
+    }
+    function acceptPartyTitle(shared, title) {
+        var party = shared && shared.party;
+        var payload;
+        var groups;
+        if (!party || party.status !== "loading" || typeof title !== "string" ||
+            title.length > PARTY_TITLE_MAX_LENGTH || title.indexOf(PARTY_TITLE_PREFIX) !== 0) {
+            return;
+        }
+        try {
+            payload = JSON.parse(title.substring(PARTY_TITLE_PREFIX.length));
+        } catch (ignore) {
+            return;
+        }
+        if (!payload || payload.v !== PARTY_PROTOCOL || payload.request !== party.nonce) {
+            return;
+        }
+        groups = payload.kind === "ok" ? readPartyGroups(payload.groups, party) : null;
+        party.status = groups ? "ready" : "failed";
+        party.groups = groups;
+        unloadPartyBridge(party);
+        if (groups) {
+            renderParty(shared, party);
+        }
+    }
+    function eventPayload(args) {
+        var value = args.length > 1 ? args[1] : args[0];
+        return typeof value === "string" ? value : "";
+    }
+    function onPartyTitle() {
+        acceptPartyTitle(partyOwner, eventPayload(arguments));
+    }
+    function onPartyUrlChanged() {
+        var url = eventPayload(arguments);
+        var hash = url.indexOf("#");
+        var title;
+        if (url.indexOf(PARTY_BRIDGE_URL + "?") !== 0 || hash < 0) {
+            return;
+        }
+        try {
+            title = decodeURIComponent(url.substring(hash + 1));
+        } catch (ignore) {
+            return;
+        }
+        acceptPartyTitle(partyOwner, title);
+    }
+    function requestParty(shared, party) {
+        var bridge = resolvePartyBridge();
+        var nonce;
+        if (!bridge) {
+            party.status = "unavailable";
+            return;
+        }
+        partySequence += 1;
+        nonce = "r" + partySequence.toString(36) + "x" + Math.floor(Math.random() * 2147483647).toString(36);
+        party.nonce = nonce;
+        party.status = "loading";
+        party.bridge = bridge;
+        partyOwner = shared;
+        try {
+            bridge.SetURL(partyBridgeUrl(party));
+        } catch (ignore) {
+            party.status = "failed";
+            party.bridge = null;
+            return;
+        }
+        schedule(PARTY_TIMEOUT, function () {
+            if (shared.party === party && party.status === "loading" && party.nonce === nonce) {
+                party.status = "failed";
+                unloadPartyBridge(party);
+            }
+        });
+    }
+    function updateParty(shared, plan) {
+        var roster = partyRosterFromPlan(plan);
+        var party = shared.party;
+        var account;
+        if (!roster) {
+            clearParty(shared);
+            return;
+        }
+        if (party && party.key === roster.key) {
+            for (account in roster.rows) {
+                if (roster.rows[account]) {
+                    party.rows[account] = roster.rows[account];
+                }
+            }
+            if (party.status === "ready") {
+                renderParty(shared, party);
+                return;
+            }
+            if (party.status === "loading" && isValid(party.bridge) && party.bridge === resolvePartyBridge()) {
+                return;
+            }
+        } else {
+            clearParty(shared);
+            party = roster;
+            party.status = "idle";
+            party.groups = null;
+            party.nonce = "";
+            party.bridge = null;
+            shared.party = party;
+        }
+        requestParty(shared, party);
+    }
     function finishEscapePass(session) {
         var shared = session.shared;
         var intent = classifyEscapeReadiness({
@@ -1143,7 +1589,6 @@
             transition: !session.finished && escapeIsCurrent(session, session.token) ? "active": "stale"
         });
         var result;
-        session.intent = intent;
         if (!intent.shouldFinish) {
             return;
         }
@@ -1154,6 +1599,7 @@
         if (!shared.completedRoster) {
             clearTeamAverages(shared.documentRoot);
         }
+        updateParty(shared, shared.completedRoster ? session.lastPlan : null);
         schedule(PROFILE_CONTEXT_CLOSE_DELAY, function () {
             if (shared.escapeToken === session.token) {
                 closePlayerCards();
@@ -1171,7 +1617,6 @@
             probeIndex: session.index,
             probeCount: session.roster.probes.length
         });
-        session.intent = intent;
         if (!intent.mayProbeRows) {
             if (intent.shouldFinish) {
                 finishEscapePass(session);
@@ -1194,7 +1639,6 @@
             probeIndex: session.index,
             probeCount: session.roster.probes.length
         });
-        session.intent = intent;
         if (intent.shouldFinish) {
             finishEscapePass(session);
         } else if (intent.mayProbeRows) {
@@ -1211,7 +1655,6 @@
             probeCount: session.roster.probes.length
         });
         var account;
-        session.intent = intent;
         if (!intent.mayProbeRows) {
             if (intent.shouldFinish) {
                 finishEscapePass(session);
@@ -1244,7 +1687,6 @@
         });
         var record;
         var snapshot;
-        session.intent = intent;
         if (intent.shouldFinish) {
             finishEscapePass(session);
             return;
@@ -1281,7 +1723,6 @@
             probeCount: 0
         });
         var roster;
-        session.intent = intent;
         if (intent.shouldStop || intent.step === "runtime_idle") {
             return;
         }
@@ -1298,7 +1739,6 @@
             probeCount: roster.probes.length,
             rosterReadiness: roster.readiness
         });
-        session.intent = intent;
         if (intent.mayProbeRows) {
             session.started = true;
             probeNextRow(session);
@@ -1310,7 +1750,7 @@
             });
         }
     }
-    function reuseCompletedRoster(shared, escapeRoot, intent) {
+    function reuseCompletedRoster(shared, escapeRoot) {
         var roster = readRosterModel(shared, null, shared.completedRoster, true);
         var session;
         var result;
@@ -1318,6 +1758,7 @@
             clearTopbarRecords(rosterTopbarTargets(roster));
             clearTeamAverages(shared.documentRoot);
             shared.completedRoster = null;
+            clearParty(shared);
             shared.escapeRendered = false;
             return false;
         }
@@ -1326,23 +1767,29 @@
             root: escapeRoot,
             roster: roster,
             cacheReplay: true,
-            stalePlans: 0,
-            intent: intent
+            stalePlans: 0
         };
         result = renderRoster(session, true);
         if (result === "applied" && session.lastPlan && session.lastPlan.cached) {
+            updateParty(shared, session.lastPlan);
             return true;
         }
         shared.completedRoster = null;
+        clearParty(shared);
         clearTopbarRecords(rosterTopbarTargets(session.roster));
         clearTeamAverages(shared.documentRoot);
         shared.escapeRendered = false;
         return false;
     }
     function startEscapePass(escapeRoot) {
+        inEscapeTurn(function () {
+            startEscapePassTurn(escapeRoot);
+        });
+    }
+    function startEscapePassTurn(escapeRoot) {
         var shared = getState(escapeRoot);
         var transition = !shared || !isValid(escapeRoot) ? "unavailable":
-            isHideoutDocumentRoot(shared.documentRoot) ? "hideout": "active";
+            escapeHideoutRoot(shared.documentRoot) ? "hideout": "active";
         var intent = classifyEscapeReadiness({
             source: "escape_open",
             phase: "open",
@@ -1386,7 +1833,7 @@
             return;
         }
         if (intent.shouldReplayCache) {
-            if (reuseCompletedRoster(shared, escapeRoot, intent)) {
+            if (reuseCompletedRoster(shared, escapeRoot)) {
                 shared.escapeOpenLatched = true;
                 shared.escapeRoot = escapeRoot;
                 return;
@@ -1416,8 +1863,7 @@
             started: false,
             finished: false,
             stalePlans: 0,
-            lastPlan: null,
-            intent: intent
+            lastPlan: null
         };
         shared.escape = session;
         clearTeamAverages(shared.documentRoot);
@@ -1450,9 +1896,6 @@
             menuOpen: isEscapeMenuOpen(escapeRoot)
         });
         if (!intent.shouldStop) {
-            if (shared.escape) {
-                shared.escape.intent = intent;
-            }
             return;
         }
         shared.escapeOpenLatched = false;
@@ -1460,6 +1903,359 @@
         shared.escapeToken += 1;
         releaseEscapeSession(shared);
         state = null;
+    }
+    // Profile charts: display-only pages in CitadelHTMLPanels on the dashboard profile page (Rank History in the
+    // match-history slot, the playstyle radar in the left column). Panorama owns identity, visibility and unload;
+    // each page draws itself and reports only a status title for the current nonce.
+    var CHART_BASE_URL = "https://hantu-raya.github.io/deadlock-stats-bridge/";
+    var RANK_HISTORY_GROUPS = [1, 5, 10, 25];
+    var PROFILE_CHART_TICK = 0.5;
+    var PROFILE_CHART_IDLE_DELAY = 2.0;
+    var PROFILE_CHART_TIMEOUT_TICKS = 50;
+    var PROFILE_CHART_IDLE_TICKS = 20;
+    var COMMUNITY_OPEN_TRIES = 6;
+    var PROFILE_CHART_LOADED_CLASS = "ShowRankBarebonesChartLoaded";
+    var RANK_HISTORY_ON_CLASS = "ShowRankBarebonesRankHistoryOn";
+    var RANK_HISTORY_FALLBACK_CLASS = "ShowRankBarebonesRankHistoryFallback";
+    var RANK_HISTORY_SELECTED_CLASS = "ShowRankBarebonesRankHistorySelected";
+    function createProfileChart(page, prefix, ids, pageName, label) {
+        var panel = findChild(page, ids + "Chart", "CitadelHTMLPanel");
+        var url = CHART_BASE_URL + pageName;
+        var chart;
+        if (!isValid(panel) || typeof panel.SetURL !== "function" || typeof $.RegisterEventHandler !== "function") {
+            return null;
+        }
+        chart = {
+            panel: panel,
+            host: findChild(page, ids, "Panel"),
+            status: findChild(page, ids + "Status", "Label"),
+            url: url,
+            prefix: prefix,
+            label: label,
+            loaded: "",
+            nonce: "",
+            ready: false,
+            waitTicks: 0,
+            sequence: 0
+        };
+        try {
+            $.RegisterEventHandler("HTMLTitle", panel, function () {
+                acceptChartTitle(chart, eventPayload(arguments));
+            });
+            $.RegisterEventHandler("HTMLURLChanged", panel, function () {
+                var changed = eventPayload(arguments);
+                var hash = changed.indexOf("#");
+                if (changed.indexOf(url + "?") !== 0 || hash < 0) {
+                    return;
+                }
+                try {
+                    acceptChartTitle(chart, decodeURIComponent(changed.substring(hash + 1)));
+                } catch (ignore) {
+                }
+            });
+        } catch (ignoreRegister) {
+            return null;
+        }
+        return chart;
+    }
+    function setChartStatus(chart, text) {
+        if (isValid(chart.status) && chart.status.text !== text) {
+            chart.status.text = text;
+        }
+    }
+    function unloadChart(chart) {
+        if (!chart) {
+            return;
+        }
+        setPanelClass(chart.host, PROFILE_CHART_LOADED_CLASS, false);
+        setChartStatus(chart, "");
+        if (!chart.loaded) {
+            return;
+        }
+        chart.loaded = "";
+        chart.nonce = "";
+        chart.ready = false;
+        try {
+            if (isValid(chart.panel)) {
+                chart.panel.SetURL("about:blank");
+            }
+        } catch (ignore) {
+        }
+    }
+    function loadChart(chart, key, query) {
+        if (chart.loaded === key) {
+            return;
+        }
+        unloadChart(chart);
+        chart.sequence += 1;
+        chart.nonce = "c" + chart.sequence.toString(36) + "x" + Math.floor(Math.random() * 2147483647).toString(36);
+        chart.loaded = key;
+        chart.ready = false;
+        chart.waitTicks = 0;
+        setChartStatus(chart, "LOADING " + chart.label);
+        try {
+            chart.panel.SetURL(chart.url + "?protocol=1&request=" + chart.nonce + query);
+        } catch (ignore) {
+            setChartStatus(chart, chart.label + " UNAVAILABLE");
+        }
+    }
+    function acceptChartTitle(chart, title) {
+        var payload;
+        if (!chart.loaded || chart.ready || typeof title !== "string" || title.length > 512 ||
+            title.indexOf(chart.prefix) !== 0) {
+            return;
+        }
+        try {
+            payload = JSON.parse(title.substring(chart.prefix.length));
+        } catch (ignore) {
+            return;
+        }
+        if (!payload || payload.v !== 1 || payload.request !== chart.nonce ||
+            (payload.kind !== "ready" && payload.kind !== "empty" && payload.kind !== "error")) {
+            return;
+        }
+        chart.ready = true;
+        setChartStatus(chart, "");
+        setPanelClass(chart.host, PROFILE_CHART_LOADED_CLASS, true);
+    }
+    // True while a loaded chart still waits for its status; after the timeout it shows UNAVAILABLE and stops waiting.
+    function chartWaiting(chart) {
+        if (!chart || !chart.loaded || chart.ready) {
+            return false;
+        }
+        chart.waitTicks += 1;
+        if (chart.waitTicks > PROFILE_CHART_TIMEOUT_TICKS) {
+            setChartStatus(chart, chart.label + " UNAVAILABLE");
+            return false;
+        }
+        return true;
+    }
+    function markRankHistoryGroup(charts) {
+        var index;
+        for (index = 0; index < charts.buttons.length; index += 1) {
+            setPanelClass(charts.buttons[index], RANK_HISTORY_SELECTED_CLASS, RANK_HISTORY_GROUPS[index] === charts.group);
+        }
+    }
+    function profileAsyncState(charts) {
+        var panels;
+        if (!isValid(charts.asyncPanel)) {
+            panels = findByClass(charts.page, "AsyncMatchHistory");
+            charts.asyncPanel = panels && panels.length === 1 ? panels[0] : null;
+        }
+        if (!isValid(charts.asyncPanel)) {
+            return "missing";
+        }
+        return panelHasClass(charts.asyncPanel, "AsyncFailureState") ? "failure" :
+            panelHasClass(charts.asyncPanel, "AsyncSuccessState") ? "success" : "loading";
+    }
+    // Stock stats read 0 while loading, so emptiness counts only after the stats AsyncDataPanel succeeds.
+    function profileStatsState(charts) {
+        var panels;
+        if (!isValid(charts.statsPanel)) {
+            panels = findByClass(charts.page, "AsyncContents");
+            charts.statsPanel = panels && panels.length === 1 ? panels[0] : null;
+        }
+        if (!isValid(charts.gamesPlayed)) {
+            charts.gamesPlayed = findChild(charts.page, "GamesPlayedContainer");
+        }
+        if (!isValid(charts.statsPanel) || !isValid(charts.gamesPlayed)) {
+            return "missing";
+        }
+        if (!panelHasClass(charts.statsPanel, "AsyncSuccessState")) {
+            return "loading";
+        }
+        return panelHasClass(charts.gamesPlayed, "isZeroValue") ? "empty" : "filled";
+    }
+    // One read of every native signal the chart controller depends on. Hidden pages read nothing else; the match
+    // history state is only watched while a Rank History chart exists ("" otherwise), and the stock stats only
+    // until this visit's VS COMMUNITY auto-open decision is made for the viewed account.
+    function readProfileSnapshot(charts) {
+        var active = isValid(charts.page) && panelHasClass(charts.page, "PageVisible");
+        var account = active ? resolveProfileAccount(charts.record) || "" : "";
+        return {
+            active: active,
+            account: account,
+            asyncState: !active ? "missing" : charts.rank ? profileAsyncState(charts) : "",
+            stats: account && account !== charts.communityAccount ? profileStatsState(charts) : ""
+        };
+    }
+    // Opens VS COMMUNITY once per visit and account when the loaded stock stats show no games; the user can then
+    // return to stock stats without it reopening. The comparison runtime binds 0.01 s after this host starts, so
+    // the account counts as decided only once its open export reports custom mode, or after bounded retries.
+    // Returns true while a retry needs a fast tick.
+    function autoOpenCommunity(charts, snapshot) {
+        var opened = false;
+        if (!snapshot.active || snapshot.account !== charts.communityTarget) {
+            charts.communityTarget = snapshot.active ? snapshot.account : "";
+            charts.communityTries = 0;
+        }
+        if (!snapshot.active) {
+            charts.communityAccount = "";
+            return false;
+        }
+        if (!snapshot.stats || snapshot.stats === "loading") {
+            return false;
+        }
+        if (snapshot.stats === "empty") {
+            try {
+                opened = typeof charts.page.ProfileStatsCommunityOpen === "function" &&
+                    charts.page.ProfileStatsCommunityOpen() === true;
+            } catch (ignore) {
+                opened = false;
+            }
+            charts.communityTries += 1;
+            if (!opened && charts.communityTries < COMMUNITY_OPEN_TRIES) {
+                return true;
+            }
+        }
+        charts.communityAccount = snapshot.account;
+        return false;
+    }
+    // Sentinel key of a snapshot: all hidden pages share one key, visible pages combine state and account.
+    function profileSnapshotKey(snapshot) {
+        return snapshot.active ? "visible|" + snapshot.asyncState + "|" + snapshot.account + "|" + snapshot.stats : "hidden";
+    }
+    // Applies visibility, identity and match-history state to both charts. Returns true while fast ticks are needed.
+    function reconcileProfileCharts(charts, snapshot) {
+        var active = snapshot.active;
+        var account = snapshot.account;
+        var asyncState = snapshot.asyncState;
+        var mode;
+        var waiting;
+        if (account !== charts.account) {
+            charts.account = account;
+            charts.manual = false;
+            unloadChart(charts.rank);
+            unloadChart(charts.play);
+        }
+        mode = !account || !charts.rank ? "" : charts.manual ? "manual" : asyncState === "failure" ? "fallback" : "";
+        if (mode !== charts.mode) {
+            setPanelClass(charts.page, RANK_HISTORY_ON_CLASS, mode === "manual");
+            setPanelClass(charts.page, RANK_HISTORY_FALLBACK_CLASS, mode === "fallback");
+            charts.mode = mode;
+        }
+        if (mode) {
+            loadChart(charts.rank, account + "|" + charts.group, "&account_id=" + account + "&group=" + charts.group);
+        } else {
+            unloadChart(charts.rank);
+        }
+        if (charts.play && account) {
+            loadChart(charts.play, account, "&account_id=" + account);
+        } else {
+            unloadChart(charts.play);
+        }
+        waiting = chartWaiting(charts.rank);
+        waiting = chartWaiting(charts.play) || waiting;
+        waiting = autoOpenCommunity(charts, snapshot) || waiting;
+        if (!active) {
+            return false;
+        }
+        // Loading match history or stats, a pending VS COMMUNITY open and waiting charts tick fast; an
+        // unresolved account only briefly.
+        return waiting || !!account && (asyncState === "loading" || snapshot.stats === "loading") ||
+            !account && charts.idleTicks++ < PROFILE_CHART_IDLE_TICKS;
+    }
+    // Fast 0.5 s ticks while needed; otherwise a 2 s sentinel compares visibility, match-history state and the
+    // viewed account, because no page-entry event is verified: returning by keyboard or back, or a profile change
+    // on a visible page, must still be caught without pointer activity. Only a destroyed page stops the loop.
+    // Each tick reads one snapshot and reuses it for the sentinel compare, the reconcile and the stored key.
+    function armProfileCharts(charts) {
+        var token;
+        var snapshot;
+        if (!charts) {
+            return;
+        }
+        charts.idleTicks = 0;
+        if (charts.running && !charts.idle) {
+            return;
+        }
+        charts.running = true;
+        charts.idle = false;
+        charts.token += 1;
+        token = charts.token;
+        function tick() {
+            if (charts.token !== token) {
+                return;
+            }
+            if (!isValid(charts.page)) {
+                charts.running = false;
+                return;
+            }
+            snapshot = readProfileSnapshot(charts);
+            if (charts.idle) {
+                if (profileSnapshotKey(snapshot) === charts.idleSignal) {
+                    schedule(PROFILE_CHART_IDLE_DELAY, tick);
+                    return;
+                }
+                charts.idle = false;
+                charts.idleTicks = 0;
+            }
+            if (reconcileProfileCharts(charts, snapshot)) {
+                schedule(PROFILE_CHART_TICK, tick);
+                return;
+            }
+            charts.idle = true;
+            charts.idleSignal = profileSnapshotKey(snapshot);
+            schedule(PROFILE_CHART_IDLE_DELAY, tick);
+        }
+        tick();
+    }
+    function installProfileCharts(record) {
+        var page = record.root;
+        var charts = {
+            record: record,
+            page: page,
+            rank: createProfileChart(page, "DLRANKH1:", "ShowRankBarebonesRankHistory", "rank-history.html", "RANK HISTORY"),
+            play: createProfileChart(page, "DLPLAY1:", "ShowRankBarebonesPlaystyle", "playstyle.html", "PLAYSTYLE"),
+            asyncPanel: null,
+            statsPanel: null,
+            gamesPlayed: null,
+            communityAccount: "",
+            communityTarget: "",
+            communityTries: 0,
+            buttons: [],
+            manual: false,
+            mode: "",
+            account: "",
+            group: 5,
+            idleTicks: 0,
+            idle: false,
+            idleSignal: "",
+            token: 0,
+            running: false
+        };
+        var index;
+        if (!charts.rank && !charts.play) {
+            return null;
+        }
+        if (charts.rank) {
+            for (index = 0; index < RANK_HISTORY_GROUPS.length; index += 1) {
+                charts.buttons.push(findChild(page, "ShowRankBarebonesRankHistoryGroup" + RANK_HISTORY_GROUPS[index], "Button"));
+            }
+            markRankHistoryGroup(charts);
+            root.ShowRankBarebonesRankHistoryOn = function () {
+                charts.manual = !!resolveProfileAccount(record);
+                reconcileProfileCharts(charts, readProfileSnapshot(charts));
+                armProfileCharts(charts);
+            };
+            root.ShowRankBarebonesRankHistoryOff = function () {
+                charts.manual = false;
+                reconcileProfileCharts(charts, readProfileSnapshot(charts));
+            };
+            root.ShowRankBarebonesRankHistoryGroup = function (size) {
+                var groupIndex;
+                for (groupIndex = 0; groupIndex < RANK_HISTORY_GROUPS.length; groupIndex += 1) {
+                    if (RANK_HISTORY_GROUPS[groupIndex] === size && charts.group !== size) {
+                        charts.group = size;
+                        markRankHistoryGroup(charts);
+                        reconcileProfileCharts(charts, readProfileSnapshot(charts));
+                        armProfileCharts(charts);
+                    }
+                }
+            };
+        }
+        armProfileCharts(charts);
+        return charts;
     }
     function installProfileStatsCommunity() {
         /* PROFILE_STATS_COMMUNITY_RUNTIME: profile_stats_community/panorama/scripts/profile_stats_community.js */
@@ -1469,6 +2265,7 @@
         if (profileRecord) {
             root.ShowRankBarebonesRefresh = function () {
                 startProfileWatch(profileRecord, PROFILE_REFRESH_DELAYS);
+                armProfileCharts(profileCharts);
             };
             root.ShowRankBarebonesOpenStatlocker = function () {
                 return openStatlocker(profileRecord);
@@ -1482,11 +2279,13 @@
             startProfileWatch(profileRecord, STARTUP_REFRESH_DELAYS, true);
         }
         if (root.paneltype === "CitadelProfilePage") {
+            profileCharts = profileRecord ? installProfileCharts(profileRecord) : null;
             installProfileStatsCommunity();
         }
     } else if (isValid(root) && root.paneltype === "CitadelHudTopBarPlayer") {
         var topbarRecord = buildTopbarRecord(root);
-        getState(root);
+        // getState also creates the shared state and clears the probe cache in the hideout, in both editions.
+        var topbarShared = getState(root);
         startTopbarWatch(topbarRecord);
     } else if (isValid(root) && root.paneltype === "CitadelHudEscapeMenu") {
         $.ShowRankBarebonesEscapeOpen = function () {
@@ -1494,8 +2293,14 @@
         };
         $.ShowRankBarebonesEscapeOut = function () {
             schedule(0, function () {
-                resetEscapePassAfterClose(root);
+                inEscapeTurn(function () {
+                    resetEscapePassAfterClose(root);
+                });
             });
+        };
+    } else if (isValid(root) && root.paneltype === "CitadelPostGameScoreboardNew") {
+        root.ShowRankBarebonesScoreboardBind = function () {
+            bindScoreboardNames(root);
         };
     }
 }
