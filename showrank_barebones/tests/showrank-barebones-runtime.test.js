@@ -219,7 +219,7 @@ function topbar(hero, id = `Topbar-${hero}`) {
   return { root, heroLabel, image };
 }
 function row(hero, options = {}) { const root = new Panel('CitadelPlayersListEntry', { id: options.id || `Row-${hero}`, classes: ['ShowRankBarebonesPlayerRow'] }); const mainContents = root.add(new Panel('Panel', { id: 'MainContents', valid: options.mainValid })); const heroLabel = mainContents.add(new Panel('Label', { id: 'ShowRankBarebonesRowHero', text: hero })); const image = mainContents.add(new Panel('Image', { id: 'ShowRankBarebonesPlayerListRankImage', visible: false })); const stack = options.party ? mainContents.add(new Panel('Panel', { id: 'ShowRankBarebonesPartyStack', classes: ['ShowRankBarebonesPartyStack'] })) : null; return { root, mainContents, heroLabel, image, stack }; }
-function escape(options = {}) { const root = new Panel('CitadelHudEscapeMenu', { id: 'Escape' }); const playersTab = root.add(new Panel('TabButton', { id: 'PlayersTab' })); const bridge = options.bridge ? root.add(new Panel('CitadelHTMLPanel', { id: 'ShowRankBarebonesPartyBridge', visible: false })) : null; return { root, playersTab, bridge }; }
+function escapeMenu(options = {}) { const root = new Panel('CitadelHudEscapeMenu', { id: 'Escape' }); const playersTab = root.add(new Panel('TabButton', { id: 'PlayersTab' })); const bridge = options.bridge ? root.add(new Panel('CitadelHTMLPanel', { id: 'ShowRankBarebonesPartyBridge', visible: false })) : null; return { root, playersTab, bridge }; }
 function addContextRow(parent, id, text) { const rowPanel = parent.add(new Panel('Panel', { id, classes: ['MenuRow'] })); return rowPanel.add(new Panel('TextButton', { id: 'MenuButton', text })); }
 function contextMenu(card) { const root = new Panel('CitadelContextMenuPlayer', { id: 'PersonalContextMenu' }); root.add(card.root); const options = root.add(new Panel('Panel', { id: 'MenuOptionsPanel' })); const statlockerButton = addContextRow(options, 'ShowRankBarebonesStatlockerRow', 'Statlocker Profile'); const copyButton = addContextRow(options, 'ShowRankBarebonesCopyAccountRow', 'Copy Account ID'); const playerProfileButton = addContextRow(root, 'ProfileStatsCommunityPlayerProfileRow', 'Player Profile'); return { root, statlockerButton, copyButton, playerProfileButton }; }
 const STANDARD_HEROES = ['haze', 'infernus', 'vindicta', 'abrams', 'bebop', 'dynamo', 'kelvin', 'lash', 'mcginnis', 'mo_and_krill', 'paradox', 'pocket'];
@@ -1075,7 +1075,7 @@ for (const [label, options] of [
 
 // Escape population is suppressed when hideout state is on the HUD or arrives before probing.
 {
-  const h = harness(); const menu = escape();
+  const h = harness(); const menu = escapeMenu();
   h.documentRoot.id = 'OverlayRoot';
   const hud = h.documentRoot.add(new Panel('CitadelHud', { id: 'Hud', classes: ['ShowEscapeMenu', 'connectedToHideout'] }));
   hud.add(menu.root);
@@ -1084,7 +1084,7 @@ for (const [label, options] of [
   assert.deepStrictEqual(h.events, [], 'nested HUD hideout state prevents Players-tab activation and population');
 }
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'HideoutRace');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'HideoutRace');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(201 + index));
   const menuDollar = h.evaluate(menu.root);
   h.on(menu.playersTab, () => h.documentRoot.AddClass('connectedToHideout'));
@@ -1103,7 +1103,7 @@ for (const [label, options] of [
 
 // Explicit Escape owns preload intent; roster waiting stays bounded and spinner-free.
 {
-  const { h, created } = harnessWithPanelLog(); const menu = escape(); const menuDollar = h.evaluate(menu.root);
+  const { h, created } = harnessWithPanelLog(); const menu = escapeMenu(); const menuDollar = h.evaluate(menu.root);
   h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen();
   const session = h.documentRoot.__showrank_barebones_state_v1.escape;
@@ -1129,7 +1129,7 @@ for (const [label, options] of [
 
 // A completed match pass stays cached across Escape reopenings; hideout clears it for the next match.
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'Cache'); let accountBase = 200;
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'Cache'); let accountBase = 200;
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(accountBase + index + 1));
   const menuDollar = h.evaluate(menu.root); menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
   assert.deepStrictEqual(roster.bars[0].image.images, [rankUrl('201')], 'fresh topbar targets skip redundant blank image writes');
@@ -1163,7 +1163,7 @@ for (const [label, options] of [
 
 // Recreated topbar slots reuse complete six- and twelve-account caches when hideout reset was not observed.
 for (const playerCount of [6, 12]) {
-  const h = harness(); const card = profile('101'), menu = escape(), heroes = STANDARD_HEROES.slice(0, playerCount);
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), heroes = STANDARD_HEROES.slice(0, playerCount);
   const firstRoster = playerRoster(heroes, `First${playerCount}`);
   h.evaluate(card.root); wirePlayerRoster(h, card, firstRoster, (index) => String(201 + index));
   const menuDollar = h.evaluate(menu.root); menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
@@ -1204,7 +1204,7 @@ for (const playerCount of [6, 12]) {
 
 // A cache-replay freshness failure retries against topbars only before starting a fresh active pass.
 {
-  const h = harness(); const card = profile('101'), menu = escape();
+  const h = harness(); const card = profile('101'), menu = escapeMenu();
   const firstRoster = playerRoster(STANDARD_HEROES.slice(0, 6), 'CacheStaleFirst');
   h.evaluate(card.root); wirePlayerRoster(h, card, firstRoster, (index) => String(601 + index));
   const menuDollar = h.evaluate(menu.root); menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
@@ -1237,7 +1237,7 @@ for (const playerCount of [6, 12]) {
 
 // A mismatched completed cache clears recreated targets before its bounded fresh no-row pass.
 {
-  const h = harness(); const card = profile('101'), menu = escape();
+  const h = harness(); const card = profile('101'), menu = escapeMenu();
   const firstRoster = playerRoster(STANDARD_HEROES, 'CachedMismatchFirst');
   h.evaluate(card.root); wirePlayerRoster(h, card, firstRoster, (index) => String(201 + index));
   const menuDollar = h.evaluate(menu.root);
@@ -1266,7 +1266,7 @@ for (const playerCount of [6, 12]) {
 
 // Incomplete six- and twelve-account passes retry and complete when the missing witness appears.
 for (const playerCount of [6, 12]) {
-  const h = harness(); const card = profile('101'), menu = escape();
+  const h = harness(); const card = profile('101'), menu = escapeMenu();
   const roster = playerRoster(STANDARD_HEROES.slice(0, playerCount), `Retry${playerCount}`);
   let revealLastAccount = false;
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => index === playerCount - 1 && !revealLastAccount ? '' : String(201 + index));
@@ -1282,7 +1282,7 @@ for (const playerCount of [6, 12]) {
 
 // One pass owns one match-centric roster read instead of caller-owned parallel collections.
 {
-  const { h, created } = harnessWithPanelLog(); const card = profile('101'), menu = escape();
+  const { h, created } = harnessWithPanelLog(); const card = profile('101'), menu = escapeMenu();
   const roster = playerRoster(['haze'], 'ModelShape');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, () => '201');
   const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
@@ -1311,7 +1311,7 @@ for (const playerCount of [6, 12]) {
 
 // Rows register after PlayersTab is activated; they map rank evidence by unique normalized hero, not row order.
 {
-  const h = harness(); const reused = profile('101'), haze = topbar('Haze'), infernus = topbar('Infernus'), menu = escape(), hazeRow = row('haze'), infernusRow = row('INFERNUS'); let created;
+  const h = harness(); const reused = profile('101'), haze = topbar('Haze'), infernus = topbar('Infernus'), menu = escapeMenu(), hazeRow = row('haze'), infernusRow = row('INFERNUS'); let created;
   h.evaluate(reused.root); h.evaluate(haze.root); h.evaluate(infernus.root);
   h.on(menu.playersTab, () => { h.evaluate(hazeRow.root); h.evaluate(infernusRow.root); });
   h.on(hazeRow.mainContents, () => setProfileAccount(reused, '201'));
@@ -1329,7 +1329,7 @@ for (const playerCount of [6, 12]) {
 
 // A profile already open for row 0 is neutralized through the native context APIs before row probing.
 {
-  const h = harness(); const preOpened = profile('201', { id: 'PreOpenedFirstAccount' }); const menu = escape();
+  const h = harness(); const preOpened = profile('201', { id: 'PreOpenedFirstAccount' }); const menu = escapeMenu();
   const roster = playerRoster(STANDARD_HEROES, 'PreOpened'); let activeProfile = preOpened;
   h.evaluate(preOpened.root); h.attach(roster.friendly); h.attach(roster.enemy); roster.bars.forEach((bar) => h.evaluate(bar.root));
   h.setNativeContextDismissal((event) => { if (event === 'DismissAllContextMenus') preOpened.root.DeleteAsync(); });
@@ -1356,7 +1356,7 @@ for (const playerCount of [6, 12]) {
 
 // A partial row snapshot waits for delayed row 0 instead of treating an unchanged first profile witness as complete.
 {
-  const h = harness(); const reused = profile('101', { id: 'DelayedCoverageProfile' }); const menu = escape();
+  const h = harness(); const reused = profile('101', { id: 'DelayedCoverageProfile' }); const menu = escapeMenu();
   const roster = playerRoster(STANDARD_HEROES, 'DelayedRowZero'); let rowZeroAttached = false;
   h.evaluate(reused.root); h.attach(roster.friendly); h.attach(roster.enemy); roster.bars.forEach((bar) => h.evaluate(bar.root));
   roster.rows.forEach((player, index) => h.on(player.mainContents, () => setProfileAccount(reused, String(201 + index))));
@@ -1392,7 +1392,7 @@ for (const playerCount of [6, 12]) {
 
 // Stop as soon as every unique topbar slot has a verified row account.
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'Supported');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'Supported');
   const unrelated = row('calico', { id: 'UnrelatedRow' });
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(201 + index)); h.evaluate(unrelated.root);
   h.on(unrelated.mainContents, () => setProfileAccount(card, '999'));
@@ -1403,7 +1403,7 @@ for (const playerCount of [6, 12]) {
 
 // Only the supported six-player and twelve-player topbar sizes can complete and cache a pass.
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Standard');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'Standard');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
   const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
@@ -1443,7 +1443,7 @@ for (const playerCount of [6, 12]) {
 
 // A stale atomic target gets one replacement roster scan, then a second stale target fails closed.
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Atomic');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'Atomic');
   const replacement = topbar('haze', 'AtomicReplacement');
   let originalChecks = 0;
   let replacementChecks = 0;
@@ -1484,7 +1484,7 @@ for (const playerCount of [6, 12]) {
   assert.strictEqual(h.pending(), 0, 'atomic stale recovery leaves no pending Escape work');
 }
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'StaleRow');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'StaleRow');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(501 + index));
   h.on(roster.rows.at(-1).mainContents, () => {
     setProfileAccount(card, '512');
@@ -1506,7 +1506,7 @@ for (const playerCount of [6, 12]) {
 }
 
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Asymmetric');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'Asymmetric');
   const moved = roster.bars[5].root;
   roster.friendly.children = roster.friendly.children.filter((child) => child !== moved);
   roster.enemy.add(moved);
@@ -1516,7 +1516,7 @@ for (const playerCount of [6, 12]) {
   assert.deepStrictEqual(h.averageEnemy.images.filter(Boolean), [], 'a seven-player side cannot produce a team average');
 }
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES.slice(0, 7), 'Unsupported');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES.slice(0, 7), 'Unsupported');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(401 + index));
   h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
   assert.strictEqual(h.documentRoot.__showrank_barebones_state_v1.completedRoster, null, 'an unsupported seven-slot snapshot is rendered but never cached as complete');
@@ -1524,7 +1524,7 @@ for (const playerCount of [6, 12]) {
 
 // Failed terminal witnesses still close every profile context after bounded retries.
 {
-  const h = harness(); const card = profile('101'), menu = escape();
+  const h = harness(); const card = profile('101'), menu = escapeMenu();
   const bars = [topbar('haze'), topbar('infernus'), topbar('vindicta')];
   const rows = [row('haze', { id: 'HazeRow' }), row('infernus', { id: 'InfernusRow' }), row('vindicta', { id: 'VindictaRow' })];
   h.evaluate(card.root); bars.forEach((bar) => h.evaluate(bar.root)); rows.forEach((player) => h.evaluate(player.root));
@@ -1538,7 +1538,7 @@ for (const playerCount of [6, 12]) {
 
 // Escape coordinates directly from the shared HUD tree even when role-local scripts never registered.
 {
-  const h = harness(); const card = profile('101'), bar = topbar('Haze'), player = row('haze'), menu = escape();
+  const h = harness(); const card = profile('101'), bar = topbar('Haze'), player = row('haze'), menu = escapeMenu();
   h.attach(card.root); h.attach(bar.root); h.attach(player.root);
   h.on(player.mainContents, () => setProfileAccount(card, '201'));
   h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
@@ -1548,7 +1548,7 @@ for (const playerCount of [6, 12]) {
 
 // Direct HUD scans discover role panels that attach after their local scripts execute.
 {
-  const h = harness(); const card = profile('101'), bar = topbar('Haze'), player = row('haze'), menu = escape();
+  const h = harness(); const card = profile('101'), bar = topbar('Haze'), player = row('haze'), menu = escapeMenu();
   h.evaluate(card.root, { attach: false }); h.evaluate(bar.root, { attach: false }); h.evaluate(player.root, { attach: false });
   h.attach(card.root); h.attach(bar.root); h.attach(player.root); h.drain();
   h.on(player.mainContents, () => setProfileAccount(card, '201'));
@@ -1560,7 +1560,7 @@ for (const playerCount of [6, 12]) {
 {
   const h = harness();
   const card = profile('101'), first = topbar('haze', 'FirstHaze');
-  const duplicate = topbar('HAZE', 'SecondHaze'), menu = escape(), player = row('haze');
+  const duplicate = topbar('HAZE', 'SecondHaze'), menu = escapeMenu(), player = row('haze');
   h.evaluate(card.root); h.evaluate(first.root); h.evaluate(duplicate.root); h.evaluate(player.root);
   h.on(player.mainContents, () => setProfileAccount(card, '201'));
   h.drain();
@@ -1577,10 +1577,10 @@ for (const playerCount of [6, 12]) {
   assert.deepStrictEqual(duplicate.image.images.filter(Boolean), [], 'both duplicate topbars fail closed');
 }
 {
-  const h = harness(); const card = profile('101'), bar = topbar('haze'), menu = escape(), first = row('haze', { id: 'FirstRow' }), duplicate = row('HAZE', { id: 'SecondRow' }); h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(first.root); h.evaluate(duplicate.root); h.on(first.mainContents, () => setProfileAccount(card, '201')); h.on(duplicate.mainContents, () => setProfileAccount(card, '202')); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'duplicate rows do not select by ordering');
+  const h = harness(); const card = profile('101'), bar = topbar('haze'), menu = escapeMenu(), first = row('haze', { id: 'FirstRow' }), duplicate = row('HAZE', { id: 'SecondRow' }); h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(first.root); h.evaluate(duplicate.root); h.on(first.mainContents, () => setProfileAccount(card, '201')); h.on(duplicate.mainContents, () => setProfileAccount(card, '202')); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'duplicate rows do not select by ordering');
 }
 {
-  const h = harness(); const card = profile('101'), menu = escape();
+  const h = harness(); const card = profile('101'), menu = escapeMenu();
   const roster = playerRoster(STANDARD_HEROES.slice(0, 6), 'DuplicateAccount');
   h.evaluate(card.root); h.attach(roster.friendly); h.attach(roster.enemy);
   roster.bars.forEach((bar) => h.evaluate(bar.root));
@@ -1597,10 +1597,10 @@ for (const playerCount of [6, 12]) {
   assert.strictEqual(h.pending(), 0, 'duplicate-account rejection leaves no pending Escape work');
 }
 {
-  const h = harness(); const original = profile('101'), bar = topbar('haze'), menu = escape(), player = row('haze'); h.evaluate(original.root); h.evaluate(bar.root); h.evaluate(player.root); h.on(player.mainContents, () => { h.evaluate(profile('201', { id: 'ProfileA' }).root); h.evaluate(profile('202', { id: 'ProfileB' }).root); }); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'multiple changed/new profile witnesses fail closed');
+  const h = harness(); const original = profile('101'), bar = topbar('haze'), menu = escapeMenu(), player = row('haze'); h.evaluate(original.root); h.evaluate(bar.root); h.evaluate(player.root); h.on(player.mainContents, () => { h.evaluate(profile('201', { id: 'ProfileA' }).root); h.evaluate(profile('202', { id: 'ProfileB' }).root); }); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'multiple changed/new profile witnesses fail closed');
 }
 {
-  const h = harness(); const menu = escape(), bar = topbar('haze', 'PassiveAccount'), player = row('haze');
+  const h = harness(); const menu = escapeMenu(), bar = topbar('haze', 'PassiveAccount'), player = row('haze');
   bar.root.attributes.ShowRankBarebonesAccount = '999';
   bar.root.attributes.accountid = '999';
   bar.root.attributes.steamid = '[U:1:999]';
@@ -1616,12 +1616,12 @@ for (const playerCount of [6, 12]) {
 
 // The HUD ShowEscapeMenu class gates work; closing cancels one generation and reopening starts the next.
 {
-  const h = harness(); const card = profile('101'), bar = topbar('haze'), menu = escape(), player = row('haze'); let revealed = '201'; h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(player.root); h.on(player.mainContents, () => setProfileAccount(card, revealed)); const menuDollar = h.evaluate(menu.root); menuDollar.ShowRankBarebonesEscapeOpen(); h.documentRoot.classes.delete('ShowEscapeMenu'); revealed = '202'; menuDollar.ShowRankBarebonesEscapeOpen(); h.documentRoot.classes.add('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [rankUrl('202')], 'closed-generation callbacks cannot render after the next real Escape opening'); assert.strictEqual(h.events.filter((panel) => panel === menu.playersTab).length, 2, 'only open-class transitions start Players-tab activation'); assert.strictEqual(h.pending(), 0);
+  const h = harness(); const card = profile('101'), bar = topbar('haze'), menu = escapeMenu(), player = row('haze'); let revealed = '201'; h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(player.root); h.on(player.mainContents, () => setProfileAccount(card, revealed)); const menuDollar = h.evaluate(menu.root); menuDollar.ShowRankBarebonesEscapeOpen(); h.documentRoot.classes.delete('ShowEscapeMenu'); revealed = '202'; menuDollar.ShowRankBarebonesEscapeOpen(); h.documentRoot.classes.add('ShowEscapeMenu'); menuDollar.ShowRankBarebonesEscapeOpen(); h.drain(); assert.deepStrictEqual(bar.image.images.filter(Boolean), [rankUrl('202')], 'closed-generation callbacks cannot render after the next real Escape opening'); assert.strictEqual(h.events.filter((panel) => panel === menu.playersTab).length, 2, 'only open-class transitions start Players-tab activation'); assert.strictEqual(h.pending(), 0);
 }
 
 // Teardown still releases shared state when the old Escape panel is invalidated before its callback.
 {
-  const h = harness(); const menu = escape(); const menuDollar = h.evaluate(menu.root);
+  const h = harness(); const menu = escapeMenu(); const menuDollar = h.evaluate(menu.root);
   menuDollar.ShowRankBarebonesEscapeOpen();
   menu.root.valid = false;
   menuDollar.ShowRankBarebonesEscapeOut();
@@ -1632,7 +1632,7 @@ for (const playerCount of [6, 12]) {
 
 // Replacing a closed Escape panel starts a fresh generation even when the native close path cannot call JavaScript.
 {
-  const h = harness(); const first = escape(); const second = escape();
+  const h = harness(); const first = escapeMenu(); const second = escapeMenu();
   h.evaluate(first.root).ShowRankBarebonesEscapeOpen();
   first.root.valid = false;
   h.evaluate(second.root).ShowRankBarebonesEscapeOpen();
@@ -1641,7 +1641,7 @@ for (const playerCount of [6, 12]) {
 }
 
 {
-  const h = harness(); const bar = topbar('haze'), menu = escape(); h.evaluate(bar.root); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); assert.ok(h.drain() <= 9, 'missing rows, late attachment, and final cleanup complete within a 16.25-second bound'); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'missing rows leave stale ranks cleared');
+  const h = harness(); const bar = topbar('haze'), menu = escapeMenu(); h.evaluate(bar.root); h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); assert.ok(h.drain() <= 9, 'missing rows, late attachment, and final cleanup complete within a 16.25-second bound'); assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'missing rows leave stale ranks cleared');
 }
 // Rank History. Failure modes: auto-opening over a loaded history; missing a late failure; keeping an old
 // account's chart after a profile change or page leave; stale, foreign or malformed status titles revealing a
@@ -2087,7 +2087,7 @@ const playTitle = (body) => `DLPLAY1:${JSON.stringify({ v: 1, ...body })}`;
 // same-match reopen must not refetch; hideout must clear stacks and drop row panels.
 const PARTY_URL = 'https://hantu-raya.github.io/deadlock-stats-bridge/party.html';
 function partyMatch(options = {}) {
-  const h = harness(); const card = profile('101'), menu = escape({ bridge: options.bridge !== false });
+  const h = harness(); const card = profile('101'), menu = escapeMenu({ bridge: options.bridge !== false });
   const roster = playerRoster(options.heroes || STANDARD_HEROES, options.prefix || 'Party', { party: true });
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
   const dollar = h.evaluate(menu.root);
@@ -2199,7 +2199,7 @@ for (const [label, body, ignored] of [
 // changed row bindings must not receive old witnesses; startup must preserve newer verified renders.
 const regressions = [
   ['escape.stale-mouseout-cannot-cancel-replacement', () => {
-    const h = harness(), first = escape(), second = escape();
+    const h = harness(), first = escapeMenu(), second = escapeMenu();
     const firstDollar = h.evaluate(first.root);
     firstDollar.ShowRankBarebonesEscapeOpen();
     first.root.valid = false;
@@ -2212,7 +2212,7 @@ const regressions = [
     h.drain();
   }],
   ['escape.closed-scheduled-owner-releases-session', () => {
-    const h = harness(), menu = escape();
+    const h = harness(), menu = escapeMenu();
     const dollar = h.evaluate(menu.root);
     dollar.ShowRankBarebonesEscapeOpen();
     h.documentRoot.RemoveClass('ShowEscapeMenu');
@@ -2224,7 +2224,7 @@ const regressions = [
     assert.strictEqual(h.events.filter((panel) => panel === menu.playersTab).length, 2, 'the next native opening can start a fresh pass');
   }],
   ['escape.changed-row-during-witness-fails-closed', () => {
-    const h = harness(), card = profile('101'), menu = escape(), bar = topbar('haze'), player = row('haze');
+    const h = harness(), card = profile('101'), menu = escapeMenu(), bar = topbar('haze'), player = row('haze');
     h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(player.root);
     h.on(player.mainContents, () => { setProfileAccount(card, '201'); player.heroLabel.text = 'calico'; });
     h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.drain();
@@ -2232,7 +2232,7 @@ const regressions = [
     assert.deepStrictEqual(bar.image.images.filter(Boolean), [], 'the stale row witness cannot reach a topbar');
   }],
   ['topbar.late-startup-preserves-verified-rank', () => {
-    const h = harness(), card = profile('101'), menu = escape(), roster = playerRoster(['haze'], 'LateStartup');
+    const h = harness(), card = profile('101'), menu = escapeMenu(), roster = playerRoster(['haze'], 'LateStartup');
     roster.bars[0].heroLabel.text = '';
     h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(201 + index));
     roster.bars[0].heroLabel.text = 'haze';
@@ -2243,7 +2243,7 @@ const regressions = [
     h.drain();
   }],
   ['rank.unchanged-cache-replay-skips-image-writes', () => {
-    const h = harness(), card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'UnchangedReplay');
+    const h = harness(), card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'UnchangedReplay');
     h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(201 + index));
     const dollar = h.evaluate(menu.root);
     dollar.ShowRankBarebonesEscapeOpen(); h.drain(); h.resetWork();
@@ -2252,7 +2252,7 @@ const regressions = [
     assert.strictEqual(h.snapshotWork().panelCalls.SetImage, 0, 'unchanged verified replay performs no rank or average image writes');
   }],
   ['rank.presentation-cache-is-not-authority', () => {
-    const h = harness(), menu = escape(), player = row('haze'), bar = topbar('haze');
+    const h = harness(), menu = escapeMenu(), player = row('haze'), bar = topbar('haze');
     h.evaluate(bar.root); h.evaluate(player.root); h.drain();
     for (const image of [bar.image, player.image]) {
       image.__showrankBarebonesRankAccount = '999'; image.__showrankBarebonesRankHero = 'haze';
@@ -2273,7 +2273,7 @@ const regressions = [
     assert.strictEqual(card.image.visible, false, 'failed presentation metadata hides the unverified image');
   }],
   ['escape.roster-method-getter-failure-is-contained', () => {
-    const h = harness(), menu = escape();
+    const h = harness(), menu = escapeMenu();
     const dollar = h.evaluate(menu.root);
     Object.defineProperty(h.documentRoot, 'FindChildrenWithClassTraverse', {
       get() { throw new Error('native traversal unavailable'); },
@@ -2305,7 +2305,7 @@ const regressions = [
     }
   }],
   ['topbar.lost-hero-label-clears-visible-rank', () => {
-    const h = harness(), card = profile('101'), menu = escape(), bar = topbar('haze'), player = row('haze');
+    const h = harness(), card = profile('101'), menu = escapeMenu(), bar = topbar('haze'), player = row('haze');
     h.evaluate(card.root); h.evaluate(bar.root); h.evaluate(player.root);
     h.on(player.mainContents, () => setProfileAccount(card, '201'));
     h.evaluate(menu.root).ShowRankBarebonesEscapeOpen(); h.advance(0.15);
@@ -2645,7 +2645,7 @@ const escapeReads = (work) => ({
 });
 // Escape hideout fact is read once per Escape turn, never per check; the menu-open fact is still read live.
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Memo');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'Memo');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
   const menuDollar = h.evaluate(menu.root); h.drain(); h.resetWork();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();
@@ -2657,7 +2657,7 @@ const escapeReads = (work) => ({
 }
 // The memo does not leak across turns: hideout appearing between two Escape callbacks stops the pass.
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'Leak');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'Leak');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(401 + index));
   const menuDollar = h.evaluate(menu.root); h.drain();
   menuDollar.ShowRankBarebonesEscapeOpen();
@@ -2733,7 +2733,7 @@ assert.deepStrictEqual(regressionFailures, [], 'runtime regression scenarios');
   captureBaseline('baseline.chart-loading-60s', r.h);
 }
 {
-  const h = harness(); const card = profile('101'), menu = escape(), roster = playerRoster(STANDARD_HEROES, 'HoverCached');
+  const h = harness(); const card = profile('101'), menu = escapeMenu(), roster = playerRoster(STANDARD_HEROES, 'HoverCached');
   h.evaluate(card.root); wirePlayerRoster(h, card, roster, (index) => String(301 + index));
   const menuDollar = h.evaluate(menu.root); h.drain();
   menuDollar.ShowRankBarebonesEscapeOpen(); h.drain();

@@ -60,8 +60,6 @@ The builder composes the readable canonical comparison sources into the staged r
 npm --prefix .\showrank_barebones run validate
 ```
 
-
-
 ## Editions
 
 | Project | Missing-lane UI | Build artifact |

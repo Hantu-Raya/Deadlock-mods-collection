@@ -25,7 +25,7 @@
 				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon5" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
 				<Image class="ShowRankBarebonesPartyIcon ShowRankBarebonesPartyIcon6" src="s2r://panorama/images/icons/icon_player.vsvg" texturewidth="36px" textureheight="36px" scaling="stretch-to-fit-preserve-aspect" />
 			</Panel>
-			<Label id="ShowRankBarebonesRowHero" text="{g:citadel_hero_name:hero_id}" visible="false" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
+			<Label id="ShowRankBarebonesRowHero" text="{g:citadel_hero_name:hero_id}" hittest="false" style="visibility: collapse; width: 0px; height: 0px;" />
 		</Panel>
 	</CitadelPlayersListEntry>
 </root>
