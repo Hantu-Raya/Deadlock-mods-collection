@@ -1044,14 +1044,17 @@
             startMissingWatchdog(shared);
         }
     }
-    function ensureMissingChains(shared, records, replaceLeader) {
+    // `live` is a record whose context is known to be running (the one registering now); vacated roles go to it first.
+    function ensureMissingChains(shared, records, replaceLeader, live) {
         var leader = replaceLeader ? null: missingRecordFor(records, shared.missingLeaderRoot);
         var watch = missingRecordFor(records, shared.missingWatchRoot);
         if (!leader) {
-            launchMissingLeader(shared, pickMissingRecord(records, shared.missingWatchRoot, shared.missingLeaderRoot));
+            launchMissingLeader(shared, live && live.root !== shared.missingWatchRoot ? live:
+                pickMissingRecord(records, shared.missingWatchRoot, shared.missingLeaderRoot));
         }
         if (!watch || (watch.root === shared.missingLeaderRoot && records.length > 1)) {
-            launchMissingWatchdog(shared, pickMissingRecord(records, shared.missingLeaderRoot, shared.missingWatchRoot));
+            launchMissingWatchdog(shared, live && live.root !== shared.missingLeaderRoot ? live:
+                pickMissingRecord(records, shared.missingLeaderRoot, shared.missingWatchRoot));
         }
     }
     function repairMissingChains(shared, replaceLeader) {
@@ -1160,17 +1163,24 @@
         }
         record = missingRecordFor(records, root);
         if (record) {
+            // A root registers again only from a new script context; chains its old context held died with it.
             resetMissingPlayer(shared, record, false);
             record.active = true;
             record.startLeader = startMissingLeader;
             record.startWatchdog = startMissingWatchdog;
+            if (shared.missingLeaderRoot === root) {
+                shared.missingLeaderRoot = null;
+            }
+            if (shared.missingWatchRoot === root) {
+                shared.missingWatchRoot = null;
+            }
         } else {
             record = newMissingRecord(root);
             records.push(record);
             shared.missingRecords = records;
         }
         if (refreshMissingSession(shared) && record.active) {
-            ensureMissingChains(shared, shared.missingRecords, false);
+            ensureMissingChains(shared, shared.missingRecords, false, record);
         }
     }
     function startTopbarWatch(record) {

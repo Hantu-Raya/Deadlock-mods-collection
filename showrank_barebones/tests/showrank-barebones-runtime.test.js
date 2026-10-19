@@ -2440,6 +2440,33 @@ const regressions = [
     assert.strictEqual(activeMissingRecords(h).length, 10, 'both lost records are pruned');
     h.gameClock.text = '8:00'; h.drain();
   }],
+  // Live 2026-10-19: across map changes top-bar cards booted new script contexts (same IDs) and registered, yet no
+  // chain ran for three matches. A holder whose panel survives while its context is replaced must not count as alive.
+  ['missing.holder-context-reload-on-same-panel-restarts-its-chain', () => {
+    for (const order of ['leader-first', 'watchdog-first']) {
+      const h = harness(), session = missingRoster(h, `Reload-${order}`);
+      h.advance(2);
+      assertTwoMissingChains(h, `${order}: before the reload`);
+      const leader = missingState(h).missingLeaderRoot, watchdog = missingState(h).missingWatchRoot;
+      const holders = order === 'leader-first' ? [leader, watchdog] : [watchdog, leader];
+      holders.forEach((root) => h.killContext(session.contexts.get(root)));
+      holders.forEach((root) => session.contexts.set(root, h.evaluate(root)));
+      h.advance(2);
+      assertTwoMissingChains(h, `${order}: after both holders reload on their panels`);
+      assert.strictEqual(activeMissingRecords(h).length, 12, `${order}: no record is lost or duplicated`);
+      h.gameClock.text = '8:00'; h.drain();
+    }
+  }],
+  ['missing.lone-holder-context-reload-restarts-its-chains', () => {
+    const h = harness(), session = missingRoster(h, 'ReloadLone', 1);
+    h.advance(2);
+    const root = missingState(h).missingLeaderRoot;
+    h.killContext(session.contexts.get(root));
+    session.contexts.set(root, h.evaluate(root));
+    h.advance(2);
+    assertTwoMissingChains(h, 'a lone record reloading its context');
+    h.gameClock.text = '8:00'; h.drain();
+  }],
   ['missing.root-replacement-keeps-two-chains', () => {
     for (const role of ['leader', 'watchdog', 'plain']) {
       const h = harness(), session = missingRoster(h, `Replace-${role}`);
