@@ -48,6 +48,7 @@
 				<CircularProgressBar id="clip_progress_bar" />
 			</Panel>
 			<Panel id="ammo_panel">
+				<Panel class="nurse_heal_icon" />
 				<Label class="weapon_ammo" text="{i:current_clip_ammo}" />
 				<Label class="weapon_ammo_max" text=" / {i:max_clip_ammp}" />
 				<Panel class="weapon_ammo_infinite" />
@@ -56,6 +57,7 @@
 			<Image id="SplitShotNotifier" class="split_shot_notifier" src="s2r://panorama/images/split_shot/upgrade_split_shot.vtex" hittest="false" style="visibility: collapse; opacity: 0;" />
 			<Image id="BloodTributeNotifier" class="blood_tribute_notifier" src="s2r://panorama/images/blood_tribute/upgrade_blood_tribute.vtex" hittest="false" style="visibility: collapse; opacity: 0;" />
 			<Label id="auto_fire_indicator" text="#Citadel_Hud_AutoFire" />
+			<Label id="healing_mode_indicator" text="#Citadel_Hud_HealingMode" />
 			<Panel id="parry_unavailable">
 				<Panel id="ParryImage" />
 				<Panel id="ParryCooldownBorder" />
