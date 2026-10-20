@@ -44,7 +44,7 @@ SteamTracking abilities.vdata (pak01_dir/scripts)
 - `-Only pak03` (any pak names) builds a subset. `-Deploy` also copies each built `pakXX_dir.vpk` into `citadel/addons`, replacing the installed one; without it only archives are written. `-Deploy` refuses to start while Deadlock runs, because the game locks addon paks. `-Only` cannot be combined with `-RefreshFromSteamTracking`.
 - `-RefreshFromSteamTracking` resolves GameTracking `master` to a commit SHA through the GitHub API and fetches `abilities.vdata` at that SHA (the raw CDN serves a cached previous build for `.../master/...` for a while after an update). It requires exactly one root `_include` block, removes it, and writes the same content to both baselines. Never refresh only one: `abilities.vdata` feeds pak02/03/05 and `abilities2.vdata` feeds pak04. Record the printed upstream revision in the commit.
 - Each spec restores its input from a temp baseline before transforming, so variants never stack. After packing, both inputs are restored to the post-override baseline and stage folders and root VPKs are deleted; the dated `.7z` archives (and deployed paks) are the only durable output.
-- `sr2compiler/New folder.exe` may exit nonzero or hang after writing output; the wrapper accepts existing required outputs. `[rerl] N external refs` must appear for every compile (585 on 6790; 578 on 6779; 565 on the 10_07 baseline).
+- `sr2compiler/New folder.exe` may exit nonzero or hang after writing output; the wrapper accepts existing required outputs. `[rerl] N external refs` must appear for every compile (589 on 6801; 585 on 6790; 578 on 6779; 565 on the 10_07 baseline).
 
 ## Transform rules
 

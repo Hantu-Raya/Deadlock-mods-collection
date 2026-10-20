@@ -40,6 +40,8 @@ EVERYONE_RECORDS = {
 CASTER_ONLY_RECORDS = {
     "ability_explosive_barrel",
     "ability_drifter_hunger",
+    # 6801 Nurse: lifeforce buildup; the stock proc modifier is CASTER_ONLY.
+    "ability_nurse_healing_needles",
     "ability_punkgoat_ult",
     "ability_stacking_damage",
     "ability_unicorn_radiantblast",
