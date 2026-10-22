@@ -2,7 +2,7 @@
 
 **Report** (GameBanana, draIsoM, 2026-10-22): "the separate shield bar doesn't work with the qol version of the mod."
 
-**Status:** Plan A was implemented in 3.3.1, with one change: under the Minecraft healthbar the lane stays off (item 5). It passes the VM tests but is not yet checked in game. A first implementation on 2026-10-22 was reverted before the plan was approved.
+**Status:** released in 3.3.1 (2026-10-22, GameBanana normal `#FileInfo_1858989`, QOLLOCK `#FileInfo_1858990`, `latest.json` 3.3.1). Plan A was implemented with one change: under the Minecraft healthbar the lane stays off (item 5). It is VM-verified but not yet checked in game. A first implementation on 2026-10-22 was reverted before the plan was approved.
 
 ## Why it does not work
 `syncLegacy` in `hp_colors_v3_menu.js` gives up for good on any health container that has `#currentHealthOverHearts` ([ticket 38](38-old-shield-bar.md), "On a QOLLOCK HUD the feature does nothing"). QOLLOCK's pak03 `hud_health_container.xml` always contains that label: it belongs to the Minecraft hearts panel, which ships with every QOLLOCK healthbar type. So on the QOLLOCK build, *Your shield bar: Separate (old)* never attaches.
@@ -39,5 +39,5 @@ A narrower variant would be a pak02 override that only renames the marker id. It
   - a default QOLLOCK HUD gets the full old look;
   - a themed one keeps its layout, is still corrected, and gets the layout back when the theme is turned off;
   - under Minecraft the lane writes and schedules nothing, and it releases when Minecraft is switched on mid-match.
-- Builds: see the [MAP 3.3.1 entry](../MAP.md#331-unreleased).
+- Builds, archives and the release record: see the [MAP changelog](../MAP.md#changelog), 3.3.1.
 - Not checked in game. On the QOLLOCK debug build: a shield on QOLLOCK's default healthbar, then on a theme such as Minimalist, then a theme switch while Separate is on.
