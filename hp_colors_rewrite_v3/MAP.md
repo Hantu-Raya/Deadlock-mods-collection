@@ -71,6 +71,7 @@ Versions follow `settings/record.json` `release` (see [SPEC](SPEC.md#implementat
   See [ticket 40](issues/40-qollock-separate-shield.md). Not checked in game.
 - **Builds (`-SkipDeploy -AllowPinMismatch`: installed 6813, pin 6807; staged suite passed with 0 failures in release and debug, QOLLOCK 34, ShowRank 11; all show v3.3.1):** normal `bbe74733` release / `047de213` debug, QOLLOCK `8c4d7430` / `3c8f0ee6`, ShowRank `76c7da66` / `e5927b63`. Nothing uploaded.
 - **Installed (2026-10-22, user request):** QOLLOCK debug pak02 `3c8f0ee6`, next to the user's QOLLOCK pak03 4.0.5 16 Oct (sha256 `547cceee…`). The build is pinned to 13 Oct (`26fc7d60…`). In both pak03s, the 22 entries this build replaces or reads (Escape-menu and topbar layouts, health layouts and styles, `ql_hud`, the settings window and the storage bridge) have the same CRC.
+- **Upload archives** (`.build/archives/`, 7z LZMA2 `-mx=9` with `pak02_dir.vpk` at the root; each passes `7z t` and extracts back to the release md5): `hp_colors_v331.7z` (normal, `314c3a67`), `hp_colors_v331_qollock.7z` (`daab6e4b`), `hp_colors_v331_showrank.7z` (`2295313e`). Patch notes: `docs/changelogs/2026-10-22_hp_colors_v3_3_1.txt` and `_discord.md`. Not uploaded. `latest.json` stays at 3.3.0 until the uploads exist and their GameBanana links are known.
 
 ### 3.3.0 (2026-10-22, game 6807; released: GameBanana normal `#FileInfo_1858405`, QOLLOCK `#FileInfo_1858404`; hpv2-store `latest.json` 3.3.0 at `588b97d`)
 
