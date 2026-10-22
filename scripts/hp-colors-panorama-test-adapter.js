@@ -24,6 +24,10 @@ function incrementCounter(counters, key) {
   if (counters) counters[key] = (counters[key] || 0) + 1;
 }
 
+// Separate explicit script→panel calls from mock query implementation work.
+// Historical operationCounts (including recursive traversal) deliberately stay unchanged.
+let queryDepth = 0;
+
 
 class MockPanel {
   constructor(first = '', second = {}, third = undefined) {
@@ -187,13 +191,27 @@ class MockPanel {
     return child;
   }
   MoveChildBefore(child, before) {
+    incrementCounter(this.operationCounts, 'moveChildCalls');
+    if (child === before) return;
     const from = this.children.indexOf(child);
     const to = this.children.indexOf(before);
     if (from < 0 || to < 0) return;
     this.children.splice(from, 1);
     this.children.splice(this.children.indexOf(before), 0, child);
   }
-  IsValid() { return this.valid; }
+  MoveChildAfter(child, after) {
+    incrementCounter(this.operationCounts, 'moveChildCalls');
+    if (child === after) return;
+    const from = this.children.indexOf(child);
+    const to = this.children.indexOf(after);
+    if (from < 0 || to < 0) return;
+    this.children.splice(from, 1);
+    this.children.splice(this.children.indexOf(after) + 1, 0, child);
+  }
+  IsValid() {
+    if (!queryDepth) incrementCounter(this.operationCounts, 'boundaryValidityCalls');
+    return this.valid;
+  }
   GetParent() {
     incrementCounter(this.operationCounts, 'parentReads');
     return this.parent;
@@ -320,6 +338,9 @@ class MockPanel {
     return fallback || '';
   }
   FindChild(id) {
+    if (!queryDepth) incrementCounter(this.operationCounts, 'boundaryQueries');
+    queryDepth++;
+    try {
     incrementCounter(this.operationCounts, 'traversal');
     incrementCounter(this.operationCounts, 'childrenReads');
     if (!this.valid) return null;
@@ -327,8 +348,12 @@ class MockPanel {
       if (child && child.IsValid && child.IsValid() && child.id === id) return child;
     }
     return null;
+    } finally { queryDepth--; }
   }
   FindChildTraverse(id) {
+    if (!queryDepth) incrementCounter(this.operationCounts, 'boundaryQueries');
+    queryDepth++;
+    try {
     incrementCounter(this.operationCounts, 'traversal');
     incrementCounter(this.operationCounts, 'findTraversals');
     if (this.findCounts) this.findCounts[id] = (this.findCounts[id] || 0) + 1;
@@ -339,17 +364,20 @@ class MockPanel {
       if (found) return found;
     }
     return null;
+    } finally { queryDepth--; }
   }
   FindChildrenWithClassTraverse(className) {
+    if (!queryDepth) incrementCounter(this.operationCounts, 'boundaryQueries');
     incrementCounter(this.operationCounts, 'traversal');
     incrementCounter(this.operationCounts, 'findTraversals');
     if (this.findCounts) this.findCounts[className] = (this.findCounts[className] || 0) + 1;
-    let out = [];
-    if (this.valid) {
-      incrementCounter(this.operationCounts, 'classReads');
-      if (this.classes.has(className)) out.push(this);
-    }
-    for (const child of this.children) out = out.concat(child.FindChildrenWithClassTraverse(className));
+    const out = [];
+    const visit = panel => {
+      incrementCounter(this.operationCounts, 'classTraversalNodes');
+      if (panel.valid && panel.classes.has(className)) out.push(panel);
+      for (const child of panel.children) visit(child);
+    };
+    visit(this);
     return out;
   }
 }
@@ -361,6 +389,7 @@ function createScheduler(harness) {
   const scheduler = {
     jobs,
     schedule(delay, fn) {
+      incrementCounter(harness.operationCounts, 'schedules');
       const delaySec = Number(delay) || 0;
       const job = {
         delay,
@@ -374,6 +403,7 @@ function createScheduler(harness) {
       return job;
     },
     cancel(job) {
+      incrementCounter(harness.operationCounts, 'cancellations');
       const index = jobs.indexOf(job);
       if (index < 0) return false;
       jobs.splice(index, 1);
@@ -533,11 +563,13 @@ function createPanoramaHarness(options = {}) {
     DispatchEvent: (...args) => {
       harness.dispatches.push(args);
       if (args[0] === 'CopyStringToClipboard') {
+        if (typeof options.clipboardThrows === 'string') throw options.clipboardThrows;
         if (options.clipboardThrows) throw new Error('clipboard unavailable');
         if (options.clipboardResult === false) return false;
         harness.clipboardWrites.push(String(args[1] || ''));
       }
       if (args[0] === 'TextEntryCopyToClipboard') {
+        if (options.textEntryCopyThrows) throw new Error('text entry clipboard unavailable');
         if (options.textEntryCopyResult === false) return false;
         const source = args[1];
         harness.clipboardWrites.push(String((source && source.text) || ''));

@@ -1,0 +1,5 @@
+* text=auto
+panorama/** text eol=lf
+vendor/** text eol=lf
+tools/** text eol=lf
+tests/** text eol=lf

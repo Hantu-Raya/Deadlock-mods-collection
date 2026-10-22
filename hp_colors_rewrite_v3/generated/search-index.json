@@ -1,0 +1,1766 @@
+[
+  {
+    "key": "enabled",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsEnabledRow",
+    "text": "enable hp colors turn off healthbar customization and restore the game appearance.  master stock restore enable shared"
+  },
+  {
+    "key": "barStyle",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsBarStyleRow",
+    "text": "bar style v1 is a plain rectangle. v2 uses the game's slanted bar shape. old splits the bar into 100-hp boxes like the 2024 healthbars.  v1 v2 old style shape slanted boxes old v1 v2 shared"
+  },
+  {
+    "key": "barColorEnabled",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorEnabledEnemyRow",
+    "text": "player bar colors enable custom player healthbar colors for this side. colors health color enemy ally enemy"
+  },
+  {
+    "key": "barColorMode",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorModeEnemyRow",
+    "text": "color mode fixed selects low, middle or high by health; gradient blends between them. colors fixed colors health gradient health gradient fixed enemy"
+  },
+  {
+    "key": "barColorLow",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorLowEnemyRow",
+    "text": "low health color six-digit hex color at or below the low threshold. colors health red low hex enemy"
+  },
+  {
+    "key": "barColorMid",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorMidEnemyRow",
+    "text": "middle health color six-digit hex color at the high threshold in gradient mode. colors health orange middle hex enemy"
+  },
+  {
+    "key": "barColorHigh",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorHighEnemyRow",
+    "text": "high health color six-digit hex color at full health in gradient mode. colors health green high hex enemy"
+  },
+  {
+    "key": "barColorEnabled",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorEnabledAllyRow",
+    "text": "player bar colors enable custom player healthbar colors for this side. colors health color enemy ally ally"
+  },
+  {
+    "key": "barColorMode",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorModeAllyRow",
+    "text": "color mode fixed selects low, middle or high by health; gradient blends between them. colors fixed colors health gradient health gradient fixed ally"
+  },
+  {
+    "key": "barColorLow",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorLowAllyRow",
+    "text": "low health color six-digit hex color at or below the low threshold. colors health red low hex ally"
+  },
+  {
+    "key": "barColorMid",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorMidAllyRow",
+    "text": "middle health color six-digit hex color at the high threshold in gradient mode. colors health orange middle hex ally"
+  },
+  {
+    "key": "barColorHigh",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsBarColorHighAllyRow",
+    "text": "high health color six-digit hex color at full health in gradient mode. colors health green high hex ally"
+  },
+  {
+    "key": "barColorTeamHigh",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsBarColorTeamHighEnemyRow",
+    "text": "team high color use amber or sapphire for high health when the team is known. colors team amber sapphire enemy"
+  },
+  {
+    "key": "barColorTeamHigh",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsBarColorTeamHighAllyRow",
+    "text": "team high color use amber or sapphire for high health when the team is known. colors team amber sapphire ally"
+  },
+  {
+    "key": "lowThreshold",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Shared colors",
+    "id": "HPColorsLowThresholdRow",
+    "text": "low health threshold low color ends here; must stay below the high threshold. shared colors health threshold low shared"
+  },
+  {
+    "key": "highThreshold",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Shared colors",
+    "id": "HPColorsHighThresholdRow",
+    "text": "high health threshold middle color ends here; must stay above the low threshold. shared colors health threshold high shared"
+  },
+  {
+    "key": "teamAmberColor",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Shared colors",
+    "id": "HPColorsTeamAmberColorRow",
+    "text": "amber color six-digit hex color for the amber team. team high color and the team hp number, stamina and name colors use it. shared colors team amber color hex shared"
+  },
+  {
+    "key": "teamSapphireColor",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Shared colors",
+    "id": "HPColorsTeamSapphireColorRow",
+    "text": "sapphire color six-digit hex color for the sapphire team. team high color and the team hp number, stamina and name colors use it. shared colors team sapphire color hex shared"
+  },
+  {
+    "key": "damageShakeEnabled",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Feedback",
+    "id": "HPColorsDamageShakeEnabledRow",
+    "text": "damage shake shake the healthbar, hp number and name when the unit takes damage, like the game does. buildings and objectives never shake. feedback shake wiggle damage hit motion shared"
+  },
+  {
+    "key": "barHealingColor",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarHealingColorEnemyRow",
+    "text": "healing color color of the healing part of the bar while custom bar colors are on. feedback heal feedback health enemy"
+  },
+  {
+    "key": "barDeltaColor",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarDeltaColorEnemyRow",
+    "text": "damage delta color color of the recent-damage part of the bar while custom bar colors are on. feedback damage delta feedback enemy"
+  },
+  {
+    "key": "barShieldColor",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarShieldColorEnemyRow",
+    "text": "bullet shield color color of the bullet shield part of the bar. the separate shield bar under it keeps the game look. feedback shield bullet feedback enemy"
+  },
+  {
+    "key": "barArmorColor",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarArmorColorEnemyRow",
+    "text": "rat king barrier color color of the rat king barrier part of the bar while custom bar colors are on. feedback rat king armor barrier feedback enemy"
+  },
+  {
+    "key": "barHealingColor",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarHealingColorAllyRow",
+    "text": "healing color color of the healing part of the bar while custom bar colors are on. feedback heal feedback health ally"
+  },
+  {
+    "key": "barDeltaColor",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarDeltaColorAllyRow",
+    "text": "damage delta color color of the recent-damage part of the bar while custom bar colors are on. feedback damage delta feedback ally"
+  },
+  {
+    "key": "barShieldColor",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarShieldColorAllyRow",
+    "text": "bullet shield color color of the bullet shield part of the bar. the separate shield bar under it keeps the game look. feedback shield bullet feedback ally"
+  },
+  {
+    "key": "barArmorColor",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarArmorColorAllyRow",
+    "text": "rat king barrier color color of the rat king barrier part of the bar while custom bar colors are on. feedback rat king armor barrier feedback ally"
+  },
+  {
+    "key": "damageShakeStrength",
+    "side": "shared",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsDamageShakeStrengthRow",
+    "text": "shake strength how far the bar tips while it shakes, in degrees. the game uses 3. feedback shake wiggle damage strength intensity degrees shared"
+  },
+  {
+    "key": "barVisible",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Size and position",
+    "id": "HPColorsBarVisibleEnemyRow",
+    "text": "show healthbar hide the healthbar itself. health keeps updating and the hp number can stay visible. size and position hide visible health enemy"
+  },
+  {
+    "key": "barWidth",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Size and position",
+    "id": "HPColorsBarWidthEnemyRow",
+    "text": "bar width healthbar width in pixels. the game bar is 79 pixels wide; the bar stays centered and health still reads correctly. size and position size width scale pixels enemy"
+  },
+  {
+    "key": "barHeight",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Size and position",
+    "id": "HPColorsBarHeightEnemyRow",
+    "text": "bar height healthbar height in pixels. the game bar is 18 pixels tall; everything on the bar keeps its proportions. size and position size height scale pixels enemy"
+  },
+  {
+    "key": "barVisible",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Size and position",
+    "id": "HPColorsBarVisibleAllyRow",
+    "text": "show healthbar hide the healthbar itself. health keeps updating and the hp number can stay visible. size and position hide visible health ally"
+  },
+  {
+    "key": "barWidth",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Size and position",
+    "id": "HPColorsBarWidthAllyRow",
+    "text": "bar width healthbar width in pixels. the game bar is 79 pixels wide; the bar stays centered and health still reads correctly. size and position size width scale pixels ally"
+  },
+  {
+    "key": "barHeight",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Size and position",
+    "id": "HPColorsBarHeightAllyRow",
+    "text": "bar height healthbar height in pixels. the game bar is 18 pixels tall; everything on the bar keeps its proportions. size and position size height scale pixels ally"
+  },
+  {
+    "key": "barOffsetX",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Size and position",
+    "id": "HPColorsBarOffsetXEnemyRow",
+    "text": "bar horizontal offset move the healthbar left or right, in pixels. size and position position move horizontal pixels enemy"
+  },
+  {
+    "key": "barOffsetY",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Size and position",
+    "id": "HPColorsBarOffsetYEnemyRow",
+    "text": "bar vertical offset move the healthbar up or down, in pixels. size and position position move vertical pixels enemy"
+  },
+  {
+    "key": "barOffsetX",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Size and position",
+    "id": "HPColorsBarOffsetXAllyRow",
+    "text": "bar horizontal offset move the healthbar left or right, in pixels. size and position position move horizontal pixels ally"
+  },
+  {
+    "key": "barOffsetY",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Size and position",
+    "id": "HPColorsBarOffsetYAllyRow",
+    "text": "bar vertical offset move the healthbar up or down, in pixels. size and position position move vertical pixels ally"
+  },
+  {
+    "key": "barOutlineEnabled",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineEnabledEnemyRow",
+    "text": "show bar outline draw an outline around the healthbar. outline outline border rim enemy"
+  },
+  {
+    "key": "barOutlineEnabled",
+    "side": "ally",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineEnabledAllyRow",
+    "text": "show bar outline draw an outline around the healthbar. outline outline border rim ally"
+  },
+  {
+    "key": "barOutlineCustomColor",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineCustomColorEnemyRow",
+    "text": "custom outline color use your own outline color instead of the game colors for enemies, allies, teams and low health. outline outline color stock enemy"
+  },
+  {
+    "key": "barOutlineColor",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineColorEnemyRow",
+    "text": "outline color six-digit outline color when custom outline color is enabled. outline outline color hex enemy"
+  },
+  {
+    "key": "barOutlineThickness",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineThicknessEnemyRow",
+    "text": "outline thickness outline thickness in pixels at the default bar size. outline outline thickness border pixels enemy"
+  },
+  {
+    "key": "barOutlineOpacity",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineOpacityEnemyRow",
+    "text": "outline opacity opacity of the outline only. outline outline opacity alpha enemy"
+  },
+  {
+    "key": "barOutlineCustomColor",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineCustomColorAllyRow",
+    "text": "custom outline color use your own outline color instead of the game colors for enemies, allies, teams and low health. outline outline color stock ally"
+  },
+  {
+    "key": "barOutlineColor",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineColorAllyRow",
+    "text": "outline color six-digit outline color when custom outline color is enabled. outline outline color hex ally"
+  },
+  {
+    "key": "barOutlineThickness",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineThicknessAllyRow",
+    "text": "outline thickness outline thickness in pixels at the default bar size. outline outline thickness border pixels ally"
+  },
+  {
+    "key": "barOutlineOpacity",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Outline",
+    "id": "HPColorsBarOutlineOpacityAllyRow",
+    "text": "outline opacity opacity of the outline only. outline outline opacity alpha ally"
+  },
+  {
+    "key": "hudHealthColorMode",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Your health bar",
+    "id": "HPColorsHudHealthColorModeRow",
+    "text": "your health bar color colors your own health bar at the bottom of the screen. off: plain white bar. team: the color of the team you are on. custom: the color below. turn hp colors off to get the game's colors back. your health bar off team custom hud own self my bottom health team white shared"
+  },
+  {
+    "key": "hudHealthColor",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Your health bar",
+    "id": "HPColorsHudHealthColorRow",
+    "text": "your health bar custom color six-digit hex color for your own bottom health bar when its color is set to custom. your health bar hud own self my bottom health custom hex shared"
+  },
+  {
+    "key": "hudShieldStyle",
+    "side": "shared",
+    "page": "Bar",
+    "level": "basic",
+    "group": "Your health bar",
+    "id": "HPColorsHudShieldStyleRow",
+    "text": "your shield bar merged: the game draws your shield inside your health bar and adds it to your hp number. separate (old): the hud from before the september 2026 update. your shield gets its own green bar, the white bar shows only your health, and the number leaves the shield out. a rat king barrier gets the old spirit-shield bar beside it, in the rat king colour. your health bar merged separate (old) shield bullet green old legacy separate merged hud own shared"
+  },
+  {
+    "key": "hpTextVisible",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextVisibleEnemyRow",
+    "text": "custom hp number show the hp number beside the bar with your font, size, colors and position. off puts it back where the game shows it, with the game look.  health native number readout enemy"
+  },
+  {
+    "key": "hpTextFont",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextFontEnemyRow",
+    "text": "hp font font of the hp number.  retail demo oracle pulp font oracle pulp readout enemy"
+  },
+  {
+    "key": "hpTextSize",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextSizeEnemyRow",
+    "text": "hp font size hp number size in pixels. it does not change with bar size.  font size readout pixels enemy"
+  },
+  {
+    "key": "hpTextVisible",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextVisibleAllyRow",
+    "text": "custom hp number show the hp number beside the bar with your font, size, colors and position. off puts it back where the game shows it, with the game look.  health native number readout ally"
+  },
+  {
+    "key": "hpTextFont",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextFontAllyRow",
+    "text": "hp font font of the hp number.  retail demo oracle pulp font oracle pulp readout ally"
+  },
+  {
+    "key": "hpTextSize",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextSizeAllyRow",
+    "text": "hp font size hp number size in pixels. it does not change with bar size.  font size readout pixels ally"
+  },
+  {
+    "key": "hpTextColorMode",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsHpTextColorModeEnemyRow",
+    "text": "hp color source color the hp number like the bar, with its own colors below, or all in the amber or sapphire team color. team colors use the bar colors when the team is unknown. colors bar colors own colors team colors color follow readout team amber sapphire enemy"
+  },
+  {
+    "key": "hpTextColorMode",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "Colors",
+    "id": "HPColorsHpTextColorModeAllyRow",
+    "text": "hp color source color the hp number like the bar, with its own colors below, or all in the amber or sapphire team color. team colors use the bar colors when the team is unknown. colors bar colors own colors team colors color follow readout team amber sapphire ally"
+  },
+  {
+    "key": "hpTextMode",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextModeEnemyRow",
+    "text": "hp custom color mode fixed or gradient colors for the hp number when it uses its own colors. colors fixed colors health gradient health gradient fixed readout enemy"
+  },
+  {
+    "key": "hpTextLow",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextLowEnemyRow",
+    "text": "low hp text color custom hp color at or below the shared low threshold. colors color low readout enemy"
+  },
+  {
+    "key": "hpTextMid",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextMidEnemyRow",
+    "text": "middle hp text color custom middle hp color at the shared high threshold. colors color middle readout enemy"
+  },
+  {
+    "key": "hpTextHigh",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextHighEnemyRow",
+    "text": "high hp text color custom hp color at full health. colors color high readout enemy"
+  },
+  {
+    "key": "hpTextTeamHigh",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextTeamHighEnemyRow",
+    "text": "team high color with own colors, use the amber or sapphire team color instead of the high color when the team is known. colors team amber sapphire high readout enemy"
+  },
+  {
+    "key": "hpTextMode",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextModeAllyRow",
+    "text": "hp custom color mode fixed or gradient colors for the hp number when it uses its own colors. colors fixed colors health gradient health gradient fixed readout ally"
+  },
+  {
+    "key": "hpTextLow",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextLowAllyRow",
+    "text": "low hp text color custom hp color at or below the shared low threshold. colors color low readout ally"
+  },
+  {
+    "key": "hpTextMid",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextMidAllyRow",
+    "text": "middle hp text color custom middle hp color at the shared high threshold. colors color middle readout ally"
+  },
+  {
+    "key": "hpTextHigh",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextHighAllyRow",
+    "text": "high hp text color custom hp color at full health. colors color high readout ally"
+  },
+  {
+    "key": "hpTextTeamHigh",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Colors",
+    "id": "HPColorsHpTextTeamHighAllyRow",
+    "text": "team high color with own colors, use the amber or sapphire team color instead of the high color when the team is known. colors team amber sapphire high readout ally"
+  },
+  {
+    "key": "hpTextOffsetX",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextOffsetXEnemyRow",
+    "text": "hp horizontal offset move the hp number left or right, in pixels at the default bar width. it moves further on wider bars and always stays near the bar. position and outline position move horizontal readout pixels enemy"
+  },
+  {
+    "key": "hpTextOffsetY",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextOffsetYEnemyRow",
+    "text": "hp vertical offset move the hp number up or down, in pixels at the default bar height. it moves further on taller bars and always stays near the bar. position and outline position move vertical readout pixels enemy"
+  },
+  {
+    "key": "hpTextOutline",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextOutlineEnemyRow",
+    "text": "hp outline strength thickness of the dark outline around the hp number. 5 keeps the game's own outline; 0 removes it. position and outline outline shadow strength readout enemy"
+  },
+  {
+    "key": "hpTextAlign",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextAlignEnemyRow",
+    "text": "hp alignment which way the hp number grows from its spot as it gets longer: left, both ways or right. position and outline grow left centered grow right align left center right readout enemy"
+  },
+  {
+    "key": "hpTextTilt",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextTiltEnemyRow",
+    "text": "hp text tilt rotate the hp number in degrees. positive values tilt it clockwise; 0 keeps it level. position and outline hp number text tilt rotate angle degrees enemy"
+  },
+  {
+    "key": "hpTextOffsetX",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextOffsetXAllyRow",
+    "text": "hp horizontal offset move the hp number left or right, in pixels at the default bar width. it moves further on wider bars and always stays near the bar. position and outline position move horizontal readout pixels ally"
+  },
+  {
+    "key": "hpTextOffsetY",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextOffsetYAllyRow",
+    "text": "hp vertical offset move the hp number up or down, in pixels at the default bar height. it moves further on taller bars and always stays near the bar. position and outline position move vertical readout pixels ally"
+  },
+  {
+    "key": "hpTextOutline",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextOutlineAllyRow",
+    "text": "hp outline strength thickness of the dark outline around the hp number. 5 keeps the game's own outline; 0 removes it. position and outline outline shadow strength readout ally"
+  },
+  {
+    "key": "hpTextAlign",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextAlignAllyRow",
+    "text": "hp alignment which way the hp number grows from its spot as it gets longer: left, both ways or right. position and outline grow left centered grow right align left center right readout ally"
+  },
+  {
+    "key": "hpTextTilt",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsHpTextTiltAllyRow",
+    "text": "hp text tilt rotate the hp number in degrees. positive values tilt it clockwise; 0 keeps it level. position and outline hp number text tilt rotate angle degrees ally"
+  },
+  {
+    "key": "nameVisible",
+    "side": "enemy",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameVisibleEnemyRow",
+    "text": "show hero name show or hide hero names. shown names still fade in and out the way the game fades them.  hero player name visible enemy"
+  },
+  {
+    "key": "nameColorEnabled",
+    "side": "enemy",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameColorEnabledEnemyRow",
+    "text": "custom name color enable a custom hero-name color for this side.  hero name color enemy"
+  },
+  {
+    "key": "nameColorMode",
+    "side": "enemy",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameColorModeEnemyRow",
+    "text": "name color source use your name color, or the amber or sapphire team color. without a known team the name color is used. needs custom name color on.  own color team colors hero name color team amber sapphire enemy"
+  },
+  {
+    "key": "nameColor",
+    "side": "enemy",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameColorEnemyRow",
+    "text": "name color hero name color. while you spectate, names stay slightly see-through like in the game.  hero name color hex enemy"
+  },
+  {
+    "key": "nameSize",
+    "side": "enemy",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameSizeEnemyRow",
+    "text": "name font size hero name font size in pixels.  hero name font size pixels enemy"
+  },
+  {
+    "key": "nameVisible",
+    "side": "ally",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameVisibleAllyRow",
+    "text": "show hero name show or hide hero names. shown names still fade in and out the way the game fades them.  hero player name visible ally"
+  },
+  {
+    "key": "nameColorEnabled",
+    "side": "ally",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameColorEnabledAllyRow",
+    "text": "custom name color enable a custom hero-name color for this side.  hero name color ally"
+  },
+  {
+    "key": "nameColorMode",
+    "side": "ally",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameColorModeAllyRow",
+    "text": "name color source use your name color, or the amber or sapphire team color. without a known team the name color is used. needs custom name color on.  own color team colors hero name color team amber sapphire ally"
+  },
+  {
+    "key": "nameColor",
+    "side": "ally",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameColorAllyRow",
+    "text": "name color hero name color. while you spectate, names stay slightly see-through like in the game.  hero name color hex ally"
+  },
+  {
+    "key": "nameSize",
+    "side": "ally",
+    "page": "Name",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNameSizeAllyRow",
+    "text": "name font size hero name font size in pixels.  hero name font size pixels ally"
+  },
+  {
+    "key": "nameOffsetX",
+    "side": "enemy",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameOffsetXEnemyRow",
+    "text": "name horizontal offset move the hero name left or right, in pixels. it does not change with bar size and always stays near the bar. position and outline hero name position horizontal pixels enemy"
+  },
+  {
+    "key": "nameOffsetY",
+    "side": "enemy",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameOffsetYEnemyRow",
+    "text": "name vertical offset move the hero name up or down, in pixels. it does not change with bar size and always stays near the bar. position and outline hero name position vertical pixels enemy"
+  },
+  {
+    "key": "nameOutline",
+    "side": "enemy",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameOutlineEnemyRow",
+    "text": "name outline strength thickness of the dark outline around the hero name. 5 keeps the game's own outline; 0 removes it. position and outline hero name outline shadow strength enemy"
+  },
+  {
+    "key": "nameAlign",
+    "side": "enemy",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameAlignEnemyRow",
+    "text": "name alignment which way the hero name grows from its spot above the bar: left, both ways or right. position and outline grow left centered grow right hero name align left center right enemy"
+  },
+  {
+    "key": "nameOffsetX",
+    "side": "ally",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameOffsetXAllyRow",
+    "text": "name horizontal offset move the hero name left or right, in pixels. it does not change with bar size and always stays near the bar. position and outline hero name position horizontal pixels ally"
+  },
+  {
+    "key": "nameOffsetY",
+    "side": "ally",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameOffsetYAllyRow",
+    "text": "name vertical offset move the hero name up or down, in pixels. it does not change with bar size and always stays near the bar. position and outline hero name position vertical pixels ally"
+  },
+  {
+    "key": "nameOutline",
+    "side": "ally",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameOutlineAllyRow",
+    "text": "name outline strength thickness of the dark outline around the hero name. 5 keeps the game's own outline; 0 removes it. position and outline hero name outline shadow strength ally"
+  },
+  {
+    "key": "nameAlign",
+    "side": "ally",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameAlignAllyRow",
+    "text": "name alignment which way the hero name grows from its spot above the bar: left, both ways or right. position and outline grow left centered grow right hero name align left center right ally"
+  },
+  {
+    "key": "nameTilt",
+    "side": "shared",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameTiltRow",
+    "text": "name tilt rotate hero names in degrees. positive values tilt them clockwise; 0 keeps them level. position and outline hero name tilt rotate angle degrees shared"
+  },
+  {
+    "key": "nameRiseWithPips",
+    "side": "shared",
+    "page": "Name",
+    "level": "advanced",
+    "group": "Position and outline",
+    "id": "HPColorsNameRiseWithPipsRow",
+    "text": "lift name above old boxes with bar style old, move hero names up one row for every 1,000 max hp so the boxes never cover them. off keeps names in place. position and outline hero name lift rise old boxes shared"
+  },
+  {
+    "key": "linesVisible",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Lines and pips",
+    "id": "HPColorsLinesVisibleEnemyRow",
+    "text": "show health lines show the marks that divide each healthbar into health chunks. lines and pips health lines pips visible enemy"
+  },
+  {
+    "key": "lineColorEnabled",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Lines and pips",
+    "id": "HPColorsLineColorEnabledEnemyRow",
+    "text": "custom line color use your line color instead of the game colors. spectator lines are unchanged. lines and pips lines pips color stock enemy"
+  },
+  {
+    "key": "lineColor",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Lines and pips",
+    "id": "HPColorsLineColorEnemyRow",
+    "text": "line color choose the color of the healthbar lines. lines and pips lines pips color hex enemy"
+  },
+  {
+    "key": "linesVisible",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Lines and pips",
+    "id": "HPColorsLinesVisibleAllyRow",
+    "text": "show health lines show the marks that divide each healthbar into health chunks. lines and pips health lines pips visible ally"
+  },
+  {
+    "key": "lineColorEnabled",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Lines and pips",
+    "id": "HPColorsLineColorEnabledAllyRow",
+    "text": "custom line color use your line color instead of the game colors. spectator lines are unchanged. lines and pips lines pips color stock ally"
+  },
+  {
+    "key": "lineColor",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Lines and pips",
+    "id": "HPColorsLineColorAllyRow",
+    "text": "line color choose the color of the healthbar lines. lines and pips lines pips color hex ally"
+  },
+  {
+    "key": "lineOpacity",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Lines and pips",
+    "id": "HPColorsLineOpacityEnemyRow",
+    "text": "line opacity make the healthbar lines more or less transparent. lines and pips lines pips opacity alpha enemy"
+  },
+  {
+    "key": "lineOpacity",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Lines and pips",
+    "id": "HPColorsLineOpacityAllyRow",
+    "text": "line opacity make the healthbar lines more or less transparent. lines and pips lines pips opacity alpha ally"
+  },
+  {
+    "key": "killMarkerEnabled",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Kill marker",
+    "id": "HPColorsKillMarkerEnabledEnemyRow",
+    "text": "show kill marker show a kill-threshold marker on enemy healthbars while custom bar colors are on. kill marker kill marker threshold enemy enemy"
+  },
+  {
+    "key": "killMarkerColor",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Kill marker",
+    "id": "HPColorsKillMarkerColorEnemyRow",
+    "text": "kill marker color choose the enemy kill marker color. kill marker kill marker color red hex enemy"
+  },
+  {
+    "key": "killMarkerThreshold",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Kill marker",
+    "id": "HPColorsKillMarkerThresholdEnemyRow",
+    "text": "kill marker threshold place the marker at this health percentage. it stays visible even below that amount. kill marker kill marker health threshold enemy"
+  },
+  {
+    "key": "killMarkerWidth",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Kill marker",
+    "id": "HPColorsKillMarkerWidthEnemyRow",
+    "text": "kill marker width set the marker width. it is at least 1 pixel wide and stays inside the bar. kill marker kill marker width size pixels enemy"
+  },
+  {
+    "key": "staminaColorEnabled",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaColorEnabledEnemyRow",
+    "text": "custom stamina color choose a color for dash charges on this side. the game still controls how many are available. team colors and low stamina need this on. stamina stamina dash color enemy ally enemy"
+  },
+  {
+    "key": "staminaColorMode",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaColorModeEnemyRow",
+    "text": "stamina color source use your stamina color, or the amber or sapphire team color. without a known team the stamina color is used. needs custom stamina color on. stamina own color team colors stamina dash team amber sapphire color enemy"
+  },
+  {
+    "key": "staminaColor",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaColorEnemyRow",
+    "text": "stamina color choose the filled dash-charge and outline color. empty charges stay black. stamina stamina dash color hex enemy"
+  },
+  {
+    "key": "staminaLowThreshold",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaLowThresholdEnemyRow",
+    "text": "low stamina threshold at this many dash charges left or fewer, charges turn the low stamina color. 0 turns it off. needs custom stamina color on. stamina stamina dash low threshold charges left enemy"
+  },
+  {
+    "key": "staminaLowColor",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaLowColorEnemyRow",
+    "text": "low stamina color color of the filled dash charges and their outline at or below the low stamina threshold. stamina stamina dash low color hex enemy"
+  },
+  {
+    "key": "staminaShape",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaShapeEnemyRow",
+    "text": "stamina shape show dash charges as arrows, circles or boxes. default arrows, size, position and color restore the game look. stamina arrows circles boxes stamina dash shape arrow circle box stock enemy"
+  },
+  {
+    "key": "staminaColorEnabled",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaColorEnabledAllyRow",
+    "text": "custom stamina color choose a color for dash charges on this side. the game still controls how many are available. team colors and low stamina need this on. stamina stamina dash color enemy ally ally"
+  },
+  {
+    "key": "staminaColorMode",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaColorModeAllyRow",
+    "text": "stamina color source use your stamina color, or the amber or sapphire team color. without a known team the stamina color is used. needs custom stamina color on. stamina own color team colors stamina dash team amber sapphire color ally"
+  },
+  {
+    "key": "staminaColor",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaColorAllyRow",
+    "text": "stamina color choose the filled dash-charge and outline color. empty charges stay black. stamina stamina dash color hex ally"
+  },
+  {
+    "key": "staminaLowThreshold",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaLowThresholdAllyRow",
+    "text": "low stamina threshold at this many dash charges left or fewer, charges turn the low stamina color. 0 turns it off. needs custom stamina color on. stamina stamina dash low threshold charges left ally"
+  },
+  {
+    "key": "staminaLowColor",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaLowColorAllyRow",
+    "text": "low stamina color color of the filled dash charges and their outline at or below the low stamina threshold. stamina stamina dash low color hex ally"
+  },
+  {
+    "key": "staminaShape",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Stamina",
+    "id": "HPColorsStaminaShapeAllyRow",
+    "text": "stamina shape show dash charges as arrows, circles or boxes. default arrows, size, position and color restore the game look. stamina arrows circles boxes stamina dash shape arrow circle box stock ally"
+  },
+  {
+    "key": "staminaWidth",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaWidthEnemyRow",
+    "text": "stamina width adjust dash-charge width. the default 11 keeps the original width, including arrows. stamina stamina dash width size pixels enemy"
+  },
+  {
+    "key": "staminaHeight",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaHeightEnemyRow",
+    "text": "stamina height adjust dash-charge height. the default 4.48 keeps the original height, including arrows. stamina stamina dash height size pixels enemy"
+  },
+  {
+    "key": "staminaOffsetX",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaOffsetXEnemyRow",
+    "text": "stamina horizontal offset move dash charges left or right, separately from the healthbar. stamina stamina dash position horizontal pixels enemy"
+  },
+  {
+    "key": "staminaOffsetY",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaOffsetYEnemyRow",
+    "text": "stamina vertical offset move dash charges up or down, separately from the healthbar. stamina stamina dash position vertical pixels enemy"
+  },
+  {
+    "key": "staminaWidth",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaWidthAllyRow",
+    "text": "stamina width adjust dash-charge width. the default 11 keeps the original width, including arrows. stamina stamina dash width size pixels ally"
+  },
+  {
+    "key": "staminaHeight",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaHeightAllyRow",
+    "text": "stamina height adjust dash-charge height. the default 4.48 keeps the original height, including arrows. stamina stamina dash height size pixels ally"
+  },
+  {
+    "key": "staminaOffsetX",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaOffsetXAllyRow",
+    "text": "stamina horizontal offset move dash charges left or right, separately from the healthbar. stamina stamina dash position horizontal pixels ally"
+  },
+  {
+    "key": "staminaOffsetY",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Stamina",
+    "id": "HPColorsStaminaOffsetYAllyRow",
+    "text": "stamina vertical offset move dash charges up or down, separately from the healthbar. stamina stamina dash position vertical pixels ally"
+  },
+  {
+    "key": "pulseEnabled",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseEnabledEnemyRow",
+    "text": "low hp pulse pulse the healthbar at low hp while custom bar colors are on. hp-number pulsing has its own toggle. pulse pulse low health flash enemy"
+  },
+  {
+    "key": "pulseThreshold",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseThresholdEnemyRow",
+    "text": "pulse threshold start pulsing at or below this hp percentage. shields do not count as hp. pulse pulse threshold low health enemy"
+  },
+  {
+    "key": "pulseColorEnabled",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseColorEnabledEnemyRow",
+    "text": "custom pulse color use your chosen color for the low-hp pulse. pulse pulse color overlay enemy"
+  },
+  {
+    "key": "pulseColor",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseColorEnemyRow",
+    "text": "pulse color choose the low-hp pulse color. pulse pulse color red hex enemy"
+  },
+  {
+    "key": "pulseReadout",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseReadoutEnemyRow",
+    "text": "pulse hp number pulse the hp number at low health, even when custom bar colors are off. pulse pulse number hp readout enemy"
+  },
+  {
+    "key": "pulseEnabled",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseEnabledAllyRow",
+    "text": "low hp pulse pulse the healthbar at low hp while custom bar colors are on. hp-number pulsing has its own toggle. pulse pulse low health flash ally"
+  },
+  {
+    "key": "pulseThreshold",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseThresholdAllyRow",
+    "text": "pulse threshold start pulsing at or below this hp percentage. shields do not count as hp. pulse pulse threshold low health ally"
+  },
+  {
+    "key": "pulseColorEnabled",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseColorEnabledAllyRow",
+    "text": "custom pulse color use your chosen color for the low-hp pulse. pulse pulse color overlay ally"
+  },
+  {
+    "key": "pulseColor",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseColorAllyRow",
+    "text": "pulse color choose the low-hp pulse color. pulse pulse color red hex ally"
+  },
+  {
+    "key": "pulseReadout",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Pulse",
+    "id": "HPColorsPulseReadoutAllyRow",
+    "text": "pulse hp number pulse the hp number at low health, even when custom bar colors are off. pulse pulse number hp readout ally"
+  },
+  {
+    "key": "pulseReadoutModifiers",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseReadoutModifiersEnemyRow",
+    "text": "pulse hp size and position change enemy hp-number size and position at low health, separately from number pulsing. pulse pulse hp size position enemy enemy"
+  },
+  {
+    "key": "pulseReadoutSize",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseReadoutSizeEnemyRow",
+    "text": "pulse hp size set the enemy hp-number font size while low-hp size and position changes are on. pulse pulse hp font size pixels enemy"
+  },
+  {
+    "key": "pulseReadoutOffsetX",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseReadoutOffsetXEnemyRow",
+    "text": "pulse hp horizontal offset move the enemy hp number left or right at low health. the offset scales with bar width and stays on screen. pulse pulse hp position horizontal pixels enemy"
+  },
+  {
+    "key": "pulseReadoutOffsetY",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseReadoutOffsetYEnemyRow",
+    "text": "pulse hp vertical offset move the enemy hp number up or down at low health. the offset scales with bar height and stays on screen. pulse pulse hp position vertical pixels enemy"
+  },
+  {
+    "key": "pulseBpm",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseBpmEnemyRow",
+    "text": "pulse rate (bpm) set the pulse speed. higher values pulse faster. pulse pulse rate speed bpm enemy"
+  },
+  {
+    "key": "pulseIntensity",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseIntensityEnemyRow",
+    "text": "pulse intensity choose 0 for subtle, 1 for medium or 2 for intense pulsing. pulse pulse intensity subtle medium intense enemy"
+  },
+  {
+    "key": "pulseColorMode",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseColorModeEnemyRow",
+    "text": "pulse color mode fixed changes the bar and matching ultimate badge color. gradient blends the pulse color over the filled bar. pulse fixed color animated color overlay pulse color fixed gradient overlay enemy"
+  },
+  {
+    "key": "pulseHideBar",
+    "side": "enemy",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseHideBarEnemyRow",
+    "text": "hide bar during pulse hide the enemy healthbar during a bar pulse, including the kill marker and ultimate background. the hp number can stay visible. pulse pulse hide bar enemy enemy"
+  },
+  {
+    "key": "pulseBpm",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseBpmAllyRow",
+    "text": "pulse rate (bpm) set the pulse speed. higher values pulse faster. pulse pulse rate speed bpm ally"
+  },
+  {
+    "key": "pulseIntensity",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseIntensityAllyRow",
+    "text": "pulse intensity choose 0 for subtle, 1 for medium or 2 for intense pulsing. pulse pulse intensity subtle medium intense ally"
+  },
+  {
+    "key": "pulseColorMode",
+    "side": "ally",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Pulse",
+    "id": "HPColorsPulseColorModeAllyRow",
+    "text": "pulse color mode fixed changes the bar and matching ultimate badge color. gradient blends the pulse color over the filled bar. pulse fixed color animated color overlay pulse color fixed gradient overlay ally"
+  },
+  {
+    "key": "criticalIndicatorVisible",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Labels",
+    "id": "HPColorsCriticalIndicatorVisibleRow",
+    "text": "critical label allow the stock critical label on enemy and ally players. off hides the label only; stock flashing remains. labels critical indicator visible names labels shared"
+  },
+  {
+    "key": "assassinateIndicatorVisible",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Labels",
+    "id": "HPColorsAssassinateIndicatorVisibleRow",
+    "text": "assassinate label allow the stock assassinate label on enemy and ally players. off hides the label only. labels assassinate indicator visible names labels shared"
+  },
+  {
+    "key": "unkillableIndicatorVisible",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "basic",
+    "group": "Labels",
+    "id": "HPColorsUnkillableIndicatorVisibleRow",
+    "text": "unkillable label allow the stock unkillable label on enemy and ally players. off hides the label only; the stock hp-number treatment remains. labels unkillable indicator visible names labels immunity shared"
+  },
+  {
+    "key": "criticalOffsetX",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Labels",
+    "id": "HPColorsCriticalOffsetXRow",
+    "text": "critical horizontal offset move critical left or right. it follows the bar. labels critical offset horizontal position labels shared"
+  },
+  {
+    "key": "criticalOffsetY",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Labels",
+    "id": "HPColorsCriticalOffsetYRow",
+    "text": "critical vertical offset move critical up or down. it follows the bar. labels critical offset vertical position labels shared"
+  },
+  {
+    "key": "assassinateOffsetX",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Labels",
+    "id": "HPColorsAssassinateOffsetXRow",
+    "text": "assassinate horizontal offset move assassinate left or right. it follows the bar. labels assassinate offset horizontal position labels shared"
+  },
+  {
+    "key": "assassinateOffsetY",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Labels",
+    "id": "HPColorsAssassinateOffsetYRow",
+    "text": "assassinate vertical offset move assassinate up or down. it follows the bar. labels assassinate offset vertical position labels shared"
+  },
+  {
+    "key": "unkillableOffsetX",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Labels",
+    "id": "HPColorsUnkillableOffsetXRow",
+    "text": "unkillable horizontal offset move unkillable left or right. it follows the bar. labels unkillable offset horizontal position labels shared"
+  },
+  {
+    "key": "unkillableOffsetY",
+    "side": "shared",
+    "page": "Indicators",
+    "level": "advanced",
+    "group": "Labels",
+    "id": "HPColorsUnkillableOffsetYRow",
+    "text": "unkillable vertical offset move unkillable up or down. it follows the bar. labels unkillable offset vertical position labels shared"
+  },
+  {
+    "key": "levelsVisible",
+    "side": "enemy",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Level and anchoring",
+    "id": "HPColorsLevelsVisibleEnemyRow",
+    "text": "show enemy level badge show enemy hero levels with a colored rim that changes at power milestones. level and anchoring level badge power enemy enemy"
+  },
+  {
+    "key": "levelOffsetX",
+    "side": "enemy",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Level and anchoring",
+    "id": "HPColorsLevelOffsetXEnemyRow",
+    "text": "level horizontal offset move the level badge left or right. it follows the bar when anchoring is on. level and anchoring level position horizontal pixels enemy"
+  },
+  {
+    "key": "levelOffsetY",
+    "side": "enemy",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Level and anchoring",
+    "id": "HPColorsLevelOffsetYEnemyRow",
+    "text": "level vertical offset move the level badge up or down. it follows the bar when anchoring is on. level and anchoring level position vertical pixels enemy"
+  },
+  {
+    "key": "accessoryAnchorEnabled",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Level and anchoring",
+    "id": "HPColorsAccessoryAnchorEnabledRow",
+    "text": "anchor level and ultimate to bar keep level and ultimate badges attached when you move the bar. when off, their offsets scale with the bar instead. level and anchoring level ultimate anchor position shared"
+  },
+  {
+    "key": "ultimateTimerEnabled",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Ultimate",
+    "id": "HPColorsUltimateTimerEnabledRow",
+    "text": "show ultimate progress show other heroes' ultimate cooldown progress on their world badges. turning this off restores game badge and flame sizes. ultimate ultimate timer progress topbar shared"
+  },
+  {
+    "key": "ultMode",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Ultimate",
+    "id": "HPColorsUltModeRow",
+    "text": "ultimate color mode use the bar color for the ultimate badge, or choose a separate color. ultimate follow bar custom color ultimate ult color follow shared"
+  },
+  {
+    "key": "ultCustom",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Ultimate",
+    "id": "HPColorsUltCustomRow",
+    "text": "ultimate custom color choose the ultimate badge color for custom color mode. ultimate ultimate ult color hex shared"
+  },
+  {
+    "key": "ultimateTimerColorMode",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Ultimate",
+    "id": "HPColorsUltimateTimerColorModeRow",
+    "text": "ultimate progress colors use the badge color, one cooldown color, or a gradient that changes as the ultimate recharges. ultimate follow badge fixed availability progress gradient ultimate timer color gradient shared"
+  },
+  {
+    "key": "ultimateTimerUnavailableColor",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Ultimate",
+    "id": "HPColorsUltimateTimerUnavailableColorRow",
+    "text": "ultimate unavailable color choose the color at the start of the ultimate cooldown. ultimate ultimate timer color unavailable shared"
+  },
+  {
+    "key": "ultimateTimerAvailableColor",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Ultimate",
+    "id": "HPColorsUltimateTimerAvailableColorRow",
+    "text": "ultimate available color choose the color at the end of the ultimate cooldown. ultimate ultimate timer color available shared"
+  },
+  {
+    "key": "ultimateTimerDarkness",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Ultimate",
+    "id": "HPColorsUltimateTimerDarknessRow",
+    "text": "ultimate background darkness darken the unfilled part of the ultimate cooldown ring. ultimate ultimate timer darkness background shared"
+  },
+  {
+    "key": "ultOffsetX",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Ultimate",
+    "id": "HPColorsUltOffsetXRow",
+    "text": "ultimate horizontal offset move both enemy and ally ultimate badges left or right. ultimate ultimate ult position horizontal pixels shared"
+  },
+  {
+    "key": "ultOffsetY",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Ultimate",
+    "id": "HPColorsUltOffsetYRow",
+    "text": "ultimate vertical offset move both enemy and ally ultimate badges up or down. ultimate ultimate ult position vertical pixels shared"
+  },
+  {
+    "key": "ultSize",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Ultimate",
+    "id": "HPColorsUltSizeRow",
+    "text": "ultimate badge size set the ultimate badge and kill-streak flame size while ultimate progress is on. turning progress off restores their game sizes. ultimate ultimate ult timer size scale pixels shared"
+  },
+  {
+    "key": "pickupTimersEnabled",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Pickups",
+    "id": "HPColorsPickupTimersEnabledRow",
+    "text": "pickup styling and timers restyle the game's pickup icons above other heroes' bars and show pickup countdowns on the topbar. pickups pickup timer topbar buff icons powerup shared"
+  },
+  {
+    "key": "pickupGunColor",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Pickups",
+    "id": "HPColorsPickupGunColorRow",
+    "text": "gun pickup color inner color of the gun pickup icon. pickups pickup gun inner disc color powerup shared"
+  },
+  {
+    "key": "pickupMovementColor",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Pickups",
+    "id": "HPColorsPickupMovementColorRow",
+    "text": "movement pickup color inner color of the movement pickup icon. pickups pickup movement inner disc color powerup shared"
+  },
+  {
+    "key": "pickupSpiritColor",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Pickups",
+    "id": "HPColorsPickupSpiritColorRow",
+    "text": "spirit pickup color inner color of the spirit pickup icon. pickups pickup spirit casting inner disc color powerup shared"
+  },
+  {
+    "key": "pickupSurvivalColor",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Pickups",
+    "id": "HPColorsPickupSurvivalColorRow",
+    "text": "survival pickup color inner color of the survival pickup icon. pickups pickup survival inner disc color powerup shared"
+  },
+  {
+    "key": "pickupGlyphColor",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Pickups",
+    "id": "HPColorsPickupGlyphColorRow",
+    "text": "pickup symbol color color of the symbol inside each pickup icon. pickups pickup glyph symbol inner icon color powerup shared"
+  },
+  {
+    "key": "pickupBackgroundDarkness",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Pickups",
+    "id": "HPColorsPickupBackgroundDarknessRow",
+    "text": "pickup ring darkness darkness of the empty part of the countdown ring. the inner color stays bright. pickups pickup background darkness empty track countdown ring powerup shared"
+  },
+  {
+    "key": "pickupSize",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Pickups",
+    "id": "HPColorsPickupSizeRow",
+    "text": "pickup icon size set pickup icon width and height, separately from bar size. pickups pickup size pixels powerup shared"
+  },
+  {
+    "key": "pickupSpacing",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Pickups",
+    "id": "HPColorsPickupSpacingRow",
+    "text": "pickup spacing set the gap on each side of every pickup icon. pickups pickup spacing pixels powerup shared"
+  },
+  {
+    "key": "pickupOffsetX",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Pickups",
+    "id": "HPColorsPickupOffsetXRow",
+    "text": "pickup horizontal offset move pickup icons left or right. pickups pickup position horizontal pixels powerup shared"
+  },
+  {
+    "key": "pickupOffsetY",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Pickups",
+    "id": "HPColorsPickupOffsetYRow",
+    "text": "pickup vertical offset move pickup icons up or down. pickups pickup position vertical pixels powerup shared"
+  },
+  {
+    "key": "rejuvSize",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Rejuvenator",
+    "id": "HPColorsRejuvSizeRow",
+    "text": "rejuvenator size set the rejuvenator icon size. the default is 24 pixels. rejuvenator rejuvenator size scale pixels shared"
+  },
+  {
+    "key": "rejuvOffsetX",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Rejuvenator",
+    "id": "HPColorsRejuvOffsetXRow",
+    "text": "rejuvenator horizontal offset move the rejuvenator icon left or right. rejuvenator rejuvenator position horizontal pixels shared"
+  },
+  {
+    "key": "rejuvOffsetY",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Rejuvenator",
+    "id": "HPColorsRejuvOffsetYRow",
+    "text": "rejuvenator vertical offset move the rejuvenator icon up or down. rejuvenator rejuvenator position vertical pixels shared"
+  },
+  {
+    "key": "rejuvTilt",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Rejuvenator",
+    "id": "HPColorsRejuvTiltRow",
+    "text": "rejuvenator tilt rotate the rejuvenator icon. the default tilt is 6 degrees. rejuvenator rejuvenator tilt rotation shared"
+  },
+  {
+    "key": "npcEnabled",
+    "side": "enemy",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNpcEnabledEnemyRow",
+    "text": "customize npc bars use this side's bar colors, size, position and hp-number settings for npcs. off leaves them uncustomized.  npc creature minion trooper gate enemy"
+  },
+  {
+    "key": "objectiveEnabled",
+    "side": "enemy",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsObjectiveEnabledEnemyRow",
+    "text": "customize objective bars use this side's bar colors, size, position and hp-number settings for buildings and objectives. neutral objectives stay unchanged.  objective building guardian walker barracks gate enemy"
+  },
+  {
+    "key": "npcEnabled",
+    "side": "ally",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNpcEnabledAllyRow",
+    "text": "customize npc bars use this side's bar colors, size, position and hp-number settings for npcs. off leaves them uncustomized.  npc creature minion trooper gate ally"
+  },
+  {
+    "key": "objectiveEnabled",
+    "side": "ally",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsObjectiveEnabledAllyRow",
+    "text": "customize objective bars use this side's bar colors, size, position and hp-number settings for buildings and objectives. neutral objectives stay unchanged.  objective building guardian walker barracks gate ally"
+  },
+  {
+    "key": "neutralEnabled",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNeutralEnabledRow",
+    "text": "customize neutral camps use the neutral fill color and enemy size, position and hp-number settings for neutral npcs. off leaves them uncustomized.  neutral camp jungle midboss gate shared"
+  },
+  {
+    "key": "neutralColor",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNeutralColorRow",
+    "text": "neutral fill color choose a fixed healthbar color for neutral camps while their customization is on.  neutral camp fill color hex shared"
+  }
+]

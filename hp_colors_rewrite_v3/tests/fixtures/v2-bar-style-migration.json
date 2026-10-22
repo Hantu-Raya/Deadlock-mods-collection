@@ -1,0 +1,165 @@
+[
+  {
+    "name": "bar-style-save-schema-1",
+    "kind": "save",
+    "input": "HPV2S1.634aef8f.eyJtIjoiSFBWMlNUT1JFIiwicyI6MSwidCI6MSwiYiI6IntcInZlcnNpb25cIjoxLFwidmFsdWVzXCI6e1wicGlwc1Zpc2libGVcIjpmYWxzZSxcImJhck1hc2tcIjpcIm9sZFwiLFwibmFtZVJpc2VXaXRoUGlwc1wiOmZhbHNlfX0ifQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "old",
+        "nameRiseWithPips": false
+      }
+    }
+  },
+  {
+    "name": "bar-style-save-schema-2",
+    "kind": "save",
+    "input": "HPV2S1.f06898e5.eyJtIjoiSFBWMlNUT1JFIiwicyI6MiwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJiYXJNYXNrIjoib3JpZ2luYWwiLCJuYW1lUmlzZVdpdGhQaXBzIjp0cnVlfX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "original",
+        "nameRiseWithPips": true
+      }
+    }
+  },
+  {
+    "name": "bar-style-save-schema-3",
+    "kind": "save",
+    "input": "HPV2S1.8275eddc.eyJtIjoiSFBWMlNUT1JFIiwicyI6MywidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJiYXJNYXNrIjoib2xkIiwibmFtZVJpc2VXaXRoUGlwcyI6dHJ1ZX19fQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "old",
+        "nameRiseWithPips": true
+      }
+    }
+  },
+  {
+    "name": "bar-style-save-schema-4",
+    "kind": "save",
+    "input": "HPV2S1.e40c2fbb.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJiYXJNYXNrIjoib3JpZ2luYWwiLCJuYW1lUmlzZVdpdGhQaXBzIjpmYWxzZX19fQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "original",
+        "nameRiseWithPips": false
+      }
+    }
+  },
+  {
+    "name": "bar-style-save-schema-5",
+    "kind": "save",
+    "input": "HPV2S1.81a3fb8a.eyJtIjoiSFBWMlNUT1JFIiwicyI6NSwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJiYXJNYXNrIjoibm9uZSIsIm5hbWVSaXNlV2l0aFBpcHMiOnRydWV9fX0",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "none",
+        "nameRiseWithPips": true
+      }
+    }
+  },
+  {
+    "name": "bar-style-HPCR2-hpv2-1",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":1,\"values\":[[74,\"old\"],[75,true]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "old",
+        "nameRiseWithPips": true
+      }
+    }
+  },
+  {
+    "name": "bar-style-HPCRP1-hpv2-1",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Bar style\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[74,\"old\"],[75,true]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false
+        },
+        "shared": {
+          "barStyle": "old",
+          "nameRiseWithPips": true
+        }
+      }
+    ],
+    "nameExpected": "Bar style"
+  },
+  {
+    "name": "bar-style-HPCR2-hpv2-2",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":2,\"values\":[[74,\"original\"],[75,false]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "original",
+        "nameRiseWithPips": false
+      }
+    }
+  },
+  {
+    "name": "bar-style-HPCRP1-hpv2-2",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Bar style\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[74,\"original\"],[75,false]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false
+        },
+        "shared": {
+          "barStyle": "original",
+          "nameRiseWithPips": false
+        }
+      }
+    ],
+    "nameExpected": "Bar style"
+  },
+  {
+    "name": "bar-style-HPCR2-hpv2-3",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":3,\"values\":[[74,\"old\"],[75,false]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false
+      },
+      "shared": {
+        "barStyle": "old",
+        "nameRiseWithPips": false
+      }
+    }
+  },
+  {
+    "name": "bar-style-HPCRP1-hpv2-3",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Bar style\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[[74,\"old\"],[75,false]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false
+        },
+        "shared": {
+          "barStyle": "old",
+          "nameRiseWithPips": false
+        }
+      }
+    ],
+    "nameExpected": "Bar style"
+  }
+]

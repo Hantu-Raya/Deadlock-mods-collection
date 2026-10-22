@@ -1,0 +1,46 @@
+/* PROTOTYPE (ticket 10): preview pane additions.
+   Chrome classes (HPC3Preview, HPC3Segment, HPC3PlayButton, ...) come from prototypes/menu-gen's
+   hp_colors_v3_menu.css; this sheet adds only the kind segment, the fake bar tree and states.
+   Fake-tree values follow unit_status_v2.css (#InfoHealthContainer:97, .UnitHealthbarContainer:258,
+   .player .UnitHealthbarContainer:269, #UnitHealthbarInner:284, #unit_healthbar_lagging:580,
+   #name:835, #UnitHealthbarValue:1293). Bar sizes, wash and HP-label placement are written inline by
+   hp_colors_v3_preview.js in the engine's role, so the renderer ledger captures real stock values.
+   Panorama rules: px sizes, no transitions, no box-shadow, no clip-path. */
+
+.HPC3PreviewKindSegment { visibility: collapse; margin-top: 6px; }
+.HPC3PreviewUnitsPage .HPC3PreviewKindSegment { visibility: visible; }
+
+/* Fake unit-status canvas: fills the 200x210 HPC3PreviewSlot. */
+.HPC3PreviewUnit { width: 100%; height: 100%; overflow: noclip; }
+.HPC3PreviewName {
+  width: 170px; max-height: 20px; margin-top: 47px; horizontal-align: center;
+  font-family: oracle; font-size: 14px; font-weight: bold; color: #ffefd7; text-align: center;
+  text-overflow: shrink; transform: rotateZ(-4deg);
+}
+.HPC3PreviewUnitStatus { width: 100%; height: 100%; overflow: noclip; }
+.HPC3PreviewInfo { width: 100%; height: 100%; overflow: noclip; }
+.HPC3PreviewBars { width: 100%; height: 100%; margin-top: 72px; horizontal-align: center; flow-children: down; overflow: noclip; }
+.HPC3PreviewBar { horizontal-align: center; vertical-align: top; background-color: #0b0b0bcc; overflow: noclip; }
+.HPC3PreviewKindHero .HPC3PreviewBar { margin-left: 13px; }
+.HPC3PreviewBarInner { margin-top: 3.5px; margin-left: 6px; background-color: #000000; }
+.HPC3PreviewBarFill {
+  height: 100%; horizontal-align: left;
+  background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex");
+  background-size: 1024px 128px;
+}
+.HPC3PreviewHpText {
+  padding: 4px; z-index: 10;
+  font-family: numericOracle; font-size: 18px; font-weight: bold; color: #ffefd7;
+  text-shadow: 0px 0px 0px 5.0 #0b0b0b;
+}
+
+/* States */
+.HPC3PlayButton.Playing { background-color: #5fe69e26; border: 1px solid #5fe69e; }
+.HPC3PreviewUnavailable .HPC3PreviewStage,
+.HPC3PreviewUnavailable .HPC3PreviewHealthSlider,
+.HPC3PreviewUnavailable .HPC3PlayButton { opacity: 0.35; }
+.HPC3PreviewUnavailable .HPC3PreviewStatus { color: #ffefd799; }
+.HPC3PreviewNote {
+  width: 100%; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ffefd71f;
+  font-family: sans; font-size: 12px; color: #ffefd766;
+}

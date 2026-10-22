@@ -1,0 +1,1141 @@
+[
+  {
+    "id": 1,
+    "key": "hero_inferno",
+    "name": "Infernus",
+    "nameToken": "#hero_inferno",
+    "portrait": "file://{images}/heroes/inferno_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/inferno_molotov.psd",
+      "file://{images}/hud/abilities/inferno_dash.psd",
+      "file://{images}/hud/abilities/inferno_deflect.psd",
+      "file://{images}/hud/abilities/inferno_bomb.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 2,
+    "key": "hero_gigawatt",
+    "name": "Seven",
+    "nameToken": "#hero_gigawatt",
+    "portrait": "file://{images}/heroes/gigawatt_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/giga_ball.psd",
+      "file://{images}/hud/abilities/giga_static.psd",
+      "file://{images}/hud/abilities/giga_chain.psd",
+      "file://{images}/hud/abilities/giga_storm.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 3,
+    "key": "hero_hornet",
+    "name": "Vindicta",
+    "nameToken": "#hero_hornet",
+    "portrait": "file://{images}/heroes/hornet_sm.png",
+    "abilities": [
+      "file://{images}/hud/abilities/hornet/vindicta_stake.psd",
+      "file://{images}/hud/abilities/hornet/vindicta_flight.psd",
+      "file://{images}/hud/abilities/hornet/hornet_crow.psd",
+      "file://{images}/hud/abilities/hornet/hornet_assassinate.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 4,
+    "key": "hero_ghost",
+    "name": "Lady Geist",
+    "nameToken": "#hero_ghost",
+    "portrait": "file://{images}/heroes/spectre_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/spectre/blood_bomb.psd",
+      "file://{images}/hud/abilities/spectre/life_drain.psd",
+      "file://{images}/hud/abilities/spectre/geist_dagger.psd",
+      "file://{images}/hud/abilities/spectre/blood_exchange.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 6,
+    "key": "hero_atlas",
+    "name": "Abrams",
+    "nameToken": "#hero_atlas",
+    "portrait": "file://{images}/heroes/bull_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/bull_drain.psd",
+      "file://{images}/hud/abilities/bull_charge.psd",
+      "file://{images}/hud/abilities/bull_beef.psd",
+      "file://{images}/hud/abilities/bull_jump.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 7,
+    "key": "hero_wraith",
+    "name": "Wraith",
+    "nameToken": "#hero_wraith",
+    "portrait": "file://{images}/heroes/wraith_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/wraith_card_trick.psd",
+      "file://{images}/hud/abilities/wraith_teleport.psd",
+      "file://{images}/hud/abilities/wraith_aura.psd",
+      "file://{images}/hud/abilities/wraith_lift.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 8,
+    "key": "hero_forge",
+    "name": "McGinnis",
+    "nameToken": "#hero_forge",
+    "portrait": "file://{images}/heroes/engineer_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/engineer_turret.psd",
+      "file://{images}/hud/abilities/engineer_resupply.psd",
+      "file://{images}/hud/abilities/engineer_fissure_2.psd",
+      "file://{images}/hud/abilities/engineer_rockets.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 10,
+    "key": "hero_chrono",
+    "name": "Paradox",
+    "nameToken": "#hero_chrono",
+    "portrait": "file://{images}/heroes/chrono_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/chrono/chrono_time_bomb.psd",
+      "file://{images}/hud/abilities/chrono/chrono_time_wall.psd",
+      "file://{images}/hud/abilities/duo/duo_attack.psd",
+      "file://{images}/hud/abilities/chrono/chrono_swap.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 11,
+    "key": "hero_dynamo",
+    "name": "Dynamo",
+    "nameToken": "#hero_dynamo",
+    "portrait": "file://{images}/heroes/sumo_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/sumo/sumo_stomp.psd",
+      "file://{images}/hud/abilities/sumo/sumo_quantum.psd",
+      "file://{images}/hud/abilities/sumo/sumo_pork_bun.psd",
+      "file://{images}/hud/abilities/sumo/sumo_vacuum.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 12,
+    "key": "hero_kelvin",
+    "name": "Kelvin",
+    "nameToken": "#hero_kelvin",
+    "portrait": "file://{images}/heroes/kelvin_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/kelvin/freezing_grenade.psd",
+      "file://{images}/hud/abilities/kelvin/ice_path.psd",
+      "file://{images}/hud/abilities/kelvin/ice_beam.psd",
+      "file://{images}/hud/abilities/kelvin/frozen_shelter.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 13,
+    "key": "hero_haze",
+    "name": "Haze",
+    "nameToken": "#hero_haze",
+    "portrait": "file://{images}/heroes/haze_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/haze/haze_sleep_dagger.psd",
+      "file://{images}/hud/abilities/haze/haze_smoke_bomb.psd",
+      "file://{images}/hud/abilities/haze/haze_fixation.psd",
+      "file://{images}/hud/abilities/haze/haze_bullet_flurry.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 14,
+    "key": "hero_astro",
+    "name": "Holliday",
+    "nameToken": "#hero_astro",
+    "portrait": "file://{images}/heroes/astro_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/astro/holliday_powder_keg.psd",
+      "file://{images}/hud/abilities/astro/holliday_bounce_pad.psd",
+      "file://{images}/hud/abilities/astro/holliday_crackshot.psd",
+      "file://{images}/hud/abilities/astro/holliday_spirit_lasso.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 15,
+    "key": "hero_bebop",
+    "name": "Bebop",
+    "nameToken": "#hero_bebop",
+    "portrait": "file://{images}/heroes/bebop_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/bebop/bebop_uppercut.psd",
+      "file://{images}/hud/abilities/bebop/bebop_sticky_bomb.psd",
+      "file://{images}/hud/abilities/bebop/bebop_hook.psd",
+      "file://{images}/hud/abilities/bebop/bebop_hyper_beam.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 16,
+    "key": "hero_nano",
+    "name": "Calico",
+    "nameToken": "#hero_nano",
+    "portrait": "file://{images}/heroes/nano_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/nano/nano_clustergrenade.psd",
+      "file://{images}/hud/abilities/nano/nano_dash.psd",
+      "file://{images}/hud/abilities/nano/nano_catform.psd",
+      "file://{images}/hud/abilities/nano/nano_shadow_pulse.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 17,
+    "key": "hero_orion",
+    "name": "Grey Talon",
+    "nameToken": "#hero_orion",
+    "portrait": "file://{images}/heroes/archer_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/archer/archer_charged_shot.psd",
+      "file://{images}/hud/abilities/archer/archer_power_jump.psd",
+      "file://{images}/hud/abilities/archer/imobolize_trap.psd",
+      "file://{images}/hud/abilities/archer/archer_guided_arrow.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 18,
+    "key": "hero_krill",
+    "name": "Mo & Krill",
+    "nameToken": "#hero_krill",
+    "portrait": "file://{images}/heroes/digger_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/grappler/grappler_regen.psd",
+      "file://{images}/hud/abilities/grappler/grappler_spin.psd",
+      "file://{images}/hud/abilities/grappler/grappler_throw_sand.psd",
+      "file://{images}/hud/abilities/grappler/grappler_combo.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 19,
+    "key": "hero_shiv",
+    "name": "Shiv",
+    "nameToken": "#hero_shiv",
+    "portrait": "file://{images}/heroes/shiv_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/shiv/shiv_toss.psd",
+      "file://{images}/hud/abilities/shiv/shiv_flash.psd",
+      "file://{images}/hud/abilities/shiv/shiv_bloodletting.psd",
+      "file://{images}/hud/abilities/shiv/shiv_killing_blow.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 20,
+    "key": "hero_tengu",
+    "name": "Ivy",
+    "nameToken": "#hero_tengu",
+    "portrait": "file://{images}/heroes/tengu_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/tengu/tengu_storm_flask.psd",
+      "file://{images}/hud/abilities/tengu/tengu_tether.psd",
+      "file://{images}/hud/abilities/tengu/tengu_stone_form.psd",
+      "file://{images}/hud/abilities/tengu/tengu_lightning_crash.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 21,
+    "key": "hero_kali",
+    "name": "Kali",
+    "nameToken": "#hero_kali",
+    "portrait": "file://{images}/heroes/kali_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/kali/kali_oscilloblade.psd",
+      "file://{images}/hud/abilities/kali/kali_speed_burst.psd",
+      "file://{images}/hud/abilities/kali/kali_whirling_blade.psd",
+      "file://{images}/hud/abilities/bebop/bebop_sticky_bomb.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 25,
+    "key": "hero_warden",
+    "name": "Warden",
+    "nameToken": "#hero_warden",
+    "portrait": "file://{images}/heroes/warden_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/warden/warden_crowd_control.psd",
+      "file://{images}/hud/abilities/warden/warden_high_alert.psd",
+      "file://{images}/hud/abilities/warden/warden_lock_down.psd",
+      "file://{images}/hud/abilities/warden/warden_riot_protocol.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 27,
+    "key": "hero_yamato",
+    "name": "Yamato",
+    "nameToken": "#hero_yamato",
+    "portrait": "file://{images}/heroes/yamato_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/yamato/yamato_power_slash.psd",
+      "file://{images}/hud/abilities/yamato/yamato_flying_strike.psd",
+      "file://{images}/hud/abilities/yamato/yamato_crimson_slash.psd",
+      "file://{images}/hud/abilities/yamato/yamato_blinding_steel.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 31,
+    "key": "hero_lash",
+    "name": "Lash",
+    "nameToken": "#hero_lash",
+    "portrait": "file://{images}/heroes/lash_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/lash/lash_death_slam.psd",
+      "file://{images}/hud/abilities/lash/lash_lash.psd",
+      "file://{images}/hud/abilities/lash/lash_flog.psd",
+      "file://{images}/hud/abilities/lash/lash_counter_lash.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 35,
+    "key": "hero_viscous",
+    "name": "Viscous",
+    "nameToken": "#hero_viscous",
+    "portrait": "file://{images}/heroes/viscous_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/viscous/viscous_goo_ball.psd",
+      "file://{images}/hud/abilities/viscous/viscous_restorative_goo.psd",
+      "file://{images}/hud/abilities/viscous/viscous_goo_punch.psd",
+      "file://{images}/hud/abilities/viscous/viscous_goo_sphere.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 38,
+    "key": "hero_gunslinger",
+    "name": "Gunslinger",
+    "nameToken": "#hero_gunslinger",
+    "portrait": "file://{images}/heroes/gunslinger_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/chrono/chrono_time_bomb.psd",
+      "file://{images}/hud/abilities/tokamak/tokamak_hot_shot.psd",
+      "file://{images}/hud/abilities/hornet/hornet_assassinate.psd",
+      "file://{images}/hud/abilities/tokamak/tokamak_hot_shot.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": true,
+    "limitedTesting": false
+  },
+  {
+    "id": 39,
+    "key": "hero_yakuza",
+    "name": "The Boss",
+    "nameToken": "#hero_yakuza",
+    "portrait": "file://{images}/heroes/yakuza_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/theboss/the_boss_shakedown.psd",
+      "file://{images}/hud/abilities/theboss/the_boss_hired_muscle.psd",
+      "file://{images}/hud/abilities/theboss/the_boss_protection_racket.psd",
+      "file://{images}/hud/abilities/theboss/the_boss_setting_sun.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 46,
+    "key": "hero_genericperson",
+    "name": "Generic Person",
+    "nameToken": "#hero_genericperson",
+    "portrait": "file://{images}/heroes/genericperson_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/genericperson/genericperson_ability_1.psd",
+      "file://{images}/hud/abilities/genericperson/genericperson_ability_2.psd",
+      "file://{images}/hud/abilities/genericperson/genericperson_ability_3.psd",
+      "file://{images}/hud/abilities/genericperson/genericperson_ability_4.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": true,
+    "needsTesting": true,
+    "limitedTesting": false
+  },
+  {
+    "id": 48,
+    "key": "hero_wrecker",
+    "name": "Wrecker",
+    "nameToken": "#hero_wrecker",
+    "portrait": "file://{images}/heroes/wrecker_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/wrecker/wrecking_ball.psd",
+      "file://{images}/hud/abilities/wrecker/salvage.psd",
+      "file://{images}/hud/abilities/wrecker/scrap_blast.psd",
+      "file://{images}/hud/abilities/mirage/mirage_sunfire_cataclysm.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 49,
+    "key": "hero_rutger",
+    "name": "Rutger",
+    "nameToken": "#hero_rutger",
+    "portrait": "file://{images}/heroes/rutger_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/rutger/rutger_rocket_launcher.psd",
+      "file://{images}/hud/abilities/rutger/rutger_force_field.psd",
+      "file://{images}/hud/abilities/rutger/rutger_cheat_death.psd",
+      "file://{images}/hud/abilities/rutger/rutger_pulse.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": true,
+    "limitedTesting": false
+  },
+  {
+    "id": 50,
+    "key": "hero_synth",
+    "name": "Pocket",
+    "nameToken": "#hero_synth",
+    "portrait": "file://{images}/heroes/synth_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/synth/synth_barrage.psd",
+      "file://{images}/hud/abilities/synth/synth_plasma_flux.psd",
+      "file://{images}/hud/abilities/synth/synth_pulse.psd",
+      "file://{images}/hud/abilities/synth/synth_affliction.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 51,
+    "key": "hero_thumper",
+    "name": "Thumper",
+    "nameToken": "#hero_thumper",
+    "portrait": "file://{images}/heroes/thumper_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/thumper/thumper_ability_1.psd",
+      "file://{images}/hud/abilities/thumper/thumper_ability_2.psd",
+      "file://{images}/hud/abilities/thumper/thumper_ability_3.psd",
+      "file://{images}/hud/abilities/thumper/thumper_ability_4.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": true,
+    "limitedTesting": false
+  },
+  {
+    "id": 52,
+    "key": "hero_mirage",
+    "name": "Mirage",
+    "nameToken": "#hero_mirage",
+    "portrait": "file://{images}/heroes/mirage_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/mirage/mirage_fire_beetles.psd",
+      "file://{images}/hud/abilities/mirage/mirage_tornado.psd",
+      "file://{images}/hud/abilities/mirage/mirage_sand_phantom.psd",
+      "file://{images}/hud/abilities/mirage/mirage_teleport.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 53,
+    "key": "hero_slork",
+    "name": "Fathom",
+    "nameToken": "#hero_slork",
+    "portrait": "file://{images}/heroes/slork_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/slork/slork_scald.psd",
+      "file://{images}/hud/abilities/tokamak/tokamak_dying_star.psd",
+      "file://{images}/hud/abilities/haze/haze_sleep_dagger.psd",
+      "file://{images}/hud/abilities/slork/slork_invis.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 54,
+    "key": "hero_cadence",
+    "name": "Cadence",
+    "nameToken": "#hero_cadence",
+    "portrait": "file://{images}/heroes/cadence_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/cadence/cadence_ability_1.psd",
+      "file://{images}/hud/abilities/cadence/cadence_ability_2.psd",
+      "file://{images}/hud/abilities/cadence/cadence_ability_3.psd",
+      "file://{images}/hud/abilities/cadence/cadence_ability_4.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": true,
+    "limitedTesting": false
+  },
+  {
+    "id": 55,
+    "key": "hero_targetdummy",
+    "name": "TargetDummy",
+    "nameToken": "#hero_targetdummy",
+    "portrait": "file://{images}/heroes/targetdummy_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/targetdummy/targetdummy_ability_1.psd",
+      "file://{images}/hud/abilities/targetdummy/targetdummy_ability_2.psd",
+      "file://{images}/hud/abilities/targetdummy/targetdummy_ability_3.psd",
+      "file://{images}/hud/abilities/targetdummy/targetdummy_ability_4.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 56,
+    "key": "hero_bomber",
+    "name": "Bomber",
+    "nameToken": "#hero_bomber",
+    "portrait": null,
+    "abilities": [
+      "file://{images}/hud/abilities/bebop/bebop_sticky_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_tunnel_vision.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 57,
+    "key": "hero_shieldguy",
+    "name": "Shield Guy",
+    "nameToken": "#hero_shieldguy",
+    "portrait": null,
+    "abilities": [
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_tunnel_vision.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 58,
+    "key": "hero_viper",
+    "name": "Vyper",
+    "nameToken": "#hero_viper",
+    "portrait": "file://{images}/heroes/kali_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/viper/viper_debuffdagger.psd",
+      "file://{images}/hud/abilities/viper/viper_venom.psd",
+      "file://{images}/hud/abilities/viper/viper_snakedash.psd",
+      "file://{images}/hud/abilities/viper/viper_petrifybola.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 59,
+    "key": "hero_vandal",
+    "name": "Vandal",
+    "nameToken": "#hero_vandal",
+    "portrait": "file://{images}/heroes/vandal_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/wraith_lift.psd",
+      "file://{images}/hud/abilities/tokamak/tokamak_blinding_radiance.psd",
+      "file://{images}/hud/abilities/inferno_deflect.psd",
+      "file://{images}/hud/abilities/wraith_lift.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 60,
+    "key": "hero_magician",
+    "name": "Sinclair",
+    "nameToken": "#hero_magician",
+    "portrait": "file://{images}/heroes/magician_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/magician/magician_magicbolt.psd",
+      "file://{images}/hud/abilities/magician/magician_cloneturret.psd",
+      "file://{images}/hud/abilities/magician/magician_animalcurse.psd",
+      "file://{images}/hud/abilities/magician/magician_copyult.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 61,
+    "key": "hero_trapper",
+    "name": "Trapper",
+    "nameToken": "#hero_trapper",
+    "portrait": "file://{images}/heroes/trapper_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/trapper/trapper_poison_jar.psd",
+      "file://{images}/hud/abilities/trapper/trapper_web_wall.psd",
+      "file://{images}/hud/abilities/trapper/trapper_spider_shield.psd",
+      "file://{images}/hud/abilities/trapper/trapper_spider_wave.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 62,
+    "key": "hero_operative",
+    "name": "Raven",
+    "nameToken": "#hero_operative",
+    "portrait": "file://{images}/heroes/operative_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/operative/operative_blindside.psd",
+      "file://{images}/upgrades/mods_utility/springy_boots.psd",
+      "file://{images}/hud/abilities/wraith_aura.psd",
+      "file://{images}/hud/abilities/sumo/sumo_pork_bun.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 63,
+    "key": "hero_vampirebat",
+    "name": "Mina",
+    "nameToken": "#hero_vampirebat",
+    "portrait": "file://{images}/heroes/vampirebat_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/vampirebat/vampirebat_rake.psd",
+      "file://{images}/hud/abilities/vampirebat/vampirebat_sanguine_retreat.psd",
+      "file://{images}/hud/abilities/vampirebat/vampirebat_love_bites.psd",
+      "file://{images}/hud/abilities/vampirebat/vampirebat_nox_nostra.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 64,
+    "key": "hero_drifter",
+    "name": "Drifter",
+    "nameToken": "#hero_drifter",
+    "portrait": "file://{images}/heroes/drifter_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/drifter/drifter_claw.psd",
+      "file://{images}/hud/abilities/drifter/drifter_stalkersmark.psd",
+      "file://{images}/hud/abilities/drifter/drifter_thehunger.psd",
+      "file://{images}/hud/abilities/drifter/darkness.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 65,
+    "key": "hero_priest",
+    "name": "Venator",
+    "nameToken": "#hero_priest",
+    "portrait": "file://{images}/heroes/priest_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/priest/priest_grenade.psd",
+      "file://{images}/hud/abilities/priest/priest_shotgun.psd",
+      "file://{images}/hud/abilities/priest/priest_trap.psd",
+      "file://{images}/hud/abilities/priest/priest_crossbow.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 66,
+    "key": "hero_frank",
+    "name": "Victor",
+    "nameToken": "#hero_frank",
+    "portrait": "file://{images}/heroes/frank_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/frank/frank_pain_battery.psd",
+      "file://{images}/hud/abilities/frank/frank_jump_start.psd",
+      "file://{images}/hud/abilities/frank/frank_aura_of_suffering.psd",
+      "file://{images}/hud/abilities/frank/frank_shocking_reanimation.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 67,
+    "key": "hero_bookworm",
+    "name": "Paige",
+    "nameToken": "#hero_bookworm",
+    "portrait": "file://{images}/heroes/bookworm_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/bookworm/bookworm_dragon.psd",
+      "file://{images}/hud/abilities/bookworm/bookworm_defendandfight.psd",
+      "file://{images}/hud/abilities/bookworm/bookworm_blindinglight.psd",
+      "file://{images}/hud/abilities/bookworm/bookworm_charge.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 68,
+    "key": "hero_boho",
+    "name": "Boho",
+    "nameToken": "#hero_boho",
+    "portrait": "file://{images}/heroes/hornet_sm.png",
+    "abilities": [
+      "file://{images}/hud/abilities/astro/bounce_pad.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/hornet/vindicta_flight.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 69,
+    "key": "hero_doorman",
+    "name": "The Doorman",
+    "nameToken": "#hero_doorman",
+    "portrait": "file://{images}/heroes/doorman_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/doorman/doorman_bell.psd",
+      "file://{images}/hud/abilities/doorman/doorman_doorway.psd",
+      "file://{images}/hud/abilities/doorman/doorman_luggagetrolley.psd",
+      "file://{images}/hud/abilities/doorman/doorman_elevator.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 70,
+    "key": "hero_skyrunner",
+    "name": "Skyrunner",
+    "nameToken": "#hero_skyrunner",
+    "portrait": "file://{images}/heroes/skyrunner_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/lash/lash_flog.psd",
+      "file://{images}/hud/abilities/kelvin/freezing_grenade.psd",
+      "file://{images}/upgrades/mods_weapon/ricochet.psd",
+      "file://{images}/hud/abilities/tokamak/tokamak_hot_shot.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 71,
+    "key": "hero_swan",
+    "name": "Swan",
+    "nameToken": "#hero_swan",
+    "portrait": "file://{images}/heroes/swan_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/mirage/mirage_fire_beetles.psd",
+      "file://{images}/hud/abilities/bull_jump.psd",
+      "file://{images}/hud/abilities/kelvin/ice_path.psd",
+      "file://{images}/hud/abilities/nano/nano_tunnel_vision.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 72,
+    "key": "hero_punkgoat",
+    "name": "Billy",
+    "nameToken": "#hero_punkgoat",
+    "portrait": "file://{images}/heroes/punkgoat_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/punkgoat/goat_sigilslam.psd",
+      "file://{images}/hud/abilities/punkgoat/goat_risingram.psd",
+      "file://{images}/hud/abilities/punkgoat/goat_blasted.psd",
+      "file://{images}/hud/abilities/punkgoat/goat_chaingang.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 73,
+    "key": "hero_druid",
+    "name": "Druid",
+    "nameToken": "#hero_druid",
+    "portrait": "file://{images}/heroes/druid_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      null,
+      "file://{images}/hud/abilities/nano/nano_tunnel_vision.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 74,
+    "key": "hero_graf",
+    "name": "Graf",
+    "nameToken": "#hero_graf",
+    "portrait": "file://{images}/heroes/graf_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_tunnel_vision.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 75,
+    "key": "hero_fortuna",
+    "name": "Fortuna",
+    "nameToken": "#hero_fortuna",
+    "portrait": "file://{images}/heroes/fortuna_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_tunnel_vision.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 76,
+    "key": "hero_necro",
+    "name": "Graves",
+    "nameToken": "#hero_necro",
+    "portrait": "file://{images}/heroes/necro_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/necro/necro_skull.psd",
+      "file://{images}/hud/abilities/necro/necro_hands.psd",
+      "file://{images}/hud/abilities/necro/necro_siphon.psd",
+      "file://{images}/hud/abilities/necro/necro_gravestone.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 77,
+    "key": "hero_fencer",
+    "name": "Apollo",
+    "nameToken": "#hero_fencer",
+    "portrait": "file://{images}/heroes/fencer_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/fencer/fencer_sigil.psd",
+      "file://{images}/hud/abilities/fencer/fencer_riposte.psd",
+      "file://{images}/hud/abilities/fencer/fencer_lungingstab.psd",
+      "file://{images}/hud/abilities/fencer/fencer_ult.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 78,
+    "key": "hero_deadpack",
+    "name": "Deadman Danny",
+    "nameToken": "#hero_deadpack",
+    "portrait": "file://{images}/heroes/deadpack_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/deadpack/deadpack_salvo.psd",
+      "file://{images}/hud/abilities/deadpack/deadpack_chimera.psd",
+      "file://{images}/hud/abilities/deadpack/deadpack_thermalmass.psd",
+      "file://{images}/hud/abilities/deadpack/deadpack_flight.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 79,
+    "key": "hero_familiar",
+    "name": "Rem",
+    "nameToken": "#hero_familiar",
+    "portrait": "file://{images}/heroes/familiar_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/familiar/familiar_pillow.psd",
+      "file://{images}/hud/abilities/familiar/familiar_tag_along.psd",
+      "file://{images}/hud/abilities/familiar/familiar_helpers.psd",
+      "file://{images}/hud/abilities/familiar/familiar_sleep.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 80,
+    "key": "hero_werewolf",
+    "name": "Silver",
+    "nameToken": "#hero_werewolf",
+    "portrait": "file://{images}/heroes/werewolf_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/werewolf/werewolf_slamfire.psd",
+      "file://{images}/hud/abilities/werewolf/werewolf_jumpback.psd",
+      "file://{images}/hud/abilities/werewolf/werewolf_bola.psd",
+      "file://{images}/hud/abilities/werewolf/werewolf_lycancurse.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 81,
+    "key": "hero_unicorn",
+    "name": "Celeste",
+    "nameToken": "#hero_unicorn",
+    "portrait": "file://{images}/heroes/unicorn_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/unicorn/unicorn_flare.psd",
+      "file://{images}/hud/abilities/unicorn/unicorn_shield.psd",
+      "file://{images}/hud/abilities/unicorn/unicorn_luminousflux.psd",
+      "file://{images}/hud/abilities/unicorn/unicorn_orb.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 82,
+    "key": "hero_opera",
+    "name": "Opera",
+    "nameToken": "#hero_opera",
+    "portrait": null,
+    "abilities": [
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_roller_bomb.psd",
+      "file://{images}/hud/abilities/nano/nano_tunnel_vision.psd"
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 83,
+    "key": "hero_testhero",
+    "name": "Calico (hero_testhero)",
+    "nameToken": "#hero_nano_search",
+    "portrait": "file://{images}/heroes/nano_sm.psd",
+    "abilities": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "disabled": true,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 84,
+    "key": "hero_ratking",
+    "name": "Rat King",
+    "nameToken": "#hero_ratking",
+    "portrait": "file://{images}/heroes/ratking_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/ratking/ratking_grenade.psd",
+      "file://{images}/hud/abilities/ratking/ratking_swarm.psd",
+      "file://{images}/hud/abilities/ratking/ratking_shield.psd",
+      "file://{images}/hud/abilities/ratking/ratking_flag.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 85,
+    "key": "hero_chessmaster",
+    "name": "Solomon",
+    "nameToken": "#hero_chessmaster",
+    "portrait": "file://{images}/heroes/chessmaster_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/chess/chessmaster_bishop.psd",
+      "file://{images}/hud/abilities/chess/chessmaster_knight.psd",
+      "file://{images}/hud/abilities/chess/chessmaster_rook.psd",
+      "file://{images}/hud/abilities/chess/chessmaster_queen.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 86,
+    "key": "hero_artist",
+    "name": "Violet",
+    "nameToken": "#hero_artist",
+    "portrait": "file://{images}/heroes/artist_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/artist/artist_livingink.psd",
+      "file://{images}/hud/abilities/artist/artist_brush.psd",
+      "file://{images}/hud/abilities/artist/artist_portrait.psd",
+      "file://{images}/hud/abilities/artist/artist_landscape.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 87,
+    "key": "hero_nurse",
+    "name": "Nurse Harrow",
+    "nameToken": "#hero_nurse",
+    "portrait": "file://{images}/heroes/nurse_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/nurse/leech.psd",
+      "file://{images}/hud/abilities/nurse/nurse_vapors.psd",
+      "file://{images}/hud/abilities/nurse/needle.psd",
+      "file://{images}/hud/abilities/nurse/medicine_bag.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": false,
+    "needsTesting": false,
+    "limitedTesting": false
+  },
+  {
+    "id": 88,
+    "key": "hero_baba",
+    "name": "Baba",
+    "nameToken": "#hero_baba",
+    "portrait": "file://{images}/heroes/baba_sm.psd",
+    "abilities": [
+      "file://{images}/hud/abilities/baba/threadsap.psd",
+      "file://{images}/hud/abilities/baba/strafing_run.psd",
+      "file://{images}/hud/abilities/baba/teapot_brew.psd",
+      "file://{images}/hud/abilities/baba/pigeon_launcher.psd"
+    ],
+    "disabled": false,
+    "inDevelopment": true,
+    "needsTesting": false,
+    "limitedTesting": false
+  }
+]

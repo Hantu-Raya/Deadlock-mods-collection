@@ -1,0 +1,41 @@
+{
+  "release": "QOLLOCK 4.0.5 13 October hotfix",
+  "zip": {
+    "name": "QoLLock_405_13OctoberHotfix.zip",
+    "source": "G:/QoLLock_405_13OctoberHotfix.zip",
+    "sha256": "e37bcf3a62cd1f8c4a221c09d393729ad3e7fddf2c84357fa4b5ef0cd9758c51"
+  },
+  "pak03": {
+    "path": ".tmp/qollock-405-13oct/pak03_dir.vpk",
+    "sha256": "26fc7d60602e58f42fd5ee90bb3851561eb62f07ec7e3395e8d62d15972baadd"
+  },
+  "decompiler": "Source2Viewer-CLI 19.2.0.0 (-d), LF-normalized",
+  "files": [
+    {
+      "path": "vendor/hud_escape_menu.xml",
+      "entry": "panorama/layout/hud_escape_menu.vxml_c",
+      "sha256": "7c32d19f7885f9890e12c690a157f76d9f2f1ebd0fc028e9d9e3724ca93c7aa6"
+    },
+    {
+      "path": "vendor/citadel_hud_top_bar.xml",
+      "entry": "panorama/layout/citadel_hud_top_bar.vxml_c",
+      "sha256": "8c34d765f4937208bf5056a113e5315317560809778b893652802b43c7715e04"
+    }
+  ],
+  "observed": [
+    { "entry": "panorama/layout/hud.vxml_c", "sha256": "6bf4d214dd1d19656a187d1471346bc834f93dd9941ed7a41137b00c25519b07", "why": "QOLLOCK-owned HUD; never shipped in pak02" },
+    { "entry": "panorama/layout/citadel_hud_top_bar_player.vxml_c", "sha256": "9a5c1a3b05e79b016210db005f6e199379f7c539c6c59e5d424624248b2ff52a", "why": "keeps PlayerName, UltimateStatus, UltimateStatusBG, UltimateCooldownTextShown for v3 timers" },
+    { "entry": "panorama/styles/unit_status_v2.vcss_c", "sha256": "66a00fc783069e4ae07603282324815a00a3afbe5afe1aa9d08453a3032b3152", "why": "imports base + flattens active_damage_wiggle/TagGroove1; shadowed by v3's sheet" },
+    { "entry": "panorama/styles/base/unit_status_v2.vcss_c", "sha256": "35794a2d3189b426b0da331ab0b177f309abc47f3b1a81d87b7ea798d2071ff9", "why": "body identical to vendor/unit_status_v2.css (6782 stock)" },
+    { "entry": "panorama/styles/unit_status_icons.vcss_c", "sha256": "5cd613b76f16467e517d63f7d6eaafaf1541a31c3ccd8ac267673ab7a7696f97", "why": "imported by v3's unit_status_v2; base + one #gameplay_hud rule" },
+    { "entry": "panorama/styles/base/unit_status_icons.vcss_c", "sha256": "a99e5ede47f728ea7abc2e42c2f38ad175bf7fc44d76006461ebdd076fc5e360", "why": "body identical to 6782 stock unit_status_icons.css" },
+    { "entry": "panorama/styles/ql_settings.vcss_c", "sha256": "0a587b41fe187cddfb3bb74432bccfcee69466568fce1cdf97b3b33c63c04b9b", "why": "Escape-menu sheet; every selector scoped under QOLLOCK ids/classes" },
+    { "entry": "panorama/styles/hud_escape_menu.vcss_c", "sha256": "5b238f16674d05b05f9aaf4b56288ba5b17826e8831dc202a27bf7213d22de1b", "why": "Escape-menu layout sheet the v3 nav button sits in" },
+    { "entry": "panorama/scripts/manifests/ql_healthbar/manifest.vjs_c", "sha256": "5637cad265630e9d4745eac41c31cb8f0660a54a471de89d93b3d5e0ba9468f7", "why": "local health_and_abilities_container only" },
+    { "entry": "panorama/scripts/manifests/ql_color_warnings/manifest.vjs_c", "sha256": "bf5f34880722f3b856479f9eb24c2a850b50cef0db15cfec324e80e3ea5044be", "why": "washes local hud_health_bars/health_bar and topbar ProgressBarLeft" },
+    { "entry": "panorama/scripts/manifests/ql_ult_cooldowns/manifest.vjs_c", "sha256": "8f98cc7d5f60b698fc3fcc36abbd3c9b73a1cd2e2acdf533745bc0b1e5fc7dfb", "why": "writes UltimateCooldownTextShown text; v3 writes only its horizontalAlign" },
+    { "entry": "panorama/scripts/core/ql_storage_bridge.vjs_c", "sha256": "64771ee36f7f445619076f516a8dfef568e952f37b9a372fb52256cdec28c514", "why": "#QOLStorageBridge on predi-i.github.io; v3 store is a separate panel and origin" },
+    { "entry": "panorama/scripts/ui/window.vjs_c", "sha256": "87081c926499034be7003a94c7010ef472467ab47ef0c2f65a3c975c23d169e9", "why": "$.ToggleSettingsWindow/$.ForceCloseModSettings/$.IsModSettingsOpen wrapped by the window bridge" }
+  ],
+  "absent": ["panorama/layout/unit_status_overlay_v2.vxml_c"]
+}

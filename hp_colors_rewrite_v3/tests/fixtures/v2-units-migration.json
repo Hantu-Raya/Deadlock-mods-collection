@@ -1,0 +1,231 @@
+[
+  {
+    "name": "units-save-schema-1",
+    "kind": "save",
+    "input": "HPV2S1.8a528e92.eyJtIjoiSFBWMlNUT1JFIiwicyI6MSwidCI6MSwiYiI6IntcInZlcnNpb25cIjoxLFwidmFsdWVzXCI6e1wicGlwc1Zpc2libGVcIjpmYWxzZSxcIm5wY0VuZW15RW5hYmxlZFwiOnRydWUsXCJucGNBbGx5RW5hYmxlZFwiOmZhbHNlLFwibnBjTmV1dHJhbEVuYWJsZWRcIjpmYWxzZSxcImJ1aWxkaW5nRW5lbXlFbmFibGVkXCI6ZmFsc2UsXCJidWlsZGluZ0FsbHlFbmFibGVkXCI6dHJ1ZSxcIm5ldXRyYWxDb2xvclwiOlwiIzEyMzQ1NlwifX0ifQ",
+    "expected": {
+      "enemy": {
+        "npcEnabled": true,
+        "objectiveEnabled": false,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": false,
+        "objectiveEnabled": true
+      },
+      "shared": {
+        "neutralEnabled": false,
+        "neutralColor": "#123456"
+      }
+    }
+  },
+  {
+    "name": "units-save-schema-2",
+    "kind": "save",
+    "input": "HPV2S1.cdb6f602.eyJtIjoiSFBWMlNUT1JFIiwicyI6MiwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJucGNFbmVteUVuYWJsZWQiOnRydWUsIm5wY0FsbHlFbmFibGVkIjp0cnVlLCJucGNOZXV0cmFsRW5hYmxlZCI6dHJ1ZSwiYnVpbGRpbmdFbmVteUVuYWJsZWQiOmZhbHNlLCJidWlsZGluZ0FsbHlFbmFibGVkIjpmYWxzZSwibmV1dHJhbENvbG9yIjoiIzIzNDU2NyJ9fX0",
+    "expected": {
+      "enemy": {
+        "npcEnabled": true,
+        "objectiveEnabled": false,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": true,
+        "objectiveEnabled": false
+      },
+      "shared": {
+        "neutralEnabled": true,
+        "neutralColor": "#234567"
+      }
+    }
+  },
+  {
+    "name": "units-save-schema-3",
+    "kind": "save",
+    "input": "HPV2S1.da3da998.eyJtIjoiSFBWMlNUT1JFIiwicyI6MywidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJucGNFbmVteUVuYWJsZWQiOmZhbHNlLCJucGNBbGx5RW5hYmxlZCI6dHJ1ZSwibnBjTmV1dHJhbEVuYWJsZWQiOnRydWUsImJ1aWxkaW5nRW5lbXlFbmFibGVkIjp0cnVlLCJidWlsZGluZ0FsbHlFbmFibGVkIjpmYWxzZSwibmV1dHJhbENvbG9yIjoiIzM0NTY3OCJ9fX0",
+    "expected": {
+      "enemy": {
+        "npcEnabled": false,
+        "objectiveEnabled": true,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": true,
+        "objectiveEnabled": false
+      },
+      "shared": {
+        "neutralEnabled": true,
+        "neutralColor": "#345678"
+      }
+    }
+  },
+  {
+    "name": "units-save-schema-4",
+    "kind": "save",
+    "input": "HPV2S1.448e9fd0.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJucGNFbmVteUVuYWJsZWQiOnRydWUsIm5wY0FsbHlFbmFibGVkIjpmYWxzZSwibnBjTmV1dHJhbEVuYWJsZWQiOmZhbHNlLCJidWlsZGluZ0VuZW15RW5hYmxlZCI6ZmFsc2UsImJ1aWxkaW5nQWxseUVuYWJsZWQiOnRydWUsIm5ldXRyYWxDb2xvciI6IiMxMjM0NTYifX19",
+    "expected": {
+      "enemy": {
+        "npcEnabled": true,
+        "objectiveEnabled": false,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": false,
+        "objectiveEnabled": true
+      },
+      "shared": {
+        "neutralEnabled": false,
+        "neutralColor": "#123456"
+      }
+    }
+  },
+  {
+    "name": "units-save-schema-5",
+    "kind": "save",
+    "input": "HPV2S1.2b05e881.eyJtIjoiSFBWMlNUT1JFIiwicyI6NSwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJucGNFbmVteUVuYWJsZWQiOnRydWUsIm5wY0FsbHlFbmFibGVkIjp0cnVlLCJucGNOZXV0cmFsRW5hYmxlZCI6dHJ1ZSwiYnVpbGRpbmdFbmVteUVuYWJsZWQiOmZhbHNlLCJidWlsZGluZ0FsbHlFbmFibGVkIjpmYWxzZSwibmV1dHJhbENvbG9yIjoiIzIzNDU2NyJ9fX0",
+    "expected": {
+      "enemy": {
+        "npcEnabled": true,
+        "objectiveEnabled": false,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": true,
+        "objectiveEnabled": false
+      },
+      "shared": {
+        "neutralEnabled": true,
+        "neutralColor": "#234567"
+      }
+    }
+  },
+  {
+    "name": "units-HPCR2-hpv2-1",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":1,\"values\":[[41,true],[42,false],[43,false],[44,false],[45,true],[46,\"#123456\"]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "npcEnabled": true,
+        "objectiveEnabled": false,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": false,
+        "objectiveEnabled": true
+      },
+      "shared": {
+        "neutralEnabled": false,
+        "neutralColor": "#123456"
+      }
+    }
+  },
+  {
+    "name": "units-HPCRP1-hpv2-1",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Units\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[41,true],[42,false],[43,false],[44,false],[45,true],[46,\"#123456\"]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "npcEnabled": true,
+          "objectiveEnabled": false,
+          "linesVisible": false
+        },
+        "ally": {
+          "npcEnabled": false,
+          "objectiveEnabled": true
+        },
+        "shared": {
+          "neutralEnabled": false,
+          "neutralColor": "#123456"
+        }
+      }
+    ],
+    "nameExpected": "Units"
+  },
+  {
+    "name": "units-HPCR2-hpv2-2",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":2,\"values\":[[41,true],[42,true],[43,true],[44,false],[45,false],[46,\"#234567\"]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "npcEnabled": true,
+        "objectiveEnabled": false,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": true,
+        "objectiveEnabled": false
+      },
+      "shared": {
+        "neutralEnabled": true,
+        "neutralColor": "#234567"
+      }
+    }
+  },
+  {
+    "name": "units-HPCRP1-hpv2-2",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Units\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[41,true],[42,true],[43,true],[44,false],[45,false],[46,\"#234567\"]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "npcEnabled": true,
+          "objectiveEnabled": false,
+          "linesVisible": false
+        },
+        "ally": {
+          "npcEnabled": true,
+          "objectiveEnabled": false
+        },
+        "shared": {
+          "neutralEnabled": true,
+          "neutralColor": "#234567"
+        }
+      }
+    ],
+    "nameExpected": "Units"
+  },
+  {
+    "name": "units-HPCR2-hpv2-3",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":3,\"values\":[[41,false],[42,true],[43,true],[44,true],[45,false],[46,\"#345678\"]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "npcEnabled": false,
+        "objectiveEnabled": true,
+        "linesVisible": false
+      },
+      "ally": {
+        "npcEnabled": true,
+        "objectiveEnabled": false
+      },
+      "shared": {
+        "neutralEnabled": true,
+        "neutralColor": "#345678"
+      }
+    }
+  },
+  {
+    "name": "units-HPCRP1-hpv2-3",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Units\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[[41,false],[42,true],[43,true],[44,true],[45,false],[46,\"#345678\"]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "npcEnabled": false,
+          "objectiveEnabled": true,
+          "linesVisible": false
+        },
+        "ally": {
+          "npcEnabled": true,
+          "objectiveEnabled": false
+        },
+        "shared": {
+          "neutralEnabled": true,
+          "neutralColor": "#345678"
+        }
+      }
+    ],
+    "nameExpected": "Units"
+  }
+]

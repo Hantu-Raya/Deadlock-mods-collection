@@ -1,0 +1,5 @@
+# Route presets and evaluate conditions from the local player
+
+Hero routing uses the local player's TopBar identity, and ability conditions use that player's signature tiers, matching v2 semantics. The menu watcher owns both even while the editor is closed; world bars receive only effective settings, not routing metadata or per-enemy upgrade rules.
+
+Per-enemy conditions might sound natural for enemy healthbars, but would change existing preset meaning, require another identity/ability authority and multiply observation work per world bar. One local-player authority preserves v2 behavior and keeps authored settings/rules stable while effective publication changes. Missing or spectator tiers are unavailable, not a guessed match. Native v3 path acceptance remains outstanding. See [tickets 23](../../issues/23-hero-detection-and-hero-preset-routing.md) and [24](../../issues/24-ability-conditions.md), [menu watcher](../../panorama/scripts/hp_colors_v3_menu.js) and [engine evidence](../../ENGINE.md#local-player-hud-paths).

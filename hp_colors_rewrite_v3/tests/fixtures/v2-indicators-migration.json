@@ -1,0 +1,272 @@
+[
+  {
+    "name": "indicators-save-schema-1",
+    "kind": "save",
+    "input": "HPV2S1.6ad570f4.eyJtIjoiSFBWMlNUT1JFIiwicyI6MSwidCI6MSwiYiI6IntcInZlcnNpb25cIjoxLFwidmFsdWVzXCI6e1wicGlwc1Zpc2libGVcIjpmYWxzZSxcImVuZW15UGlwQ29sb3JFbmFibGVkXCI6dHJ1ZSxcImVuZW15UGlwQ29sb3JcIjpcIiMxMjM0NTZcIixcImFsbHlQaXBDb2xvckVuYWJsZWRcIjp0cnVlLFwiYWxseVBpcENvbG9yXCI6XCIjNjU0MzIxXCIsXCJwaXBPcGFjaXR5XCI6MzcsXCJlbmVteUtpbGxNYXJrZXJFbmFibGVkXCI6dHJ1ZSxcImVuZW15S2lsbE1hcmtlclRocmVzaG9sZFwiOjYxLFwiZW5lbXlLaWxsTWFya2VyV2lkdGhcIjoyMyxcImVuZW15S2lsbE1hcmtlckNvbG9yXCI6XCIjQUJDREVGXCJ9LFwidXNlclByZXNldHNcIjpbXX0ifQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-save-schema-2",
+    "kind": "save",
+    "input": "HPV2S1.025131c3.eyJtIjoiSFBWMlNUT1JFIiwicyI6MiwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIn0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-save-schema-3",
+    "kind": "save",
+    "input": "HPV2S1.454aebf3.eyJtIjoiSFBWMlNUT1JFIiwicyI6MywidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIn0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-save-schema-4",
+    "kind": "save",
+    "input": "HPV2S1.aa71948e.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIn0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-save-schema-5",
+    "kind": "save",
+    "input": "HPV2S1.ea0957be.eyJtIjoiSFBWMlNUT1JFIiwicyI6NSwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIn0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-HPCR2-hpv2-1",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"]],\"c\":{},\"hpv2\":{\"v\":1,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-HPCRP1-hpv2-1",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"]],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF"
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "indicators-HPCR2-hpv2-2",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"]],\"c\":{},\"hpv2\":{\"v\":2,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-HPCRP1-hpv2-2",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF"
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "indicators-HPCR2-hpv2-3",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"]],\"c\":{},\"hpv2\":{\"v\":3,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "indicators-HPCRP1-hpv2-3",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"]],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF"
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {}
+      }
+    ]
+  }
+]

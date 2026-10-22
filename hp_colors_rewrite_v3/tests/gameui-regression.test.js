@@ -1,0 +1,30 @@
+'use strict';
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const { latestPublishedConfig } = require('./boot-layout');
+const { profile, launch, CURRENT } = require('./storage-fixture');
+
+test('Escape context without GameUI hydrates a saved profile, publishes restored settings and leaves LOADING', () => {
+  const seed = launch(profile());
+  const restored = JSON.parse(JSON.stringify(seed.harness.$.HPColorsV3Settings.defaults));
+  restored.side.enemy.barColorLow = '#123456';
+  restored.shared.lowThreshold = 10;
+  const p = profile({ [CURRENT]: seed.codec.encodeRecord({ settings: restored, presets: [] }) });
+  const f = launch(p, { navLatencySec: 3 });
+  assert.equal(Object.hasOwn(f.context, 'GameUI'), false);
+  assert.equal(f.status(), 'LOADING');
+  assert.equal(latestPublishedConfig(f.harness), undefined);
+  f.run(2000);
+  assert.equal(f.status(), 'LOADING');
+  assert.equal(latestPublishedConfig(f.harness), undefined);
+  f.run(4000);
+  assert.equal(f.harness.$.HPColorsV3Store.isHydrated(), true);
+  assert.deepEqual(latestPublishedConfig(f.harness).settings, restored);
+  assert.deepEqual(JSON.parse(JSON.stringify(f.settings())), restored);
+  assert.equal(f.harness.contextPanel.FindChildTraverse('HPColorsBarColorLowEnemyHex').text, '#123456');
+  assert.equal(f.status(), 'Saved');
+  assert.equal(f.page.writes, 0, 'hydration does not rewrite the saved profile');
+  const publications = f.harness.dispatches.filter(event => event[0] === 'ClientUI_FireOutput');
+  assert.ok(publications.length > 0);
+  assert.ok(publications.every(event => JSON.parse(event[1]).settings.side.enemy.barColorLow === '#123456'), 'defaults are never published first');
+});

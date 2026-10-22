@@ -1,0 +1,851 @@
+/* Owned root classes release immediately to native CSS when removed. */
+.WindowRoot.HPColorsV3Core
+{
+	overflow: noclip;
+}
+
+/* Full-canvas leases preserve each native status tag's layout and TagGroove animation. */
+.HPColorsV3StatusLabelAnchor
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+.WindowRoot #HPColorsV3MotionFrame,
+.WindowRoot #HPColorsV3Readout,
+.WindowRoot #HPColorsV3ReadoutAnchor
+{
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: top;
+	overflow: noclip;
+}
+
+.WindowRoot #HPColorsV3MotionFrame
+{
+	ignore-parent-flow: true;
+	transform-origin: 50% 40.48%;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: active_damage_wiggle;
+	animation-duration: 0.2s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-out;
+}
+
+/* SHAKE STRENGTH and DAMAGE SHAKE (v2 unit_status_v2.css:1638-1686): one owned root class swaps the
+   motion frame's keyframes; strength 3 keeps the native wiggle. These stay before the objective rules below
+   (equal specificity, later wins), so buildings and bosses never shake. */
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake1 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake1 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake1;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake2 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake2 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake2;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake4 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake4 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake4;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake5 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake5 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake5;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake6 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake6 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake6;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake7 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake7 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake7;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake8 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake8 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake8;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake9 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake9 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake9;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake10 #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake10 #HPColorsV3MotionFrame
+{
+	animation-name: HPColorsV3Shake10;
+}
+
+.active_damage .WindowRoot.HPColorsV3Core.HPColorsV3ShakeOff #HPColorsV3MotionFrame,
+.active_damage.WindowRoot.HPColorsV3Core.HPColorsV3ShakeOff #HPColorsV3MotionFrame
+{
+	animation-name: none;
+}
+
+/* Stock active_damage_wiggle (vendor/unit_status_v2.css:73-89) at 1-10 degrees, as v2's hpv2_shake_N. */
+@keyframes 'HPColorsV3Shake1'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-1deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake2'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-2deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake4'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-4deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake5'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-5deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake6'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-6deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake7'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-7deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake8'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-8deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake9'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-9deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+@keyframes 'HPColorsV3Shake10'
+{
+	0%
+	{
+		transform: rotateZ(0deg);
+	}
+	50%
+	{
+		transform: rotateZ(-10deg) skew(0deg);
+	}
+	100%
+	{
+		transform: rotateZ(0deg);
+	}
+}
+
+/* Stock vendor/unit_status_v2.css:67-70 suppresses boss/building damage motion;
+   v2 unit_status_v2.css:1832-1844 includes all nine kinds on the full motion frame. The engine can put
+   the kind and damage classes on WindowRoot itself, so every root-local and mixed placement is listed too;
+   all of them follow the strength rules at equal specificity, so a late kind class stops any shake at once. */
+/* Live 6782: Panorama rejects one 37-selector rule ("Failed to parse selector"); keep each rule small (stock uses <= 10). */
+.boss_barracks.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_barracks.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .boss_barracks.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_barracks .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.boss_tier1.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_tier1.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .boss_tier1.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_tier1 .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.boss_tier2.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_tier2.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .boss_tier2.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_tier2 .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.boss_tier3.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_tier3.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .boss_tier3.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.boss_tier3 .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.building.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.building.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .building.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.building .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.CLASS_DESTROYABLE_BUILDING.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.CLASS_DESTROYABLE_BUILDING.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .CLASS_DESTROYABLE_BUILDING.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.CLASS_DESTROYABLE_BUILDING .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.barracks.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.barracks.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .barracks.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.barracks .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.neutral_vault.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.neutral_vault.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .neutral_vault.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.neutral_vault .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.midboss.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.midboss.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.active_damage .midboss.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
+.midboss .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.WindowRoot.HPColorsV3Core.HPColorsV3NoWiggle #HPColorsV3MotionFrame
+{
+	animation-name: none;
+	pre-transform-scale2d: 1;
+}
+
+.WindowRoot #HPColorsV3Readout
+{
+	ignore-parent-flow: true;
+	z-index: 30;
+}
+
+.midboss #HPColorsV3Readout,
+.neutral_vault #HPColorsV3Readout,
+.health_hidden #HPColorsV3Readout,
+.GameStatePreGame #HPColorsV3Readout,
+.health_particle_active #HPColorsV3Readout,
+.beingSpectatedInEye #HPColorsV3Readout
+{
+	visibility: collapse;
+}
+
+.WindowRoot #HPColorsV3ReadoutAnchor
+{
+	horizontal-align: left;
+}
+
+.WindowRoot #HPColorsV3ReadoutRow
+{
+	width: fit-children;
+	height: fit-children;
+	flow-children: right;
+	horizontal-align: right;
+	vertical-align: top;
+	margin: 0px;
+	padding: 4px;
+	overflow: noclip;
+}
+
+.WindowRoot #HPColorsV3ReadoutRow #UnitHealthbarValue
+{
+	white-space: nowrap;
+	text-overflow: clip;
+}
+
+.WindowRoot #HPColorsV3BarOutline
+{
+	visibility: collapse;
+	ignore-parent-flow: true;
+	z-index: -1;
+	background-color: #10130D;
+}
+
+/* SHOW BOUNDS (ticket 22, v2 #HPV2CanvasBounds): a full-canvas rim outside the motion frame,
+   collapsed (not laid out) until the owned root class asks for it. Border precedent:
+   vendor/unit_status_v2.css 1438; visibility/z-index/ignore-parent-flow as #HPColorsV3BarOutline. */
+.WindowRoot #HPColorsV3CanvasBounds
+{
+	width: 100%;
+	height: 100%;
+	border: 1px solid #5fe69e;
+	ignore-parent-flow: true;
+	z-index: 100;
+	visibility: collapse;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3Bounds #HPColorsV3CanvasBounds
+{
+	visibility: visible;
+}
+
+/* These rules disappear with the native parent restoration. Keeping otherwise
+   unspecified platform defaults out of inline ownership avoids guessed clears. */
+.WindowRoot #HPColorsV3MotionFrame #UnitStatus,
+.WindowRoot #HPColorsV3MotionFrame #UnitHealthbarsContainer,
+.WindowRoot #HPColorsV3MotionFrame #UnitHealthbar,
+.WindowRoot #HPColorsV3MotionFrame > #name,
+.WindowRoot #HPColorsV3ReadoutRow #UnitHealthbarValue
+{
+	overflow: noclip;
+}
+
+.WindowRoot #HPColorsV3MotionFrame > #name
+{
+	height: fit-children;
+}
+
+/* Customized names are level like v2 (unit_status_v2.css:2423); stock precedent .neutral_vault #name
+   (vendor/unit_status_v2.css:963-967). NAME TILT writes an inline rotation; release returns the stock -4deg. */
+.WindowRoot.HPColorsV3Core #name
+{
+	transform: none;
+}
+
+/* Preserve the compact-frame ultimate badge origin in the full canvas. */
+.WindowRoot #HPColorsV3MotionFrame .unit_info_panel
+{
+	horizontal-align: center;
+	vertical-align: top;
+	margin-left: -80px;
+	margin-top: 68px;
+}
+
+/* Pixel margins are measured from the left/top stock origin, not the centre. */
+.WindowRoot.HPColorsV3UltPlaced #HPColorsV3MotionFrame .unit_info_panel
+{
+	horizontal-align: left;
+	vertical-align: top;
+}
+
+.enemy.health_critical .ShowCriticalState #HPColorsV3MotionFrame #UnitHealthbar #UnitHealthbarInner,
+.enemy.health_critical.ShowCriticalState #HPColorsV3MotionFrame #UnitHealthbar #UnitHealthbarInner
+{
+	animation-name: HPColorsV3CriticalFlash;
+	animation-duration: 0.3s;
+	animation-iteration-count: infinite;
+}
+
+@keyframes 'HPColorsV3CriticalFlash'
+{
+	0% { brightness: 1; }
+	50% { brightness: 2; }
+	100% { brightness: 1; }
+}
+
+/* Static geometry and dynamic native-state overrides must never become inline
+   stock fallbacks. Values that vary with settings remain ledger-owned inline. */
+.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame #UnitStatus
+{
+	width: 100%;
+	height: 100%;
+	margin-top: 0px;
+	animation-name: none;
+	transition-property: none;
+}
+.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame #InfoHealthContainer
+{
+	vertical-align: top;
+}
+.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame #UnitHealthbarsContainer
+{
+	transform-origin: 50% 50%;
+	animation-name: none;
+}
+.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame #UnitHealthbar
+{
+	margin-left: 13px;
+	margin-top: 65px;
+	background-color: #00000000;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3Unit #HPColorsV3MotionFrame #UnitHealthbar
+{
+	/* Stock player-only inset (vendor/unit_status_v2.css .player .UnitHealthbarContainer). */
+	margin-left: 0px;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3BarColored #UnitHealthbar
+{
+	opacity: 1;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3BarHidden #UnitHealthbar
+{
+	/* Keep bound HP updates and fill geometry alive. */
+	opacity: 0.01;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3Outline #HPColorsV3BarOutline
+{
+	visibility: visible;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3HPText #HPColorsV3ReadoutRow #UnitHealthbarValue
+{
+	visibility: visible;
+	opacity: 1;
+	margin-top: 0px;
+	horizontal-align: left;
+	vertical-align: center;
+	transform: none;
+}
+/* Keep the native death-immunity HP-text treatment after readout adoption. */
+.unkillable .WindowRoot.HPColorsV3Core.HPColorsV3HPText #HPColorsV3ReadoutRow #UnitHealthbarValue,
+.unkillable.WindowRoot.HPColorsV3Core.HPColorsV3HPText #HPColorsV3ReadoutRow #UnitHealthbarValue
+{
+	visibility: collapse;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3HPHidden #UnitHealthbarValue,
+.WindowRoot.HPColorsV3Core.HPColorsV3NameHidden #name
+{
+	visibility: collapse;
+}
+
+.WindowRoot.HPColorsV3BarLines #UnitHealthbarLines
+{
+	height: 100%;
+	margin-top: 0px;
+	vertical-align: top;
+	overflow: clip;
+}
+.WindowRoot.HPColorsV3BarLines #UnitHealthbarLines .line_large.line_large
+{
+	height: 100%;
+	vertical-align: top;
+}
+.WindowRoot.HPColorsV3BarLines #UnitHealthbarLines .line_small.line_small
+{
+	height: 8px;
+	vertical-align: bottom;
+}
+.WindowRoot.HPColorsV3LinesHidden #UnitHealthbarLines
+{
+	visibility: collapse;
+}
+.WindowRoot #UnitHealthbar #HPColorsV3KillMarker
+{
+	ignore-parent-flow: true;
+	horizontal-align: left;
+	vertical-align: top;
+	height: 100%;
+	z-index: 10;
+	visibility: collapse;
+}
+.WindowRoot.HPColorsV3KillMarker #UnitHealthbar #HPColorsV3KillMarker
+{
+	visibility: visible;
+}
+
+/* v2 level geometry and engine binding; absent from stock, collapsed on release. */
+.WindowRoot #HPColorsV3Level,
+.HPC3PreviewLevel
+{
+	width: 21px;
+	height: 21px;
+	ignore-parent-flow: true;
+	horizontal-align: left;
+	vertical-align: top;
+	margin-left: 27px;
+	margin-top: 67.5px;
+	border: 2px solid #E7B659;
+	border-radius: 50%;
+	background-color: #0a0a0ae6;
+	z-index: 20;
+	visibility: collapse;
+}
+.WindowRoot #HPColorsV3Level #unit_level_label,
+.HPC3PreviewLevelLabel
+{
+	width: 100%;
+	height: fit-children;
+	horizontal-align: center;
+	vertical-align: middle;
+	color: #FFFFFF;
+	font-size: 10px;
+	font-weight: bold;
+	text-align: center;
+	text-shadow: 0px 1px 2px #000000;
+}
+.WindowRoot.HPColorsV3Level #HPColorsV3Level,
+#HPColorsPreviewCanvas.HPColorsV3Level #HPColorsPreviewLevel
+{
+	visibility: visible;
+}
+
+/* Same native pip classes in world and preview; count/visibility remain engine-owned. */
+.HPColorsV3Core .HPColorsV3StaminaBox .StaminaPip .StaminaPipIcon,
+.HPColorsV3Core .HPColorsV3StaminaCircle .StaminaPip .StaminaPipIcon
+{
+	background-image: none;
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	background-color: #FFFFFF;
+	border-radius: 0px;
+	border: 1px solid #FFFFFF;
+	wash-color: #FFFFFF;
+}
+.HPColorsV3Core .HPColorsV3StaminaCircle .StaminaPip .StaminaPipIcon
+{
+	border-radius: 50%;
+}
+
+/* Parent wash supplies the filled interior and rim color; black stays black.
+   Engine state changes paint immediately, without six class probes per icon. */
+.HPColorsV3Core .HPColorsV3StaminaBox .PipEmpty .StaminaPipIcon,
+.HPColorsV3Core .HPColorsV3StaminaBox .StaminaRecentlyUsed .StaminaPipIcon,
+.HPColorsV3Core .HPColorsV3StaminaBox .StaminaRecentlyDepleted .StaminaPipIcon,
+.HPColorsV3Core .HPColorsV3StaminaBox .StaminaPipIcon.PipEmpty,
+.HPColorsV3Core .HPColorsV3StaminaBox .StaminaPipIcon.StaminaRecentlyUsed,
+.HPColorsV3Core .HPColorsV3StaminaBox .StaminaPipIcon.StaminaRecentlyDepleted
+{
+	background-color: #000000;
+}
+/* Live 6782: keep each rule at <= 10 selectors (a 37-selector list failed to parse in game). */
+.HPColorsV3Core .HPColorsV3StaminaCircle .PipEmpty .StaminaPipIcon,
+.HPColorsV3Core .HPColorsV3StaminaCircle .StaminaRecentlyUsed .StaminaPipIcon,
+.HPColorsV3Core .HPColorsV3StaminaCircle .StaminaRecentlyDepleted .StaminaPipIcon,
+.HPColorsV3Core .HPColorsV3StaminaCircle .StaminaPipIcon.PipEmpty,
+.HPColorsV3Core .HPColorsV3StaminaCircle .StaminaPipIcon.StaminaRecentlyUsed,
+.HPColorsV3Core .HPColorsV3StaminaCircle .StaminaPipIcon.StaminaRecentlyDepleted
+{
+	background-color: #000000;
+}
+
+/* v2 pulse: brightness on fill/native number, opacity on the color overlay.
+   Only threshold/config transitions write classes/duration; CSS owns animation. */
+.HPColorsV3Core .HPColorsV3Pulse
+{
+	animation-name: HPColorsV3PulseMedium;
+	animation-duration: 0.8s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+	animation-direction: alternate;
+}
+.HPColorsV3Core .HPColorsV3Pulse.HPColorsV3PulseSubtle { animation-name: HPColorsV3PulseSubtle; }
+.HPColorsV3Core .HPColorsV3Pulse.HPColorsV3PulseIntense { animation-name: HPColorsV3PulseIntense; }
+@keyframes 'HPColorsV3PulseSubtle' { 0% { brightness: 1.15; } 100% { brightness: 0.85; } }
+@keyframes 'HPColorsV3PulseMedium' { 0% { brightness: 1.5; } 100% { brightness: 0.5; } }
+@keyframes 'HPColorsV3PulseIntense' { 0% { brightness: 2; } 100% { brightness: 0.25; } }
+.HPColorsV3PulseOverlay
+{
+	ignore-parent-flow: true;
+	horizontal-align: left;
+	vertical-align: middle;
+	width: 100%;
+	height: 100%;
+	background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex");
+	background-size: 1024px 128px;
+	visibility: collapse;
+	opacity: 0;
+	z-index: 4;
+}
+.HPColorsV3Core .HPColorsV3PulseOverlay.HPColorsV3ColorPulse
+{
+	visibility: visible;
+	animation-name: HPColorsV3ColorPulseMedium;
+	animation-duration: 0.8s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+	animation-direction: alternate;
+}
+.HPColorsV3Core .HPColorsV3ColorPulse.HPColorsV3PulseSubtle { animation-name: HPColorsV3ColorPulseSubtle; }
+.HPColorsV3Core .HPColorsV3ColorPulse.HPColorsV3PulseIntense { animation-name: HPColorsV3ColorPulseIntense; }
+@keyframes 'HPColorsV3ColorPulseSubtle' { 0% { opacity: 0.15; } 100% { opacity: 0.45; } }
+@keyframes 'HPColorsV3ColorPulseMedium' { 0% { opacity: 0.10; } 100% { opacity: 0.75; } }
+@keyframes 'HPColorsV3ColorPulseIntense' { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+/* Adopted native objective indicators keep engine images/state/animation. */
+.WindowRoot .unit_info_panel.HPColorsV3KillStreakOwner,
+.HPC3PreviewUltPanel.HPColorsV3KillStreakOwner
+{
+	flow-children: none;
+	overflow: noclip;
+}
+.WindowRoot #KillStreakIndicator.HPColorsV3KillStreakAdopted,
+.HPC3PreviewKillStreak.HPColorsV3KillStreakAdopted
+{
+	/* 32x45 flame behind the 20x20 badge: centred would be top -12.5; sit 7.5px higher (user, 2026-10-14). */
+	margin: -20px 0px 0px 0px;
+	horizontal-align: center;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	z-index: 2;
+}
+.WindowRoot #HPColorsV3RejuvenatorAnchor
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	overflow: noclip;
+}
+
+/* Native critical-state fill rules use IDs; customized pulse must outrank them. */
+.WindowRoot.HPColorsV3Core #UnitHealthbarInner #unit_healthbar_lagging.HPColorsV3Pulse { animation-name: HPColorsV3PulseMedium; }
+.WindowRoot.HPColorsV3Core #UnitHealthbarInner #unit_healthbar_lagging.HPColorsV3Pulse.HPColorsV3PulseSubtle { animation-name: HPColorsV3PulseSubtle; }
+.WindowRoot.HPColorsV3Core #UnitHealthbarInner #unit_healthbar_lagging.HPColorsV3Pulse.HPColorsV3PulseIntense { animation-name: HPColorsV3PulseIntense; }
+
+.HPColorsV3UltimateOverlay, .HPColorsV3UltimateArtwork
+{
+	width: 100%;
+	height: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+}
+.HPColorsV3UltimateOverlay { visibility: collapse; z-index: 1; }
+.HPColorsV3UltimateArtwork { brightness: 2; }
+
+/* BAR STYLE V2 (v2 unit_status_v2.css 1951-2018): the generated stock sheet deletes the three
+   stock masks; owned root classes restore exactly those (vendor/unit_status_v2.css 263, 325, 351).
+   Live 6782: opacity-mask: none does not cancel a mask, so the outlined primary container is never
+   given one: HPColorsV3BarMaskPrimary is planned only while V2 is on and the outline is off, and
+   the outline backer takes the slanted shape instead. The shield container is always masked. */
+.WindowRoot.HPColorsV3BarMask #UnitShieldbar,
+.WindowRoot.HPColorsV3BarMaskPrimary #UnitHealthbar,
+.WindowRoot.HPColorsV3BarMask #UnitHealthbarInner,
+.WindowRoot.HPColorsV3BarMask #UnitHealthbarLines,
+.WindowRoot.HPColorsV3BarMask #UnitHealthbar #HPColorsV3BarOutline
+{
+	opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg");
+}
+
+/* BAR STYLE OLD (v2 unit_status_v2.css 2020-2141). Without a line-derived total (fallback) the
+   engine lines become 250-HP gaps over the 69x12 fill box (stock #UnitHealthbarInner geometry). */
+.WindowRoot.HPColorsV3BarOld #UnitHealthbar #UnitHealthbarInner
+{
+	background-color: #182123;
+}
+.WindowRoot.HPColorsV3BarOld #UnitHealthbar #UnitHealthbarLines
+{
+	width: 69px;
+	height: 12px;
+	margin-left: 6px;
+	margin-top: 3.5px;
+	vertical-align: top;
+	overflow: clip;
+}
+.WindowRoot.HPColorsV3BarOld #UnitHealthbarLines .line_large.line_large,
+.WindowRoot.HPColorsV3BarOld #UnitHealthbarLines .line_small.line_small
+{
+	height: 100%;
+	vertical-align: top;
+	background-color: #0B1012;
+	wash-color: white;
+	opacity: 1;
+}
+.WindowRoot.HPColorsV3BarOld #UnitHealthbarLines .line_small.line_small
+{
+	width: 1px;
+}
+.WindowRoot.HPColorsV3BarOld #UnitHealthbarLines .line_large.line_large
+{
+	width: 2px;
+}
+/* Boxes: the native bar, lines and kill marker stay measurable at opacity 0 (fill clip and
+   line positions remain the health/total signals); the deferred layer has no OLD look. */
+.WindowRoot.HPColorsV3BarOld.HPColorsV3BarPips #UnitHealthbar
+{
+	overflow: noclip;
+}
+.WindowRoot.HPColorsV3BarOld.HPColorsV3BarPips #UnitHealthbar #UnitHealthbarInner,
+.WindowRoot.HPColorsV3BarOld.HPColorsV3BarPips #UnitHealthbar #UnitHealthbarLines,
+.WindowRoot.HPColorsV3BarOld.HPColorsV3BarPips #UnitHealthbar #HPColorsV3KillMarker
+{
+	opacity: 0;
+}
+.WindowRoot.HPColorsV3BarOld.HPColorsV3BarPips #unit_healthbar_deferred,
+.WindowRoot.HPColorsV3BarOld.HPColorsV3BarPips #UnitHealthbar #HPColorsV3KillMarker
+{
+	visibility: collapse;
+}
+.WindowRoot #HPColorsV3PipGrid,
+.HPC3PreviewPipGrid
+{
+	visibility: collapse;
+}
+/* Only the current primary's grid carries the ledger-owned active class (audit 19). */
+.WindowRoot.HPColorsV3BarOld.HPColorsV3BarPips #UnitHealthbar #HPColorsV3PipGrid.HPColorsV3PipGridActive,
+#HPColorsPreviewCanvas.HPColorsV3BarOld.HPColorsV3BarPips #HPColorsPreviewBar #HPColorsPreviewPipGrid.HPColorsV3PipGridActive
+{
+	visibility: visible;
+	width: 100%;
+	vertical-align: bottom;
+	margin-bottom: 2.5px;
+	overflow: noclip;
+}
+#HPColorsV3PipOutline, #HPColorsV3PipEmpty, #HPColorsV3PipShield, #HPColorsV3PipArmor,
+#HPColorsV3PipFill, #HPColorsV3PipHealing, #HPColorsV3PipDelta
+{
+	width: 100%;
+	height: 100%;
+	overflow: noclip;
+}
+#HPColorsPreviewPipOutline, #HPColorsPreviewPipEmpty, #HPColorsPreviewPipShield, #HPColorsPreviewPipArmor,
+#HPColorsPreviewPipFill, #HPColorsPreviewPipHealing, #HPColorsPreviewPipDelta
+{
+	width: 100%;
+	height: 100%;
+	overflow: noclip;
+}
+/* One row panel per 1,000 HP; the renderer writes row position/height (and clip on fill and
+   feedback rows). Boxes keep their column; widths are written only for the empty layer. */
+.HPColorsV3PipRow
+{
+	width: 100%;
+	overflow: noclip;
+}
+.HPColorsV3PipRow .HPColorsV3Pip
+{
+	width: 8.5%;
+	height: 80%;
+}
+.HPColorsV3PipRow .HPColorsV3PipOutlineBox
+{
+	height: 100%;
+}
+/* Radius precedent: vendor/unit_status_v2.css 1434/1506. */
+.HPColorsV3Pip,
+.HPColorsV3PipOutlineBox
+{
+	border-radius: 1px;
+}
+#HPColorsV3PipEmpty .HPColorsV3Pip,
+#HPColorsPreviewPipEmpty .HPColorsV3Pip
+{
+	background-color: #182123;
+}
+/* Fill and feedback boxes are white, washed per container with the matching layer color. */
+#HPColorsV3PipFill .HPColorsV3Pip, #HPColorsV3PipShield .HPColorsV3Pip, #HPColorsV3PipArmor .HPColorsV3Pip,
+#HPColorsV3PipHealing .HPColorsV3Pip, #HPColorsV3PipDelta .HPColorsV3Pip,
+#HPColorsPreviewPipFill .HPColorsV3Pip, #HPColorsPreviewPipShield .HPColorsV3Pip, #HPColorsPreviewPipArmor .HPColorsV3Pip,
+#HPColorsPreviewPipHealing .HPColorsV3Pip, #HPColorsPreviewPipDelta .HPColorsV3Pip
+{
+	background-color: white;
+}
+#HPColorsV3PipOutline,
+#HPColorsV3PipKillMarker,
+#HPColorsPreviewPipOutline,
+#HPColorsPreviewPipKillMarker
+{
+	visibility: collapse;
+}

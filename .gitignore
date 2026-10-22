@@ -17,6 +17,9 @@
 *_closure/
 /dist/
 /_showrank_variant_build/
+hp_colors_rewrite_v3/.build/
+hp_colors_rewrite_v3_qollock/.build/
+hp_colors_rewrite_v3_showrank/.build/
 
 # Binaries
 *.exe
@@ -99,3 +102,6 @@ citadel_events/
 /logs/
 .playwright-cli/
 *.bak
+
+# Local secrets
+.env

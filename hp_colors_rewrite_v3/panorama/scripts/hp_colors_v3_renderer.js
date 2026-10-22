@@ -1,0 +1,1542 @@
+(function () {
+  "use strict";
+  if ($.HPColorsV3Renderer) $.HPColorsV3Renderer.stop();
+  var MAGIC = "HP_COLORS_V3_CONFIG";
+  var root = null, carriers = [], ancestry = [], cache = null, cachedFacts = null, memo = null;
+  var settings = null, revision = -1, epoch = "", lastRaw = "", ledger = [], carrierSignature = "", kind = null;
+  // SHOW BOUNDS: session-only view state that travels beside the settings, never inside them.
+  var showBounds = false;
+  var job = null, jobTicket = 0, requestJob = null, handlerId = null, generation = 0, running = false;
+  // Authority outlives this IIFE: reinclusion must not let an old publisher regain control.
+  // Opaque epochs require one retained string per replacement publisher (not per revision/paint).
+  // Do not evict history: that reopens replay. It is session-only and collected with this context.
+  var authority = $.HPColorsV3RendererAuthority || { epoch: "", revision: -1, retired: [] };
+  $.HPColorsV3RendererAuthority = authority;
+  var retiredEpochs = authority.retired;
+  var requestAttempt = 0, requestFailures = 0, lastProbe = "", lastFull = -Infinity, lastCarrierCheck = -Infinity;
+  var geometry = null, lastGeometry = -Infinity, settleGeometry = false, dormantChecks = 0, rediscover = false;
+  var classReads = new WeakMap(), classSources = {}, staminaIdleTicks = 0;
+  // HPV3_DEBUG var loggedCarrierDepth = new WeakMap();
+  var lastConfigKey = "";
+  // HPV3_DEBUG var timingAt = 0, timingTicks = 0, timingMs = 0;
+  // HPV3_DEBUG var debugLastName = "", debugTeamLogged = "", debugTeam = "", debugStamina = "", debugColors = "", debugAllyAt = -1, debugAllySeen = false, debugAllyNone = false, debugCostAt = 0, debugCostTicks = 0, debugFastTicks = 0, debugFastSkipped = 0, debugFastReads = 0, debugCostPaints = 0, debugCostMs = 0;
+  // HPV3_DEBUG function debugName() { debugLastName = cache && valid(cache.name) && cache.name.text || "?"; return debugLastName; };
+  // HPV3_DEBUG function debugClasses(panel) { return valid(panel) ? ["StaminaPip", "PipEmpty", "StaminaRecentlyUsed", "StaminaRecentlyDepleted"].filter(function (name) { return panel.BHasClass(name); }).join(",") : "missing"; };
+  var status = { state: "stopped", revision: -1, epoch: "", plansComputed: 0, fullPaints: 0 };
+  // Unit bars release to CSS with null; captured non-empty inline values are restored exactly.
+  var relationStock = { team1: "#E7B659", team2: "#5B79E6" };
+  var playerClasses = ["player", "CLASS_PLAYER"];
+  var objectiveClasses = ["building", "CLASS_DESTROYABLE_BUILDING", "boss_tier1", "boss_tier2", "boss_tier3", "boss_barracks", "barracks", "neutral_vault"];
+  var npcClasses = ["creature", "minion", "CLASS_TROOPER", "CLASS_TROOPER_BOSS", "neutral_weak", "neutral_normal", "neutral_strong", "midboss"];
+  var wiggleExcludedClasses = objectiveClasses.concat(["midboss"]);
+  var neutralClasses = ["team_neutral", "neutral_weak", "neutral_normal", "neutral_strong", "neutral_vault"];
+  var stockClasses = ["health_critical", "ShowCriticalState"];
+  var allClasses = playerClasses.concat(objectiveClasses, npcClasses, neutralClasses, ["enemy", "friend", "LocalPlayer", "team1", "team2", "spectating"], stockClasses);
+  var fonts = { default: "Retail Demo, Noto Sans, sans-serif", oracle: "VALVEOracle, Reaver, sans-serif", pulp: "VALVEPulp, Noto Sans, sans-serif" };
+  var accessoryBounds = new WeakMap(), hiddenLayers = new WeakMap();
+  // Last laid name/row size per panel (a replaced panel starts empty) and the captured name max-width.
+  var laidSizes = new WeakMap(), nameBases = new WeakMap();
+  // Native line/stamina-icon identity classes are fixed for a panel's lifetime. Mutable
+  // depletion classes stay live in CSS (shapes) or are polled (arrows).
+  var childKinds = new WeakMap();
+  var pickupClasses = ["gunpower_pickup", "movement_pickup", "casting_pickup", "survival_pickup"];
+  var pickupColors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
+  var pickupEntries = new WeakMap(), lastPickups = -Infinity;
+  var messageHooks = [], stateHooks = [], lastTimerState = "", timerFacts = { pickupAllowed: true, ultimateAngle: null };
+  function timerState() {
+    var carrier = null;
+    for (var i = 0; i < carriers.length; i++) {
+      var reads = classReads.get(carriers[i]);
+      if (carriers[i].id && reads && playerClasses.some(function (name) { return reads[name] === true; })) {
+        carrier = carriers[i]; break;
+      }
+    }
+    return { settings: settings, active: !!(running && status.state !== "dormant" && settings && settings.shared.enabled && kind && kind.eligible && kind.kind === "player"),
+      parts: cache, source: carrier ? String(carrier.id) : "" };
+  }
+  function notifyTimers() {
+    var state = timerState(), key = [state.active, state.source, epoch, revision, carrierSignature].join("|");
+    if (key === lastTimerState && state.parts === notifyTimers.parts) return;
+    lastTimerState = key; notifyTimers.parts = state.parts;
+    stateHooks.slice().forEach(function (fn) { fn(state); });
+  }
+  function subscribe(list, callback) {
+    list.push(callback);
+    return function () { var i = list.indexOf(callback); if (i >= 0) list.splice(i, 1); };
+  }
+  function setTimerFacts(next) {
+    if (timerFacts.pickupAllowed === next.pickupAllowed && timerFacts.ultimateAngle === next.ultimateAngle) return;
+    var gateChanged = timerFacts.pickupAllowed !== next.pickupAllowed;
+    if (gateChanged) lastPickups = -Infinity;
+    timerFacts = next;
+    if (cache) cache.ultimateAngle = next.ultimateAngle;
+    // Timer-only prediction changes reuse the last observed health/layout facts.
+    // They must not add a second fill/geometry poll or shift the 0.15s scheduler.
+    if (!gateChanged && running && cachedFacts && settings && cache && valid(cache.ultimateOverlay)) {
+      var current = Object.assign({}, cachedFacts, { ultimateAngle: next.ultimateAngle });
+      try { apply(plan(current, settings, { showBounds: showBounds })); cachedFacts = current; memo = null; return; }
+      catch (error) { /* Pending leases retry through the normal guarded paint. */ }
+    }
+    cachedFacts = null; memo = null; lastFull = -Infinity;
+    if (running) scheduleTick(0, generation);
+  }
+  // Each scheduled tick carries the generation and a ticket captured when it is scheduled. A canceled callback
+  // delivered late (or any replaced one) fails the ticket check before touching the current job slot.
+  function scheduleTick(delay, token) {
+    cancelTick();
+    var ticket = jobTicket;
+    job = $.Schedule(delay, function rendererTick() {
+      if (ticket !== jobTicket) return;
+      job = null; jobTicket++;
+      tick(token, false);
+    });
+  }
+  function cancelTick() {
+    if (job) $.CancelScheduled(job);
+    job = null; jobTicket++;
+  }
+  // Shared rule with hp_colors_v3_timers_hud.js: retain the current revision floor and refuse retired epochs.
+  function acceptsConfig(nextEpoch, nextRevision) {
+    // A restarted consumer may hydrate the current revision once, never an older one.
+    if (nextEpoch === authority.epoch) return nextRevision > authority.revision || !settings && nextRevision === authority.revision;
+    return retiredEpochs.indexOf(nextEpoch) < 0;
+  }
+  function retireEpoch(nextEpoch) {
+    if (!authority.epoch || authority.epoch === nextEpoch || retiredEpochs.indexOf(authority.epoch) >= 0) return;
+    retiredEpochs.push(authority.epoch);
+  }
+  function ultimateArtwork(parts, prefix) {
+    if (!valid(parts.ultBackground)) return;
+    if (valid(parts.ultimateOverlay) && valid(parts.ultimateDark) && valid(parts.ultimateFill) && parts.ultimateOverlay.GetParent() === parts.ultBackground) return;
+    parts.ultimateOverlay = parts.ultBackground.FindChild(prefix + "UltimateOverlay") ||
+      $.CreatePanel("Panel", parts.ultBackground, prefix + "UltimateOverlay");
+    parts.ultimateOverlay.AddClass("HPColorsV3UltimateOverlay");
+    parts.ultimateOverlay.hittest = parts.ultimateOverlay.hittestchildren = false;
+    parts.ultimateOverlay.style.visibility = "collapse";
+    parts.ultimateDark = parts.ultimateOverlay.FindChild(prefix + "UltimateDark") || $.CreatePanel("Image", parts.ultimateOverlay, prefix + "UltimateDark");
+    parts.ultimateFill = parts.ultimateOverlay.FindChild(prefix + "UltimateFill") || $.CreatePanel("Image", parts.ultimateOverlay, prefix + "UltimateFill");
+    [parts.ultimateDark, parts.ultimateFill].forEach(function (panel) {
+      panel.AddClass("HPColorsV3UltimateArtwork"); panel.hittest = false;
+      panel.SetImage("s2r://panorama/images/hpv3/ultimate_progress.vtex");
+    });
+  }
+  function childrenOfKind(parent, names) {
+    var children = valid(parent) ? parent.Children() : [], previous = childKinds.get(parent);
+    var key = names.join("|");
+    if (previous && previous.key === key && children.length === previous.children.length &&
+        children.every(function (panel, i) { return panel === previous.children[i]; })) return previous.parts;
+    var parts = children.filter(function (panel) {
+      return names.some(function (name) { return panel.BHasClass(name); });
+    });
+    if (parent) childKinds.set(parent, { key: key, children: children, parts: parts });
+    return parts;
+  }
+
+  function valid(panel) {
+    try { return !!panel && panel.IsValid(); } catch (error) { return false; }
+  }
+  function has(panel, name) {
+    var reads = classReads.get(panel);
+    if (!reads) { reads = Object.create(null); classReads.set(panel, reads); }
+    if (Object.prototype.hasOwnProperty.call(reads, name)) return reads[name];
+    var value = panel.BHasClass(name);
+    reads[name] = value;
+    return value;
+  }
+  function any(names) {
+    var key = names.join("|"), source = classSources[key];
+    if (source && valid(source.panel) && carriers.indexOf(source.panel) >= 0 && has(source.panel, source.name)) return true;
+    for (var p = 0; p < carriers.length; p++)
+      for (var n = 0; n < names.length; n++) if (has(carriers[p], names[n])) {
+        classSources[key] = { panel: carriers[p], name: names[n] }; return true;
+      }
+    delete classSources[key];
+    return false;
+  }
+  function discoverCarriers() {
+    carriers = []; ancestry = []; classSources = {};
+    for (var panel = root, depth = 0; valid(panel) && depth < 12; depth++) {
+      var parent = panel.GetParent();
+      ancestry.push({ panel: panel, parent: parent });
+      if (allClasses.some(function (name) { return has(panel, name); })) carriers.push(panel);
+      panel = parent;
+    }
+  }
+  function carriersValid() {
+    return ancestry.length && ancestry.every(function (entry) { return valid(entry.panel) && entry.panel.GetParent() === entry.parent; });
+  }
+  function criticalOutline(config, side) {
+    var value = config && config.side[side];
+    return !value || value.barOutlineEnabled && !value.barOutlineCustomColor;
+  }
+  function openUnitClasses(config) {
+    if (!config || !config.shared.enabled) return [];
+    return (config.side.enemy.objectiveEnabled || config.side.ally.objectiveEnabled ? objectiveClasses : []).concat(
+      config.side.enemy.npcEnabled || config.side.ally.npcEnabled || config.shared.neutralEnabled ? npcClasses : []);
+  }
+  function wakeCarriers() {
+    var openKinds = openUnitClasses(settings);
+    var eligible = settings && settings.shared.enabled && kind && kind.eligible;
+    // A player's four nonneutral NPC tags never change its ownership (classify needs !player or a
+    // boss tag for npc), and the root carrier is re-probed by any() each second anyway. Neutral and
+    // boss facts stay in the wake list.
+    var activeWake = kind && kind.kind === "player" ? allClasses.filter(function (name) {
+      return npcClasses.slice(0, 4).indexOf(name) < 0;
+    }) : allClasses;
+    // Every fifth dormant check probes kind tags on the existing ancestry,
+    // replacing (not adding to) relation probes. Split late facts wake in <=5s;
+    // closed gates pay no extra calls and the 1s player wake remains intact.
+    if (status.state === "dormant" && openKinds.length) dormantChecks++;
+    else dormantChecks = 0;
+    var unitWake = dormantChecks && dormantChecks % 5 === 0 ? openKinds
+      : openKinds.length ? ["enemy", "friend"].concat(neutralClasses.slice(0, 4)) : [];
+    var wake = eligible ? activeWake
+      : kind && kind.kind === "player" && kind.side === "unknown" ? playerClasses.concat(["enemy", "friend"]) : playerClasses.concat(unitWake);
+    if (!criticalOutline(settings, kind && kind.side)) wake = wake.filter(function (name) {
+      return name !== "health_critical" && name !== "ShowCriticalState";
+    });
+    for (var i = 0; i < ancestry.length; i++) {
+      var panel = ancestry[i].panel;
+      if (carriers.indexOf(panel) < 0 && wake.some(function (name) { return has(panel, name); })) carriers.push(panel);
+    }
+  }
+  // Pure over a class predicate so the menu preview classifies exactly like world bars.
+  function classifyWith(anyOf, enabled, owned, config) {
+    var cssPlayer = anyOf(["player"]), player = cssPlayer || anyOf(["CLASS_PLAYER"]);
+    // Closed gates with no inline restoration need only a cheap player wake-up probe.
+    if (!player && !owned && !anyOf(openUnitClasses(config))) return { signature: "nonplayer", kind: "unknown", relation: "unknown", eligible: false };
+    var teamNeutral = anyOf(["team_neutral"]), neutral = teamNeutral || (enabled && anyOf(neutralClasses.slice(1)));
+    var enemy = anyOf(["enemy"]), friend = anyOf(["friend"]);
+    var local = player && enabled && anyOf(["LocalPlayer"]);
+    var side = neutral ? "neutral" : friend ? "ally" : enemy ? "enemy" : "unknown";
+    // With no open gate for this relation, kind cannot change ownership.
+    if (!player && config && (neutral ? !config.shared.neutralEnabled : !config.side[side] ||
+        !config.side[side].npcEnabled && !config.side[side].objectiveEnabled))
+      return { signature: ["closed", neutral, enemy, friend].join("|"), kind: "unknown", side: side, relation: side, eligible: false };
+    var noWiggle = enabled && anyOf(wiggleExcludedClasses);
+    var objective = noWiggle && anyOf(objectiveClasses);
+    var npc = !objective && (!player || noWiggle) && anyOf(npcClasses);
+    var unitKind = objective ? "objective" : player ? "player" : npc ? "npc" : "unknown";
+    var eligible = unitKind !== "unknown" && !local && !(player && npc);
+    if (neutral) eligible = eligible && unitKind === "npc" && !!(config && config.shared.neutralEnabled);
+    else {
+      eligible = eligible && enemy !== friend;
+      if (unitKind !== "player") eligible = eligible && !!(config && config.side[side] &&
+        config.side[side][unitKind === "npc" ? "npcEnabled" : "objectiveEnabled"]);
+    }
+    // Closed unit gates need no team, spectator or critical-style probes. Relation
+    // and kind still recheck each second so recycling into an open gate wakes.
+    if (unitKind !== "player" && !eligible) return { signature: [unitKind, neutral, enemy, friend, local].join("|"),
+      kind: unitKind, side: side, relation: side, eligible: false };
+    var team1 = anyOf(["team1"]), team2 = anyOf(["team2"]), spectating = anyOf(["spectating"]);
+    var team = team1 !== team2 ? team1 ? "team1" : "team2" : "unknown";
+    var relation = neutral ? "neutral" : spectating && (enemy || friend) && team !== "unknown" ? team : side !== "unknown" ? side : team;
+    eligible = eligible && !(team1 && team2);
+    var flags = {};
+    if (enabled && eligible && criticalOutline(config, side)) stockClasses.forEach(function (name) { flags[name] = anyOf([name]); });
+    var base = [unitKind, noWiggle, neutral, enemy, friend, !!local, team1, team2, spectating, eligible].join("|");
+    return { signature: base + "|" + JSON.stringify(flags), base: base, flags: flags, player: player,
+      enemy: enemy, friend: friend, spectating: spectating, cssPlayer: cssPlayer, teamNeutral: teamNeutral, team1: team1, team2: team2,
+      kind: unitKind, noWiggle: noWiggle, side: side, team: team, relation: relation,
+      eligible: eligible };
+  }
+  function classify() {
+    return classifyWith(any, settings && settings.shared.enabled, ledger.some(function (owner) { return owner.owned; }), settings);
+  }
+  function lineageValid() {
+    if (!cache || ![cache.status, cache.info, cache.stack, cache.primary, cache.inner, cache.fill].every(valid)) return false;
+    var parent = cache.status.GetParent();
+    if ((parent !== root && parent !== cache.motion) || cache.info.GetParent() !== cache.status || cache.stack.GetParent() !== cache.info ||
+        cache.primary.GetParent() !== cache.stack || cache.inner.GetParent() !== cache.primary || cache.fill.GetParent() !== cache.inner) return false;
+    if (cache.value) {
+      if (!valid(cache.value)) return false;
+      parent = cache.value.GetParent();
+      if (parent !== cache.info && parent !== cache.row) return false;
+    }
+    if (cache.name) {
+      if (!valid(cache.name)) return false;
+      parent = cache.name.GetParent();
+      if (parent !== root && parent !== cache.motion) return false;
+    }
+    return [cache.shield, cache.armor, cache.motion, cache.anchor, cache.row, cache.outline].every(function (panel) { return !panel || valid(panel); });
+  }
+  function discover() {
+    var motion = root.FindChild("HPColorsV3MotionFrame"), readout = valid(motion) && motion.FindChild("HPColorsV3Readout");
+    var anchor = valid(readout) && readout.FindChild("HPColorsV3ReadoutAnchor"), row = valid(anchor) && anchor.FindChild("HPColorsV3ReadoutRow");
+    var unit = root.FindChild("UnitStatus") || (valid(motion) && motion.FindChild("UnitStatus"));
+    var info = valid(unit) && unit.FindChild("InfoHealthContainer"), stack = valid(info) && info.FindChild("UnitHealthbarsContainer");
+    var primary = valid(stack) && stack.FindChild("UnitHealthbar");
+    var inner = valid(primary) && primary.BHasClass("UnitHealthbarContainer") && primary.FindChild("UnitHealthbarInner");
+    var fill = valid(inner) && inner.FindChild("unit_healthbar_lagging");
+    if (![unit, info, stack, primary, inner, fill, motion, anchor, row].every(valid)) return false;
+    // Allocation and feedback belong to the PRIMARY inner; never UnitShieldbar.
+    cache = { status: unit, info: info, stack: stack, primary: primary, inner: inner, fill: fill, motion: motion, anchor: anchor, row: row,
+      shield: inner.FindChild("unit_healthbar_bullet_shield"), armor: inner.FindChild("unit_healthbar_ratking_armor"),
+      healing: inner.FindChild("unit_healthbar_healing"), delta: inner.FindChild("unit_healthbar_delta"), lines: primary.FindChild("UnitHealthbarLines"),
+      outline: primary.FindChild("HPColorsV3BarOutline"), value: info.FindChild("UnitHealthbarValue") || row.FindChild("UnitHealthbarValue"),
+      name: root.FindChild("name") || motion.FindChild("name"), killMarker: primary.FindChild("HPColorsV3KillMarker"), lineChildren: [],
+      level: info.FindChild("HPColorsV3Level"), levelLabel: info.FindChildTraverse("unit_level_label"), levelNumber: 0,
+      ult: info.Children().filter(function (panel) { return panel.BHasClass("unit_info_panel"); })[0] || null,
+      stamina: null, staminaIcons: [], staminaEmpty: [], staminaPips: [], staminaShown: false, staminaGate: "", staminaLowOn: false, staminaChecked: -Infinity, staminaStale: false, pulseOverlay: inner.FindChild("HPColorsV3PulseOverlay"),
+      killStreak: null, rejuv: null, rejuvAnchor: root.FindChild("HPColorsV3RejuvenatorAnchor"),
+      pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+    // BAR STYLE OLD grid of THIS primary only: a recycled primary keeps its own grid inactive.
+    cache.pipGrid = primary.FindChild("HPColorsV3PipGrid");
+    PIP_PARTS.forEach(function (name) { cache["pip" + name] = valid(cache.pipGrid) ? cache.pipGrid.FindChild("HPColorsV3Pip" + name) : null; });
+    cachedFacts = null; memo = null; geometry = null; lastGeometry = -Infinity;
+    reconcileLines();
+    reconcileLevel();
+    cache.ultBackground = valid(cache.ult) ? cache.ult.FindChild("unit_info_bg") : null;
+    cache.ultReady = valid(cache.ultBackground) ? cache.ultBackground.FindChild("unit_ult_ready_icon") : null;
+    reconcileStamina();
+    reconcileNativeIndicators();
+    reconcilePickups();
+    return true;
+  }
+  function lineChildren(parts) {
+    return childrenOfKind(parts.lines, ["line_small", "line_large"]);
+  }
+  function reconcileLines() {
+    if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible) return;
+    if (!valid(cache.lines) || cache.lines.GetParent() !== cache.primary) {
+      var container = cache.primary.FindChild("UnitHealthbarLines");
+      if (container !== cache.lines) {
+        cache.lines = container; cache.lineChildren = []; lastProbe = ""; lastFull = -Infinity;
+      }
+    }
+    var side = settings.side[kind.side === "neutral" ? "enemy" : kind.side];
+    var next = side && side.linesVisible && side.lineColorEnabled && kind.side !== "neutral" && !kind.spectating ? lineChildren(cache) : [];
+    if (childKinds.has(cache.lines)) cache.nativeLineCount = childKinds.get(cache.lines).children.length;
+    if (next.length !== cache.lineChildren.length || next.some(function (panel, i) { return panel !== cache.lineChildren[i]; })) {
+      cache.lineChildren = next; lastProbe = ""; lastFull = -Infinity;
+    }
+  }
+  function levelNumber(panel) {
+    var text = valid(panel) ? String(panel.text || "") : "";
+    return text.charAt(0) === "{" ? 0 : Number(text.replace(/\D/g, ""));
+  }
+  function reconcileLevel() {
+    if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player" || kind.side !== "enemy" || !settings.side.enemy.levelsVisible) return;
+    var number = levelNumber(cache.levelLabel);
+    if (number !== cache.levelNumber) { cache.levelNumber = number; lastProbe = ""; lastFull = -Infinity; }
+  }
+  function reconcileAccessories() {
+    if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player") return;
+    var changed = false;
+    function part(key, parent, id) {
+      if (valid(cache[key]) && cache[key].GetParent() === parent) return;
+      var panel = !valid(parent) ? null : id ? parent.FindChild(id)
+        : parent.Children().filter(function (panel) { return panel.BHasClass("unit_info_panel"); })[0] || null;
+      if (panel !== cache[key]) { cache[key] = panel; changed = true; }
+    }
+    part("level", cache.info, "HPColorsV3Level");
+    part("levelLabel", cache.level, "unit_level_label");
+    part("ult", cache.info, "");
+    part("ultBackground", cache.ult, "unit_info_bg");
+    part("ultReady", cache.ultBackground, "unit_ult_ready_icon");
+    if (cache.ultimateOverlay) part("ultimateOverlay", cache.ultBackground, "HPColorsV3UltimateOverlay");
+    part("rejuvAnchor", root, "HPColorsV3RejuvenatorAnchor");
+    if (changed) { geometry = null; cachedFacts = null; memo = null; lastProbe = ""; lastFull = -Infinity; }
+  }
+  var STATUS_LABELS = ["critical", "assassinate", "unkillable"];
+  function reconcileNativeIndicators() {
+    if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player") return;
+    var entries = [["killStreak", "KillStreakIndicator", cache.ult], ["rejuv", "RejuvenatorActive", cache.rejuvAnchor]];
+    var labelChildren = null;
+    STATUS_LABELS.forEach(function (key) {
+      if (!cache[key] && settings.shared[key + "IndicatorVisible"] && !settings.shared[key + "OffsetX"] && !settings.shared[key + "OffsetY"]) return;
+      var name = key.charAt(0).toUpperCase() + key.slice(1);
+      // One native child snapshot resolves all three label/anchor pairs, including
+      // newly created replacements; default settings do not take the snapshot.
+      if (!labelChildren) labelChildren = root.Children();
+      cache[key + "Anchor"] = labelChildren.filter(function (panel) { return panel.id === "HPColorsV3" + name + "Anchor"; })[0] || null;
+      var native = labelChildren.filter(function (panel) { return panel.id === name + "Indicator"; })[0] || null;
+      entries.push([key, name + "Indicator", cache[key + "Anchor"], native]);
+    });
+    entries.forEach(function (entry) {
+      var current = cache[entry[0]], native = entry.length > 3 ? entry[3] : root.FindChild(entry[1]);
+      var parent = valid(current) ? current.GetParent() : null;
+      var adopted = parent && ledger.some(function (owner) { return owner.panel === current && owner.key === "@parent" && owner.owned && owner.value === parent; });
+      var next = native || (parent && (parent === entry[2] || adopted) ? current : null);
+      if (next !== current) {
+        cache[entry[0]] = next; cachedFacts = null; memo = null; lastFull = -Infinity;
+      }
+    });
+  }
+  // World pickups are native StatusEffect panels, not timer snapshots. Sample on
+  // v2's existing 3s cadence; native progress clips/images/visibility remain engine-owned.
+  function pickupParts(container, samples) {
+    var result = { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+    if (!valid(container)) return result;
+    pickupClasses.forEach(function (name, bit) {
+      container.FindChildrenWithClassTraverse(name).forEach(function (panel) {
+        if (panel.visible === false) return;
+        var entry = pickupEntries.get(panel);
+        if (!entry || entry.id !== panel.id) {
+          entry = samples && samples.filter(function (sample) { return sample.icon === panel; })[0] || {};
+          entry.id = panel.id; pickupEntries.set(panel, entry);
+        }
+        if (!entry.inner || !valid(entry.inner) || !valid(entry.border) || !valid(entry.track) || entry.glyphs.some(function (glyph) { return !valid(glyph); })) {
+          entry.inner = panel.FindChildTraverse("StatusEffectInner");
+          entry.border = panel.FindChildTraverse("StatusEffectsBorder");
+          entry.track = panel.FindChildTraverse("StatusEffectCooldownOverlay");
+          entry.glyphs = panel.FindChildrenWithClassTraverse("statusEffectImage");
+          var image = panel.FindChildTraverse("StatusEffectImage");
+          if (valid(image) && entry.glyphs.indexOf(image) < 0) entry.glyphs.push(image);
+        }
+        result.pickupIcons.push(panel); result.pickupInners.push(entry.inner); result.pickupBorders.push(entry.border);
+        result.pickupTracks.push(entry.track);
+        result.pickupKinds.push(bit);
+        Array.prototype.push.apply(result.pickupGlyphs, entry.glyphs);
+      });
+    });
+    return result;
+  }
+  function reconcilePickups() {
+    if (!cache) return;
+    var effects = root.FindChild("StatusEffects");
+    var container = valid(effects) ? effects.FindChildTraverse("StatusEffectContainer") : null;
+    var next = kind && kind.kind === "player" && kind.eligible && settings && settings.shared.pickupTimersEnabled && timerFacts.pickupAllowed ? pickupParts(container)
+      : { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+    var changed = Object.keys(next).some(function (key) {
+      return next[key].length !== cache[key].length || next[key].some(function (value, i) { return value !== cache[key][i]; });
+    });
+    if (changed) {
+      Object.keys(next).forEach(function (key) { cache[key] = next[key]; });
+      cachedFacts = null; memo = null; lastFull = -Infinity;
+    }
+    lastPickups = Date.now();
+  }
+  function staminaWanted(carrier, config) {
+    if (!config || !config.shared.enabled || !carrier || !carrier.eligible || carrier.kind !== "player" ||
+        (carrier.side !== "enemy" && carrier.side !== "ally")) return false;
+    var side = config.side[carrier.side];
+    return side.staminaColorEnabled || side.staminaShape !== "arrow" || side.staminaWidth !== 11 || side.staminaHeight !== 4.48 ||
+      side.staminaOffsetX !== 0 || side.staminaOffsetY !== 0;
+  }
+  // Low stamina (ticket 35) needs Custom stamina color; threshold 0 is off.
+  function staminaLow(carrier, config) {
+    return staminaWanted(carrier, config) && config.side[carrier.side].staminaColorEnabled && config.side[carrier.side].staminaLowThreshold > 0;
+  }
+  // Arrows always read their charge states. Shapes read them only for low stamina; otherwise CSS owns depletion.
+  function staminaProbe(carrier, config) {
+    return config.side[carrier.side].staminaShape === "arrow" || staminaLow(carrier, config);
+  }
+  function staminaParts(container, probe) {
+    var icons = [], empty = [], pips = [];
+    function collect(parent) {
+      var children = valid(parent) ? parent.Children() : [], previous = childKinds.get(parent);
+      var same = previous && previous.key === "stamina" && children.length === previous.children.length &&
+        children.every(function (panel, i) { return panel === previous.children[i]; });
+      var matches = same ? previous.parts : children.map(function (panel) { return panel.BHasClass("StaminaPipIcon"); });
+      if (parent && !same) childKinds.set(parent, { key: "stamina", children: children, parts: matches });
+      children.forEach(function (panel, i) {
+        if (!matches[i]) { collect(panel); return; }
+        icons.push(panel); pips.push(parent);
+        empty.push(probe && ["PipEmpty", "StaminaRecentlyUsed", "StaminaRecentlyDepleted"].some(function (name) {
+          return panel.BHasClass(name) || parent.BHasClass(name);
+        }));
+      });
+    }
+    if (valid(container)) collect(container);
+    return { icons: icons, empty: empty, pips: pips };
+  }
+  function keepStamina(container, next) {
+    cache.stamina = container; cache.staminaIcons = next.icons; cache.staminaEmpty = next.empty; cache.staminaPips = next.pips;
+    cachedFacts = null; memo = null; lastProbe = ""; lastFull = -Infinity;
+  }
+  // Low stamina counts the stock empty marker only: stock draws an empty charge from `.StaminaPip.PipEmpty`
+  // and nothing else, so the count matches what the game shows and one read per pip covers every input.
+  // Arrows and shapes without low stamina keep the wider six-class rule in staminaParts.
+  // Callers pass pips they have just validated (sampleStamina) or collected (the preview painter).
+  function pipEmpties(pips) {
+    return pips.map(function (pip) { return pip.BHasClass("PipEmpty"); });
+  }
+  // The game shows charges only after a dash (stock `.StaminaRecentlyUsed .StaminaPip`). The class sits on an
+  // ancestor of the pips; the preview puts it on the container, so check the container, then the window root.
+  // Once one of them has shown it, only that one is checked.
+  function staminaShowing(container) {
+    if (cache && cache.staminaGate) return (cache.staminaGate === "root" ? root : container).BHasClass("StaminaRecentlyUsed");
+    var found = container.BHasClass("StaminaRecentlyUsed") ? "container" : root.BHasClass("StaminaRecentlyUsed") ? "root" : "";
+    if (found && cache) cache.staminaGate = found;
+    return !!found;
+  }
+  function reconcileStamina() {
+    if (!cache || !staminaWanted(kind, settings)) return;
+    var low = staminaLow(kind, settings);
+    // Low stamina reads charge states in sampleStamina at bar cadence and checks every pip it reads, so the
+    // structure walk (container, pips, icons) runs every 3 s like pickups, or at once when a read pip is gone.
+    if (low && cache.staminaLowOn && valid(cache.stamina) && !cache.staminaStale && Date.now() - cache.staminaChecked < 3000) return;
+    var container = root.FindChild("StaminaContainer");
+    var next = staminaParts(container, staminaProbe(kind, settings) && !low);
+    var same = cache.stamina === container && next.icons.length === cache.staminaIcons.length &&
+      next.icons.every(function (panel, i) { return panel === cache.staminaIcons[i] && next.pips[i] === cache.staminaPips[i]; });
+    if (!same) cache.staminaGate = "";
+    // A new pip tree or turning low stamina on keeps no old states; the next shown update reads them all.
+    if (low && same && cache.staminaLowOn) next.empty = cache.staminaEmpty;
+    cache.staminaLowOn = low; cache.staminaChecked = Date.now(); cache.staminaStale = false;
+    if (!same || next.empty.some(function (value, i) { return value !== cache.staminaEmpty[i]; })) keepStamina(container, next);
+  }
+  // Low stamina at bar cadence: the show check, and one PipEmpty read per pip while the game shows the
+  // charges. Hidden charges are not read: nobody sees their color.
+  function sampleStamina() {
+    if (!valid(cache.stamina) || !cache.staminaPips.length) return;
+    var shown = staminaShowing(cache.stamina);
+    cache.staminaShown = shown;
+    // HPV3_DEBUG debugFastTicks++; if (!shown) debugFastSkipped++; else debugFastReads += cache.staminaPips.length;
+    if (!shown) return;
+    if (!cache.staminaPips.every(valid)) { cache.staminaStale = true; rediscover = true; return; }
+    var empty = pipEmpties(cache.staminaPips);
+    if (empty.some(function (value, i) { return value !== cache.staminaEmpty[i]; }))
+      keepStamina(cache.stamina, { icons: cache.staminaIcons, pips: cache.staminaPips, empty: empty });
+  }
+  function measurement(panel) { return { valid: valid(panel) }; }
+  function css(panel, key, axis, sample) {
+    sample = sample || measurement(panel);
+    if (!sample.valid) return 0;
+    axis = axis || "x";
+    if (sample[axis] === undefined) sample[axis] = Number(panel["actualuiscale_" + axis]);
+    var scale = sample[axis];
+    if (!(scale > 0)) {
+      if (sample.x === undefined) sample.x = Number(panel.actualuiscale_x);
+      scale = sample.x;
+    }
+    var value = Number(panel[key]);
+    var result = value / scale;
+    return Number.isFinite(result) && Math.abs(result) < 1000000 && scale > 0 ? result : 0;
+  }
+  function dimensions(panel) {
+    var sample = measurement(panel);
+    return { width: css(panel, "actuallayoutwidth", "x", sample), height: css(panel, "actuallayoutheight", "y", sample),
+      x: css(panel, "actualxoffset", "x", sample), y: css(panel, "actualyoffset", "y", sample) };
+  }
+  // v2's full-canvas stock origins; capture extent only when all contributors are laid.
+  // Keep the original size across our own scale/offset writes, retrying on the existing cadence.
+  function accessory(panel, g, left) {
+    if (!valid(panel)) return null;
+    var size = accessoryBounds.get(panel);
+    if (!size && g.stack.width > 0 && g.stack.height > 0 && g.primary.width > 0 && g.primary.height > 0) {
+      var measured = dimensions(panel);
+      if (measured.width > 0 && measured.height > 0) { size = measured; accessoryBounds.set(panel, size); }
+    }
+    return size ? { width: size.width, height: size.height,
+      x: left + (g.canvas.width - 200) / 2, y: 85 - (size.height + 14) / 2 } : null;
+  }
+  // Live 6779: opacity-0 (fading) panels report width 0. Like v2 applyPlayerName/positionReadout,
+  // keep the last laid size; a panel never laid reports 0 and its placement waits.
+  function laid(panel) {
+    var sample = measurement(panel), size = { width: css(panel, "actuallayoutwidth", "x", sample), height: css(panel, "actuallayoutheight", "y", sample) };
+    if (size.width > 0 && size.height > 0) laidSizes.set(panel, size);
+    else if (panel && laidSizes.has(panel)) size = laidSizes.get(panel);
+    return size;
+  }
+  // v2 widens the captured inline #name max-width (170 stylesheet fallback). Read once per panel at its
+  // first geometry sample, which always precedes ownership: a new module or carrier releases first.
+  function nameBase(panel) {
+    if (!panel) return 170;
+    if (!nameBases.has(panel)) nameBases.set(panel, valid(panel) ? parseFloat(String(panel.style.maxWidth || "")) : NaN);
+    var value = nameBases.get(panel);
+    return Number.isFinite(value) ? value : 170;
+  }
+  function geometryOf(canvas, parts) {
+    var canvasSample = measurement(canvas), statusSample = measurement(parts.status), infoSample = measurement(parts.info);
+    var g = { canvas: { width: css(canvas, "actuallayoutwidth", "x", canvasSample), height: css(canvas, "actuallayoutheight", "y", canvasSample) },
+      status: { x: css(parts.status, "actualxoffset", "x", statusSample), y: css(parts.status, "actualyoffset", "y", statusSample) },
+      info: { x: css(parts.info, "actualxoffset", "x", infoSample), y: css(parts.info, "actualyoffset", "y", infoSample) },
+      stack: dimensions(parts.stack), primary: dimensions(parts.primary), inner: dimensions(parts.inner),
+      name: laid(parts.name) };
+    g.name = { width: g.name.width, height: g.name.height, maxWidth: nameBase(parts.name) };
+    g.level = accessory(parts.level, g, 27);
+    g.ult = accessory(parts.ult, g, 50);
+    return g;
+  }
+  function sampleGeometry() {
+    var next = geometryOf(root, cache);
+    if (!geometry || next.inner.width > 0) geometry = next;
+    lastGeometry = Date.now(); settleGeometry = false;
+  }
+  function signal(panel, layer) {
+    // Live 6779 clips carry padding ("rect( 0.0%, 86.6%, 100.0%, 0.0%) "); trim like v2.
+    var input = { clip: String(panel.style.clip || "").trim(), width: "", transform: "", preScale: "" };
+    var rect = edges(input);
+    var percentOnly = rect.length === 4 && rect.every(function (edge) { return /^[+-]?[\d.]+%$/.test(edge); });
+    if (!percentOnly) {
+      input.width = String(panel.style.width || "").trim();
+      input.transform = String(panel.style.transform || "").trim();
+      input.preScale = String(panel.style.preTransformScale2d || "").trim();
+    }
+    var sample = percentOnly && layer ? null : measurement(panel);
+    input.fillWidth = sample ? css(panel, "actuallayoutwidth", "x", sample) : 0;
+    input.x = sample ? css(panel, "actualxoffset", "x", sample) : 0;
+    return input;
+  }
+  function layerSignal(panel) {
+    if (!valid(panel) || !panel.BHasClass("HasHealth")) return null;
+    var input = signal(panel, true);
+    input.hidden = hiddenLayers.get(panel) || false;
+    return input;
+  }
+  // Visibility can change independently of the live clip. Refresh on full paint
+  // or a changed probe, not on every idle percent-clip sample.
+  function refreshLayerVisibility(input, parts, keys) {
+    (keys || ["shield", "armor", "healing", "delta"]).forEach(function (key) {
+      var signal = key === "shield" || key === "armor" ? input[key] : input.old && input.old[key];
+      if (!signal) return;
+      var panel = parts[key], hidden = String(panel.style.visibility || "") === "collapse" || panel.visible === false;
+      hiddenLayers.set(panel, hidden); signal.hidden = hidden;
+    });
+  }
+  function signProbe(input) {
+    var signature = Object.assign({}, input); delete signature.ultimateAngle; delete signature.signature;
+    input.signature = JSON.stringify(signature); return input;
+  }
+  // BAR STYLE OLD only (v2 layoutOld): the engine draws floor(total/250) lines at 250k/total
+  // of #UnitHealthbarLines (IDA 6711 CCitadelHudUtils::UpdateTickBar), none above 50, so the
+  // last line yields the HP+shield total without reading HP text. New lines report FLT_MAX
+  // layout until laid, so its inline percent position wins; layout is the fallback.
+  function oldSignal(parts) {
+    var lines = lineChildren(parts), last = lines.length ? lines[lines.length - 1] : null;
+    var match = /^(\d+(?:\.\d+)?)%/.exec(last ? String(last.style.position || "").trim() : "");
+    var width = 100, x = match ? Number(match[1]) : NaN, count = lines.length;
+    if (!(x > 0)) { width = count ? css(parts.lines, "actuallayoutwidth", "x") : 0; x = last ? css(last, "actualxoffset", "x") : NaN; }
+    if (!(width > 0 && x > 0)) count = x = width = 0;
+    return { count: count, x: x, width: width, healing: layerSignal(parts.healing), delta: layerSignal(parts.delta) };
+  }
+  function probeOf(parts, sampled, refreshVisibility, old) {
+    var input = { fill: signal(parts.fill), innerWidth: css(parts.inner, "actuallayoutwidth"),
+      shield: layerSignal(parts.shield), armor: layerSignal(parts.armor), geometry: sampled, level: parts.levelNumber || 0, stamina: parts.staminaEmpty || [],
+      pickups: parts.pickupKinds || [], ultimateAngle: parts.ultimateAngle === undefined ? null : parts.ultimateAngle,
+      row: laid(parts.row) };
+    if (old) input.old = oldSignal(parts);
+    if (refreshVisibility !== false) refreshLayerVisibility(input, parts);
+    return signProbe(input);
+  }
+  function oldWanted(config, carrier) {
+    return !!(config && config.shared.enabled && config.shared.barStyle === "old" && carrier && carrier.eligible);
+  }
+  function probe() { return probeOf(cache, geometry, false); }
+  function length(value, width) {
+    var match = /^([+-]?(?:\d+\.?\d*|\.\d+))(px|%)$/i.exec(value);
+    if (!match) return null;
+    var number = Number(match[1]);
+    return match[2] === "%" ? number / 100 : width > 0 ? number / width : null;
+  }
+  function edges(input) {
+    var clip = /^rect\s*\(([^)]*)\)$/i.exec(input.clip);
+    return clip ? clip[1].trim().split(/\s*,\s*|\s+/) : [];
+  }
+  function fraction(input, innerWidth) {
+    var value = innerWidth > 0 ? input.fillWidth / innerWidth : Infinity;
+    if (input.x < 0 && innerWidth > 0) value = Math.min(value, (input.fillWidth + input.x) / innerWidth);
+    var rect = edges(input);
+    if (rect.length === 4) {
+      var values = rect.map(function (edge) { return length(edge, input.fillWidth); });
+      if (values.every(function (v) { return v !== null; })) value = Math.min(value, values[1] - values[3]);
+    }
+    var width = length(input.width, innerWidth);
+    if (width !== null) value = Math.min(value, width);
+    var scales = /\bscale(?:X)?\(\s*([+-]?(?:\d+\.?\d*|\.\d+))/gi, match;
+    while ((match = scales.exec(input.transform))) value = Math.min(value, Number(match[1]));
+    if (input.preScale.trim()) value = Math.min(value, Number(input.preScale.split(/[,\s]+/)[0]));
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+  }
+  function percentRect(input) {
+    var rect = edges(input);
+    return rect.length === 4 && !input.width && !input.transform && !input.preScale &&
+      rect.every(function (edge) { return /^[+-]?[\d.]+%$/.test(edge); }) ? rect : null;
+  }
+  // [left, right] fractions of the bar total, or null when the layer shows nothing.
+  function layerSpan(input, innerWidth) {
+    if (!input || input.hidden) return null;
+    var rect = percentRect(input);
+    if (rect) {
+      var left = Math.max(0, Math.min(1, parseFloat(rect[3]) / 100)), right = Math.max(0, Math.min(1, parseFloat(rect[1]) / 100));
+      return parseFloat(rect[2]) > parseFloat(rect[0]) && right > left ? [left, right] : null;
+    }
+    var span = fraction(input, innerWidth);
+    if (!(span > 0)) return null;
+    var x = innerWidth > 0 && input.x > 0 ? input.x / innerWidth : 0;
+    var clipLeft = edges(input).length === 4 ? length(edges(input)[3], input.fillWidth) : null;
+    var start = x + (clipLeft === null ? 0 : clipLeft);
+    return [start, start + span];
+  }
+  function layerRight(input, innerWidth) {
+    var span = layerSpan(input, innerWidth);
+    return span ? span[1] : -1;
+  }
+  function oldFacts(input) {
+    if (!input.old) return null;
+    var old = input.old, spans = {};
+    [["shield", input.shield], ["armor", input.armor], ["healing", old.healing], ["delta", old.delta]].forEach(function (entry) {
+      var span = layerSpan(entry[1], input.innerWidth);
+      // 1e-6 steps like v2 sampleOldLayers; the plan converts with the current line total.
+      spans[entry[0]] = span ? [Math.round(span[0] * 1e6) / 1e6, Math.round(span[1] * 1e6) / 1e6] : null;
+    });
+    return { total: old.count ? old.count * 250 * old.width / old.x : 0, spans: spans, clipped: !!percentRect(input.fill) };
+  }
+  function factsFrom(carrier, input, signature) {
+    var fill = fraction(input.fill, input.innerWidth);
+    var excluded = Math.max(0, Math.min(1, Math.max(layerRight(input.shield, input.innerWidth), layerRight(input.armor, input.innerWidth))) - fill);
+    var health = fill / Math.max(fill, 1 - excluded);
+    return Object.freeze({ signature: signature, eligible: carrier.eligible, kind: carrier.kind, side: carrier.side, team: carrier.team,
+      relation: carrier.relation, flags: carrier.flags, player: carrier.player, enemy: carrier.enemy, friend: carrier.friend, spectating: carrier.spectating,
+      cssPlayer: carrier.cssPlayer, teamNeutral: carrier.teamNeutral, team1: carrier.team1, team2: carrier.team2, noWiggle: carrier.noWiggle,
+      geometry: input.geometry, row: input.row, level: input.level, stamina: input.stamina, pickups: input.pickups, ultimateAngle: input.ultimateAngle,
+      fraction: Number.isFinite(health) ? Math.max(0, Math.min(1, health)) : 0, fillCoverage: fill, laid: input.innerWidth > 0, old: oldFacts(input) });
+  }
+  function facts(input) {
+    if (!cache || !kind) return { eligible: false, signature: "missing" };
+    input = input || probe();
+    var signature = carrierSignature + "|" + input.signature;
+    if (!cachedFacts || cachedFacts.signature !== signature) cachedFacts = factsFrom(kind, input, signature);
+    return cachedFacts;
+  }
+  function mix(left, right, amount) {
+    var result = "#";
+    for (var i = 1; i < 7; i += 2) {
+      var a = parseInt(left.slice(i, i + 2), 16), b = parseInt(right.slice(i, i + 2), 16);
+      result += ("0" + Math.round(a + (b - a) * amount).toString(16)).slice(-2);
+    }
+    return result;
+  }
+  function pixels(value) { return String(Math.round(value * 1000000) / 1000000) + "px"; }
+  function translation(x, y) { return "translate3d(" + pixels(x) + ", " + pixels(y) + ", 0px)"; }
+  function clamp(value, low, high) { return Math.max(low, Math.min(Math.max(low, high), value)); }
+  function anchor(value, size, extent, weight, oversizedCenter) {
+    return extent > size ? oversizedCenter ? (size - extent) / 2 + weight * extent : weight * extent : clamp(value, weight * extent, size - (1 - weight) * extent);
+  }
+  // Ticket 35: editable Amber/Sapphire colors; "" when the team is unknown so callers fall back.
+  function teamColor(config, team) {
+    return team === "team1" ? config.shared.teamAmberColor : team === "team2" ? config.shared.teamSapphireColor : "";
+  }
+  function bands(input, config, side, prefix, highColor) {
+    var percent = Math.floor(input.fraction * 100), low = config.shared.lowThreshold, high = config.shared.highThreshold;
+    var lowColor = side[prefix + "Low"], midColor = side[prefix + "Mid"];
+    highColor = highColor || side[prefix + "High"];
+    return percent <= low ? lowColor : side[prefix + "Mode"] === "fixed" ? percent <= high ? midColor : highColor
+      : percent <= high ? mix(lowColor, midColor, (percent - low) / Math.max(1, high - low))
+        : mix(midColor, highColor, (percent - high) / Math.max(1, 100 - high));
+  }
+  function outlineColor(input) {
+    return input.enemy && input.flags.health_critical && input.flags.ShowCriticalState ? "#2F0404"
+      : input.enemy || input.side === "neutral" ? "#10130D" : input.friend ? "#042517"
+        : input.team === "team1" ? "#937600" : input.team === "team2" ? "#4156A0" : "#10130D";
+  }
+  function accessoryPlacement(bounds, g, cy, side, config, prefix, lift) {
+    var anchored = config.shared.accessoryAnchorEnabled, sx = side.barWidth / 79, sy = side.barHeight / 18;
+    var offsets = prefix === "level" ? side : config.shared;
+    var stockY = bounds.y + bounds.height / 2;
+    var x = bounds.x + g.primary.width * (1 - sx) / 2 + offsets[prefix + "OffsetX"] * (anchored ? 1 : sx) + (anchored ? side.barOffsetX : 0);
+    var y = (anchored ? stockY + side.barOffsetY - (lift || 0) : cy + (stockY - cy) * sy) +
+      offsets[prefix + "OffsetY"] * (anchored ? 1 : sy) - bounds.height / 2;
+    return { marginLeft: pixels(x), marginTop: pixels(y) };
+  }
+  function pulseClasses(intensity, overlay) {
+    return { HPColorsV3Pulse: !overlay, HPColorsV3ColorPulse: !!overlay,
+      HPColorsV3PulseSubtle: intensity === 0, HPColorsV3PulseIntense: intensity === 2 };
+  }
+  function plan(input, config, view) {
+    var empty = { styles: {}, classes: {}, parents: {} };
+    if (!config || !config.shared.enabled || !input.eligible || !input.geometry) return empty;
+    var player = input.kind === "player", neutral = input.side === "neutral";
+    var side = config.side[neutral ? "enemy" : input.side], g = input.geometry, row = input.row;
+    if (!side) return empty;
+    var colorsEnabled = neutral || !player || side.barColorEnabled;
+    var w = g.canvas.width || 200, h = g.canvas.height || 210;
+    var sx = side.barWidth / 79, sy = side.barHeight / 18;
+    var cx = g.status.x + g.info.x + g.stack.x + g.primary.x + g.primary.width / 2;
+    var cy = g.status.y + g.info.y + g.stack.y + g.primary.y + g.primary.height / 2;
+    var tx = side.barOffsetX + (cx - w / 2) * (1 - sx), ty = side.barOffsetY + (cy - h / 2) * (1 - sy);
+    var highColor = side.barColorTeamHigh && teamColor(config, input.team) || side.barColorHigh;
+    var color = bands(input, config, side, "barColor", highColor);
+    // BAR STYLE: V2 restores the stock masks through one root class; OLD draws 100-HP boxes
+    // once the line total is known (count capped like v2: 128 boxes cover the 50-line maximum).
+    var style = config.shared.barStyle, old = style === "old", total = old && input.old ? input.old.total : 0;
+    var pipCount = total > 0 ? Math.max(0, Math.ceil(total / 100 - 0.05)) : 0;
+    if (pipCount > 128 || !(g.primary.width > 0)) pipCount = 0;
+    var pipRows = pipCount ? Math.min(Math.ceil(pipCount / 10), 4) : 0;
+    // An unlaid inner under OLD boxes (opacity 0) still has the fill's percent clip.
+    var healthKnown = input.laid || !!(pipCount && input.old.clipped);
+    // v2's unit surface pulses the bar; only player surfaces pulse/resize HP text.
+    var bandColor = color, lowPulse = !neutral && side.pulseEnabled && healthKnown && Math.floor(input.fraction * 100) <= side.pulseThreshold;
+    var barPulse = lowPulse && colorsEnabled, textPulse = player && lowPulse && side.hpTextVisible && side.pulseReadout;
+    var pulseModifiers = player && lowPulse && side.hpTextVisible && side.pulseReadoutModifiers;
+    var pulseHidden = barPulse && side.pulseHideBar;
+    var duration = (60 / side.pulseBpm).toFixed(3) + "s";
+    if (barPulse && side.pulseColorEnabled && side.pulseColorMode === "fixed") color = side.pulseColor;
+    var styles = {
+      stack: { preTransformScale2d: String(sx) + ", " + String(sy), transform: translation(tx, ty) },
+      motion: { transformOrigin: "50% " + String(Math.round(8500 / h * 1000000) / 1000000) + "%" },
+      outline: {}
+    };
+    var classes = { root: { HPColorsV3Core: true, HPColorsV3Unit: !player, HPColorsV3NoWiggle: !!input.noWiggle, HPColorsV3BarColored: !neutral && colorsEnabled,
+      HPColorsV3BarHidden: !neutral && colorsEnabled && (!side.barVisible || pulseHidden), HPColorsV3Outline: side.barOutlineEnabled && !old,
+      HPColorsV3HPText: side.hpTextVisible, HPColorsV3HPHidden: player && !side.hpTextVisible && input.side === "enemy",
+      HPColorsV3NameHidden: player && !side.nameVisible, HPColorsV3BarLines: true, HPColorsV3LinesHidden: !neutral && !side.linesVisible && !old } };
+    // V2 masks: the primary container only while unoutlined (live 6782: a mask cannot be cancelled).
+    if (style === "original") { classes.root.HPColorsV3BarMask = true; classes.root.HPColorsV3BarMaskPrimary = !side.barOutlineEnabled; }
+    if (old) classes.root.HPColorsV3BarOld = true;
+    // SHOW BOUNDS (v2 canvasBoundsVisibility): only customized bars outline their canvas.
+    if (view && view.showBounds === true) classes.root.HPColorsV3Bounds = true;
+    if (pipCount) { classes.root.HPColorsV3BarPips = true; classes.pipGrid = { HPColorsV3PipGridActive: true }; }
+    // Damage shake (v2 slots 76/77): one root class swaps the motion frame's keyframes; strength 3
+    // is the native wiggle, so the default adds no class. Excluded kinds never shake.
+    if (!input.noWiggle && !config.shared.damageShakeEnabled) classes.root.HPColorsV3ShakeOff = true;
+    else if (!input.noWiggle && config.shared.damageShakeStrength !== 3) classes.root["HPColorsV3Shake" + config.shared.damageShakeStrength] = true;
+    // v2 oldGridLift: anchored level/ultimate badges follow the grid's vertical centre, not the hidden bar's.
+    var gridLift = pipRows && config.shared.accessoryAnchorEnabled ? (pipRows * 6 / 2 - g.primary.height / 2 + 2.5) * sy : 0;
+    var parents = { status: "motion" };
+    if (player) parents.name = "motion";
+    if (colorsEnabled) {
+      styles.fill = { washColor: neutral ? config.shared.neutralColor : color };
+      if (!neutral) {
+        styles.healing = { washColor: side.barHealingColor }; styles.delta = { washColor: side.barDeltaColor };
+        styles.shield = { backgroundColor: side.barShieldColor }; styles.armor = { backgroundColor: side.barArmorColor };
+      }
+    }
+    if (barPulse) {
+      Object.assign(styles.fill, { animationDuration: duration, animationName: "" });
+      classes.fill = pulseClasses(side.pulseIntensity, false);
+      if (side.pulseColorEnabled && side.pulseColorMode === "gradient") {
+        classes.pulseOverlay = pulseClasses(side.pulseIntensity, true);
+        styles.pulseOverlay = { washColor: side.pulseColor, animationDuration: duration,
+          clip: "rect(0%, " + Math.max(0, input.fillCoverage * 100) + "%, 100%, 0%)" };
+      }
+    }
+    // OLD releases line color/opacity: the fallback gaps and the boxes have their own look.
+    if ((neutral || side.linesVisible) && !input.spectating && !old) {
+      if (side.lineOpacity !== 100) styles.lines = { opacity: String(side.lineOpacity / 100) };
+      if (!neutral && side.lineColorEnabled) styles.lineWash = { washColor: side.lineColor };
+    }
+    var markerGate = player && side.barColorEnabled && side.barVisible && !pulseHidden && side.killMarkerEnabled;
+    var markerWanted = markerGate && !pipCount && g.inner.width > 0;
+    classes.root.HPColorsV3KillMarker = !!markerWanted;
+    if (markerWanted) {
+      var markerWidth = Math.min(g.inner.width, Math.max(1, side.killMarkerWidth));
+      var markerX = clamp(g.inner.x + g.inner.width * side.killMarkerThreshold / 100 - markerWidth / 2,
+        g.inner.x, g.inner.x + g.inner.width - markerWidth);
+      styles.killMarker = { width: pixels(markerWidth), marginLeft: pixels(markerX), backgroundColor: side.killMarkerColor };
+    }
+    var oldPlan = null;
+    if (pipCount) {
+      // Raw engine fractions times the line total (fill and layers share it); never the
+      // shield-corrected health. HP snaps to 0.1 so clip float dust cannot light a box.
+      var hpOf = function (value) { return Math.round(value * total * 10) / 10; };
+      var layerColor = function (part, key) { return styles[part] && styles[part][key] || ""; };
+      oldPlan = { count: pipCount, max: total, hp: hpOf(input.fillCoverage), primaryWidth: g.primary.width,
+        fill: styles.fill ? styles.fill.washColor : "", layers: [], outline: null, marker: null };
+      [["shield", "backgroundColor"], ["armor", "backgroundColor"], ["healing", "washColor"], ["delta", "washColor"]].forEach(function (entry) {
+        var span = input.old.spans[entry[0]];
+        oldPlan.layers.push({ left: span ? hpOf(span[0]) : -1, right: span ? hpOf(span[1]) : -1, color: layerColor(entry[0], entry[1]) });
+      });
+      if (side.barOutlineEnabled) oldPlan.outline = { thickness: side.barOutlineThickness, opacity: String(side.barOutlineOpacity / 100),
+        color: player && side.barOutlineCustomColor ? side.barOutlineColor : outlineColor(input) };
+      if (markerGate) oldPlan.marker = { hp: total * side.killMarkerThreshold / 100, width: Math.max(1, side.killMarkerWidth), color: side.killMarkerColor };
+    }
+    if (player) {
+      // Like the rejuvenator, move an owned full-canvas anchor, not the native
+      // animated tag. Zero offsets leave native parent, styles and animations untouched.
+      STATUS_LABELS.forEach(function (key) {
+        if (!config.shared[key + "IndicatorVisible"]) styles[key] = { visibility: "collapse" };
+        var x = config.shared[key + "OffsetX"], y = config.shared[key + "OffsetY"];
+        if (x || y) {
+          parents[key] = key + "Anchor";
+          styles[key + "Anchor"] = { transform: translation(side.barOffsetX + x, side.barOffsetY + y) };
+        }
+      });
+      var levelShown = side.levelsVisible && input.level > 0;
+      classes.root.HPColorsV3Level = !!levelShown;
+      if (levelShown) {
+        var tierColor = input.level >= 35 ? "#8b0000" : input.level >= 27 ? "#e53935" : input.level >= 19 ? "#ff8c00" : input.level >= 11 ? "#f0d000"
+          : relationStock[input.team] || relationStock.team1;
+        styles.level = { border: "2px solid " + tierColor };
+        if (g.level) Object.assign(styles.level, accessoryPlacement(g.level, g, cy, side, config, "level", gridLift));
+      }
+      var ultPlaced = sx !== 1 || sy !== 1 || gridLift || config.shared.ultOffsetX || config.shared.ultOffsetY ||
+        config.shared.accessoryAnchorEnabled && (side.barOffsetX || side.barOffsetY);
+      classes.root.HPColorsV3UltPlaced = !!ultPlaced;
+      if (ultPlaced && g.ult) styles.ult = accessoryPlacement(g.ult, g, cy, side, config, "ult", gridLift);
+      if (config.shared.ultimateTimerEnabled) styles.ultBackground = { preTransformScale2d: String(config.shared.ultSize / 20) };
+      if (side.barColorEnabled) {
+        styles.ultBackground = styles.ultBackground || {};
+        styles.ultBackground.opacity = !side.barVisible || pulseHidden ? "0.01" : "1";
+      }
+      if (config.shared.ultMode === "custom" || side.barColorEnabled)
+        styles.ultReady = { washColor: config.shared.ultMode === "custom" ? config.shared.ultCustom : color };
+      parents.killStreak = { parent: "ult", before: "ultBackground" };
+      classes.ult = { HPColorsV3KillStreakOwner: true };
+      classes.killStreak = { HPColorsV3KillStreakAdopted: true };
+      if (config.shared.ultimateTimerEnabled) styles.killStreak = { preTransformScale2d: String(config.shared.ultSize / 20) };
+      var angle = input.ultimateAngle;
+      classes.root.HPColorsV3UltimateProgress = config.shared.ultimateTimerEnabled && angle !== null && angle !== undefined;
+      if (classes.root.HPColorsV3UltimateProgress) {
+        var mode = config.shared.ultimateTimerColorMode;
+        var progressColor = mode === "follow" ? "#FFFFFF" : mode === "fixed" ?
+          config.shared.ultimateTimerUnavailableColor : mix(config.shared.ultimateTimerUnavailableColor, config.shared.ultimateTimerAvailableColor, angle / 360);
+        styles.ultimateOverlay = { visibility: "visible", washColor: mode === "follow" ? config.shared.ultMode === "custom" ? config.shared.ultCustom :
+          side.barColorEnabled ? color : "#FFFFFF" : "#FFFFFF" };
+        styles.ultimateFill = { washColor: progressColor, clip: "radial(50% 50%, 0deg, " + angle + "deg)" };
+        styles.ultimateDark = { washColor: progressColor, brightness: String(Math.max(0, 1 - config.shared.ultimateTimerDarkness / 100)) };
+      }
+      parents.rejuv = "rejuvAnchor";
+      styles.rejuvAnchor = { transform: translation(config.shared.rejuvOffsetX, config.shared.rejuvOffsetY) };
+      styles.rejuv = { transform: "rotateZ(" + config.shared.rejuvTilt + "deg)",
+        preTransformScale2d: String(Math.round(config.shared.rejuvSize / 24 * 1000000) / 1000000) };
+      if (config.shared.pickupTimersEnabled) {
+        styles.pickupIcons = { width: pixels(config.shared.pickupSize), height: pixels(config.shared.pickupSize),
+          margin: "0px " + pixels(config.shared.pickupSpacing),
+          transform: "translateX(" + pixels(config.shared.pickupOffsetX) + ") translateY(" + pixels(config.shared.pickupOffsetY) + ")" };
+        styles.pickupBorders = { washColor: "#FFEFD7" };
+        styles.pickupInners = (input.pickups || []).map(function (bit) { return { washColor: config.shared[pickupColors[bit]] }; });
+        // Stock CooldownOverlay is blank for pickups. Give it the border artwork as a
+        // full track below the engine-clipped progress ring; the ledger releases every write.
+        styles.pickupTracks = (input.pickups || []).map(function (bit) {
+          return { washColor: mix("#000000", config.shared[pickupColors[bit]], 1 - config.shared.pickupBackgroundDarkness / 100).toUpperCase(),
+            backgroundImage: 'url("s2r://panorama/images/hud/world_space/status_border.vsvg")',
+            backgroundTextureSize: "48px", backgroundSize: "100%", zIndex: "-3", clip: "none" };
+        });
+        styles.pickupGlyphs = { washColor: config.shared.pickupGlyphColor };
+      }
+      if (staminaWanted(input, config)) {
+        var shaped = side.staminaShape !== "arrow", widthOwned = side.staminaWidth !== 11, heightOwned = side.staminaHeight !== 4.48;
+        var colored = side.staminaColorEnabled, charges = input.stamina || [];
+        var fillColor = colored && side.staminaColorMode === "team" && teamColor(config, input.team) || side.staminaColor;
+        var filled = charges.filter(function (empty) { return !empty; }).length;
+        var lowStamina = colored && side.staminaLowThreshold > 0 && charges.length > 0 && filled <= side.staminaLowThreshold;
+        var chargeColor = lowStamina ? side.staminaLowColor : fillColor;
+        classes.stamina = { HPColorsV3StaminaCircle: side.staminaShape === "circle", HPColorsV3StaminaBox: side.staminaShape === "box" };
+        styles.stamina = {};
+        if (side.staminaOffsetX || side.staminaOffsetY) styles.stamina.transform = translation(side.staminaOffsetX, side.staminaOffsetY);
+        if (colored) styles.stamina.washColor = shaped ? chargeColor : "#FFFFFF";
+        styles.staminaIcons = charges.map(function (empty) {
+          var icon = {};
+          if (widthOwned || !shaped && heightOwned) icon.width = pixels(shaped ? side.staminaWidth : 8 * side.staminaWidth / 11);
+          if (heightOwned || !shaped && widthOwned) icon.height = pixels(shaped ? side.staminaHeight : 12 * side.staminaHeight / 4.48);
+          if (!shaped && (widthOwned || heightOwned)) icon.backgroundSize = "100% 100%";
+          if (shaped) {
+            // "" clears captured native inline colors while CSS owns state.
+            icon.backgroundColor = "";
+            icon.borderColor = "#FFFFFF";
+            icon.washColor = "#FFFFFF";
+          // Inline styles cannot use stylesheet macros (live 6793 threw on "offBlack"): #10130D is offBlack.
+          } else if (colored) icon.washColor = empty ? "#10130D" : chargeColor;
+          return icon;
+        });
+      }
+    }
+    if (side.barOutlineEnabled && !old) {
+      var thickness = side.barOutlineThickness;
+      styles.outline.backgroundColor = player && side.barOutlineCustomColor ? side.barOutlineColor : outlineColor(input);
+      styles.outline.opacity = String(side.barOutlineOpacity / 100);
+      styles.outline.width = pixels(g.inner.width + 2 * thickness);
+      styles.outline.height = pixels(g.inner.height + 2 * thickness);
+      styles.outline.transform = translation(g.inner.x - thickness, g.inner.y - thickness);
+    }
+    if (side.hpTextVisible) {
+      parents.value = "row";
+      // Ticket 35: team colors are player-only; an unknown team falls back to the bar colors.
+      var hpTeam = player && side.hpTextColorMode === "team" && teamColor(config, input.team);
+      var hpColor = hpTeam || (side.hpTextColorMode === "custom"
+        ? bands(input, config, side, "hpText", player && side.hpTextTeamHigh && teamColor(config, input.team)) : bandColor);
+      var room = Math.ceil(side.hpTextOutline), align = side.hpTextAlign, q = align === "left" ? 1 : align === "center" ? 0.5 : 0;
+      var hpX = pulseModifiers ? side.pulseReadoutOffsetX : side.hpTextOffsetX;
+      var hpY = pulseModifiers ? side.pulseReadoutOffsetY : side.hpTextOffsetY;
+      var x = anchor(cx + side.barOffsetX + 33.5 + hpX * sx + 2 * (q - 1) * 4, w, row.width, q, false);
+      var y = clamp(cy + side.barOffsetY - 8 + hpY * sy, 0, Math.max(0, h - row.height));
+      styles.anchor = { width: pixels(w), height: pixels(h) };
+      styles.row = { horizontalAlign: align === "left" ? "right" : align === "center" ? "center" : "left" };
+      // A row never laid has no extent to clamp; placement waits for its first laid sample (v2).
+      if (row.width > 0 && row.height > 0) styles.row.transform = translation(x - q * w, y);
+      styles.value = { washColor: hpColor, fontFamily: fonts[side.hpTextFont], fontSize: pixels(pulseModifiers ? side.pulseReadoutSize : side.hpTextSize),
+        padding: "0px " + pixels(room), marginLeft: pixels(-room), marginRight: pixels(-room) };
+      if (side.hpTextOutline !== 5) styles.value.textShadow = "0px 0px 0px " + side.hpTextOutline + " #10130D";
+      // Tilt rotates the adopted label only; the row keeps the geometry translate. 0 stays level (CSS).
+      if (side.hpTextTilt) styles.value.transform = "rotateZ(" + side.hpTextTilt + "deg)";
+      if (textPulse) {
+        classes.value = pulseClasses(side.pulseIntensity, false);
+        styles.value.animationDuration = duration; styles.value.animationName = "";
+      }
+    } else {
+      // The original label stays in InfoHealthContainer, retaining native show/fade
+      // rules. Compensate the original compact frame's 65px top and centered width.
+      styles.value = { marginTop: "66px", marginRight: pixels((input.friend ? 20 : 10) + (w - 100) / 2) };
+    }
+    var nameRoom = Math.max(2, Math.ceil(side.nameOutline)), nameAlign = side.nameAlign;
+    var weight = nameAlign === "left" ? 1 : nameAlign === "center" ? 0.5 : 0;
+    // OLD rows grow up from the bar; the first keeps the native name spot (v2 nameRiseWithPips).
+    var nameOffsetY = side.nameOffsetY - (player && config.shared.nameRiseWithPips && pipRows > 1 ? (pipRows - 1) * 6 * sy : 0);
+    var nameX = anchor(w / 2 + side.nameOffsetX + (2 * weight - 1) * nameRoom, w, g.name.width, weight, true);
+    var nameY = clamp(45 + nameOffsetY, 0, Math.max(0, h - g.name.height)) - 45;
+    // Customized names are level by CSS (v2 `.WindowRoot #name`); NAME TILT rotates after the offset.
+    var nameTilt = config.shared.nameTilt, nameRotation = nameTilt ? "rotateZ(" + nameTilt + "deg)" : "";
+    if (player && side.nameVisible && (side.nameAlign !== "center" || side.nameOffsetX || nameOffsetY || nameTilt ||
+        side.nameColorEnabled || side.nameSize !== 14 || side.nameOutline !== 5)) {
+      // v2 applyPlayerName: the label box and its text grow the same way (stock #name centres both).
+      var nameGrowth = nameAlign === "left" ? "right" : nameAlign === "center" ? "center" : "left";
+      styles.name = { padding: "2px " + pixels(nameRoom) + " 0px " + pixels(nameRoom), maxWidth: pixels((Number.isFinite(g.name.maxWidth) ? g.name.maxWidth : 170) + 2 * (nameRoom - 2)),
+        horizontalAlign: nameGrowth, textAlign: nameGrowth };
+      if (side.nameSize !== 14) {
+        styles.name.fontSize = pixels(side.nameSize); styles.name.maxHeight = pixels(Math.ceil(side.nameSize * 1.5));
+      }
+      // A name never laid has no extent to clamp; its translate waits for the first laid sample (v2).
+      if ((nameAlign !== "center" || side.nameOffsetX || nameOffsetY) && g.name.width > 0 && g.name.height > 0)
+        styles.name.transform = translation(nameX - weight * w, nameY) + (nameRotation ? " " + nameRotation : "");
+      else if (nameRotation) styles.name.transform = nameRotation;
+      if (side.nameColorEnabled) styles.name.color = (side.nameColorMode === "team" && teamColor(config, input.team) || side.nameColor) + (input.spectating ? "80" : "");
+      if (side.nameOutline !== 5) styles.name.textShadow = "0px 0px 0px " + side.nameOutline + " #10130Dee";
+    }
+    return { styles: styles, classes: classes, parents: parents, old: oldPlan,
+      settle: !!(levelShown && !g.level || ultPlaced && !g.ult) };
+  }
+  function memoisedPlan(input) {
+    var key = input.signature + "|" + epoch + "|" + revision + "|" + showBounds;
+    if (!memo || memo.key !== key) { memo = { key: key, value: plan(input, settings, { showBounds: showBounds }) }; status.plansComputed++; }
+    return memo.value;
+  }
+  // Live 6779: assigning "" fails to parse for some properties (textShadow). Like v2's setStyle,
+  // clear with null; shorthand-backed longhands clear their shorthand and rewrite the siblings.
+  var STYLE_ALIASES = {
+    margin: ["marginTop", "marginRight", "marginBottom", "marginLeft"],
+    font: ["fontFamily", "fontSize", "fontStyle", "fontWeight", "fontStretch"],
+    animation: ["animationName", "animationDuration", "animationTimingFunction", "animationDelay",
+      "animationIterationCount", "animationDirection", "animationFillMode", "animationFrameTime"],
+    // Live 6779: borderColor is an alias of border; clearing it alone throws (v2 STYLE_ALIAS_GROUPS).
+    border: ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+      "borderTopStyle", "borderRightStyle", "borderBottomStyle", "borderLeftStyle"],
+    // Live 6785: backgroundSize is a layer alias of backgroundImage (panorama.dll: image "combined with
+    // background-position, background-size, background-texture-size and background-repeat"); clearing it
+    // alone threw on the pickup track release (HERO -> UNITS). Reading backgroundImage back returns the
+    // whole layer ("url(...) / 100.0% 100.0% unset unset"), which is not writable, so the layer is cleared
+    // whole and nothing is restored. Owners write the layer together (pickup tracks) or own no image
+    // (stamina icons keep their stylesheet artwork).
+    backgroundImage: [],
+  };
+  // v2 NAME_STOCK_ALIGN (live): a null alignment clear left a moved name aligned in game. Stock
+  // #name has no inline alignment and centres both ways, so release writes that value instead.
+  // Live 6782: horizontalAlign is a style alias; clearing it alone throws. The HP row releases to its
+  // stylesheet value (world.css #HPColorsV3ReadoutRow, menu.css .HPC3PreviewReadoutLine; v2 1687-1688).
+  var EXPLICIT_STOCK = { name: { horizontalAlign: "center", textAlign: "center" }, row: { horizontalAlign: "right" } };
+  function aliasBase(key) {
+    if (/^margin(Top|Right|Bottom|Left)$/.test(key)) return "margin";
+    if (key === "fontSize" || key === "fontFamily") return "font";
+    if (key === "animationDuration" || key === "animationName") return "animation";
+    if (key === "borderColor") return "border";
+    if (key === "backgroundPosition" || key === "backgroundSize" || key === "backgroundTextureSize" || key === "backgroundRepeat") return "backgroundImage";
+    return "";
+  }
+  function writeStyle(panel, key, value) {
+    try {
+      var base = value === "" ? aliasBase(key) : "";
+      if (base) {
+        var keep = STYLE_ALIASES[base].map(function (sibling) { return sibling === key ? "" : String(panel.style[sibling] || ""); });
+        panel.style[base] = null;
+        STYLE_ALIASES[base].forEach(function (sibling, i) { if (keep[i] !== "") panel.style[sibling] = keep[i]; });
+      } else panel.style[key] = value === "" ? null : value;
+    } catch (error) {
+      throw new Error(String(error && error.message || error) + " (" + key + "=" + JSON.stringify(value) + ")");
+    }
+  }
+  // ---- BAR STYLE OLD grid (v2 layoutOldPips/fillOldPips/paintOldLayers/syncOldOutline/
+  // syncOldKillMarker), same geometry: 10 boxes per row, first box bottom-left, rows grow up and
+  // more than four rows compress into four rows of height. Each layer holds one row panel per
+  // 1,000 HP with ten static boxes, so a total change rewrites rows, not every box. Fill and
+  // feedback layers clip their rows like the engine clips its own HP layers (stock
+  // #unit_healthbar_lagging keeps its .healthbar_border child inside that clip), so a health
+  // change rewrites only rows whose clip moved. Boxes are renderer-created children of the owned
+  // grid: write-only caches replace the ledger, and the ledger-owned active class shows the grid.
+  var PIP_HP = 100, PIPS_PER_ROW = 10, ROW_HP = 1000, PIP_ROW_PX = 6, PIP_TALL_ROWS = 4, PIP_WIDTH_PERCENT = 8.5;
+  var PIP_PARTS = ["Outline", "Empty", "Shield", "Armor", "Fill", "Healing", "Delta", "KillMarker"];
+  var PIP_LAYERS = ["Shield", "Armor", "Healing", "Delta"];
+  var EMPTY_CLIP = "rect(0%, 0%, 100%, 0%)";
+  function oldBoxPosition(index, rows, hp) {
+    return (index % PIPS_PER_ROW * 100 / PIPS_PER_ROW + PIP_WIDTH_PERCENT * hp / PIP_HP).toFixed(3) + "% " +
+      ((rows - 1 - Math.floor(index / PIPS_PER_ROW)) * 100 / rows).toFixed(3) + "% 0px";
+  }
+  function oldBoxHeight(rows) { return (80 / rows).toFixed(3) + "%"; }
+  // Percent of a row's width at hp HP into that row: whole boxes plus the share of the next.
+  function rowX(hp) {
+    if (!(hp > 0)) return 0;
+    if (hp >= ROW_HP) return 100;
+    var column = Math.floor(hp / PIP_HP);
+    return column * 100 / PIPS_PER_ROW + PIP_WIDTH_PERCENT * (hp - column * PIP_HP) / PIP_HP;
+  }
+  function pipReady(parts) {
+    return valid(parts.pipGrid) && PIP_PARTS.every(function (name) { return !!parts["pip" + name]; });
+  }
+  function paintOld(parts, old) {
+    if (!old || !pipReady(parts)) return 0;
+    var writes = 0, grid = parts.pipGrid, state = grid.HPColorsV3PipState;
+    function put(panel, applied, key, value) {
+      if (applied[key] === value) return;
+      applied[key] = undefined; writeStyle(panel, key, value); applied[key] = value; writes++;
+    }
+    function create(parent, className) {
+      var panel = $.CreatePanel("Panel", parent, "");
+      panel.hittest = false; panel.AddClass(className); return panel;
+    }
+    if (!state || state.empty !== parts.pipEmpty) {
+      // A lost cache (script reinclusion) must not leave an orphaned second set of boxes.
+      PIP_PARTS.forEach(function (name) { if (name !== "KillMarker") parts["pip" + name].RemoveAndDeleteChildren(); });
+      state = grid.HPColorsV3PipState = { empty: parts.pipEmpty, layers: {}, applied: {}, grid: {}, layout: "", spans: {}, outline: "", marker: "" };
+      PIP_PARTS.forEach(function (name) { state.applied[name] = {}; });
+    }
+    var count = old.count, rows = Math.ceil(count / PIPS_PER_ROW), layout = count + ":" + old.max;
+    // A layer's rows are created on first use; each box keeps its column for life.
+    function layer(name, wanted, rim) {
+      var entry = state.layers[name];
+      if (!entry) { if (!wanted) return null; entry = state.layers[name] = { rows: [], shown: -1 }; }
+      while (entry.rows.length < rows) {
+        var row = { panel: create(parts["pip" + name], "HPColorsV3PipRow"), applied: {}, boxes: [] };
+        for (var c = 0; c < PIPS_PER_ROW; c++) {
+          var item = { panel: create(row.panel, rim ? "HPColorsV3PipOutlineBox" : "HPColorsV3Pip"), applied: {} };
+          if (!rim) put(item.panel, item.applied, "position", (c * 100 / PIPS_PER_ROW).toFixed(3) + "% 0px 0px");
+          row.boxes.push(item);
+        }
+        entry.rows.push(row);
+      }
+      // Percent rows move only when the row count changes; rims place their px rows themselves.
+      if (!rim && entry.shown !== rows) {
+        entry.rows.forEach(function (row, r) {
+          put(row.panel, row.applied, "visibility", r < rows ? "visible" : "collapse");
+          if (r >= rows) return;
+          put(row.panel, row.applied, "position", "0px " + ((rows - 1 - r) * 100 / rows).toFixed(3) + "% 0px");
+          put(row.panel, row.applied, "height", (100 / rows).toFixed(3) + "%");
+        });
+        entry.shown = rows;
+      }
+      return entry;
+    }
+    // Show [left, right) HP of the grid total: one clip per row, written only when it moves.
+    function clip(name, entry, left, right) {
+      var key = layout + ":" + left + ":" + right;
+      if (!entry || state.spans[name] === key) return;
+      var none = !(right - left > 0.05);
+      for (var r = 0; r < rows; r++) {
+        var row = entry.rows[r], a = none ? 0 : rowX(left - r * ROW_HP), b = none ? 0 : rowX(right - r * ROW_HP);
+        put(row.panel, row.applied, "clip", b - a > 1e-9 ? "rect(0%, " + b.toFixed(3) + "%, 100%, " + a.toFixed(3) + "%)" : EMPTY_CLIP);
+      }
+      state.spans[name] = key;
+    }
+    var empty = layer("Empty", true), fill = layer("Fill", true);
+    if (state.layout !== layout) {
+      put(grid, state.grid, "height", Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX + "px");
+      for (var r = 0; r < rows; r++) for (var c = 0; c < PIPS_PER_ROW; c++) {
+        var index = r * PIPS_PER_ROW + c, item = empty.rows[r].boxes[c], shown = index < count;
+        put(item.panel, item.applied, "visibility", shown ? "visible" : "collapse");
+        if (shown) put(item.panel, item.applied, "width", (PIP_WIDTH_PERCENT * Math.min(PIP_HP, old.max - index * PIP_HP) / PIP_HP).toFixed(3) + "%");
+      }
+      state.layout = layout;
+    }
+    put(parts.pipFill, state.applied.Fill, "washColor", old.fill);
+    clip("Fill", fill, 0, old.hp);
+    PIP_LAYERS.forEach(function (name, l) {
+      var span = old.layers[l], entry = layer(name, span.right - span.left > 0.05);
+      if (!entry) return;
+      put(parts["pip" + name], state.applied[name], "washColor", span.color);
+      clip(name, entry, span.left, span.right);
+    });
+    // Rims: solid px backers (box ± thickness) under the empty boxes; health never rewrites them.
+    // Row panels carry each row's top/height, so a row-count change rewrites rows only.
+    var rim = old.outline, outlineKey = rim ? [layout, old.primaryWidth, rim.thickness, rim.opacity, rim.color].join("|") : "off";
+    if (state.outline !== outlineKey) {
+      put(parts.pipOutline, state.applied.Outline, "visibility", rim ? "visible" : "collapse");
+      if (rim) {
+        put(parts.pipOutline, state.applied.Outline, "opacity", rim.opacity);
+        var rims = layer("Outline", true, true), t = rim.thickness;
+        var rowStep = Math.min(rows, PIP_TALL_ROWS) * PIP_ROW_PX / rows, columnStep = old.primaryWidth / PIPS_PER_ROW;
+        var hpWidth = old.primaryWidth * PIP_WIDTH_PERCENT / 100 / PIP_HP;
+        rims.rows.forEach(function (row, r) {
+          put(row.panel, row.applied, "visibility", r < rows ? "visible" : "collapse");
+          if (r >= rows) return;
+          put(row.panel, row.applied, "position", "0px " + pixels(rowStep * (rows - 1 - r) - t) + " 0px");
+          put(row.panel, row.applied, "height", pixels(rowStep * 0.8 + 2 * t));
+          row.boxes.forEach(function (item, c) {
+            var index = r * PIPS_PER_ROW + c, shown = index < count;
+            put(item.panel, item.applied, "visibility", shown ? "visible" : "collapse");
+            if (!shown) return;
+            put(item.panel, item.applied, "position", pixels(columnStep * c - t) + " 0px 0px");
+            put(item.panel, item.applied, "width", pixels(hpWidth * Math.min(PIP_HP, old.max - index * PIP_HP) + 2 * t));
+            put(item.panel, item.applied, "backgroundColor", rim.color);
+          });
+        });
+      }
+      state.outline = outlineKey;
+    }
+    // Kill marker: a vertical tick at the threshold HP inside the box holding it.
+    var mark = old.marker, markerKey = mark ? [layout, mark.hp, mark.width, mark.color].join("|") : "off";
+    if (state.marker !== markerKey) {
+      var marker = parts.pipKillMarker, applied = state.applied.KillMarker;
+      put(marker, applied, "visibility", mark ? "visible" : "collapse");
+      if (mark) {
+        var at = Math.max(0, Math.min(count - 1, Math.floor(mark.hp / PIP_HP)));
+        var inside = Math.max(0, Math.min(Math.min(PIP_HP, old.max - at * PIP_HP), mark.hp - at * PIP_HP));
+        put(marker, applied, "position", oldBoxPosition(at, rows, inside));
+        put(marker, applied, "height", oldBoxHeight(rows));
+        put(marker, applied, "width", pixels(mark.width));
+        put(marker, applied, "marginLeft", pixels(-mark.width / 2));
+        put(marker, applied, "backgroundColor", mark.color);
+      }
+      state.marker = markerKey;
+    }
+    return writes;
+  }
+  // target = { root, parts, ledger, settle }: the world bar or the menu preview.
+  function restore(owner) {
+    if (owner.key === "@parent") {
+      if (!valid(owner.stockParent)) return false;
+      if (owner.owned || owner.value !== owner.stockParent) {
+        owner.panel.SetParent(owner.stockParent);
+        if (owner.panel.GetParent() !== owner.stockParent) throw new Error("Native parent restoration rejected");
+        if (valid(owner.stockNext) && owner.stockNext.GetParent() === owner.stockParent) owner.stockParent.MoveChildBefore(owner.panel, owner.stockNext);
+        else if (valid(owner.stockPrevious) && owner.stockPrevious.GetParent() === owner.stockParent) owner.stockParent.MoveChildAfter(owner.panel, owner.stockPrevious);
+        owner.value = owner.stockParent;
+      }
+    } else if (owner.key.indexOf("@class:") === 0) {
+      if (owner.owned || owner.value !== owner.stockClass) {
+        owner.panel.SetHasClass(owner.key.slice(7), owner.stockClass); owner.value = owner.stockClass;
+      }
+    } else {
+      var value = owner.captured ? owner.stock : "";
+      if (owner.owned || owner.value !== value) { writeStyle(owner.panel, owner.key, value); owner.value = value; }
+    }
+    owner.owned = false;
+    return true;
+  }
+  function applyTo(target, next) {
+    var wanted = [], writes = 0, releaseError = null, parts = target.parts, ledger = target.ledger;
+    if (next.settle) target.settle = true;
+    var index = new Map(), wantedIndex = new Map();
+    ledger.forEach(function (owner) {
+      if (!index.has(owner.panel)) index.set(owner.panel, new Map());
+      index.get(owner.panel).set(owner.key, owner);
+    });
+    // Existing leases are validated at the carrier check, not once per property per paint.
+    function available(panel) { return !!panel && (index.has(panel) || valid(panel)); }
+    Object.keys(next.parents || {}).forEach(function (part) {
+      var placement = next.parents[part], panel = parts && parts[part];
+      var parent = parts && parts[typeof placement === "string" ? placement : placement.parent];
+      var before = typeof placement === "string" ? null : parts && parts[placement.before];
+      if (available(panel) && available(parent) && (!before || available(before)))
+        wanted.push({ panel: panel, key: "@parent", part: part, value: parent, before: before });
+    });
+    Object.keys(next.styles).forEach(function (part) {
+      var panels = part === "lineWash" ? parts && parts.lineChildren || [] : Array.isArray(parts && parts[part]) ? parts[part] : [parts && parts[part]];
+      panels.forEach(function (panel, i) {
+        var styles = Array.isArray(next.styles[part]) ? next.styles[part][i] : next.styles[part];
+        if (available(panel)) Object.keys(styles).forEach(function (key) {
+          wanted.push({ panel: panel, key: key, part: part, value: styles[key] });
+        });
+      });
+    });
+    Object.keys(next.classes || {}).forEach(function (part) {
+      var panel = part === "root" ? target.root : parts && parts[part];
+      if (available(panel)) Object.keys(next.classes[part]).forEach(function (name) {
+        wanted.push({ panel: panel, key: "@class:" + name, part: part, value: next.classes[part][name] });
+      });
+    });
+    wanted.forEach(function (entry) {
+      if (!wantedIndex.has(entry.panel)) wantedIndex.set(entry.panel, new Map());
+      wantedIndex.get(entry.panel).set(entry.key, entry);
+    });
+    // Live 6782: the engine deletes panels we lease (UnitHealthbarLines children when the bar
+    // total drops, as a barrier is hit or expires) and every native call on them then throws
+    // "Underlying panel is deleted!". A dead panel has nothing to restore: drop its leases, keep
+    // the rest of this apply, and rediscover parts next tick. Live-panel failures still throw.
+    var dead = new Set();
+    function panelName(panel) {
+      try { return panel.id || "(anonymous)"; } catch (error) { return "(unreadable)"; }
+    }
+    function deleted(panel, part, key, error) {
+      if (valid(panel)) return false;
+      if (!dead.has(panel)) {
+        dead.add(panel); target.rediscover = true;
+        // HPV3_DEBUG $.Msg("[HPV3] renderer dropped deleted panel part=" + part + " key=" + key + " id=" + panelName(panel) + ": " + String(error));
+      }
+      return true;
+    }
+    // The race and rollback debug lines print this, naming the ledger part and panel.
+    function annotate(error, part, panel) {
+      return new Error(String(error && error.message || error) + " part=" + part + " id=" + panelName(panel));
+    }
+    for (var i = ledger.length - 1; i >= 0; i--) {
+      var owner = ledger[i];
+      if (!wantedIndex.has(owner.panel) || !wantedIndex.get(owner.panel).has(owner.key)) {
+        if (!owner.owned || dead.has(owner.panel)) continue;
+        try { if (restore(owner)) writes++; } catch (error) {
+          if (!deleted(owner.panel, owner.part, owner.key, error)) releaseError = releaseError || annotate(error, owner.part, owner.panel);
+        }
+      }
+    }
+    function prune() {
+      if (dead.size) for (var j = ledger.length - 1; j >= 0; j--) if (dead.has(ledger[j].panel)) ledger.splice(j, 1);
+    }
+    if (releaseError) { prune(); throw releaseError; }
+    wanted.forEach(function (entry) {
+      if (dead.has(entry.panel)) return;
+      try { claim(entry); } catch (error) {
+        if (!deleted(entry.panel, entry.part, entry.key, error)) { prune(); throw annotate(error, entry.part, entry.panel); }
+      }
+    });
+    prune();
+    function claim(entry) {
+      var owner = index.has(entry.panel) && index.get(entry.panel).get(entry.key);
+      if (!owner) {
+        owner = { panel: entry.panel, key: entry.key, part: entry.part, value: undefined, owned: false };
+        if (entry.key === "@parent") {
+          owner.stockParent = entry.panel.GetParent();
+          if (!valid(owner.stockParent)) throw new Error("Native parent unavailable");
+          var siblings = owner.stockParent.Children(), siblingIndex = siblings.indexOf(entry.panel);
+          owner.stockNext = siblings[siblingIndex + 1] || null;
+          owner.stockPrevious = siblings[siblingIndex - 1] || null;
+        } else if (entry.key.indexOf("@class:") === 0) {
+          owner.stockClass = entry.panel.BHasClass(entry.key.slice(7));
+        } else {
+          var captured = entry.panel.style[entry.key], explicit = EXPLICIT_STOCK[entry.part];
+          // Live 6785: a panel with inline layer longhands reads backgroundImage back as the whole layer
+          // ("url( ... )  / 100.0% 100.0% unset unset"); only the image part is writable.
+          if (entry.key === "backgroundImage" && typeof captured === "string") captured = captured.replace(/\s+\/\s.*$/, "");
+          owner.captured = captured !== undefined && captured !== null && captured !== "";
+          owner.stock = owner.captured ? captured : "";
+          if (!owner.captured && explicit && explicit[entry.key]) { owner.captured = true; owner.stock = explicit[entry.key]; }
+        }
+        ledger.push(owner);
+        if (!index.has(entry.panel)) index.set(entry.panel, new Map());
+        index.get(entry.panel).set(entry.key, owner);
+      }
+      if (!owner.owned || owner.value !== entry.value || owner.before !== entry.before) {
+        // Keep a pending lease even if the native setter mutates and then throws.
+        owner.owned = true;
+        if (entry.key === "@parent") {
+          entry.panel.SetParent(entry.value);
+          if (entry.panel.GetParent() !== entry.value) throw new Error("Native adoption rejected");
+          if (valid(entry.before)) entry.value.MoveChildBefore(entry.panel, entry.before);
+          owner.before = entry.before;
+        } else if (entry.key.indexOf("@class:") === 0) {
+          entry.panel.SetHasClass(entry.key.slice(7), entry.value);
+          if (entry.key === "@class:HPColorsV3Core") target.settle = true;
+        } else {
+          writeStyle(entry.panel, entry.key, entry.value);
+          if (entry.part === "name" && /^(fontSize|padding|maxWidth|maxHeight)$/.test(entry.key)) target.settle = true;
+        }
+        owner.value = entry.value; writes++;
+      }
+      owner.owned = true;
+    }
+    if (next.old && parts) writes += paintOld(parts, next.old);
+    return writes;
+  }
+  function worldTarget() { return { root: root, parts: cache, ledger: ledger, settle: false }; }
+  function apply(next) {
+    var target = worldTarget();
+    try { return applyTo(target, next); } finally {
+      if (target.settle) settleGeometry = true;
+      // A deleted leased panel may have a replacement: rediscover parts on the next tick.
+      if (target.rediscover) { rediscover = true; lastProbe = ""; lastFull = -Infinity; }
+    }
+  }
+  function resetCache() {
+    apply({ styles: {}, classes: {} }); cache = null; cachedFacts = null; memo = null; geometry = null; settleGeometry = false;
+    lastProbe = ""; lastConfigKey = ""; lastGeometry = -Infinity;
+  }
+  function checkCarriers() {
+    classReads = new WeakMap();
+    var validity = new Map();
+    for (var i = ledger.length - 1; i >= 0; i--) {
+      var panel = ledger[i].panel;
+      if (!validity.has(panel)) validity.set(panel, valid(panel));
+      if (!validity.get(panel)) ledger.splice(i, 1);
+    }
+    var changedLineage = !carriersValid();
+    if (changedLineage) discoverCarriers();
+    else wakeCarriers();
+    // HPV3_DEBUG carriers.forEach(function (panel) { if (!loggedCarrierDepth.has(panel)) { loggedCarrierDepth.set(panel, true); $.Msg("[HPV3] renderer carrier depth=" + (ancestry.map(function (entry) { return entry.panel; }).indexOf(panel) + 1) + " ancestry=" + ancestry.length + " id=" + (panel.id || "(anonymous)")); } });
+    var next = classify();
+    if (next.signature !== carrierSignature || changedLineage) {
+      var release = changedLineage || !kind || next.base !== kind.base || next.eligible !== kind.eligible;
+      kind = next; carrierSignature = next.signature; cachedFacts = null; memo = null; lastProbe = "";
+      if (release) { apply({ styles: {}, classes: {} }); geometry = null; lastGeometry = -Infinity; }
+      // HPV3_DEBUG $.Msg("[HPV3] renderer carrier changed: " + kind.kind + "/" + kind.side);
+    } else kind = next;
+    // HPV3_DEBUG if (kind.kind === "player" && kind.eligible) { var debugTeamLine = kind.side + " " + kind.team; var debugKnown = debugLastName && debugLastName !== "?"; if (debugTeamLine !== debugTeam || (debugKnown && debugTeamLogged.indexOf("? ") === 0)) { var debugTeamFull = (debugKnown ? debugLastName : debugName()) + " " + debugTeamLine; debugTeam = debugTeamLine; if (debugTeamFull !== debugTeamLogged) { debugTeamLogged = debugTeamFull; $.Msg("[HPV3] team " + debugTeamFull); } } };
+    if (cache && settings && settings.shared.enabled && kind.eligible && !lineageValid()) resetCache();
+    lastCarrierCheck = Date.now(); rediscover = false;
+    reconcileLines();
+    reconcileAccessories();
+    reconcileLevel();
+    reconcileStamina();
+    reconcileNativeIndicators();
+  }
+  function tick(token, force) {
+    if (!running || token !== generation) return;
+    if (!valid(root)) { stop(); return; }
+    // HPV3_DEBUG var began = Date.now();
+    try {
+      if (force || rediscover || Date.now() - lastCarrierCheck >= 1000 || !ancestry.length) checkCarriers();
+      if (!settings || !settings.shared.enabled || !kind || !kind.eligible) {
+        apply({ styles: {}, classes: {} }); status.state = "dormant"; return;
+      }
+      if (!cache && !discover()) { status.state = "dormant"; return; }
+      if (!valid(cache.fill)) { status.state = "dormant"; return; }
+      var lineSide = settings.side[kind.side === "neutral" ? "enemy" : kind.side];
+      // OLD plans no line washes, so it skips this per-tick recount (the 1s carrier check remains).
+      if (kind.side !== "neutral" && lineSide.linesVisible && lineSide.lineColorEnabled && !kind.spectating && settings.shared.barStyle !== "old" &&
+          valid(cache.lines) && cache.lines.GetChildCount() !== cache.nativeLineCount) reconcileLines();
+      if (force || Date.now() - lastPickups >= 3000) reconcilePickups();
+      cache.ultimateAngle = timerFacts.ultimateAngle;
+      if (kind.kind === "player" && settings.shared.ultimateTimerEnabled && cache.ultimateAngle !== null &&
+          (!valid(cache.ultimateOverlay) || !valid(cache.ultimateDark) || !valid(cache.ultimateFill))) ultimateArtwork(cache, "HPColorsV3");
+      // Only health/layer and bound-row extent signatures run at 0.15s. Geometry
+      // refreshes at 1.5s, plus one settling sample after a layout-changing write.
+      if (!geometry || settleGeometry || force || Date.now() - lastGeometry >= 1500) sampleGeometry();
+      // Low stamina follows the bar: every 0.15 s tick while active; while idle every other tick (0.3 s),
+      // stretched for more than six charges so idle reads stay at the six-charge rate (10 charges: 0.6 s).
+      if (cache.stamina && staminaLow(kind, settings) && (status.state !== "idle" ||
+          ++staminaIdleTicks % Math.max(2, Math.ceil((cache.staminaPips.length + 1) / 3.5)) === 0)) sampleStamina();
+      var input = probe(), changed = input.signature !== lastProbe, configKey = epoch + "|" + revision, probed = input.signature;
+      if (status.state !== "idle" || changed || configKey !== lastConfigKey || Date.now() - lastFull >= 1500) {
+        refreshLayerVisibility(input, cache); signProbe(input);
+        changed = input.signature !== lastProbe; probed = input.signature;
+        // Like v2's layoutOld, the OLD line total and feedback layers are read on paints only:
+        // the 0.15s idle probe stays fill/shield/barrier, which every total or feedback change moves.
+        if (oldWanted(settings, kind)) { input.old = oldSignal(cache); refreshLayerVisibility(input, cache, ["healing", "delta"]); signProbe(input); }
+        var current = facts(input); apply(memoisedPlan(current)); status.fullPaints++;
+        // HPV3_DEBUG var debugSide = kind.kind === "player" && settings.side[kind.side], debugWanted = !!debugSide && staminaWanted(kind, settings), debugFilled = current.stamina.filter(function (empty) { return !empty; }).length, debugLow = debugWanted && staminaLow(kind, settings) && current.stamina.length > 0 && debugFilled <= debugSide.staminaLowThreshold;
+        // HPV3_DEBUG if (debugWanted) { var debugStaminaLine = kind.side + " " + debugFilled + "/" + current.stamina.length + " threshold " + debugSide.staminaLowThreshold + " " + (debugLow ? "low" : "high") + " " + (cache.staminaShown ? "shown" : "hidden"); if (debugStaminaLine !== debugStamina) { debugStamina = debugStaminaLine; $.Msg("[HPV3] stamina " + debugName() + " " + debugStaminaLine); } };
+        // HPV3_DEBUG if (debugSide) { var debugHp = !debugSide.hpTextVisible ? "off" : debugSide.hpTextColorMode === "team" ? (teamColor(settings, kind.team) ? "team" : "bar-fallback") : debugSide.hpTextColorMode === "custom" ? (debugSide.hpTextTeamHigh && teamColor(settings, kind.team) ? "own+teamhigh" : "own") : "bar"; var debugSt = !debugWanted || !debugSide.staminaColorEnabled ? "stock" : debugLow ? "low" : debugSide.staminaColorMode === "team" ? (teamColor(settings, kind.team) ? "team" : "own-fallback") : "own"; var debugColorLine = kind.side + " hp=" + debugHp + " stamina=" + debugSt; if (debugColorLine !== debugColors) { debugColors = debugColorLine; $.Msg("[HPV3] colors " + debugName() + " " + debugColorLine); } };
+        // HPV3_DEBUG if (debugSide && kind.side === "ally" && !debugAllySeen) { var debugAllyBox = root.FindChild("StaminaContainer"), debugAllyPips = valid(debugAllyBox) ? debugAllyBox.GetChildCount() : 0; if (debugAllyAt < 0) debugAllyAt = Date.now(); if (debugAllyPips && (debugAllyBox.BHasClass("StaminaRecentlyUsed") || root.BHasClass("StaminaRecentlyUsed"))) { debugAllySeen = true; $.Msg("[HPV3] ally stamina seen " + debugName() + " pips=" + debugAllyPips); } else if (!debugAllyNone && Date.now() - debugAllyAt >= 60000) { debugAllyNone = true; $.Msg("[HPV3] ally stamina none " + debugName() + " after 60s pips=" + debugAllyPips + " shown=false"); } };
+        // HPV3_DEBUG debugCostPaints++;
+        lastFull = Date.now(); lastConfigKey = configKey;
+        status.state = changed ? "active" : "idle";
+      }
+      lastProbe = probed;
+    } catch (error) {
+      status.state = "dormant";
+      cachedFacts = null; memo = null; geometry = null; lastProbe = "";
+      try { apply({ styles: {}, classes: {} }); } catch (restoreError) {
+        // The pending stock lease survives; the next cold tick retries it.
+        settleGeometry = true;
+        // HPV3_DEBUG $.Msg("[HPV3] renderer rollback pending: " + String(restoreError));
+      }
+      // HPV3_DEBUG $.Msg("[HPV3] renderer race: " + String(error));
+    } finally {
+      // HPV3_DEBUG timingTicks++; timingMs += Date.now() - began;
+      // HPV3_DEBUG debugCostTicks++; debugCostMs += Date.now() - began;
+      // HPV3_DEBUG if (Date.now() - debugCostAt >= 10000) { var debugSeconds = Math.max(1, Date.now() - debugCostAt) / 1000, debugRate = function (value) { return Math.round(value / debugSeconds * 10) / 10; }; if (cache && staminaWanted(kind, settings)) $.Msg("[HPV3] stamina cost " + (debugLastName || debugName()) + " " + kind.side + " reads/s=" + debugRate(debugFastReads) + " skipped/s=" + debugRate(debugFastSkipped) + " ticks/s=" + debugRate(debugCostTicks) + " paints=" + debugCostPaints + " ms=" + debugCostMs + (staminaLow(kind, settings) ? " gate=" + (cache.staminaGate || "none") + " pip0=" + debugClasses(cache.staminaPips[0]) + " icon0=" + debugClasses(cache.staminaIcons[0]) : " low=off")); debugCostAt = Date.now(); debugCostTicks = 0; debugFastTicks = 0; debugFastSkipped = 0; debugFastReads = 0; debugCostPaints = 0; debugCostMs = 0; };
+      // HPV3_DEBUG if (Date.now() - timingAt >= 5000) { $.Msg("[HPV3] renderer timing ticks=" + timingTicks + " ms=" + timingMs + " paints=" + status.fullPaints + " state=" + status.state); timingAt = Date.now(); timingTicks = 0; timingMs = 0; };
+      if (running && valid(root)) scheduleTick(status.state === "dormant" ? 1 : 0.15, token);
+      notifyTimers();
+    }
+  }
+  function onConfig(raw) {
+    if (!running || !valid(root) || typeof raw !== "string") return;
+    // The config publisher owns this canonical envelope header. Other modules
+    // receive opaque messages, even when a player name contains the config magic.
+    if (!/^\s*\{\s*"magic"\s*:\s*"HP_COLORS_V3_CONFIG"\s*[,}]/.test(raw)) {
+      messageHooks.slice().forEach(function (fn) { fn(raw); }); return;
+    }
+    if (raw === lastRaw || raw.length > 64000) return;
+    try {
+      var data = JSON.parse(raw);
+      if (!data || data.magic !== MAGIC || typeof data.epoch !== "string" || !data.epoch || data.epoch.length > 128 ||
+          !Number.isSafeInteger(data.revision) || data.revision < 0 || !acceptsConfig(data.epoch, data.revision) ||
+          !$.HPColorsV3WorldSettings.validate(data.settings)) return;
+      retireEpoch(data.epoch);
+      settings = data.settings; revision = data.revision; epoch = data.epoch; lastRaw = raw; showBounds = data.showBounds === true;
+      authority.epoch = epoch; authority.revision = revision;
+      status.revision = revision; status.epoch = epoch;
+      if (requestJob) $.CancelScheduled(requestJob);
+      requestJob = null;
+      cancelTick(); tick(generation, true);
+    } catch (error) {
+      // HPV3_DEBUG $.Msg("[HPV3] config ignored: " + String(error));
+    }
+  }
+  function requestConfig(token) {
+    if (!running || token !== generation || revision >= 0 || requestFailures >= 3 || !valid(root)) return;
+    var delays = [0.5, 1, 2, 4, 8];
+    requestJob = $.Schedule(delays[Math.min(requestAttempt, delays.length - 1)], function () {
+      requestJob = null;
+      if (!running || token !== generation || revision >= 0 || !valid(root)) return;
+      requestAttempt++;
+      var sent = $.HPColorsV3Bridge && $.HPColorsV3Bridge.request(revision, epoch);
+      requestFailures = sent ? 0 : requestFailures + 1; requestConfig(token);
+    });
+  }
+  function stop() {
+    running = false; generation++;
+    cancelTick();
+    if (requestJob) $.CancelScheduled(requestJob);
+    requestJob = null;
+    if (handlerId !== null) $.UnregisterForUnhandledEvent("ClientUI_FireOutput", handlerId);
+    handlerId = null;
+    try { if (valid(root)) checkCarriers(); resetCache(); } catch (error) {
+      // Native teardown races must not prevent cancellation or script reinclusion.
+      cache = null; cachedFacts = null; memo = null; geometry = null; lastProbe = ""; lastConfigKey = "";
+      // HPV3_DEBUG $.Msg("[HPV3] renderer stop release pending: " + String(error));
+    }
+    carriers = []; ancestry = []; kind = null; settings = null; revision = -1; epoch = ""; lastRaw = ""; carrierSignature = ""; showBounds = false;
+    classReads = new WeakMap(); classSources = {};
+    status.state = "stopped"; status.revision = -1; status.epoch = "";
+    notifyTimers();
+    if ($.HPColorsV3Bridge) $.HPColorsV3Bridge.stop();
+  }
+  function start() {
+    var context = $.GetContextPanel();
+    if (!valid(context) || (running && root === context)) return;
+    stop(); root = context;
+    // Persist explicit stock writes across stop/restart and script reinclusion, not across dead roots.
+    ledger = root.HPColorsV3StockLedger || []; root.HPColorsV3StockLedger = ledger;
+    running = true; requestAttempt = 0; requestFailures = 0; lastCarrierCheck = -Infinity; dormantChecks = 0;
+    // HPV3_DEBUG timingAt = Date.now(); timingTicks = 0; timingMs = 0; debugCostAt = Date.now();
+    handlerId = $.RegisterForUnhandledEvent("ClientUI_FireOutput", onConfig);
+    root.SetAttributeString("hpv3_renderer_boot", "ready");
+    // HPV3_DEBUG $.Msg("[HPV3] renderer boot " + $.HPColorsV3WorldSettings.version);
+    tick(generation, true); requestConfig(generation);
+  }
+  // Menu preview: the world's classify -> facts -> plan -> apply chain over a caller-owned part map
+  // and ledger. It reads no world state, schedules nothing and registers no listener.
+  function createPainter(canvas, parts) {
+    var target = { root: canvas, parts: parts, ledger: [], settle: false };
+    return {
+      paint: function (classes, config, view) {
+        for (var i = target.ledger.length - 1; i >= 0; i--) if (!valid(target.ledger[i].panel)) target.ledger.splice(i, 1);
+        var anyOf = function (names) {
+          for (var i = 0; i < names.length; i++) if (classes.indexOf(names[i]) >= 0) return true;
+          return false;
+        };
+        var carrier = classifyWith(anyOf, !!(config && config.shared.enabled), target.ledger.some(function (owner) { return owner.owned; }), config);
+        target.settle = false;
+        parts.lineChildren = lineChildren(parts);
+        parts.levelNumber = config && config.shared.enabled && carrier.eligible && carrier.kind === "player" && carrier.side === "enemy" && config.side.enemy.levelsVisible
+          ? levelNumber(parts.levelLabel) : 0;
+        var staminaOn = staminaWanted(carrier, config), staminaLowOn = staminaOn && staminaLow(carrier, config);
+        var stamina = staminaOn ? staminaParts(parts.stamina, staminaProbe(carrier, config) && !staminaLowOn) : { icons: [], empty: [] };
+        if (staminaLowOn) stamina.empty = pipEmpties(stamina.pips);
+        parts.staminaIcons = stamina.icons; parts.staminaEmpty = stamina.empty;
+        var pickups = config && config.shared.enabled && carrier.eligible && carrier.kind === "player" && config.shared.pickupTimersEnabled
+          ? pickupParts(parts.pickupContainer, parts.pickupSamples) : { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+        Object.keys(pickups).forEach(function (key) { parts[key] = pickups[key]; });
+        parts.ultimateAngle = carrier.eligible && carrier.kind === "player" && config.shared.ultimateTimerEnabled ? 180 : null;
+        if (parts.ultimateAngle !== null) ultimateArtwork(parts, "HPColorsPreview");
+        var input = probeOf(parts, geometryOf(canvas, parts), true, oldWanted(config, carrier));
+        var current = factsFrom(carrier, input, carrier.signature + "|" + input.signature);
+        var next = plan(current, config, view);
+        // Preview-only visual replica: clip remains the signal; the same ledger owns color/pulse and alias release.
+        if (parts.visualFill) {
+          if (next.styles.fill) next.styles.visualFill = next.styles.fill;
+          if (next.classes.fill) next.classes.visualFill = next.classes.fill;
+        }
+        var writes = applyTo(target, next);
+        return { facts: current, plan: next, writes: writes, settle: target.settle };
+      },
+      release: function () { target.settle = false; return applyTo(target, { styles: {}, classes: {} }); },
+      owned: function () { return target.ledger.filter(function (owner) { return owner.owned; }).length; }
+    };
+  }
+  // Inclusion exports only. The separate world_boot include starts the world loop.
+  $.HPColorsV3Renderer = { facts: facts, plan: plan, apply: apply, start: start, stop: stop, status: status, createPainter: createPainter,
+    onMessage: function (fn) { return subscribe(messageHooks, fn); },
+    onState: function (fn) { var off = subscribe(stateHooks, fn); fn(timerState()); return off; },
+    refreshPickups: reconcilePickups,
+    setTimerFacts: setTimerFacts };
+})();

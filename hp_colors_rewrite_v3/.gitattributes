@@ -1,0 +1,8 @@
+.gitattributes text eol=lf
+settings/** text eol=lf
+generated/** text eol=lf
+panorama/** text eol=lf
+vendor/** text eol=lf
+tools/** text eol=lf
+game-data-pin.json text eol=lf
+*.png binary

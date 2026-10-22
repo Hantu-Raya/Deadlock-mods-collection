@@ -1,0 +1,56 @@
+# 20: Styling: shake and tilts
+
+**What to build:** Damage shake strength and name/HP-text/rejuvenator tilt.
+
+**Blocked by:** 19
+
+**Status:** done — VM verification complete; Audit20 (m3) findings fixed **Live:** the user confirmed it works in game (2026-10-17, [ledger](../LIVE-VERIFIED.md)).
+
+**Runs on:** gpt-6.1-sol (med). **Review:** code-review.
+
+- [x] Matches SPEC story 19
+- [x] VM E2E tests boot the real scripts and pass
+
+## Inventory before the change
+
+- `rejuvTilt` (slot 145, default 6°, Indicators → Rejuvenator) already existed from ticket 16; it was reused, not duplicated.
+- The damage wiggle already ran on `#HPColorsV3MotionFrame` with ticket 18's building/objective (`HPColorsV3NoWiggle`) exclusion.
+- v3 drew the stock −4° name tilt on customized names (ticket 07 audit). v2 draws them level (`unit_status_v2.css:2423` `.WindowRoot #name { transform: none; }`, `nameTilt` default 0), so that was a parity gap (fixed below, Main's decision 2026-10-15).
+
+## Implementation
+
+- **Settings (record v10, slots 160–164, slot additions only).** `damageShakeEnabled` (shared boolean, default on, Bar → Damage shake, Basic; v2 slot 76), `damageShakeStrength` (shared 1–10°, step 1, default 3, Advanced; v2 `damageShakeIntensity`, slot 77), `nameTilt` (shared −360…360°, default 0, Name → Position and outline, Advanced; v2 slot 78), `hpTextTilt` (side-aware −360…360°, default 0/0, HP Text → Position and outline, Advanced; v2 `readoutTilt`/`allyReadoutTilt`, slots 79/80). Untouched saves and codes stay sparse; worst-case settings code is 2306 characters.
+- **Shake, like v2.** v2 swaps keyframe variants through root classes (`HPColorsRewriteShakeOff` or one `HPColorsRewriteShake<N>`, none at 3), gated on master on and a customized surface. v3 does the same with `HPColorsV3ShakeOff`/`HPColorsV3Shake<N>` on customized roots; `HPColorsV3Shake<N>` keyframes are stock `active_damage_wiggle` (vendor `unit_status_v2.css:73-89`) at −N° (v2 `hpv2_shake_N`). The rules sit before the objective/boss rules (equal specificity, later wins), and the plan emits no shake class for `noWiggle` kinds, so ticket 18's exclusion holds both before and after reclassification. Master off, closed gates and unknown units keep the native `#UnitStatus` wiggle. The preview has the same classes on its damage steps.
+- **Root-local exclusions (audit 20 P2).** v2 only listed the ancestor form (`.building.active_damage .WindowRoot …`). The damage and kind classes can also sit on WindowRoot itself, so each of the nine kinds now also has the root-local form (`.building.active_damage.WindowRoot…`) and both mixed forms (kind on root with damage on an ancestor, and the reverse). All follow the strength rules at equal specificity, so a late kind class stops any strength at once; before the fix a WindowRoot-local building kept shaking at strength 7 until the next classification (up to ~900 ms).
+- **Name tilt.** Customized names are level through `.WindowRoot.HPColorsV3Core #name { transform: none; }` (stock precedent `.neutral_vault #name`, vendor 963-967); no inline write at the default. A nonzero tilt owns the name and writes `rotateZ(N)` after the offset/alignment/OLD-lift translate, as v2 does. Release restores the captured inline value or clears it, so master off returns the stock −4°. The obsolete `neutral_vault` flag probe that only served the old −4° special case is removed.
+- **HP text tilt.** Rotates only the adopted `UnitHealthbarValue` label (v2 1666-1671); the row keeps its geometry translate. 0 stays level (existing CSS). HP text off or master off restores the captured or stock label transform (`rotateZ(-3deg)`).
+- **Converter.** `damageShakeEnabled`, `damageShakeIntensity → damageShakeStrength`, `nameTilt` and `readoutTilt`/`allyReadoutTilt → hpTextTilt` map 1:1 (no 0→−4 remap). v1–v9 records promote retained v2 pending at the v10 boundary; records without pending take the new defaults (level names, native shake). Current-version pending never overrides a deliberate value.
+
+## Evidence
+
+- `node --test tests/*.test.js`: **714/714 pass**, 0 skipped (`.tmp/t20-suite.log`). `node tools/generate.js --check`: **12 outputs current** (`.tmp/t20-generate-check.log`). No adapter change, so the root `validate-hp-colors-rewrite-*` suites were not rerun.
+- World VM E2E (`tests/renderer.test.js`, “ticket 20: …”): every strength 1–10 (one class, keyframe amplitude −N°, 0.2 s), off, no shake without damage, late `building` class beats the shake in CSS, master off returns the native wiggle; objectives and the neutral midboss never shake while an open NPC gate follows the setting and a closed gate stays native; name tilt default level, changed, after offset/left alignment/OLD lift/V2, shared across sides, hidden-name release, exact captured-inline and stock −4° release; HP-text tilt per side, row translate unchanged, offsets/alignment/OLD/V2, exact release to captured and stock −3°; rejuvenator default 6°, changed and released.
+- Audit 20 world tests (“audit 20: …”, red first in `.tmp/t20b-red-p2p3-world.tap`, 9 failing before the CSS fix): every strength 1–10 with damage on WindowRoot and on an ancestor, asserting infinite repeat, ease-out, 0.2 s and the full-canvas frame (100%×100%, noclip, centre/top); off in both placements; each of the nine excluded kinds added late at strength 7 in all four placements (both ancestor, both root, and the two mixed) stops the shake immediately with `pre-transform-scale2d: 1`.
+- Preview VM E2E (`tests/preview.test.js`, “ticket 20: …”): damage play at every strength 1–10 with infinite repeat, ease-out and 0.2 s, no shake outside damage, off, objective never shakes, master off native wiggle; name and HP-text tilts equal the renderer plan, including OLD and V2, shared name tilt across sides, release to stock −4°/−3°.
+- Parity-fix updates: “audit: untouched default names …”, “audit: preview ids mirror …”, “live comparison: realistic names …”, the vendored-constants test and the ticket 19 name-lift test now expect level names while enabled and the stock −4° after master off.
+- Migration (`tests/migration.test.js`): `v2-shake-tilt-migration.json` — save schemas 1–5, HPCR2 and HPCRP1 hpv2 v1–3 (11 cases, distinct per-key values); v1–v9 pending promotes at v10 through load and import for bundle, presets and scopes, and pending-free records take the defaults (18 tests); current-version pending does not override, defaults stay out of the wire, and an edited name tilt saves as one flat pair and survives restart. The oversize-fallback fixture grew from 20 to 24 scopes because five more v2 keys left pending.
+- Test memory (audit 20 P1): `tests/storage-fixture.js` kept every fixture's live closures in the evidence transcript, so each finished VM stayed reachable. An `afterEach` now swaps each entry for plain evidence (status string and copied reads/writes/requests/replies); the written transcript files are unchanged. Red first: “transcript retention: …” in `tests/storage.test.js` (`.tmp/t20b-red-p1.tap`). Peak RSS of the test-file process (`.tmp/t20b-rss-preload.js`): migration **4,250 → 515 MiB** with the shake/tilt cases merged back into `migration.test.js` (split file and its helper removed); storage 820, renderer 389, preview 323 MiB.
+- Ops per bar per second (10 s windows): defaults unchanged from ticket 19 — hero active **164.3**, idle **145.7**, dormant **6**, released **11**; maxima **219.3** active / **194.3** idle. Shake strength 7 plus all three tilts: **164.3 / 145.7**, full stress **219.3** active, churn **194.3** idle; shake off + tilts + OLD **197.2** active. Non-default shake and tilts add no per-tick cost (class and inline values are plan-memoised); the new exclusion selectors are CSS only.
+- Mutation check (`.tmp/t20-mutations.js`, `.tmp/t20b-mutations.log`): **37/37 killed** — the first 16 (no strength class, no off class, shake classes on objectives, HP-text tilt ignored, name tilt not owning the name, tilt dropped after offset, stock −4° kept on moved names, shake rules after objective rules, wrong keyframe amplitude, missing level-name rule, preview strength 5 and off rules, four converter mapping mutants) plus audit 20's survivors and fixes: single-iteration and linear world wiggle, compact motion frame, root-local strength and base damage selectors removed, ancestor/root-local/both mixed exclusions removed, preview single-run and linear wiggle, preview strengths 1, 2, 4, 6, 7, 8, 9 and 10 missing, rejuvenator tilt ignored, and transcript snapshot removed. Dropping the explicit `damageShakeEnabled`/`nameTilt` converter entries is an equivalent mutant (same key name maps by identity).
+- Honest limits: the original ticket 20 tests were written after the implementation (their red evidence is the mutation run); the audit 20 tests were red first. Level names, shake amplitudes, root-local class placement and tilted text are VM/cascade-checked only and need the in-game look (ticket 26). No build, deploy, launch or git action.
+
+## Whole-codebase audit 3
+
+- New world tests cover HP-text tilt on unit bars and the `HPColorsV3ShakeOff` class under OLD; the `shakeOffTiltOldActive` scenario now asserts the class. Details in ticket 22.
+
+## Batch close (2026-10-15)
+
+Whole-codebase audit AuditWhole-3 (m2) findings fixed. Final: suite 923/923, generator current, both builds 0 failed (release e7352671, debug 76d9da02). Live 6782: debug build installed, loads with no Panorama parse errors after splitting oversized selector lists (new --check guard), menu/renderer boot logged, own HUD bar shows the OFF white look. Menu, preview and world-bar visuals for this ticket not yet seen in game.
+
+## Preview shake on edit (2026-10-17)
+
+- Changed **effective** `damageShakeEnabled`/`damageShakeStrength` values sample shake for 3.0 seconds while enabled. User paths: `commit` (toggle, number submit/blur, slider, row reset) and `editSettings` (group/page reset, condition Apply/Remove, explicit settings-code import). Boot, hydration, presets/routing, Undo, side/kind switches, invalid/no-change edits and bundle-library imports do not trigger.
+- Each changed drag value renews the deadline; off stops immediately. Close/retire/navigation cancel it. An independent `$.Schedule(3, ...)` generation guard rejects stale timers. PLAY takes over an idle sample; edits during PLAY leave its steps/cancellation alone.
+- `HPC3PreviewShakeEdit` reuses existing `active_damage_wiggle`/`HPColorsV3Shake<N>` animations and strength/off canvas classes, with no new keyframes or fake damage/HP. Strength 3 and stock/un-customized samples use native wiggle; objectives/`HPColorsV3NoWiggle` never shake. CSS stays within 10 selectors per rule.
+- `tests/preview.test.js` adds 13 VM regressions for timing, drag renewal, off, lifecycle/stale timers, trigger paths, matched-condition masking, stock/objective exclusions and PLAY. Enabling and stock-fallback tracers failed before their respective fixes. Canonical/QOLLOCK sources regenerated. No build, install or launch; native appearance remains unverified.
+- Final shell checks: canonical **1245/1245**, QOLLOCK **26/26**, v2 storage **48/48**; zero failures/skips. Both `--check` commands pass (12 canonical and 2 QOLLOCK outputs current).

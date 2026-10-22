@@ -1,0 +1,600 @@
+[
+  {
+    "name": "save-schema-1",
+    "kind": "save",
+    "input": "HPV2S1.607563fa.eyJtIjoiSFBWMlNUT1JFIiwicyI6MSwidCI6MSwiYiI6IntcInZlcnNpb25cIjoxLFwib2Zmc2V0VmVyc2lvblwiOjMsXCJ2YWx1ZXNcIjp7XCJ3aWR0aFNjYWxlXCI6MjAwLFwiaGVpZ2h0U2NhbGVcIjo4MCxcInBvc2l0aW9uWFwiOjEyMCxcInBvc2l0aW9uWVwiOi0yMzAsXCJlbmVteUxvd1wiOlwiIzEyMzQ1NlwiLFwicmVhZG91dE9mZnNldFhcIjoxMDAsXCJyZWFkb3V0T2Zmc2V0WVwiOi04MCxcInJlYWRvdXRTaXplXCI6MTg1LFwicGlwc1Zpc2libGVcIjpmYWxzZSxcIm5hbWVPZmZzZXRYXCI6MTksXCJuYW1lT2Zmc2V0WVwiOi0yMixcImFsbHlSZWFkb3V0T2Zmc2V0WFwiOjg4LFwiYWxseVJlYWRvdXRPZmZzZXRZXCI6NjB9LFwidXNlclByZXNldHNcIjpbe1wiaWRcIjpcInVzZXJfMDAwMVwiLFwibmFtZVwiOlwiQ2FycnkgbG9va1wiLFwibW9kZVwiOlwiYWxsXCIsXCJoZXJvZXNcIjpbXSxcInZhbHVlc1wiOntcIndpZHRoU2NhbGVcIjoyMDAsXCJoZWlnaHRTY2FsZVwiOjgwLFwicG9zaXRpb25YXCI6MTIwLFwicG9zaXRpb25ZXCI6LTIzMCxcImVuZW15TG93XCI6XCIjMTIzNDU2XCIsXCJyZWFkb3V0T2Zmc2V0WFwiOjEwMCxcInJlYWRvdXRPZmZzZXRZXCI6LTgwLFwicmVhZG91dFNpemVcIjoxODUsXCJwaXBzVmlzaWJsZVwiOmZhbHNlLFwibmFtZU9mZnNldFhcIjoxOSxcIm5hbWVPZmZzZXRZXCI6LTIyLFwiYWxseVJlYWRvdXRPZmZzZXRYXCI6ODgsXCJhbGx5UmVhZG91dE9mZnNldFlcIjo2MH0sXCJjb25kaXRpb25zXCI6bnVsbH1dLFwiY29uZGl0aW9uc1wiOnt9fSJ9",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 50,
+        "hpTextOffsetY": -100,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 44,
+        "hpTextOffsetY": 75,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 50,
+          "hpTextOffsetY": -100,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 44,
+          "hpTextOffsetY": 75,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "save-schema-2",
+    "kind": "save",
+    "input": "HPV2S1.00b912eb.eyJtIjoiSFBWMlNUT1JFIiwicyI6MiwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJvZmZzZXRWZXJzaW9uIjozLCJ2YWx1ZXMiOnsid2lkdGhTY2FsZSI6MjAwLCJoZWlnaHRTY2FsZSI6ODAsInBvc2l0aW9uWCI6MTIwLCJwb3NpdGlvblkiOi0yMzAsImVuZW15TG93IjoiIzEyMzQ1NiIsInJlYWRvdXRPZmZzZXRYIjoxMDAsInJlYWRvdXRPZmZzZXRZIjotODAsInJlYWRvdXRTaXplIjoxODUsInBpcHNWaXNpYmxlIjpmYWxzZSwibmFtZU9mZnNldFgiOjE5LCJuYW1lT2Zmc2V0WSI6LTIyLCJhbGx5UmVhZG91dE9mZnNldFgiOjg4LCJhbGx5UmVhZG91dE9mZnNldFkiOjYwfSwidXNlclByZXNldHMiOlt7ImlkIjoidXNlcl8wMDAxIiwibmFtZSI6IkNhcnJ5IGxvb2siLCJtb2RlIjoiYWxsIiwiaGVyb2VzIjpbXSwidmFsdWVzIjp7IndpZHRoU2NhbGUiOjIwMCwiaGVpZ2h0U2NhbGUiOjgwLCJwb3NpdGlvblgiOjEyMCwicG9zaXRpb25ZIjotMjMwLCJlbmVteUxvdyI6IiMxMjM0NTYiLCJyZWFkb3V0T2Zmc2V0WCI6MTAwLCJyZWFkb3V0T2Zmc2V0WSI6LTgwLCJyZWFkb3V0U2l6ZSI6MTg1LCJwaXBzVmlzaWJsZSI6ZmFsc2UsIm5hbWVPZmZzZXRYIjoxOSwibmFtZU9mZnNldFkiOi0yMiwiYWxseVJlYWRvdXRPZmZzZXRYIjo4OCwiYWxseVJlYWRvdXRPZmZzZXRZIjo2MH0sImNvbmRpdGlvbnMiOm51bGx9XSwiY29uZGl0aW9ucyI6e319fQ",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 50,
+        "hpTextOffsetY": -100,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 44,
+        "hpTextOffsetY": 75,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 50,
+          "hpTextOffsetY": -100,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 44,
+          "hpTextOffsetY": 75,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "save-schema-3",
+    "kind": "save",
+    "input": "HPV2S1.5c059b1b.eyJtIjoiSFBWMlNUT1JFIiwicyI6MywidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJvZmZzZXRWZXJzaW9uIjozLCJ2YWx1ZXMiOnsid2lkdGhTY2FsZSI6MjAwLCJoZWlnaHRTY2FsZSI6ODAsInBvc2l0aW9uWCI6MTIwLCJwb3NpdGlvblkiOi0yMzAsImVuZW15TG93IjoiIzEyMzQ1NiIsInJlYWRvdXRPZmZzZXRYIjoxMDAsInJlYWRvdXRPZmZzZXRZIjotODAsInJlYWRvdXRTaXplIjoxODUsInBpcHNWaXNpYmxlIjpmYWxzZSwibmFtZU9mZnNldFgiOjE5LCJuYW1lT2Zmc2V0WSI6LTIyLCJhbGx5UmVhZG91dE9mZnNldFgiOjg4LCJhbGx5UmVhZG91dE9mZnNldFkiOjYwfSwidXNlclByZXNldHMiOlt7ImlkIjoidXNlcl8wMDAxIiwibmFtZSI6IkNhcnJ5IGxvb2siLCJtb2RlIjoiYWxsIiwiaGVyb2VzIjpbXSwidmFsdWVzIjp7IndpZHRoU2NhbGUiOjIwMCwiaGVpZ2h0U2NhbGUiOjgwLCJwb3NpdGlvblgiOjEyMCwicG9zaXRpb25ZIjotMjMwLCJlbmVteUxvdyI6IiMxMjM0NTYiLCJyZWFkb3V0T2Zmc2V0WCI6MTAwLCJyZWFkb3V0T2Zmc2V0WSI6LTgwLCJyZWFkb3V0U2l6ZSI6MTg1LCJwaXBzVmlzaWJsZSI6ZmFsc2UsIm5hbWVPZmZzZXRYIjoxOSwibmFtZU9mZnNldFkiOi0yMiwiYWxseVJlYWRvdXRPZmZzZXRYIjo4OCwiYWxseVJlYWRvdXRPZmZzZXRZIjo2MH0sImNvbmRpdGlvbnMiOm51bGx9XSwiY29uZGl0aW9ucyI6e319fQ",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 50,
+        "hpTextOffsetY": -100,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 44,
+        "hpTextOffsetY": 75,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 50,
+          "hpTextOffsetY": -100,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 44,
+          "hpTextOffsetY": 75,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "save-schema-4",
+    "kind": "save",
+    "input": "HPV2S1.c582457a.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJvZmZzZXRWZXJzaW9uIjozLCJ2YWx1ZXMiOnsid2lkdGhTY2FsZSI6MjAwLCJoZWlnaHRTY2FsZSI6ODAsInBvc2l0aW9uWCI6MTIwLCJwb3NpdGlvblkiOi0yMzAsImVuZW15TG93IjoiIzEyMzQ1NiIsInJlYWRvdXRPZmZzZXRYIjoxMDAsInJlYWRvdXRPZmZzZXRZIjotODAsInJlYWRvdXRTaXplIjoxODUsInBpcHNWaXNpYmxlIjpmYWxzZSwibmFtZU9mZnNldFgiOjE5LCJuYW1lT2Zmc2V0WSI6LTIyLCJhbGx5UmVhZG91dE9mZnNldFgiOjg4LCJhbGx5UmVhZG91dE9mZnNldFkiOjYwfSwidXNlclByZXNldHMiOlt7ImlkIjoidXNlcl8wMDAxIiwibmFtZSI6IkNhcnJ5IGxvb2siLCJtb2RlIjoiYWxsIiwiaGVyb2VzIjpbXSwidmFsdWVzIjp7IndpZHRoU2NhbGUiOjIwMCwiaGVpZ2h0U2NhbGUiOjgwLCJwb3NpdGlvblgiOjEyMCwicG9zaXRpb25ZIjotMjMwLCJlbmVteUxvdyI6IiMxMjM0NTYiLCJyZWFkb3V0T2Zmc2V0WCI6MTAwLCJyZWFkb3V0T2Zmc2V0WSI6LTgwLCJyZWFkb3V0U2l6ZSI6MTg1LCJwaXBzVmlzaWJsZSI6ZmFsc2UsIm5hbWVPZmZzZXRYIjoxOSwibmFtZU9mZnNldFkiOi0yMiwiYWxseVJlYWRvdXRPZmZzZXRYIjo4OCwiYWxseVJlYWRvdXRPZmZzZXRZIjo2MH0sImNvbmRpdGlvbnMiOm51bGx9XSwiY29uZGl0aW9ucyI6e319fQ",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 100,
+        "hpTextOffsetY": -80,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 88,
+        "hpTextOffsetY": 60,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 100,
+          "hpTextOffsetY": -80,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 88,
+          "hpTextOffsetY": 60,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "save-schema-5",
+    "kind": "save",
+    "input": "HPV2S1.3730e66a.eyJtIjoiSFBWMlNUT1JFIiwicyI6NSwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJvZmZzZXRWZXJzaW9uIjozLCJ2YWx1ZXMiOnsid2lkdGhTY2FsZSI6MjAwLCJoZWlnaHRTY2FsZSI6ODAsInBvc2l0aW9uWCI6MTIwLCJwb3NpdGlvblkiOi0yMzAsImVuZW15TG93IjoiIzEyMzQ1NiIsInJlYWRvdXRPZmZzZXRYIjoxMDAsInJlYWRvdXRPZmZzZXRZIjotODAsInJlYWRvdXRTaXplIjoxODUsInBpcHNWaXNpYmxlIjpmYWxzZSwibmFtZU9mZnNldFgiOjE5LCJuYW1lT2Zmc2V0WSI6LTIyLCJhbGx5UmVhZG91dE9mZnNldFgiOjg4LCJhbGx5UmVhZG91dE9mZnNldFkiOjYwfSwidXNlclByZXNldHMiOlt7ImlkIjoidXNlcl8wMDAxIiwibmFtZSI6IkNhcnJ5IGxvb2siLCJtb2RlIjoiYWxsIiwiaGVyb2VzIjpbXSwidmFsdWVzIjp7IndpZHRoU2NhbGUiOjIwMCwiaGVpZ2h0U2NhbGUiOjgwLCJwb3NpdGlvblgiOjEyMCwicG9zaXRpb25ZIjotMjMwLCJlbmVteUxvdyI6IiMxMjM0NTYiLCJyZWFkb3V0T2Zmc2V0WCI6MTAwLCJyZWFkb3V0T2Zmc2V0WSI6LTgwLCJyZWFkb3V0U2l6ZSI6MTg1LCJwaXBzVmlzaWJsZSI6ZmFsc2UsIm5hbWVPZmZzZXRYIjoxOSwibmFtZU9mZnNldFkiOi0yMiwiYWxseVJlYWRvdXRPZmZzZXRYIjo4OCwiYWxseVJlYWRvdXRPZmZzZXRZIjo2MH0sImNvbmRpdGlvbnMiOm51bGx9XSwiY29uZGl0aW9ucyI6e319fQ",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 100,
+        "hpTextOffsetY": -80,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 88,
+        "hpTextOffsetY": 60,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 100,
+          "hpTextOffsetY": -80,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 88,
+          "hpTextOffsetY": 60,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "HPCR2-bare",
+    "kind": "settings",
+    "input": "HPCR2[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]]",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 50,
+        "hpTextOffsetY": -100,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 0,
+        "nameOffsetY": 0
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 0,
+        "hpTextOffsetY": 0,
+        "nameOffsetX": 0,
+        "nameOffsetY": 0
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "HPCRP1-bare",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Carry look\",\"mode\":\"all\",\"heroes\":[],\"values\":[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]],\"conditions\":null}],\"selectedPresetId\":\"user_0001\"}",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 50,
+        "hpTextOffsetY": -100,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 0,
+        "nameOffsetY": 0
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 0,
+        "hpTextOffsetY": 0,
+        "nameOffsetX": 0,
+        "nameOffsetY": 0
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 50,
+          "hpTextOffsetY": -100,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 0,
+          "nameOffsetY": 0
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 0,
+          "hpTextOffsetY": 0,
+          "nameOffsetX": 0,
+          "nameOffsetY": 0
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "HPCR2-hpv2-1",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]],\"c\":{},\"hpv2\":{\"v\":1,\"values\":[[33,88],[34,60],[54,19],[55,-22]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 50,
+        "hpTextOffsetY": -100,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 44,
+        "hpTextOffsetY": 75,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "HPCRP1-hpv2-1",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Carry look\",\"mode\":\"all\",\"heroes\":[],\"values\":[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[33,88],[34,60],[54,19],[55,-22]],\"conditions\":{}}}],\"selectedPresetId\":\"user_0001\"}",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 50,
+        "hpTextOffsetY": -100,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 44,
+        "hpTextOffsetY": 75,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 50,
+          "hpTextOffsetY": -100,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 44,
+          "hpTextOffsetY": 75,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "HPCR2-hpv2-2",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]],\"c\":{},\"hpv2\":{\"v\":2,\"values\":[[33,88],[34,60],[54,19],[55,-22]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 100,
+        "hpTextOffsetY": -80,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 88,
+        "hpTextOffsetY": 60,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "HPCRP1-hpv2-2",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Carry look\",\"mode\":\"all\",\"heroes\":[],\"values\":[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[33,88],[34,60],[54,19],[55,-22]],\"conditions\":{}}}],\"selectedPresetId\":\"user_0001\"}",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 100,
+        "hpTextOffsetY": -80,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 88,
+        "hpTextOffsetY": 60,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 100,
+          "hpTextOffsetY": -80,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 88,
+          "hpTextOffsetY": 60,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  },
+  {
+    "name": "HPCR2-hpv2-3",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]],\"c\":{},\"hpv2\":{\"v\":3,\"values\":[[33,88],[34,60],[54,19],[55,-22]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 100,
+        "hpTextOffsetY": -80,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 88,
+        "hpTextOffsetY": 60,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    }
+  },
+  {
+    "name": "HPCRP1-hpv2-3",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Carry look\",\"mode\":\"all\",\"heroes\":[],\"values\":[[1,200],[2,80],[3,120],[4,-230],[8,\"#123456\"],[30,185],[32,100],[33,-80],[39,false]],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[[33,88],[34,60],[54,19],[55,-22]],\"conditions\":{}}}],\"selectedPresetId\":\"user_0001\"}",
+    "expected": {
+      "enemy": {
+        "barColorLow": "#123456",
+        "barWidth": 158,
+        "barHeight": 14.4,
+        "barOffsetX": 12,
+        "barOffsetY": -23,
+        "hpTextOffsetX": 100,
+        "hpTextOffsetY": -80,
+        "hpTextSize": 18.5,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "ally": {
+        "barWidth": 158,
+        "barOffsetX": 12,
+        "hpTextOffsetX": 88,
+        "hpTextOffsetY": 60,
+        "nameOffsetX": 19,
+        "nameOffsetY": -22
+      },
+      "shared": {}
+    },
+    "nameExpected": "Carry look",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "barColorLow": "#123456",
+          "barWidth": 158,
+          "barHeight": 14.4,
+          "barOffsetX": 12,
+          "barOffsetY": -23,
+          "hpTextOffsetX": 100,
+          "hpTextOffsetY": -80,
+          "hpTextSize": 18.5,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "ally": {
+          "barWidth": 158,
+          "barOffsetX": 12,
+          "hpTextOffsetX": 88,
+          "hpTextOffsetY": 60,
+          "nameOffsetX": 19,
+          "nameOffsetY": -22
+        },
+        "shared": {}
+      }
+    ]
+  }
+]

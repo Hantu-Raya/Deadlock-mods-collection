@@ -1,0 +1,220 @@
+[
+  {
+    "name": "shake-tilt-save-schema-1",
+    "kind": "save",
+    "input": "HPV2S1.fd1e854e.eyJtIjoiSFBWMlNUT1JFIiwicyI6MSwidCI6MSwiYiI6IntcInZlcnNpb25cIjoxLFwidmFsdWVzXCI6e1wicGlwc1Zpc2libGVcIjpmYWxzZSxcImRhbWFnZVNoYWtlRW5hYmxlZFwiOmZhbHNlLFwiZGFtYWdlU2hha2VJbnRlbnNpdHlcIjo3LFwibmFtZVRpbHRcIjotMjUsXCJyZWFkb3V0VGlsdFwiOjQwLFwiYWxseVJlYWRvdXRUaWx0XCI6LTU1fX0ifQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": 40
+      },
+      "ally": {
+        "hpTextTilt": -55
+      },
+      "shared": {
+        "damageShakeEnabled": false,
+        "damageShakeStrength": 7,
+        "nameTilt": -25
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-save-schema-2",
+    "kind": "save",
+    "input": "HPV2S1.fce41f9d.eyJtIjoiSFBWMlNUT1JFIiwicyI6MiwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJkYW1hZ2VTaGFrZUVuYWJsZWQiOnRydWUsImRhbWFnZVNoYWtlSW50ZW5zaXR5Ijo5LCJuYW1lVGlsdCI6MzMsInJlYWRvdXRUaWx0IjotMTIsImFsbHlSZWFkb3V0VGlsdCI6MjcwfX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": -12
+      },
+      "ally": {
+        "hpTextTilt": 270
+      },
+      "shared": {
+        "damageShakeEnabled": true,
+        "damageShakeStrength": 9,
+        "nameTilt": 33
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-save-schema-3",
+    "kind": "save",
+    "input": "HPV2S1.df9fb8d0.eyJtIjoiSFBWMlNUT1JFIiwicyI6MywidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJkYW1hZ2VTaGFrZUVuYWJsZWQiOmZhbHNlLCJkYW1hZ2VTaGFrZUludGVuc2l0eSI6NywibmFtZVRpbHQiOi0yNSwicmVhZG91dFRpbHQiOjQwLCJhbGx5UmVhZG91dFRpbHQiOi01NX19fQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": 40
+      },
+      "ally": {
+        "hpTextTilt": -55
+      },
+      "shared": {
+        "damageShakeEnabled": false,
+        "damageShakeStrength": 7,
+        "nameTilt": -25
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-save-schema-4",
+    "kind": "save",
+    "input": "HPV2S1.9a4021f8.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJkYW1hZ2VTaGFrZUVuYWJsZWQiOnRydWUsImRhbWFnZVNoYWtlSW50ZW5zaXR5Ijo5LCJuYW1lVGlsdCI6MzMsInJlYWRvdXRUaWx0IjotMTIsImFsbHlSZWFkb3V0VGlsdCI6MjcwfX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": -12
+      },
+      "ally": {
+        "hpTextTilt": 270
+      },
+      "shared": {
+        "damageShakeEnabled": true,
+        "damageShakeStrength": 9,
+        "nameTilt": 33
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-save-schema-5",
+    "kind": "save",
+    "input": "HPV2S1.f66ac675.eyJtIjoiSFBWMlNUT1JFIiwicyI6NSwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJkYW1hZ2VTaGFrZUVuYWJsZWQiOmZhbHNlLCJkYW1hZ2VTaGFrZUludGVuc2l0eSI6NywibmFtZVRpbHQiOi0yNSwicmVhZG91dFRpbHQiOjQwLCJhbGx5UmVhZG91dFRpbHQiOi01NX19fQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": 40
+      },
+      "ally": {
+        "hpTextTilt": -55
+      },
+      "shared": {
+        "damageShakeEnabled": false,
+        "damageShakeStrength": 7,
+        "nameTilt": -25
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-HPCR2-hpv2-1",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":1,\"values\":[[76,true],[77,9],[78,33],[79,-12],[80,270]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": -12
+      },
+      "ally": {
+        "hpTextTilt": 270
+      },
+      "shared": {
+        "damageShakeEnabled": true,
+        "damageShakeStrength": 9,
+        "nameTilt": 33
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-HPCRP1-hpv2-1",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Shake and tilt\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[76,true],[77,9],[78,33],[79,-12],[80,270]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "hpTextTilt": -12
+        },
+        "ally": {
+          "hpTextTilt": 270
+        },
+        "shared": {
+          "damageShakeEnabled": true,
+          "damageShakeStrength": 9,
+          "nameTilt": 33
+        }
+      }
+    ],
+    "nameExpected": "Shake and tilt"
+  },
+  {
+    "name": "shake-tilt-HPCR2-hpv2-2",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":2,\"values\":[[76,false],[77,7],[78,-25],[79,40],[80,-55]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": 40
+      },
+      "ally": {
+        "hpTextTilt": -55
+      },
+      "shared": {
+        "damageShakeEnabled": false,
+        "damageShakeStrength": 7,
+        "nameTilt": -25
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-HPCRP1-hpv2-2",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Shake and tilt\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[76,false],[77,7],[78,-25],[79,40],[80,-55]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "hpTextTilt": 40
+        },
+        "ally": {
+          "hpTextTilt": -55
+        },
+        "shared": {
+          "damageShakeEnabled": false,
+          "damageShakeStrength": 7,
+          "nameTilt": -25
+        }
+      }
+    ],
+    "nameExpected": "Shake and tilt"
+  },
+  {
+    "name": "shake-tilt-HPCR2-hpv2-3",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false]],\"c\":{},\"hpv2\":{\"v\":3,\"values\":[[76,true],[77,9],[78,33],[79,-12],[80,270]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "hpTextTilt": -12
+      },
+      "ally": {
+        "hpTextTilt": 270
+      },
+      "shared": {
+        "damageShakeEnabled": true,
+        "damageShakeStrength": 9,
+        "nameTilt": 33
+      }
+    }
+  },
+  {
+    "name": "shake-tilt-HPCRP1-hpv2-3",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Shake and tilt\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false]],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[[76,true],[77,9],[78,33],[79,-12],[80,270]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "hpTextTilt": -12
+        },
+        "ally": {
+          "hpTextTilt": 270
+        },
+        "shared": {
+          "damageShakeEnabled": true,
+          "damageShakeStrength": 9,
+          "nameTilt": 33
+        }
+      }
+    ],
+    "nameExpected": "Shake and tilt"
+  }
+]

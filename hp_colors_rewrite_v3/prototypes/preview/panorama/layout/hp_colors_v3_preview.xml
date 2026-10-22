@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PROTOTYPE (ticket 10): preview pane fragment. Replaces the generated menu's HPColorsPreview placeholder.
+     Chrome ids match prototypes/menu-gen; the fake bar tree mirrors the stock unit-status lineage with
+     HPColorsPreview* ids only, so no stock or world lookup can resolve into it (see FAILURE-MODES.md). -->
+<root>
+  <styles>
+    <include src="s2r://panorama/styles/hp_colors_v3_preview.vcss_c" />
+  </styles>
+  <scripts>
+    <include src="s2r://panorama/scripts/hp_colors_v3_renderer_prototype.vjs_c" />
+    <include src="s2r://panorama/scripts/hp_colors_v3_preview.vjs_c" />
+  </scripts>
+  <Panel class="HPC3PreviewLayout" hittest="false">
+    <Panel id="HPColorsPreview" class="HPC3Preview HPC3PreviewKindHero HPC3PreviewSideEnemy">
+      <Label class="HPC3Kicker HPC3Dim" text="PREVIEW" />
+      <Label id="HPColorsPreviewTitle" class="HPC3PreviewTitle" text="HERO · ENEMY" />
+      <Panel id="HPColorsPreviewSideSegment" class="HPC3Segment HPC3SegmentWide">
+        <Button id="HPColorsPreviewSideOptionEnemy" class="HPC3SegmentButton Selected"><Label text="ENEMY" /></Button>
+        <Button id="HPColorsPreviewSideOptionAlly" class="HPC3SegmentButton"><Label text="ALLY" /></Button>
+      </Panel>
+      <Panel id="HPColorsPreviewKindSegment" class="HPC3Segment HPC3SegmentWide HPC3PreviewKindSegment">
+        <Button id="HPColorsPreviewKindOptionNpc" class="HPC3SegmentButton Selected"><Label text="NPC" /></Button>
+        <Button id="HPColorsPreviewKindOptionObjective" class="HPC3SegmentButton"><Label text="OBJECTIVE" /></Button>
+      </Panel>
+      <Panel id="HPColorsPreviewStage" class="HPC3PreviewStage">
+        <Panel id="HPColorsPreviewSlot" class="HPC3PreviewSlot" hittest="false" hittestchildren="false">
+          <Panel id="HPColorsPreviewUnit" class="HPC3PreviewUnit" hittest="false">
+            <Label id="HPColorsPreviewName" class="HPC3PreviewName" text="THE WARDEN" />
+            <Panel id="HPColorsPreviewUnitStatus" class="HPC3PreviewUnitStatus" hittest="false">
+              <Panel id="HPColorsPreviewInfo" class="HPC3PreviewInfo">
+                <Panel id="HPColorsPreviewBars" class="HPC3PreviewBars UnitHealthbarsContainer">
+                  <Panel id="HPColorsPreviewBar" class="HPC3PreviewBar UnitHealthbar UnitHealthbarContainer">
+                    <Panel id="HPColorsPreviewBarInner" class="HPC3PreviewBarInner UnitHealthbarInner">
+                      <Panel id="HPColorsPreviewBarFill" class="HPC3PreviewBarFill" />
+                    </Panel>
+                  </Panel>
+                </Panel>
+                <Label id="HPColorsPreviewHpText" class="HPC3PreviewHpText" text="750" />
+              </Panel>
+            </Panel>
+          </Panel>
+        </Panel>
+      </Panel>
+      <Panel class="HPC3PreviewHealthHead">
+        <Label class="HPC3Kicker HPC3Dim HPC3Grow" text="HEALTH" />
+        <Label id="HPColorsPreviewHealthValue" class="HPC3PreviewHealthValue" text="75%" />
+      </Panel>
+      <Slider id="HPColorsPreviewHealthSlider" class="HPC3Slider HPC3PreviewHealthSlider HorizontalSlider" direction="horizontal" />
+      <Button id="HPColorsPreviewPlay" class="HPC3PlayButton"><Label id="HPColorsPreviewPlayLabel" text="PLAY DAMAGE / HEAL" /></Button>
+      <Label id="HPColorsPreviewStatus" class="HPC3PreviewStatus" text="Ready" />
+      <Label id="HPColorsPreviewNote" class="HPC3PreviewNote" text="Sample bar drawn by the HP Colors renderer, shown at menu scale." />
+    </Panel>
+  </Panel>
+</root>

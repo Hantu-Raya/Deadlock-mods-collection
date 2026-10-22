@@ -1,0 +1,835 @@
+/* Ticket 27: stock Settings shell, cards, controls, preview plate and popup chrome.
+   Owned reveals animate opacity only; native controls inherit stock interaction styles. */
+
+.HPC3Root { width: 100%; height: 100%; visibility: collapse; z-index: 20; }
+.HPC3Root.HPC3Open { visibility: visible; }
+/* Stock PopupSettings .PopupBackground: opaque environment backdrop, so the stock ESC menu and friends list never show through. */
+.HPC3Backdrop { width: 100%; height: 100%; background-color: #0b0d10; background-image: url("s2r://panorama/images/buttons/temp_background_environment_png.vtex"); background-size: cover; }
+
+.HPC3Shell {
+  width: 100%; height: 100%; flow-children: down;
+}
+
+/* Permanent search and page tools. Search yields width on narrow aspect ratios. */
+.HPC3NavTop { width: 100%; height: 40px; flow-children: right; margin-bottom: 16px; }
+.HPC3SearchBox { width: fill-parent-flow(1); max-width: 198px; height: 40px; border-radius: 6px; background-color: #FFEFD708; border: 2px solid #FFEFD70F; }
+.HPC3SearchBox:hover { border: 2px solid #FFEFD71C; }
+.HPC3SearchFieldIcon { width: 24px; height: 24px; margin-left: 8px; vertical-align: center; opacity: 0.5; }
+.HPC3SearchField {
+  /* Live 6779: TextEntry draws its text at the top of its box, so size the box to the text and centre the box. */
+  width: 100%; height: fit-children; padding: 0px 8px 0px 36px; vertical-align: center;
+  background-color: #00000000; border: 0px solid #00000000; font-size: 18px; color: #FFEFD7;
+}
+.HPC3SearchField:focus { background-color: #FFEFD708; }
+.HPC3NavSquare { width: 40px; height: 40px; margin-left: 14px; border-radius: 6px; border: 2px solid #FFEFD70F; background-color: #FFEFD708; }
+.HPC3NavSquareIcon { width: 20px; height: 20px; horizontal-align: center; vertical-align: center; wash-color: #FFEFD7; opacity: 0.5; }
+.HPC3NavSquare:hover, .HPC3NavSquare:focus { border: 2px solid #FFEFD71C; }
+.HPC3NavSquare:hover .HPC3NavSquareIcon, .HPC3NavSquare:focus .HPC3NavSquareIcon { opacity: 1; }
+
+.HPC3Footer { width: 100%; height: 64px; flow-children: right; padding: 0px 32px; }
+.HPC3FooterButton { height: 40px; margin-right: 24px; vertical-align: center; opacity: 0.2; }
+.HPC3FooterButton Label, .HPC3SaveStatus { font-family: block; font-size: 20px; text-transform: uppercase; color: #FFEFD7; vertical-align: center; }
+.HPC3FooterButton:hover, .HPC3FooterButton:focus { brightness: 2; }
+.HPC3SaveStatus { width: fill-parent-flow(1); text-overflow: shrink; white-space: nowrap; opacity: 0.2; }
+.HPC3SaveStatus.ToneOk { color: #5FE69E; }
+.HPC3SaveStatus.ToneBusy { color: #e7c77d; }
+.HPC3SaveStatus.ToneError { color: #ff7a7a; }
+.HPC3ResetSave, .HPC3ResetSaveConfirm { visibility: collapse; }
+.HPC3ResetSave Label, .HPC3ResetSaveConfirm Label { color: #ff7a7a; }
+.HPC3Root.SaveResetAvailable .HPC3ResetSave { visibility: visible; }
+.HPC3Root.SaveResetConfirming .HPC3ResetSave { visibility: collapse; }
+.HPC3Root.SaveResetAvailable.SaveResetConfirming .HPC3ResetSaveConfirm { visibility: visible; }
+
+/* Body: percentage rail | flexible content | percentage preview. */
+.HPC3Body { width: 100%; height: fill-parent-flow(1); flow-children: right; }
+.HPC3Rail { width: 18%; min-width: 240px; max-width: 420px; height: 100%; padding: 100px 12px 0px 12px; flow-children: down; }
+.HPC3NavList { width: 100%; height: fill-parent-flow(1); margin-bottom: 96px; flow-children: down; overflow: squish scroll; }
+.HPC3NavButton { width: 100%; height: 44px; flow-children: right; overflow: noclip; }
+.HPC3NavBrush {
+  ignore-parent-flow: true; width: 100%; height: 100%; background-image: url("s2r://panorama/images/textures/paper_tile_1k_psd.vtex");
+  wash-color: #5FE69E; brightness: 4; transform: rotateX(-20deg) rotateY(20deg);
+  opacity-mask: url("s2r://panorama/images/buttons/button_nav_mask_threshold_psd.vtex"); opacity-mask-threshold: 2% 1%;
+  opacity: 0; transition-property: opacity; transition-duration: 0.2s;
+}
+.HPC3NavButton:hover .HPC3NavBrush, .HPC3NavButton:focus .HPC3NavBrush { opacity: 0.2; }
+.HPC3NavButton.Selected .HPC3NavBrush { opacity: 1; }
+.HPC3NavDot { ignore-parent-flow: true; width: 6px; height: 6px; margin-left: 10px; vertical-align: center; border-radius: 4px; background-color: #F1C7FF; visibility: collapse; }
+.HPC3NavButton.HasCond .HPC3NavDot { visibility: visible; }
+.HPC3NavLabel { margin-left: 24px; padding-right: 16px; vertical-align: center; font-family: oracle; font-size: 24px; font-weight: semi-bold; text-transform: uppercase; color: #FFEFD788; white-space: nowrap; }
+.HPC3NavButton:hover .HPC3NavLabel, .HPC3NavButton:focus .HPC3NavLabel { color: #FFEFD7; }
+.HPC3NavButton.Selected .HPC3NavLabel { color: #10130D; }
+.HPC3SubNav { width: 100%; flow-children: down; visibility: collapse; }
+.HPC3SubNav.Selected { visibility: visible; }
+.HPC3SubNavButton { width: 100%; height: 32px; flow-children: right; overflow: noclip; }
+.HPC3SubBrush {
+  ignore-parent-flow: true; width: 100%; height: 100%; background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_png.vtex");
+  transform: rotateX(-15deg) rotateY(22deg); opacity-mask: url("s2r://panorama/images/buttons/button_nav_mask_threshold_psd.vtex");
+  opacity-mask-threshold: 2% 1%; opacity: 0; transition-property: opacity; transition-duration: 0.2s;
+}
+.HPC3SubNavButton:hover .HPC3SubBrush, .HPC3SubNavButton:focus .HPC3SubBrush, .HPC3SubNavButton.Selected .HPC3SubBrush { opacity: 0.25; }
+.HPC3SubNavButton.Selected:hover .HPC3SubBrush, .HPC3SubNavButton.Selected:focus .HPC3SubBrush { opacity: 0.35; }
+.HPC3SubNavLabel { max-width: 80%; margin-left: 36px; margin-right: 10px; vertical-align: center; font-size: 18px; font-weight: semi-bold; color: #FFEFD788; white-space: nowrap; text-overflow: shrink; }
+.HPC3SubNavButton:hover .HPC3SubNavLabel, .HPC3SubNavButton:focus .HPC3SubNavLabel, .HPC3SubNavButton.Selected .HPC3SubNavLabel { color: #FFEFD7; }
+/* Stock pak01 star, independent of the purple authored-condition dot. */
+.HPC3ChangedStar { width: 16px; height: 16px; vertical-align: center; wash-color: #5FE69E; img-shadow: 0px 0px 8px 2 #5FE69E99; overflow: noclip; visibility: collapse; }
+.HPC3NavButton.Changed .HPC3ChangedStar, .HPC3SubNavButton.Changed .HPC3ChangedStar { visibility: visible; }
+/* SHOW BOUNDS sits at the foot of the rail, as in v2 (.HPColorsBoundsTool). */
+.HPC3BoundsTool { width: 100%; height: fit-children; vertical-align: bottom; ignore-parent-flow: true; flow-children: down; }
+.HPC3BoundsRow { width: 100%; height: 32px; flow-children: right; overflow: noclip; }
+.HPC3BoundsHelp { width: 100%; margin-top: 4px; padding: 0px 14px; font-family: sans; font-size: 16px; color: #FFEFD788; white-space: normal; }
+.HPC3BoundsLabel { margin: 0px 12px 0px 14px; vertical-align: center; font-family: oracle; font-size: 16px; color: #FFEFD799; letter-spacing: 1px; }
+
+.HPC3Content { width: fill-parent-flow(1); height: 100%; padding: 36px 12px 0px 12px; flow-children: down; }
+.HPC3PageHead { width: 100%; flow-children: down; margin-bottom: 16px; }
+.HPC3PageTitle { font-family: oracle; font-size: 48px; font-weight: bold; color: gradient(linear, 0% 0%, 0% 100%, from(#5FE69E), to(#A6FFB5)); letter-spacing: 1.5px; text-shadow: 0px 0px 12px 0 #5FE69E33; }
+.HPC3PageDescription { width: 100%; font-family: sans; font-size: 18px; color: #FFEFD799; white-space: normal; }
+.HPC3Root.Searching .HPC3PageHead { visibility: collapse; }
+/* The bottom gap lives inside the scroll content so the last row can scroll into view (v2 lesson). */
+.HPC3SettingsList { width: 100%; height: fill-parent-flow(1); overflow: squish scroll; flow-children: down; padding-right: 14px; } /* keep cards clear of the scrollbar */
+.HPC3Page { width: 100%; padding-bottom: 24px; flow-children: down; visibility: collapse; }
+.HPC3Page.Active { visibility: visible; }
+.HPC3PageSearchTitle { margin-bottom: 10px; font-family: block; font-size: 22px; font-weight: bold; color: #ffefd7; letter-spacing: 1px; visibility: collapse; }
+.HPC3Placeholder { width: 100%; padding: 18px 16px; font-family: sans; font-size: 15px; color: #ffefd799; background-color: #ffefd705; border-left: 2px solid #ffefd714; }
+
+.HPC3Card { width: 100%; flow-children: down; padding-bottom: 8px; }
+.HPC3CardBg {
+  ignore-parent-flow: true; width: 100%; height: 100%; margin: 0px 4px;
+  background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_psd.vtex"); background-repeat: repeat; background-size: 1024px;
+  opacity-mask: url("s2r://panorama/images/masks/rough_edge_02_png.vtex"); opacity: 0; transition-property: opacity; transition-duration: 0.2s;
+}
+.HPC3Card:hover .HPC3CardBg, .HPC3Card.Active .HPC3CardBg { opacity: 1; }
+.HPC3CardHead { width: 100%; flow-children: right; margin-top: 12px; padding: 24px 16px 8px 32px; }
+.HPC3CardTitle { font-size: 24px; font-weight: bold; letter-spacing: 0.5px; color: #FFEFD7CC; vertical-align: center; }
+.HPC3GroupReset { width: 32px; height: 32px; margin-left: 12px; vertical-align: center; border-radius: 50%; background-color: #FFEFD744; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
+.HPC3GroupReset Image { width: 20px; height: 20px; horizontal-align: center; vertical-align: center; wash-color: #10130D; }
+.HPC3Card:hover .HPC3GroupReset, .HPC3GroupReset:focus { opacity: 1; }
+
+/* One selected side per card; search exposes and labels both sides. */
+.HPC3SideTabs { flow-children: right; vertical-align: center; }
+.HPC3SidePill { margin: 0px 0px 0px 8px; vertical-align: center; }
+.HPC3SideColumns { width: 100%; flow-children: down; }
+.HPC3Column { width: 100%; flow-children: down; }
+.HPC3Ally { visibility: collapse; }
+.HPC3Root.HPC3SideAlly .HPC3Enemy { visibility: collapse; }
+.HPC3Root.HPC3SideAlly .HPC3Ally { visibility: visible; }
+.HPC3Root .HPC3SingleSide .HPC3Column { visibility: visible; }
+.HPC3Root.Searching .HPC3SideColumns .HPC3Column { visibility: visible; }
+.HPC3Root.Searching .HPC3Column.SearchMiss { visibility: collapse; }
+.HPC3Root.Searching .HPC3SideTabs { visibility: collapse; }
+.HPC3Shared { width: 100%; }
+.HPC3ColumnHeading { width: 100%; flow-children: right; padding: 8px 32px; visibility: collapse; }
+.HPC3Root.Searching .HPC3ColumnHeading { visibility: visible; }
+.HPC3ColumnTitle { font-family: oracle; font-size: 16px; font-weight: semi-bold; color: #FFEFD788; letter-spacing: 1px; }
+.HPC3ColumnCount { margin-left: 10px; vertical-align: center; font-family: oracle; font-size: 16px; color: #FFEFD788; }
+
+/* Folds: Button header + body collapsed unless .Open (Panorama has no <details>) */
+.HPC3Fold { width: 100%; flow-children: down; margin-bottom: 6px; }
+.HPC3FoldToggle { width: 100%; height: 32px; padding-left: 32px; margin-bottom: 4px; flow-children: right; }
+.HPC3FoldChevron {
+  width: 7px; height: 7px; margin-right: 10px; vertical-align: center;
+  border-right: 2px solid #ffefd799; border-bottom: 2px solid #ffefd799; transform: rotateZ(-45deg);
+}
+.HPC3FoldLabel { vertical-align: center; font-family: block; font-size: 18px; font-weight: semi-bold; color: #FFEFD788; letter-spacing: 1px; }
+.HPC3FoldToggle:hover .HPC3FoldLabel, .HPC3FoldToggle:focus .HPC3FoldLabel { color: #ffefd7; }
+.HPC3Fold.Open .HPC3FoldChevron { transform: rotateZ(45deg); }
+.HPC3Fold.Open .HPC3FoldLabel { color: #FFEFD7CC; }
+.HPC3FoldBody { width: 100%; flow-children: down; visibility: collapse; }
+.HPC3Fold.Open .HPC3FoldBody { visibility: visible; }
+
+/* Search: every page shows, folds are bypassed, non-matching rows and empty containers collapse */
+.HPC3Root.Searching .HPC3Page { visibility: visible; }
+.HPC3Root.Searching .HPC3PageSearchTitle { visibility: visible; }
+.HPC3Root.Searching .HPC3FoldToggle { visibility: collapse; }
+.HPC3Root.Searching .HPC3FoldBody { visibility: visible; }
+.HPC3Root.Searching .HPC3Placeholder, .HPC3Root.Searching .HPC3Share, .HPC3Root.Searching .HPC3ColumnEmpty { visibility: collapse; }
+.HPC3Root.Searching .SearchMiss { visibility: collapse; }
+.HPC3SearchEmpty { margin-top: 12px; font-family: sans; font-size: 18px; color: #FFEFD799; visibility: collapse; }
+.HPC3Root.Searching.NoResults .HPC3SearchEmpty { visibility: visible; }
+
+/* Stock SettingsRow paper wipe: static mask, opacity-only reveal. */
+.HPC3Row { width: 100%; min-height: 52px; padding: 10px 32px; flow-children: right; overflow: noclip; }
+.HPC3RowBg {
+  ignore-parent-flow: true; width: 100%; height: 100%; margin: -10px -32px;
+  background-color: #675E4C; background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_png.vtex");
+  background-position: 256px 512px; background-size: cover;
+  opacity-mask: url("s2r://panorama/images/masks/wipe_horizontal_1024x64_psd.vtex"); opacity-mask-threshold: 2% 1%;
+  brightness: 1.75; saturation: 1.5; opacity: 0; transition-property: opacity; transition-duration: 0.2s;
+}
+.HPC3Row:hover .HPC3RowBg { opacity: 1; }
+.HPC3RowRule { ignore-parent-flow: true; width: 100%; height: 1px; margin-top: -10px; background-color: #00000080; }
+.HPC3RowTitle { width: 280px; padding-right: 18px; vertical-align: center; font-size: 18px; font-weight: semi-bold; color: #FFEFD744; }
+.HPC3Row:hover .HPC3RowTitle { color: #FFEFD7; }
+/* Cap the whole control/action line, not a fill-sized child: Panorama can reserve the
+   child's uncapped flow share and strand the following reset/condition at the far edge. */
+.HPC3RowControls { width: fill-parent-flow(1); vertical-align: center; flow-children: right; overflow: noclip; }
+.HPC3ControlsNumber { max-width: 492px; }
+.HPC3ControlsColor { max-width: 452px; }
+.HPC3ControlsEnum { max-width: 454px; }
+.HPC3ControlsDropdown { max-width: 374px; }
+.HPC3RowReset { width: 20px; height: 20px; margin-left: 4px; vertical-align: center; border-radius: 50%; background-color: #FFEFD744; visibility: collapse; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
+.HPC3RowReset Image { width: 13px; height: 13px; horizontal-align: center; vertical-align: center; wash-color: #10130D; }
+.HPC3Row.Changed .HPC3RowReset { visibility: visible; }
+.HPC3Row.Changed:hover .HPC3RowReset, .HPC3RowReset:focus { opacity: 1; }
+/* These copy styles are still used by Presets and dialogs, never setting rows. */
+.HPC3Copy { width: fill-parent-flow(1); vertical-align: center; flow-children: down; }
+.HPC3Help { width: 100%; margin-top: 4px; font-family: sans; font-size: 16px; color: #FFEFD799; white-space: normal; }
+.HPC3Meta { margin-top: 4px; font-size: 16px; color: #FFEFD799; }
+
+/* Stock toggle assets, no moving handle or transform transition. */
+.HPC3Toggle { width: 40px; height: 20px; vertical-align: center; overflow: noclip; background-image: url("s2r://panorama/images/buttons/switch_background.vsvg"); background-size: 40px 20px; background-position: center; background-repeat: no-repeat; }
+.HPC3ToggleOff, .HPC3ToggleOn { width: 20px; height: 20px; overflow: noclip; background-size: 20px 20px; background-repeat: no-repeat; transition-property: opacity; transition-duration: 0.1s; }
+.HPC3ToggleOff { background-image: url("s2r://panorama/images/buttons/switch_handle_off.vsvg"); opacity: 1; }
+.HPC3ToggleOn { background-image: url("s2r://panorama/images/buttons/switch_handle_on.vsvg"); margin-left: 20px; opacity: 0; }
+.HPC3Toggle.Checked .HPC3ToggleOff { opacity: 0; }
+.HPC3Toggle.Checked .HPC3ToggleOn { opacity: 1; }
+.HPC3Toggle:hover, .HPC3Toggle:focus { brightness: 1.3; }
+
+/* Short enums retain segment ids/Selected state, using the stock RadioBox look. */
+.HPC3Segment { width: fill-parent-flow(1); vertical-align: center; flow-children: right; overflow: noclip; }
+.HPC3SegmentButton { width: fit-children; padding: 4px 0px; margin-right: 24px; vertical-align: center; flow-children: right; overflow: noclip; }
+.HPC3SegmentButton Label { vertical-align: center; font-size: 18px; font-weight: semi-bold; color: #FFEFD744; }
+.HPC3RadioBox { width: 20px; height: 20px; margin-right: 6px; vertical-align: center; border-radius: 50%; background-color: #00000080; border: 2px solid #FFEFD711; }
+.HPC3SegmentButton.Selected .HPC3RadioBox { border: 0px; background-color: gradient(linear, 0% 0%, 0% 100%, from(#5FE6A2), to(#A3FFB7)); background-image: url("s2r://panorama/images/icons/checkbox_check.vsvg"); background-size: 18px; background-repeat: no-repeat; background-position: center; }
+.HPC3SegmentButton.Selected Label, .HPC3SegmentButton:hover Label, .HPC3SegmentButton:focus Label { color: #FFEFD7; }
+.HPC3SegmentButton:hover .HPC3RadioBox, .HPC3SegmentButton:focus .HPC3RadioBox { brightness: 1.5; }
+.HPC3DropDown { width: fill-parent-flow(1); vertical-align: center; }
+.HPC3Select { width: 100%; background-color: #00000000; background-image: none; border: 0px; }
+
+/* Native stock number track/progress/radial thumb come from citadel_base_styles. */
+/* Native flow puts the value after its actual slider width, never at a detached right anchor. */
+.HPC3SliderGroup { width: fill-parent-flow(1); max-width: 438px; height: 34px; vertical-align: center; flow-children: right; overflow: noclip; }
+.HPC3Slider { width: 300px; max-width: 300px; height: 30px; vertical-align: center; overflow: noclip; }
+.HPC3SliderGroup .HPC3Slider { width: fill-parent-flow(1); max-width: 300px; }
+.HPC3DefaultNotch { ignore-parent-flow: true; width: 3px; height: 12px; vertical-align: center; background-color: #FFEFD722; border-radius: 10px; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
+.HPC3Row:hover .HPC3DefaultNotch { opacity: 1; }
+.HPC3Hex, .HPC3NumberEntry { height: 34px; vertical-align: center; padding: 4px; border: 2px solid #00000000; border-radius: 4px; background-color: #00000000; font-size: 18px; color: #FFEFD7CC; }
+.HPC3Hex:focus, .HPC3NumberEntry:focus { border: 2px solid #FFEFD711; background-color: #10130D66; }
+/* Live 6785: a content-sized TextEntry draws its text from its own left edge whatever its padding (and
+   ignores text-align), so row values sit in a padded box around a bare, content-sized entry. */
+.HPC3EntryBox { height: 34px; vertical-align: center; padding: 0px 8px; border: 2px solid #00000000; border-radius: 4px; background-color: #00000000; }
+.HPC3EntryBox .HPC3Hex, .HPC3EntryBox .HPC3NumberEntry { width: fit-children; max-width: 88px; height: fit-children; padding: 0px; border: 0px solid #00000000; background-color: #00000000; }
+.HPC3Row:hover .HPC3EntryBox { border: 2px solid #FFEFD711; background-color: #10130D33; background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_png.vtex"); background-size: 512px; }
+.HPC3Row:hover .HPC3Hex, .HPC3Row:hover .HPC3NumberEntry { color: #FFEFD7; }
+.HPC3EntryBox:descendantfocus { border: 2px solid #FFEFD711; background-color: #10130D66; }
+.HPC3Row.Changed .HPC3Hex, .HPC3Row.Changed .HPC3NumberEntry { color: #5FE69E; }
+/* Content-sized value; the unit follows it. */
+.HPC3NumberValue { width: fit-children; max-width: 122px; margin-left: 16px; vertical-align: center; flow-children: right; }
+.HPC3Unit { width: fit-children; margin-left: 4px; vertical-align: center; font-size: 18px; color: #FFEFD744; }
+.HPC3CodeEntry { width: 100%; height: 36px; margin-top: 8px; vertical-align: center; padding: 4px 8px; background-color: #10130D33; border: 2px solid #FFEFD711; border-radius: 4px; font-size: 16px; color: #FFEFD7CC; }
+.HPC3CodeEntry:focus { border: 2px solid #FFEFD744; }
+
+/* Stock settings_color_slider hue ramp; arbitrary picked/hex colours remain lossless. */
+.HPC3ColorGroup { width: fill-parent-flow(1); max-width: 398px; height: 34px; vertical-align: center; flow-children: right; overflow: noclip; }
+.HPC3HueSlider { width: fill-parent-flow(1); max-width: 264px; height: 30px; vertical-align: center; overflow: noclip; }
+.HPC3HueSlider.HorizontalSlider #SliderTrack { height: 8px; vertical-align: center; border-radius: 4px; background-color: gradient(linear, 0% 0%, 100% 0%, from(#000000), color-stop(0.08, #FF0000), color-stop(0.22, #FFFF00), color-stop(0.36, #00FF00), color-stop(0.50, #00FFFF), color-stop(0.64, #0000FF), color-stop(0.78, #FF00FF), color-stop(0.92, #FF0000), to(#FFFFFF)); }
+.HPC3HueSlider.HorizontalSlider #SliderTrackProgress { background-color: #00000000; box-shadow: none; }
+.HPC3HueSlider.HorizontalSlider #SliderThumb { width: 20px; height: 20px; border-radius: 100%; border: 3px solid #000000; background-color: #FFFFFF; }
+.HPC3Swatch { width: 22px; height: 22px; vertical-align: center; border-radius: 4px; border: 1px solid #FFEFD766; }
+.HPC3Swatch:hover, .HPC3Swatch:focus { border: 1px solid #FFEFD7; brightness: 1.2; }
+.HPC3ColorGroup .HPC3Swatch { margin-left: 16px; }
+.HPC3Hex { width: 88px; font-size: 16px; }
+.HPC3ColorGroup .HPC3EntryBox { margin-left: 8px; }
+.HPC3RowControls .HPC3SliderGroup, .HPC3RowControls .HPC3ColorGroup { max-width: 100%; }
+/* Presets: share codes */
+.HPC3Share { width: 100%; margin-top: 18px; flow-children: down; }
+.HPC3CodeRow { flow-children: down; }
+.HPC3CodeRow .HPC3Copy { width: 100%; }
+.HPC3CodeRow .HPC3RowTitle { width: 100%; }
+.HPC3ActionButton { margin: 8px 4px; vertical-align: center; }
+.HPC3CodeStatus { width: 100%; margin-top: 6px; font-family: sans; font-size: 16px; color: #FFEFD799; white-space: normal; }
+.HPC3CodeStatus.ToneOk { color: #5fe69e; }
+.HPC3CodeStatus.ToneError { color: #ff7a7a; }
+
+/* Hidden durable-store page (v2 shape: collapsed wrapper, near-transparent HTML panel) */
+.HPC3StoreWrap { width: 100%; height: 100%; visibility: collapse; }
+.HPC3StorePanel { width: 100%; height: 100%; opacity: 0.01; }
+
+/* Ticket 27 round 3: compact, stable-id library, one selected-preset toolbar. */
+.HPC3Library { width: 100%; flow-children: down; }
+.HPC3PresetList { width: 100%; max-height: 288px; padding: 8px 32px; flow-children: right-wrap; overflow: squish scroll; }
+.HPC3LibraryHeading { margin: 16px 32px 0px 32px; font-family: oracle; font-weight: bold; font-size: 16px; color: #FFEFD788; }
+.HPC3PresetTile { width: 168px; height: 84px; margin: 6px; border-radius: 6px; border: 2px solid #FFEFD711; overflow: noclip; }
+.HPC3PresetTileFace { width: 100%; height: 100%; padding: 8px; background-color: gradient(radial, 50% 50%, 0% 0%, 50% 50%, from(#00000000), to(#00000066)); border-radius: 4px; }
+.HPC3PresetTileName { max-width: 100%; max-height: 46px; horizontal-align: center; vertical-align: center; font-family: oracle; font-weight: bold; font-size: 18px; color: #FFEFD7; text-align: center; text-transform: uppercase; white-space: nowrap; text-overflow: shrink; }
+.HPC3PresetGear { width: 18px; height: 18px; vertical-align: top; horizontal-align: left; wash-color: #FFEFD7; }
+.HPC3PresetTile:hover, .HPC3PresetTile:focus { border-color: #FFEFD7; }
+.HPC3PresetTile.Selected .HPC3PresetTileFace { background-color: #5FE69E; }
+.HPC3PresetTile.Selected .HPC3PresetTileName { color: #10130D; }
+.HPC3PresetTile.Selected .HPC3PresetGear { wash-color: #10130D; }
+.HPC3PresetSource, .HPC3PresetDefaultMark { width: 14px; height: 14px; horizontal-align: right; vertical-align: top; margin: 4px; wash-color: #FFEFD7; visibility: collapse; }
+.HPC3PresetSource { margin-right: 22px; }
+.HPC3PresetTile.Applied .HPC3PresetSource, .HPC3PresetTile.HeroDefault .HPC3PresetDefaultMark { visibility: visible; }
+.HPC3PresetTile.Selected .HPC3PresetSource, .HPC3PresetTile.Selected .HPC3PresetDefaultMark { wash-color: #10130D; }
+.HPC3LibraryHeader, .HPC3PresetToolbar { width: 100%; padding: 0px 32px; flow-children: down; }
+.HPC3PresetActions { width: 100%; flow-children: right-wrap; margin-top: 8px; }
+.HPC3EntryActions { width: 100%; flow-children: right; }
+.HPC3EntryActions .HPC3CodeEntry { width: fill-parent-flow(1); }
+.HPC3PresetName { width: fill-parent-flow(1); height: 36px; padding: 4px 8px; font-size: 18px; color: #FFEFD7CC; background-color: #10130D33; border: 2px solid #FFEFD711; border-radius: 4px; }
+.HPC3PresetToolbar .HPC3PresetName { width: 100%; }
+.HPC3PresetName:focus { border: 2px solid #FFEFD744; }
+.HPC3PresetActions .HPC3ActionButton { padding: 6px 8px; }
+.HPC3PresetActions .HPC3Meta { vertical-align: center; margin-left: 12px; }
+.HPC3GlyphButton { width: 40px; height: 40px; margin: 4px; vertical-align: center; border-radius: 50%; }
+.HPC3Root .HPC3GlyphButton.InputButtonBorderRadius .Bottom, .HPC3Root .HPC3GlyphButton.InputButtonBorderRadius .Bottom .Background,
+.HPC3Root .HPC3GlyphButton.InputButtonBorderRadius .Top, .HPC3Root .HPC3GlyphButton.InputButtonBorderRadius .Top .Background { border-radius: 50%; }
+.HPC3GlyphButton .Content { width: fit-children; height: fit-children; padding: 0px; }
+.HPC3Glyph { width: 22px; height: 22px; horizontal-align: center; vertical-align: center; wash-color: #FFEFD7; }
+.HPC3GlyphButton:hover, .HPC3GlyphButton:focus { brightness: 1.3; }
+.HPC3GlyphButton.Checked .Top { border-color: #5FE69E; }
+.HPC3GlyphButton.Checked .Top .Background { wash-color: #5FE69E; }
+.HPC3GlyphButton.Checked .HPC3Glyph { wash-color: #10130D; }
+.HPC3GlyphButton:disabled { opacity: 0.35; brightness: 1; }
+.HPC3Root .HPC3GlyphButton.InputButtonBorderRadius:disabled .Bottom { opacity: 1; border-color: #FFEFD744; }
+.HPC3Root .HPC3GlyphButton.InputButtonBorderRadius:disabled Image { opacity: 1; }
+.HPC3FooterButton:disabled { opacity: 0.15; }
+.HPC3Root .SecondaryButton:disabled { opacity: 0.35; brightness: 1; border: 2px solid #FFEFD788; }
+.HPC3Root .SecondaryButton:disabled Label { color: #FFEFD7; }
+.HPC3Root .SecondaryButton Label { horizontal-align: center; vertical-align: center; margin-bottom: 0px; }
+.HPC3Hidden { visibility: collapse; }
+.HPC3Root.Searching .HPC3Library { visibility: collapse; }
+.HPC3Dialog { width: 100%; height: 100%; background-color: #080a08ee; visibility: collapse; }
+.HPC3Dialog.Open { visibility: visible; }
+.HPC3DialogBackdrop { width: 100%; height: 100%; }
+.HPC3DialogCard {
+  width: 640px; max-width: 90%; max-height: 94%; overflow: squish scroll; horizontal-align: center; vertical-align: center;
+}
+.HPC3NoticeShadow, .HPC3NoticeBg { ignore-parent-flow: true; width: 100%; height: 100%; opacity-mask: url("s2r://panorama/images/buttons/button_nav_mask_threshold_psd.vtex"); opacity-mask-threshold: 2% 2%; }
+.HPC3NoticeShadow { position: 0px 8px 0px; background-color: #00000080; }
+.HPC3NoticeBg { background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_psd.vtex"); brightness: 1.25; saturation: 1.25; }
+.HPC3NoticeContent { width: 100%; padding: 24px 48px; flow-children: down; }
+.HPC3NoticeHeader { horizontal-align: center; flow-children: right; max-width: 100%; }
+.HPC3NoticeIcon { width: 40px; height: 40px; margin-right: 10px; vertical-align: center; wash-color: #FFEFD7; img-shadow: 0px 0px 16px #000000aa; }
+.HPC3DialogTitle { max-width: 88%; margin: 24px 0px; vertical-align: center; font-family: oracle; font-weight: bold; font-size: 26px; text-transform: uppercase; text-align: center; color: #FFEFD788; white-space: normal; }
+.HPC3DialogSubtitle { width: 100%; margin-bottom: 16px; font-family: oracle; font-weight: bold; font-size: 18px; text-transform: uppercase; text-align: center; color: #FFEFD788; }
+#HPColorsConditionSubtitle { white-space: normal; }
+.HPC3DialogDescription { width: 100%; margin-top: 16px; font-size: 18px; text-align: center; color: #FFEFD7CC; white-space: normal; }
+.HPC3DialogButton { height: 44px; margin: 4px 8px; }
+.HPC3DialogButton Label { vertical-align: center; horizontal-align: center; margin-bottom: 0px; }
+/* Update notice: DOWNLOAD shows only when latest.json lists a valid link for this build. */
+.HPC3UpdateDownload { visibility: collapse; }
+.HPC3Dialog.HPC3HasDownload .HPC3UpdateDownload { visibility: visible; }
+#HPColorsConditionDialog .HPC3DialogCard, #HPColorsPickerCard { width: 600px; }
+.HPC3ConditionSlot.Checked .Top .Background { wash-color: #5FE69E; }
+.HPC3DialogCard .HPC3PresetActions { width: fit-children; horizontal-align: center; }
+.HPC3EscClose { visibility: collapse; }
+.HPC3NativePicker { width: 100%; margin: 16px 0px; }
+.HPC3DialogCard .HPC3Hex { margin: 12px 0px; }
+#HPColorsPickerHex { horizontal-align: center; }
+#HPColorsConditionBooleanToggle { horizontal-align: center; margin-top: 12px; }
+#HPColorsConditionColor .HPC3Hex { margin-left: 12px; }
+.HPC3CreditEntry { width: 100%; margin-bottom: 16px; flow-children: down; }
+.HPC3CreditHeading { width: 100%; flow-children: right; }
+.HPC3CreditPortrait { width: 56px; height: 56px; margin-right: 12px; }
+.HPC3CreditName { width: fill-parent-flow(1); vertical-align: center; font-family: oracle; font-weight: bold; font-size: 22px; color: #FFEFD7; white-space: normal; }
+.HPC3CreditText { margin-top: 8px; text-align: left; }
+/* 6785 live: noclip tiles escape the unscrolled grid's scissor; a solid-white opacity-brush layers it (ENGINE.md clipping). */
+.HPC3HeroGrid { width: 100%; max-width: 440px; height: 356px; horizontal-align: center; padding: 8px; overflow: squish scroll; flow-children: right-wrap; opacity-brush: gradient(linear, 0% 0%, 0% 100%, from(#ffffff), to(#ffffff)); }
+.HPC3HeroSearch { width: 100%; height: 40px; margin-top: 12px; }
+.HPC3HeroSearch .HPC3PresetName { width: 100%; height: fit-children; padding: 0px 8px 0px 36px; vertical-align: center; }
+.HPC3HeroTile { width: 80px; height: 68px; overflow: noclip; }
+.HPC3HeroCircle { width: 50px; height: 50px; padding: 6px; border-radius: 64px; border: 2px solid #00000011; horizontal-align: center; vertical-align: center; overflow: noclip; }
+.HPC3HeroPortrait { width: 40px; height: 40px; horizontal-align: center; vertical-align: center; img-shadow: 0px 0px 16px #000000aa; }
+.HPC3HeroGear { wash-color: #FFEFD7; }
+.HPC3HeroName { horizontal-align: center; vertical-align: bottom; max-width: 100%; max-height: 16px; font-family: oracle; font-weight: bold; font-size: 11px; color: #FFEFD7; text-align: center; text-overflow: shrink; visibility: collapse; }
+.HPC3HeroTile:hover .HPC3HeroName, .HPC3HeroTile:focus .HPC3HeroName, .HPC3HeroTile.SelectedHero .HPC3HeroName { visibility: visible; }
+.HPC3HeroTile:hover .HPC3HeroCircle, .HPC3HeroTile:focus .HPC3HeroCircle { border-color: #FFEFD7; }
+.HPC3HeroTile.SelectedHero .HPC3HeroCircle { width: 56px; height: 56px; background-color: #5FE69E; box-shadow: fill #5FE69E11 0px 0px 16px 1px; }
+.HPC3HeroTile.SelectedHero .HPC3HeroPortrait { width: 44px; height: 44px; }
+.HPC3HeroTile.SelectedHero .HPC3HeroGear { wash-color: #10130D; }
+.HPC3HeroTile.SelectedHero .HPC3HeroName { color: #10130D; text-shadow: 0px 0px 3.0 #5FE69E; }
+.HPC3HeroAssignedAnchor { width: 50px; height: 50px; horizontal-align: center; vertical-align: center; }
+.HPC3HeroTile.SelectedHero .HPC3HeroAssignedAnchor { width: 56px; height: 56px; }
+.HPC3HeroAssignedDot { width: 8px; height: 8px; margin: 4px 0px 0px 4px; horizontal-align: left; vertical-align: top; border-radius: 5px; background-color: #5FE69E; box-shadow: fill #5FE69E11 0px 0px 16px 1px; visibility: collapse; }
+.HPC3HeroTile.AssignedElsewhere .HPC3HeroAssignedDot { visibility: visible; }
+.HPC3HeroCheck { horizontal-align: right; vertical-align: bottom; margin-right: 6px; color: #5FE69E; visibility: collapse; }
+.HPC3HeroTile.Checked .HPC3HeroCheck { visibility: visible; }
+.HPC3HeroGrid.HeroSearchActive .HPC3HeroTile:not(.HeroSearchMatch) { opacity: 0.2; brightness: 0.6; saturation: 0.3; }
+.HPC3HeroGrid.HeroSearchActive .HPC3HeroTile:not(.HeroSearchMatch) .HPC3HeroCircle { animation-name: none; box-shadow: none; background-color: #00000000; width: 50px; height: 50px; }
+.HPC3HeroGrid.HeroSearchActive .HPC3HeroTile:not(.HeroSearchMatch) .HPC3HeroName { animation-name: none; text-shadow: none; }
+
+/* Preview column (ticket 09). Owned root classes mirror the world stylesheet;
+   the baseline shares v2's global rectangular/unbacked outer bars. */
+.HPC3Preview { width: 25%; max-width: 484px; height: 100%; padding: 110px 22px 18px 22px; flow-children: down; }
+.HPC3Grow { width: fill-parent-flow(1); }
+.HPC3PreviewTitle { margin-top: 4px; font-size: 24px; font-weight: bold; color: #FFEFD7CC; }
+.HPC3PreviewSegment { width: 100%; flow-children: right; margin-top: 4px; }
+.HPC3PreviewPill { width: fill-parent-flow(1); margin: 8px 2px; }
+/* Ticket 35: ENEMY | ALLY and AMBER | SAPPHIRE halves in one row; a gap separates the two choices. */
+.HPC3PreviewSegmentRow { width: 100%; flow-children: right; }
+.HPC3PreviewSegmentRow .HPC3PreviewSegment { width: fill-parent-flow(1); }
+.HPC3PreviewSegmentRow .HPC3PreviewTeamSegment { margin-left: 10px; }
+.HPC3PreviewPlate {
+  width: 100%; height: 340px; padding: 8px; margin-top: 14px; border-radius: 10px; background-color: #59544C;
+  opacity-mask: url("s2r://panorama/images/masks/rough_edge_01_png.vtex");
+}
+/* The entire inner scene, including its backdrop, shares one vignette and proven clipping layer.
+   Keep the white brush even if icon_mask03 does not force composition on its own. */
+.HPC3PreviewSceneWindow {
+  width: 100%; height: 100%; overflow: clip;
+  opacity-brush: gradient(linear, 0% 0%, 0% 100%, from(#ffffff), to(#ffffff));
+  opacity-mask: url("s2r://panorama/images/shop/catalog/cards/icon_mask03_psd.vtex");
+}
+.HPC3PreviewBackdrop { width: 100%; height: 100%; }
+.HPC3PreviewKindSegment { visibility: collapse; }
+.HPC3Preview.HPC3PreviewUnitsPage .HPC3PreviewKindSegment { visibility: visible; }
+/* Neutral NPCs have no enemy/ally ownership or team (vendor/unit_status_v2.css .team_neutral). */
+.HPC3PreviewKindNeutral .HPC3PreviewSideSegment, .HPC3PreviewKindNeutral .HPC3PreviewTeamSegment { visibility: collapse; }
+.HPC3PreviewStage {
+  width: 286px; height: 280px; horizontal-align: center; vertical-align: center; overflow: noclip; /* fixed inner 284px camera, independent of column width */
+  border: 1px solid #00000000;
+}
+/* Ticket 22c live 1:1: preserve the 284 x 298 inner HERO stage (200x210 canvas at k = 1.42).
+   The plate centres that unchanged stage; its transparent 1px border keeps the camera's inner box. */
+.HPC3PreviewKindHero .HPC3PreviewStage { height: 300px; }
+/* Static scene panel; only the larger scene window clips it. The stage and frame must not
+   create another composition layer at the camera bounds, which would cut the bust short.
+   ponytail: static framing from live reference #1 (closest; user choice). Target in canvas units: hat brim
+   45.8 wide, hat top 130.6, hat centre x 100 (centred, user 2026-10-15); at k = 1.42 that is 65.04, 185.45 and 142 css px. The shop
+   image scales with the panel (live 8 aspect 596:685 kept), where the hat brim is 0.1846 of the width, the hat
+   top 0.2102 of the height and the hat centre 0.498 of the width: width 65.04 / 0.1846 = 352, height 405,
+   margin-top 185.45 - 0.2102 * 405 = 100.3, margin-left 142 - 0.498 * 352 = -33.296, rounded to -33.3. */
+.HPC3PreviewHeroFrame {
+  width: 100%; height: 100%; overflow: noclip;
+}
+/* User 2026-10-16: 10% of the 300px stage higher (hat top 185.45 -> 155.45) and the camera 10% wider
+   (g = 0.9 about the hat), so more of the body shows above the plate's bottom crop: width 352 * 0.9 = 316.8,
+   height 364.5, margin-left 142 - 0.498 * 316.8 = -15.8, margin-top 155.45 - 0.2102 * 364.5 = 78.8.
+   This is the 1:1 geometry (bar width <= 136.7 px). Wider HERO bars zoom out: preview.js heroCamera() scales
+   width/height/margins by f = 136.7 / width about the canvas centre (142, 149.1), writing only when f changes;
+   layout size, not a transform, so the scene re-renders at its new size and the scene window still clips it. */
+.HPC3PreviewHeroModel { width: 316.8px; height: 364.5px; margin-left: -15.8px; margin-top: 78.8px; visibility: collapse; }
+.HPC3Open .HPC3PreviewKindHero .HPC3PreviewHeroModel { visibility: visible; }
+/* Stock Accessibility preview uses a centred ui-scale wrapper, not raster magnification. */
+.HPC3PreviewScale { width: fit-children; height: fit-children; horizontal-align: left; vertical-align: top; ui-scale: 200%; overflow: noclip; } /* preview.js camera() sets zoom and canvas margins */
+.HPC3PreviewCanvas { width: 200px; height: 210px; overflow: noclip; }
+.HPC3PreviewMotion, .HPC3PreviewReadout, .HPC3PreviewReadoutAnchor { width: 100%; height: 100%; horizontal-align: center; vertical-align: top; overflow: noclip; }
+.HPC3PreviewReadout { z-index: 30; }
+.HPC3PreviewReadoutAnchor { horizontal-align: left; }
+.HPC3PreviewReadoutLine { width: fit-children; height: fit-children; flow-children: right; horizontal-align: right; vertical-align: top; padding: 4px; overflow: noclip; }
+.HPC3PreviewUnitStatus { width: 100px; height: 40px; horizontal-align: center; margin-top: 65px; overflow: noclip; }
+.HPC3PreviewInfo { width: 100%; height: 100%; horizontal-align: center; vertical-align: center; overflow: noclip; }
+/* Stock unit_info_panel > unit_info_bg > unit_ult_ready_icon; hero sample has its ult ready. */
+.HPC3PreviewUltPanel { width: 20px; height: width-percentage(100%); vertical-align: middle; horizontal-align: left; margin-top: -14px; flow-children: left; visibility: collapse; z-index: 10; opacity: 1; }
+.HPC3PreviewUltBackground { width: 100%; height: 100%; visibility: visible; background-image: url("s2r://panorama/images/hud/icons/icon_ultimate_off_blk.vsvg"); background-size: 100% 100%; horizontal-align: right; vertical-align: middle; z-index: 3; }
+.HPC3PreviewUltReady { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/icons/icon_ultimate_blk.vsvg"); background-size: 100%; background-position: center; visibility: collapse; brightness: 2; wash-color: #fd4949; }
+.HPC3PreviewKindHero .HPC3PreviewUltPanel, .HPC3PreviewKindHero .HPC3PreviewUltReady { visibility: visible; }
+.HPC3PreviewSideAlly .HPC3PreviewUltReady { wash-color: #ffefd7; }
+#HPColorsPreviewMotion .HPC3PreviewUltPanel { horizontal-align: center; vertical-align: top; margin-left: -80px; margin-top: 68px; }
+#HPColorsPreviewCanvas.HPColorsV3UltPlaced #HPColorsPreviewUltPanel { horizontal-align: left; vertical-align: top; }
+.HPC3PreviewBars { width: 100%; height: 100%; horizontal-align: center; vertical-align: top; flow-children: down; z-index: 10; overflow: noclip; }
+.HPC3PreviewBar {
+  width: 79px; height: 18px; horizontal-align: center; vertical-align: top; overflow: noclip; background-color: none;
+}
+.HPC3PreviewKindHero .HPC3PreviewBar { margin-left: 13px; }
+.HPC3PreviewBarInner {
+  width: 69px; height: 12px; margin-top: 3.5px; margin-left: 6px; background-color: #000000;
+}
+.HPC3PreviewBarLayer {
+  width: 0%; height: 100%; horizontal-align: left; vertical-align: center;
+  background-image: url("s2r://panorama/images/hud/world_space/hero_healthbar_fill_center_psd.vtex"); background-size: 1024px 128px;
+}
+.HPC3PreviewBarFill { width: 100%; z-index: 3; wash-color: #fd4949; }
+.HPC3PreviewSideAlly .HPC3PreviewBarFill { wash-color: #ffefd7; }
+.HPC3PreviewKindNeutral .HPC3PreviewBarFill { wash-color: #5BEFB5; }
+.HPC3PreviewBarHealing { wash-color: #5fff80; z-index: 5; }
+.HPC3PreviewBarShield, .HPC3PreviewBarArmor { visibility: collapse; }
+.HPC3PreviewBarDelta { z-index: 5; }
+.HPC3PreviewSideEnemy .HPC3PreviewBarDelta { wash-color: #ffe55b; }
+.HPC3PreviewSideAlly .HPC3PreviewBarDelta { wash-color: #cc340a; }
+.HPC3PreviewKindNeutral .HPC3PreviewBarDelta { wash-color: #F24D4D; }
+/* The shipped mask is removed: clip ticks to the actual filled/missing-HP rectangle instead. */
+.HPC3PreviewBarLines { width: 69px; height: 12px; margin-top: 3.5px; margin-left: 6px; ignore-parent-flow: true; overflow: clip; }
+/* Pinned UnitHealthbarLines: 250-HP small ticks and 1000-HP large ticks. */
+.HPC3PreviewTickSmall, .HPC3PreviewTickLarge { width: 2px; background-color: #ffefd7; wash-color: rgb(80, 2, 2); opacity: 0.6; }
+/* Live small ticks are notches in the lower third; 1000-HP major markers keep stock height. */
+.HPC3PreviewTickSmall { height: 4px; vertical-align: bottom; }
+.HPC3PreviewTickLarge { height: 100px; }
+.HPC3PreviewSideAlly .HPC3PreviewTickSmall, .HPC3PreviewSideAlly .HPC3PreviewTickLarge { wash-color: rgb(4, 37, 23); opacity: 0.8; }
+.HPC3PreviewKindNeutral .HPC3PreviewTickSmall, .HPC3PreviewKindNeutral .HPC3PreviewTickLarge { wash-color: rgb(80, 2, 2); opacity: 0.6; }
+.HPC3PreviewKindObjective .HPC3PreviewTickSmall { width: 1px; }
+.HPC3PreviewKindObjective .HPC3PreviewTickLarge { width: 1.5px; }
+/* The preview follows BAR STYLE like world bars (user, ticket 19): V1 and the uncustomized look are
+   rectangular; V2 masks and OLD boxes come from the same root classes as world.css. */
+.HPC3PreviewBarOutline { visibility: collapse; ignore-parent-flow: true; z-index: -1; background-color: #10130d; }
+.HPC3PreviewHpText {
+  font-family: oracle; font-weight: bold; font-size: 18px; color: #ffefd7; text-shadow: 0px 0px 0px 5.0 #10130d; z-index: 10;
+  padding: 4px; horizontal-align: right; vertical-align: top; margin-right: 10px; margin-top: 1px; margin-left: 40px;
+  transform: rotateZ(-3deg); opacity: 0; visibility: collapse; white-space: nowrap;
+  transition-property: opacity; transition-duration: 0.1s; transition-delay: 0s;
+}
+/* Native ShowHealthValue/ShowAllyHealthValue only expose the label's layout; active damage exposes its ink
+   (vendor/unit_status_v2.css 1341-1366). The preview's prefixed side/damage classes model those sample facts. */
+.HPC3PreviewSideEnemy .HPC3PreviewHpText, .HPC3PreviewSideAlly .HPC3PreviewHpText { visibility: visible; }
+.HPC3PreviewSideAlly .HPC3PreviewHpText { margin-right: 20px; }
+.HPC3PreviewDamageA .HPC3PreviewHpText, .HPC3PreviewDamageB .HPC3PreviewHpText {
+  opacity: 1; transition-duration: 0.3s; transition-delay: 1.5s;
+}
+.HPC3PreviewName {
+  font-family: oracle; font-weight: bold; font-size: 14px; color: #ffefd7; text-align: center; horizontal-align: center; vertical-align: top;
+  margin-top: 45px; padding: 2px 2px 0px 2px; brightness: 0.7; max-width: 170px; max-height: 20px; text-shadow: 0px 0px 0px 4.0 #10130dee;
+  transform: rotateZ(-4deg); text-overflow: shrink; visibility: collapse;
+}
+/* The pinned enemy rule ends in #ff6a6a; friend inherits offWhite. Custom color is renderer-owned. */
+.HPC3PreviewSideEnemy .HPC3PreviewName { color: #ff6a6a; }
+.HPC3PreviewKindHero .HPC3PreviewName { visibility: visible; }
+.HPC3PreviewHealthHead { width: 100%; max-width: 390px; horizontal-align: center; margin-top: 18px; flow-children: right; }
+.HPC3PreviewHealthLabel { width: 100px; vertical-align: center; font-size: 18px; color: #FFEFD744; }
+.HPC3PreviewHealthValue { width: 50px; padding-left: 8px; vertical-align: center; font-family: oracle; font-size: 18px; color: #FFEFD7CC; }
+.HPC3PreviewHealthSlider { width: fill-parent-flow(1); max-width: 240px; }
+.HPC3PlayButton { horizontal-align: center; margin-top: 16px; }
+.HPC3PreviewStatus { width: 100%; margin-top: 10px; font-family: sans; font-size: 16px; color: #FFEFD744; }
+.HPC3PreviewNote { width: 100%; margin-top: 8px; font-family: sans; font-size: 16px; color: #FFEFD788; white-space: normal; }
+.HPC3PreviewBottom { ignore-parent-flow: true; width: 100%; vertical-align: bottom; flow-children: down; }
+.HPC3SupporterStrip { width: 100%; height: 36px; margin-top: 8px; visibility: collapse; }
+.HPC3SupporterStrip.Open { visibility: visible; }
+.HPC3PreviewFooter { width: 100%; flow-children: right; }
+.HPC3CreditsButton { margin: 0px 12px 0px 0px; padding: 4px 8px; vertical-align: center; }
+.HPC3CreditsButton Label { font-size: 14px; }
+.HPC3PreviewVersion { ignore-parent-flow: true; horizontal-align: right; vertical-align: center; font-family: sans; font-size: 14px; color: #FFEFD744; }
+.HPC3Preview.HPC3PreviewUnavailable .HPC3PreviewSceneWindow, .HPC3Preview.HPC3PreviewUnavailable .HPC3PlayButton { opacity: 0.35; }
+
+/* Native critical state, preview ids only: vendor/unit_status_v2.css 276, 308, 420,
+   516/529, 664, 1091 and 1148. ShowCriticalState is the descendant WindowRoot equivalent.
+   Core geometry rules below retain the 13px inset and suppress the stock scale animation. */
+.HPC3PreviewKindHero.health_critical .ShowCriticalState #HPColorsPreviewBar { margin-left: 20px; }
+.HPC3PreviewSideEnemy.health_critical .ShowCriticalState #HPColorsPreviewBar { background-color: rgb(47, 4, 4); }
+.HPC3PreviewSideEnemy.health_critical .ShowCriticalState #HPColorsPreviewBars {
+  animation-name: healthCritFlash3; animation-duration: 0.3s; animation-iteration-count: infinite; pre-transform-scale2d: 1.2;
+}
+.HPC3PreviewBarBorder {
+  background-image: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_border.vsvg");
+  background-size: 100% 150px; width: 100%; height: 100%; z-index: 10; ignore-parent-flow: true; wash-color: #10130D;
+}
+.HPC3PreviewBarBg { width: 100%; height: 100%; ignore-parent-flow: true; }
+.health_critical .ShowCriticalState #HPColorsPreviewBarBorder { wash-color: #b82323; }
+.HPC3PreviewSideAlly.health_critical .ShowCriticalState #HPColorsPreviewBarBorder {
+  wash-color: #383838; animation-name: allyHealthFlash; animation-duration: 1s; animation-iteration-count: infinite;
+}
+.health_critical .ShowCriticalState #HPColorsPreviewBarFill,
+.health_critical .ShowCriticalState #HPColorsPreviewBarVisualFill {
+  animation-name: healthCritFlash2; animation-duration: 0.4s; animation-iteration-count: infinite;
+}
+.health_critical .ShowCriticalState #HPColorsPreviewBarBg {
+  animation-name: healthCritFlash; animation-duration: 2s; animation-iteration-count: infinite; wash-color: #b82323;
+}
+.HPC3PreviewCriticalIndicator {
+  horizontal-align: center; ignore-parent-flow: true; margin-top: 80px; margin-left: -8px; margin-right: 22px; visibility: collapse;
+}
+.HPC3PreviewCriticalIndicator Label {
+  font-size: 12px; color: white; font-family: block; text-transform: uppercase; text-shadow: 0px 0px 5.0 #FF410D;
+  text-overflow: shrink; text-align: center; margin-right: 10px; padding: 6px 8px; max-width: 76px;
+  animation-name: TagGroove1; animation-duration: 2s; animation-iteration-count: infinite;
+}
+.health_critical .ShowCriticalState #HPColorsPreviewCriticalIndicator { visibility: visible; }
+.HPC3PreviewSamplecritical #HPColorsPreviewCriticalIndicator { visibility: visible; }
+.HPC3PreviewAssassinateIndicator {
+  horizontal-align: center; ignore-parent-flow: true; margin-top: 86px; margin-left: 0px; margin-right: 30px;
+  animation-name: TagGroove1; animation-duration: 2s; animation-iteration-count: infinite; visibility: collapse;
+}
+.HPC3PreviewAssassinateIndicator Label {
+  font-size: 8px; font-family: block; text-transform: uppercase; text-overflow: shrink; margin-left: 2px; padding: 6px 8px;
+  max-width: 76px; margin-right: 12px; text-shadow: 0px 0px 4.0 #10130D; color: white;
+  animation-name: TagGroove1; animation-duration: 2s; animation-iteration-count: infinite; animation-frame-time: 1s;
+}
+.HPC3PreviewSampleassassinate #HPColorsPreviewAssassinateIndicator { visibility: visible; }
+.HPC3PreviewUnkillableIndicator {
+  horizontal-align: center; ignore-parent-flow: true; margin-top: 72px; margin-left: 20px;
+  background-size: contain; background-repeat: no-repeat; max-width: 70px;
+  animation-name: TagGroove1; animation-duration: 2s; animation-iteration-count: infinite; visibility: collapse;
+}
+.HPC3PreviewUnkillableIndicator Label {
+  font-size: 18px; font-family: block; text-transform: uppercase; text-shadow: 0px 0px 3.0 #10130D;
+  text-overflow: shrink; opacity: 1; color: #FFEFD7;
+  animation-name: TagGroove1; animation-duration: 2s; animation-iteration-count: infinite; animation-frame-time: 1s;
+}
+.HPC3PreviewSampleunkillable #HPColorsPreviewUnkillableIndicator { visibility: visible; }
+/* v3 world.css 112-118 and 355-358: brightness-only enemy critical inner; pulse beats native fill flash. */
+.HPC3PreviewSideEnemy.health_critical .ShowCriticalState #HPColorsPreviewMotion #HPColorsPreviewBar #HPColorsPreviewBarInner {
+  animation-name: HPColorsV3CriticalFlash; animation-duration: 0.3s; animation-iteration-count: infinite;
+}
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarInner #HPColorsPreviewBarFill.HPColorsV3Pulse,
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarInner #HPColorsPreviewBarVisualFill.HPColorsV3Pulse { animation-name: HPColorsV3PulseMedium; }
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarInner #HPColorsPreviewBarFill.HPColorsV3Pulse.HPColorsV3PulseSubtle,
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarInner #HPColorsPreviewBarVisualFill.HPColorsV3Pulse.HPColorsV3PulseSubtle { animation-name: HPColorsV3PulseSubtle; }
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarInner #HPColorsPreviewBarFill.HPColorsV3Pulse.HPColorsV3PulseIntense,
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarInner #HPColorsPreviewBarVisualFill.HPColorsV3Pulse.HPColorsV3PulseIntense { animation-name: HPColorsV3PulseIntense; }
+
+/* Match world owned-class presentation on the HPColorsPreview-only part map. */
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewUnitStatus {
+  width: 100%; height: 100%; margin-top: 0px; animation-name: none; transition-property: none;
+}
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewInfo { vertical-align: top; }
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBars { transform-origin: 50% 50%; animation-name: none; }
+/* Same 13px player inset as world bars (world.css #UnitHealthbar, stock .player .UnitHealthbarContainer):
+   the bar centre sits 6.5px right of the name, as live (user comparison 2026-10-14). */
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBar { margin-left: 13px; margin-top: 65px; background-color: #00000000; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Unit #HPColorsPreviewBar { margin-left: 0px; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3BarColored #HPColorsPreviewBar { opacity: 1; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3BarHidden #HPColorsPreviewBar { opacity: 0.01; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Outline #HPColorsPreviewBarOutline { visibility: visible; }
+/* SHOW BOUNDS: the same full-canvas rim as world.css #HPColorsV3CanvasBounds. */
+.HPC3PreviewCanvasBounds { width: 100%; height: 100%; border: 1px solid #5fe69e; ignore-parent-flow: true; z-index: 100; visibility: collapse; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Bounds #HPColorsPreviewCanvasBounds { visibility: visible; }
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarBorder,
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarBg { visibility: collapse; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3HPText #HPColorsPreviewHpText {
+  visibility: visible; opacity: 1; margin-top: 0px; horizontal-align: left; vertical-align: center; transform: none; text-overflow: clip;
+}
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3HPHidden #HPColorsPreviewHpText,
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3NameHidden #HPColorsPreviewName { visibility: collapse; }
+#HPColorsPreviewMotion > #HPColorsPreviewName { height: fit-children; overflow: noclip; }
+/* Customized names are level like world.css (.WindowRoot.HPColorsV3Core #name); master off keeps the stock -4deg. */
+#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewName { transform: none; }
+
+#HPColorsPreviewCanvas.HPColorsV3BarLines #HPColorsPreviewBarLines { height: 100%; margin-top: 0px; vertical-align: top; overflow: clip; }
+#HPColorsPreviewCanvas.HPColorsV3BarLines #HPColorsPreviewBarLines .line_large.line_large { height: 100%; vertical-align: top; }
+#HPColorsPreviewCanvas.HPColorsV3BarLines #HPColorsPreviewBarLines .line_small.line_small { height: 8px; vertical-align: bottom; }
+#HPColorsPreviewCanvas.HPColorsV3LinesHidden #HPColorsPreviewBarLines { visibility: collapse; }
+.HPC3PreviewKillMarker { ignore-parent-flow: true; horizontal-align: left; vertical-align: top; height: 100%; z-index: 10; visibility: collapse; }
+#HPColorsPreviewCanvas.HPColorsV3KillMarker #HPColorsPreviewKillMarker { visibility: visible; }
+/* BAR STYLE V2/OLD on preview ids; mirrors world.css (v2 unit_status_v2.css 1951-2141). */
+#HPColorsPreviewCanvas.HPColorsV3BarMaskPrimary #HPColorsPreviewBar,
+#HPColorsPreviewCanvas.HPColorsV3BarMask #HPColorsPreviewBarInner,
+#HPColorsPreviewCanvas.HPColorsV3BarMask #HPColorsPreviewBarLines,
+#HPColorsPreviewCanvas.HPColorsV3BarMask #HPColorsPreviewBar #HPColorsPreviewBarOutline { opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg"); }
+#HPColorsPreviewCanvas.HPColorsV3BarOld #HPColorsPreviewBar #HPColorsPreviewBarInner { background-color: #182123; }
+#HPColorsPreviewCanvas.HPColorsV3BarOld #HPColorsPreviewBar #HPColorsPreviewBarLines { width: 69px; height: 12px; margin-left: 6px; margin-top: 3.5px; vertical-align: top; overflow: clip; }
+#HPColorsPreviewCanvas.HPColorsV3BarOld #HPColorsPreviewBarLines .line_large.line_large,
+#HPColorsPreviewCanvas.HPColorsV3BarOld #HPColorsPreviewBarLines .line_small.line_small { height: 100%; vertical-align: top; background-color: #0B1012; wash-color: white; opacity: 1; }
+#HPColorsPreviewCanvas.HPColorsV3BarOld #HPColorsPreviewBarLines .line_small.line_small { width: 1px; }
+#HPColorsPreviewCanvas.HPColorsV3BarOld #HPColorsPreviewBarLines .line_large.line_large { width: 2px; }
+#HPColorsPreviewCanvas.HPColorsV3BarOld.HPColorsV3BarPips #HPColorsPreviewBar #HPColorsPreviewBarInner,
+#HPColorsPreviewCanvas.HPColorsV3BarOld.HPColorsV3BarPips #HPColorsPreviewBar #HPColorsPreviewBarLines,
+#HPColorsPreviewCanvas.HPColorsV3BarOld.HPColorsV3BarPips #HPColorsPreviewBar #HPColorsPreviewKillMarker { opacity: 0; }
+#HPColorsPreviewCanvas.HPColorsV3BarOld.HPColorsV3BarPips #HPColorsPreviewBar #HPColorsPreviewKillMarker { visibility: collapse; }
+
+/* Native stamina sample: two available, one empty. The renderer owns only customization. */
+.HPC3PreviewStamina { flow-children: right; vertical-align: top; horizontal-align: center; margin-top: 9px; visibility: collapse; }
+.HPC3PreviewKindHero .HPC3PreviewStamina { visibility: visible; }
+.HPC3PreviewSideEnemy .HPC3PreviewStamina { wash-color: #fd4949; }
+.HPC3PreviewStamina .StaminaPip { margin: 25px 1px 1px 1px; visibility: visible; }
+.HPC3PreviewStamina .StaminaPipIcon { width: 8px; height: 12px; background-image: url("s2r://panorama/images/hud/healthbar/pip_stamina_filled_png.vtex"); background-size: contain; background-repeat: no-repeat; }
+.HPC3PreviewStamina .PipEmpty .StaminaPipIcon { wash-color: #10130D; }
+
+/* Buff/pickup status effects sit above the stamina pips and name, as in game (user, 2026-10-14). */
+.HPC3PreviewPickups { horizontal-align: center; margin-top: 10px; flow-children: right; overflow: noclip; visibility: collapse; }
+.HPC3PreviewKindHero .HPC3PreviewPickups { visibility: visible; }
+.HPC3PreviewPickup { width: 22px; height: 22px; margin: 0px 1px; }
+.HPC3PreviewPickupInner { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/world_space/status_inner_psd.vtex"); background-size: 100%; }
+.HPC3PreviewPickupTrack, .HPC3PreviewPickupBorder { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/world_space/status_border.vsvg"); background-texture-size: 48px; background-size: 100%; }
+.HPC3PreviewPickupTrack { z-index: -3; wash-color: #10130D; clip: none; }
+.HPC3PreviewPickupBorder { z-index: -2; wash-color: #FFEFD7; clip: radial(50% 50%, 0deg, 270deg); }
+.HPC3PreviewPickupGlyph { width: 64%; height: 64%; horizontal-align: center; vertical-align: middle; }
+.HPC3PreviewKillStreak { width: 32px; height: 45px; horizontal-align: center; margin-top: 58px; visibility: collapse; }
+.HPC3PreviewKillStreakImage { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/healthbar/on_fire1_png.vtex"); background-size: cover; }
+.HPC3PreviewKindHero .HPC3PreviewKillStreak { visibility: visible; }
+.HPC3PreviewRejuvenatorAnchor { width: 100%; height: 100%; ignore-parent-flow: true; overflow: noclip; }
+.HPC3PreviewRejuvenator { width: 24px; height: 24px; horizontal-align: center; margin-top: 56px; margin-left: 94px; transform: rotateZ(6deg); background-image: url("s2r://panorama/images/hud/healthbar/healthbar_rejuv_png.vtex"); background-size: contain; visibility: collapse; }
+.HPC3PreviewKindHero .HPC3PreviewRejuvenator { visibility: visible; }
+
+/* PLAY: vendor/unit_status_v2.css #UnitStatus (40-41) transitions pre-transform-scale2d;
+   #name (891-893) transitions opacity. Stock citadel_base_styles.css VerticalScrollBar
+   .ScrollThumb uses transform-origin: 0% 50%; citadel_hud_top_bar.css inOvertime keyframes
+   animate opacity, and DeadFlip uses a single iteration. Both upstream sheets:
+   https://github.com/SteamTracking/GameTracking-Deadlock/tree/master/game/citadel/pak01_dir/panorama/styles
+   Clip stays on the invisible renderer signal, never on the interpolated visual replica. */
+/* Live 6779: Panorama skips layout for opacity-0 panels (actuallayoutwidth 0, x FLT_MAX), which zeroed
+   the renderer signal; 0.01 keeps it laid out and invisible (same keepalive as hidden world bars). */
+#HPColorsPreviewBarFill { opacity: 0.01; }
+.HPC3PreviewBarVisualFill { transition-property: none; }
+.HPC3PreviewPlaying #HPColorsPreviewBarVisualFill {
+  transition-property: pre-transform-scale2d, transform; transition-duration: 0.4s; transition-timing-function: ease-in-out;
+}
+.HPC3PreviewBarDelta { opacity: 0; animation-name: none; }
+.HPC3PreviewBarHealing { opacity: 1; animation-name: none; }
+.HPC3PreviewDamageA #HPColorsPreviewBarDelta, .HPC3PreviewDamageB #HPColorsPreviewBarDelta {
+  animation-duration: 0.45s; animation-iteration-count: 1; animation-timing-function: ease-out;
+}
+.HPC3PreviewDamageA #HPColorsPreviewBarDelta { animation-name: HPColorsPreviewDamageA; }
+.HPC3PreviewDamageB #HPColorsPreviewBarDelta { animation-name: HPColorsPreviewDamageB; }
+.HPC3PreviewHealA #HPColorsPreviewBarHealing, .HPC3PreviewHealB #HPColorsPreviewBarHealing {
+  animation-duration: 0.45s; animation-iteration-count: 1; animation-timing-function: ease-in;
+}
+.HPC3PreviewHealA #HPColorsPreviewBarHealing { animation-name: HPColorsPreviewHealA; }
+.HPC3PreviewHealB #HPColorsPreviewBarHealing { animation-name: HPColorsPreviewHealB; }
+/* Alternate names restart consecutive damage/heal steps, not layout-settle paints. */
+@keyframes 'HPColorsPreviewDamageA' { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes 'HPColorsPreviewDamageB' { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes 'HPColorsPreviewHealA' { 0% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes 'HPColorsPreviewHealB' { 0% { opacity: 0; } 100% { opacity: 1; } }
+/* Native active_damage_wiggle (vendor 59-89): world v3 moves it onto its owned motion frame.
+   Buildings suppress it (vendor 67-70); NPCs/heroes retain native wiggle with master off. */
+.HPC3PreviewMotion { animation-name: none; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewMotion,
+.HPC3PreviewDamageA.HPC3PreviewKindHero #HPColorsPreviewUnitStatus,
+.HPC3PreviewDamageB.HPC3PreviewKindHero #HPColorsPreviewUnitStatus,
+.HPC3PreviewDamageA.HPC3PreviewKindNpc #HPColorsPreviewUnitStatus,
+.HPC3PreviewDamageB.HPC3PreviewKindNpc #HPColorsPreviewUnitStatus,
+.HPC3PreviewDamageA.HPC3PreviewKindNeutral #HPColorsPreviewUnitStatus,
+.HPC3PreviewDamageB.HPC3PreviewKindNeutral #HPColorsPreviewUnitStatus {
+  animation-name: active_damage_wiggle; animation-duration: 0.2s; animation-iteration-count: infinite; animation-timing-function: ease-out;
+}
+.HPC3PreviewShakeEdit.HPC3PreviewKindHero #HPColorsPreviewUnitStatus,
+.HPC3PreviewShakeEdit.HPC3PreviewKindNpc #HPColorsPreviewUnitStatus,
+.HPC3PreviewShakeEdit.HPC3PreviewKindNeutral #HPColorsPreviewUnitStatus {
+  animation-name: active_damage_wiggle; animation-duration: 0.2s; animation-iteration-count: infinite; animation-timing-function: ease-out;
+}
+/* DAMAGE SHAKE / SHAKE STRENGTH: the same root classes and keyframes as world.css (v2 1638-1686). */
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake1 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake1 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake1 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake1; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake2 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake2 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake2 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake2; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake4 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake4 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake4 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake4; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake5 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake5 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake5 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake5; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake6 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake6 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake6 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake6; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake7 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake7 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake7 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake7; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake8 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake8 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake8 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake8; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake9 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake9 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake9 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake9; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake10 #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake10 #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Shake10 #HPColorsPreviewMotion { animation-name: HPColorsV3Shake10; }
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3ShakeOff #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3ShakeOff #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3ShakeOff #HPColorsPreviewMotion { animation-name: none; }
+/* Stock vendor/unit_status_v2.css:67-70 and v2:1832-1844; match the owned world motion frame. */
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3NoWiggle #HPColorsPreviewMotion { animation-name: none; pre-transform-scale2d: 1; }
+
+/* Condition actions stay reachable after controls/reset, including search and keyboard focus. */
+.HPC3ConditionAction { width: 22px; height: 22px; margin-left: 8px; vertical-align: center; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
+.HPC3ConditionAction Label { horizontal-align: center; vertical-align: center; font-size: 14px; color: #FFEFD744; }
+.HPC3Row:hover .HPC3ConditionAction, .HPC3ConditionAction:focus, .HPC3ConditionAction.Marked { opacity: 1; }
+.HPC3ConditionAction:hover Label, .HPC3ConditionAction:focus Label { color: #FFEFD7; }
+.HPC3ConditionAction.Marked Label { color: #F1C7FF; }
+#HPColorsConditionOptions { width: 100%; flow-children: down; max-height: 220px; overflow: squish scroll; }
+#HPColorsConditionOptions .HPC3DialogButton { width: 100%; margin-left: 0px; margin-top: 4px; }
+#HPColorsConditionNumber { margin: 12px 0px; }
+
+/* Condition slots copy the stock HUD ability icon (hud_ability_icon.css): every layer is the same box, art drawn at 100%.
+   .ability_bg = passive_0 disc, or passive_2 (tier 2) / passive_3 (tier 3) washed keybindBGColor #e8e4ea;
+   .ability_ring = passive_1, visible for tiers 1-3, opacity 0.8. The glyph is 47% of the box.
+   Here the tier art and disc are split into layers so the disc always stays and the selected slot's art is green.
+   Box top y=3 (centre y=55) so nothing reaches above the slot or the dialog clip. */
+.HPC3ConditionAbilities { width: 100%; flow-children: right; margin: 16px 0px 8px 0px; }
+.HPC3AbilitySlot { width: fill-parent-flow(1); height: 136px; overflow: noclip; }
+.HPC3AbilityLayer { width: 104px; height: 104px; margin-top: 3px; horizontal-align: center; background-size: 100% 100%; background-repeat: no-repeat; wash-color: #e8e4ea; }
+.HPC3AbilityDisc { background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_0_psd.vtex"); }
+.HPC3AbilityRing { background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_1_psd.vtex"); opacity: 0.8; visibility: collapse; }
+.HPC3AbilityTierArt { visibility: collapse; }
+.HPC3AbilitySlot.ShowTier1 .HPC3AbilityRing, .HPC3AbilitySlot.ShowTier2 .HPC3AbilityRing, .HPC3AbilitySlot.ShowTier3 .HPC3AbilityRing { visibility: visible; }
+.HPC3AbilitySlot.ShowTier2 .HPC3AbilityTierArt { visibility: visible; background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_2_psd.vtex"); }
+.HPC3AbilitySlot.ShowTier3 .HPC3AbilityTierArt { visibility: visible; background-image: url("s2r://panorama/images/hud/core/ability_frame_passive_3_psd.vtex"); }
+.HPC3AbilitySlot.Checked .HPC3AbilityTierArt, .HPC3AbilitySlot.Checked .HPC3AbilityRing { wash-color: #5fe69e; opacity: 1; }
+.HPC3AbilityGlyph { width: 104px; height: 104px; margin-top: 3px; horizontal-align: center; }
+.HPC3AbilityImage { width: 49px; height: 49px; horizontal-align: center; vertical-align: center; wash-color: #242A2C; visibility: collapse; }
+.HPC3AbilityFallback { horizontal-align: center; vertical-align: center; font-family: block; font-size: 32px; color: #242A2C; }
+.HPC3AbilitySlot.HasIcon .HPC3AbilityImage { visibility: visible; }
+.HPC3AbilitySlot.HasIcon .HPC3AbilityFallback { visibility: collapse; }
+.HPC3AbilityBadge { width: 22px; height: 20px; margin-top: 85px; horizontal-align: center; background-color: #e8e4ea; border-radius: 4px; }
+.HPC3AbilityBadge Label { horizontal-align: center; vertical-align: center; font-family: oracle; font-size: 14px; font-weight: bold; color: #242A2C; }
+.HPC3AbilityTier { horizontal-align: center; margin-top: 110px; font-family: oracle; font-size: 16px; color: #5FE69E; visibility: collapse; }
+.HPC3AbilitySlot.Checked .HPC3AbilityTier { visibility: visible; }
+.HPC3AbilitySlot:focus .HPC3AbilityDisc, .HPC3AbilitySlot:hover .HPC3AbilityDisc { brightness: 1.2; }
+.HPC3AbilitySlot.Unavailable { opacity: 0.45; }
+.HPC3AbilitySlot.Unavailable.Checked { opacity: 0.75; }
+
+/* User-requested stock keyframe copies: ticket 27 round 3 / ENGINE.md.
+   Owned transitions remain opacity-only; active state scale is not a transition. */
+.HPC3Dialog.Open .HPC3DialogCard, .HPC3Dialog.Open .HPC3NoticeBg, .HPC3Dialog.Open .HPC3NoticeShadow { animation-name: HPC3HeroNoticeBackgroundTransitionOn; animation-duration: 0.25s; animation-iteration-count: 1; }
+.HPC3DialogCard { opacity-mask: url("s2r://panorama/images/buttons/button_nav_mask_threshold_psd.vtex"); opacity-mask-threshold: 2% 2%; }
+.HPC3Root.HPC3Open .HPC3Page.Active .HPC3PresetTile.Selected .HPC3PresetTileFace,
+.HPC3Root.HPC3Open .HPC3Dialog.Open .HPC3HeroTile.SelectedHero .HPC3HeroCircle { animation-name: HPC3SelectedHeroAnim; animation-duration: 2s; animation-iteration-count: infinite; }
+.HPC3Root.HPC3Open .HPC3Page.Active .HPC3PresetTile.Selected .HPC3PresetTileName,
+.HPC3Root.HPC3Open .HPC3Dialog.Open .HPC3HeroTile.SelectedHero .HPC3HeroName { animation-name: HPC3SelectedHeroNameAnim; animation-duration: 2s; animation-iteration-count: infinite; }
+.HPC3Root.HPC3Open .HPC3HeroGrid.HeroSearchActive .HPC3HeroTile:not(.HeroSearchMatch) .HPC3HeroCircle,
+.HPC3Root.HPC3Open .HPC3HeroGrid.HeroSearchActive .HPC3HeroTile:not(.HeroSearchMatch) .HPC3HeroName { animation-name: none; }
+.HPC3SearchLanding { animation-name: HPC3SearchResultSelectedAnimation; animation-duration: 0.5s; animation-iteration-count: 2; animation-delay: 0.1s; }
+.HPC3NegativeShake { animation-name: HPC3NegativeShake; animation-duration: 0.06s; animation-iteration-count: 4; }
+.HPC3Root.HPC3Open .HPC3SearchField:focus { animation-name: HPC3GlowSearchInput; animation-duration: 1s; animation-delay: 0.1s; animation-iteration-count: infinite; animation-direction: alternate-reverse; }
+.HPC3NavButton:active, .HPC3SubNavButton:active, .HPC3NavSquare:active, .HPC3GlyphButton:active, .HPC3ActionButton:active,
+.HPC3DialogButton:active, .HPC3HeroTile:active, .HPC3PresetTile:active, .HPC3GroupReset:active, .HPC3FoldToggle:active { pre-transform-scale2d: 0.98; }
+.HPC3RowReset:active, .HPC3Toggle:active, .HPC3SegmentButton:active, .HPC3ConditionAction:active, .HPC3EscClose:active,
+.HPC3FooterButton:active, .HPC3SidePill:active, .HPC3PreviewPill:active, .HPC3Swatch:active { pre-transform-scale2d: 0.98; }
+
+@keyframes 'HPC3HeroNoticeBackgroundTransitionOn' {
+  0% { opacity-mask: url("s2r://panorama/images/buttons/button_nav_mask_threshold_psd.vtex"); opacity-mask-threshold: 100% 2%; }
+  100% { opacity-mask: url("s2r://panorama/images/buttons/button_nav_mask_threshold_psd.vtex"); opacity-mask-threshold: 2% 2%; }
+}
+@keyframes 'HPC3SelectedHeroAnim' {
+  0% { brightness: 1; box-shadow: fill #5FE69E11 0px 0px 16px 1px; }
+  50% { brightness: 2; box-shadow: fill #5FE69E11 0px 0px 32px 1px; }
+  100% { brightness: 1; box-shadow: fill #5FE69E11 0px 0px 16px 1px; }
+}
+@keyframes 'HPC3SelectedHeroNameAnim' {
+  0% { text-shadow: 0px 0px 3.0 #5FE69E; }
+  50% { text-shadow: 0px 0px 3.0 #7FFFBE; }
+  100% { text-shadow: 0px 0px 3.0 #5FE69E; }
+}
+@keyframes 'HPC3SearchResultSelectedAnimation' {
+  0% { pre-transform-scale2d: 1; background-color: gradient(linear, 0% 0%, 10% 0%, from(#5FE69E11), to(#5FE69E00)); }
+  50% { pre-transform-scale2d: 1.08; background-color: gradient(linear, 0% 0%, 90% 0%, from(#5FE69E11), to(#5FE69E00)); brightness: 4; }
+  100% { pre-transform-scale2d: 1; background-color: gradient(linear, 0% 0%, 10% 0%, from(#5FE69E11), to(#5FE69E00)); }
+}
+@keyframes 'HPC3NegativeShake' {
+  0% { transform: translateX(2px); }
+  60% { transform: translateX(2px); }
+  61% { transform: translateX(-2px); }
+  100% { transform: translateX(-2px); }
+}
+@keyframes 'HPC3GlowSearchInput' {
+  0% { box-shadow: 0px 0px 24px #FFEFD706; border: 2px solid #FFEFD711; }
+  100% { box-shadow: 0px 0px 24px #FFEFD70a; border: 4px solid #FFEFD7; }
+}
+/* Stock InputButton's transform scale would otherwise multiply the owned active-state scale. */
+.HPC3DialogButton:active, .HPC3GlyphButton:active { transform: none; }
+.HPC3PlayButton:active, .HPC3AbilitySlot:active { pre-transform-scale2d: 0.98; }
+
+/* Ticket 36: NEW tab, modeled on the game's Settings NEW section (popup_settings.css .NewSetting and
+   #NewSettingIndicator.SettingsRowIndicator, same icons and purple), without the stock glow. */
+.HPC3NavNew { width: 16px; height: 16px; margin-left: -8px; margin-right: 8px; vertical-align: center; wash-color: #F1C7FF; visibility: collapse; }
+.HPC3NavButton.HasNew .HPC3NavNew { visibility: visible; }
+.HPC3SubNavNew { width: 14px; height: 14px; margin-right: 6px; vertical-align: center; wash-color: #F1C7FF; visibility: collapse; }
+.HPC3SubNavButton.HasNew .HPC3SubNavNew { visibility: visible; }
+/* Net-zero width in the row flow (-23 + 14 + 9), so a marked title stays where it was. */
+.HPC3NewMark { width: 14px; height: 14px; margin-left: -23px; margin-right: 9px; vertical-align: center; wash-color: #F1C7FF; visibility: collapse; }
+.HPC3Row.IsNew .HPC3NewMark { visibility: visible; }
+.HPC3RowNewFlash { ignore-parent-flow: true; width: 100%; height: 100%; margin: -10px -32px; background-color: #F1C7FF26; opacity: 0; transition-property: opacity; transition-duration: 0.6s; }
+.HPC3Row.NewFlash .HPC3RowNewFlash { opacity: 1; transition-duration: 0.15s; }
+.HPC3NewHeader { width: 100%; flow-children: right; }
+.HPC3NewHeader .HPC3ActionButton { horizontal-align: right; }
+.HPC3NewList { width: 100%; flow-children: down; }
+.HPC3NewItem { width: 100%; flow-children: right; border-bottom: 1px solid #00000080; }
+.HPC3NewItem.Gone { visibility: collapse; }
+.HPC3NewOpen { width: fill-parent-flow(1); min-height: 64px; padding: 12px 16px; flow-children: right; }
+.HPC3NewItemBg { ignore-parent-flow: true; width: 100%; height: 100%; background-color: #FFEFD70D; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
+.HPC3NewOpen:hover .HPC3NewItemBg, .HPC3NewOpen:focus .HPC3NewItemBg { opacity: 1; }
+.HPC3NewIcon { width: 20px; height: 20px; margin: 0px 14px 0px 6px; vertical-align: top; wash-color: #F1C7FF; }
+.HPC3NewItem.Updated .HPC3NewIcon { wash-color: #5FE69E; }
+.HPC3NewInfo { width: fill-parent-flow(1); flow-children: down; }
+.HPC3NewTitle { font-size: 18px; font-weight: semi-bold; color: #FFEFD7; }
+.HPC3NewDescription { width: 100%; margin-top: 2px; font-family: sans; font-size: 15px; color: #FFEFD799; white-space: normal; }
+.HPC3NewMeta { margin-left: 12px; vertical-align: center; flow-children: down; }
+.HPC3NewBadge { horizontal-align: right; font-family: oracle; font-size: 14px; color: #F1C7FF; letter-spacing: 1px; }
+.HPC3NewItem.Updated .HPC3NewBadge { color: #5FE69E; }
+.HPC3NewVersion { horizontal-align: right; font-size: 13px; color: #FFEFD766; }
+.HPC3NewDismiss { width: 36px; height: 36px; margin: 0px 8px; padding: 8px; vertical-align: center; opacity: 0.5; transition-property: opacity; transition-duration: 0.2s; }
+.HPC3NewDismiss:hover, .HPC3NewDismiss:focus { opacity: 1; }
+.HPC3NewDismiss Image { width: 100%; height: 100%; wash-color: #FFEFD7; }
+.HPC3NewEmpty { width: 100%; padding: 18px 16px; font-family: sans; font-size: 15px; color: #FFEFD799; visibility: collapse; }
+.HPC3NewPage.NoNews .HPC3NewEmpty { visibility: visible; }
+.HPC3NewPage.NoNews .HPC3NewHeader { visibility: collapse; }

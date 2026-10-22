@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HP Colors — By side</title><link rel="stylesheet" href="mock.css">
+</head>
+<body data-layout="side">
+<div class="shell">
+  <header><div class="title-block"><span class="eyebrow">DEADLOCK / ESC MENU MOCK</span><h1>HP COLORS <span>V3</span></h1></div><span class="header-rule" aria-hidden="true"></span>
+    <div class="header-actions"><button id="search-toggle" type="button" aria-label="Search all settings" aria-controls="search-wrap" aria-expanded="false" title="Search settings (Esc closes)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 6 6"></path></svg><span>Search</span></button>
+    <label class="fold-switch"><input id="folds" type="checkbox" checked> BASIC / ADVANCED FOLDS</label></div>
+  </header>
+  <div class="workspace">
+    <nav aria-label="Settings pages"><span class="eyebrow" id="layout-label"></span><div id="navigation"></div><p class="nav-foot">BROWSER PROTOTYPE<br>SESSION ONLY</p><a id="other-layout" href="by-part.html">Compare by part →</a></nav>
+    <main><div class="page-head"><span class="eyebrow" id="page-kicker">HEALTHBAR EDITOR</span><h2 id="page-title"></h2><div class="page-rule"></div><p id="page-description"></p><div id="search-wrap" hidden><label for="search">SEARCH EVERY PAGE <span>ESC CLOSES</span></label><div class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"></circle><path d="m15 15 6 6"></path></svg><input id="search" type="search" autocomplete="off" placeholder="Try red, offset, name…"></div></div></div><div id="rows" class="rows"></div></main>
+    <aside class="preview" aria-label="Healthbar preview"><span class="eyebrow">PREVIEW</span><h2 id="preview-title">HERO BAR</h2>
+      <div class="segments" id="preview-side"><button type="button" data-side="enemy">Enemy</button><button type="button" data-side="ally">Ally</button></div>
+      <div id="kind-switch" class="segments" hidden><button type="button" data-kind="npc">NPC</button><button type="button" data-kind="objective">Objective</button><button type="button" data-kind="neutral">Neutral</button></div>
+      <div class="stage"><div class="stage-zoom"><div class="silhouette" aria-hidden="true"></div><div id="bar-visual" class="bar-visual"><div id="hero-name" class="hero-name">THE WARDEN</div><div class="bar-frame"><div id="bar-delta" class="bar-delta"></div><div id="bar-fill" class="bar-fill"></div><div id="bar-markers" class="bar-markers"></div></div><div id="hp-text" class="hp-text">750</div></div></div><span class="stage-tag" aria-hidden="true">1.3× ZOOM</span></div>
+      <label class="hp-range" for="hp-slider"><span>HEALTH</span><output id="hp-output" for="hp-slider">75%</output></label><input id="hp-slider" type="range" min="0" max="100" value="75">
+      <button id="play" class="play" type="button">▶ Play damage / heal</button><p id="preview-status" role="status">Ready</p>
+      <p class="preview-note">Approximate CSS drawing, not the game renderer. Colors, size, name and HP text respond to controls; other rows are editable layout samples.</p><button id="reset" type="button">Reset shipped defaults</button>
+    </aside>
+  </div>
+  <footer><span>LAYOUT STUDY · NO GAME OR STORED DATA CHANGED</span><span>Compare both layouts and folds before choosing.</span></footer>
+</div>
+<script src="settings.js"></script><script src="mock.js"></script>
+</body>
+</html>

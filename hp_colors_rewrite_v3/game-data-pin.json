@@ -1,0 +1,42 @@
+{
+  "repository": "SteamTracking/GameTracking-Deadlock",
+  "commit": "3207c1601bf83515155a1108b4b8def7338b1b29",
+  "clientVersion": 6807,
+  "files": [
+    {
+      "path": "vendor/unit_status_v2.css",
+      "upstream": "game/citadel/pak01_dir/panorama/styles/unit_status_v2.css",
+      "sha256": "6834337faa78af451da697709916cb82d49681bfc68db24e6e71e0f47799ddd7"
+    },
+    {
+      "path": "vendor/heroes.vdata",
+      "upstream": "game/citadel/pak01_dir/scripts/heroes.vdata",
+      "sha256": "1511f5c164a8b507f6dac69c312599c6e7eeab4a7b564d0b664fc5757e5b14c8"
+    },
+    {
+      "path": "vendor/abilities.vdata",
+      "upstream": "game/citadel/pak01_dir/scripts/abilities.vdata",
+      "sha256": "e271b257765b3c18f78594a7c36f11333894a96813a50bade5a97c0b6daff37e"
+    },
+    {
+      "path": "vendor/citadel_gc_hero_names_english.txt",
+      "upstream": "game/citadel/resource/localization/citadel_gc_hero_names/citadel_gc_hero_names_english.txt",
+      "sha256": "d270ce41b8b4bcc1b92f5657301d0634701cb28dbd85d303f4e0bc65292c6e9b"
+    },
+    {
+      "path": "vendor/hud_escape_menu.xml",
+      "upstream": "game/citadel/pak01_dir/panorama/layout/hud_escape_menu.xml",
+      "sha256": "378378848d72bba376520720173661dbd23de42ac112fdd3620eb78d81babd63"
+    },
+    {
+      "path": "vendor/unit_status_overlay_v2.xml",
+      "upstream": "game/citadel/pak01_dir/panorama/layout/unit_status_overlay_v2.xml",
+      "sha256": "9d77cae72a080deebd57a0767ebc815dbaeb5dc95216d1ac39a1aeb4ab12e1f4"
+    },
+    {
+      "path": "vendor/citadel_hud_top_bar.xml",
+      "upstream": "game/citadel/pak01_dir/panorama/layout/citadel_hud_top_bar.xml",
+      "sha256": "c5e3deda5bae86e08fff887fa18a933c2def480b4d6e3d54122c76266cefa134"
+    }
+  ]
+}

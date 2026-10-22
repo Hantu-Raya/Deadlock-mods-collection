@@ -1,0 +1,500 @@
+[
+  {
+    "name": "stamina-save-schema-1",
+    "kind": "save",
+    "input": "HPV2S1.c7bd1a5e.eyJtIjoiSFBWMlNUT1JFIiwicyI6MSwidCI6MSwiYiI6IntcInZlcnNpb25cIjoxLFwidmFsdWVzXCI6e1wicGlwc1Zpc2libGVcIjpmYWxzZSxcImVuZW15UGlwQ29sb3JFbmFibGVkXCI6dHJ1ZSxcImVuZW15UGlwQ29sb3JcIjpcIiMxMjM0NTZcIixcImFsbHlQaXBDb2xvckVuYWJsZWRcIjp0cnVlLFwiYWxseVBpcENvbG9yXCI6XCIjNjU0MzIxXCIsXCJwaXBPcGFjaXR5XCI6MzcsXCJlbmVteUtpbGxNYXJrZXJFbmFibGVkXCI6dHJ1ZSxcImVuZW15S2lsbE1hcmtlclRocmVzaG9sZFwiOjYxLFwiZW5lbXlLaWxsTWFya2VyV2lkdGhcIjoyMyxcImVuZW15S2lsbE1hcmtlckNvbG9yXCI6XCIjQUJDREVGXCIsXCJsZXZlbHNWaXNpYmxlXCI6ZmFsc2UsXCJsZXZlbE9mZnNldFhcIjoxMjMsXCJsZXZlbE9mZnNldFlcIjotNDcsXCJhY2Nlc3NvcnlBbmNob3JFbmFibGVkXCI6ZmFsc2UsXCJ1bHRNb2RlXCI6XCJjdXN0b21cIixcInVsdEN1c3RvbVwiOlwiIzExMjIzM1wiLFwidWx0T2Zmc2V0WFwiOi04MSxcInVsdE9mZnNldFlcIjo1OSxcInVsdGltYXRlVGltZXJTaXplXCI6MTUwLFwiZW5lbXlTdGFtaW5hQ29sb3JFbmFibGVkXCI6dHJ1ZSxcImVuZW15U3RhbWluYUNvbG9yXCI6XCIjMjM0NTY3XCIsXCJzdGFtaW5hV2lkdGhcIjoyMjAsXCJzdGFtaW5hSGVpZ2h0XCI6ODkuNixcInN0YW1pbmFPZmZzZXRYXCI6MTIzLFwic3RhbWluYU9mZnNldFlcIjotNDcsXCJzdGFtaW5hU2hhcGVcIjpcImFycm93XCJ9LFwidXNlclByZXNldHNcIjpbXX0ifQ",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "arrow"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-save-schema-2",
+    "kind": "save",
+    "input": "HPV2S1.65f026d7.eyJtIjoiSFBWMlNUT1JFIiwicyI6MiwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MCwiZW5lbXlTdGFtaW5hQ29sb3JFbmFibGVkIjp0cnVlLCJlbmVteVN0YW1pbmFDb2xvciI6IiMyMzQ1NjciLCJzdGFtaW5hV2lkdGgiOjIyMCwic3RhbWluYUhlaWdodCI6ODkuNiwic3RhbWluYU9mZnNldFgiOjEyMywic3RhbWluYU9mZnNldFkiOi00Nywic3RhbWluYVNoYXBlIjoiY2lyY2xlIn0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "circle"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-save-schema-3",
+    "kind": "save",
+    "input": "HPV2S1.65ef95e3.eyJtIjoiSFBWMlNUT1JFIiwicyI6MywidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MCwiZW5lbXlTdGFtaW5hQ29sb3JFbmFibGVkIjp0cnVlLCJlbmVteVN0YW1pbmFDb2xvciI6IiMyMzQ1NjciLCJzdGFtaW5hV2lkdGgiOjIyMCwic3RhbWluYUhlaWdodCI6ODkuNiwic3RhbWluYU9mZnNldFgiOjEyMywic3RhbWluYU9mZnNldFkiOi00Nywic3RhbWluYVNoYXBlIjoiYm94In0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "box"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-save-schema-4",
+    "kind": "save",
+    "input": "HPV2S1.69533843.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MCwiZW5lbXlTdGFtaW5hQ29sb3JFbmFibGVkIjp0cnVlLCJlbmVteVN0YW1pbmFDb2xvciI6IiMyMzQ1NjciLCJzdGFtaW5hV2lkdGgiOjIyMCwic3RhbWluYUhlaWdodCI6ODkuNiwic3RhbWluYU9mZnNldFgiOjEyMywic3RhbWluYU9mZnNldFkiOi00Nywic3RhbWluYVNoYXBlIjoiYXJyb3cifSwidXNlclByZXNldHMiOltdfX0",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "arrow"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-save-schema-5",
+    "kind": "save",
+    "input": "HPV2S1.0732d0d6.eyJtIjoiSFBWMlNUT1JFIiwicyI6NSwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MCwiZW5lbXlTdGFtaW5hQ29sb3JFbmFibGVkIjp0cnVlLCJlbmVteVN0YW1pbmFDb2xvciI6IiMyMzQ1NjciLCJzdGFtaW5hV2lkdGgiOjIyMCwic3RhbWluYUhlaWdodCI6ODkuNiwic3RhbWluYU9mZnNldFgiOjEyMywic3RhbWluYU9mZnNldFkiOi00Nywic3RhbWluYVNoYXBlIjoiY2lyY2xlIn0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "circle"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-HPCR2-hpv2-1",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"c\":{},\"hpv2\":{\"v\":1,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150],[4,true],[5,\"#234567\"],[0,220],[1,89.6],[2,123],[3,-47],[61,\"box\"]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "box"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-HPCRP1-hpv2-1",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150],[4,true],[5,\"#234567\"],[0,220],[1,89.6],[2,123],[3,-47],[61,\"arrow\"]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF",
+          "levelsVisible": false,
+          "levelOffsetX": 12.3,
+          "levelOffsetY": -4.7,
+          "staminaColorEnabled": true,
+          "staminaColor": "#234567",
+          "staminaWidth": 22,
+          "staminaHeight": 8.96,
+          "staminaOffsetX": 12.3,
+          "staminaOffsetY": -4.7,
+          "staminaShape": "arrow"
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {
+          "accessoryAnchorEnabled": false,
+          "ultMode": "custom",
+          "ultCustom": "#112233",
+          "ultOffsetX": -8.1,
+          "ultOffsetY": 5.9,
+          "ultSize": 30
+        }
+      }
+    ]
+  },
+  {
+    "name": "stamina-HPCR2-hpv2-2",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"c\":{},\"hpv2\":{\"v\":2,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150],[4,true],[5,\"#234567\"],[0,220],[1,89.6],[2,123],[3,-47],[61,\"circle\"]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "circle"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-HPCRP1-hpv2-2",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150],[4,true],[5,\"#234567\"],[0,220],[1,89.6],[2,123],[3,-47],[61,\"box\"]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF",
+          "levelsVisible": false,
+          "levelOffsetX": 12.3,
+          "levelOffsetY": -4.7,
+          "staminaColorEnabled": true,
+          "staminaColor": "#234567",
+          "staminaWidth": 22,
+          "staminaHeight": 8.96,
+          "staminaOffsetX": 12.3,
+          "staminaOffsetY": -4.7,
+          "staminaShape": "box"
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {
+          "accessoryAnchorEnabled": false,
+          "ultMode": "custom",
+          "ultCustom": "#112233",
+          "ultOffsetX": -8.1,
+          "ultOffsetY": 5.9,
+          "ultSize": 30
+        }
+      }
+    ]
+  },
+  {
+    "name": "stamina-HPCR2-hpv2-3",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"c\":{},\"hpv2\":{\"v\":3,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150],[4,true],[5,\"#234567\"],[0,220],[1,89.6],[2,123],[3,-47],[61,\"arrow\"]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "arrow"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "stamina-HPCRP1-hpv2-3",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150],[4,true],[5,\"#234567\"],[0,220],[1,89.6],[2,123],[3,-47],[61,\"circle\"]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF",
+          "levelsVisible": false,
+          "levelOffsetX": 12.3,
+          "levelOffsetY": -4.7,
+          "staminaColorEnabled": true,
+          "staminaColor": "#234567",
+          "staminaWidth": 22,
+          "staminaHeight": 8.96,
+          "staminaOffsetX": 12.3,
+          "staminaOffsetY": -4.7,
+          "staminaShape": "circle"
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {
+          "accessoryAnchorEnabled": false,
+          "ultMode": "custom",
+          "ultCustom": "#112233",
+          "ultOffsetX": -8.1,
+          "ultOffsetY": 5.9,
+          "ultSize": 30
+        }
+      }
+    ]
+  },
+  {
+    "name": "stamina-historical-missing-shape",
+    "kind": "save",
+    "input": "HPV2S1.dd9f096c.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MCwiZW5lbXlTdGFtaW5hQ29sb3JFbmFibGVkIjp0cnVlLCJlbmVteVN0YW1pbmFDb2xvciI6IiMyMzQ1NjciLCJzdGFtaW5hV2lkdGgiOjIyMCwic3RhbWluYUhlaWdodCI6ODkuNiwic3RhbWluYU9mZnNldFgiOjEyMywic3RhbWluYU9mZnNldFkiOi00N30sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7,
+        "staminaColorEnabled": true,
+        "staminaColor": "#234567",
+        "staminaWidth": 22,
+        "staminaHeight": 8.96,
+        "staminaOffsetX": 12.3,
+        "staminaOffsetY": -4.7,
+        "staminaShape": "box"
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  }
+]

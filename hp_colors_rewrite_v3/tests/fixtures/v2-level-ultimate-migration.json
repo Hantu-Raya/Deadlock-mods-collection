@@ -1,0 +1,382 @@
+[
+  {
+    "name": "level-ultimate-save-schema-1",
+    "kind": "save",
+    "input": "HPV2S1.7a7e1f9e.eyJtIjoiSFBWMlNUT1JFIiwicyI6MSwidCI6MSwiYiI6IntcInZlcnNpb25cIjoxLFwidmFsdWVzXCI6e1wicGlwc1Zpc2libGVcIjpmYWxzZSxcImVuZW15UGlwQ29sb3JFbmFibGVkXCI6dHJ1ZSxcImVuZW15UGlwQ29sb3JcIjpcIiMxMjM0NTZcIixcImFsbHlQaXBDb2xvckVuYWJsZWRcIjp0cnVlLFwiYWxseVBpcENvbG9yXCI6XCIjNjU0MzIxXCIsXCJwaXBPcGFjaXR5XCI6MzcsXCJlbmVteUtpbGxNYXJrZXJFbmFibGVkXCI6dHJ1ZSxcImVuZW15S2lsbE1hcmtlclRocmVzaG9sZFwiOjYxLFwiZW5lbXlLaWxsTWFya2VyV2lkdGhcIjoyMyxcImVuZW15S2lsbE1hcmtlckNvbG9yXCI6XCIjQUJDREVGXCIsXCJsZXZlbHNWaXNpYmxlXCI6ZmFsc2UsXCJsZXZlbE9mZnNldFhcIjoxMjMsXCJsZXZlbE9mZnNldFlcIjotNDcsXCJhY2Nlc3NvcnlBbmNob3JFbmFibGVkXCI6ZmFsc2UsXCJ1bHRNb2RlXCI6XCJjdXN0b21cIixcInVsdEN1c3RvbVwiOlwiIzExMjIzM1wiLFwidWx0T2Zmc2V0WFwiOi04MSxcInVsdE9mZnNldFlcIjo1OSxcInVsdGltYXRlVGltZXJTaXplXCI6MTUwfSxcInVzZXJQcmVzZXRzXCI6W119In0",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-save-schema-2",
+    "kind": "save",
+    "input": "HPV2S1.2db30210.eyJtIjoiSFBWMlNUT1JFIiwicyI6MiwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MH0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-save-schema-3",
+    "kind": "save",
+    "input": "HPV2S1.c5548c80.eyJtIjoiSFBWMlNUT1JFIiwicyI6MywidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MH0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-save-schema-4",
+    "kind": "save",
+    "input": "HPV2S1.3f7ef3fd.eyJtIjoiSFBWMlNUT1JFIiwicyI6NCwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MH0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-save-schema-5",
+    "kind": "save",
+    "input": "HPV2S1.fa0a0fed.eyJtIjoiSFBWMlNUT1JFIiwicyI6NSwidCI6MSwiYiI6eyJ2ZXJzaW9uIjoxLCJ2YWx1ZXMiOnsicGlwc1Zpc2libGUiOmZhbHNlLCJlbmVteVBpcENvbG9yRW5hYmxlZCI6dHJ1ZSwiZW5lbXlQaXBDb2xvciI6IiMxMjM0NTYiLCJhbGx5UGlwQ29sb3JFbmFibGVkIjp0cnVlLCJhbGx5UGlwQ29sb3IiOiIjNjU0MzIxIiwicGlwT3BhY2l0eSI6MzcsImVuZW15S2lsbE1hcmtlckVuYWJsZWQiOnRydWUsImVuZW15S2lsbE1hcmtlclRocmVzaG9sZCI6NjEsImVuZW15S2lsbE1hcmtlcldpZHRoIjoyMywiZW5lbXlLaWxsTWFya2VyQ29sb3IiOiIjQUJDREVGIiwibGV2ZWxzVmlzaWJsZSI6ZmFsc2UsImxldmVsT2Zmc2V0WCI6MTIzLCJsZXZlbE9mZnNldFkiOi00NywiYWNjZXNzb3J5QW5jaG9yRW5hYmxlZCI6ZmFsc2UsInVsdE1vZGUiOiJjdXN0b20iLCJ1bHRDdXN0b20iOiIjMTEyMjMzIiwidWx0T2Zmc2V0WCI6LTgxLCJ1bHRPZmZzZXRZIjo1OSwidWx0aW1hdGVUaW1lclNpemUiOjE1MH0sInVzZXJQcmVzZXRzIjpbXX19",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-HPCR2-hpv2-1",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"c\":{},\"hpv2\":{\"v\":1,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-HPCRP1-hpv2-1",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"conditions\":null,\"hpv2\":{\"v\":1,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF",
+          "levelsVisible": false,
+          "levelOffsetX": 12.3,
+          "levelOffsetY": -4.7
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {
+          "accessoryAnchorEnabled": false,
+          "ultMode": "custom",
+          "ultCustom": "#112233",
+          "ultOffsetX": -8.1,
+          "ultOffsetY": 5.9,
+          "ultSize": 30
+        }
+      }
+    ]
+  },
+  {
+    "name": "level-ultimate-HPCR2-hpv2-2",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"c\":{},\"hpv2\":{\"v\":2,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-HPCRP1-hpv2-2",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"conditions\":null,\"hpv2\":{\"v\":2,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF",
+          "levelsVisible": false,
+          "levelOffsetX": 12.3,
+          "levelOffsetY": -4.7
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {
+          "accessoryAnchorEnabled": false,
+          "ultMode": "custom",
+          "ultCustom": "#112233",
+          "ultOffsetX": -8.1,
+          "ultOffsetY": 5.9,
+          "ultSize": 30
+        }
+      }
+    ]
+  },
+  {
+    "name": "level-ultimate-HPCR2-hpv2-3",
+    "kind": "settings",
+    "input": "HPCR2{\"v\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"c\":{},\"hpv2\":{\"v\":3,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150]],\"conditions\":{}}}",
+    "expected": {
+      "enemy": {
+        "linesVisible": false,
+        "lineColorEnabled": true,
+        "lineColor": "#123456",
+        "lineOpacity": 37,
+        "killMarkerEnabled": true,
+        "killMarkerThreshold": 61,
+        "killMarkerWidth": 2.3,
+        "killMarkerColor": "#ABCDEF",
+        "levelsVisible": false,
+        "levelOffsetX": 12.3,
+        "levelOffsetY": -4.7
+      },
+      "ally": {
+        "linesVisible": true,
+        "lineColorEnabled": true,
+        "lineColor": "#654321",
+        "lineOpacity": 37
+      },
+      "shared": {
+        "accessoryAnchorEnabled": false,
+        "ultMode": "custom",
+        "ultCustom": "#112233",
+        "ultOffsetX": -8.1,
+        "ultOffsetY": 5.9,
+        "ultSize": 30
+      }
+    }
+  },
+  {
+    "name": "level-ultimate-HPCRP1-hpv2-3",
+    "kind": "bundle",
+    "input": "HPCRP1{\"records\":[{\"id\":\"user_0001\",\"kind\":\"user\",\"name\":\"Indicators\",\"mode\":\"all\",\"heroes\":[],\"values\":[[39,false],[63,true],[64,61],[65,23],[66,\"#ABCDEF\"],[41,false],[26,\"custom\"],[27,\"#112233\"]],\"conditions\":null,\"hpv2\":{\"v\":3,\"values\":[[56,true],[57,\"#123456\"],[58,true],[59,\"#654321\"],[60,37],[10,123],[11,-47],[7,false],[8,-81],[9,59],[24,150]],\"conditions\":{}}}]}",
+    "expectedPresets": [
+      {
+        "enemy": {
+          "linesVisible": false,
+          "lineColorEnabled": true,
+          "lineColor": "#123456",
+          "lineOpacity": 37,
+          "killMarkerEnabled": true,
+          "killMarkerThreshold": 61,
+          "killMarkerWidth": 2.3,
+          "killMarkerColor": "#ABCDEF",
+          "levelsVisible": false,
+          "levelOffsetX": 12.3,
+          "levelOffsetY": -4.7
+        },
+        "ally": {
+          "linesVisible": true,
+          "lineColorEnabled": true,
+          "lineColor": "#654321",
+          "lineOpacity": 37
+        },
+        "shared": {
+          "accessoryAnchorEnabled": false,
+          "ultMode": "custom",
+          "ultCustom": "#112233",
+          "ultOffsetX": -8.1,
+          "ultOffsetY": 5.9,
+          "ultSize": 30
+        }
+      }
+    ]
+  }
+]

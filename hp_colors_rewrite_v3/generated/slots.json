@@ -1,0 +1,1374 @@
+[
+  {
+    "slot": 0,
+    "key": "enemyBarColorEnabled",
+    "setting": "barColorEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 1,
+    "key": "allyBarColorEnabled",
+    "setting": "barColorEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 2,
+    "key": "enemyBarColorMode",
+    "setting": "barColorMode",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 3,
+    "key": "enemyBarColorLow",
+    "setting": "barColorLow",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 4,
+    "key": "enemyBarColorMid",
+    "setting": "barColorMid",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 5,
+    "key": "enemyBarColorHigh",
+    "setting": "barColorHigh",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 6,
+    "key": "enemyBarColorTeamHigh",
+    "setting": "barColorTeamHigh",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 7,
+    "key": "lowThreshold",
+    "setting": "lowThreshold",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 8,
+    "key": "highThreshold",
+    "setting": "highThreshold",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 9,
+    "key": "allyBarColorMode",
+    "setting": "barColorMode",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 10,
+    "key": "allyBarColorLow",
+    "setting": "barColorLow",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 11,
+    "key": "allyBarColorMid",
+    "setting": "barColorMid",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 12,
+    "key": "allyBarColorHigh",
+    "setting": "barColorHigh",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 13,
+    "key": "allyBarColorTeamHigh",
+    "setting": "barColorTeamHigh",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 14,
+    "key": "enabled",
+    "setting": "enabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 15,
+    "key": "enemyBarVisible",
+    "setting": "barVisible",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 16,
+    "key": "allyBarVisible",
+    "setting": "barVisible",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 17,
+    "key": "enemyBarHealingColor",
+    "setting": "barHealingColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 18,
+    "key": "allyBarHealingColor",
+    "setting": "barHealingColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 19,
+    "key": "enemyBarDeltaColor",
+    "setting": "barDeltaColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 20,
+    "key": "allyBarDeltaColor",
+    "setting": "barDeltaColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 21,
+    "key": "enemyBarShieldColor",
+    "setting": "barShieldColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 22,
+    "key": "allyBarShieldColor",
+    "setting": "barShieldColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 23,
+    "key": "enemyBarArmorColor",
+    "setting": "barArmorColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 24,
+    "key": "allyBarArmorColor",
+    "setting": "barArmorColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 25,
+    "key": "enemyBarWidth",
+    "setting": "barWidth",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 26,
+    "key": "allyBarWidth",
+    "setting": "barWidth",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 27,
+    "key": "enemyBarHeight",
+    "setting": "barHeight",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 28,
+    "key": "allyBarHeight",
+    "setting": "barHeight",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 29,
+    "key": "enemyBarOffsetX",
+    "setting": "barOffsetX",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 30,
+    "key": "allyBarOffsetX",
+    "setting": "barOffsetX",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 31,
+    "key": "enemyBarOffsetY",
+    "setting": "barOffsetY",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 32,
+    "key": "allyBarOffsetY",
+    "setting": "barOffsetY",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 33,
+    "key": "enemyBarOutlineEnabled",
+    "setting": "barOutlineEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 34,
+    "key": "allyBarOutlineEnabled",
+    "setting": "barOutlineEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 35,
+    "key": "enemyBarOutlineCustomColor",
+    "setting": "barOutlineCustomColor",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 36,
+    "key": "allyBarOutlineCustomColor",
+    "setting": "barOutlineCustomColor",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 37,
+    "key": "enemyBarOutlineColor",
+    "setting": "barOutlineColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 38,
+    "key": "allyBarOutlineColor",
+    "setting": "barOutlineColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 39,
+    "key": "enemyBarOutlineThickness",
+    "setting": "barOutlineThickness",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 40,
+    "key": "allyBarOutlineThickness",
+    "setting": "barOutlineThickness",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 41,
+    "key": "enemyBarOutlineOpacity",
+    "setting": "barOutlineOpacity",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 42,
+    "key": "allyBarOutlineOpacity",
+    "setting": "barOutlineOpacity",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 43,
+    "key": "enemyHpTextVisible",
+    "setting": "hpTextVisible",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 44,
+    "key": "allyHpTextVisible",
+    "setting": "hpTextVisible",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 45,
+    "key": "enemyHpTextFont",
+    "setting": "hpTextFont",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 46,
+    "key": "allyHpTextFont",
+    "setting": "hpTextFont",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 47,
+    "key": "enemyHpTextSize",
+    "setting": "hpTextSize",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 48,
+    "key": "allyHpTextSize",
+    "setting": "hpTextSize",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 49,
+    "key": "enemyHpTextColorMode",
+    "setting": "hpTextColorMode",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 50,
+    "key": "allyHpTextColorMode",
+    "setting": "hpTextColorMode",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 51,
+    "key": "enemyHpTextMode",
+    "setting": "hpTextMode",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 52,
+    "key": "allyHpTextMode",
+    "setting": "hpTextMode",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 53,
+    "key": "enemyHpTextLow",
+    "setting": "hpTextLow",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 54,
+    "key": "allyHpTextLow",
+    "setting": "hpTextLow",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 55,
+    "key": "enemyHpTextMid",
+    "setting": "hpTextMid",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 56,
+    "key": "allyHpTextMid",
+    "setting": "hpTextMid",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 57,
+    "key": "enemyHpTextHigh",
+    "setting": "hpTextHigh",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 58,
+    "key": "allyHpTextHigh",
+    "setting": "hpTextHigh",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 59,
+    "key": "enemyHpTextOffsetX",
+    "setting": "hpTextOffsetX",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 60,
+    "key": "allyHpTextOffsetX",
+    "setting": "hpTextOffsetX",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 61,
+    "key": "enemyHpTextOffsetY",
+    "setting": "hpTextOffsetY",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 62,
+    "key": "allyHpTextOffsetY",
+    "setting": "hpTextOffsetY",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 63,
+    "key": "enemyHpTextOutline",
+    "setting": "hpTextOutline",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 64,
+    "key": "allyHpTextOutline",
+    "setting": "hpTextOutline",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 65,
+    "key": "enemyHpTextAlign",
+    "setting": "hpTextAlign",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 66,
+    "key": "allyHpTextAlign",
+    "setting": "hpTextAlign",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 67,
+    "key": "enemyNameVisible",
+    "setting": "nameVisible",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 68,
+    "key": "allyNameVisible",
+    "setting": "nameVisible",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 69,
+    "key": "enemyNameColorEnabled",
+    "setting": "nameColorEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 70,
+    "key": "allyNameColorEnabled",
+    "setting": "nameColorEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 71,
+    "key": "enemyNameColor",
+    "setting": "nameColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 72,
+    "key": "allyNameColor",
+    "setting": "nameColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 73,
+    "key": "enemyNameSize",
+    "setting": "nameSize",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 74,
+    "key": "allyNameSize",
+    "setting": "nameSize",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 75,
+    "key": "enemyNameOffsetX",
+    "setting": "nameOffsetX",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 76,
+    "key": "allyNameOffsetX",
+    "setting": "nameOffsetX",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 77,
+    "key": "enemyNameOffsetY",
+    "setting": "nameOffsetY",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 78,
+    "key": "allyNameOffsetY",
+    "setting": "nameOffsetY",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 79,
+    "key": "enemyNameOutline",
+    "setting": "nameOutline",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 80,
+    "key": "allyNameOutline",
+    "setting": "nameOutline",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 81,
+    "key": "enemyNameAlign",
+    "setting": "nameAlign",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 82,
+    "key": "allyNameAlign",
+    "setting": "nameAlign",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 83,
+    "key": "enemyLinesVisible",
+    "setting": "linesVisible",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 84,
+    "key": "allyLinesVisible",
+    "setting": "linesVisible",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 85,
+    "key": "enemyLineColorEnabled",
+    "setting": "lineColorEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 86,
+    "key": "allyLineColorEnabled",
+    "setting": "lineColorEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 87,
+    "key": "enemyLineColor",
+    "setting": "lineColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 88,
+    "key": "allyLineColor",
+    "setting": "lineColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 89,
+    "key": "enemyLineOpacity",
+    "setting": "lineOpacity",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 90,
+    "key": "allyLineOpacity",
+    "setting": "lineOpacity",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 91,
+    "key": "enemyKillMarkerEnabled",
+    "setting": "killMarkerEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 92,
+    "key": "enemyKillMarkerThreshold",
+    "setting": "killMarkerThreshold",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 93,
+    "key": "enemyKillMarkerWidth",
+    "setting": "killMarkerWidth",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 94,
+    "key": "enemyKillMarkerColor",
+    "setting": "killMarkerColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 95,
+    "key": "enemyLevelsVisible",
+    "setting": "levelsVisible",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 96,
+    "key": "enemyLevelOffsetX",
+    "setting": "levelOffsetX",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 97,
+    "key": "enemyLevelOffsetY",
+    "setting": "levelOffsetY",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 98,
+    "key": "accessoryAnchorEnabled",
+    "setting": "accessoryAnchorEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 99,
+    "key": "ultMode",
+    "setting": "ultMode",
+    "side": "shared",
+    "type": "enum"
+  },
+  {
+    "slot": 100,
+    "key": "ultCustom",
+    "setting": "ultCustom",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 101,
+    "key": "ultOffsetX",
+    "setting": "ultOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 102,
+    "key": "ultOffsetY",
+    "setting": "ultOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 103,
+    "key": "ultSize",
+    "setting": "ultSize",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 104,
+    "key": "enemyStaminaColorEnabled",
+    "setting": "staminaColorEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 105,
+    "key": "enemyStaminaColor",
+    "setting": "staminaColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 106,
+    "key": "enemyStaminaWidth",
+    "setting": "staminaWidth",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 107,
+    "key": "enemyStaminaHeight",
+    "setting": "staminaHeight",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 108,
+    "key": "enemyStaminaOffsetX",
+    "setting": "staminaOffsetX",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 109,
+    "key": "enemyStaminaOffsetY",
+    "setting": "staminaOffsetY",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 110,
+    "key": "enemyStaminaShape",
+    "setting": "staminaShape",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 111,
+    "key": "enemyPulseEnabled",
+    "setting": "pulseEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 112,
+    "key": "allyPulseEnabled",
+    "setting": "pulseEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 113,
+    "key": "enemyPulseThreshold",
+    "setting": "pulseThreshold",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 114,
+    "key": "allyPulseThreshold",
+    "setting": "pulseThreshold",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 115,
+    "key": "enemyPulseBpm",
+    "setting": "pulseBpm",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 116,
+    "key": "allyPulseBpm",
+    "setting": "pulseBpm",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 117,
+    "key": "enemyPulseIntensity",
+    "setting": "pulseIntensity",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 118,
+    "key": "allyPulseIntensity",
+    "setting": "pulseIntensity",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 119,
+    "key": "enemyPulseColorEnabled",
+    "setting": "pulseColorEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 120,
+    "key": "allyPulseColorEnabled",
+    "setting": "pulseColorEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 121,
+    "key": "enemyPulseColorMode",
+    "setting": "pulseColorMode",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 122,
+    "key": "allyPulseColorMode",
+    "setting": "pulseColorMode",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 123,
+    "key": "enemyPulseColor",
+    "setting": "pulseColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 124,
+    "key": "allyPulseColor",
+    "setting": "pulseColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 125,
+    "key": "enemyPulseReadout",
+    "setting": "pulseReadout",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 126,
+    "key": "allyPulseReadout",
+    "setting": "pulseReadout",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 127,
+    "key": "enemyPulseHideBar",
+    "setting": "pulseHideBar",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 128,
+    "key": "enemyPulseReadoutModifiers",
+    "setting": "pulseReadoutModifiers",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 129,
+    "key": "enemyPulseReadoutSize",
+    "setting": "pulseReadoutSize",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 130,
+    "key": "enemyPulseReadoutOffsetX",
+    "setting": "pulseReadoutOffsetX",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 131,
+    "key": "enemyPulseReadoutOffsetY",
+    "setting": "pulseReadoutOffsetY",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 132,
+    "key": "pickupTimersEnabled",
+    "setting": "pickupTimersEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 133,
+    "key": "pickupGunColor",
+    "setting": "pickupGunColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 134,
+    "key": "pickupMovementColor",
+    "setting": "pickupMovementColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 135,
+    "key": "pickupSpiritColor",
+    "setting": "pickupSpiritColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 136,
+    "key": "pickupSurvivalColor",
+    "setting": "pickupSurvivalColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 137,
+    "key": "pickupBackgroundDarkness",
+    "setting": "pickupBackgroundDarkness",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 138,
+    "key": "pickupGlyphColor",
+    "setting": "pickupGlyphColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 139,
+    "key": "pickupSize",
+    "setting": "pickupSize",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 140,
+    "key": "pickupSpacing",
+    "setting": "pickupSpacing",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 141,
+    "key": "pickupOffsetX",
+    "setting": "pickupOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 142,
+    "key": "pickupOffsetY",
+    "setting": "pickupOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 143,
+    "key": "rejuvOffsetX",
+    "setting": "rejuvOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 144,
+    "key": "rejuvOffsetY",
+    "setting": "rejuvOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 145,
+    "key": "rejuvTilt",
+    "setting": "rejuvTilt",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 146,
+    "key": "rejuvSize",
+    "setting": "rejuvSize",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 147,
+    "key": "ultimateTimerEnabled",
+    "setting": "ultimateTimerEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 148,
+    "key": "ultimateTimerDarkness",
+    "setting": "ultimateTimerDarkness",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 149,
+    "key": "ultimateTimerColorMode",
+    "setting": "ultimateTimerColorMode",
+    "side": "shared",
+    "type": "enum"
+  },
+  {
+    "slot": 150,
+    "key": "ultimateTimerUnavailableColor",
+    "setting": "ultimateTimerUnavailableColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 151,
+    "key": "ultimateTimerAvailableColor",
+    "setting": "ultimateTimerAvailableColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 152,
+    "key": "enemyNpcEnabled",
+    "setting": "npcEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 153,
+    "key": "allyNpcEnabled",
+    "setting": "npcEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 154,
+    "key": "enemyObjectiveEnabled",
+    "setting": "objectiveEnabled",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 155,
+    "key": "allyObjectiveEnabled",
+    "setting": "objectiveEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 156,
+    "key": "neutralEnabled",
+    "setting": "neutralEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 157,
+    "key": "neutralColor",
+    "setting": "neutralColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 158,
+    "key": "barStyle",
+    "setting": "barStyle",
+    "side": "shared",
+    "type": "enum"
+  },
+  {
+    "slot": 159,
+    "key": "nameRiseWithPips",
+    "setting": "nameRiseWithPips",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 160,
+    "key": "damageShakeEnabled",
+    "setting": "damageShakeEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 161,
+    "key": "damageShakeStrength",
+    "setting": "damageShakeStrength",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 162,
+    "key": "nameTilt",
+    "setting": "nameTilt",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 163,
+    "key": "enemyHpTextTilt",
+    "setting": "hpTextTilt",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 164,
+    "key": "allyHpTextTilt",
+    "setting": "hpTextTilt",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 165,
+    "key": "hudHealthColorMode",
+    "setting": "hudHealthColorMode",
+    "side": "shared",
+    "type": "enum"
+  },
+  {
+    "slot": 166,
+    "key": "hudHealthColor",
+    "setting": "hudHealthColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 167,
+    "key": "criticalIndicatorVisible",
+    "setting": "criticalIndicatorVisible",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 168,
+    "key": "criticalOffsetX",
+    "setting": "criticalOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 169,
+    "key": "criticalOffsetY",
+    "setting": "criticalOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 170,
+    "key": "assassinateIndicatorVisible",
+    "setting": "assassinateIndicatorVisible",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 171,
+    "key": "assassinateOffsetX",
+    "setting": "assassinateOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 172,
+    "key": "assassinateOffsetY",
+    "setting": "assassinateOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 173,
+    "key": "unkillableIndicatorVisible",
+    "setting": "unkillableIndicatorVisible",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 174,
+    "key": "unkillableOffsetX",
+    "setting": "unkillableOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 175,
+    "key": "unkillableOffsetY",
+    "setting": "unkillableOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 176,
+    "key": "teamAmberColor",
+    "setting": "teamAmberColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 177,
+    "key": "teamSapphireColor",
+    "setting": "teamSapphireColor",
+    "side": "shared",
+    "type": "color"
+  },
+  {
+    "slot": 178,
+    "key": "enemyHpTextTeamHigh",
+    "setting": "hpTextTeamHigh",
+    "side": "enemy",
+    "type": "boolean"
+  },
+  {
+    "slot": 179,
+    "key": "allyHpTextTeamHigh",
+    "setting": "hpTextTeamHigh",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 180,
+    "key": "allyStaminaColorEnabled",
+    "setting": "staminaColorEnabled",
+    "side": "ally",
+    "type": "boolean"
+  },
+  {
+    "slot": 181,
+    "key": "allyStaminaColor",
+    "setting": "staminaColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 182,
+    "key": "allyStaminaWidth",
+    "setting": "staminaWidth",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 183,
+    "key": "allyStaminaHeight",
+    "setting": "staminaHeight",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 184,
+    "key": "allyStaminaOffsetX",
+    "setting": "staminaOffsetX",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 185,
+    "key": "allyStaminaOffsetY",
+    "setting": "staminaOffsetY",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 186,
+    "key": "allyStaminaShape",
+    "setting": "staminaShape",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 187,
+    "key": "enemyStaminaColorMode",
+    "setting": "staminaColorMode",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 188,
+    "key": "allyStaminaColorMode",
+    "setting": "staminaColorMode",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 189,
+    "key": "enemyStaminaLowThreshold",
+    "setting": "staminaLowThreshold",
+    "side": "enemy",
+    "type": "number"
+  },
+  {
+    "slot": 190,
+    "key": "allyStaminaLowThreshold",
+    "setting": "staminaLowThreshold",
+    "side": "ally",
+    "type": "number"
+  },
+  {
+    "slot": 191,
+    "key": "enemyStaminaLowColor",
+    "setting": "staminaLowColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 192,
+    "key": "allyStaminaLowColor",
+    "setting": "staminaLowColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 195,
+    "key": "hudShieldStyle",
+    "setting": "hudShieldStyle",
+    "side": "shared",
+    "type": "enum"
+  },
+  {
+    "slot": 196,
+    "key": "enemyNameColorMode",
+    "setting": "nameColorMode",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 197,
+    "key": "allyNameColorMode",
+    "setting": "nameColorMode",
+    "side": "ally",
+    "type": "enum"
+  }
+]
