@@ -6,8 +6,9 @@
 // Failure modes covered: setting off or HP Colors off touches nothing and schedules nothing; the shield bar
 // shows only with shield capacity; the fill is health / max HP with a shield up, and returns to the game's
 // scale only once that scale is right again; the number is health only and keeps the game's mid/low colors;
-// a Rat King barrier gets the old spirit-shield bar and number in the Rat King colour; unreadable numbers or a
-// QOLLOCK HUD fall back to the game's view; steady state writes
+// a Rat King barrier gets the old spirit-shield bar and number in the Rat King colour; unreadable numbers fall
+// back to the game's view; a QOLLOCK HUD is corrected too, a QOLLOCK healthbar theme keeps its layout and
+// QOLLOCK's Minecraft healthbar (bars drawn invisible) is left alone (ticket 40); steady state writes
 // nothing; turning it off or a pending reload releases everything, including an earlier context's leftovers;
 // a replaced HUD is found again and the old one released; sampling stays cheap.
 const assert = require('node:assert/strict');
@@ -68,6 +69,7 @@ function hudTree(f, options = {}) {
   const current = new MockPanel('Label', box, ''); current.AddClass('currentHealthLabel');
   const total = new MockPanel('Label', box, ''); total.AddClass('totalHealthLabel');
   if (options.qollock) new MockPanel('Label', box, 'currentHealthOverHearts');
+  if (options.theme) hud.AddClass(options.theme);
   const h = { hud, container, bars, health, damage, heal, merged, barrier, lines, shield, shieldLeft, regen, numbers, bullet, bulletCurrent, bulletMax, tech, techCurrent, box, current, total };
   // What CitadelHudHealth / CitadelHudHealthContainer write each update (IDA: sub_181E5CBC0, UpdateBar
   // 0x181C0DE30, sub_181C095D0). UpdateBar writes the bars together: health lower = h/D, shield_bar_2
@@ -305,15 +307,48 @@ test('ticket 38: if the game updates after the script in a frame, the gap lasts 
   assert.ok(Math.abs(fill(h) - 1) < 1e-6, 'the next callback corrects it: ' + fill(h)); assert.equal(own(h).text, '1136');
 });
 
-test('ticket 38: unreadable numbers and a QOLLOCK HUD fall back to the game view', () => {
+test('ticket 38: unreadable numbers fall back to the game view', () => {
   const { f, h } = separate(hudTree);
   h.engine({ H: 1020, M: 1020, S: 600, text: '1.6k' }); f.run(300);
   assert.ok(h.health.max < 1, 'the HP text is not needed while the bars give the scale'); assert.equal(own(h).text, '1020');
   h.engine({ H: 1020, M: 1020, S: 600, maxText: '/ 1.0k' }); f.run(200);
   assert.equal(h.health.max, 1, 'unreadable max HP: no guess'); assert.equal(shown(h.current), true);
-  const q = launch(profile()), qh = hudTree(q, { qollock: true }); q.run(2000); setStyle(q, 'separate');
-  qh.engine({ H: 1020, M: 1020, S: 600 }); q.run(2000);
-  assert.equal(allWrites(qh), 0, 'QOLLOCK draws its own health HUD'); assert.equal(qh.health.max, 1);
+});
+
+// Ticket 40: QOLLOCK pak03 keeps the stock bars and labels and adds #currentHealthOverHearts (Minecraft
+// hearts) to every healthbar type; type 0 is the stock HUD, types 1-5 add a root theme class.
+const layoutWrites = h => [h.regen, h.box, h.numbers, h.shieldLeft].reduce((sum, panel) => sum + panel.__styleWrites.length, 0);
+test('ticket 40: a QOLLOCK HUD on its default healthbar gets the old look', () => {
+  const { f, h } = separate(f => hudTree(f, { qollock: true }));
+  h.engine({ H: 700, M: 1020, S: 600 }); f.run(300);
+  assert.equal(h.regen.style.width, '115px'); assert.equal(h.numbers.style.visibility, 'visible');
+  assert.equal(h.shieldLeft.style.backgroundColor, '#4BDC68'); assert.equal(h.shield.style.visibility, 'visible');
+  assert.ok(Math.abs(fill(h) - 700 / 1020) < 1e-6, 'fill at health / max HP: ' + fill(h)); assert.equal(own(h).text, '700');
+});
+
+test('ticket 40: a QOLLOCK healthbar theme keeps its layout and look; the bar is still corrected', () => {
+  const { f, h } = separate(f => hudTree(f, { qollock: true, theme: 'minimalist_healthbar_active' }));
+  h.engine({ H: 700, M: 1020, S: 600 }); f.run(300);
+  assert.equal(layoutWrites(h), 0, 'theme positions, shield numbers and colour untouched');
+  assert.equal(h.shield.style.visibility, 'visible'); assert.equal(h.merged.style.visibility, 'collapse');
+  assert.ok(Math.abs(fill(h) - 700 / 1020) < 1e-6, 'fill at health / max HP: ' + fill(h)); assert.equal(own(h).text, '700');
+  // Theme off (QOLLOCK type 0) within the 1 s HUD watch: the old layout; theme on again: handed back.
+  h.hud.RemoveClass('minimalist_healthbar_active'); h.engine({ H: 700, M: 1020, S: 600 }); f.run(1200);
+  assert.equal(h.regen.style.width, '115px'); assert.equal(h.shieldLeft.style.backgroundColor, '#4BDC68');
+  h.hud.AddClass('minimalist_healthbar_active'); h.engine({ H: 700, M: 1020, S: 600 }); f.run(1200);
+  for (const panel of [h.box, h.numbers, h.shieldLeft])
+    for (const property of Object.keys(panel.style)) assert.ok([null, undefined, ''].includes(panel.style[property]), property + '=' + panel.style[property]);
+  assert.ok([null, undefined, ''].includes(h.regen.style.width)); assert.ok(Math.abs(fill(h) - 700 / 1020) < 1e-6, 'still corrected');
+});
+
+test('ticket 40: QOLLOCK Minecraft healthbar draws the bars invisible, so the lane stays off and schedules nothing', () => {
+  const { f, h } = separate(f => hudTree(f, { qollock: true, theme: 'minecraft_healthbar_active' }));
+  h.engine({ H: 700, M: 1020, S: 600 }); f.run(2000);
+  assert.equal(allWrites(h), 0); assert.equal(h.health.max, 1); assert.equal(legacyJobs(f).length, 0);
+  // Switched to Minecraft while corrected: handed back on the next 1 s HUD watch.
+  h.hud.RemoveClass('minecraft_healthbar_active'); f.run(1200); assert.ok(h.health.max < 1);
+  h.hud.AddClass('minecraft_healthbar_active'); f.run(1200);
+  assert.equal(h.health.max, 1); assert.equal(shown(own(h)), false); assert.equal(legacyJobs(f).length, 0);
 });
 
 test('ticket 38: while the shield takes damage the fill holds health / max HP on every frame, from the bars alone', () => {
@@ -403,7 +438,7 @@ test('ticket 38: Merged or HP Colors off releases everything; a pending reload r
   f.reload({ dropTitle: () => true }); f.run(500); released();
 });
 
-test('ticket 38: a stock HUD whose panels arrive late is picked up; only QOLLOCK is skipped for good', () => {
+test('ticket 38: a stock HUD whose panels arrive late is picked up', () => {
   const f = launch(profile()), h = hudTree(f); f.run(2000);
   h.shield.SetParent(null); setStyle(f, 'separate');
   h.engine({ H: 700, M: 1020, S: 600 }); f.run(1500); assert.equal(h.health.max, 1, 'incomplete HUD: untouched');

@@ -62,6 +62,15 @@ Feature tickets through 24 are implemented and VM-verified: Core, Indicators, Un
 
 Versions follow `settings/record.json` `release` (see [SPEC](SPEC.md#implementation-decisions)): fixes bump the patch, user-visible features the minor. Raise `hpv3` in hpv2-store `latest.json` only once a release can be downloaded.
 
+### 3.3.1 (unreleased)
+
+- **Fixed (QOLLOCK):** *Your shield bar: Separate (old)* did nothing on the QOLLOCK build (GameBanana report, 2026-10-22). The lane skipped every HUD that had QOLLOCK's `#currentHealthOverHearts`, which is part of every QOLLOCK healthbar type. It now runs there as well:
+  - QOLLOCK's default healthbar gets the full old look;
+  - QOLLOCK's Minimalist, FG, Klutz and Budhud healthbars keep their own layout and colours, while the fill, HP number and ticks are still corrected;
+  - QOLLOCK's Minecraft healthbar draws the bars invisible, so the lane stays off there and costs nothing.
+  See [ticket 40](issues/40-qollock-separate-shield.md). Not checked in game.
+- **Builds (`-SkipDeploy -AllowPinMismatch`: installed 6813, pin 6807; staged suite passed with 0 failures in release and debug, QOLLOCK 34, ShowRank 11; all show v3.3.1):** normal `bbe74733` release / `047de213` debug, QOLLOCK `8c4d7430` / `3c8f0ee6`, ShowRank `76c7da66` / `e5927b63`. Nothing installed or uploaded.
+
 ### 3.3.0 (2026-10-22, game 6807; released: GameBanana normal `#FileInfo_1858405`, QOLLOCK `#FileInfo_1858404`; hpv2-store `latest.json` 3.3.0 at `588b97d`)
 
 - **Added:** Name color source (`nameColorMode`: Own color / Team colors), side-aware, slots 196/197, record version 16, on the Name page between Custom name color and Name color. It reuses the stamina pattern: it applies only while Custom name color is on, takes `teamColor()` (the shared Amber/Sapphire colors), keeps the `80` spectator alpha, and uses the own name color when the team is unknown. No new reads, panels or styles: the name already paints from the plan, which already knows the bar's team. NEW tab item `team-name`. A v15 code reads Own color.

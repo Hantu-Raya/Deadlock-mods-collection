@@ -40,7 +40,7 @@ Evidence: IDA pseudocode in `.scratch/ida_shield/out*.txt` and the saved IDB `in
   - `.shieldNumbersContainer`: visible, margin-right 23px; this shows the old "600" beside the bar.
   - `#healthLines`: kept (the user wants them, although pre-6711 had none). The game spaces them by D, so while the scale is corrected they are swapped for an owned panel with the same id, with lines at max HP (see live fix 2).
   - `#shield_bar .progress_bar_numbers` stays hidden, as before 6711; m1 suggested showing it.
-- **Inline styles, no stock CSS files.** QOLLOCK's pak03 replaces hud_health.css and hud_health_container.css, so shipping patched copies would break QOLLOCK. Inline writes work over any stylesheet. On a QOLLOCK HUD (`#currentHealthOverHearts`), the feature does nothing.
+- **Inline styles, no stock CSS files.** QOLLOCK's pak03 replaces hud_health.css and hud_health_container.css, so shipping patched copies would break QOLLOCK. Inline writes work over any stylesheet. Until 3.3.0 the feature did nothing on a QOLLOCK HUD (`#currentHealthOverHearts`). Since 3.3.1 ([ticket 40](40-qollock-separate-shield.md)) it runs there too: a QOLLOCK healthbar theme keeps its own layout, and the Minecraft healthbar is left alone.
 - **Fallbacks to the game view:**
   - a Rat King barrier, because no exact barrier number exists (m1);
   - unreadable numbers;

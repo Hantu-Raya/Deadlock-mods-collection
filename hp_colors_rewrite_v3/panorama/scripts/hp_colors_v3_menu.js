@@ -575,7 +575,9 @@
   //   it gets the old spirit-shield pair, an owned #tech_shield_bar (removed in 6711; pre-6711 rule values
   //   inline) and the still-present, unfed #TechShieldNumbers, in the Rat King colour. No barrier max
   //   reaches the HUD, so the bar shows B over its peak since the barrier appeared.
-  // - The game view returns for unreadable numbers and QOLLOCK's own health HUD.
+  // - The game view returns for unreadable numbers. QOLLOCK's pak03 keeps these stock panels (ticket 40):
+  //   under a QOLLOCK healthbar theme its own layout and look stay and only the correction runs; its
+  //   Minecraft healthbar draws the bars invisible, so there the lane stays off.
   // Cost: Merged nothing. Separate: 10/s two classes; 20/s while the shield is empty; every frame while it
   // has points, a barrier is up or the scale is corrected: two bar reads (three with a barrier, one more
   // after a change), work only on change,
@@ -594,6 +596,10 @@
   var LEGACY_LAYOUT = [["regen", { width: "115px", horizontalAlign: "right", marginTop: "5px", marginRight: "10px" }],
     ["box", { marginRight: "10px" }], ["numbers", { marginRight: "23px", visibility: "visible" }],
     ["shieldLeft", { backgroundColor: "#4BDC68" }]];
+  // QOLLOCK 4.0.5 healthbar types 1-5 (core/ql_hud.js): each restyles these panels, so LEGACY_LAYOUT stays off.
+  var LEGACY_QOL_THEMES = ["minimalist_healthbar_active", "fg_healthbar_active", "klutz_healthbar_active",
+    "budhud_healthbar_active", "minecraft_healthbar_active"];
+  var LEGACY_QOL_HIDDEN = "minecraft_healthbar_active"; // #HealthBarContent at opacity 0.0001
   // Inline styles this lane may own: [panel, property, stock-equivalent written before the clear, so the
   // stock look stays even if a clear does not take]. Live 6779/6782: margin longhands and horizontalAlign
   // throw when cleared alone, so margins clear through their base and the alignment goes back to the
@@ -606,7 +612,7 @@
   // 2026-10-21: above 120 fps a correction can land a frame later, for fewer calls per second).
   var LEGACY_FRAME = 1 / 120;
   var LEGACY_SCALED = ["health", "damage", "heal"]; // bars drawn on the D scale whose max is corrected
-  var legacy = { job: null, container: null, p: null, styles: {}, scale: 1, scaled: {}, read: null, fullAt: NaN, unsupported: null,
+  var legacy = { job: null, container: null, p: null, styles: {}, scale: 1, scaled: {}, read: null, fullAt: NaN, qolFor: null, qol: false, themed: false,
     label: null, zero: null, lines: null, linesMax: NaN, text: "", colorKey: "", colorTicks: 0,
     barrierBar: null, barrierParts: false, barrierNumber: null, barrierPeak: 0, barrierFill: NaN, barrierText: "", revalidate: false };
   function legacyWanted() {
@@ -679,15 +685,17 @@
       try { legacy.p[key].max = k; legacy.scaled[key] = k; } catch (error) { legacy.scaled[key] = NaN; }
     }
   }
-  // Hands everything back, also what an earlier menu context left (marked on the container).
+  // Hands everything back, also what an earlier menu context left (marked on the container: "1", or "2"
+  // under a QOLLOCK theme, whose layout this lane never wrote and so never clears).
   function releaseLegacy(container) {
     if (legacy.job) { $.CancelScheduled(legacy.job); legacy.job = null; }
+    var mark = valid(container) ? container.GetAttributeString(LEGACY_ATTR, "") : "";
     var p = legacy.p && legacy.container === container ? legacy.p : null;
-    if (!p && valid(container) && container.GetAttributeString(LEGACY_ATTR, "") === "1") p = legacyPanels(container);
+    if (!p && mark !== "") p = legacyPanels(container);
     if (p) {
       LEGACY_OWNED.forEach(function (entry) {
         var panel = p[entry[0]], property = entry[1];
-        if (!valid(panel)) return;
+        if (!valid(panel) || mark === "2" && LEGACY_LAYOUT.some(function (layout) { return layout[0] === entry[0]; })) return;
         try {
           if (entry[2]) panel.style[property] = entry[2];
           panel.style[property] = property === "horizontalAlign" ? "center" : null;
@@ -705,21 +713,29 @@
     }
     legacyReset(null, null);
   }
+  // QOLLOCK: its pak03 adds #currentHealthOverHearts to every healthbar type (looked up once per container).
+  // The theme class on an ancestor is read on each 1 s HUD watch: "" (none), a theme, or the hidden one.
+  function legacyTheme(container) {
+    if (legacy.qolFor !== container) { legacy.qolFor = container; legacy.qol = !!container.FindChildTraverse("currentHealthOverHearts"); }
+    if (!legacy.qol) return "";
+    for (var i = 0; i < LEGACY_QOL_THEMES.length; i++) if (container.BAscendantHasClass(LEGACY_QOL_THEMES[i])) return LEGACY_QOL_THEMES[i];
+    return "";
+  }
   function syncLegacy(found) {
     var container = found ? hud.container : null;
     if (legacy.container && legacy.container !== container) releaseLegacy(legacy.container);
     if (!valid(container)) return;
-    if (!legacyWanted()) { releaseLegacy(container); return; }
+    var theme = legacyWanted() ? legacyTheme(container) : null;
+    if (theme === null || theme === LEGACY_QOL_HIDDEN) { releaseLegacy(container); return; }
+    if (legacy.p && legacy.themed !== (theme !== "")) releaseLegacy(container);
     if (!legacy.p) {
-      // QOLLOCK draws its own health HUD: checked once per container. A stock HUD with a panel still
-      // missing is retried by the 1 s HUD watch.
-      if (legacy.unsupported === container) return;
-      if (container.FindChildTraverse("currentHealthOverHearts")) { legacy.unsupported = container; return; }
+      // A HUD with a panel still missing is retried by the 1 s HUD watch.
       var p = legacyPanels(container);
       if (!p) return;
       legacyReset(container, p);
-      container.SetAttributeString(LEGACY_ATTR, "1");
-      LEGACY_LAYOUT.forEach(function (entry) { for (var property in entry[1]) writeLegacy(entry[0], property, entry[1][property]); });
+      legacy.themed = theme !== "";
+      container.SetAttributeString(LEGACY_ATTR, legacy.themed ? "2" : "1");
+      if (!legacy.themed) LEGACY_LAYOUT.forEach(function (entry) { for (var property in entry[1]) writeLegacy(entry[0], property, entry[1][property]); });
     }
     if (!legacy.job) legacyTick();
   }
