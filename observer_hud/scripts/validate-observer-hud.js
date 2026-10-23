@@ -102,10 +102,11 @@ const results = { checks: [], runs: [], budgets: null };
 // column idles after spectating, card registry: spectating 1106.4, countdown 1443.8, after spectating
 // 101.9 -> 14.7). Aliases on the far-away markers (2026-10-23): the scenario gained the 12 stock
 // markers; their names are read once a second while an alias exists: spectating 1106.4 -> 1120.4,
-// countdown 1443.8 -> 1457.8. Re-measure before raising.
+// countdown 1443.8 -> 1457.8. Kill feed placement (2026-10-23, the stock #EventFeed in the scenario):
+// spectating 1123.4, countdown 1465.0. Re-measure before raising.
 const BUDGET_SPECTATING = 1130;
 const BUDGET_IDLE = 12;
-const BUDGET_COUNTDOWN = 1465;
+const BUDGET_COUNTDOWN = 1475;
 const BUDGET_AFTER = 15; // spectated, then back to playing
 
 let lastLogs = null;
@@ -195,7 +196,9 @@ const STOCK = {
   purchase: parseLayout(/<snippet name="RecentPurchase">([\s\S]*?)<\/snippet>/.exec(read("stock/citadel_hud_hero_shop.xml"))[1]),
   // A far-away hero marker: the engine loads this snippet into CitadelHudUnitIndicatorsV2#unit_indicators_v2
   // per player (CitadelUserName#PlayerName holds the name Label; stock CSS "#PlayerName Label").
-  indicator: parseLayout(/<snippet name="PlayerEntry">([\s\S]*?)<\/snippet>/.exec(read("stock/hud_unit_indicators_v2.xml"))[1])
+  indicator: parseLayout(/<snippet name="PlayerEntry">([\s\S]*?)<\/snippet>/.exec(read("stock/hud_unit_indicators_v2.xml"))[1]),
+  // The kill feed: HudDataFeed#DataFeed loads this; #EventFeed (top left, margin-top 200px) holds the rows.
+  dataFeed: parseLayout(read("stock/hud_data_feed.xml"))
 };
 const OWN = {
   spectate: parseLayout(read("panorama/layout/hud_spectate_bar.xml")),
@@ -400,6 +403,18 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     return entry;
   };
   const markerName = (entry) => entry.FindChildTraverse("PlayerName").Children()[0];
+  // The stock kill feed: #EventFeed sits at its margin-top (stock 200 layout px; an inline margin moves
+  // it, as the engine lays it out); killRow adds an entry of a given screen width.
+  loadInto(hud.FindChildTraverse("DataFeed"), STOCK.dataFeed);
+  const eventFeed = hud.FindChildTraverse("EventFeed");
+  Object.defineProperty(eventFeed, "actualyoffset", { configurable: true,
+    get: () => { const m = /^(-?\d+(?:\.\d+)?)px$/.exec(String(eventFeed.style.marginTop || "")); return m ? Number(m[1]) : 200; },
+    set: () => {} });
+  const killRow = (widthPx) => {
+    const row = new MockPanel("Panel", eventFeed, "");
+    row.actuallayoutwidth = widthPx;
+    return row;
+  };
   const escapeMenu = hud.FindChildTraverse("EscapeMenu");
   if (escape === "stock") loadInto(escapeMenu, STOCK.escape);
   else if (escape === "hpv3") loadInto(escapeMenu, parseLayout(fs.readFileSync(HPV3_ESCAPE, "utf8")));
@@ -537,7 +552,8 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
   };
   return { harness, hud, hudRoot, topBar, teams, escapeMenu, spectateBar, bus, sent, loads, urls, contexts, runIn, bootHost,
     advance, geometry, addBar, units, giveDebuff, card, slots, placeOf, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
-    state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam, indicators, marker, markerName };
+    state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam, indicators, marker, markerName,
+    eventFeed, killRow };
 }
 
 const countIn = (root, id) => {
@@ -604,10 +620,15 @@ check("the two overrides are the pinned stock files plus this mod's include line
     assert.equal(crypto.createHash("sha256").update(stripped).digest("hex"), pin.files[stock], `${local} = stock + includes`);
   }
   for (const name of ["hud", "hud_escape_menu", "citadel_hud_top_bar", "citadel_hud_top_bar_team", "citadel_hud_top_bar_player", "unit_status_overlay_v2",
-    "citadel_hud_hero_shop", "hud_unit_indicators_v2"]) {
+    "citadel_hud_hero_shop", "hud_unit_indicators_v2", "hud_data_feed"]) {
     const digest = crypto.createHash("sha256").update(fs.readFileSync(path.join(MODULE, `stock/${name}.xml`))).digest("hex");
     assert.equal(digest, pin.files[`game/citadel/pak01_dir/panorama/layout/${name}.xml`], `stock/${name}.xml matches the pin`);
   }
+  const feedCss = fs.readFileSync(path.join(MODULE, "stock/hud_data_feed.css"));
+  assert.equal(crypto.createHash("sha256").update(feedCss).digest("hex"), pin.files["game/citadel/pak01_dir/panorama/styles/hud_data_feed.css"]);
+  // The host restores the kill feed to the stock margin it reads from here.
+  assert.match(String(feedCss), /#EventFeed\s*\{[^}]*margin-top:\s*200px;/);
+  assert.match(read("panorama/scripts/observer_hud/oh_host.js"), /const FEED_STOCK_TOP = 200;/);
   // Script order in the host: state and tables first, the host before the editor and the column.
   const spectate = read("panorama/layout/hud_spectate_bar.xml");
   const order = [...spectate.matchAll(/observer_hud\/(\w+)\.vjs_c/g)].map((m) => `${m[1]}.js`);
@@ -2519,6 +2540,78 @@ check("aliases: far-away hero markers show the alias (by name, else by hero), an
   for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
   w.advance(2100);
   assert.equal(w.markerName(kes).text, "Kestrel", "no aliases outside spectating");
+});
+
+// The stock kill feed (hud_data_feed.xml #EventFeed: top left, margin-top 200) ran over Player 1's status
+// grid and purchase notices (user screenshot 2026-10-23 19:32, Night Desk at 1920x1080). How it could
+// fail: it stays over them; it moves for a card whose grid or notices it does not reach (Moth, the next
+// card); it moves for a column with nothing shown; it jumps back up while a status blinks (it must hold
+// a moment before going up); it is left moved after spectating; rewrites in steady state.
+check("kill feed: moves under the status grid and purchase notices of the cards it reaches, then back", () => {
+  const w = world();
+  w.clock("12:30");
+  w.bootHost();
+  w.advance(2000);
+  const host = (name) => w.card(name).FindChild("OHDebuffsHost");
+  // Columns start 152 layout px under the card (stock ultimate); empty, a column is the 2 px notice gap.
+  for (const name of [...AMBER, ...SAPPHIRE]) Object.assign(host(name), { actualyoffset: 152, actuallayoutheight: 2 });
+  const marginWrites = [];
+  let margin = w.eventFeed.style.marginTop;
+  Object.defineProperty(w.eventFeed.style, "marginTop", { configurable: true, get: () => margin,
+    set: (value) => { marginWrites.push(value); margin = value; } });
+  const top = () => w.eventFeed.GetPositionWithinWindow().y;
+  w.advance(2100);
+  assert.equal(top(), 200, "nothing in the way: the stock place");
+  deq(marginWrites, [], "nothing written while nothing is in the way");
+  // An empty column whose top is under the feed's (Night Desk pushes the top bar 56 px down) is nothing.
+  host("Kestrel").actualyoffset = 210;
+  w.advance(1100);
+  assert.equal(top(), 200, "an empty column does not move it");
+  host("Kestrel").actualyoffset = 152;
+  // Kestrel (the leftmost card, 330-418) shows three rows of statuses: the column ends at 8 + 152 + 117.
+  host("Kestrel").actuallayoutheight = 117;
+  w.advance(1100);
+  assert.equal(top(), 277 + 6, "6 px under Kestrel's column (no rows yet: the feed is taken as 360 px wide)");
+  const before = marginWrites.length;
+  w.advance(5000);
+  assert.equal(marginWrites.length, before, "no rewrites in steady state");
+  // Kill rows that end before Kestrel's grid (374 - 37 = 337): back up, but only after a 2 s hold.
+  const narrow = w.killRow(200);
+  w.advance(1100);
+  assert.equal(top(), 283, "held");
+  w.advance(2100);
+  assert.equal(top(), 200, "rows clear of the grid: back to the stock place");
+  // A purchase notice (209 px, centred: from 269) reaches a 300 px row that the grid (from 337) does not.
+  w.buy("Kestrel", "Extra Health");
+  w.advance(600);
+  assert.equal(w.notices("Kestrel").length, 1);
+  host("Kestrel").actuallayoutheight = 117 + 37;
+  w.killRow(300);
+  w.advance(1100);
+  assert.equal(top(), 160 + 154 + 6, "under the notice it reaches");
+  // Moth's column (the next card, its grid from 425) is out of the feed's reach.
+  host("Moth").actuallayoutheight = 300;
+  w.advance(1100);
+  assert.equal(top(), 320, "the next card's column does not move it");
+  // Kestrel's column empties (the notice fades) and the rows go: back after the hold.
+  host("Kestrel").actuallayoutheight = 2;
+  for (const row of w.eventFeed.Children().slice()) row.DeleteAsync();
+  w.advance(1100);
+  assert.equal(top(), 320, "held");
+  w.advance(2100);
+  assert.equal(top(), 200);
+  // Back to playing: the stock margin, written once.
+  host("Kestrel").actuallayoutheight = 117;
+  w.advance(1100);
+  assert.equal(top(), 283);
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2100);
+  assert.equal(top(), 200, "the stock place outside spectating");
+  assert.equal(marginWrites[marginWrites.length - 1], "200px", "written as the stock px (an inline null clear is not trusted)");
+  const after = marginWrites.length;
+  w.advance(5000);
+  assert.equal(marginWrites.length, after, "written once");
+  void narrow;
 });
 
 check("editor: share code export and import on another PC, reset asks twice, DEV settings stay local", () => {

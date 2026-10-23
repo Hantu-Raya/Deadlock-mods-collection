@@ -1229,6 +1229,74 @@
     Markers.replaced = 0;
   }
 
+  // The stock kill feed (hud_data_feed.xml #EventFeed: top left, margin-top FEED_STOCK_TOP) ran over the
+  // leftmost card's status grid and purchase notices (user screenshot 2026-10-23, Night Desk). While
+  // spectating it moves down (inline margin-top) to FEED_GAP px under the lowest column it reaches: a card
+  // whose grid (half width GRID_HALF_W) or, with notices, notices (NOTICE_HALF_W) start left of the feed's
+  // right edge (its widest row, else FEED_W). It goes down at once and back up only after FEED_HOLD_MS, so
+  // a blinking status does not bounce it. Card centres are cached until the cards, the look, the logo
+  // size or the spread change (and every FEED_GEOMETRY_MS). Back to playing: the stock margin, written
+  // as px (an inline null clear is not trusted live).
+  const FEED_STOCK_TOP = 200;
+  const FEED_GAP = 6;
+  const FEED_W = 360;
+  const FEED_HOLD_MS = 2000;
+  const FEED_GEOMETRY_MS = 30000;
+  const GRID_HALF_W = 37; // oh_debuffs.css: a pair is 74 px wide
+  const NOTICE_HALF_W = 105; // oh_debuffs.css .OHBuys 209 px
+  const Feed = { margin: FEED_STOCK_TOP, holdUntil: 0, centres: null, key: "", at: 0, x: null, stockTop: 0 };
+  // Card centres (screen x) and, found when first needed, each column's notice stack; the feed's
+  // own place is read again with them.
+  function feedCentres(now) {
+    const key = `${cardsVersion}|${state.style}|${state.logo.size}|${Spread.cur}`;
+    if (Feed.centres && Feed.key === key && now - Feed.at < FEED_GEOMETRY_MS) return Feed.centres;
+    Feed.centres = UI.cards.filter((card) => valid(card.debuffs)).map((card) => ({
+      card: card, centre: Number(card.panel.GetPositionWithinWindow().x) + (Number(card.panel.actuallayoutwidth) || 0) / 2,
+      buys: null
+    }));
+    Feed.x = null;
+    Feed.key = key;
+    Feed.at = now;
+    return Feed.centres;
+  }
+  function placeFeed(on, now) {
+    const feed = stockPanel("eventFeed", UI.hud, "EventFeed");
+    if (!feed) return;
+    let want = FEED_STOCK_TOP;
+    if (on) {
+      const scale = Number(feed.actualuiscale_y) || 1;
+      const centres = feedCentres(now);
+      if (Feed.x === null) {
+        // The feed's place, read with the card centres: its left edge and its top at the stock margin.
+        const at = feed.GetPositionWithinWindow();
+        Feed.x = Number(at.x);
+        Feed.stockTop = Number(at.y) - (Feed.margin - FEED_STOCK_TOP) * scale;
+      }
+      let widest = 0;
+      for (const row of feed.Children()) widest = Math.max(widest, Number(row.actuallayoutwidth) || 0);
+      const right = Feed.x + (widest || FEED_W * scale);
+      let bottom = 0;
+      // Registry columns are validated by ensureCards each tick; a column's own children need no check.
+      for (const entry of centres) {
+        if (entry.centre - NOTICE_HALF_W * scale >= right) continue;
+        const column = entry.card.debuffs;
+        const height = Number(column.actuallayoutheight) || 0;
+        if (height <= 4 * scale) continue; // nothing shown (the empty notice stack's 2 px gap)
+        if (!entry.buys) entry.buys = column.FindChild("OHBuys") || null;
+        const half = entry.buys && entry.buys.GetChildCount() ? NOTICE_HALF_W : GRID_HALF_W;
+        if (entry.centre - half * scale >= right) continue;
+        // Read each time it counts: a just-injected column may not be laid out at its stock place yet.
+        bottom = Math.max(bottom, Number(column.GetPositionWithinWindow().y) + height);
+      }
+      if (bottom) want = Math.max(FEED_STOCK_TOP, Math.round(FEED_STOCK_TOP + (bottom + FEED_GAP * scale - Feed.stockTop) / scale));
+      if (want >= Feed.margin) Feed.holdUntil = now + FEED_HOLD_MS;
+      else if (now < Feed.holdUntil) return;
+    }
+    if (want === Feed.margin) return;
+    setStyle(feed, "marginTop", px(want));
+    Feed.margin = want;
+  }
+
   // { amber: [names], sapphire: [names] } from the stock cards, for the editor's alias rows.
   function roster() {
     const out = { amber: [], sapphire: [] };
@@ -1783,6 +1851,7 @@
           sampleGraph();
           renderGraph();
           sampleCues();
+          placeFeed(true, Date.now());
         }
         placePause(true);
       } else if (!restored) {
@@ -1794,6 +1863,7 @@
         placePause(false);
         placeSpread(false);
         restoreMarkers();
+        if (Feed.margin !== FEED_STOCK_TOP) placeFeed(false, 0);
         if (UI.pushed && valid(UI.topBar)) {
           // The stock top bar returns to its own place.
           setStyle(UI.topBar, "marginTop", null);
