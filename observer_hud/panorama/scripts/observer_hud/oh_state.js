@@ -26,6 +26,14 @@
   "use strict";
 
   const TEAMS = ["amber", "sapphire"];
+  // The stock top-bar teams, fixed by game team: TeamFriendly is Amber (team 2), TeamEnemy is Sapphire
+  // (team 3). key: the state key; panelId: the stock team panel; rowClass: the shop purchase row's class
+  // for that buyer's team; own/other: the status column's colour for a status from that team / the other.
+  // One table for the host, the column and the purchase notices (explicit keys for Closure).
+  const TEAM_PANELS = Object.freeze([
+    Object.freeze({ key: "amber", panelId: "TeamFriendly", rowClass: "isTeam1Purchase", own: "OHByAmber", other: "OHBySapphire" }),
+    Object.freeze({ key: "sapphire", panelId: "TeamEnemy", rowClass: "isTeam2Purchase", own: "OHBySapphire", other: "OHByAmber" })
+  ]);
   const LIMITS = { event: 40, stage: 28, name: 28, tag: 4, alias: 24, gameName: 32, org: 24, infoTitle: 24, infoValue: 16, infoCaption: 32 };
   const STYLES = ["names", "desk"];
   const GRAPH_SHOW = [0, 15, 30, 60, -1];
@@ -278,6 +286,6 @@
     defaults: () => clone(DEFAULTS),
     normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, monogram: monogram, winsNeeded: winsNeeded,
     checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, valid: valid, clone: clone,
-    parseClock: parseClock
+    parseClock: parseClock, TEAM_PANELS: TEAM_PANELS
   });
 })();

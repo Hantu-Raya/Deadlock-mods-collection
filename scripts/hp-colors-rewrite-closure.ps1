@@ -81,7 +81,7 @@ function Get-HpColorsRewriteClosureContract {
             return @('FeederFeedStop', 'ff_entry', 'FeederRow', 'CitadelHudInfoFeed')
         }
         'oh_state.js' {
-            return @('OHState', 'observer_hud_state', 'OHC1.')
+            return @('OHState', 'observer_hud_state', 'OHC1.', 'TEAM_PANELS')
         }
         'oh_host.js' {
             return @('OHHost', 'OHHostStop', 'observer_hud/tournament_bar.xml', 'observer_hud/band.xml', 'OHBandHost', 'OHDebuffsHost', 'OHMenuAttach')

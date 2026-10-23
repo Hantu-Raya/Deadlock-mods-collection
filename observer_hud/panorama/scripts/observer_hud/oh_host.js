@@ -28,8 +28,8 @@
     menu: "file://{resources}/layout/observer_hud/editor.xml"
   };
   const SPECTATOR_CLASSES = ["spec_mode", "TeamSpectator", "replay_playback"];
-  // Stock team panels are fixed by game team (citadel_hud_top_bar.xml: team="2" Amber, "3" Sapphire).
-  const TEAM_PANELS = [["amber", "TeamFriendly"], ["sapphire", "TeamEnemy"]];
+  // [state key, stock team panel] pairs from the shared team table ($.OHState.TEAM_PANELS).
+  const TEAM_PANELS = $.OHState.TEAM_PANELS.map((team) => [team.key, team.panelId]);
   const SIDES = ["Left", "Right"];
   const BAND = { names: 26, desk: 56 }; // band height per look; #TopBar moves down by this much
   const STOCK_TOP_MARGIN = 8; // CitadelHudTopBar .spec_mode margin-top

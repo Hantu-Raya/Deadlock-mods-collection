@@ -37,7 +37,6 @@
   const STACK_TOP = 2;
   const STACK_GAP = 4;
   const MAX_NOTICE_W = 232; // .OHBuy max-width (228 px frame + rim): a notice not laid out yet counts this wide
-  const TEAMS = [["isTeam1Purchase", "TeamFriendly"], ["isTeam2Purchase", "TeamEnemy"]];
   // Stock row class -> this mod's notice class (the stylesheet restyles no stock class).
   const ROW_CLASSES = [["isTier1Purchase", "OHBuyT1"], ["isTier2Purchase", "OHBuyT2"], ["isTier3Purchase", "OHBuyT3"],
     ["isTier4Purchase", "OHBuyT4"], ["isWeaponPurchase", "OHBuyWeapon"], ["isArmorPurchase", "OHBuyVitality"],
@@ -116,10 +115,10 @@
 
   // The buyer's card: same team, same hero id, else same hero name; exactly one.
   function cardFor(row) {
-    const team = TEAMS.find(([cls]) => row.BHasClass(cls));
+    const team = $.OHState.TEAM_PANELS.find((entry) => row.BHasClass(entry.rowClass));
     const topBar = $.OHHost.topBar();
     if (!team || !topBar) return null;
-    const teamPanel = topBar.FindChildTraverse(team[1]);
+    const teamPanel = topBar.FindChildTraverse(team.panelId);
     const players = valid(teamPanel) ? teamPanel.FindChildTraverse("PlayersContainer") : null;
     if (!valid(players)) return null;
     const heroId = heroIdOf(row.FindChildTraverse("RecentPurchaseHeroImage"));
@@ -257,8 +256,8 @@
     const topBar = $.OHHost.topBar();
     if (!topBar) return;
     const placed = new Set();
-    for (const [, teamId] of TEAMS) {
-      const teamPanel = topBar.FindChildTraverse(teamId);
+    for (const team of $.OHState.TEAM_PANELS) {
+      const teamPanel = topBar.FindChildTraverse(team.panelId);
       const players = valid(teamPanel) ? teamPanel.FindChildTraverse("PlayersContainer") : null;
       if (valid(players)) layoutTeam(players, placed);
     }

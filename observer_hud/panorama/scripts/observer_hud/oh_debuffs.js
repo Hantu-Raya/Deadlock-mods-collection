@@ -35,12 +35,10 @@
   // Listed abilities without an ability image (spectator-status.json; the validator checks).
   const EXTRA_ICONS = { citadel_ability_zip_line: "s2r://panorama/images/icons/properties/zipline.vsvg" };
   const EMPTY = [];
-  // Stock top-bar team panels are fixed by game team: TeamFriendly is Amber (team 2), TeamEnemy is
-  // Sapphire (team 3). A debuff comes from the other team. Keyed by the registry's teamKey.
-  const TEAMS = {
-    amber: { own: "OHByAmber", other: "OHBySapphire" },
-    sapphire: { own: "OHBySapphire", other: "OHByAmber" }
-  };
+  // The status colours per team (own: from that team, other: from the other), keyed by the registry's
+  // teamKey; the table is $.OHState.TEAM_PANELS.
+  const TEAMS = {};
+  for (const team of $.OHState.TEAM_PANELS) TEAMS[team.key] = team;
   const BY_CLASSES = ["OHByAmber", "OHBySapphire"];
 
   const context = $.GetContextPanel();
