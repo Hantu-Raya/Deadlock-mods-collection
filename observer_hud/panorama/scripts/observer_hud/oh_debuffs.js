@@ -76,6 +76,7 @@
     log: DEFAULTS.dev.logStatus,
     stateVersion: -1,
     configSig: "",
+    aliasesSig: "{}", // the aliases last sent to the world bars
     configSentAt: 0,
     unmatchedScanAt: 0,
     rescanQueued: false,
@@ -106,7 +107,9 @@
 
   // ------------------------------------------------------------------ config
 
-  // True when the switch or interval changed.
+  // Sends OH_DEBUFF_CONFIG to the world bars on change and every CONFIG_HEARTBEAT_MS: the DEV settings
+  // and the player aliases ($.OHHost.aliases(): unique in-game names, {} when not spectating), which
+  // the world bars show on their name labels. True when the switch or interval changed.
   function refreshConfig(now) {
     const version = $.OHHost.version();
     if (version !== State.stateVersion) {
@@ -117,13 +120,15 @@
       State.log = dev.logStatus;
     }
     const sig = `${State.on}|${State.poll}|${State.log}`;
+    const aliasesSig = $.OHHost.aliasesSig();
     const changed = sig !== State.configSig;
     if (changed) $.Msg(`${TAG} config icons=${State.on} poll=${State.poll} log=${State.log}`);
-    if (changed || now < State.configSentAt || now - State.configSentAt >= CONFIG_HEARTBEAT_MS) {
+    if (changed || aliasesSig !== State.aliasesSig || now < State.configSentAt || now - State.configSentAt >= CONFIG_HEARTBEAT_MS) {
       State.configSig = sig;
+      State.aliasesSig = aliasesSig;
       State.configSentAt = now;
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "OH_DEBUFF_CONFIG", on: State.on, poll: State.poll, log: State.log, at: now
+        magic_word: "OH_DEBUFF_CONFIG", on: State.on, poll: State.poll, log: State.log, aliases: $.OHHost.aliases(), at: now
       }));
     }
     return changed;
@@ -505,6 +510,8 @@
       // version moves on return, so the first watching tick rebuilds the list and paints what the
       // records say (an expired status clears).
       if (!$.OHHost.watching()) {
+        // The world bars drop the aliases once (back to the stock names).
+        if (State.aliasesSig !== "{}") refreshConfig(now);
         schedule(TICK_SEC);
         return;
       }

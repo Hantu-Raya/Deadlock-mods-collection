@@ -1114,21 +1114,119 @@
   };
 
   // The band shows each card's alias, else its in-game name; a name two cards share keeps the
-  // in-game name on both.
+  // in-game name on both. The same aliases (unique names only) go to the world healthbars (through the
+  // status column's OH_DEBUFF_CONFIG) and the far-away hero markers: Aliases.map, in-game name -> alias.
+  const Aliases = { map: {}, upper: new Map(), names: new Set(), sig: "{}", count: 0 };
+  const NO_ALIASES = Object.freeze({});
   function renderNames() {
     const names = UI.cards.map(cardName);
+    const map = {};
     UI.cards.forEach((card, index) => {
-      const label = UI.who[index];
-      if (!label) return;
       const name = names[index];
       const unique = name && names.indexOf(name) === names.lastIndexOf(name);
       const alias = unique && Object.prototype.hasOwnProperty.call(state.aliases, name) ? state.aliases[name] : "";
+      if (alias) map[name] = alias;
+      const label = UI.who[index];
+      if (!label) return;
       const shown = alias || name;
       if (card.who === shown) return;
       setText(label, shown);
       setClass(label, "OHShown", !!shown);
       card.who = shown;
     });
+    Aliases.names = new Set(names.filter(Boolean).map((name) => name.toUpperCase())); // every card's name
+    const sig = JSON.stringify(map);
+    if (sig !== Aliases.sig) {
+      Aliases.map = map;
+      Aliases.upper = new Map(Object.keys(map).map((name) => [name.toUpperCase(), map[name]]));
+      Aliases.sig = sig;
+      Aliases.count = Object.keys(map).length;
+    }
+  }
+
+  // Far-away hero markers (stock hud_unit_indicators_v2.xml: CitadelHudUnitIndicatorsV2#unit_indicators_v2,
+  // one PlayerEntry per player with its name in CitadelUserName#PlayerName's Label, the hero image and
+  // the distance). While spectating with aliases, a marker's name Label shows the alias: matched by the
+  // name it shows, else by its hero against the cards' (a Steam friend nickname is not the card's name).
+  // The name the engine wrote is kept (real) and written back when the alias goes or spectating ends;
+  // a name the engine writes again is taken as the new real name, and the alias goes back on. Nothing
+  // is read while there are no aliases and no alias shows. Stock styling stays (the stock Label).
+  const Markers = { root: null, retryAt: 0, entries: new Map(), replaced: 0 };
+  const MARKER_RESOLVE_MS = 5000; // a marker's alias is looked up again this often (hero swaps)
+  function markersRoot(now) {
+    if (Markers.root && valid(Markers.root)) return Markers.root;
+    Markers.entries = new Map();
+    if (now < Markers.retryAt) return null;
+    const found = valid(UI.hud) ? UI.hud.FindChildTraverse("unit_indicators_v2") : null;
+    Markers.root = found || null;
+    if (!found) Markers.retryAt = now + 10000;
+    return Markers.root;
+  }
+  function markerAlias(info) {
+    const upper = info.real.toUpperCase();
+    const byName = Aliases.map[info.real] || Aliases.upper.get(upper);
+    if (byName) return byName;
+    // A name some card shows decides (no alias for it); only a name no card shows (a Steam friend
+    // nickname) is matched by its hero.
+    if (!info.real || Aliases.names.has(upper)) return "";
+    const hero = valid(info.hero) ? Number(info.hero.heroid) : NaN;
+    if (!(hero > 0)) return "";
+    let match = null;
+    for (const card of UI.cards) {
+      if (!card.badge || !valid(card.badge)) card.badge = card.panel.FindChildTraverse("HeroBadge") || null;
+      if (!card.badge || Number(card.badge.heroid) !== hero) continue;
+      if (match) return ""; // two cards with this hero: no guess
+      match = card;
+    }
+    return match ? Aliases.map[cardName(match)] || "" : "";
+  }
+  function renderMarkers(now) {
+    if (!Aliases.count && !Markers.replaced) return;
+    const root = markersRoot(now);
+    if (!root) return;
+    const seen = new Map();
+    let replaced = 0;
+    for (const entry of root.Children()) {
+      let info = Markers.entries.get(entry);
+      if (info === undefined) {
+        info = null;
+        if (entry.BHasClass("PlayerEntry")) {
+          const holder = entry.FindChildTraverse("PlayerName");
+          const label = holder ? holder.Children()[0] : null;
+          if (!label) continue; // the native name Label is not made yet: look again next tick
+          info = { label: label, hero: entry.FindChildTraverse("HeroIcon"), real: "", shown: null, alias: "", sig: "", at: 0 };
+        }
+      }
+      seen.set(entry, info);
+      if (!info) continue;
+      const text = info.label.text;
+      if (text !== info.shown) {
+        info.real = typeof text === "string" ? text : "";
+        info.shown = info.real;
+        info.sig = "";
+      }
+      if (info.sig !== Aliases.sig || now - info.at >= MARKER_RESOLVE_MS) {
+        info.alias = Aliases.count ? markerAlias(info) : "";
+        info.sig = Aliases.sig;
+        info.at = now;
+      }
+      const want = info.alias || info.real;
+      if (want !== info.shown) {
+        info.label.text = want;
+        info.shown = want;
+      }
+      if (info.shown !== info.real) replaced++;
+    }
+    Markers.entries = seen;
+    Markers.replaced = replaced;
+  }
+  // Spectating ended: every marker shows the name the engine gave it.
+  function restoreMarkers() {
+    for (const info of Markers.entries.values()) {
+      if (info && info.shown !== info.real && valid(info.label)) info.label.text = info.real;
+      if (info) info.shown = info.real;
+    }
+    Markers.replaced = 0;
   }
 
   // { amber: [names], sapphire: [names] } from the stock cards, for the editor's alias rows.
@@ -1680,6 +1778,7 @@
         if (ensureBar() && ensureBand()) {
           ensureCards();
           renderNames();
+          renderMarkers(Date.now());
           place();
           sampleGraph();
           renderGraph();
@@ -1694,6 +1793,7 @@
         placeObjectives(null, 0);
         placePause(false);
         placeSpread(false);
+        restoreMarkers();
         if (UI.pushed && valid(UI.topBar)) {
           // The stock top bar returns to its own place.
           setStyle(UI.topBar, "marginTop", null);
@@ -1727,6 +1827,10 @@
     cards: () => (watchingNow ? UI.cards : NO_CARDS),
     cardsVersion: () => cardsVersion,
     roster: roster,
+    // Aliases for unique in-game names ({ name: alias }) and their signature, while spectating; {} and
+    // "{}" otherwise (the world healthbars get them through the status column's OH_DEBUFF_CONFIG).
+    aliases: () => (watchingNow ? Aliases.map : NO_ALIASES),
+    aliasesSig: () => (watchingNow ? Aliases.sig : "{}"),
     // "none" | "loading" | "loaded" | "failed" for a team logo in the active look, or "org".
     logoState: (key) => {
       if (key === "org") return UI.org ? UI.org.logoState : state.org.logo.url ? "loading" : "none";

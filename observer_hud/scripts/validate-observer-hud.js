@@ -100,10 +100,12 @@ const results = { checks: [], runs: [], budgets: null };
 // Synthetic native calls per second, live-like scenario (2026-10-23 audit with m1: spectating 1451.8 -> 1189.8,
 // idle 13.7 -> 11.7, every card counting down 2067.6 -> 1575.2; deferred items with m2: team-panel cache,
 // column idles after spectating, card registry: spectating 1106.4, countdown 1443.8, after spectating
-// 101.9 -> 14.7). Re-measure before raising.
-const BUDGET_SPECTATING = 1115;
+// 101.9 -> 14.7). Aliases on the far-away markers (2026-10-23): the scenario gained the 12 stock
+// markers; their names are read once a second while an alias exists: spectating 1106.4 -> 1120.4,
+// countdown 1443.8 -> 1457.8. Re-measure before raising.
+const BUDGET_SPECTATING = 1130;
 const BUDGET_IDLE = 12;
-const BUDGET_COUNTDOWN = 1450;
+const BUDGET_COUNTDOWN = 1465;
 const BUDGET_AFTER = 15; // spectated, then back to playing
 
 let lastLogs = null;
@@ -190,7 +192,10 @@ const STOCK = {
   overlay: parseLayout(read("stock/unit_status_overlay_v2.xml")),
   shop: parseLayout(read("stock/citadel_hud_hero_shop.xml")),
   // The shop's purchase row: the engine loads this snippet into each new #RecentPurchasesContainer child.
-  purchase: parseLayout(/<snippet name="RecentPurchase">([\s\S]*?)<\/snippet>/.exec(read("stock/citadel_hud_hero_shop.xml"))[1])
+  purchase: parseLayout(/<snippet name="RecentPurchase">([\s\S]*?)<\/snippet>/.exec(read("stock/citadel_hud_hero_shop.xml"))[1]),
+  // A far-away hero marker: the engine loads this snippet into CitadelHudUnitIndicatorsV2#unit_indicators_v2
+  // per player (CitadelUserName#PlayerName holds the name Label; stock CSS "#PlayerName Label").
+  indicator: parseLayout(/<snippet name="PlayerEntry">([\s\S]*?)<\/snippet>/.exec(read("stock/hud_unit_indicators_v2.xml"))[1])
 };
 const OWN = {
   spectate: parseLayout(read("panorama/layout/hud_spectate_bar.xml")),
@@ -214,6 +219,23 @@ const heroOf = (player) => HEROES[AMBER.includes(player) ? AMBER.indexOf(player)
 
 // ---------------------------------------------------------------- the world: HUD + world bars on one bus
 
+// A Label text as the engine keeps it: "{s:key}" stays bound to the nearest ancestor's dialog variable
+// (it follows later changes of that variable); any other text is literal. Writing the label's text
+// rebinds or unbinds it the same way.
+function bindText(label, value) {
+  let literal = String(value);
+  Object.defineProperty(label, "__text", { configurable: true, enumerable: false,
+    get: () => {
+      const bound = /^\{s:(\w+)\}$/.exec(literal);
+      if (!bound) return literal;
+      let owner = label.parent;
+      while (owner && !(owner.__dialog && bound[1] in owner.__dialog)) owner = owner.parent;
+      return owner ? owner.__dialog[bound[1]] : literal;
+    },
+    set: (next) => { literal = String(next); } });
+  return label;
+}
+
 function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spectating = true, gameTime = true,
   teamsAt = null, samples = false, disk = null, offline = false } = {}) {
   const harness = createPanoramaHarness({ now: 7000000, rootWidth: width, rootHeight: height });
@@ -230,13 +252,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
       const created = new MockPanel(type, parent, id);
       for (const [key, value] of Object.entries(props)) {
         if (key === "class") created.classes = String(value).split(/\s+/).filter(Boolean);
-        else if (key === "text") {
-          // A "{s:name}" text binds to the nearest ancestor's dialog variable, as the engine resolves it.
-          const bound = /^\{s:(\w+)\}$/.exec(String(value));
-          let owner = parent;
-          while (bound && owner && !(owner.__dialog && bound[1] in owner.__dialog)) owner = owner.parent;
-          created.__text = bound && owner ? owner.__dialog[bound[1]] : value;
-        }
+        else if (key === "text") bindText(created, value);
         else created.attributes[key] = String(value);
       }
       return created;
@@ -371,6 +387,19 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     for (const cls of [AMBER.includes(player) ? "isTeam1Purchase" : "isTeam2Purchase", `isTier${tier}Purchase`, `is${kind}Purchase`]) row.AddClass(cls);
     return row;
   };
+  // Far-away hero markers (stock hud_unit_indicators_v2.xml): one PlayerEntry per player; the native
+  // CitadelUserName#PlayerName makes one Label holding the player's name (shown: what it displays,
+  // e.g. a Steam friend nickname); the hero image carries heroid.
+  const indicators = hud.FindChildTraverse("unit_indicators_v2");
+  const marker = (player, { shown = player, heroId = null } = {}) => {
+    const entry = instantiate(STOCK.indicator, indicators);
+    entry.AddClass("visible");
+    entry.AddClass(AMBER.includes(player) ? "team_1" : "team_2");
+    new MockPanel("Label", entry.FindChildTraverse("PlayerName"), "").__text = shown;
+    entry.FindChildTraverse("HeroIcon").heroid = heroId === null ? heroOf(player)[0] : heroId;
+    return entry;
+  };
+  const markerName = (entry) => entry.FindChildTraverse("PlayerName").Children()[0];
   const escapeMenu = hud.FindChildTraverse("EscapeMenu");
   if (escape === "stock") loadInto(escapeMenu, STOCK.escape);
   else if (escape === "hpv3") loadInto(escapeMenu, parseLayout(fs.readFileSync(HPV3_ESCAPE, "utf8")));
@@ -422,7 +451,9 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     dialog.classes = classesOf(STOCK.overlay).concat(hero && classOn === "dialog" ? ["CLASS_PLAYER"] : []);
     if (hero && classOn === "root") holder.AddClass("CLASS_PLAYER");
     for (const child of STOCK.overlay.children) instantiate(child, dialog);
-    dialog.FindChildTraverse("name").__text = name;
+    // The stock #name is bound to the overlay's dialog variable "name" (the engine sets it per unit).
+    dialog.__dialog = { name };
+    bindText(dialog.FindChildTraverse("name"), "{s:name}");
     const effects = dialog.FindChildTraverse("StatusEffects");
     for (const child of effects.children.slice()) child.DeleteAsync();
     loadInto(effects, OWN.status);
@@ -506,7 +537,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
   };
   return { harness, hud, hudRoot, topBar, teams, escapeMenu, spectateBar, bus, sent, loads, urls, contexts, runIn, bootHost,
     advance, geometry, addBar, units, giveDebuff, card, slots, placeOf, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
-    state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam };
+    state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam, indicators, marker, markerName };
 }
 
 const countIn = (root, id) => {
@@ -573,7 +604,7 @@ check("the two overrides are the pinned stock files plus this mod's include line
     assert.equal(crypto.createHash("sha256").update(stripped).digest("hex"), pin.files[stock], `${local} = stock + includes`);
   }
   for (const name of ["hud", "hud_escape_menu", "citadel_hud_top_bar", "citadel_hud_top_bar_team", "citadel_hud_top_bar_player", "unit_status_overlay_v2",
-    "citadel_hud_hero_shop"]) {
+    "citadel_hud_hero_shop", "hud_unit_indicators_v2"]) {
     const digest = crypto.createHash("sha256").update(fs.readFileSync(path.join(MODULE, `stock/${name}.xml`))).digest("hex");
     assert.equal(digest, pin.files[`game/citadel/pak01_dir/panorama/layout/${name}.xml`], `stock/${name}.xml matches the pin`);
   }
@@ -2367,6 +2398,129 @@ check("aliases: rows list the stock cards' names; an alias replaces the stock na
   assert.equal(entry.text, "typing");
 });
 
+// Counts text writes on one mock label (the stock name labels must be left alone unless an alias shows).
+function trackWrites(label) {
+  const log = [];
+  const own = Object.getOwnPropertyDescriptor(label, "text");
+  Object.defineProperty(label, "text", { configurable: true, enumerable: true, get: own.get,
+    set: (value) => { log.push(value); own.set(value); } });
+  return log;
+}
+
+// Aliases on the world healthbars (user 2026-10-23, screenshot of the far-away markers: "change the
+// name from the healthbars and the ones far away"). The stock #name is bound to the overlay's dialog
+// variable; a written text unbinds it. How it could fail: the alias never reaches the world contexts
+// (no GameUI.CustomUIConfig there); the status column stops matching the hero (snapshots must keep the
+// in-game name); a recycled bar keeps the last hero's alias; a bar that stops being a hero keeps it;
+// clearing the alias leaves the label unbound (it would freeze); a shared name gets an alias; the
+// alias stays after spectating ends; steady-state rewrites.
+check("aliases: world healthbar names show the alias while spectating; recycled or cleared bars get the stock name back", () => {
+  const w = statusWorld();
+  const nameOf = (hero) => w.units[hero].dialog.FindChild("name");
+  const kestrel = w.units.Kestrel;
+  const mothWrites = trackWrites(nameOf("Moth"));
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer0Entry", "Kes");
+  w.advance(1100);
+  assert.equal(nameOf("Kestrel").text, "Kes", "the alias on the healthbar");
+  assert.equal(nameOf("Moth").text, "Moth");
+  deq(mothWrites, [], "a hero without an alias is left alone");
+  w.giveDebuff("Kestrel", "ability_viper_petrifybola");
+  w.advance(1000);
+  deq(w.icons("Kestrel"), ["file://{images}/hud/abilities/viper/viper_petrifybola.psd"], "the column still finds Kestrel's statuses");
+  const writes = trackWrites(nameOf("Kestrel"));
+  w.advance(6000);
+  deq(writes, [], "no rewrites in steady state");
+  // The engine gives the bar to another hero: the stock name follows, without the alias.
+  kestrel.dialog.__dialog.name = "Doyle";
+  w.advance(600);
+  assert.equal(nameOf("Kestrel").text, "Doyle", "a recycled bar shows its new hero's own name");
+  kestrel.dialog.__dialog.name = "Kestrel";
+  w.advance(600);
+  assert.equal(nameOf("Kestrel").text, "Kes");
+  // No longer a hero bar: the stock name, still bound.
+  kestrel.holder.RemoveClass("CLASS_PLAYER");
+  w.advance(2500);
+  kestrel.dialog.__dialog.name = "Trooper";
+  assert.equal(nameOf("Kestrel").text, "Trooper", "a non-hero bar keeps the stock binding");
+  kestrel.dialog.__dialog.name = "Kestrel";
+  kestrel.holder.AddClass("CLASS_PLAYER");
+  w.advance(2500);
+  assert.equal(nameOf("Kestrel").text, "Kes");
+  // Cleared alias: the binding comes back (a later name change still shows).
+  w.type("OHAmberPlayer0Entry", "");
+  w.advance(600);
+  kestrel.dialog.__dialog.name = "Kestrel II";
+  assert.equal(nameOf("Kestrel").text, "Kestrel II", "cleared: bound again");
+  kestrel.dialog.__dialog.name = "Kestrel";
+  // A name two cards share keeps the stock name (as on the band).
+  w.type("OHAmberPlayer0Entry", "Kes");
+  w.advance(1100);
+  const mothCard = w.card("Moth");
+  const rename = (to) => { for (const label of mothCard.FindChildrenWithClassTraverse("PlayerName").concat(mothCard.FindChildrenWithClassTraverse("AlwaysPlayerName"))) label.__text = to; };
+  rename("Kestrel");
+  w.advance(2100);
+  assert.equal(nameOf("Kestrel").text, "Kestrel", "a shared name gets no alias");
+  rename("Moth");
+  w.advance(2100);
+  assert.equal(nameOf("Kestrel").text, "Kes");
+  // Back to playing: every healthbar shows the stock name again.
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(3000);
+  assert.equal(nameOf("Kestrel").text, "Kestrel", "no aliases outside spectating");
+  kestrel.dialog.__dialog.name = "Kestrel III";
+  assert.equal(nameOf("Kestrel").text, "Kestrel III", "and bound again");
+});
+
+// Aliases on the far-away hero markers (stock hud_unit_indicators_v2.xml, CitadelHudUnitIndicatorsV2
+// #unit_indicators_v2: name, hero icon, distance). How it could fail: the marker keeps the stock name;
+// a marker whose name is not the card's (a Steam friend nickname) never matches (the hero id must);
+// the engine writing the name again wins for good; a marker that appears later is missed; clearing
+// the alias or leaving spectating leaves the alias; markers without an alias are written; rewrites in
+// steady state.
+check("aliases: far-away hero markers show the alias (by name, else by hero), and the stock name when cleared", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  assert.ok(w.indicators, "the stock HUD has #unit_indicators_v2");
+  const kes = w.marker("Kestrel");
+  const moth = w.marker("Moth");
+  const doyle = w.marker("Doyle", { shown: "my friend doyle" });
+  const mothWrites = trackWrites(w.markerName(moth));
+  w.advance(2000);
+  deq(mothWrites, [], "nothing is written without aliases");
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer0Entry", "Kes");
+  w.type("OHAmberPlayer2Entry", "Dee");
+  w.advance(1100);
+  deq([w.markerName(kes).text, w.markerName(moth).text, w.markerName(doyle).text], ["Kes", "Moth", "Dee"],
+    "alias by name; no alias: untouched; a nickname marker by its hero");
+  deq(mothWrites, [], "a marker without an alias is left alone");
+  // The engine writes the name again: the alias is back within a tick.
+  w.markerName(kes).__text = "Kestrel";
+  w.advance(1100);
+  assert.equal(w.markerName(kes).text, "Kes");
+  const writes = trackWrites(w.markerName(kes));
+  w.advance(5000);
+  deq(writes, [], "no rewrites in steady state");
+  // A marker made later gets its alias.
+  const later = w.marker("Kestrel");
+  w.advance(1100);
+  assert.equal(w.markerName(later).text, "Kes");
+  // Cleared aliases: the names the markers showed come back.
+  w.type("OHAmberPlayer0Entry", "");
+  w.type("OHAmberPlayer2Entry", "");
+  w.advance(1100);
+  deq([w.markerName(kes).text, w.markerName(doyle).text], ["Kestrel", "my friend doyle"], "cleared: the names the markers showed");
+  // Back to playing: no alias on any marker.
+  w.type("OHAmberPlayer0Entry", "Kes");
+  w.advance(1100);
+  assert.equal(w.markerName(kes).text, "Kes");
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2100);
+  assert.equal(w.markerName(kes).text, "Kestrel", "no aliases outside spectating");
+});
+
 check("editor: share code export and import on another PC, reset asks twice, DEV settings stay local", () => {
   const a = world();
   a.bootHost();
@@ -3039,6 +3193,8 @@ check("steady state: no writes while nothing changes; native calls per second un
   w.type("OHStageEntry", "Grand Final");
   w.type("OHAmberPlayer0Entry", "Kes");
   w.press("OHDone");
+  // The stock far-away markers: one per other player (11 for a spectator's view, here all 12).
+  for (const name of [...AMBER, ...SAPPHIRE]) w.marker(name);
   for (const name of [...AMBER, ...SAPPHIRE]) {
     w.giveDebuff(name, "ability_viper_petrifybola", { radial: () => -180 });
     w.giveDebuff(name, "upgrade_extra_regen", { debuff: false });

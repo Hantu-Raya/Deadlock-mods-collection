@@ -39,6 +39,10 @@
   const END_JITTER_MS = 400;
   const FIT_GAP_MS = 450;
   const REFRESH_DEG = 20; // a 1.5 s radial moves 60 deg per 0.25 s sample; whole-degree noise is 1
+  const MAX_ALIASES = 24; // $.OHState: at most 24 aliases of at most 24 characters
+  const MAX_ALIAS = 24;
+  // realLabel takes no space and draws nothing (not collapsed: its text must keep following the variable).
+  const HIDDEN_STYLE = { opacity: "0", width: "0px", height: "0px" };
   const KEY = /^[a-z0-9_]{1,64}$/;
   const RADIAL = /^radial\(\s*50(?:\.0+)?%\s+50(?:\.0+)?%\s*,\s*0(?:\.0+)?deg\s*,\s*(-?\d+(?:\.\d+)?)deg\s*\)$/;
   // One rule per ability in dlf/spectator-status.json; nothing else reaches the top bar. Keep equal to
@@ -110,7 +114,16 @@
   let idleS = IDLE_FIRST_S;
   let dialog = null; // the overlay root (ClientUIDialogPanel) while this list sits in one
   let root = null; // its parent, the world panel: the relay's parent and the snapshot source
-  let namePanel = null;
+  let namePanel = null; // the stock #name (bound to the overlay's dialog variable "name")
+  // Aliases (user 2026-10-23): the stock #name shows a player's alias while spectating; OH_DEBUFF_CONFIG
+  // carries them (unique in-game names, upper-cased here). The in-game name is read from realLabel, a
+  // hidden Label of ours bound to the same dialog variable, so it follows a recycled bar even while the
+  // stock label shows an alias (a written text unbinds a label). shownAlias: what #name shows ("" =
+  // the stock binding).
+  let realLabel = null;
+  let shownAlias = "";
+  let aliases = new Map();
+  let aliasesSig = "[]";
   let container = null;
   let relay = null;
   let listener = null;
@@ -140,6 +153,9 @@
     const parent = context.GetParent();
     if (!parent || (parent.paneltype || parent.type) !== "ClientUIDialogPanel") return null;
     if (parent !== dialog) {
+      restoreName();
+      if (valid(realLabel)) realLabel.DeleteAsync(0);
+      realLabel = null;
       dialog = parent;
       root = parent.GetParent();
       namePanel = null;
@@ -166,13 +182,42 @@
     return panel.id === "CitadelHudRoot";
   }
 
-  function readName() {
-    if (!valid(namePanel)) {
-      namePanel = dialog.FindChild("name") || dialog.FindChildTraverse("name");
-      if (!valid(namePanel)) return "";
+  // The hero's in-game name ("" until the dialog variable resolves), from realLabel.
+  function realName() {
+    if (!valid(realLabel)) {
+      realLabel = $.CreatePanel("Label", dialog, "OHRealName", { text: "{s:name}", hittest: "false" });
+      for (const property of Object.keys(HIDDEN_STYLE)) realLabel.style[property] = HIDDEN_STYLE[property];
     }
-    const text = namePanel.text;
-    return typeof text === "string" && text !== "{s:name}" ? text.trim().toUpperCase().slice(0, 64) : "";
+    const text = realLabel.text;
+    return typeof text === "string" && text !== "{s:name}" ? text.trim().slice(0, 64) : "";
+  }
+
+  // The stock #name shows the alias for this in-game name, else its own binding; writes on change only.
+  function showAlias(real) {
+    const alias = real ? aliases.get(real.toUpperCase()) || "" : "";
+    if (alias === shownAlias) return;
+    if (!valid(namePanel)) namePanel = dialog.FindChild("name") || dialog.FindChildTraverse("name") || null;
+    if (!namePanel) return;
+    namePanel.text = alias || "{s:name}";
+    shownAlias = alias;
+  }
+  function restoreName() {
+    if (shownAlias && valid(namePanel)) namePanel.text = "{s:name}";
+    shownAlias = "";
+  }
+
+  // OH_DEBUFF_CONFIG aliases: { "<in-game name>": alias }, at most MAX_ALIASES; bad entries are skipped.
+  function parseAliases(raw) {
+    const out = new Map();
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const key of Object.keys(raw)) {
+      if (out.size >= MAX_ALIASES) break;
+      const alias = raw[key];
+      if (key.trim() && key.length <= 64 && typeof alias === "string" && alias.trim() && alias.length <= MAX_ALIAS) {
+        out.set(key.trim().toUpperCase(), alias);
+      }
+    }
+    return out;
   }
 
   // The live status list or null (a cached one is validated, a fresh FindChild result is live).
@@ -309,6 +354,7 @@
   function sample() {
     if (!heroDialog()) {
       publish("", []);
+      restoreName();
       if (muted.size) unmuteAll();
       parts = new Map();
       fits = new Map();
@@ -321,7 +367,10 @@
       return delay;
     }
     idleS = IDLE_FIRST_S;
-    const name = readName();
+    // The in-game name: the snapshot's key (the column matches it to the card) and the alias lookup.
+    const real = realName();
+    showAlias(real);
+    const name = real.toUpperCase();
     const list = name ? statusList() : null;
     if (log && !announced) {
       const statuses = valid(statusList()) ? `${statusList().Children().length} statuses` : "no status list";
@@ -444,6 +493,13 @@
     if (!message || message.magic_word !== "OH_DEBUFF_CONFIG" || typeof message.on !== "boolean" ||
         !Number.isInteger(message.poll) || message.poll < MIN_POLL_MS || message.poll > MAX_POLL_MS) return;
     const nextLog = message.log === true;
+    // Aliases apply at the next sample; they alone do not restart the loop.
+    const nextAliases = parseAliases(message.aliases);
+    const nextSig = JSON.stringify([...nextAliases]);
+    if (nextSig !== aliasesSig) {
+      aliases = nextAliases;
+      aliasesSig = nextSig;
+    }
     if (message.on === on && message.poll === pollMs && nextLog === log) return;
     on = message.on;
     pollMs = message.poll;
@@ -466,6 +522,9 @@
       relay.DeleteAsync(0);
     }
     relay = null;
+    restoreName();
+    if (valid(realLabel)) realLabel.DeleteAsync(0);
+    realLabel = null;
   };
 
   listener = $.RegisterForUnhandledEvent("ClientUI_FireOutput", onConfig);

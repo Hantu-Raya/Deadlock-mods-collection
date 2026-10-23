@@ -14,6 +14,7 @@
     "game/citadel/resource/localization/citadel_gc_hero_names/citadel_gc_hero_names_english.txt": "d270ce41b8b4bcc1b92f5657301d0634701cb28dbd85d303f4e0bc65292c6e9b",
     "game/citadel/pak01_dir/scripts/abilities.vdata": "e9eecf1490baf5b1b8cc003aa5d7ab5c6524093713c34a8c63afb7446cb3bffc",
     "game/citadel/pak01_dir/panorama/layout/citadel_hud_hero_shop.xml": "54645be890730942884b75d511911ba1d3b6e44812415eb17598787a177e0d34",
-    "game/citadel/resource/localization/citadel_gc_mod_names/citadel_gc_mod_names_english.txt": "25d275c6410f6d4a249ee51545690a3902a352e19968982ff7e48b9a6e834d38"
+    "game/citadel/resource/localization/citadel_gc_mod_names/citadel_gc_mod_names_english.txt": "25d275c6410f6d4a249ee51545690a3902a352e19968982ff7e48b9a6e834d38",
+    "game/citadel/pak01_dir/panorama/layout/hud_unit_indicators_v2.xml": "769f08e557163d090001eb8666b5c7922c920fb79654076f97688079fa591083"
   }
 }
