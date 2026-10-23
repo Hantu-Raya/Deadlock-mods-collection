@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 6 · Brass Slate</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/hybrid.css">
+<style>
+/* Brass Slate: design 5's compact bar in design 2's materials. Black lacquer, one brass
+   hairline, full team names in Reaver, and a single stepped tab under the clock. */
+.bar { position: absolute; left: 50%; top: 0; transform: translateX(-50%); display: flex; height: 80px; background: var(--lacquer); border-bottom: 1px solid var(--brass); }
+.plate { width: 250px; display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+.sapphire.plate { flex-direction: row-reverse; text-align: right; }
+.plate .col { min-width: 0; flex: 1; }
+.plate .tn { max-width: 166px; }
+.sapphire.plate .tn { margin-left: auto; }
+.ticks { margin-top: 7px; display: flex; gap: 3px; }
+.sapphire .ticks { justify-content: flex-end; }
+.ticks i { width: 14px; height: 3px; background: #3a342b; }
+.amber .ticks i.on { background: var(--amber); }
+.sapphire .ticks i.on { background: var(--sapphire-hi); }
+.cards { display: flex; gap: 6px; padding: 8px 8px 0; --cw: 70px; --ch: 44px; }
+.score { width: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-left: 1px solid var(--brass-dim); }
+.score.sapphire { border-left: 0; border-right: 1px solid var(--brass-dim); }
+.score .k { font: 600 32px/1 "VALVE Oracle"; color: var(--text); }
+.score .s { margin-top: 4px; font: 600 12px/1 "VALVE Oracle"; color: var(--muted); }
+.mid { position: relative; width: 176px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--lacquer-2); border-left: 1px solid var(--brass); border-right: 1px solid var(--brass); }
+.mid .g { font: 700 10px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.mid .clock { margin-top: 4px; font: 600 34px/1 "VALVE Oracle"; color: var(--text); }
+.mid .ser { margin-top: 3px; font: 600 15px/1 "VALVE Oracle"; color: var(--brass); letter-spacing: 0.1em; }
+.tab { position: absolute; left: 50%; top: 81px; transform: translateX(-50%); width: 236px; padding: 6px 10px 7px; background: var(--lacquer); border: 1px solid var(--brass); border-top: 0; }
+.tab .lbl { display: flex; justify-content: space-between; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.tab .lbl span:last-child { font: 600 12px/1 "VALVE Oracle"; letter-spacing: 0.04em; }
+.tab .trend { margin-top: 5px; height: 24px; }
+.event { position: absolute; left: 50%; top: 142px; transform: translateX(-50%); font: 600 11px/1 "Retail Demo"; letter-spacing: 0.24em; text-transform: uppercase; color: var(--text); text-shadow: 0 1px 3px #000; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bar" id="bar"></div>
+  <div class="design-tag"><b>6 · Brass Slate</b> — 5's compact bar, 2's materials</div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/hybrid.js"></script>
+<script>
+OH.mount((oh) => {
+  const t = oh.teams;
+  const plate = (k) => `<div class="plate ${k}">${oh.logo(k)}<div class="col"><div class="tn">${t[k].name}</div>
+    <div class="ticks">${[0, 1, 2, 3].map((i) => `<i class="${i < t[k].walkers ? "on" : ""}"></i>`).join("")}</div></div></div>`;
+  const score = (k) => `<div class="score ${k}"><div class="k">${t[k].kills}</div><div class="s">${oh.souls(t[k].souls)}</div></div>`;
+  document.getElementById("bar").innerHTML = `
+    ${plate("amber")}<div class="cards amber">${oh.cards("amber")}</div>${score("amber")}
+    <div class="mid"><div class="g">Game ${oh.match.game} · Bo${oh.match.bestOf}</div><div class="clock">${oh.match.clock}</div>
+      <div class="ser">${t.amber.series} – ${t.sapphire.series}</div>
+      <div class="tab"><div class="lbl"><span>Soul lead</span>${oh.leadHtml()}</div><div class="trend">${oh.trend()}</div></div></div>
+    ${score("sapphire")}<div class="cards sapphire">${oh.cards("sapphire")}</div>${plate("sapphire")}`;
+  document.querySelector(".stage").insertAdjacentHTML("beforeend", `<div class="event">${oh.match.event} · ${oh.match.stage}</div>`);
+  oh.fitText(".tn", 13);
+  oh.fitText(".hc .nm", 10);
+});
+</script>
+</body>
+</html>

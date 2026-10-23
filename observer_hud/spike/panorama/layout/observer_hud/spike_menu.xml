@@ -1,0 +1,17 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/observer_hud/spike_menu.vcss_c" />
+	</styles>
+	<Panel class="OHSpikeMenu" hittest="false">
+		<Button id="OHSpikeOpen" class="OHSpikeButton">
+			<Label text="OBSERVER HUD SPIKE" />
+		</Button>
+		<Panel id="OHSpikeEditor" class="OHSpikeEditor">
+			<Label class="OHSpikeHint" text="Type here; it should appear under the clock and on the first card:" />
+			<TextEntry id="OHSpikeEntry" class="OHSpikeEntry" maxchars="28" placeholder="alias / team name" />
+			<Button id="OHSpikeClose" class="OHSpikeButton">
+				<Label text="CLOSE" />
+			</Button>
+		</Panel>
+	</Panel>
+</root>

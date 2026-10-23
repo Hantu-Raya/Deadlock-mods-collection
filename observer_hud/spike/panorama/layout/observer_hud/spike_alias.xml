@@ -1,0 +1,8 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/observer_hud/spike_alias.vcss_c" />
+	</styles>
+	<Panel class="OHSpikeAlias" hittest="false" hittestchildren="false">
+		<Label id="OHSpikeAliasText" class="OHSpikeAliasText" text="{s:player_name}" />
+	</Panel>
+</root>

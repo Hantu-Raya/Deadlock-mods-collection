@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 19 · Objective health and the soul lead graph</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/v2.css">
+<link rel="stylesheet" href="shared/objstack.css">
+<style>
+/* Base Game+ Names rev 2 (user 2026-10-23: redesign Names with what Night Desk taught us), a mockup
+   before any Panorama change. Base: design 14 as built (pak10). Audit of the built look:
+     F1 team identity (logo, name, series) sits in plates at the screen edges, ~550 px from the centre;
+     F2 the clock row is crowded: four 28 px bans beside the 90 px clock box between the soul plates;
+     F3 the GRAND FINAL / BO3 box under the clock takes the stack's spot, so the chips start 48 px lower
+        than in Night Desk and the rift HUD (moved under the chips) ends lower still;
+     F4 the team logo is a fixed 28 px monogram circle; Night Desk now has shape and size;
+     F5 the plates collapse below PLATE_MIN on narrow screens and meet the stock corner icons.
+   Proposal, revised after a debate with a second model (2026-10-23; toggles compare each piece with
+   the built one):
+     1. Keep the 26 px names strip and the stock bar: Names stays the light look.
+     2. The series score moves to the centre tab: a team-coloured digit at each end of the organiser
+        wordmark, inside the 26 px row (casters cite it every few seconds; the plates are far out).
+     3. The plate's height follows the logo size (user 2026-10-23): logo + 13 px both ways: 37 px at the
+        smallest 24 px logo, 43 px at the default 30 px, 63 px at the largest 50 px. The names strip stays 26 px. The team name sits over one 10 px caption line: left "GRAND FINAL · BO3",
+        right "GAME 3 · FIRST TO 2". The stage box under the clock goes (it never changes in a match).
+     4. Logo: Night Desk's shape (circle or square), 24-50 px, at the plate's inner end beside the
+        team's cards (or the outer end, as built). No size spread: the plates sit outside the teams.
+     5. Bans: by the clock at 28 px as built (16 px in a plate is unreadable on a 720p stream), shown
+        always or only for the first 1:30 of a game, or hidden.
+     6. The chips sit at Night Desk's spot under the soul plates; the rift HUD moves under them and the
+        rift chip hides while the rift HUD shows (it says the same thing; the other chips stay).
+     Narrow screens drop plate parts in this order: caption, logo, name shrink, plate (series lives in
+     the centre now, so it never drops).
+     7. The plates move up to the screen's top edge, level with the names strip (user sketch 2026-10-23),
+        so the corner above them is used and the space under them is free; each plate joins its
+        team's names strip with no gap: a 40 px blend from the team colour into the strip, and at the
+        plate's inner bottom corner a 17 px curve with a circle logo, or the square step with a square
+        logo (the joint follows the logo shape).
+   Rejected from the first draft: band-row corners (one cramped line in 26 px), 44 px plates with
+   16 px bans, the logo size spread. */
+:root { --np-h: 43px; --sh: 26px; }   /* the plate height follows the logo size (script below) */
+.stage.sh-31 { --sh: 31px; }
+.stage .topbar { top: calc(var(--sh) + 8px); }   /* the stock bar moves down by the strip + 8 px */
+.strip { position: absolute; top: 0; width: 528px; height: var(--sh); background: linear-gradient(180deg, rgba(10, 9, 8, 0.86), rgba(10, 9, 8, 0.6)); backdrop-filter: blur(4px); }   /* Panorama: world-blur */
+.strip.t1 { left: 330px; border-bottom: 2px solid var(--team1); }
+.strip.t2 { left: 1062px; border-bottom: 2px solid var(--team2); }
+/* Joint (user 2026-10-23): it follows the logo shape. Blend (both): a 40 px piece over the strip's start
+   (y 0-26) fades the team colour into the strip's dark. Circle logo: the plate's inner bottom corner
+   gets a 17 px radius (43 - 26), so its bottom edge curves up into the strip's team line. Square logo:
+   the square step stays, with the same blend. (A 45-degree cut and a soft 140 px tint were rejected.)
+   Panorama: one gradient panel per side and one border radius on the plate. */
+.jn { position: absolute; top: 0; width: 40px; height: var(--sh); z-index: 1; pointer-events: none; }
+.jn.t1 { left: 330px; background: linear-gradient(90deg, var(--team1), rgba(10, 9, 8, 0)); }
+.jn.t2 { left: 1550px; background: linear-gradient(270deg, var(--team2), rgba(10, 9, 8, 0)); }
+.stage:not(.np-top) .jn { display: none; }
+.stage.np-top.jn-curve .np { overflow: hidden; }
+.stage.np-top.jn-curve .np.t1 { border-bottom-right-radius: calc(var(--np-h) - var(--sh)); }
+.stage.np-top.jn-curve .np.t2 { border-bottom-left-radius: calc(var(--np-h) - var(--sh)); }
+.who { z-index: 2; }
+.who { position: absolute; top: calc((var(--sh) - 16px) / 2); width: 86px; transform: translateX(-50%); text-align: center; font: 700 12px/16px "Retail Demo"; color: var(--offWhite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who.dead { color: rgba(255, 239, 215, 0.45); }
+.orgp { position: absolute; left: 862px; top: 0; width: 196px; height: var(--sh); display: flex; align-items: center; justify-content: center; background: rgba(10, 9, 8, 0.86); backdrop-filter: blur(4px); border-bottom: 2px solid rgba(207, 153, 67, 0.7); }
+.org { max-width: 180px; font: 400 15px/1 "Reaver"; letter-spacing: 0.1em; text-transform: uppercase; color: var(--team1Bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.org img { max-width: 180px; max-height: 22px; object-fit: contain; }
+/* Series in the centre tab (proposal 2): team-coloured digit boxes at its ends. */
+.sc { flex: none; width: 22px; height: var(--sh); display: flex; align-items: center; justify-content: center; font: 700 16px/1 "VALVE Oracle"; color: #10130D; }
+.sc.t1 { background: var(--team1); }
+.sc.t2 { background: var(--team2); color: #fff; }
+.orgp { justify-content: space-between; }
+.orgp .org { flex: 1; min-width: 0; text-align: center; max-width: 152px; }
+.stage:not(.ser-mid) .sc { display: none; }
+.stage:not(.ser-mid) .orgp { justify-content: center; }
+.stage:not(.ser-mid) .orgp .org { max-width: 180px; }
+/* Plates (proposals 3-4), beside the stock teams as built (placePlate): 36 px, team-colour dust. */
+.np { position: absolute; top: 22px; width: 250px; height: var(--np-h); display: flex; align-items: center; gap: 8px; }
+.np.t1 { left: 72px; padding-left: 8px; }
+.np.t2 { left: 1598px; padding-right: 8px; flex-direction: row-reverse; }
+.stage.lg-inner .np.t1 { flex-direction: row-reverse; padding: 0 4px 0 8px; }
+.stage.lg-inner .np.t2 { flex-direction: row; padding: 0 8px 0 4px; }
+/* Top row (proposal 7): the plates sit in #topbar (top = band 26 + 8), so -34 px puts them at y 0, and
+   they join their team's names strip with no gap (user 2026-10-23): left plate ends at the strip's 330,
+   right plate starts at its 1590 (in game: placePlate's GAP 0 in this look). */
+.stage.np-top .np { top: calc(-1 * (var(--sh) + 8px)); }
+.stage.np-top .np.t1 { left: 80px; }
+.stage.np-top .np.t2 { left: 1590px; }
+.np::before { content: ""; position: absolute; inset: 0; -webkit-mask: var(--m-dust-01-psd) 0 0 / 300px 300px; mask: var(--m-dust-01-psd) 0 0 / 300px 300px; }
+.np.t1::before { background: var(--team1); }
+.np.t2::before { background: var(--team2); }
+.np > * { position: relative; }
+.lg { flex: none; width: 30px; height: 30px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.04em; background: rgba(13, 12, 10, 0.55); }
+.lg.sq { border-radius: 3px; }
+.t1 .lg { border: 1.5px solid var(--team1Fg); color: var(--team1Fg); }
+.t2 .lg { border: 1.5px solid var(--offWhite); color: var(--offWhite); }
+.lg img { width: 100%; height: 100%; object-fit: cover; }
+.id { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.t1 .id { align-items: flex-start; }
+.t2 .id { align-items: flex-end; }
+.stage.lg-inner .t1 .id { align-items: flex-start; }
+.nm { max-width: 100%; font: 700 17px/1 "Retail Demo"; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t1 .nm { color: var(--team1Fg); }
+.t2 .nm { color: #fff; }
+.cap { font: 700 9px/1 "Retail Demo"; letter-spacing: 0.18em; text-transform: uppercase; white-space: nowrap; }
+.t1 .cap { color: rgba(16, 19, 13, 0.72); }
+.t2 .cap { color: rgba(255, 255, 255, 0.72); }
+.stage:not(.st-plate) .cap { display: none; }
+.ser { flex: none; width: var(--np-h); height: var(--np-h); display: flex; align-items: center; justify-content: center; background: var(--offBlack); font: 700 24px/1 "VALVE Oracle"; color: var(--offWhite); }
+.stage.ser-mid .ser { display: none; }
+/* Built pieces, for comparison (toggles): bans beside the clock, the stage box under it. */
+.cb { position: absolute; top: 9px; display: flex; gap: 4px; }
+.cb.t1 { right: 1011px; }
+.cb.t2 { left: 1011px; flex-direction: row-reverse; }
+.cb .ban { width: 28px; height: 28px; }
+.cb .ban img { left: -2px; top: -2px; width: 30px; height: 41px; }
+.stage.bans-off .cb, .stage.bans-early .cb { display: none; }   /* first 1:30 only: hidden at 11:50 */
+.tx-stage { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); padding: 6px 12px 7px; border-radius: 5px; background: rgba(0, 0, 0, 0.565); text-align: center; white-space: nowrap; }
+.tx-stage .st { font: 700 13px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; color: var(--offWhite); }
+.tx-stage .fmt { margin-top: 3px; font: 700 9px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 239, 215, 0.6); }
+.stage.st-plate .tx-stage { display: none; }
+/* Stack: chips at Night Desk's spot (top 88) with the stage in the corners; under the box (136) as built. */
+.obj.names { top: 88px; }
+.stage:not(.st-plate) .obj.names { top: 136px; }
+.stage.rift-hide.k-cap .obj .cue:has(.ic.rift), .stage.rift-hide.k-range .obj .cue:has(.ic.rift) { display: none; }
+/* Stock rift HUD (#KothCashInMeter, citadel_hud_koth.xml/.css from the installed game, client 6813),
+   copied as the game lays it out in the top bar: a 320 x 114 box (padding 0 8) centred on the bar,
+   the koth_backer art (contain, 90% opacity), two 50% progress meters (Amber's mirrored) with
+   "{i:KothTeamNProgress}%" labels, the soul value under them, and "Rift Secured!" once taken.
+   Out of range: ui-scale 70% at margin-top 110; in range or secured: 100% at margin-top 120.
+   Visible only with .koth_enabled.capturing / .in_range / .captured. */
+.koth { position: absolute; left: 50%; top: 110px; width: 320px; height: 114px; padding: 0 8px; box-sizing: border-box; transform: translateX(-50%) scale(0.7); transform-origin: 50% 0; display: none; }
+.stage.k-cap .koth, .stage.k-range .koth, .stage.k-done .koth { display: block; }
+.stage.k-range .koth, .stage.k-done .koth { top: 120px; transform: translateX(-50%); }
+.koth .bg_backer { position: absolute; inset: 0; background: url("assets/game/hud__top_bar__koth_backer_png.png") center / contain no-repeat; opacity: 0.9; }
+.koth .ind { position: absolute; inset: 0; padding: 0 18px; display: flex; align-items: center; }
+.koth .meter { position: relative; width: 50%; margin-bottom: 10px; display: flex; flex-direction: column; align-items: center; }
+.koth .bar { width: 100%; height: 10px; box-sizing: border-box; background: rgba(0, 0, 0, 0.9); border: 2px solid #000; border-radius: 0 50px 50px 0; overflow: hidden; }
+.koth .t1 .bar { transform: scaleX(-1); border-right-width: 2px; }
+.koth .bar i { display: block; height: 100%; }
+.koth .t1 .bar i { background: linear-gradient(90deg, #d6880c, #8a5506); }
+.koth .t2 .bar i { background: linear-gradient(90deg, #4f74c3, #2c4478); }
+.koth .pct { position: absolute; top: -32px; font: 700 22px/1 "Retail Demo"; color: #fff; opacity: 0.5; text-shadow: 0 0 5px #10130d; }
+.koth .capturing .pct { opacity: 1; }
+.koth .gold { position: absolute; left: 50%; bottom: 10px; transform: translateX(calc(-50% - 9px)); display: flex; align-items: center; gap: 2px; height: 50px; color: #70f8c1; font: 700 18px/1 "VALVE Oracle"; text-shadow: 0 0 5px #10130d; }
+.koth .gold i { width: 18px; height: 18px; background: #70f8c1; -webkit-mask: var(--m-icon-soul) center / contain no-repeat; mask: var(--m-icon-soul) center / contain no-repeat; }
+.koth .result { position: absolute; left: 0; right: 0; bottom: 20px; text-align: center; font: 700 20px/1 "Retail Demo"; text-transform: uppercase; color: var(--team2); text-shadow: 0 0 3px #10130d, 0 0 3px #10130d; display: none; }
+.stage.k-done .koth .result { display: block; }
+.stage.k-done .koth .gold { display: none; }
+.koth .warn { position: absolute; left: 0; right: 0; top: 20px; text-align: center; font: 700 16px/1 "Retail Demo"; text-transform: uppercase; color: #f9ec74; display: none; }
+/* The rift HUD moves 4 px under the chips (as built in both looks): chips end at 126 (corners) or 174. */
+.stage.k-cap .koth, .stage.k-range .koth, .stage.k-done .koth { top: 130px; }
+.stage:not(.st-plate).k-cap .koth, .stage:not(.st-plate).k-range .koth, .stage:not(.st-plate).k-done .koth { top: 178px; }
+.ctl { position: absolute; right: 24px; bottom: 120px; z-index: 30; width: 330px; display: grid; grid-template-columns: 110px 1fr 54px; gap: 8px 10px; align-items: center; padding: 14px 16px; background: rgba(10, 9, 8, 0.92); border: 1px solid rgba(255, 239, 215, 0.18); font: 600 12px/1.2 "Retail Demo"; color: var(--offWhite); }
+.ctl h3 { grid-column: 1 / -1; margin: 0 0 4px; font: 700 11px/1 "Retail Demo"; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 239, 215, 0.7); }
+.ctl .seg-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+.ctl button { min-height: 28px; padding: 4px 8px; font: inherit; color: inherit; background: rgba(255, 239, 215, 0.06); border: 1px solid rgba(255, 239, 215, 0.25); border-radius: 3px; cursor: pointer; }
+.ctl button[aria-pressed="true"] { background: rgba(207, 153, 67, 0.28); border-color: rgba(207, 153, 67, 0.9); }
+.ctl button:focus-visible, .ctl input:focus-visible { outline: 2px solid var(--team1Bright); outline-offset: 2px; }
+.ctl input[type=range] { width: 100%; }
+.ctl output { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* The soul lead graph as built (oh_bar.css .OHGraph): 200 px, padding 6 8 4 8, #0D0C0AD0, 1 px #D6B06A61. */
+.lead { position: absolute; left: 50%; top: var(--lead-top, 130px); transform: translateX(-50%); width: 200px; padding: 6px 8px 4px; box-sizing: content-box; background: rgba(13, 12, 10, 0.816); backdrop-filter: blur(2px); border: 1px solid rgba(214, 176, 106, 0.38); z-index: 6; }
+.stage.gr-off .lead { display: none; }
+.lead .hd { display: flex; justify-content: space-between; align-items: baseline; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 239, 215, 0.55); }
+.lead .hd b { font: 600 12px/1 "VALVE Oracle"; letter-spacing: 0.04em; color: #8FB2FF; }
+.lead .plot { position: relative; height: 50px; margin-top: 4px; }
+.lead .zero { position: absolute; left: 0; right: 0; top: 25px; height: 1px; background: rgba(214, 176, 106, 0.38); }
+.lead .col { position: absolute; width: 2px; }
+.lead .col.t1 { background: rgba(214, 136, 12, 0.5); }
+.lead .col.t2 { background: rgba(79, 116, 195, 0.65); }
+.lead .seg { position: absolute; height: 2px; margin-top: -1px; background: var(--offWhite); transform-origin: 0 50%; }
+.lead .pin { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--offWhite); }
+.lead .pin.t2 { background: #8FB2FF; }
+</style>
+</head>
+<body>
+<div class="stage ser-mid st-plate lg-inner rift-hide np-top jn-curve ">
+  <div id="band"></div>
+  <div class="topbar" id="topbar"></div>
+  <div class="design-tag"><b>19 · Objective health</b> — the stock walker / mid-boss bars under the timers, the soul lead graph under them, in both looks</div>
+  <form class="ctl" id="ctl" onsubmit="return false" aria-label="Mockup controls">
+    <h3>Mockup controls (built = design 14)</h3>
+    <span>Names strip</span><div class="seg-btns"><button type="button" data-sh="" aria-pressed="true">26 px</button><button type="button" data-sh="sh-31" aria-pressed="false">31 px (built by mistake)</button></div><span></span>
+    <span>Plates</span><div class="seg-btns"><button type="button" data-tog="np-top" data-on="1" aria-pressed="true">Top edge</button><button type="button" data-tog="np-top" data-on="0" aria-pressed="false">Under band (built)</button></div><span></span>
+    <span>Series</span><div class="seg-btns"><button type="button" data-tog="ser-mid" data-on="1" aria-pressed="true">Centre tab</button><button type="button" data-tog="ser-mid" data-on="0" aria-pressed="false">Plates (built)</button></div><span></span>
+    <span>Stage</span><div class="seg-btns"><button type="button" data-tog="st-plate" data-on="1" aria-pressed="true">Plate caption</button><button type="button" data-tog="st-plate" data-on="0" aria-pressed="false">Under clock (built)</button></div><span></span>
+    <span>Bans</span><div class="seg-btns"><button type="button" data-bans="" aria-pressed="true">By clock (built)</button><button type="button" data-bans="bans-early" aria-pressed="false">First 1:30</button><button type="button" data-bans="bans-off" aria-pressed="false">Hidden</button></div><span></span>
+    <span>Logo end</span><div class="seg-btns"><button type="button" data-tog="lg-inner" data-on="1" aria-pressed="true">Inner (by cards)</button><button type="button" data-tog="lg-inner" data-on="0" aria-pressed="false">Outer (built)</button></div><span></span>
+    <span>Logo shape</span><div class="seg-btns"><button type="button" data-shape="circle" aria-pressed="true">Circle</button><button type="button" data-shape="square" aria-pressed="false">Square</button></div><span></span>
+    <label for="ls">Logo size</label><input id="ls" type="range" min="24" max="50" step="2" value="30"><output for="ls" id="lsv">30 px</output>
+    <span>Team images</span><div class="seg-btns"><button type="button" id="sample" aria-pressed="false">Sample logos</button></div><span></span>
+    <span>Rift HUD (stock)</span><div class="seg-btns"><button type="button" data-koth="" aria-pressed="true">Off</button><button type="button" data-koth="k-cap" aria-pressed="false">Open</button><button type="button" data-koth="k-range" aria-pressed="false">In range</button></div><span></span>
+    <span>Soul lead graph</span><div class="seg-btns"><button type="button" data-tog="gr-off" data-on="0" aria-pressed="true">Shown</button><button type="button" data-tog="gr-off" data-on="1" aria-pressed="false">Hidden</button></div><span></span>
+    <span>Rift chip</span><div class="seg-btns"><button type="button" data-tog="rift-hide" data-on="1" aria-pressed="true">Hide with rift HUD</button><button type="button" data-tog="rift-hide" data-on="0" aria-pressed="false">Keep</button></div><span></span>
+  </form>
+  <div class="ed-back" id="edBack"><div class="ed" id="ed" role="dialog" aria-modal="true" aria-labelledby="edTitle"></div></div>
+  <button class="open-ed" id="openEd" type="button" aria-haspopup="dialog" hidden>Tournament setup</button>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/v2.js"></script>
+<script src="shared/objstack.js"></script>
+<script>
+// Soul lead graph as built (oh_host.js renderGraph): columns per sample, the line, pins at each mark.
+const leadGraph = (S, h) => {
+  const vals = [0, 0.4, 1.1, 0.6, -0.8, -2.2, -3.0, -2.4, -4.1, -5.0];
+  const W = 200, H = 50, max = 6, xy = (i, v) => [i * W / (vals.length - 1), H / 2 - v / max * (H / 2 - 3)];
+  const cols = [], segs = [];
+  for (let x = 0; x <= W; x += 3) {
+    const f = x / W * (vals.length - 1), i = Math.min(vals.length - 2, Math.floor(f));
+    const v = vals[i] + (vals[i + 1] - vals[i]) * (f - i), y = H / 2 - v / max * (H / 2 - 3);
+    if (Math.abs(y - H / 2) >= 0.5) cols.push(`<i class="col ${y < H / 2 ? "t1" : "t2"}" style="left:${x}px;top:${Math.min(y, H / 2).toFixed(1)}px;height:${Math.abs(y - H / 2).toFixed(1)}px"></i>`);
+  }
+  for (let i = 0; i + 1 < vals.length; i++) {
+    const [x1, y1] = xy(i, vals[i]), [x2, y2] = xy(i + 1, vals[i + 1]);
+    segs.push(`<i class="seg" style="left:${x1}px;top:${y1}px;width:${Math.hypot(x2 - x1, y2 - y1).toFixed(1)}px;transform:rotate(${Math.atan2(y2 - y1, x2 - x1)}rad)"></i>`);
+  }
+  const pins = [0, 4, 9].map((i) => { const [x, y] = xy(i, vals[i]); return `<i class="pin ${vals[i] < 0 ? "t2" : ""}" style="left:${x}px;top:${y}px"></i>`; }).join("");
+  return `<div class="lead" id="lead" aria-label="Soul lead graph"><div class="hd"><span>Soul lead</span><b>${h.esc(S.teams.t2.tag)} +5.0k</b></div>
+    <div class="plot">${cols.join("")}<i class="zero"></i>${segs.join("")}${pins}</div></div>`;
+};
+const LOGO = { shape: "circle", size: 30, sample: false };
+const emblem = (bg1, bg2, fg, glyph) => "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${bg1}"/><stop offset="1" stop-color="${bg2}"/></linearGradient></defs>
+  <rect width="64" height="64" fill="url(#g)"/><path d="M32 8 L54 18 V34 C54 46 44 54 32 58 C20 54 10 46 10 34 V18 Z" fill="none" stroke="${fg}" stroke-width="3"/>
+  <text x="32" y="41" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="20" fill="${fg}">${glyph}</text></svg>`);
+const SAMPLE = { t1: emblem("#f0a020", "#7a3d05", "#fff4dc", "NO"), t2: emblem("#5b86e0", "#1d2f63", "#eef3ff", "BS") };
+let args = null;
+// Plate height: logo + 13 px both ways (37 px at 24, 43 px at the default 30, 63 px at 50).
+const plateHeight = (size) => size + 13;
+const plates = (S, h) => {
+  document.querySelector(".stage").style.setProperty("--np-h", `${plateHeight(LOGO.size)}px`);
+  const z = LOGO.size, style = `width:${z}px;height:${z}px;font-size:${(10 * z / 30).toFixed(1)}px`;
+  const game = Math.min(S.bestOf, S.teams.t1.series + S.teams.t2.series + 1);
+  const caps = { t1: `${h.esc(S.stage)} · Bo${S.bestOf}`, t2: `Game ${game} · First to ${h.wins()}` };
+  const logo = (key) => {
+    const cls = `lg${LOGO.shape === "square" ? " sq" : ""}`;
+    return LOGO.sample ? `<span class="${cls}" style="${style}"><img src="${SAMPLE[key]}" alt=""></span>`
+      : h.logo(S.teams[key], cls).replace("<span ", `<span style="${style}" `);
+  };
+  const plate = (key) => { const t = S.teams[key];
+    return `<div class="np ${key}">${logo(key)}<div class="id"><span class="nm" data-fit="17,12">${h.esc(t.name)}</span>
+      <span class="cap">${caps[key]}</span></div><span class="ser">${t.series}</span></div>`; };
+  return `${plate("t1")}${plate("t2")}`;
+};
+V2.mount({
+  objectives: { bridge: 22, urn: 48, rift: { state: "warn", secs: 14 }, mid: { state: "held", team: "t1", secs: 161 } },
+  band: 26,   /* the .topbar rule follows --sh */
+  renderBand: (S, h) => `<div class="strip t1"></div><div class="strip t2"></div><div class="jn t1"></div><div class="jn t2"></div>${h.names("t1", "who")}${h.names("t2", "who")}
+      <div class="orgp"><span class="sc t1">${S.teams.t1.series}</span>${h.orgLogo("org").replace('<span class="org', '<span data-fit="15,11" class="org')}<span class="sc t2">${S.teams.t2.series}</span></div>`,
+  renderUnderClock: (S, h) => {
+    args = [S, h];
+    const meter = (key, pct) => `<div class="meter ${key}${pct ? " capturing" : ""}"><span class="pct">${pct}%</span><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+    const koth = `<div class="koth" aria-label="Stock rift HUD"><div class="bg_backer"></div>
+      <div class="ind">${meter("t1", 0)}${meter("t2", 42)}</div>
+      <div class="gold"><i></i>3,240</div><div class="result">Rift Secured!</div></div>`;
+    const bans = (key) => `<div class="cb ${key}">${h.ban(S.teams[key].bans[0])}${h.ban(S.teams[key].bans[1])}</div>`;
+    return `${koth}<div id="plates">${plates(S, h)}</div>
+      <div class="tx-stage"><div class="st">${h.esc(S.stage)}</div><div class="fmt">Bo${S.bestOf}</div></div>
+      ${bans("t1")}${bans("t2")}${h.objectives("names")}${leadGraph(S, h)}`;
+  },
+});
+(() => {
+  const stage = document.querySelector(".stage");
+  const redraw = () => {
+    const box = document.getElementById("plates");
+    if (!box || !args) return;
+    box.innerHTML = plates(...args);
+    box.querySelectorAll("[data-fit]").forEach((el) => {
+      const [max, min] = el.dataset.fit.split(",").map(Number);
+      let size = max; el.style.fontSize = max + "px";
+      while (el.scrollWidth > el.clientWidth + 0.5 && size > min) el.style.fontSize = --size + "px";
+    });
+  };
+  document.querySelectorAll("[data-tog]").forEach((btn) => btn.addEventListener("click", () => {
+    stage.classList.toggle(btn.dataset.tog, btn.dataset.on === "1");
+    document.querySelectorAll(`[data-tog="${btn.dataset.tog}"]`).forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }));
+  const shapeBtns = document.querySelectorAll("[data-shape]");
+  shapeBtns.forEach((btn) => btn.addEventListener("click", () => {
+    LOGO.shape = btn.dataset.shape; shapeBtns.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+    stage.classList.toggle("jn-curve", LOGO.shape === "circle");   // the joint follows the logo shape
+    redraw();
+  }));
+  const ls = document.getElementById("ls"), lsv = document.getElementById("lsv");
+  ls.addEventListener("input", () => { LOGO.size = +ls.value; lsv.textContent = `${ls.value} px`; redraw(); });
+  const sampleBtn = document.getElementById("sample");
+  sampleBtn.addEventListener("click", () => { LOGO.sample = !LOGO.sample; sampleBtn.setAttribute("aria-pressed", String(LOGO.sample)); redraw(); });
+  const banBtns = document.querySelectorAll("[data-bans]");
+  banBtns.forEach((btn) => btn.addEventListener("click", () => {
+    for (const cls of ["bans-early", "bans-off"]) stage.classList.toggle(cls, cls === btn.dataset.bans);
+    banBtns.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }));
+  const kothBtns = document.querySelectorAll("[data-koth]");
+  kothBtns.forEach((btn) => btn.addEventListener("click", () => {
+    for (const cls of ["k-cap", "k-range", "k-done"]) stage.classList.toggle(cls, cls === btn.dataset.koth);
+    kothBtns.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }));
+  const q = (name) => (new RegExp(`[?&]${name}=([\\w.-]+)`).exec(location.search) || [])[1];
+  const shBtns = document.querySelectorAll("[data-sh]");
+  shBtns.forEach((btn) => btn.addEventListener("click", () => {
+    for (const cls of ["sh-31"]) stage.classList.toggle(cls, cls === btn.dataset.sh);
+    shBtns.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }));
+  if (q("strip") === "31") document.querySelector('[data-sh="sh-31"]').click();
+  if (q("built") === "1") for (const t of ["ser-mid", "st-plate", "lg-inner", "rift-hide", "np-top"]) document.querySelector(`[data-tog="${t}"][data-on="0"]`).click();
+  if (q("bans")) document.querySelector(`[data-bans="${q("bans") === "clock" ? "" : "bans-" + q("bans")}"]`).click();
+  if (q("shape") === "square") document.querySelector('[data-shape="square"]').click();
+  if (q("size")) { ls.value = q("size"); ls.dispatchEvent(new Event("input")); }
+  if (q("sample") === "1") sampleBtn.click();
+  if (q("koth")) document.querySelector(`[data-koth="k-${q("koth")}"]`).click();
+  if (q("graph") === "0") document.querySelector('[data-tog="gr-off"][data-on="1"]').click();
+  ObjStack.mount(stage, { band: () => 26 });
+})();
+</script>
+</body>
+</html>

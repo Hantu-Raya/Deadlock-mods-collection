@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 7 · Marquee Lite</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/hybrid.css">
+<style>
+/* Marquee Lite: design 2 with the band cut away. Two plates sized to their content, a
+   one-step crest without the sunburst, and design 5's big kill counts beside it. */
+.crest { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 260px; height: 116px; background: var(--lacquer-2); border: 1px solid var(--brass); border-top: 0; text-align: center; }
+.crest::after { content: ""; position: absolute; left: 50%; top: 115px; transform: translateX(-50%); width: 168px; height: 22px; background: var(--lacquer-2); border: 1px solid var(--brass); border-top: 0; }
+.crest .ev { position: absolute; left: 0; right: 0; top: 12px; font: 600 10px/1 "Reaver"; letter-spacing: 0.28em; text-transform: uppercase; color: var(--brass); }
+.crest .clock { position: absolute; left: 0; right: 0; top: 30px; font: 600 46px/1 "VALVE Oracle"; color: var(--text); }
+.crest .ser { position: absolute; left: 0; right: 0; top: 84px; font: 600 20px/1 "VALVE Oracle"; color: var(--brass); letter-spacing: 0.12em; }
+.crest .ser small { font: 700 10px/1 "Retail Demo"; letter-spacing: 0.18em; color: var(--muted); margin: 0 8px; vertical-align: 3px; }
+.crest .ld { position: absolute; left: 0; right: 0; top: 121px; z-index: 1; font: 600 13px/1 "VALVE Oracle"; letter-spacing: 0.04em; }
+.kills { position: absolute; top: 0; width: 64px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--lacquer); border-bottom: 2px solid; }
+.kills.amber { right: calc(50% + 138px); border-color: var(--amber); }
+.kills.sapphire { left: calc(50% + 138px); border-color: var(--sapphire-hi); }
+.kills .k { font: 600 28px/1 "VALVE Oracle"; color: var(--text); }
+.kills .l { margin-top: 3px; font: 700 9px/1 "Retail Demo"; letter-spacing: 0.18em; color: var(--muted); }
+.plate { position: absolute; top: 0; height: 96px; display: flex; align-items: center; gap: 14px; padding: 0 14px; background: var(--lacquer); border-bottom: 1px solid var(--brass); }
+.plate.amber { right: calc(50% + 210px); flex-direction: row-reverse; }
+.plate.sapphire { left: calc(50% + 210px); }
+.ident { width: 196px; display: flex; align-items: center; gap: 12px; }
+.amber .ident { flex-direction: row-reverse; text-align: right; }
+.ident .col { min-width: 0; flex: 1; }
+.ident .tn { max-width: 140px; }
+.amber .ident .tn { margin-left: auto; }
+.ident .s { margin-top: 6px; font: 600 13px/1 "VALVE Oracle"; color: var(--muted); }
+.sep { width: 1px; height: 64px; background: var(--brass-dim); }
+.cards { display: flex; gap: 6px; --cw: 72px; --ch: 50px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div id="root"></div>
+  <div class="design-tag"><b>7 · Marquee Lite</b> — 2's crest, cut-away band, 5's numbers</div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/hybrid.js"></script>
+<script>
+OH.mount((oh) => {
+  const t = oh.teams;
+  const plate = (k) => `<div class="plate ${k}">
+      <div class="ident">${oh.logo(k)}<div class="col"><div class="tn">${t[k].name}</div><div class="s">${oh.souls(t[k].souls)} souls</div></div></div>
+      <div class="sep"></div><div class="cards">${oh.cards(k, { arch: true })}</div></div>`;
+  const kills = (k) => `<div class="kills ${k}"><div class="k">${t[k].kills}</div><div class="l">KILLS</div></div>`;
+  document.getElementById("root").innerHTML = `${plate("amber")}${plate("sapphire")}${kills("amber")}${kills("sapphire")}
+    <div class="crest"><div class="ev">${oh.match.event}</div><div class="clock">${oh.match.clock}</div>
+      <div class="ser">${t.amber.series}<small>GAME ${oh.match.game} · BO${oh.match.bestOf}</small>${t.sapphire.series}</div>
+      <div class="ld">${oh.leadHtml()}</div></div>`;
+  oh.fitText(".tn", 13);
+  oh.fitText(".hc .nm", 10);
+});
+</script>
+</body>
+</html>

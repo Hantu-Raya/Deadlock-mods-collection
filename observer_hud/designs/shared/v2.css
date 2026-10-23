@@ -1,0 +1,153 @@
+/* Round 4 (v2) kit: the stock spectator top bar from design 11, copied verbatim (selectors and
+   quoted stock values), moved down by --band so a header band can sit above it, plus the shared
+   editor mock. Each v2 design adds only its band in its own <style>. */
+:root {
+  --offWhite: #ffefd7;            /* @define offWhite */
+  --offBlack: #10130d;            /* @define offBlack */
+  --team1: #d6880c;               /* team1Color, sampled */
+  --team2: #4f74c3;               /* team2Color, sampled */
+  --team1Bright: #ffc15a;         /* team1ColorBright, estimate */
+  --team2Bright: #8fb2ff;         /* team2ColorBright, estimate */
+  --team1Fg: #2a1d08;             /* team1Foreground: dark text on amber, sampled */
+  --enemyRed: #ff5656;            /* .enemy #HealthBar_Fill */
+  --respawn: #fe420e;             /* .RespawnTimer */
+}
+/* CitadelHudTopBar: .spec_mode margin-top 8px; #TeamsContainer 1260px; teams 528px. */
+.topbar { position: absolute; left: 0; top: calc(var(--band, 0px) + 8px); width: 1920px; height: 200px; color: var(--offWhite); }
+.team { position: absolute; top: 0; width: 528px; height: 180px; display: flex; z-index: 2; }   /* #PlayersContainer z-index 2: players over the soul plates */
+.team.t1 { left: 330px; }
+.team.t2 { left: 1062px; }
+
+/* CitadelHudTopBarPlayer: width playerDetailsWidth 88px; #PlayerDetailsContainer 180px. */
+.pl { position: relative; width: 88px; height: 180px; }
+/* #HeroImageArea 100px: coin ~70px (measured), hero badge = card art through hero_image_mask. */
+.coin { position: absolute; left: 9px; top: 22px; width: 70px; height: 70px; border-radius: 50%; z-index: 1; }
+.t1 .coin { background: var(--team1); }
+.t2 .coin { background: var(--team2); }
+.badge { position: absolute; left: 9px; top: -3px; width: 70px; height: 95px; overflow: hidden; z-index: 2;
+  -webkit-mask: var(--m-hero-image-mask-psd) 0 0 / 100% 100% no-repeat; mask: var(--m-hero-image-mask-psd) 0 0 / 100% 100% no-repeat; }
+.badge img { width: 70px; height: 95px; }
+/* #HealthBar 16x50, friend rotateZ(-10deg) margin-left 10, enemy rotateZ(7deg). */
+.hb { position: absolute; top: 30px; width: 14px; height: 46px; }
+.t1 .hb { left: 2px; transform: rotate(-10deg); }
+.t2 .hb { right: 2px; transform: rotate(7deg); }
+.hb .contents { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.87);
+  -webkit-mask: var(--m-healthbar-backer-vert-mask) 0 0 / 100% 100% no-repeat; mask: var(--m-healthbar-backer-vert-mask) 0 0 / 100% 100% no-repeat; }
+.hb .fill { position: absolute; left: 0; right: 0; bottom: 0; }
+.t1 .hb .fill { background: var(--team1Bright); }
+.t2 .hb .fill { background: var(--team2Bright); }
+.hb .fill.low { background: var(--enemyRed); }
+.hb .border { position: absolute; inset: 0; background: var(--offBlack);
+  -webkit-mask: var(--m-healthbar-backer-vert-border) 0 0 / 100% 100% no-repeat; mask: var(--m-healthbar-backer-vert-border) 0 0 / 100% 100% no-repeat; }
+/* .SoulsValueContainer: margin-top 76, padding-top 20, radius 0 0 3 3; .SoulsValue 15px numericOracle bold. */
+.souls { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); z-index: 0; padding: 20px 6px 2px;   /* tucked under the coin like stock */ border-radius: 0 0 3px 3px; font: 700 15px/1 "VALVE Oracle"; white-space: nowrap; }
+.t1 .souls { background: var(--team1); color: var(--team1Fg); }
+.t2 .souls { background: var(--team2); color: var(--offWhite); }
+.souls small { font-size: 12px; font-weight: 500; margin-left: 1px; opacity: 0.9; }   /* .demote 12px */
+/* Stock ultimate, unchanged. #StatusRow margin-top 125. .UltimateStatus 22px circle, opacity .6;
+   .UltimateUnlocked: offBlack, box-shadow 0 0 8px black. .UltimateStatusBG team colour.
+   #UltimateAbilityIconMini 22px icon_ultimate_off. .UltimateCooldownReady: BG none, opacity 1,
+   box-shadow 0 0 4px black, icon_ultimate. .Dead .UltimateStatus opacity .3. */
+.ult { position: absolute; left: 33px; top: 125px; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; opacity: 0.6; background: var(--offBlack); box-shadow: 0 0 8px 3px #000; }
+.ult .bg { position: absolute; inset: 0; }
+.t1 .ult .bg { background: var(--team1); }
+.t2 .ult .bg { background: var(--team2); }
+.ult img { position: absolute; inset: 0; width: 22px; height: 22px; }
+.ult.ready { opacity: 1; background: none; box-shadow: 0 0 4px 3px #000; }
+.ult.ready .bg { display: none; }
+/* .Dead: coin wash offBlack .7, soul tag and ult opacity .3, health collapsed; .RespawnTimer #FE420E 32px. */
+.pl.dead .coin { background: var(--offBlack); opacity: 0.7; }
+.pl.dead .badge img { filter: saturate(0) brightness(0.55); }   /* Panorama: saturation 0, brightness */
+.pl.dead .souls, .pl.dead .ult { opacity: 0.3; }
+.pl.dead .hb { display: none; }
+.respawn { position: absolute; left: 0; right: 0; top: 36px; z-index: 3; text-align: center; font: 700 32px/1 "VALVE Oracle"; color: var(--respawn); text-shadow: 0 0 5px var(--offBlack); }
+
+/* .GameClock: #00000090, radius 5, padding 5, margin-top 8; .GameTime 80x20 numericBlock 14px semi-bold. */
+.clock { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); padding: 5px; border-radius: 5px; background: rgba(0, 0, 0, 0.565); }
+.clock span { display: block; width: 80px; height: 20px; padding-top: 3px; text-align: center; font: 600 15px/1 "VALVE Oracle"; color: rgba(255, 239, 215, 0.9); }
+/* .TeamNetworth 300px, margin-top 45; .TeamScore 145px; .ScoreBG team colour through dust_01 mask; .ScoreLabel 22px oracle bold. */
+.networth { position: absolute; left: 50%; top: 45px; transform: translateX(-50%); width: 300px; height: 34px; z-index: 1; }
+.score { position: absolute; top: 0; width: 145px; height: 34px; display: flex; align-items: center; gap: 4px; }
+.score.t1 { left: 0; justify-content: flex-end; padding-right: 5px; color: var(--team1Fg); }
+.score.t2 { right: 0; padding-left: 5px; color: #fff; }
+.score::before { content: ""; position: absolute; inset: 0; -webkit-mask: var(--m-dust-01-psd) 0 0 / 300px 300px; mask: var(--m-dust-01-psd) 0 0 / 300px 300px; }
+.score.t1::before { background: var(--team1); left: -50px; }
+.score.t2::before { background: var(--team2); right: -50px; }
+.score b { position: relative; font: 700 22px/1 "VALVE Oracle"; }
+.score b small { font-size: 14px; font-weight: 500; opacity: 0.8; }
+.score i { position: relative; width: 30px; height: 26px; background: center / contain no-repeat; }
+.score.t1 i { background-image: url("../assets/game/hud__core__icon_team1_psd.png"); }
+.score.t2 i { background-image: url("../assets/game/hud__core__icon_team2_psd.png"); }
+
+/* ---- Mock of the in-game setup editor (Escape menu). Not part of the top bar. ---- */
+.open-ed { position: absolute; right: 24px; bottom: 20px; min-height: 44px; padding: 10px 16px; background: rgba(16, 19, 13, 0.9); border: 1px solid var(--team1); color: var(--offWhite); font: 700 13px/1 "Retail Demo"; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.open-ed:focus-visible, .ed button:focus-visible, .ed input:focus-visible, .ed select:focus-visible { outline: 2px solid var(--team1Bright); outline-offset: 2px; }
+.ed-back { position: absolute; left: 0; right: 0; top: calc(var(--band, 0px) + 196px); bottom: 0; background: rgba(0, 0, 0, 0.55); display: none; }   /* top bar stays undimmed so edits show live */
+.ed-back.on { display: block; }
+.ed { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); width: 980px; max-height: 760px; overflow: auto; padding: 22px 26px 24px; background: rgba(16, 19, 13, 0.97); border-top: 3px solid var(--team1); color: var(--offWhite); font: 15px/1.35 "Retail Demo", sans-serif; }
+.ed h2 { font: 700 22px/1 "Retail Demo"; letter-spacing: 0.08em; text-transform: uppercase; }
+.ed .sub { margin-top: 6px; color: rgba(255, 239, 215, 0.65); font-size: 14px; }
+.ed fieldset { border: 0; margin-top: 18px; }
+.ed legend { font: 700 12px/1 "Retail Demo"; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 239, 215, 0.6); margin-bottom: 8px; }
+.ed .row { display: grid; grid-template-columns: 1fr 1fr 140px; gap: 12px; }
+.ed .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+.ed .col.t1 legend { color: var(--team1Bright); }
+.ed .col.t2 legend { color: var(--team2Bright); }
+.ed label { display: block; font-size: 13px; color: rgba(255, 239, 215, 0.75); margin-top: 8px; }
+.ed input, .ed select { display: block; width: 100%; margin-top: 4px; min-height: 34px; padding: 6px 8px; background: #050604; color: var(--offWhite); border: 1px solid rgba(255, 239, 215, 0.25); border-radius: 3px; font: 15px "Retail Demo", sans-serif; }
+.ed .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ed .trip { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+.ed .err { color: var(--enemyRed); font-size: 12px; min-height: 14px; margin-top: 2px; }
+.ed .btns { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+.ed button { min-height: 40px; padding: 8px 18px; background: transparent; color: var(--offWhite); border: 1px solid rgba(255, 239, 215, 0.4); font: 700 13px/1 "Retail Demo"; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.ed button.primary { background: var(--team1); border-color: var(--team1); color: var(--team1Fg); }
+.ed .quad { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.ed .hint { margin-top: 4px; font-size: 12px; color: rgba(255, 239, 215, 0.5); }
+/* Ban (design 11): hero card greyed, red strike. */
+.ban { position: relative; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: var(--offBlack); border: 1.5px solid rgba(255, 239, 215, 0.35); }
+.ban img { position: absolute; left: -2px; top: -2px; width: 36px; height: 49px; filter: saturate(0) brightness(0.8); }
+.ban::after { content: ""; position: absolute; left: -4px; right: -4px; top: 50%; height: 2px; background: var(--enemyRed); transform: rotate(-45deg); }
+.ban.empty { border-style: dashed; }
+.ban.empty::after { display: none; }
+#band { position: absolute; left: 0; top: 0; width: 1920px; z-index: 3; color: var(--offWhite); }
+
+/* ---- Objective cues (round 5b): small chips under the clock, only while an objective is close
+   (bridge buff 30 s, urn 60 s, mid-boss 60 s, rift 20 s from its minimap warning, a held rejuvenator for
+   its buff). The shown chips form one group centred under the clock (always symmetric), the mid-boss /
+   rejuvenator chip in the middle of the group. Icon over time, 46 px chips: four span 196 px, inside the
+   ~204 px column between the team panels. ---- */
+.obj { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; color: var(--offWhite); pointer-events: none; animation: cueIn 0.4s ease-out; }
+.obj .cue { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 46px; height: 38px; box-sizing: border-box; }
+.obj .ic { width: 16px; height: 16px; flex: none; background: currentColor; opacity: 0.85; -webkit-mask: center / contain no-repeat; mask: center / contain no-repeat; }
+.obj .ic.powerup { -webkit-mask-image: var(--m-icon-powerup); mask-image: var(--m-icon-powerup); }
+/* The rejuvenator keeps the stock top bar's icon and yellow (.RejuvenatorIcon, #FFCC00). */
+.obj .ic.rejuv { color: #FFCC00; opacity: 1; -webkit-mask-image: var(--m-rejuvenator); mask-image: var(--m-rejuvenator); }
+/* Rift and urn keep the stock colour images the kill feed shows for those events (portal, soul jar), 18 px. */
+.obj .ic.rift, .obj .ic.urn { width: 18px; height: 18px; opacity: 1; background: center / contain no-repeat; -webkit-mask: none; mask: none; }
+.obj .ic.rift { background-image: var(--m-minimap-icon-koth-png); }
+.obj .ic.urn { background-image: var(--m-soul-jar-marker-psd); }
+.obj b { font: 600 14px/1 "VALVE Oracle"; letter-spacing: 0; }
+/* States: last 10 s amber, spawned/open teal, a held rejuvenator with a 3 px bar at the bottom in the
+   holder's stock team colour (square bottom corners). No blinking. */
+.obj .cue.soon b { color: #FFC15A; }
+.obj .cue.live b { color: #6FE8C8; }
+.obj .cue.held { border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important; }
+.obj .cue.held.t1 { border-bottom: 3px solid #D6880C; }
+.obj .cue.held.t2 { border-bottom: 3px solid #4F74C3; }
+@keyframes cueIn { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .obj { animation: none; } }
+/* Base Game+ Names: each chip copies the stock clock's box (#00000090, rounded). */
+.obj.names .cue { background: rgba(0, 0, 0, 0.565); border-radius: 4px; backdrop-filter: blur(4px); }
+/* Night Desk: design 6's lacquer with the brass-dim frame. */
+.obj.desk .cue { background: rgba(13, 12, 10, 0.82); border: 1px solid rgba(214, 176, 106, 0.38); backdrop-filter: blur(4px); }
+.obj.desk .cue.held.t1 { border-bottom: 3px solid #D6880C; }
+.obj.desk .cue.held.t2 { border-bottom: 3px solid #4F74C3; }
+.obj.desk b { color: #EFE6D6; }
+/* State reference sheet (mock only). */
+.objsheet { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); display: flex; gap: 22px; padding: 12px 16px 10px; background: rgba(10, 9, 8, 0.86); border: 1px solid rgba(255, 239, 215, 0.15); }
+.objsheet h3 { position: absolute; left: -1px; top: -21px; padding: 5px 10px 4px; background: rgba(10, 9, 8, 0.86); font: 700 11px/1 "Retail Demo"; letter-spacing: 0.18em; color: rgba(255, 239, 215, 0.7); text-transform: uppercase; white-space: nowrap; }
+.objsheet figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 150px; }
+.objsheet .slot { position: relative; min-height: 36px; display: flex; align-items: center; }
+.objsheet .slot .obj { position: relative; left: 0; top: auto; transform: none; width: auto; }
+.objsheet .none { font: 600 11px/1 "Retail Demo"; color: rgba(255, 239, 215, 0.35); }
+.objsheet figcaption { font: 600 11px/1.3 "Retail Demo"; color: rgba(255, 239, 215, 0.75); text-align: center; max-width: 170px; }

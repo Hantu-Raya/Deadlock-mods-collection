@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Observer HUD · pick a top bar</title>
+<link rel="stylesheet" href="assets/generated.css">
+<style>
+:root { --amber: #cf9943; --amber-hi: #ecc27a; --sapphire-hi: #8fa3e6; --cream: #e5d6c1; --bg: #0f0d0b; --panel: #191612; --line: #2e2922; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--cream); font: 16px/1.5 "Retail Demo", "Segoe UI", sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 48px 24px 80px; }
+h1 { font: 700 34px/1.15 "Reaver", Georgia, serif; letter-spacing: 0.02em; }
+.lede { margin-top: 10px; max-width: 70ch; color: #c9bba6; }
+.lede b { color: var(--cream); }
+.summary { margin-top: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.summary div { padding: 14px 16px; background: var(--panel); border-left: 3px solid var(--line); }
+.summary .fable { border-left-color: var(--amber); }
+.summary h2 { font: 700 12px/1 "Retail Demo", sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #a8998a; }
+.summary p { margin-top: 6px; font-size: 15px; }
+.list { margin-top: 36px; display: grid; gap: 28px; }
+article { background: var(--panel); border: 1px solid var(--line); }
+article.pick { border-color: var(--amber); }
+.shot { display: block; position: relative; aspect-ratio: 1920 / 300; overflow: hidden; background: #000; }
+.shot img { width: 100%; height: auto; display: block; }
+.shot:focus-visible { outline: 3px solid var(--amber-hi); outline-offset: 2px; }
+.body { padding: 18px 20px 20px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
+@media (max-width: 820px) { .body { grid-template-columns: 1fr; } }
+h3 { font: 700 24px/1.2 "Reaver", Georgia, serif; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+h3 small { font: 600 13px/1 "Retail Demo", sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #a8998a; }
+.badge { font: 700 11px/1 "Retail Demo", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 8px; background: var(--amber); color: #16120d; }
+.badge.alt { background: transparent; color: var(--amber-hi); border: 1px solid var(--amber); }
+.idea { margin-top: 8px; color: #d6c8b2; }
+ul { margin-top: 10px; list-style: none; color: #c9bba6; font-size: 15px; }
+li + li { margin-top: 4px; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; align-content: start; }
+dt { color: #a8998a; }
+dd { font-family: "VALVE Oracle", sans-serif; }
+.open { display: inline-block; margin-top: 14px; padding: 10px 16px; min-height: 44px; border: 1px solid var(--amber); color: var(--amber-hi); text-decoration: none; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 13px; }
+.open:hover { background: rgba(207, 153, 67, 0.12); }
+.open:focus-visible { outline: 3px solid var(--amber-hi); outline-offset: 2px; }
+footer { margin-top: 40px; color: #8f8273; font-size: 14px; }
+footer code, .lede code { color: #c9bba6; }
+h2.round { margin-top: 48px; font: 700 26px/1.2 "Reaver", Georgia, serif; color: var(--amber-hi); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Community observer top bar: pick one</h1>
+  <p class="lede">A tournament top bar that looks like part of Deadlock itself. Every design shows the same mock match: event, stage, game 3 of a Bo3, two teams with logos, twelve players with health, ultimate state and one dead player each. All art and fonts come from the installed game. Click a preview to open it full size (1920×1080, scales to your window); add <code>?long=1</code> to the address to see long team names. v1 shipped design 11. v2 ships two looks the observer picks in the editor: 14 · Base Game+ Names (default) and 12 · Night Desk.</p>
+
+  <h2 class="round">Round 5 · Objective cues</h2>
+  <p class="lede">Small chips under the clock that appear only while an objective is close and disappear after: bridge buff (last 30 s), mid-boss (last 60 s), rift (last 20 s, from its minimap warning), urn (last 60 s), and a held rejuvenator for its 3:00 buff in the holder's colour. The chips that show form one group centred under the clock, so the row is always symmetric; the mid-boss / rejuvenator chip (the mid objective) goes in the middle of the group. All chips are the same size (icon over time) and four fit between the team panels. Icon and time only, amber in the last 10 s, teal when up, no blinking. Each page shows a state sheet at the bottom.</p>
+  <section class="summary" aria-label="Round 5 notes">
+    <div><h2>Game rules</h2><p>From the game files and server binary (<code>decisions/objective-timers.md</code>): bridge buff 5:00 then every 5:00; urn 10:00 then every 5:00; mid-boss respawns 7:00 after a kill, a minute less each time, at least 5:00 (the stock timer has it exactly); rift 12:00 then every 7:00, each within ±1:00 at random.</p></div>
+    <div><h2>Rift</h2><p>The rift's time is random and the server never sends it, so no honest countdown exists before its warning. The chip appears with the minimap warning, which a live test showed 20 s before it opens (12:38 for 12:58, 18:41 for 19:01), and counts down exactly.</p></div>
+    <div><h2>Icons</h2><p>Rift and urn use the game's colour images, the ones the stock kill feed shows for those events. Bridge and mid-boss use the stock modifier icons.</p></div>
+  </section>
+
+  <h2 class="round">Round 4 · v2, after the broadcast bars</h2>
+  <p class="lede">Taken from the Night Shift and Death Slam bars: a header band above the stock top bar (which moves down), the player names in a row over the cards instead of on the portraits, the organiser's wordmark or logo in the centre, and room for 28-character team names. Night Shift's PAUSED badge is the stock card's <code>PauseIndicator</code>, and the stock bar has its own midboss timer (<code>#RejuvenatorTimer</code>); v2 keeps both. Press <b>Esc</b> for the editor mock with the new broadcast fields.</p>
+  <section class="summary" aria-label="Round 4 notes">
+    <div><h2>Same stock bar</h2><p>Design 11's stock rebuild, unchanged, moved down by the band. In game the band would be one more injected layout and the bar's move one inline margin.</p></div>
+    <div><h2>New fields</h2><p>Organiser name or logo URL for the centre; on 12 an optional info card (title, value, caption), for a prize pool or a sponsor line.</p></div>
+    <div><h2>Long names</h2><p>12 and 13 show 28-character team names in full; 12 also has the soul lead graph (pins every 5:00, shown at each mark). Player names over about 11 characters are cut.</p></div>
+  </section>
+  <div class="list" id="list4"></div>
+
+  <h2 class="round">Round 3 · Base game + tournament</h2>
+  <p class="lede">Hairline (8) is kept. This one leaves Deadlock's own top bar as it is and adds only what a tournament needs. The stock bar is rebuilt from the game's <code>citadel_hud_top_bar</code> layout and CSS: card sizes, the soul tags, slanted health bars, ultimate icons, clock and team soul plates use the stock values and images. Added: team name plates with logo and series score, hero bans, GRAND FINAL with a small BO3, the event title, and player aliases on the portraits. Press <b>Esc</b> on the page (or "Tournament setup") for a mock of the in-game editor.</p>
+  <section class="summary" aria-label="Round 3 notes">
+    <div class="fable"><h2>From the game files</h2><p>Sizes, fonts and colours come from the stock CSS; the team colours are sampled from a live frame, because the engine sets them. The ultimate indicator is the stock default.</p></div>
+    <div><h2>Editor mock</h2><p>Event, stage, format, team names, tags, logo URLs (http/https only, monogram if it fails), series score, two bans per team, twelve player aliases. Edits show on the bar at once.</p></div>
+    <div><h2>Long team names</h2><p>Shrink to 12 px, then get cut off; 28-character names need a shorter display name.</p></div>
+  </section>
+  <div class="list" id="list3"></div>
+
+  <h2 class="round">Round 2 · Deco Marquee × Broadcast Slate</h2>
+  <p class="lede">People liked 2 and 5 because they are clean. These five keep that restraint: two surface tones, one brass accent, design 2's deco shapes only as accents, design 5's compact numbers. Round-1 review fixes are in all five: 6 px health bars, 12 px names, the stock ultimate glyph as a chip on the portrait, a dark overlay plus muted name for dead players, a fixed logo slot, and team names that shrink to fit.</p>
+  <section class="summary" aria-label="Round 2 recommendations">
+    <div class="fable"><h2>Fable pick</h2><p><b>9 · Two Tier</b>, runner-up 6 · Brass Slate. One solid block, the narrowest bar, and the only one where long team names fit in full. <a href="../decisions/fable-pick-round2.md" style="color:var(--amber-hi)">Full review</a></p></div>
+    <div><h2>Jevify head-to-head</h2><p>8 Hairline and 10 Brass Rail 10 of 12, 6 won 8, 7 and 9 won 6; round-1 anchors 5 won 2, 2 won 0. Close games among the top three. <a href="../decisions/design-scoring-round2.json" style="color:var(--amber-hi)">Data</a></p></div>
+    <div class="fable"><h2>RzR feedback</h2><p>Likes <b>8 · Hairline</b>. Now on v2: monogram logos, one frame line, GRAND FINAL / BO3 above the clock, title below. <a href="../decisions/feedback-rzr-hairline.md" style="color:var(--amber-hi)">Notes</a></p></div>
+    <div><h2>Long team names</h2><p>Only 9 shows 28-character names in full. 6, 7, 8 and 10 shrink to 13 px and then cut them off.</p></div>
+  </section>
+  <div class="list" id="list2"></div>
+
+  <h2 class="round">Round 1</h2>
+  <section class="summary" aria-label="Round 1 recommendations">
+    <div class="fable"><h2>Fable pick</h2><p><b>2 · Deco Marquee</b>, runner-up 1 · Patron Ledger. <a href="../decisions/fable-pick.md" style="color:var(--amber-hi)">Full review</a></p></div>
+    <div><h2>Jevify</h2><p>Theme: 2 first, 5 last. Head-to-head: 5 won 8 of 8. <a href="../decisions/design-scoring.json" style="color:var(--amber-hi)">Data</a></p></div>
+    <div><h2>People</h2><p>Liked 2 and 5, because they are cleaner.</p></div>
+  </section>
+  <div class="list" id="list"></div>
+
+  <footer>Previews need <code>assets/</code>; rebuild them with <code>py observer_hud/tools/extract_design_assets.py</code>. Screenshots are in <code>shots/</code>.</footer>
+</main>
+<script>
+(() => {
+  "use strict";
+  const DESIGNS = [
+    { id: "d1-patron-ledger", n: 1, name: "Patron Ledger", tag: "Stock top bar, extended", badge: "", badgeText: "",
+      idea: "Keeps the stock layout players already know: parallelogram portraits, stock team health textures, the paper texture as a centre plate for event and clock.",
+      pros: ["Most legible; nothing new to learn", "Built almost entirely from stock images", "Easiest to keep in step with game patches"],
+      cons: ["Reads as the stock bar with a box added", "Narrow team block clips long names", "Full-width dark scrim"],
+      height: "~150 px", width: "1832 px", panorama: "Direct" },
+    { id: "d2-deco-marquee", n: 2, name: "Deco Marquee", tag: "1920s theatre sign", badge: "alt", badgeText: "People liked",
+      idea: "Black lacquer and brass hairlines with a stepped crest holding the clock over a sunburst. Portraits sit in arched windows.",
+      pros: ["Strongest event identity", "Clearly art deco, clearly Deadlock", "Team colours kept for team data"],
+      cons: ["Heaviest band of the five", "Series diamonds too small", "Sunburst must be a baked texture"],
+      height: "124 px + crest 166 px", width: "1840 px", panorama: "One baked texture" },
+    { id: "d3-pulp-broadsheet", n: 3, name: "Pulp Broadsheet", tag: "Evening paper across the top", badge: "", badgeText: "",
+      idea: "A torn newspaper strip: Valve Pulp headline, ink rules, duotone player photos, KO stamps for dead players, the clock in a black box hanging below.",
+      pros: ["Most distinctive", "Big series numbers in team colour", "Fun dead state"],
+      cons: ["Bright paper across the full width", "Duotone photos slow hero recognition", "Covers the most screen"],
+      height: "134 px + clock tag", width: "1920 px", panorama: "Mask texture + saturation" },
+    { id: "d4-ritual-sigil", n: 4, name: "Ritual Sigil", tag: "Floating rings, no band", badge: "", badgeText: "",
+      idea: "No band at all. A centre ring split by soul share holds the clock; players are round portraits with health arcs.",
+      pros: ["Covers the least", "Soul share readable at a glance", "Arcs use the radial clip the game already uses"],
+      cons: ["Text straight over the game; weak on bright maps", "Series as small dots", "Event line sits low"],
+      height: "~180 px, mostly transparent", width: "1590 px", panorama: "Radial clip arcs" },
+    { id: "d5-broadcast-slate", n: 5, name: "Broadcast Slate", tag: "Compact esports bar", badge: "alt", badgeText: "People liked",
+      idea: "A flat 76 px slate bar in the game's colours and fonts, with big kill counts and a soul-lead trend graph under the clock.",
+      pros: ["Most compact and dense", "Trend graph is broadcast-friendly", "Won every jevify head-to-head"],
+      cons: ["Least Deadlock-looking", "Team names shrink to tags", "Trend graph needs a scripted panel in game"],
+      height: "76 px + graph 54 px", width: "1462 px", panorama: "Graph needs scripting" },
+  ];
+  const DESIGNS2 = [
+    { id: "d6-brass-slate", n: 6, name: "Brass Slate", tag: "5's bar in 2's materials", badge: "alt", badgeText: "Fable runner-up",
+      idea: "Design 5's compact bar in black lacquer with one brass hairline, full team names in Reaver, and one stepped tab under the clock holding the soul-lead trend.",
+      pros: ["Densest; every number on one line", "Trend kept, drawn as panels", "Clear team plates"],
+      cons: ["Bar, tab and caption are three pieces", "Series score small under the clock", "Long names get cut off"],
+      height: "80 px + tab 50 px", width: "1752 px", panorama: "Direct" },
+    { id: "d7-marquee-lite", n: 7, name: "Marquee Lite", tag: "2's crest, band cut away", badge: "", badgeText: "",
+      idea: "Design 2 with the band removed: two plates sized to their content, a one-step crest with no sunburst, and design 5's big kill counts beside it.",
+      pros: ["Strongest event title", "Series flanks the game number", "Arched portraits kept"],
+      cons: ["Six separate pieces; busiest outline", "Team names have the least room", "Crest is the tallest centre"],
+      height: "96 px, crest 138 px", width: "~1850 px", panorama: "Direct" },
+    { id: "d8-hairline", n: 8, name: "Hairline", tag: "One brass rule, no plates", badge: "pick", badgeText: "RzR likes · v2",
+      idea: "No plates at all: a short dark fade, one brass rule, a single-line frame with GRAND FINAL over a small BO3 and the clock, the event title alone below, and big series digits beside it. v2 applies RzR's feedback: monogram logo slots instead of stock emblems, one frame line, stage above and title below.",
+      pros: ["Lightest; nothing solid but the frame", "Series digits large", "Top of jevify (tied)"],
+      cons: ["Depends on the dark fade behind it", "Kills shrink to small text", "Long names get cut off"],
+      height: "~125 px, mostly fade", width: "~1670 px", panorama: "Direct" },
+    { id: "d9-two-tier", n: 9, name: "Two Tier", tag: "Marquee strip over compact rows", badge: "alt", badgeText: "Fable pick",
+      idea: "A slim marquee strip with team names, series boxes and the event title, over design 5's compact rows of players, kills and clock.",
+      pros: ["One solid block; the narrowest", "Long names fit in full", "Event title always visible"],
+      cons: ["Series boxes sit tight against the title", "Souls and lead figures are small", "No trend graph"],
+      height: "112 px", width: "1242 px", panorama: "Direct" },
+    { id: "d10-brass-rail", n: 10, name: "Brass Rail", tag: "Rail, medallion, share meter", badge: "", badgeText: "",
+      idea: "One continuous rail with arched portraits, a round clock medallion in the centre, and the soul lead as a single share meter below.",
+      pros: ["Soul share readable in a second", "Calm, symmetric", "Top of jevify (tied)"],
+      cons: ["Medallion and meter reach ~200 px down", "Long names get cut off", "Widest solid rail"],
+      height: "86 px + medallion and meter", width: "1590 px", panorama: "Direct" },
+  ];
+  const li = (xs) => xs.map((x) => `<li>${x}</li>`).join("");
+  const render = (list) => list.map((d) => `
+    <article class="${d.badge === "pick" ? "pick" : ""}" aria-labelledby="h-${d.id}">
+      <a class="shot" href="${d.id}.html" aria-label="Open design ${d.n}, ${d.name}, full size">
+        <img src="shots/${d.id}.png" alt="Design ${d.n} top bar over a match" width="1920" height="1080">
+      </a>
+      <div class="body">
+        <div>
+          <h3 id="h-${d.id}">${d.n} · ${d.name} <small>${d.tag}</small>${d.badge ? `<span class="badge ${d.badge === "alt" ? "alt" : ""}">${d.badgeText}</span>` : ""}</h3>
+          <p class="idea">${d.idea}</p>
+          <ul>${li(d.pros.map((p) => "+ " + p))}${li(d.cons.map((c) => "− " + c))}</ul>
+          <a class="open" href="${d.id}.html">Open full size</a>
+        </div>
+        <dl><dt>Height</dt><dd>${d.height}</dd><dt>Width</dt><dd>${d.width}</dd><dt>Panorama</dt><dd>${d.panorama}</dd></dl>
+      </div>
+    </article>`).join("");
+  const DESIGNS3 = [
+    { id: "d11-base-game", n: 11, name: "Base Game+", tag: "Stock top bar + tournament info", badge: "alt", badgeText: "v1 · replaced in v2",
+      idea: "Deadlock's own spectator top bar, untouched, with team plates (logo, name, series) and bans at the outer ends, GRAND FINAL / BO3 and the event title under the clock, and each player's alias on their portrait. The ultimate stays in its stock spot.",
+      pros: ["Viewers already know every element", "Nothing stock moves, so it should be the easiest port", "In-game editor covers every addition"],
+      cons: ["Busier than Hairline: stock plus additions", "Long team names get cut off", "Team colours are sampled, not exact"],
+      height: "~160 px, stock bar + 1 row", width: "~1780 px", panorama: "Stock layout + additions" },
+  ];
+  const DESIGNS4 = [
+    { id: "d12-night-desk", n: 12, name: "Night Desk", tag: "Night Shift layout, Brass Slate materials", badge: "pick", badgeText: "v2 look 2 · rev 3",
+      idea: "A 56 px lacquer band with one brass hairline (design 6's materials). Event and stage in the left corner, the game in the right; each team has a logo ring, its name in Reaver, two small bans, and the player names in a row over the cards; the organiser wordmark sits over the series score in the centre. Team colour only marks a 2 px line under each team's cards, the logo ring, the series digits and the graph pins. Under the soul plates, the soul lead line graph: one pin per 5:00 of game time, filled amber above the line and sapphire below as in design 5, with no numbers or time labels, only the current lead in its header; faded in at each mark for 30 s (press G on the page). The info card is off by default (?info=1 shows it).",
+      pros: ["Quietest band of round 4", "28-character names fit", "Soul lead trend without a permanent panel"],
+      cons: ["Full-width band", "Covers the stock voice icon corner unless it is moved", "Graph history starts when the observer starts watching"],
+      height: "56 px band + stock bar; graph 80 px when shown", width: "1920 px", panorama: "Panels; graph lines are rotated panels" },
+    { id: "d13-slam-rail", n: 13, name: "Slam Rail", tag: "After Death Slam", badge: "", badgeText: "",
+      idea: "A 62 px rail. Team names are centred over their cards in the bright team colour, with the player names in capitals above each card. Logos sit at the far ends, the stage beside one and the event beside the other; bans hang under the logos. A centre plate holds the wordmark between the two series scores.",
+      pros: ["Cleanest read: one name per team, centred", "Series score beside the wordmark", "28-character names fit"],
+      cons: ["Bans far from their team, at the screen edges", "Teal rail is a new colour for the HUD", "Capitals cut long player names sooner"],
+      height: "62 px rail + 8 px plate", width: "1920 px", panorama: "Panels and gradients" },
+    { id: "d14-base-names", n: 14, name: "Base Game+ Names", tag: "v1 plus a names strip", badge: "pick", badgeText: "v2 look 1 (default) · rev 2",
+      idea: "v1 as built, with the player names moved from the portraits to a 26 px strip over the cards and the organiser wordmark in the strip's centre. After your review: the event title under the stage is gone, and each team's two bans sit beside the clock on its side. Plates and the stage stack stay as in v1.",
+      pros: ["Smallest change from v1", "Portraits are clean again", "Lowest band"],
+      cons: ["Team names still shrink and get cut", "Bans are small (28 px) to fit beside the clock", "No new space for organiser content"],
+      height: "26 px strip + v1", width: "~1780 px", panorama: "One more injected strip" },
+    { id: "d20-objective-health-desk", n: 20, name: "Night Desk: objective health and the soul lead graph", tag: "Design 19 on the Night Desk look (2026-10-23)", badge: "", badgeText: "mockup · built (pak10 bfa12f6b)",
+      idea: "Design 19 rev 2 on Night Desk (base: design 16 as built). The stock objective health moves from HUD y 160, where Night Desk's chips (the top bar starts 30 px lower) and the soul lead graph covered it, to 4 px under the timers or the rift HUD; the graph sits 4 px under it and waits while the rift HUD and a bar both show. Toggles as design 19, plus design 16's graph size and X/Y offsets (the Y offset adds to the spot under the bar).",
+      pros: ["Same stack and rules as Base Game+ Names", "The walker image and bar clear the chips and the graph"],
+      cons: ["The objective panel moves 34 px down from its stock spot", "Both walkers (800 px) still reach under the inner cards' status columns, as at the stock spot"],
+      height: "stock panel, moved", width: "stock (400 / 800 / 500 px)", panorama: "same as design 19" },
+    { id: "d19-objective-health", n: 19, name: "Objective health and the soul lead graph", tag: "Stack under the clock proposal, rev 2 (2026-10-23)", badge: "", badgeText: "mockup · built (pak10 bfa12f6b)",
+      idea: "Live, the game's own objective health (a walker's 400 px bar with its image, both teams' side by side, or the mid-boss's name and bar) sits at its stock HUD spot (y 160), which the timers and the soul lead graph now cover. Proposal: the stock panel, styled as the game draws it, moves 4 px under the timers (and under the rift HUD while it shows), and the soul lead graph moves 4 px under the panel while one shows. Rev 2: while the rift HUD and an objective bar both show, the graph waits instead of sitting about 380 px down, then shows its full time once either clears (with Always it simply comes back); the dashed magenta box marks the wait in the mockup only. The graph also shows in Base Game+ Names, and its settings move to the TIMERS page (design 18 update; the status column moves to PLAYERS). Night Desk: design 20. Shared code: shared/objstack.js/.css.",
+      pros: ["The game's own bars, unchanged in style, always readable", "Same order in both looks: timers, rift HUD, objective, graph", "The graph never sits lower than one stock panel under the timers", "Graph available to Base Game+ Names"],
+      cons: ["While the rift HUD and a bar both show, the graph is hidden (it shows afterwards)", "The objective panel moves 4 px in Names"],
+      height: "stock panel, moved", width: "stock (400 / 800 / 500 px)", panorama: "inline margin-top on #objectives_health_friendly (as the rift HUD), graph floor under it, graph held while both show" },
+    { id: "d18-editor-layout", n: 18, name: "Editor layout", tag: "In-game editor re-layout proposal (2026-10-23)", badge: "", badgeText: "mockup · built (pak10 11f70858)",
+      idea: "The Escape-menu editor re-seated so each setting sits with what it changes. Seven pages in match-day order: MATCH (stage, format next to both series wins, bans), TEAMS (name and tag on one row, logo URL, then one Team logos card with shape, size and the Night Desk name gap), PLAYERS (both sides side by side), TOP BAR (the look first, then organiser and event text), NIGHT DESK (info card and soul lead graph; dimmed with a Use Night Desk button while Names is picked), TIMERS (objective timers and the status column, which leaves ADVANCED), SHARE. Card tags say BOTH LOOKS or NIGHT DESK; the rail shows the look in use; RESET names its page. No setting is added or removed. Styling is copied from the built editor (oh_editor.css) and the stock Deadlock rules it uses (SecondaryButton light/fill pills, switch svgs, paper-tile nav brush with the stock nav mask, temp_background_environment), with the game fonts. ?page= and ?look= pick the view.",
+      pros: ["Format caps the wins on the same page", "Every logo setting is on TEAMS", "Night Desk-only settings are in one place and say so", "No page needs scrolling"],
+      cons: ["Settings move: returning users relearn the pages", "Event title moves away from the stage", "Stored state and share codes are unchanged, but RESET PAGE scopes change"],
+      height: "1280x780 window", width: "unchanged", panorama: "editor.xml re-ordered, oh_menu.js PAGES and RESET scopes, one dim class" },
+    { id: "d17-base-names-rev2", n: 17, name: "Base Game+ Names rev 2", tag: "Base Game+ Names redesign proposal (2026-10-23)", badge: "", badgeText: "mockup · built (pak10 4d609a69)",
+      idea: "Design 14 as built, revised with Night Desk's lessons and a debate with a second model. The series score moves into the centre tab (a team-coloured digit at each end of the organiser wordmark, in the 26 px row). Plates stay 36 px: team name over a caption line (left: stage and format; right: game and first-to); the stage box under the clock goes. Logo with Night Desk's shape (circle or square), 24-50 px (the plate is the logo + 13 px tall), at the plate's inner end by the cards. Bans stay 28 px by the clock (always, first 1:30, or hidden). Chips at Night Desk's spot; the rift HUD moves under them and the rift chip hides while it shows. The plates move up to the screen's top edge, level with the names strip (user sketch). Toggles switch each piece back to the built one.",
+      pros: ["Series score sits where casters and viewers look", "Clock stack is 48 px shorter, so the rift HUD ends higher", "Names stays the light look (26 px band, 36 px plates)"],
+      cons: ["Organiser wordmark gets about 150 px between the digits", "A 9 px caption line is small on a 720p stream", "Bans for the first 1:30 only are missed by late viewers"],
+      height: "26 px band + stock bar", width: "1920 px", panorama: "Inline digits in the org tab; plate caption label; existing koth/chip code" },
+    { id: "d16-night-desk-logo", n: 16, name: "Night Desk team logo", tag: "Night Desk rev 5 proposal (2026-10-23)", badge: "", badgeText: "mockup · built (pak10 1b7bf7d6)",
+      idea: "Design 15 as built (arch A) with the team image reworked: circle or square, 24-50 px, and a 4-48 px gap to the team name. The tab on the plate's edge follows the logo (half circle or square tab, 2 px larger). Past 30 px each team's side (stock player cards, names row, colour line, bans) moves outward by (size - 30) px; the soul plates and clock stay centred. Sample logos show how a full-bleed team image fills each shape.",
+      pros: ["Team images read at a glance when larger", "Square keeps a square logo's corners", "Gap keeps a large logo off the team name"],
+      cons: ["The player cards spread up to 20 px per side at 50 px (in game: a margin on the stock teams)", "A larger logo narrows the organiser name between the tabs", "Square tabs need images or extra panels in Panorama"],
+      height: "56 px band + stock bar", width: "1920 px", panorama: "Image border-radius for the circle; tab as panels or images" },
+    { id: "d15-night-desk-arch", n: 15, name: "Night Desk arch", tag: "Night Desk rev 4 proposal (2026-10-23)", badge: "", badgeText: "mockup · A picked",
+      idea: "Night Desk with an arch on each side of the centre plate; each team's 30 px logo ring sits in it, on the plate's edge, with the team name next to it and the bans at the outer end. A: the arch bulges out of the plate (cradle). B: the arch is cut into the plate (notch). The arch only uses the band's top row, so the player names under it stay readable. Also: the stock rift HUD (Off / Open / In range / Secured) and the stock damage impact (hero badges of units the spectated player hits), both copied from the installed game with X/Y sliders to choose their place; while the rift HUD shows, the objective chips and the graph move below it; the graph has size (70-150 %) and X/Y position controls; the SPECTATING block has no Next/Previous Player hints. Controls bottom left.",
+      pros: ["Logos sit at the middle beside the organiser", "Nothing covers the rift meter", "Graph can be moved off building and hero healthbars"],
+      cons: ["Notch (B) leaves the organiser name about 158 px", "Arches are a new shape for Panorama (image or rotated panels)", "Graph size and position are one more thing to set per broadcast"],
+      height: "56 px band + stock bar", width: "1920 px", panorama: "Arches as images or panels; layout-scaled graph" },
+  ];
+  document.getElementById("list4").innerHTML = render(DESIGNS4);
+  document.getElementById("list3").innerHTML = render(DESIGNS3);
+  document.getElementById("list2").innerHTML = render(DESIGNS2);
+  document.getElementById("list").innerHTML = render(DESIGNS);
+})();
+</script>
+</body>
+</html>

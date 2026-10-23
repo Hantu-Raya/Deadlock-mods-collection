@@ -1,0 +1,918 @@
+/* Header band (observer_hud/band.xml), loaded by oh_host.js right after the stock #TopBar in its
+   parent (.HudCore); the stock #TopBar moves down by the band's height.
+   Two looks (state.style, class on the band root):
+     .OHStyleNames  Base Game+ Names (mockups d14, d17): a 26 px strip over each
+                    team's cards with the player names, the organiser wordmark in the centre;
+     .OHStyleDesk   Night Desk (designs/d12-night-desk.html rev 3c): a 56 px lacquer band, one brass
+                    hairline, corners, logo ring, team name in Reaver, bans, names row, wordmark over
+                    the series, optional info card.
+   Colours: lacquer #0D0C0AD0 (with world blur), lacquer-2 #181510F0, brass #D6B06A, brass-dim #D6B06A61, text #EFE6D6,
+   muted #9D927F; team1Color #D6880C, team2Color #4F74C3 (bright #FFC15A / #8FB2FF).
+   oh_host.js writes every position (margin-left/margin-top/width) from the stock panels. */
+
+/* Taller than either look (26/56 px) and transparent: Panorama gives a child only the room inside its
+   parent, so the info card under the band needs it (live 2026-10-22: a 56 px band collapsed it). */
+.OHBand
+{
+	height: 220px;
+	overflow: noclip;
+	visibility: collapse;
+}
+
+.spec_mode .OHBand,
+.TeamSpectator .OHBand,
+.replay_playback .OHBand
+{
+	visibility: visible;
+}
+
+/* ---------------------------------------------------------------- shared pieces */
+
+/* Dark backgrounds over the world blur it with the stock HUD's blur (ingameHudBlur in
+   citadel_base_styles, which this layout does not load, so the value is written out). The fill is
+   translucent (D0, ~82%) so the blur reads through; panels drawn over the band itself do not blur. */
+.OHBandBack
+{
+	width: 100%;
+	height: 56px;
+	background-color: #0D0C0AD0;
+	border-bottom: 1px solid #D6B06A;
+	world-blur: gaussian(2,2,2);
+	visibility: collapse;
+}
+
+.OHStyleDesk .OHBandBack
+{
+	visibility: visible;
+}
+
+.OHStrip
+{
+	height: 26px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #0A0908DB ), to( #0A090899 ) );
+	border-bottom: 2px solid #D6880C;
+	world-blur: gaussian(2,2,2);
+}
+
+.OHStrip.OHSapphire
+{
+	border-bottom: 2px solid #4F74C3;
+}
+
+/* Night Desk: the strip is the team colour line under the cards, on the brass hairline. */
+.OHStyleDesk .OHStrip
+{
+	height: 2px;
+	margin-top: 54px;
+	background-color: #D6880C;
+	border-bottom: 0px solid #00000000;
+	world-blur: none;
+}
+
+.OHStyleDesk .OHStrip.OHSapphire
+{
+	background-color: #4F74C3;
+}
+
+.OHWhoRow
+{
+	width: 100%;
+	height: 56px;
+}
+
+.OHWho
+{
+	width: 86px;
+	margin-top: 5px;
+	text-align: center;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 12px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	visibility: collapse;
+}
+
+.OHWho.OHShown
+{
+	visibility: visible;
+}
+
+.OHStyleDesk .OHWho
+{
+	margin-top: 35px;
+	color: #EFE6D6;
+}
+
+/* Centre: the organiser wordmark or logo (Base Game+ Names: a 26 px tab between the series digits;
+   Night Desk: over the series). */
+.OHMid
+{
+	width: 196px;
+	height: 26px;
+	flow-children: down;
+	background-color: #0A0908DB;
+	border-bottom: 2px solid #D6B06AB3;
+	world-blur: gaussian(2,2,2);
+	visibility: collapse;
+}
+
+.OHMid.OHHasOrg
+{
+	visibility: visible;
+}
+
+/* Night Desk: the centre sits on the band, which already blurs. */
+.OHStyleDesk .OHMid
+{
+	width: 192px;
+	height: 56px;
+	background-color: #181510F0;
+	border-bottom: 0px solid #00000000;
+	world-blur: none;
+	visibility: visible;
+}
+
+.OHOrgLogo
+{
+	width: 180px;
+	height: 22px;
+	horizontal-align: center;
+	margin-top: 2px;
+	visibility: collapse;
+}
+
+.OHOrgLogo.OHLogoShown
+{
+	visibility: visible;
+}
+
+.OHStyleDesk .OHOrgLogo
+{
+	width: 172px;
+	height: 26px;
+	margin-top: 6px;
+}
+
+.OHOrgLogoImage
+{
+	width: 100%;
+	height: 100%;
+}
+
+/* Labels in the band size to their text with an ellipsis; text-overflow: shrink drew them smaller
+   than the mockup (live 2026-10-22: the 26 px plate made Reaver 15 px shrink). */
+.OHOrgName
+{
+	width: fit-children;
+	max-width: 180px;
+	horizontal-align: center;
+	margin-top: 3px;
+	font-family: Reaver, "Noto Sans";
+	font-size: 15px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #FFC15A;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHMid.OHOrgLogoShown .OHOrgName
+{
+	visibility: collapse;
+}
+
+.OHStyleDesk .OHOrgName
+{
+	max-width: 172px;
+	margin-top: 11px;
+	color: #D6B06A;
+}
+
+.OHMidSeries
+{
+	horizontal-align: center;
+	margin-top: -3px;
+	flow-children: right;
+	visibility: collapse;
+}
+
+.OHStyleDesk .OHMidSeries
+{
+	visibility: visible;
+}
+
+/* With no organiser, Night Desk's centre holds the series alone. */
+.OHStyleDesk .OHMid.OHNoOrg .OHMidSeries
+{
+	margin-top: 19px;
+}
+
+.OHMidDigit,
+.OHMidDash
+{
+	font-family: VALVEOracle, Reaver, "Noto Sans";
+	font-size: 15px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #D6B06A61;
+}
+
+.OHMidDash
+{
+	margin-left: 5px;
+	margin-right: 5px;
+}
+
+.OHMidDigit.OHAmber
+{
+	color: #FFC15A;
+}
+
+.OHMidDigit.OHSapphire
+{
+	color: #8FB2FF;
+}
+
+/* ---------------------------------------------------------------- Night Desk only */
+
+.OHCorner,
+.OHDeskTeam,
+.OHInfo
+{
+	visibility: collapse;
+}
+
+.OHStyleDesk .OHCorner,
+.OHStyleDesk .OHDeskTeam
+{
+	visibility: visible;
+}
+
+.OHStyleDesk .OHCorner.OHTooNarrow
+{
+	visibility: collapse;
+}
+
+/* Panorama label boxes are taller than the mockup's line-height 1 (about 18 px for 13 px text), so
+   the second line takes no extra margin. The left corner starts after the stock mute icon (oh_host.js),
+   so it has no left padding. */
+.OHCorner
+{
+	height: 56px;
+	padding: 13px 16px 0px 16px;
+	flow-children: down;
+}
+
+.OHCornerL
+{
+	padding-left: 0px;
+}
+
+.OHCornerR
+{
+	padding-top: 10px;
+}
+
+/* Labels size to their text; oh_host.js caps them with max-width. A text-overflow: shrink label
+   drew everything smaller than the mockup and ignored text-align (live 2026-10-22). */
+.OHCornerA
+{
+	width: fit-children;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 13px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #EFE6D6;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHCornerB
+{
+	width: fit-children;
+	margin-top: 0px;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: #9D927F;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Right corner: each label hugs the right edge. */
+.OHCornerR .OHCornerA,
+.OHCornerR .OHCornerB
+{
+	horizontal-align: right;
+	text-align: right;
+}
+
+.OHCornerGame
+{
+	font-family: VALVEOracle, Reaver, "Noto Sans";
+	font-size: 17px;
+	font-weight: bold;
+}
+
+/* A long event title steps down (mockup fit 13 -> 10 px). */
+.OHCornerA.OHCornerLong
+{
+	font-size: 10px;
+	letter-spacing: 0px;
+	margin-top: 3px;
+}
+
+.OHDeskTeam
+{
+	height: 56px;
+}
+
+/* Night Desk arch (mockup designs/d15-night-desk-arch.html, A "Cradle", user 2026-10-23): each team's
+   logo ring sits on an edge of the centre plate, in an arch that bulges out of the plate in the band's
+   top row (y 1-35), so the names row under it stays readable. #OHArch (before #OHMid: the plate covers
+   the arches' inner halves) and #OHRings (after it) start one tab half (17 px) left of the plate.
+   These are the 30 px circle values: oh_host.js layoutArch writes every size, radius and margin below
+   for the editor's team logo shape and size (design 16). In them, plate left L = 17 and plate right R = 209 (192 px plate):
+     arch circles 34 px around (L, 18) and (R, 18), each clipped to its outer half (+1 px);
+     the plate's side borders only under the arches (y 35-56);
+     30 px logo rings centred on the edges (left 2 and 194, top 3). */
+.OHArch,
+.OHRings
+{
+	width: 226px;
+	height: 56px;
+	visibility: collapse;
+}
+
+.OHStyleDesk .OHArch,
+.OHStyleDesk .OHRings
+{
+	visibility: visible;
+}
+
+.OHArchClip
+{
+	width: 18px;
+	height: 34px;
+	margin-top: 1px;
+	overflow: clip;
+}
+
+.OHArchClipRight
+{
+	margin-left: 208px;
+}
+
+.OHArchCurve
+{
+	width: 34px;
+	height: 34px;
+	border-radius: 50%;
+	background-color: #181510F0;
+	border: 1px solid #D6B06A;
+}
+
+.OHArchClipRight .OHArchCurve
+{
+	margin-left: -16px;
+}
+
+.OHPlateEdge
+{
+	width: 1px;
+	height: 21px;
+	margin-top: 35px;
+	background-color: #D6B06A;
+}
+
+.OHPlateEdgeLeft
+{
+	margin-left: 17px;
+}
+
+.OHPlateEdgeRight
+{
+	margin-left: 208px;
+}
+
+.OHDeskLogo
+{
+	width: 30px;
+	height: 30px;
+	margin-top: 3px;
+	border-radius: 50%;
+	border: 1px solid #D6880C;
+}
+
+.OHDeskLogoLeft
+{
+	margin-left: 2px;
+}
+
+.OHDeskLogoRight
+{
+	margin-left: 194px;
+}
+
+.OHDeskLogo.OHSapphire
+{
+	border: 1px solid #4F74C3;
+}
+
+.OHDeskLogo.OHLogoShown
+{
+	border: 0px solid #00000000;
+}
+
+.OHDeskMono
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-family: Reaver, "Noto Sans";
+	font-size: 9px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #FFC15A;
+}
+
+.OHDeskLogo.OHSapphire .OHDeskMono
+{
+	color: #8FB2FF;
+}
+
+.OHDeskLogo.OHLogoShown .OHDeskMono
+{
+	visibility: collapse;
+}
+
+.OHDeskLogoImage
+{
+	width: 28px;
+	height: 28px;
+	horizontal-align: center;
+	vertical-align: center;
+	opacity: 0;
+}
+
+.OHDeskLogo.OHLogoShown .OHDeskLogoImage
+{
+	opacity: 1;
+}
+
+.OHDeskName
+{
+	width: fit-children;
+	height: fit-children;
+	margin-top: 4px;
+	font-family: Reaver, "Noto Sans";
+	font-size: 22px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #EFE6D6;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Long names step down like the mockup's fit (22 -> 14 px), chosen by length in oh_host.js. */
+.OHDeskName.OHNameLong
+{
+	font-size: 18px;
+	margin-top: 6px;
+}
+
+.OHDeskName.OHNameLonger
+{
+	font-size: 15px;
+	margin-top: 8px;
+}
+
+/* The name ends next to the arch (DESK_NAME in oh_host.js). */
+.OHLeft .OHDeskName
+{
+	horizontal-align: right;
+	margin-right: 24px;
+	text-align: right;
+}
+
+.OHRight .OHDeskName
+{
+	margin-left: 24px;
+}
+
+/* Bans: 28 px circles (24 before; user 2026-10-23 "make it bigger a bit"), y 4-32, inside the band's
+   top row (y 1-35) above the names row. */
+.OHDeskBans
+{
+	height: 28px;
+	margin-top: 4px;
+	flow-children: right;
+	visibility: collapse;
+}
+
+.OHDeskBans.OHHasBans
+{
+	visibility: visible;
+}
+
+/* Bans take the team's outer end. */
+.OHRight .OHDeskBans
+{
+	horizontal-align: right;
+}
+
+.OHDeskBansLabel
+{
+	vertical-align: center;
+	margin-left: 4px;
+	margin-right: 4px;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 9px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	color: #9D927F;
+}
+
+.OHDeskBan
+{
+	width: 28px;
+	height: 28px;
+	margin-left: 2px;
+	margin-right: 2px;
+	border-radius: 50%;
+	background-color: #10130D;
+	border: 1px solid #D6B06A61;
+	visibility: collapse;
+}
+
+.OHDeskBan.OHBanSet
+{
+	visibility: visible;
+}
+
+.OHDeskBanImage
+{
+	width: 30px;
+	height: 42px;
+	margin-left: -1px;
+	margin-top: -2px;
+	saturation: 0;
+	brightness: 0.8;
+}
+
+.OHDeskBanSlash
+{
+	width: 38px;
+	height: 2px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-color: #FF5656;
+	transform: rotateZ(-45deg);
+}
+
+.OHStyleDesk .OHInfo.OHHasInfo
+{
+	visibility: visible;
+}
+
+.OHInfo
+{
+	width: 220px;
+	margin-top: 108px;
+	padding: 9px 12px 10px 12px;
+	flow-children: down;
+	background-color: #0D0C0AD0;
+	border: 1px solid #D6B06A61;
+	world-blur: gaussian(2,2,2);
+}
+
+.OHInfoTitle
+{
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: #9D927F;
+}
+
+.OHInfoValue
+{
+	width: fit-children;
+	max-width: 196px;
+	margin-top: 6px;
+	font-family: VALVEOracle, Reaver, "Noto Sans";
+	font-size: 22px;
+	color: #EFE6D6;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHInfoCaption
+{
+	margin-top: 6px;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #9D927F;
+}
+
+.OHInfoValue.OHEmpty,
+.OHInfoCaption.OHEmpty
+{
+	visibility: collapse;
+}
+
+/* Night Desk: a brass-dim divider between each corner and its logo ring (mockup .dv, 1x32 px). */
+.OHDivider
+{
+	width: 1px;
+	height: 32px;
+	margin-top: 12px;
+	background-color: #D6B06A61;
+	visibility: collapse;
+}
+
+.OHStyleDesk .OHDivider
+{
+	visibility: visible;
+}
+
+.OHStyleDesk .OHDivider.OHTooNarrow
+{
+	visibility: collapse;
+}
+
+/* ---- Base Game+ Names plates (design 17 "rev 2", user 2026-10-23) ----
+   One plate per team at the screen's top edge, joined to its names strip with no gap (oh_host.js
+   placePlate): team colour, the team name over a caption line (left: stage and format, right: game and
+   first-to), and the logo at the inner end beside the cards. oh_host.js layoutPlate sets its height
+   (logo + 13 px, 37 to 63 px, following the logo both ways) and, with a circle logo, a curve at its inner bottom corner as tall as
+   the plate hangs below the 26 px strip; a square logo keeps the step. A 40 px join over the strip's start fades the team colour into the strip. The series score
+   sits in the centre tab (.OHScore). Narrow ends drop the caption, then shrink the name, then the logo. */
+.OHTeam
+{
+	width: 250px;
+	height: 43px;
+	overflow: noclip;
+	visibility: collapse;
+}
+
+.OHStyleNames .OHTeam
+{
+	visibility: visible;
+}
+
+/* A plate without room (oh_host.js placePlate). A class, not inline visibility: a cleared inline collapse
+   never shows a panel again (live 2026-10-23). */
+.OHStyleNames .OHTeam.OHPlateGone
+{
+	visibility: collapse;
+}
+
+.OHPlate
+{
+	width: 100%;
+	height: 100%;
+	flow-children: right;
+	background-color: #D6880CF0;
+}
+
+.OHSapphire .OHPlate
+{
+	background-color: #4F74C3F0;
+}
+
+.OHPlateText
+{
+	width: fill-parent-flow(1.0);
+	height: fit-children;
+	vertical-align: center;
+	flow-children: down;
+}
+
+.OHLeft .OHPlateText
+{
+	margin-left: 10px;
+}
+
+.OHRight .OHPlateText
+{
+	margin-right: 10px;
+}
+
+.OHName
+{
+	width: 100%;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 17px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: #2A1D08;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHSapphire .OHName
+{
+	color: #FFFFFF;
+}
+
+.OHCap
+{
+	width: 100%;
+	margin-top: 3px;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 9px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: #10130DB8;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHSapphire .OHCap
+{
+	color: #FFFFFFB8;
+}
+
+.OHRight .OHName,
+.OHRight .OHCap
+{
+	text-align: right;
+}
+
+/* Size and corner radius come from oh_host.js (state.logo.shape and size, 24-50 px). */
+.OHLogo
+{
+	width: 30px;
+	height: 30px;
+	margin-left: 6px;
+	margin-right: 6px;
+	vertical-align: center;
+	border-radius: 50%;
+	border: 2px solid #2A1D08;
+}
+
+.OHSapphire .OHLogo
+{
+	border-color: #FFEFD7;
+}
+
+/* A web logo that loaded replaces the monogram ring. */
+.OHLogo.OHLogoShown
+{
+	border: 0px solid #00000000;
+}
+
+.OHMono
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 0px;
+	color: #2A1D08;
+}
+
+.OHSapphire .OHMono
+{
+	color: #FFEFD7;
+}
+
+.OHLogoShown .OHMono
+{
+	visibility: collapse;
+}
+
+.OHLogoImage
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+}
+
+.OHLogoShown .OHLogoImage
+{
+	opacity: 1;
+}
+
+/* The fit rules (PLAN failure 5): oh_host.js sets these when the outer end is narrow. */
+.OHNoCap .OHCap
+{
+	visibility: collapse;
+}
+
+.OHCompact .OHName
+{
+	font-size: 14px;
+	letter-spacing: 0px;
+}
+
+.OHNarrow .OHLogo
+{
+	visibility: collapse;
+}
+
+.OHJoin
+{
+	width: 40px;
+	height: 26px;
+	visibility: collapse;
+}
+
+.OHStyleNames .OHJoin.OHJoinShown
+{
+	visibility: visible;
+}
+
+.OHJoinLeft
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #D6880CF0 ), to( #D6880C00 ) );
+}
+
+.OHJoinRight
+{
+	background-color: gradient( linear, 100% 0%, 0% 0%, from( #D6880CF0 ), to( #D6880C00 ) );
+}
+
+.OHJoinLeft.OHSapphire
+{
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #4F74C3F0 ), to( #4F74C300 ) );
+}
+
+.OHJoinRight.OHSapphire
+{
+	background-color: gradient( linear, 100% 0%, 0% 0%, from( #4F74C3F0 ), to( #4F74C300 ) );
+}
+
+/* Series score in the centre tab: a team-colour digit at each end of the organiser wordmark, inside the
+   tab over its full height (oh_host.js sets ignoreParentFlow so the wordmark keeps its own flow). */
+.OHScore
+{
+	width: 22px;
+	height: 100%;
+	background-color: #D6880C;
+	visibility: collapse;
+}
+
+.OHStyleNames .OHScore
+{
+	visibility: visible;
+}
+
+.OHScoreR
+{
+	horizontal-align: right;
+}
+
+.OHScore.OHSapphire
+{
+	background-color: #4F74C3;
+}
+
+.OHScoreText
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-family: VALVEOracle, Reaver, "Noto Sans";
+	font-size: 16px;
+	font-weight: bold;
+	color: #10130D;
+}
+
+.OHScore.OHSapphire .OHScoreText
+{
+	color: #FFFFFF;
+}
+
+
+/* Parts hidden while their stock panel (#GameTime, a team panel) is missing (oh_host.js place,
+   placeBand, placeNames): a class, not inline visibility, since a cleared inline collapse never shows a
+   panel again (ENGINE.md). Last in the sheet and as specific as each show rule, so it wins. */
+.OHMid.OHGone,
+.OHMid.OHHasOrg.OHGone,
+.OHStyleDesk .OHMid.OHGone,
+.OHArch.OHGone,
+.OHRings.OHGone,
+.OHStyleDesk .OHArch.OHGone,
+.OHStyleDesk .OHRings.OHGone,
+.OHStrip.OHGone,
+.OHStyleDesk .OHStrip.OHGone,
+.OHDeskTeam.OHGone,
+.OHStyleDesk .OHDeskTeam.OHGone,
+.OHWho.OHGone,
+.OHWho.OHShown.OHGone
+{
+	visibility: collapse;
+}

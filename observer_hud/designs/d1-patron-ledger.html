@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 1 · Patron Ledger</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+/* Patron Ledger: the stock top bar, extended. Stock masks, stock team fill textures,
+   the stock paper texture for the centre plate. Closest to what players already know. */
+.scrim {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 190px;
+  background: linear-gradient(to bottom, rgba(6, 5, 4, 0.92), rgba(6, 5, 4, 0.55) 55%, rgba(6, 5, 4, 0));
+}
+.bar { position: absolute; top: 10px; left: 0; width: 1920px; display: flex; justify-content: center; align-items: flex-start; gap: 14px; }
+
+.plate {
+  position: relative; width: 248px; height: 104px; padding-top: 9px; text-align: center;
+  background: var(--paper) url("assets/game/hud__top_bar__chat_texture_png.png") 0 0 / 229px 201px;
+  color: var(--ink);
+  border-bottom: 3px solid var(--ink);
+}
+.plate::before, .plate::after { content: ""; position: absolute; top: 0; width: 12px; height: 104px; }
+.plate::before { left: 0; background: linear-gradient(to right, var(--amber), rgba(207, 153, 67, 0)); opacity: 0.55; }
+.plate::after { right: 0; background: linear-gradient(to left, var(--sapphire), rgba(81, 101, 174, 0)); opacity: 0.55; }
+.plate .event { font: 700 11px/1 "Retail Demo"; letter-spacing: 0.22em; text-transform: uppercase; }
+.plate .stage-line { margin-top: 4px; font: 600 12px/1 "Reaver"; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+.plate .clock { margin-top: 6px; font: 600 44px/1 "VALVE Oracle"; letter-spacing: 0.02em; }
+.lead {
+  position: absolute; left: 50%; top: 112px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; padding: 3px 10px 4px;
+  background: rgba(12, 10, 8, 0.85); border-bottom: 2px solid var(--amber);
+  font: 600 15px/1 "VALVE Oracle"; color: var(--amber-hi); white-space: nowrap;
+}
+.lead i { width: 11px; height: 14px; background: var(--amber-hi); -webkit-mask: var(--m-icon-soul) center / contain no-repeat; mask: var(--m-icon-soul) center / contain no-repeat; }
+
+.team { display: flex; gap: 14px; align-items: flex-start; }
+.ident {
+  position: relative; width: 228px; height: 104px; padding: 12px 14px 0;
+  background: url("assets/game/hud__top_bar__topbar_panel_backer_team1.svg") 0 -40px / 100% 900% no-repeat;
+}
+.right .ident { background-image: url("assets/game/hud__top_bar__topbar_panel_backer_team2.svg"); text-align: right; }
+.ident::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(10, 8, 6, 0.15), rgba(10, 8, 6, 0.7)); }
+.ident > * { position: relative; z-index: 1; }
+.ident .row { display: flex; align-items: center; gap: 10px; }
+.right .ident .row { flex-direction: row-reverse; }
+.ident img { width: 42px; height: 42px; object-fit: contain; }
+.ident .name { font: 700 20px/1 "Reaver"; text-transform: uppercase; letter-spacing: 0.04em; color: #fff6e6; white-space: nowrap; }
+.ident .tagline { margin-top: 4px; font: 600 11px/1 "Retail Demo"; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.8; white-space: nowrap; }
+.ident .meta { margin-top: 12px; display: flex; align-items: center; gap: 10px; font: 600 14px/1 "VALVE Oracle"; }
+.right .ident .meta { justify-content: flex-end; }
+.pips { display: flex; gap: 4px; }
+.pip { width: 18px; height: 6px; border: 1px solid rgba(255, 246, 230, 0.8); }
+.pip.on { background: #fff6e6; }
+.meta .souls { display: flex; align-items: center; gap: 4px; }
+.meta .souls i { width: 10px; height: 13px; background: currentColor; -webkit-mask: var(--m-icon-soul) center / contain no-repeat; mask: var(--m-icon-soul) center / contain no-repeat; }
+
+.cards { display: flex; gap: 6px; }
+.card { width: 84px; }
+.portrait {
+  position: relative; width: 84px; height: 62px; overflow: hidden;
+  -webkit-mask: var(--m-topbar-player-left-portrait-mask) center / 100% 100% no-repeat;
+  mask: var(--m-topbar-player-left-portrait-mask) center / 100% 100% no-repeat;
+}
+.right .portrait {
+  -webkit-mask-image: var(--m-topbar-player-right-portrait-mask);
+  mask-image: var(--m-topbar-player-right-portrait-mask);
+}
+.amber .portrait { background: linear-gradient(to bottom, #3b2a12, #1a130a); }
+.sapphire .portrait { background: linear-gradient(to bottom, #1c254a, #0c1024); }
+.portrait img { position: absolute; left: -2px; top: -6px; width: 88px; height: auto; }
+.card.dead .portrait img { filter: grayscale(1) brightness(0.45); }
+.respawn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 30px/1 "VALVE Oracle"; color: #fff; text-shadow: 0 1px 2px #000; }
+.hp { margin-top: 4px; height: 6px; background: rgba(10, 8, 6, 0.85); }
+.hp b { display: block; height: 6px; background-size: 84px 6px; }
+.amber .hp b { background-image: url("assets/game/hud__healthbar__healthbar_fill_texture_team1_png.png"); }
+.sapphire .hp b { background-image: url("assets/game/hud__healthbar__healthbar_fill_texture_team2_png.png"); }
+.hp b.low { background: var(--low); }
+.under { margin-top: 4px; display: flex; align-items: center; justify-content: space-between; height: 16px; }
+.pname { font: 600 12px/1 "Retail Demo"; letter-spacing: 0.04em; color: #fff6e6; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 58px; }
+.ult { display: flex; align-items: center; gap: 2px; font: 600 11px/1 "VALVE Oracle"; color: #cfc6b8; }
+.ult i { width: 14px; height: 14px; -webkit-mask: var(--m-icon-ultimate) center / contain no-repeat; mask: var(--m-icon-ultimate) center / contain no-repeat; background: #6d665c; }
+.ult.ready i { background: var(--amber-hi); }
+.sapphire .ult.ready i { background: var(--sapphire-hi); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="scrim"></div>
+  <div class="bar" id="bar"></div>
+  <div class="design-tag"><b>1 · Patron Ledger</b> — stock top bar, extended</div>
+</div>
+<script src="shared/data.js"></script>
+<script>
+OH.mount((oh) => {
+  const card = (p) => `
+    <div class="card ${p.dead ? "dead" : ""}">
+      <div class="portrait"><img src="${p.portrait}" alt="">${p.dead ? `<div class="respawn">${p.dead}</div>` : ""}</div>
+      <div class="hp"><b class="${p.hp > 0 && p.hp < 0.3 ? "low" : ""}" style="width:${Math.round(p.hp * 100)}%"></b></div>
+      <div class="under"><span class="pname">${p.name}</span>
+        <span class="ult ${p.ult === "ready" ? "ready" : ""}"><i></i>${p.ult === "ready" ? "" : p.ult}</span></div>
+    </div>`;
+  const team = (key) => {
+    const t = oh.teams[key];
+    const pips = Array.from({ length: Math.ceil(oh.match.bestOf / 2) }, (_, i) => `<span class="pip ${i < t.series ? "on" : ""}"></span>`).join("");
+    return `<div class="team ${t.side} ${key}">
+      <div class="cards">${t.players.map(card).join("")}</div>
+      <div class="ident">
+        <div class="row"><img src="${t.logo}" alt=""><div><div class="name">${t.name}</div><div class="tagline">${t.patron}</div></div></div>
+        <div class="meta"><span class="pips">${pips}</span><span class="souls"><i></i>${oh.souls(t.souls)}</span><span>${t.kills} K</span></div>
+      </div>
+    </div>`;
+  };
+  const lead = oh.lead();
+  document.getElementById("bar").innerHTML = `
+    ${team("amber")}
+    <div class="plate">
+      <div class="event">${oh.match.event}</div>
+      <div class="stage-line">${oh.match.stage} · Game ${oh.match.game} of ${oh.match.bestOf}</div>
+      <div class="clock">${oh.match.clock}</div>
+      <div class="lead"><i></i>${oh.teams[lead.team].tag} +${oh.souls(lead.value)}</div>
+    </div>
+    ${team("sapphire")}`;
+});
+</script>
+</body>
+</html>

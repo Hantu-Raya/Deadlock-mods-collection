@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 15 · Night Desk arch</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/v2.css">
+<style>
+/* Night Desk rev 4 (user, 2026-10-23), a mockup before any Panorama change:
+   1. The centre plate gets an arch on each side and the team logo sits in it, on the plate's edge, so
+      the logos come to the middle. Two arch shapes to choose from:
+        A "Cradle": the arch bulges out of the plate; the ring sits half on the plate, half on the band.
+        B "Notch":  the arch is cut into the plate; the ring sits in the cut.
+      The plate stays in the gap between the teams' cards and the arch uses only the band's top row, so
+      the names row under it stays readable. The ring is 30 px (the current Night Desk ring).
+      The team name follows the ring; bans stay at the outer end of each team.
+   2. The objective chips and the soul lead graph never cover the stock rift HUD (#KothCashInMeter,
+      copied from the installed game's citadel_hud_koth layout and stylesheet): while it shows, the whole
+      timers keep their place, the rift HUD moves under them and the soul lead graph under it
+      (user 2026-10-23).
+   3. The graph can be resized (70-150 %, laid out larger, not a bitmap scale) and moved (X/Y offsets
+      from its spot under the chips), so it can sit away from building and hero healthbars. Size grows
+      it around its top centre: it never moves the graph (user 2026-10-23).
+   4. SPECTATING <name> without the Next Player / Previous Player hints.
+   5. The stock damage impact (hero badges of units the spectated player hits) and the stock rift HUD,
+      both copied from the installed game. Picked (user 2026-10-23): the damage impact at its stock spot (95 px lower was tried and
+      dropped), the timers stay, the rift HUD goes under them and the graph under it; the sliders remain for trying other spots. */
+:root {
+  --lacquer-2: rgba(24, 21, 16, 0.94);
+  --brass: #d6b06a;
+  --brass-dim: rgba(214, 176, 106, 0.38);
+  --text: #efe6d6;
+  --muted: #9d927f;
+  --gk: 1; --gx: 0px; --gy: 0px;
+}
+.bd { position: absolute; left: 0; top: 0; width: 1920px; height: 56px; background: rgba(13, 12, 10, 0.82); backdrop-filter: blur(4px); border-bottom: 1px solid var(--brass); }
+.tl { position: absolute; top: 54px; width: 528px; height: 2px; }
+.tl.t1 { left: 330px; background: var(--team1); }
+.tl.t2 { left: 1062px; background: var(--team2); }
+.corner { position: absolute; top: 0; width: 236px; padding: 13px 16px 0; white-space: nowrap; }
+.corner.l { left: 72px; padding-left: 0; }
+.corner.r { right: 0; text-align: right; }
+.corner .a { font: 700 13px/1 "Retail Demo"; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+.corner .b { margin-top: 7px; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.corner.r .a { font: 600 17px/1 "VALVE Oracle"; letter-spacing: 0.08em; }
+.corner.r .b { margin-top: 5px; }
+
+/* Centre plate with arches (SVG: Panorama would draw it from images or rotated panels). */
+.plate { position: absolute; left: 0; top: 0; width: 1920px; height: 57px; pointer-events: none; }
+.plate path { fill: var(--lacquer-2); stroke: var(--brass); stroke-width: 1; }
+.mid { position: absolute; top: 0; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.stage.arch-b .mid { padding: 0 14px; box-sizing: border-box; }   /* the notches take 17 px of each side's top row */
+.org { font: 400 15px/1 "Reaver"; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brass); white-space: nowrap; }
+.org img { max-width: 160px; max-height: 26px; object-fit: contain; }
+.ser { margin-top: 5px; font: 600 15px/1 "VALVE Oracle"; letter-spacing: 0.1em; color: var(--brass-dim); }
+.ser b { font-weight: 600; }
+.t1c { color: var(--team1Bright); }
+.t2c { color: var(--team2Bright); }
+.lg { position: absolute; top: 3px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font: 700 9px/1 "Reaver"; letter-spacing: 0.06em; background: rgba(13, 12, 10, 0.9); }
+.lg.mono { border: 1px solid; }
+.lg.t1 { border-color: var(--team1); color: var(--team1Bright); }
+.lg.t2 { border-color: var(--team2); color: var(--team2Bright); }
+.lg img { max-width: 28px; max-height: 28px; object-fit: contain; }
+.nm { position: absolute; top: 6px; width: 420px; font: 700 22px/26px "Reaver"; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm.t1 { text-align: right; }
+.bans { position: absolute; top: 6px; height: 24px; display: flex; align-items: center; gap: 5px; }
+.bans.t1 { left: 336px; }
+.bans.t2 { right: 336px; flex-direction: row-reverse; }
+.bans .lbl { font: 700 9px/1 "Retail Demo"; letter-spacing: 0.18em; color: var(--muted); }
+.bans .ban { width: 24px; height: 24px; border-color: var(--brass-dim); }
+.bans .ban img { left: -2px; top: -2px; width: 26px; height: 36px; }
+.who { position: absolute; top: 35px; width: 86px; transform: translateX(-50%); text-align: center; font: 600 12px/15px "Retail Demo"; letter-spacing: 0.02em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who.dead { color: var(--muted); }
+/* One arch variant at a time (stage class). */
+.stage:not(.arch-a) .v-a, .stage:not(.arch-b) .v-b { display: none !important; }
+
+/* Stock rift HUD (#KothCashInMeter, citadel_hud_koth.xml/.css from the installed game, client 6813),
+   copied as the game lays it out in the top bar: a 320 x 114 box (padding 0 8) centred on the bar,
+   the koth_backer art (contain, 90% opacity), two 50% progress meters (Amber's mirrored) with
+   "{i:KothTeamNProgress}%" labels, the soul value under them, and "Rift Secured!" once taken.
+   Out of range: ui-scale 70% at margin-top 110; in range or secured: 100% at margin-top 120.
+   Visible only with .koth_enabled.capturing / .in_range / .captured. */
+.koth { position: absolute; left: 50%; top: 110px; width: 320px; height: 114px; padding: 0 8px; box-sizing: border-box; transform: translateX(-50%) scale(0.7); transform-origin: 50% 0; display: none; }
+.stage.k-cap .koth, .stage.k-range .koth, .stage.k-done .koth { display: block; }
+.stage.k-range .koth, .stage.k-done .koth { top: 120px; transform: translateX(-50%); }
+.koth .bg_backer { position: absolute; inset: 0; background: url("assets/game/hud__top_bar__koth_backer_png.png") center / contain no-repeat; opacity: 0.9; }
+.koth .ind { position: absolute; inset: 0; padding: 0 18px; display: flex; align-items: center; }
+.koth .meter { position: relative; width: 50%; margin-bottom: 10px; display: flex; flex-direction: column; align-items: center; }
+.koth .bar { width: 100%; height: 10px; box-sizing: border-box; background: rgba(0, 0, 0, 0.9); border: 2px solid #000; border-radius: 0 50px 50px 0; overflow: hidden; }
+.koth .t1 .bar { transform: scaleX(-1); border-right-width: 2px; }
+.koth .bar i { display: block; height: 100%; }
+.koth .t1 .bar i { background: linear-gradient(90deg, #d6880c, #8a5506); }
+.koth .t2 .bar i { background: linear-gradient(90deg, #4f74c3, #2c4478); }
+.koth .pct { position: absolute; top: -32px; font: 700 22px/1 "Retail Demo"; color: #fff; opacity: 0.5; text-shadow: 0 0 5px #10130d; }
+.koth .capturing .pct { opacity: 1; }
+.koth .gold { position: absolute; left: 50%; bottom: 10px; transform: translateX(calc(-50% - 9px)); display: flex; align-items: center; gap: 2px; height: 50px; color: #70f8c1; font: 700 18px/1 "VALVE Oracle"; text-shadow: 0 0 5px #10130d; }
+.koth .gold i { width: 18px; height: 18px; background: #70f8c1; -webkit-mask: var(--m-icon-soul) center / contain no-repeat; mask: var(--m-icon-soul) center / contain no-repeat; }
+.koth .result { position: absolute; left: 0; right: 0; bottom: 20px; text-align: center; font: 700 20px/1 "Retail Demo"; text-transform: uppercase; color: var(--team2); text-shadow: 0 0 3px #10130d, 0 0 3px #10130d; display: none; }
+.stage.k-done .koth .result { display: block; }
+.stage.k-done .koth .gold { display: none; }
+.koth .warn { position: absolute; left: 0; right: 0; top: 20px; text-align: center; font: 700 16px/1 "Retail Demo"; text-transform: uppercase; color: #f9ec74; display: none; }
+/* Stock damage impact (#damage_impact, hud_damage_impact.xml/.css and hero_badge.css from the installed
+   game, client 6813): the hero badges of units you just hit, centred on the screen at margin-top 220
+   with ui-scale 80% (instances 80%, badge 150%: about 84 x 115 px each, flowing right), each with its
+   red health bar turned -83 degrees beside the badge and CRITICAL under it on a crit. The observer HUD
+   sees it whenever the spectated player hits someone. --dx/--dy: the position offsets proposed here. */
+.dmg { position: absolute; z-index: 5; left: calc(50% + var(--dx, 0px)); top: calc(134px + var(--dy, 0px));   /* screen y 198 (0.8 x 220 + padding + margin); the top bar starts at 64 */ transform: translateX(-50%); display: none; gap: 6px; pointer-events: none; }
+.stage.dmg-on .dmg { display: flex; }
+.dmg .inst { position: relative; width: 84px; height: 140px; }
+.dmg .badge { position: absolute; left: 0; top: 0; width: 84px; height: 115px; }
+.dmg .badge .img { position: absolute; left: 8px; top: 0; width: 68px; height: 96px; background: #10130d center top / cover no-repeat; border-radius: 34px 34px 10px 10px; box-shadow: 0 0 0 2px #10130d; }
+.dmg .hb { position: absolute; z-index: 2; left: 70px; top: 78px; width: 62px; height: 18px; transform: rotate(-83deg); transform-origin: 0 50%; background: #10130d; border: 1px solid #10130d; overflow: hidden; display: flex; }
+.dmg .hb .rem { background: #ff5656; }
+.dmg .hb .lost { background: #fff; }
+.dmg .crit { position: absolute; left: 0; right: 0; top: 104px; text-align: center; font: 700 13px/1 "Retail Demo"; letter-spacing: 0.04em; color: #fff; text-transform: uppercase; text-shadow: 0 0 4px #ff410d, 0 0 4px #ff410d; }
+/* The timers keep their place; the rift HUD moves under them (top 130, 4 px under the chips) and the soul
+   lead graph under the rift HUD (open: 130 + 0.7 x 114 + 4; in range or secured: 130 + 114 + 4)
+   (user 2026-10-23, live: the stock spot is behind the chips). */
+.obj.desk { top: 88px; }
+.stage.k-cap .koth, .stage.k-range .koth, .stage.k-done .koth { top: 130px; }
+.stage.k-cap .lead { top: max(calc(130px + var(--gy)), 214px); }
+.stage.k-range .lead, .stage.k-done .lead { top: max(calc(130px + var(--gy)), 248px); }
+.lead { position: absolute; left: calc(50% + var(--gx)); top: calc(130px + var(--gy)); transform: translateX(-50%) scale(var(--gk)); transform-origin: 50% 0; width: 200px; padding: 6px 8px 4px; background: rgba(13, 12, 10, 0.82); backdrop-filter: blur(4px); border: 1px solid var(--brass-dim); }
+/* The rift HUD's proposed position offsets. */
+.koth { margin-left: var(--kx, 0px); margin-top: var(--ky, 0px); }
+.lead .hd { display: flex; justify-content: space-between; align-items: baseline; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.lead .hd b { font: 600 12px/1 "VALVE Oracle"; letter-spacing: 0.04em; }
+.plot { position: relative; height: 50px; margin-top: 4px; }
+.zero { position: absolute; left: 0; right: 0; top: 25px; height: 1px; background: var(--brass-dim); }
+.col { position: absolute; width: 2px; }
+.col.t1 { background: rgba(214, 136, 12, 0.5); }
+.col.t2 { background: rgba(79, 116, 195, 0.65); }
+.seg { position: absolute; height: 2px; margin-top: -1px; background: var(--text); transform-origin: 0 50%; }
+.pin { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--text); }
+.pin.t1 { background: var(--team1Bright); }
+.pin.t2 { background: var(--team2Bright); }
+
+/* Stock "SPECTATING <name>" block, without the Next/Previous Player hints. */
+.spec { position: absolute; right: 96px; top: 186px; text-align: left; }
+.spec .s1 { font: 700 13px/1 "Retail Demo"; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+.spec .s2 { margin-top: 4px; font: 700 22px/1 "Retail Demo"; color: var(--text); }
+
+/* Mock controls (stand-ins for editor rows), not part of the HUD. */
+.ctl { position: absolute; left: 24px; bottom: 24px; width: 560px; padding: 12px 16px; background: rgba(16, 19, 13, 0.94); border: 1px solid rgba(255, 239, 215, 0.35); color: var(--offWhite); font: 600 13px/1.3 "Retail Demo"; display: grid; grid-template-columns: 140px 1fr 64px; gap: 8px 12px; align-items: center; }
+.ctl h3 { grid-column: 1 / -1; margin: 0 0 4px; font: 700 12px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.ctl .seg-btns { display: flex; gap: 6px; }
+.ctl button { min-height: 32px; padding: 6px 12px; background: rgba(255, 239, 215, 0.06); border: 1px solid rgba(255, 239, 215, 0.35); color: var(--offWhite); font: 700 12px/1 "Retail Demo"; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.ctl button[aria-pressed="true"] { background: rgba(214, 176, 106, 0.25); border-color: var(--brass); }
+.ctl button:focus-visible, .ctl input:focus-visible { outline: 2px solid var(--team1Bright); outline-offset: 2px; }
+.ctl input[type=range] { width: 100%; }
+.ctl output { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="stage arch-a">
+  <div id="band"></div>
+  <div class="topbar" id="topbar"></div>
+  <div class="spec"><div class="s1">Spectating</div><div class="s2">Playwithme</div></div>
+  <div class="design-tag"><b>15 · Night Desk arch</b> — logos in arches beside the centre, rift-safe stack, movable graph</div>
+  <form class="ctl" id="ctl" onsubmit="return false" aria-label="Mockup controls">
+    <h3>Mockup controls (editor rows in game)</h3>
+    <span>Arch</span><div class="seg-btns"><button type="button" data-arch="a" aria-pressed="true">A · Cradle</button><button type="button" data-arch="b" aria-pressed="false">B · Notch</button></div><span></span>
+    <span>Rift HUD (stock)</span><div class="seg-btns"><button type="button" data-koth="" aria-pressed="true">Off</button><button type="button" data-koth="k-cap" aria-pressed="false">Open</button><button type="button" data-koth="k-range" aria-pressed="false">In range</button><button type="button" data-koth="k-done" aria-pressed="false">Secured</button></div><span></span>
+    <span>Damage impact (stock)</span><div class="seg-btns"><button type="button" id="dmg" aria-pressed="false">Show hits</button></div><span></span>
+    <label for="dx">Damage X</label><input id="dx" type="range" min="-600" max="600" step="10" value="0"><output for="dx" id="dxv">0 px</output>
+    <label for="dy">Damage Y</label><input id="dy" type="range" min="-100" max="400" step="5" value="0"><output for="dy" id="dyv">0 px</output>
+    <label for="kx">Rift HUD X</label><input id="kx" type="range" min="-600" max="600" step="10" value="0"><output for="kx" id="kxv">0 px</output>
+    <label for="ky">Rift HUD Y</label><input id="ky" type="range" min="-60" max="400" step="5" value="0"><output for="ky" id="kyv">0 px</output>
+    <label for="gk">Graph size</label><input id="gk" type="range" min="70" max="150" step="10" value="100"><output for="gk" id="gkv">100%</output>
+    <label for="gx">Graph X</label><input id="gx" type="range" min="-600" max="600" step="10" value="0"><output for="gx" id="gxv">0 px</output>
+    <label for="gy">Graph Y</label><input id="gy" type="range" min="-40" max="300" step="5" value="0"><output for="gy" id="gyv">0 px</output>
+  </form>
+  <div class="ed-back" id="edBack"><div class="ed" id="ed" role="dialog" aria-modal="true" aria-labelledby="edTitle"></div></div>
+  <button class="open-ed" id="openEd" type="button" aria-haspopup="dialog" hidden>Tournament setup</button>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/v2.js"></script>
+<script>
+// Arch geometry (px). The plate stays in the 204 px gap between the two teams' cards (864-1056), and
+// the arch only uses the band's top row (y 1-35): the names row under it (y 35) keeps every player
+// name readable. Ring 30 px at the arch centre (edge, 18); arch radius 17 (15 + 2 gap).
+const R = 17, CY = 18;
+const ARCH = { a: { left: 864, right: 1056 }, b: { left: 864, right: 1056 } };
+const platePath = (v) => {
+  const { left: L, right: Rt } = ARCH[v];
+  const out = v === "a" ? 1 : 0;   // sweep: 1 bulges out of the plate (cradle), 0 cuts into it (notch)
+  return `M${L},0 H${Rt} V${CY - R} A${R},${R} 0 0 ${out} ${Rt},${CY + R} V56 H${L} V${CY + R} A${R},${R} 0 0 ${out} ${L},${CY - R} Z`;
+};
+V2.mount({
+  objectives: { bridge: -3, urn: 191, rift: { state: "live" }, mid: { state: "cooldown", secs: 191 } },
+  band: 56,
+  clock: "11:50",
+  info: { title: "" },
+  leadGraph: true,
+  renderUnderClock: (S, h) => {
+    const nowMin = 10, pins = [0, -0.4, -5.0].map((v, i) => ({ m: i * 5, v }));
+    const W = 184, pad = 6, top = 25, amp = 20;
+    const max = Math.max(1, Math.ceil(Math.max(...pins.map((p) => Math.abs(p.v)))));
+    const xy = (p) => [pad + (p.m / nowMin) * (W - 2 * pad), top - (p.v / max) * amp];
+    const segs = pins.slice(1).map((p, i) => {
+      const [x1, y1] = xy(pins[i]), [x2, y2] = xy(p);
+      return `<i class="seg" style="left:${x1.toFixed(1)}px;top:${y1.toFixed(1)}px;width:${Math.hypot(x2 - x1, y2 - y1).toFixed(1)}px;transform:rotate(${(Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI).toFixed(1)}deg)"></i>`;
+    }).join("");
+    const pts = pins.map(xy), fill = [];
+    for (let x = pts[0][0]; x < pts[pts.length - 1][0]; x += 2) {
+      const j = Math.min(pts.length - 2, pts.findIndex((q, k) => k < pts.length - 1 && x < pts[k + 1][0]));
+      const [x1, y1] = pts[j], [x2, y2] = pts[j + 1], y = y1 + ((x + 1 - x1) / (x2 - x1)) * (y2 - y1);
+      if (Math.abs(y - top) >= 0.5) fill.push(`<i class="col ${y < top ? "t1" : "t2"}" style="left:${x.toFixed(1)}px;top:${Math.min(y, top).toFixed(1)}px;height:${Math.abs(y - top).toFixed(1)}px"></i>`);
+    }
+    const dots = pins.map((p) => { const [x, y] = xy(p); return `<i class="pin ${p.v > 0 ? "t1" : p.v < 0 ? "t2" : ""}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px"></i>`; }).join("");
+    const meter = (key, pct) => `<div class="meter ${key}${pct ? " capturing" : ""}"><span class="pct">${pct}%</span><div class="bar"><i style="width:${pct}%"></i></div></div>`;
+    const koth = `<div class="koth" aria-label="Stock rift HUD"><div class="bg_backer"></div>
+      <div class="ind">${meter("t1", 0)}${meter("t2", 42)}</div>
+      <div class="gold"><i></i>3,240</div><div class="result">Rift Secured!</div></div>`;
+    const hit = (hero, hp, lost, crit) => `<div class="inst"><div class="badge"><div class="img" style="background-image:url('assets/game/heroes/${hero}_card_psd.png')"></div></div>
+      <div class="hb"><i class="rem" style="width:${hp}%"></i><i class="lost" style="width:${lost}%"></i></div>${crit ? '<div class="crit">Critical</div>' : ""}</div>`;
+    const dmg = `<div class="dmg" aria-label="Stock damage impact">${hit("inferno", 38, 12, true)}${hit("haze", 71, 6, false)}</div>`;
+    return `${koth}${h.objectives("desk")}
+      <div class="lead" aria-label="Soul lead graph"><div class="hd"><span>Soul lead</span><b class="t2c">${h.esc(S.teams.t2.tag)} +5.0k</b></div>
+      <div class="plot">${fill.join("")}<i class="zero"></i>${segs}${dots}</div></div>${dmg}`;
+  },
+  renderBand: (S, h) => {
+    const variant = (v) => {
+      const { left: L, right: Rt } = ARCH[v];
+      const ring = (key, cx) => h.logo(S.teams[key], `lg ${key} v-${v}`).replace("<span ", `<span style="left:${cx - 15}px" `);
+      const gap = R + 12;   // name starts 12 px clear of the arch
+      return `${ring("t1", L)}${ring("t2", Rt)}
+        <div class="nm t1 v-${v}" style="left:${L - gap - 420}px" data-fit="22,14">${h.esc(S.teams.t1.name)}</div>
+        <div class="nm t2 v-${v}" style="left:${Rt + gap}px" data-fit="22,14">${h.esc(S.teams.t2.name)}</div>
+        <div class="mid v-${v}" style="left:${L}px;width:${Rt - L}px">${h.orgLogo("org")}<div class="ser"><b class="t1c">${S.teams.t1.series}</b> – <b class="t2c">${S.teams.t2.series}</b></div></div>`;
+    };
+    const team = (key) => `<div class="tl ${key}"></div><div class="bans ${key}"><span class="lbl">BANS</span>${h.ban(S.teams[key].bans[0])}${h.ban(S.teams[key].bans[1])}</div>${h.names(key, "who")}`;
+    return `<div class="bd"></div>
+      <svg class="plate v-a" viewBox="0 0 1920 57" aria-hidden="true"><path d="${platePath("a")}"/></svg>
+      <svg class="plate v-b" viewBox="0 0 1920 57" aria-hidden="true"><path d="${platePath("b")}"/></svg>
+      ${team("t1")}${team("t2")}${variant("a")}${variant("b")}
+      <div class="corner l"><div class="a" data-fit="13,10">${h.esc(S.event)}</div><div class="b">${h.esc(S.stage)} · Bo${S.bestOf}</div></div>
+      <div class="corner r"><div class="a">GAME ${S.game}</div><div class="b">First to ${h.wins()}</div></div>`;
+  },
+});
+(() => {
+  const stage = document.querySelector(".stage");
+  document.querySelectorAll("[data-arch]").forEach((btn) => btn.addEventListener("click", () => {
+    stage.classList.toggle("arch-a", btn.dataset.arch === "a");
+    stage.classList.toggle("arch-b", btn.dataset.arch === "b");
+    document.querySelectorAll("[data-arch]").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }));
+  const kothBtns = document.querySelectorAll("[data-koth]");
+  kothBtns.forEach((btn) => btn.addEventListener("click", () => {
+    for (const cls of ["k-cap", "k-range", "k-done"]) stage.classList.toggle(cls, cls === btn.dataset.koth);
+    kothBtns.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }));
+  const bind = (id, cssVar, fmt) => {
+    const input = document.getElementById(id), out = document.getElementById(id + "v");
+    const sync = () => { stage.style.setProperty(cssVar, fmt(+input.value)); out.textContent = id === "gk" ? `${input.value}%` : `${input.value} px`; };
+    if (!input) return;
+    input.addEventListener("input", sync); sync();
+  };
+  bind("gk", "--gk", (v) => String(v / 100));
+  for (const id of ["dx", "dy", "kx", "ky"]) bind(id, `--${id}`, (v) => `${v}px`);
+  const dmgBtn = document.getElementById("dmg");
+  dmgBtn.addEventListener("click", () => dmgBtn.setAttribute("aria-pressed", String(stage.classList.toggle("dmg-on"))));
+  if (/[?&]dmg=1\b/.test(location.search)) dmgBtn.click();
+  bind("gx", "--gx", (v) => `${v}px`);
+  bind("gy", "--gy", (v) => `${v}px`);
+  if (/[?&]arch=b\b/.test(location.search)) document.querySelector('[data-arch="b"]').click();
+  const k = /[?&]koth=(cap|range|done)\b/.exec(location.search);
+  if (k) document.querySelector(`[data-koth="k-${k[1]}"]`).click();
+})();
+</script>
+</body>
+</html>

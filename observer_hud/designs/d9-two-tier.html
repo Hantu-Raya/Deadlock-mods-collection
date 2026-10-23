@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 9 · Two Tier</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/hybrid.css">
+<style>
+/* Two Tier: a marquee title strip over design 5's compact rows. The strip gives team
+   names a third of the width each, so long organiser names fit without shrinking. */
+.wrap { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 1242px; }
+.strip { height: 34px; display: flex; align-items: center; background: var(--lacquer-2); border-bottom: 1px solid var(--brass); }
+.team { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+.team.sapphire { flex-direction: row-reverse; }
+.team .lg { width: 26px; height: 26px; }
+.team .lg img { max-width: 26px; max-height: 26px; }
+.team .tn { flex: 1; min-width: 0; font-size: 18px; }
+.team.sapphire .tn { text-align: right; }
+.team .ser { flex: none; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font: 600 22px/1 "VALVE Oracle"; color: #16120d; }
+.amber .ser { background: var(--amber); }
+.sapphire .ser { background: var(--sapphire-hi); }
+.title { flex: none; width: 520px; text-align: center; font: 600 11px/1 "Reaver"; letter-spacing: 0.26em; text-transform: uppercase; color: var(--brass); white-space: nowrap; }
+.title i { display: inline-block; width: 5px; height: 5px; margin: 0 10px; transform: rotate(45deg); background: var(--brass); vertical-align: 2px; }
+.rows { display: flex; height: 72px; background: var(--lacquer); }
+.cards { display: flex; gap: 6px; padding: 7px 8px 0; --cw: 70px; --ch: 42px; }
+.score { width: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score .k { font: 600 30px/1 "VALVE Oracle"; color: var(--text); }
+.score .s { margin-top: 4px; font: 600 12px/1 "VALVE Oracle"; color: var(--muted); }
+.mid { width: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--lacquer-2); border-left: 1px solid var(--brass-dim); border-right: 1px solid var(--brass-dim); }
+.mid .clock { font: 600 34px/1 "VALVE Oracle"; color: var(--text); }
+.mid .ld { margin-top: 5px; font: 600 13px/1 "VALVE Oracle"; letter-spacing: 0.04em; }
+.foot { margin: 0 auto; width: 150px; height: 6px; background: var(--brass); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="wrap" id="wrap"></div>
+  <div class="design-tag"><b>9 · Two Tier</b> — marquee strip over compact rows</div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/hybrid.js"></script>
+<script>
+OH.mount((oh) => {
+  const t = oh.teams, m = oh.match;
+  const team = (k) => `<div class="team ${k}">${oh.logo(k)}<div class="tn">${t[k].name}</div><div class="ser">${t[k].series}</div></div>`;
+  const score = (k) => `<div class="score ${k}"><div class="k">${t[k].kills}</div><div class="s">${oh.souls(t[k].souls)}</div></div>`;
+  document.getElementById("wrap").innerHTML = `
+    <div class="strip">${team("amber")}<div class="title">${m.event}<i></i>${m.stage}<i></i>Game ${m.game} of ${m.bestOf}</div>${team("sapphire")}</div>
+    <div class="rows"><div class="cards amber">${oh.cards("amber")}</div>${score("amber")}
+      <div class="mid"><div class="clock">${m.clock}</div><div class="ld">${oh.leadHtml()}</div></div>
+      ${score("sapphire")}<div class="cards sapphire">${oh.cards("sapphire")}</div></div>
+    <div class="foot"></div>`;
+  oh.fitText(".tn", 13);
+  oh.fitText(".hc .nm", 10);
+});
+</script>
+</body>
+</html>

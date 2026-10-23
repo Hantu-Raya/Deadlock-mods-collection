@@ -1,0 +1,12 @@
+.OHSpikeBar { width: 1400px; height: 260px; horizontal-align: center; overflow: noclip; }
+.OHSpikePlate { height: 40px; width: fit-children; padding-right: 8px; flow-children: right; background-color: #000000c0; border: 2px solid #ff3b3b; border-radius: 4px; margin-top: 8px; overflow: noclip; }
+#OHSpikeRight { border-color: #3b8bff; }
+.OHSpikeText { font-family: "Retail Demo"; font-weight: bold; font-size: 18px; color: #ffefd7; vertical-align: center; margin-left: 8px; }
+.OHSpikeLogoSlot { width: 32px; height: 32px; vertical-align: center; margin-left: 4px; background-color: #ffffff20; border-radius: 50%; }
+.OHSpikeLogo { width: 32px; height: 32px; }
+.OHSpikeBan { width: 34px; height: 34px; vertical-align: center; margin-left: 8px; border-radius: 3px; }
+.OHSpikeClock { width: 260px; flow-children: down; }
+.OHSpikeStage { horizontal-align: center; font-family: "Retail Demo"; font-weight: bold; font-size: 16px; letter-spacing: 2px; color: #e8c37a; background-color: #000000b0; padding: 2px 8px; }
+.OHSpikeEcho { horizontal-align: center; font-family: "Retail Demo"; font-size: 14px; color: #ffefd7; background-color: #000000b0; padding: 2px 8px; margin-top: 2px; }
+.OHSpikeGate { visibility: collapse; horizontal-align: center; margin-top: 230px; font-family: "Retail Demo"; font-size: 14px; color: #7dff7d; background-color: #000000c0; padding: 2px 6px; }
+.spec_mode .OHSpikeGate, .replay_playback .OHSpikeGate, .TeamSpectator .OHSpikeGate { visibility: visible; }

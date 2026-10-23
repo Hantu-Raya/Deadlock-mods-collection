@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 2 · Deco Marquee</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+/* Deco Marquee: a 1920s theatre marquee. Black lacquer, brass hairlines, stepped crest,
+   portraits in arched windows. The sunburst would ship as one baked texture in game. */
+:root { --brass: #d6b06a; --brass-dim: rgba(214, 176, 106, 0.45); }
+.band {
+  position: absolute; left: 40px; top: 0; width: 1840px; height: 124px;
+  background: linear-gradient(to bottom, rgba(14, 12, 9, 0.96), rgba(22, 18, 13, 0.9));
+  border-bottom: 1px solid var(--brass);
+}
+.band::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 1px; background: var(--brass-dim); }
+
+.crest { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 340px; height: 168px; }
+.step { position: absolute; left: 50%; transform: translateX(-50%); background: #120f0b; border: 1px solid var(--brass); border-top: 0; }
+.step.s1 { top: 0; width: 340px; height: 132px; }
+.step.s2 { top: 0; width: 290px; height: 148px; }
+.step.s3 { top: 0; width: 230px; height: 166px; overflow: hidden; }
+.rays {
+  position: absolute; left: 50%; top: 92px; width: 520px; height: 520px; transform: translate(-50%, -50%);
+  background: repeating-conic-gradient(from 0deg, rgba(214, 176, 106, 0.16) 0deg 4deg, rgba(214, 176, 106, 0) 4deg 12deg);
+  opacity: 0.9;
+}
+.crest .txt { position: absolute; left: 0; right: 0; text-align: center; }
+.crest .event { top: 14px; font: 600 12px/1 "Reaver"; letter-spacing: 0.34em; text-transform: uppercase; color: var(--brass); }
+.crest .clock { top: 36px; font: 600 54px/1 "VALVE Oracle"; color: #f3dfb2; letter-spacing: 0.03em; }
+.crest .stage-line { top: 100px; font: 700 12px/1 "Retail Demo"; letter-spacing: 0.3em; text-transform: uppercase; color: #cdbb95; }
+.crest .lead { top: 126px; font: 600 14px/1 "VALVE Oracle"; color: var(--amber-hi); letter-spacing: 0.08em; }
+.crest .rule { top: 92px; left: 60px; right: 60px; height: 1px; background: var(--brass-dim); }
+
+.side { position: absolute; top: 0; height: 124px; display: flex; align-items: center; gap: 18px; }
+.side.left { right: calc(50% + 186px); flex-direction: row-reverse; }
+.side.right { left: calc(50% + 186px); }
+.ident { width: 180px; }
+.left .ident { text-align: right; }
+.ident .name { font: 700 21px/1 "Reaver"; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+.amber .ident .name { color: var(--amber-hi); }
+.sapphire .ident .name { color: var(--sapphire-hi); }
+.ident .row { margin-top: 10px; display: flex; align-items: center; gap: 10px; font: 600 14px/1 "VALVE Oracle"; color: #e9dcc4; }
+.left .ident .row { justify-content: flex-end; }
+.diamonds { display: flex; gap: 6px; }
+.dia { width: 10px; height: 10px; transform: rotate(45deg); border: 1px solid var(--brass); }
+.dia.on { background: var(--brass); }
+.ident .logo { position: absolute; top: -4px; width: 48px; height: 48px; object-fit: contain; opacity: 0.95; }
+.left .ident .logo { right: -66px; }
+.right .ident .logo { left: -66px; }
+.ident { position: relative; }
+.left .ident { margin-right: 66px; }
+.right .ident { margin-left: 66px; }
+.divider { width: 1px; height: 84px; background: linear-gradient(to bottom, rgba(214, 176, 106, 0), var(--brass), rgba(214, 176, 106, 0)); }
+
+.cards { display: flex; gap: 6px; }
+.card { width: 68px; text-align: center; }
+.arch {
+  position: relative; width: 68px; height: 72px; overflow: hidden;
+  border-radius: 34px 34px 0 0; border: 2px solid var(--brass); border-bottom: 0;
+}
+.sapphire .arch { border-color: #a9b6dc; }
+.amber .arch { background: linear-gradient(to bottom, #4a3316, #18110a); }
+.sapphire .arch { background: linear-gradient(to bottom, #222c55, #0b0f22); }
+.arch img { position: absolute; left: -4px; top: -4px; width: 76px; }
+.card.dead .arch img { filter: grayscale(1) brightness(0.4); }
+.respawn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 28px/1 "VALVE Oracle"; color: #f3dfb2; }
+.hp { height: 5px; background: #0a0806; border: 1px solid var(--brass-dim); border-top: 0; }
+.hp b { display: block; height: 4px; }
+.amber .hp b { background: linear-gradient(to right, var(--amber), var(--amber-hi)); }
+.sapphire .hp b { background: linear-gradient(to right, var(--sapphire), var(--sapphire-hi)); }
+.hp b.low { background: var(--low); }
+.pname { margin-top: 5px; font: 600 11px/1 "Retail Demo"; letter-spacing: 0.08em; text-transform: uppercase; color: #e9dcc4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ult { margin: 4px auto 0; width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid #6a5f4c; }
+.ult.ready { background: var(--brass); border-color: var(--brass); }
+.ultcd { font: 600 10px/1 "VALVE Oracle"; color: #8f846f; margin-top: 2px; height: 10px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="band"></div>
+  <div id="sides"></div>
+  <div class="crest" id="crest"></div>
+  <div class="design-tag"><b>2 · Deco Marquee</b> — 1920s theatre sign</div>
+</div>
+<script src="shared/data.js"></script>
+<script>
+OH.mount((oh) => {
+  const card = (p) => `
+    <div class="card ${p.dead ? "dead" : ""}">
+      <div class="arch"><img src="${p.portrait}" alt="">${p.dead ? `<div class="respawn">${p.dead}</div>` : ""}</div>
+      <div class="hp"><b class="${p.hp > 0 && p.hp < 0.3 ? "low" : ""}" style="width:${Math.round(p.hp * 100)}%"></b></div>
+      <div class="pname">${p.name}</div>
+      <div class="ult ${p.ult === "ready" ? "ready" : ""}"></div>
+      <div class="ultcd">${p.ult === "ready" ? "" : p.ult}</div>
+    </div>`;
+  const side = (key) => {
+    const t = oh.teams[key];
+    const dia = Array.from({ length: Math.ceil(oh.match.bestOf / 2) }, (_, i) => `<span class="dia ${i < t.series ? "on" : ""}"></span>`).join("");
+    return `<div class="side ${t.side} ${key}">
+      <div class="ident"><img class="logo" src="${t.logo}" alt="">
+        <div class="name">${t.name}</div>
+        <div class="row"><span class="diamonds">${dia}</span><span>${oh.souls(t.souls)} souls</span><span>${t.kills} K</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="cards">${t.players.map(card).join("")}</div>
+    </div>`;
+  };
+  const lead = oh.lead();
+  const roman = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
+  document.getElementById("sides").innerHTML = side("amber") + side("sapphire");
+  document.getElementById("crest").innerHTML = `
+    <div class="step s1"></div><div class="step s2"></div>
+    <div class="step s3"><div class="rays"></div></div>
+    <div class="txt event">${oh.match.event}</div>
+    <div class="txt clock">${oh.match.clock}</div>
+    <div class="txt rule"></div>
+    <div class="txt stage-line">${oh.match.stage} · Game ${roman[oh.match.game]}</div>
+    <div class="txt lead">${oh.teams[lead.team].tag} +${oh.souls(lead.value)}</div>`;
+});
+</script>
+</body>
+</html>

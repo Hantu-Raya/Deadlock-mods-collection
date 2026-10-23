@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 5 · Broadcast Slate</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+/* Broadcast Slate: a compact modern esports bar in the game's palette and fonts.
+   Lowest and densest of the five; the soul-lead trend line is the extra it buys. */
+.bar { position: absolute; left: 50%; top: 0; transform: translateX(-50%); display: flex; align-items: stretch; height: 76px; }
+.bar > * { background: rgba(15, 17, 21, 0.94); }
+.tagblk { width: 150px; display: flex; flex-direction: column; justify-content: center; padding: 0 16px; position: relative; }
+.tagblk::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; }
+.amber.tagblk::before { background: var(--amber); }
+.sapphire.tagblk::before { background: var(--sapphire); }
+.amber.tagblk { text-align: left; }
+.sapphire.tagblk { text-align: right; }
+.tagblk .tag { font: 700 30px/1 "Retail Demo"; letter-spacing: 0.06em; color: #f2ede4; }
+.tagblk .full { margin-top: 4px; font: 600 11px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; color: #9aa0ab; white-space: nowrap; }
+.tagblk img { position: absolute; top: 14px; width: 40px; height: 40px; object-fit: contain; opacity: 0.9; }
+.amber.tagblk img { right: 14px; }
+.sapphire.tagblk img { left: 14px; }
+
+.cards { display: flex; gap: 4px; padding: 6px 8px 0; }
+.card { width: 66px; }
+.shot { position: relative; width: 66px; height: 46px; overflow: hidden; background: #1d212a; }
+.shot img { position: absolute; left: -2px; top: -6px; width: 70px; }
+.card.dead .shot img { filter: grayscale(1) brightness(0.4); }
+.respawn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 22px/1 "VALVE Oracle"; color: #fff; }
+.shot .hp { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: rgba(0, 0, 0, 0.7); }
+.shot .hp b { display: block; height: 4px; }
+.amber .hp b { background: var(--amber-hi); }
+.sapphire .hp b { background: var(--sapphire-hi); }
+.hp b.low { background: var(--low); }
+.shot .ult { position: absolute; right: 2px; top: 2px; width: 12px; height: 12px; background: #f2ede4; -webkit-mask: var(--m-icon-ultimate) center / contain no-repeat; mask: var(--m-icon-ultimate) center / contain no-repeat; }
+.info { display: flex; justify-content: space-between; margin-top: 4px; font: 600 11px/1 "Retail Demo"; color: #d7d9de; }
+.info .n { max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info .cd { font-family: "VALVE Oracle"; color: #8a909b; }
+
+.score { width: 74px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score .k { font: 600 34px/1 "VALVE Oracle"; color: #f2ede4; }
+.score .s { margin-top: 3px; font: 600 12px/1 "VALVE Oracle"; color: #9aa0ab; }
+.amber.score { border-bottom: 3px solid var(--amber); }
+.sapphire.score { border-bottom: 3px solid var(--sapphire); }
+.mid { width: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(229, 214, 193, 0.95) !important; color: var(--ink); }
+.mid .clock { font: 600 32px/1 "VALVE Oracle"; }
+.mid .series { margin-top: 4px; font: 700 11px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; }
+
+.under { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); width: 298px; height: 54px; background: rgba(15, 17, 21, 0.86); padding: 6px 10px 0; }
+.under .lbl { display: flex; justify-content: space-between; font: 600 10px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; color: #9aa0ab; }
+.under .lbl b { color: var(--amber-hi); font-family: "VALVE Oracle"; letter-spacing: 0.04em; font-size: 12px; }
+.under svg { display: block; margin-top: 3px; }
+.event { position: absolute; left: 50%; top: 136px; transform: translateX(-50%); font: 600 11px/1 "Retail Demo"; letter-spacing: 0.24em; text-transform: uppercase; color: #e5ddd0; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+.obj { display: flex; gap: 3px; margin-top: 6px; }
+.sapphire .obj { justify-content: flex-end; }
+.obj i { width: 12px; height: 4px; background: #3a3f49; }
+.amber .obj i.on { background: var(--amber); }
+.sapphire .obj i.on { background: var(--sapphire-hi); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bar" id="bar"></div>
+  <div class="under" id="under"></div>
+  <div class="event" id="event"></div>
+  <div class="design-tag"><b>5 · Broadcast Slate</b> — compact esports bar</div>
+</div>
+<script src="shared/data.js"></script>
+<script>
+OH.mount((oh) => {
+  const card = (p) => `
+    <div class="card ${p.dead ? "dead" : ""}">
+      <div class="shot"><img src="${p.portrait}" alt="">${p.dead ? `<div class="respawn">${p.dead}</div>` : ""}
+        ${p.ult === "ready" ? `<i class="ult"></i>` : ""}
+        <div class="hp"><b class="${p.hp > 0 && p.hp < 0.3 ? "low" : ""}" style="width:${Math.round(p.hp * 100)}%"></b></div></div>
+      <div class="info"><span class="n">${p.name}</span><span class="cd">${p.ult === "ready" ? "" : p.ult}</span></div>
+    </div>`;
+  const t = oh.teams;
+  const tag = (k) => `<div class="tagblk ${k}"><img src="${t[k].logo}" alt=""><div class="tag">${t[k].tag}</div><div class="full">${t[k].name}</div>
+    <div class="obj">${[0, 1, 2, 3].map((i) => `<i class="${i < t[k].walkers ? "on" : ""}"></i>`).join("")}</div></div>`;
+  const score = (k) => `<div class="score ${k}"><div class="k">${t[k].kills}</div><div class="s">${oh.souls(t[k].souls)}</div></div>`;
+  document.getElementById("bar").innerHTML = `
+    ${tag("amber")}<div class="cards amber">${t.amber.players.map(card).join("")}</div>${score("amber")}
+    <div class="mid"><div class="clock">${oh.match.clock}</div><div class="series">${t.amber.series} – ${t.sapphire.series} · Bo${oh.match.bestOf}</div></div>
+    ${score("sapphire")}<div class="cards sapphire">${t.sapphire.players.map(card).join("")}</div>${tag("sapphire")}`;
+  // Soul-lead trend: amber above the zero line, sapphire below.
+  const h = oh.leadHistory, W = 278, H = 34, max = 4;
+  const pts = h.map((v, i) => [i * W / (h.length - 1), H / 2 - (v / max) * (H / 2)]);
+  const line = pts.map((p) => p.map((n) => n.toFixed(1)).join(",")).join(" ");
+  const lead = oh.lead();
+  document.getElementById("under").innerHTML = `
+    <div class="lbl"><span>Soul lead</span><b>${t[lead.team].tag} +${oh.souls(lead.value)}</b></div>
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <defs><clipPath id="up"><rect x="0" y="0" width="${W}" height="${H / 2}"/></clipPath><clipPath id="dn"><rect x="0" y="${H / 2}" width="${W}" height="${H / 2}"/></clipPath></defs>
+      <line x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}" stroke="#3a3f49" stroke-width="1"/>
+      <polygon points="0,${H / 2} ${line} ${W},${H / 2}" fill="rgba(207,153,67,0.35)" clip-path="url(#up)"/>
+      <polygon points="0,${H / 2} ${line} ${W},${H / 2}" fill="rgba(81,101,174,0.45)" clip-path="url(#dn)"/>
+      <polyline points="${line}" fill="none" stroke="#e5ddd0" stroke-width="1.5"/>
+    </svg>`;
+  document.getElementById("event").textContent = `${oh.match.event} · ${oh.match.stage} · Game ${oh.match.game}`;
+});
+</script>
+</body>
+</html>

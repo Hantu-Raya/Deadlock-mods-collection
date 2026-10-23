@@ -1,0 +1,413 @@
+{
+ "method": "jevify round 2: round-robin pairwise in both orders over designs 6-10 plus round-1 favourites 2 and 5 as anchors (42 games, 12 per design); rubric frozen before judging and weights cleanliness first per user feedback.",
+ "judge": "typesafe/jev-1.14.0",
+ "date": "2026-10-22",
+ "question": {
+  "winner": {
+   "type": "choice",
+   "instructions": "Two candidate observer top bars for community Deadlock tournaments, image A first then image B (each is the top 200px of a 1920x1080 match frame). Viewers preferred earlier designs for being CLEAN. Which should be built? Weigh, in order: (1) clean: few surfaces, calm hierarchy, no clutter or competing elements; (2) a viewer reads clock, team names, series score and player state (health, ultimate, dead/respawn) at a glance; (3) still reads as Deadlock's own art-deco base-game style; (4) covers little of the gameplay.",
+   "criteria": {
+    "A": "Image A is the better top bar on balance.",
+    "B": "Image B is the better top bar on balance.",
+    "tie": "Neither is clearly better."
+   }
+  }
+ },
+ "wins_of_12": {
+  "d6-brass-slate": 8,
+  "d7-marquee-lite": 6,
+  "d8-hairline": 10,
+  "d9-two-tier": 6,
+  "d10-brass-rail": 10,
+  "d2-deco-marquee": 0,
+  "d5-broadcast-slate": 2
+ },
+ "A_position_picks": "21/42",
+ "position_split_asA_asB": {
+  "d6-brass-slate": [
+   5,
+   3
+  ],
+  "d8-hairline": [
+   5,
+   5
+  ],
+  "d7-marquee-lite": [
+   2,
+   4
+  ],
+  "d9-two-tier": [
+   3,
+   3
+  ],
+  "d10-brass-rail": [
+   5,
+   5
+  ],
+  "d5-broadcast-slate": [
+   1,
+   1
+  ]
+ },
+ "games": {
+  "d6-brass-slate|d9-two-tier": {
+   "choice": "A",
+   "p": {
+    "A": 0.51,
+    "B": 0.46,
+    "tie": 0.03
+   }
+  },
+  "d7-marquee-lite|d8-hairline": {
+   "choice": "B",
+   "p": {
+    "A": 0.17,
+    "B": 0.82,
+    "tie": 0.01
+   }
+  },
+  "d6-brass-slate|d7-marquee-lite": {
+   "choice": "A",
+   "p": {
+    "A": 0.51,
+    "B": 0.47,
+    "tie": 0.02
+   }
+  },
+  "d7-marquee-lite|d6-brass-slate": {
+   "choice": "B",
+   "p": {
+    "A": 0.41,
+    "B": 0.57,
+    "tie": 0.02
+   }
+  },
+  "d7-marquee-lite|d5-broadcast-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.56,
+    "B": 0.42,
+    "tie": 0.02
+   }
+  },
+  "d7-marquee-lite|d9-two-tier": {
+   "choice": "B",
+   "p": {
+    "A": 0.3,
+    "B": 0.68,
+    "tie": 0.02
+   }
+  },
+  "d7-marquee-lite|d10-brass-rail": {
+   "choice": "B",
+   "p": {
+    "A": 0.26,
+    "B": 0.72,
+    "tie": 0.02
+   }
+  },
+  "d6-brass-slate|d2-deco-marquee": {
+   "choice": "A",
+   "p": {
+    "A": 0.88,
+    "B": 0.11,
+    "tie": 0.01
+   }
+  },
+  "d6-brass-slate|d8-hairline": {
+   "choice": "B",
+   "p": {
+    "A": 0.39,
+    "B": 0.59,
+    "tie": 0.02
+   }
+  },
+  "d8-hairline|d6-brass-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.54,
+    "B": 0.44,
+    "tie": 0.02
+   }
+  },
+  "d8-hairline|d7-marquee-lite": {
+   "choice": "A",
+   "p": {
+    "A": 0.51,
+    "B": 0.47,
+    "tie": 0.02
+   }
+  },
+  "d6-brass-slate|d10-brass-rail": {
+   "choice": "A",
+   "p": {
+    "A": 0.64,
+    "B": 0.34,
+    "tie": 0.02
+   }
+  },
+  "d6-brass-slate|d5-broadcast-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.51,
+    "B": 0.46,
+    "tie": 0.03
+   }
+  },
+  "d8-hairline|d10-brass-rail": {
+   "choice": "B",
+   "p": {
+    "A": 0.44,
+    "B": 0.53,
+    "tie": 0.03
+   }
+  },
+  "d9-two-tier|d6-brass-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.56,
+    "B": 0.42,
+    "tie": 0.02
+   }
+  },
+  "d8-hairline|d9-two-tier": {
+   "choice": "A",
+   "p": {
+    "A": 0.67,
+    "B": 0.3,
+    "tie": 0.03
+   }
+  },
+  "d10-brass-rail|d8-hairline": {
+   "choice": "A",
+   "p": {
+    "A": 0.52,
+    "B": 0.46,
+    "tie": 0.02
+   }
+  },
+  "d2-deco-marquee|d10-brass-rail": {
+   "choice": "B",
+   "p": {
+    "A": 0.22,
+    "B": 0.76,
+    "tie": 0.02
+   }
+  },
+  "d8-hairline|d5-broadcast-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.67,
+    "B": 0.31,
+    "tie": 0.02
+   }
+  },
+  "d10-brass-rail|d9-two-tier": {
+   "choice": "A",
+   "p": {
+    "A": 0.59,
+    "B": 0.38,
+    "tie": 0.03
+   }
+  },
+  "d2-deco-marquee|d6-brass-slate": {
+   "choice": "B",
+   "p": {
+    "A": 0.23,
+    "B": 0.76,
+    "tie": 0.01
+   }
+  },
+  "d10-brass-rail|d7-marquee-lite": {
+   "choice": "B",
+   "p": {
+    "A": 0.49,
+    "B": 0.49,
+    "tie": 0.02
+   }
+  },
+  "d2-deco-marquee|d5-broadcast-slate": {
+   "choice": "B",
+   "p": {
+    "A": 0.39,
+    "B": 0.59,
+    "tie": 0.02
+   }
+  },
+  "d2-deco-marquee|d8-hairline": {
+   "choice": "B",
+   "p": {
+    "A": 0.15,
+    "B": 0.84,
+    "tie": 0.01
+   }
+  },
+  "d2-deco-marquee|d7-marquee-lite": {
+   "choice": "B",
+   "p": {
+    "A": 0.41,
+    "B": 0.57,
+    "tie": 0.02
+   }
+  },
+  "d8-hairline|d2-deco-marquee": {
+   "choice": "A",
+   "p": {
+    "A": 0.81,
+    "B": 0.18,
+    "tie": 0.01
+   }
+  },
+  "d5-broadcast-slate|d7-marquee-lite": {
+   "choice": "B",
+   "p": {
+    "A": 0.24,
+    "B": 0.75,
+    "tie": 0.01
+   }
+  },
+  "d10-brass-rail|d6-brass-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.68,
+    "B": 0.3,
+    "tie": 0.02
+   }
+  },
+  "d5-broadcast-slate|d6-brass-slate": {
+   "choice": "B",
+   "p": {
+    "A": 0.38,
+    "B": 0.6,
+    "tie": 0.02
+   }
+  },
+  "d9-two-tier|d7-marquee-lite": {
+   "choice": "B",
+   "p": {
+    "A": 0.43,
+    "B": 0.55,
+    "tie": 0.02
+   }
+  },
+  "d5-broadcast-slate|d2-deco-marquee": {
+   "choice": "A",
+   "p": {
+    "A": 0.86,
+    "B": 0.13,
+    "tie": 0.01
+   }
+  },
+  "d10-brass-rail|d5-broadcast-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.68,
+    "B": 0.29,
+    "tie": 0.03
+   }
+  },
+  "d5-broadcast-slate|d8-hairline": {
+   "choice": "B",
+   "p": {
+    "A": 0.2,
+    "B": 0.79,
+    "tie": 0.01
+   }
+  },
+  "d5-broadcast-slate|d9-two-tier": {
+   "choice": "B",
+   "p": {
+    "A": 0.26,
+    "B": 0.72,
+    "tie": 0.02
+   }
+  },
+  "d5-broadcast-slate|d10-brass-rail": {
+   "choice": "B",
+   "p": {
+    "A": 0.4,
+    "B": 0.58,
+    "tie": 0.02
+   }
+  },
+  "d9-two-tier|d5-broadcast-slate": {
+   "choice": "A",
+   "p": {
+    "A": 0.67,
+    "B": 0.3,
+    "tie": 0.03
+   }
+  },
+  "d9-two-tier|d2-deco-marquee": {
+   "choice": "A",
+   "p": {
+    "A": 0.85,
+    "B": 0.14,
+    "tie": 0.01
+   }
+  },
+  "d9-two-tier|d8-hairline": {
+   "choice": "B",
+   "p": {
+    "A": 0.29,
+    "B": 0.69,
+    "tie": 0.02
+   }
+  },
+  "d9-two-tier|d10-brass-rail": {
+   "choice": "B",
+   "p": {
+    "A": 0.43,
+    "B": 0.54,
+    "tie": 0.03
+   }
+  },
+  "d7-marquee-lite|d2-deco-marquee": {
+   "choice": "A",
+   "p": {
+    "A": 0.77,
+    "B": 0.22,
+    "tie": 0.01
+   }
+  },
+  "d10-brass-rail|d2-deco-marquee": {
+   "choice": "A",
+   "p": {
+    "A": 0.83,
+    "B": 0.16,
+    "tie": 0.01
+   }
+  },
+  "d2-deco-marquee|d9-two-tier": {
+   "choice": "B",
+   "p": {
+    "A": 0.24,
+    "B": 0.75,
+    "tie": 0.01
+   }
+  }
+ },
+ "escalation_rule": "games with top p < 0.6, and any design whose wins differ by >2 between A and B positions",
+ "unsure_games": [
+  "d6-brass-slate|d9-two-tier",
+  "d6-brass-slate|d7-marquee-lite",
+  "d7-marquee-lite|d6-brass-slate",
+  "d7-marquee-lite|d5-broadcast-slate",
+  "d6-brass-slate|d8-hairline",
+  "d8-hairline|d6-brass-slate",
+  "d8-hairline|d7-marquee-lite",
+  "d6-brass-slate|d5-broadcast-slate",
+  "d8-hairline|d10-brass-rail",
+  "d9-two-tier|d6-brass-slate",
+  "d10-brass-rail|d8-hairline",
+  "d10-brass-rail|d9-two-tier",
+  "d10-brass-rail|d7-marquee-lite",
+  "d2-deco-marquee|d5-broadcast-slate",
+  "d2-deco-marquee|d7-marquee-lite",
+  "d9-two-tier|d7-marquee-lite",
+  "d5-broadcast-slate|d10-brass-rail",
+  "d9-two-tier|d10-brass-rail"
+ ],
+ "reading": "All five hybrids beat both round-1 favourites (d2 won 0 of 12, d5 won 2). d8 Hairline and d10 Brass Rail tie at 10; their head-to-head leans d10 in both orders but by a coin-flip margin (0.53 and 0.52). No position bias (21/42 A). 18 of 42 games are under 0.6, mostly among the top three hybrids, which are close.",
+ "note_after_judging": "After these games the shared player card changed in all five designs (ultimate moved to a portrait-corner chip, full-width names, muted dead names) following Fable's round-2 review. The judged screenshots predate that change; the change applies to every design equally."
+}

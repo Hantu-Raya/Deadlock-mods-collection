@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 14 · Base Game+ Names</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/v2.css">
+<style>
+/* Base Game+ Names (round 4): design 11 as built in v1, with one change taken from both
+   competitor bars: the player names leave the portraits for a 26 px strip over the cards, and
+   the organiser wordmark takes the strip's centre. The stock bar moves down 26 px. User review
+   (2026-10-22): the event title under the stage is gone (the wordmark carries it), and each team's
+   two bans sit beside the clock on that team's side. Plates and the stage stack stay as in v1. */
+/* ---- Tournament additions (.tx), built from the same stock pieces ---- */
+.tx-stage { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); padding: 6px 12px 7px; border-radius: 5px; background: rgba(0, 0, 0, 0.565); text-align: center; white-space: nowrap; }
+.tx-stage .st { font: 700 13px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; color: var(--offWhite); }
+.tx-stage .fmt { margin-top: 3px; font: 700 9px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 239, 215, 0.6); }
+/* Bans flank the stock clock (.GameClock 90x30 at top 8, centred), each team on its own side. */
+.cb { position: absolute; top: 9px; display: flex; gap: 4px; }
+.cb.t1 { right: 1011px; }
+.cb.t2 { left: 1011px; flex-direction: row-reverse; }
+.cb .ban { width: 28px; height: 28px; }
+.cb .ban img { left: -2px; top: -2px; width: 30px; height: 41px; }
+.tx-team { position: absolute; top: 22px; width: 250px; }
+.tx-team.t1 { left: 72px; }
+.tx-team.t2 { left: 1598px; }
+.tx-plate { position: relative; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 0 0 8px; }
+.t2 .tx-plate { flex-direction: row-reverse; padding: 0 8px 0 0; }
+.tx-plate::before { content: ""; position: absolute; inset: 0; -webkit-mask: var(--m-dust-01-psd) 0 0 / 300px 300px; mask: var(--m-dust-01-psd) 0 0 / 300px 300px; }
+.t1 .tx-plate::before { background: var(--team1); }
+.t2 .tx-plate::before { background: var(--team2); }
+.tx-logo { position: relative; flex: none; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.04em; }
+.t1 .tx-logo.mono { border: 1.5px solid var(--team1Fg); color: var(--team1Fg); }
+.t2 .tx-logo.mono { border: 1.5px solid var(--offWhite); color: var(--offWhite); }
+.tx-logo img { max-width: 28px; max-height: 28px; object-fit: contain; }
+.tx-name { position: relative; flex: 1; min-width: 0; font: 700 17px/1 "Retail Demo"; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t1 .tx-name { color: var(--team1Fg); }
+.t2 .tx-name { color: #fff; text-align: right; }
+.tx-series { position: relative; flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--offBlack); font: 700 24px/1 "VALVE Oracle"; color: var(--offWhite); }
+.strip { position: absolute; top: 0; width: 528px; height: 26px; background: linear-gradient(180deg, rgba(10, 9, 8, 0.86), rgba(10, 9, 8, 0.6)); backdrop-filter: blur(4px); }   /* Panorama: world-blur */
+.strip.t1 { left: 330px; border-bottom: 2px solid var(--team1); }
+.strip.t2 { left: 1062px; border-bottom: 2px solid var(--team2); }
+.who { position: absolute; top: 5px; width: 86px; transform: translateX(-50%); text-align: center; font: 700 12px/16px "Retail Demo"; color: var(--offWhite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who.dead { color: rgba(255, 239, 215, 0.45); }
+.orgp { position: absolute; left: 862px; top: 0; width: 196px; height: 26px; display: flex; align-items: center; justify-content: center; background: rgba(10, 9, 8, 0.86); backdrop-filter: blur(4px); border-bottom: 2px solid rgba(207, 153, 67, 0.7); }
+.org { max-width: 180px; font: 400 15px/1 "Reaver"; letter-spacing: 0.1em; text-transform: uppercase; color: var(--team1Bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.org img { max-width: 180px; max-height: 22px; object-fit: contain; }
+/* Objective cues (round 5b) under GRAND FINAL / BO3; shared styles in shared/v2.css. */
+.obj.names { top: 136px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div id="band"></div>
+  <div class="topbar" id="topbar"></div>
+  <div id="objsheet"></div>
+  <div class="design-tag"><b>14 · Base Game+ Names</b> — v1 plus a names strip</div>
+  <button class="open-ed" id="openEd" type="button" aria-haspopup="dialog">Tournament setup (Esc)</button>
+  <div class="ed-back" id="edBack">
+    <div class="ed" id="ed" role="dialog" aria-modal="true" aria-labelledby="edTitle"></div>
+  </div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/v2.js"></script>
+<script>
+V2.mount({
+  // Sample cues for the main view, all four at once so each icon shows: bridge buff in 0:22, Night Owls
+  // holding the rejuvenator (2:41 left), rift opening in 0:14, urn in 0:48.
+  objectives: { bridge: 22, urn: 48, rift: { state: "warn", secs: 14 }, mid: { state: "held", team: "t1", secs: 161 } },
+  objSheet: "names",
+  band: 26,
+  renderBand: (S, h) => `<div class="strip t1"></div><div class="strip t2"></div>${h.names("t1", "who")}${h.names("t2", "who")}
+    <div class="orgp">${h.orgLogo("org")}</div>`,
+  // Design 11's plates, bans and stage stack, unchanged (they move down with the stock bar).
+  renderUnderClock: (S, h) => {
+    const txTeam = (key) => {
+      const t = S.teams[key];
+      return `<div class="tx-team ${key}">
+        <div class="tx-plate">${h.logo(t, "tx-logo")}<span class="tx-name" data-fit="17,12">${h.esc(t.name)}</span><span class="tx-series">${t.series}</span></div>
+      </div>`;
+    };
+    const bans = (key) => `<div class="cb ${key}">${h.ban(S.teams[key].bans[0])}${h.ban(S.teams[key].bans[1])}</div>`;
+    return `<div class="tx-stage"><div class="st">${h.esc(S.stage)}</div><div class="fmt">Bo${S.bestOf}</div></div>
+      ${bans("t1")}${bans("t2")}${txTeam("t1")}${txTeam("t2")}${h.objectives("names")}`;
+  },
+});
+</script>
+</body>
+</html>

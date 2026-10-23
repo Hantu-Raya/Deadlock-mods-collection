@@ -1,0 +1,482 @@
+/* Ability status column (observer_hud/debuffs.xml, one per stock top-bar card), ported from DLF's
+   dlf_card.css with its behaviour: four static slots under the stock ultimate. A slot's colour is the
+   team applying the status, set per slot by oh_debuffs.js: the other team for a debuff, the hero's
+   own team for a listed buff. Each slot is a plain 52x43 box (it carries the state classes) holding
+   the 38px circle, and the stun mark and stack count as siblings on the circle's bottom-left and
+   top-right edges (a rounded panel clips what sticks out of it). The stock card has no DLF ultimate
+   counter, so the column starts right under the stock ultimate (#StatusRow 125px + 22px icon). */
+.OHDebuffs
+{
+	width: 52px;
+	height: fit-children;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 152px;
+	flow-children: down;
+	overflow: noclip;
+	z-index: 30;
+	visibility: collapse;
+}
+
+.OHDebuff
+{
+	width: 52px;
+	height: 43px;
+	overflow: noclip;
+	visibility: collapse;
+}
+
+.OHDebuff.OHShown
+{
+	visibility: visible;
+}
+
+.OHDebuffCircle
+{
+	width: 38px;
+	height: 38px;
+	horizontal-align: center;
+	vertical-align: top;
+	border-radius: 50%;
+	border: 2px solid #10130DCC;
+	background-color: #E8892B;
+}
+
+/* A status that went away fades out once over 1 s (FADE_MS in oh_debuffs.js), then holds at 0 until
+   the slot is released; removing the class shows a reused slot at once. */
+@keyframes 'OHDebuffFadeOut'
+{
+	0%
+	{
+		opacity: 1;
+	}
+
+	100%
+	{
+		opacity: 0;
+	}
+}
+
+.OHDebuff.OHFading
+{
+	animation-name: OHDebuffFadeOut;
+	animation-duration: 1s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+	animation-fill-mode: forwards;
+}
+
+/* The Hidden King (Amber) */
+.OHByAmber .OHDebuffCircle
+{
+	background-color: #E8892B;
+}
+
+/* The Archmother (Sapphire), stock team2Color */
+.OHBySapphire .OHDebuffCircle
+{
+	background-color: #4D75C3;
+}
+
+/* Same white wash the world healthbar puts on ability images. */
+.OHDebuffIcon
+{
+	width: 26px;
+	height: 26px;
+	horizontal-align: center;
+	vertical-align: center;
+	wash-color: #FFFFFF;
+}
+
+/* Seconds left, over the icon. */
+.OHDebuffTime
+{
+	width: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-family: Jost, Noto Sans, sans-serif;
+	font-size: 20px;
+	font-weight: bold;
+	color: #FFFFFF;
+	text-shadow: 0px 0px 0px 3.0 #10130D;
+	visibility: collapse;
+}
+
+.OHHasTime .OHDebuffTime
+{
+	visibility: visible;
+}
+
+/* The icon dims behind the number. */
+.OHHasTime .OHDebuffIcon
+{
+	opacity: 0.55;
+}
+
+/* Stun: the stock stun ring colour (unit_status_icons.css .stunned) on the circle, and the stun
+   icon on the circle's bottom-left edge (user request 2026-10-16), above the circle. */
+.OHStun .OHDebuffCircle
+{
+	border: 2px solid #ffb800;
+}
+
+.OHDebuffStunMark
+{
+	width: 17px;
+	height: 17px;
+	margin-left: 3px;
+	margin-top: 25px;
+	horizontal-align: left;
+	vertical-align: top;
+	border-radius: 50%;
+	border: 1px solid #ffb800;
+	background-color: #10130DE6;
+	background-image: url("s2r://panorama/images/hud/modifiers/icon_stun.vsvg");
+	background-size: 11px 11px;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	wash-color: #ffb800;
+	z-index: 2;
+	visibility: collapse;
+}
+.OHStun .OHDebuffStunMark
+{
+	visibility: visible;
+}
+
+/* Stack count (e.g. Baba's pigeons), on the circle's top-right edge. */
+.OHDebuffCount
+{
+	min-width: 15px;
+	height: 15px;
+	margin-right: 4px;
+	horizontal-align: right;
+	vertical-align: top;
+	padding: 0px 2px;
+	border-radius: 7px;
+	background-color: #10130DE6;
+	text-align: center;
+	font-family: Jost, Noto Sans, sans-serif;
+	z-index: 2;
+	font-size: 12px;
+	font-weight: bold;
+	color: #FFEFD7;
+	visibility: collapse;
+}
+
+.OHHasCount .OHDebuffCount
+{
+	visibility: visible;
+}
+
+.spec_mode .OHDebuffs,
+.TeamSpectator .OHDebuffs,
+.replay_playback .OHDebuffs
+{
+	visibility: visible;
+}
+
+/* .wants_scoreboard and .gDetailView open the stock name/KDA strip down over the card; the column
+   sat on the player name there (live 2026-10-20). */
+.gScoreboardOpen .OHDebuffs,
+.wants_scoreboard .OHDebuffs,
+.gDetailView .OHDebuffs,
+.GameStatePreGameWait .OHDebuffs
+{
+	visibility: collapse;
+}
+
+/* Purchase notices (oh_buys.js), DLF's QOLLOCK popups rewritten: the last child of the column, so they
+   sit under its shown slots. One line, a frame at most 228 px wide (about two and a half stock cards),
+   so long names such as High-Velocity Rounds keep full size (live 2026-10-23: at 126 px the name shrank
+   thin); oh_buys.js stacks any notices that would overlap, by measured width.
+   The surface is the stock shop item card's paper (citadel_shop_mod_view.css, 6819): the slot/tier
+   card backer art (#CardBacker, cover), the paper wear washed per tier at 0.5 (.paperWear) and the
+   paper grain multiplied over it (.paperTexture); layers OHBuyBacker, OHBuyWear, OHBuyPaper in
+   OHBuyPaperBox. Framing follows QOLLOCK's feed (G:/QOLLOCK .quickItemInfo, .mod_icon): a 2 px
+   slot-colour border (bright, dark, darker; tier 4 bright, 3 px) on the frame and the icon.
+   OHBuyBg wobbles with the stock chat bubble's poses at 30 % (.bubble_bg ChatGroove_Allies: stepped
+   rotate and skew, 4 s loop, 400 ms frames; user 2026-10-23, "Defend the York Base Guardian" bubble,
+   then "reduce the wobble to 20%", then "increase the wobble by 10%"). Panorama
+   draws a transformed panel's edges without anti-aliasing (live 2026-10-23, 1600x900: CSS border and
+   paper stair-stepped at the stock poses; at a third of them too subtle and still jagged). So the frame
+   is three images (scripts/make-notice-frame.py: left cap, stretched middle, right cap, white, washed
+   per slot/tier) drawn anti-aliased in the texture inside a 2 px transparent rim: the quads' hard edges
+   fall in empty texels. The paper box sits 3 px in, its hard edge under the opaque band. The notice is
+   therefore 4 px larger than its frame: 40 px high, margins -2 and 1 keep the 39 px row (ROW_H) and the
+   frame's place under the column (STACK_TOP). The icon and name stay still, as the stock bubble's text.
+   The name is the font of the stock "Spotted" chat ping bubble (#MessageText: oracle bold black).
+   "oracle" is an @define in citadel_base_styles (VALVEOracle, Reaver, sans-serif), which this sheet
+   does not import: the bare name drew a plain sans live (user screenshot 2026-10-23), so the family
+   is spelled out here. Tier 4 names use the stock card's light name colours. */
+.OHBuys
+{
+	width: 232px;
+	height: fit-children;
+	horizontal-align: center;
+	margin-top: 2px;
+	flow-children: down;
+	overflow: noclip;
+}
+
+@keyframes 'OHBuyFadeIn'
+{
+	0%
+	{
+		opacity: 0;
+	}
+
+	100%
+	{
+		opacity: 1;
+	}
+}
+
+/* FADE_SEC in oh_buys.js */
+@keyframes 'OHBuyFadeOut'
+{
+	0%
+	{
+		opacity: 1;
+	}
+
+	100%
+	{
+		opacity: 0;
+	}
+}
+
+.OHBuy
+{
+	width: fit-children;
+	max-width: 232px;
+	height: 40px;
+	horizontal-align: center;
+	margin-top: -2px;
+	margin-bottom: 1px;
+	flow-children: right;
+	overflow: noclip;
+	animation-name: OHBuyFadeIn;
+	animation-duration: 0.3s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+}
+
+.OHBuy.OHBuyFading
+{
+	animation-name: OHBuyFadeOut;
+	animation-duration: 0.4s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+	animation-fill-mode: forwards;
+}
+
+/* The wobbling layer under the icon and name (out of the row's flow): the paper box is its one flow
+   child (fill-parent-flow takes the 3 px insets off the width), the frame pieces lie over it. */
+.OHBuyBg
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	flow-children: right;
+	overflow: noclip;
+	animation-name: OHBuyGroove;
+	animation-duration: 4s;
+	animation-iteration-count: infinite;
+	animation-frame-time: 400ms;
+}
+
+/* The stock ChatGroove_Allies keyframes (citadel_hud_top_bar_chat.css, 6819) at 30 %: stock
+   rotateZ(-1/1/-1/0deg) skew(9/3/7/-5deg). */
+@keyframes 'OHBuyGroove'
+{
+	0%
+	{
+		transform: rotateZ(-0.3deg) skew(2.7deg);
+	}
+
+	25%
+	{
+		transform: rotateZ(0.3deg) skew(0.9deg);
+	}
+
+	50%
+	{
+		transform: rotateZ(-0.3deg) skew(2.1deg);
+	}
+
+	75%
+	{
+		transform: rotateZ(0deg) skew(-1.5deg);
+	}
+}
+
+.OHBuyPaperBox
+{
+	width: fill-parent-flow(1.0);
+	height: 34px;
+	margin: 3px;
+	border-radius: 2px;
+	background-color: #AD7C46;
+	overflow: clip;
+}
+
+/* The frame: 40 px high pieces (2 px rim, 36 px frame), white, washed with the border colour below. */
+.OHBuyEdgeRow
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	flow-children: right;
+}
+
+.OHBuyEdgeM,
+.OHBuyEdgeL,
+.OHBuyEdgeR
+{
+	height: 100%;
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	wash-color: #EC9719;
+}
+
+/* The middle runs from x 6 to width - 6, 3 px under each 9 px cap (the caps' inner column is clear). */
+.OHBuyEdgeM
+{
+	width: fill-parent-flow(1.0);
+	margin: 0px 6px;
+	background-image: url("s2r://panorama/images/observer_hud/buy_frame2_m.vtex");
+}
+
+.OHBuyEdgeL,
+.OHBuyEdgeR
+{
+	width: 9px;
+	ignore-parent-flow: true;
+}
+
+.OHBuyEdgeL { background-image: url("s2r://panorama/images/observer_hud/buy_frame2_l.vtex"); }
+.OHBuyEdgeR { horizontal-align: right; background-image: url("s2r://panorama/images/observer_hud/buy_frame2_r.vtex"); }
+.OHBuyT4 .OHBuyEdgeM { background-image: url("s2r://panorama/images/observer_hud/buy_frame3_m.vtex"); }
+.OHBuyT4 .OHBuyEdgeL { background-image: url("s2r://panorama/images/observer_hud/buy_frame3_l.vtex"); }
+.OHBuyT4 .OHBuyEdgeR { background-image: url("s2r://panorama/images/observer_hud/buy_frame3_r.vtex"); }
+
+/* The stock shop card's paper layers inside the frame. */
+.OHBuyBacker,
+.OHBuyWear,
+.OHBuyPaper
+{
+	width: 100%;
+	height: 100%;
+}
+
+.OHBuyBacker
+{
+	background-size: cover;
+	background-position: 50% 50%;
+}
+
+.OHBuyWear
+{
+	background-image: url("s2r://panorama/images/shop/catalog/cards/shopitem_paperwear01_psd.vtex");
+	background-size: 100% 100%;
+	opacity: 0.5;
+}
+
+.OHBuyPaper
+{
+	background-image: url("s2r://panorama/images/shop/catalog/cards/shopitem_papertexture01_psd.vtex");
+	background-size: 100% 100%;
+	-s2-mix-blend-mode: multiply;
+}
+
+.OHBuyWeapon.OHBuyT1 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t1_psd.vtex"); }
+.OHBuyWeapon.OHBuyT2 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t2_psd.vtex"); }
+.OHBuyWeapon.OHBuyT3 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t3_psd.vtex"); }
+.OHBuyWeapon.OHBuyT4 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t4_psd.vtex"); }
+.OHBuyVitality.OHBuyT1 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t1_psd.vtex"); }
+.OHBuyVitality.OHBuyT2 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t2_psd.vtex"); }
+.OHBuyVitality.OHBuyT3 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t3_psd.vtex"); }
+.OHBuyVitality.OHBuyT4 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t4_psd.vtex"); }
+.OHBuySpirit.OHBuyT1 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t1_psd.vtex"); }
+.OHBuySpirit.OHBuyT2 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t2_psd.vtex"); }
+.OHBuySpirit.OHBuyT3 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t3_psd.vtex"); }
+.OHBuySpirit.OHBuyT4 .OHBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t4_psd.vtex"); }
+
+/* Wear washed per tier as the stock card (.ModTier1-4 .paperWear). */
+.OHBuyVitality.OHBuyT1 .OHBuyWear { opacity: 1; wash-color: #F3E1CC; }
+.OHBuySpirit.OHBuyT1 .OHBuyWear { opacity: 1; wash-color: #F7E8D5; }
+.OHBuyT2 .OHBuyWear { wash-color: #E6D1BF; }
+.OHBuyT3 .OHBuyWear { wash-color: #CEAD9B; }
+.OHBuyT4 .OHBuyWear { wash-color: #69615C; }
+
+.OHBuyIcon
+{
+	width: 28px;
+	height: 28px;
+	margin: 0px 0px 0px 5px;
+	vertical-align: center;
+	border-radius: 4px;
+	border: 2px solid #EC9719;
+}
+
+.OHBuyIcon.OHBuyNoIcon
+{
+	visibility: collapse;
+}
+
+/* The stock "Spotted" chat bubble's text (#MessageText: oracle bold black), with oracle spelled out. */
+.OHBuyName
+{
+	max-width: 182px;
+	margin: 0px 8px 0px 5px;
+	vertical-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 17px;
+	font-weight: bold;
+	color: black;
+	text-shadow: none;
+	white-space: nowrap;
+	text-overflow: shrink;
+}
+
+/* Fallback colour under the backer art (QOLLOCK's backerWeapon/Vitality/SpiritT1-T4). */
+.OHBuyWeapon.OHBuyT1 .OHBuyPaperBox { background-color: #E7CD9B; }
+.OHBuyWeapon.OHBuyT2 .OHBuyPaperBox { background-color: #C9A46A; }
+.OHBuyWeapon.OHBuyT3 .OHBuyPaperBox { background-color: #AD7C46; }
+.OHBuyWeapon.OHBuyT4 .OHBuyPaperBox { background-color: #534944; }
+.OHBuyVitality.OHBuyT1 .OHBuyPaperBox { background-color: #CED79A; }
+.OHBuyVitality.OHBuyT2 .OHBuyPaperBox { background-color: #A6B180; }
+.OHBuyVitality.OHBuyT3 .OHBuyPaperBox { background-color: #7C8B56; }
+.OHBuyVitality.OHBuyT4 .OHBuyPaperBox { background-color: #4E4E43; }
+.OHBuySpirit.OHBuyT1 .OHBuyPaperBox { background-color: #DDC3E5; }
+.OHBuySpirit.OHBuyT2 .OHBuyPaperBox { background-color: #AFA1C4; }
+.OHBuySpirit.OHBuyT3 .OHBuyPaperBox { background-color: #8C87B6; }
+.OHBuySpirit.OHBuyT4 .OHBuyPaperBox { background-color: #504949; }
+
+/* Border colour of the frame (washed images) and the icon: courage/fortitude/spirit Bright, Dark,
+   Darker; tier 4 bright (its frame images are 3 px). */
+.OHBuyWeapon .OHBuyIcon { border-color: #EC9719; }
+.OHBuyWeapon.OHBuyT2 .OHBuyIcon { border-color: #7F540E; }
+.OHBuyWeapon.OHBuyT3 .OHBuyIcon { border-color: #302306; }
+.OHBuyVitality .OHBuyIcon { border-color: #7BBA1D; }
+.OHBuyVitality.OHBuyT2 .OHBuyIcon { border-color: #4C7113; }
+.OHBuyVitality.OHBuyT3 .OHBuyIcon { border-color: #1F3400; }
+.OHBuySpirit .OHBuyIcon { border-color: #CE90FF; }
+.OHBuySpirit.OHBuyT2 .OHBuyIcon { border-color: #613484; }
+.OHBuySpirit.OHBuyT3 .OHBuyIcon { border-color: #362147; }
+.OHBuyWeapon .OHBuyEdgeL, .OHBuyWeapon .OHBuyEdgeM, .OHBuyWeapon .OHBuyEdgeR { wash-color: #EC9719; }
+.OHBuyWeapon.OHBuyT2 .OHBuyEdgeL, .OHBuyWeapon.OHBuyT2 .OHBuyEdgeM, .OHBuyWeapon.OHBuyT2 .OHBuyEdgeR { wash-color: #7F540E; }
+.OHBuyWeapon.OHBuyT3 .OHBuyEdgeL, .OHBuyWeapon.OHBuyT3 .OHBuyEdgeM, .OHBuyWeapon.OHBuyT3 .OHBuyEdgeR { wash-color: #302306; }
+.OHBuyVitality .OHBuyEdgeL, .OHBuyVitality .OHBuyEdgeM, .OHBuyVitality .OHBuyEdgeR { wash-color: #7BBA1D; }
+.OHBuyVitality.OHBuyT2 .OHBuyEdgeL, .OHBuyVitality.OHBuyT2 .OHBuyEdgeM, .OHBuyVitality.OHBuyT2 .OHBuyEdgeR { wash-color: #4C7113; }
+.OHBuyVitality.OHBuyT3 .OHBuyEdgeL, .OHBuyVitality.OHBuyT3 .OHBuyEdgeM, .OHBuyVitality.OHBuyT3 .OHBuyEdgeR { wash-color: #1F3400; }
+.OHBuySpirit .OHBuyEdgeL, .OHBuySpirit .OHBuyEdgeM, .OHBuySpirit .OHBuyEdgeR { wash-color: #CE90FF; }
+.OHBuySpirit.OHBuyT2 .OHBuyEdgeL, .OHBuySpirit.OHBuyT2 .OHBuyEdgeM, .OHBuySpirit.OHBuyT2 .OHBuyEdgeR { wash-color: #613484; }
+.OHBuySpirit.OHBuyT3 .OHBuyEdgeL, .OHBuySpirit.OHBuyT3 .OHBuyEdgeM, .OHBuySpirit.OHBuyT3 .OHBuyEdgeR { wash-color: #362147; }
+
+/* Tier 4 sits on a dark backer: the stock card's tier 4 name colours (.isWeapon/.isArmor/.isTech.ModTier4 .modName). */
+.OHBuyWeapon.OHBuyT4 .OHBuyName { color: #E4C5A1; }
+.OHBuyVitality.OHBuyT4 .OHBuyName { color: #C2E7CD; }
+.OHBuySpirit.OHBuyT4 .OHBuyName { color: #E3D4F2; }

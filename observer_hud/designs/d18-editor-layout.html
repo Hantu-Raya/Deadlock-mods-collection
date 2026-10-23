@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>18 · Editor layout proposal</title>
+<link rel="stylesheet" href="assets/generated.css">
+<style>
+/* Design 18: a re-seated in-game editor (observer_hud/panorama/layout/observer_hud/editor.xml).
+   Every value is copied from the built editor (oh_editor.css) and the stock Deadlock rules it uses
+   (citadel_base_styles.css: SecondaryButton light / fill; sans = Radiance -> Retail Demo, block = VALVE Pulp,
+   oracle = VALVE Oracle; offWhite #FFEFD7, offBlack #10130D, silvered #C6C6C6; Panorama &XX = hex alpha).
+   Game assets: switch_background / switch_handle_off / switch_handle_on (svg), button_nav_mask_threshold
+   (mask with the 2% 1% threshold baked in), paper_tile_1k (nav brush), temp_background_environment (shell).
+   Query: ?page=match|teams|players|topbar|desk|timers|share and ?look=names|desk. */
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: 'Retail Demo', sans-serif; color: #FFEFD7DD; }
+/* The match behind the Escape menu; .OHBackdrop #000000E6 over it. */
+.scene { position: absolute; inset: 0; background: url("assets/game/scene_backdrop.jpg") center / cover; }
+.scene::after { content: ""; position: absolute; inset: 0; background: #000000E6; }
+/* .OHShell + .OHShellBg */
+.shell { position: absolute; left: 320px; top: 150px; width: 1280px; height: 780px; display: flex; border: 1px solid #FFEFD71C; border-radius: 6px; background: #0B0D10; overflow: hidden; }
+.shell::before { content: ""; position: absolute; inset: 0; background: url("assets/game/buttons__temp_background_environment_png.png") center / cover; opacity: 0.7; pointer-events: none; }
+.shell > * { position: relative; }
+/* .OHRail, .OHRailKicker */
+.rail { width: 230px; height: 100%; padding: 28px 12px 0 12px; display: flex; flex-direction: column; }
+.kicker { margin: 0 0 18px 24px; font-family: 'VALVE Oracle'; font-size: 14px; font-weight: 600; letter-spacing: 2px; color: #FFEFD766; }
+.kicker .look { display: block; margin-top: 3px; font-family: 'Retail Demo'; font-size: 14px; font-weight: 400; letter-spacing: 0; color: #FFEFD788; }
+/* .OHNavButton, .OHNavBrush (paper_tile_1k washed #5FE69E, brightness 4, rotateX(-20deg) rotateY(20deg),
+   button_nav_mask_threshold), .OHNavLabel */
+.nav { height: 44px; display: flex; align-items: center; position: relative; }
+.nav .brush { position: absolute; inset: 0; opacity: 0; background: #5FE69E url("assets/game/textures__paper_tile_1k_psd.png") center / 512px; background-blend-mode: multiply; filter: brightness(1.35) saturate(1.1); transform: perspective(600px) rotateX(-20deg) rotateY(20deg); -webkit-mask: var(--m-button-nav-mask-threshold-psd) center / 100% 100% no-repeat; mask: var(--m-button-nav-mask-threshold-psd) center / 100% 100% no-repeat; }
+.nav.sel .brush { opacity: 1; }
+.nav .lbl { position: relative; margin-left: 24px; font-family: 'VALVE Oracle'; font-size: 24px; font-weight: 600; text-transform: uppercase; color: #FFEFD788; white-space: nowrap; }
+.nav.sel .lbl { color: #10130D; }
+.nav.off .lbl { color: #FFEFD744; }
+.nav .sub { position: relative; margin-left: 8px; font-size: 14px; color: #FFEFD788; }
+.nav.sel .sub { color: #10130D; }
+/* .OHCredits: Donate (SecondaryButton light OHDonate), author, version; flow up. */
+.credits { margin-top: auto; padding: 0 12px 22px 24px; display: flex; flex-direction: column; align-items: flex-start; }
+.credits .author { margin-top: 10px; font-size: 15px; font-weight: 600; color: #FFEFD788; }
+.credits .version { margin-top: 4px; font-size: 14px; color: #FFEFD744; }
+/* .OHContent, .OHPageHead, .OHPageTitle, .OHPageDescription, .OHPages */
+.content { position: relative; flex: 1; height: 100%; padding: 22px 20px 0 8px; display: flex; flex-direction: column; min-width: 0; }
+.title { font-family: 'VALVE Oracle'; font-size: 44px; font-weight: 600; letter-spacing: 1.5px; line-height: 1.1; background: linear-gradient(#5FE69E, #A6FFB5); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.desc { margin-bottom: 10px; font-size: 17px; color: #FFEFD799; }
+.inl { margin: 0 8px 0 16px; font-size: 17px; font-weight: 600; color: #FFEFD766; }
+.ctitle .where { margin: 0 0 0 6px; font-weight: 400; letter-spacing: 0; }
+.pages { flex: 1; overflow: hidden; padding-right: 14px; position: relative; }
+.pages.over::after { content: "SCROLLS"; position: absolute; right: 18px; bottom: 4px; font-size: 12px; color: #FF7A7A; }
+/* .OHCard, .OHCardTitle; the scope tag reuses the .OHRailKicker type. */
+.card { background: #10130D59; border-radius: 4px; margin-bottom: 14px; padding-bottom: 4px; }
+.cols { display: flex; gap: 14px; } .cols > .card { flex: 1; min-width: 0; }
+.ctitle { display: flex; align-items: baseline; margin: 16px 0 6px 24px; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; color: #FFEFD7CC; }
+.scope { margin-left: 14px; font-family: 'VALVE Oracle'; font-size: 14px; font-weight: 600; letter-spacing: 2px; color: #FFEFD766; text-transform: uppercase; }
+.amber { color: #FFC15A; } .sapphire { color: #8FB2FF; }
+/* .OHRow, .OHRowTitle, .OHRowControls, .OHTallRow */
+.row { min-height: 48px; padding: 6px 24px; display: flex; align-items: center; border-top: 1px solid #00000080; }
+.row.tall { align-items: flex-start; }
+.row.tall .label { padding-top: 8px; }
+.label { width: 230px; flex: none; padding-right: 16px; font-size: 17px; font-weight: 600; color: #FFEFD766; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cols .label { width: 170px; }
+.ctrls { flex: 1; display: flex; align-items: center; flex-wrap: wrap; min-width: 0; }
+.row.tall .ctrls { flex-direction: column; align-items: stretch; }
+/* .OHEntry (+ #PlaceholderText #FFEFD744), .OHTagEntry */
+.entry { flex: 1; height: 36px; padding: 6px 10px 4px; background: #10130D99; border: 2px solid #FFEFD714; border-radius: 4px; font-size: 17px; color: #FFEFD7DD; white-space: nowrap; overflow: hidden; }
+.entry.ph { color: #FFEFD744; }
+.entry.tagbox { flex: none; width: 96px; }
+/* Stock SecondaryButton light (+ .OHChoice / .OHStepButton / .OHAction / .OHDonate); picked = light fill. */
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 15px; margin: 8px; border: 2px solid #C6C6C650; border-radius: 50px; }
+.btn span { margin-bottom: 2px; font-family: 'Valve Pulp'; font-size: 18px; font-weight: 600; color: #C6C6C690; white-space: nowrap; }
+.btn.on { background: #FFEFD744; border-color: #FFEFD700; }
+.btn.on span { color: #10130D; }
+.btn.choice { min-width: 64px; margin: 0 8px 0 0; }
+.btn.wide { min-width: 190px; }
+.btn.stepb { min-width: 40px; }
+.btn.action { margin: 0 0 0 8px; }
+.btn.headbtn { position: absolute; right: 34px; top: 34px; }
+.btn.donate { margin: 0; padding: 4px 14px; } .btn.donate span { font-size: 14px; }
+/* .OHStepValue, .OHPollValue */
+.val { width: 48px; text-align: center; font-family: 'VALVE Oracle'; font-size: 22px; font-weight: 600; color: #FFEFD7; }
+.val.poll { width: 86px; font-size: 18px; }
+/* .OHNote, .OHInlineNote, .OHHelp */
+.note { margin-top: 3px; font-size: 14px; color: #FFEFD788; }
+.ctrls > .note { margin: 0 0 0 6px; }
+.row.tall .ctrls > .note { margin: 3px 0 0 0; }
+.help { margin: 0 24px 8px 24px; font-size: 16px; color: #FFEFD799; }
+/* .OHToggle (switch_background.vsvg), .OHToggleOff / .OHToggleOn handles, .OHToggleText */
+.toggle { width: 40px; height: 20px; display: inline-flex; background: url("assets/game/buttons__switch_background.svg") center / 40px 20px no-repeat; }
+.toggle i { width: 20px; height: 20px; background: url("assets/game/buttons__switch_handle_off.svg") 0 0 / 20px 20px no-repeat; }
+.toggle.on i { margin-left: 20px; background-image: url("assets/game/buttons__switch_handle_on.svg"); }
+.tglText { margin-left: 12px; font-size: 16px; font-weight: 600; color: #FFEFD788; }
+/* .OHBanSlot, .OHBanSlotImage, .OHBanSlotLabel (.OHBanSet) */
+.ban { width: 220px; height: 44px; margin-right: 10px; display: inline-flex; align-items: center; background: #10130D99; border: 2px solid #FFEFD714; border-radius: 4px; font-size: 16px; color: #FFEFD766; }
+.ban img { width: 34px; height: 34px; margin: 3px 10px 3px 3px; border-radius: 50%; object-fit: cover; }
+.ban.set { color: #FFEFD7; }
+.ban.none::before { content: ""; width: 34px; height: 34px; margin: 3px 10px 3px 3px; }
+.dim { opacity: 0.42; }
+/* Read-only help rows (.OHInfoRow + .OHInfoText) */
+.info { display: grid; grid-template-columns: 1fr 1fr; }
+.info .label { width: 120px; }
+.info .row { align-items: flex-start; }
+.itext { font-size: 16px; color: #FFEFD799; line-height: 1.3; }
+/* .OHFooter, .OHSaveStatus (.OHSaveOk), .OHFooterButton, .OHDoneButton */
+.footer { height: 56px; display: flex; align-items: center; }
+.footer .save { margin-right: auto; font-family: 'Valve Pulp'; font-size: 18px; font-weight: 400; text-transform: uppercase; color: #5FE69E; }
+.footer .fb { margin-left: 28px; font-family: 'Valve Pulp'; font-size: 20px; font-weight: 400; text-transform: uppercase; color: #FFEFD744; }
+.footer .done { color: #5FE69E; }
+.caption { position: absolute; left: 320px; top: 952px; width: 1280px; font-size: 18px; color: #FFEFD7AA; }
+.caption b { color: #FFEFD7; }
+</style>
+</head>
+<body>
+<div class="scene"></div>
+<div class="shell">
+  <div class="rail" id="rail"></div>
+  <div class="content">
+    <div class="title" id="title"></div>
+    <div class="desc" id="desc"></div>
+    <div class="pages" id="pages"></div>
+    <div class="footer" id="footer"></div>
+  </div>
+</div>
+<div class="caption" id="caption"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const LOOK = q.get("look") === "desk" ? "desk" : "names";
+const DESK = LOOK === "desk";
+const LOOK_NAME = DESK ? "Night Desk" : "Base Game+ Names";
+
+// --- controls (markup helpers)
+const btn = (t, cls = "") => `<span class="btn ${cls}"><span>${t}</span></span>`;
+const pills = (list, on, wide) => list.map((t) => btn(t, `choice${wide ? " wide" : ""}${t === on ? " on" : ""}`)).join("");
+const step = (v, n) => `${btn("-", "stepb")}<span class="val${n ? "" : " poll"}">${v}</span>${btn("+", "stepb")}`;
+const entry = (t, ph, cls = "") => `<span class="entry${t ? "" : " ph"} ${cls}">${t || ph}</span>`;
+const note = (t) => `<span class="note">${t}</span>`;
+const inl = (t) => `<span class="inl">${t}</span>`;
+const toggle = (on) => `<span class="toggle${on ? " on" : ""}"><i></i></span><span class="tglText">${on ? "ON" : "OFF"}</span>`;
+const ban = (hero, name) => hero ? `<span class="ban set"><img src="assets/game/heroes/${hero}_sm_psd.png" alt="">${name}</span>` : `<span class="ban none">${name}</span>`;
+const row = (label, ctrls, tall) => `<div class="row${tall ? " tall" : ""}"><span class="label">${label}</span><span class="ctrls">${ctrls}</span></div>`;
+const tag = (kind) => kind === "desk" ? `<span class="scope">Night Desk only</span>` : kind === "both" ? `<span class="scope">Both looks</span>` : "";
+const card = (title, rows, opts = {}) => `<div class="card${opts.dim ? " dim" : ""}"><div class="ctitle"><span class="${opts.cls || ""}">${title}</span>${tag(opts.tag)}${opts.where ? `<span class="note where">${opts.where}</span>` : ""}</div>${opts.help ? `<div class="help">${opts.help}</div>` : ""}${rows.join("")}</div>`;
+const CUES = ["Off", "15 s", "30 s", "60 s", "2 min", "Always"];
+
+// --- pages: [id, rail label, title, description, html]
+const PAGES = [
+  ["match", "Match", "MATCH", "Changes between games: the stage, the series score and the bans.", () => [
+    card("Series", [
+      row("Stage", entry("Grand Final", "e.g. Grand Final")),
+      row("Format", pills(["Bo1", "Bo3", "Bo5", "Bo7"], "Bo3") + note("first to 2")),
+      row(`<span class="amber">Night Owls</span> wins`, step("1", true) + note("of 2")),
+      row(`<span class="sapphire">Brass Saints</span> wins`, step("0", true) + note("of 2"))
+    ], { tag: "both", where: "plates and the centre tab" }),
+    card("Bans", [
+      row(`<span class="amber">Night Owls</span> bans`, ban("bebop", "Bebop") + ban("", "Ban 2: none")),
+      row(`<span class="sapphire">Brass Saints</span> bans`, ban("astro", "Holliday") + ban("", "Ban 2: none"))
+    ], { tag: "both", where: "beside the clock" })
+  ].join("")],
+  ["teams", "Teams", "TEAMS", "Each side's name, tag and logo, and how both logos are drawn.", () => [
+    card("Amber side", [
+      row("Team name", entry("Night Owls", "e.g. Night Owls") + inl("Tag") + entry("NOW", "NOW", "tagbox")),
+      row("Logo URL", entry("", "https://.../logo.png (optional)") + note("Logo loaded."), true)
+    ], { cls: "amber" }),
+    card("Sapphire side", [
+      row("Team name", entry("Brass Saints", "e.g. Brass Saints") + inl("Tag") + entry("BRS", "BRS", "tagbox")),
+      row("Logo URL", entry("", "https://.../logo.png (optional)"), true)
+    ], { cls: "sapphire" }),
+    card("Team logos", [
+      row("Shape", pills(["Circle", "Square"], "Circle")),
+      row("Size", step("30 px") + note(DESK ? "Night Desk: 24-50 px; past 30 the cards spread" : "Base Game+ Names: 28-34 px; the plate grows with it")),
+      `<div class="${DESK ? "" : "dim"}">${row("Name gap", step("12 px") + note("Night Desk only · logo to team name"))}</div>`
+    ], { tag: "both", where: "both sides" })
+  ].join("")],
+  ["players", "Players", "PLAYERS", "An alias per player, by in-game name, and the status column under each card.", () => {
+    const side = (title, cls, names) => card(title, names.map((n) => row(n, entry(n === "Kestrel" ? "kestrel.tv" : "", "alias (optional)"))), { cls });
+    return `<div class="cols">${side("Amber side", "amber", ["Kestrel", "Moth", "Doyle", "Frostbyte", "Vesper", "Ironclad"])}${side("Sapphire side", "sapphire", ["Volt", "Mole", "Geist", "Talon", "Pocketwatch", "Tidal"])}</div>` + card("Status column", [
+      row("Status column", toggle(true) + note("ultimates and debuffs with their time left")),
+      row("World-bar poll", step("250 ms") + note("lower reacts faster, costs more CPU")),
+      row("Status log", toggle(false) + note("[OH-DB] console lines; for bug reports"))
+    ], { tag: "both", where: "under each top-bar card · this PC only, not in share codes" });
+  }],
+  ["topbar", "Top bar", "TOP BAR", "The top bar's look and the text in its centre and corner.", () => [
+    card("Look", [
+      row("Look", pills(["Base Game+ Names", "Night Desk"], LOOK_NAME, true)),
+      row("", note(DESK ? "A 56 px band with corner text and the info card (NIGHT DESK page)." : "Player names in a strip over the cards; team plates at the screen's top edge."))
+    ]),
+    card("Organiser and event", [
+      row("Organiser name", entry("Community Cup", "e.g. Community Cup") + note("centre of the top bar")),
+      row("Organiser logo URL", entry("", "https://.../logo.png") + note("replaces the organiser name"), true),
+      row("Event title", entry("Community Cup Season 2", "e.g. Community Cup Season 2") + note(DESK ? "top-left corner" : "centre, only while the organiser name is empty"), true)
+    ], { tag: "both" })
+  ].join("")],
+  ["desk", "Night Desk", "NIGHT DESK", "Settings only the Night Desk look uses.", () => {
+    const banner = "";
+    return banner + [
+      card("Info card", [
+        row("Title", entry("Prize pool", "e.g. Prize pool (empty: no card)")),
+        row("Value", entry("$2,130", "e.g. $2,130")),
+        row("Caption", entry("Donate to increase", "e.g. Donate to increase"))
+      ], { tag: "desk", where: "right of the band", dim: !DESK })
+    ].join("");
+  }],
+  ["timers", "Timers", "TIMERS", "What shows under the clock: the objective timers and the soul lead graph.", () => [
+    card("Objective timers", [
+      row("Bridge buff", pills(CUES, "30 s")),
+      row("Urn", pills(CUES, "30 s")),
+      row("Mid-boss", pills(CUES, "30 s")),
+      row("Rift", pills(["Off", "On"], "On") + note("the game warns 20 s before it opens"))
+    ], { tag: "both", where: "under the clock", help: "How long before its spawn each timer shows. A held rejuvenator always shows." }),
+    card("Soul lead graph", [
+      row("Shows for", pills(["Off", "15 s", "30 s", "60 s", "Always"], "30 s") + note("at each mark")),
+      row("Marks every", pills(["1 min", "2 min", "3 min", "5 min", "10 min"], "5 min")),
+      row("Size · X · Y", step("100%") + inl("X") + step("0 px") + inl("Y") + step("0 px"))
+    ], { tag: "both", where: "under the timers (and any objective health bar)" })
+  ].join("")],
+  ["share", "Share", "SHARE", "Carry the whole setup to another observer PC.", () => [
+    card("Share code", [
+      row("Code", entry("", "OHC1....") + btn("Copy code", "action") + btn("Import", "action"))
+    ], { help: "Copy the code to another observer PC, or paste one here and import it." }),
+    `<div class="card"><div class="ctitle">What the code carries</div><div class="info">
+      ${row("Match", `<span class="itext">Stage, format, series wins and bans.</span>`)}
+      ${row("Teams", `<span class="itext">Names, tags, logo URLs, logo shape, size and gap.</span>`)}
+      ${row("Players", `<span class="itext">Every alias, by in-game name.</span>`)}
+      ${row("Top bar", `<span class="itext">The look, organiser name and logo, event title.</span>`)}
+      ${row("Night Desk", `<span class="itext">The info card and the graph settings.</span>`)}
+      ${row("Timers", `<span class="itext">The objective timers. The status column stays on this PC.</span>`)}
+    </div></div>`,
+    card("How to use it", [
+      row("1. Copy", `<span class="itext">Press Copy code: the code is selected in the box and copied.</span>`),
+      row("2. Send", `<span class="itext">Paste it to the other observer (chat, Discord, a text file).</span>`),
+      row("3. Import", `<span class="itext">On that PC, paste it in the box and press Import. The top bar changes at once.</span>`)
+    ])
+  ].join("")]
+];
+
+const pageId = PAGES.some((p) => p[0] === q.get("page")) ? q.get("page") : "match";
+const [, , title, desc, html] = PAGES.find((p) => p[0] === pageId);
+document.getElementById("rail").innerHTML =
+  `<div class="kicker">OBSERVER HUD<span class="look">Look: ${LOOK_NAME}</span></div>` +
+  PAGES.map(([id, label]) => `<div class="nav${id === pageId ? " sel" : ""}${id === "desk" && !DESK ? " off" : ""}"><div class="brush"></div><span class="lbl">${label}</span>${id === "desk" && !DESK ? `<span class="sub">off</span>` : ""}</div>`).join("") +
+  `<div class="credits">${btn("Donate", "donate")}<span class="author">by hanturaya</span><span class="version">v0.1.0</span></div>`;
+document.getElementById("title").textContent = title;
+document.getElementById("desc").textContent = pageId === "desk" && !DESK ? "Only Night Desk uses these. Base Game+ Names is picked, so they are kept but not shown." : desc;
+if (pageId === "desk" && !DESK) document.querySelector(".content").insertAdjacentHTML("beforeend", btn("Use Night Desk", "action headbtn"));
+const pages = document.getElementById("pages");
+pages.innerHTML = html();
+const resetPage = pageId === "share" ? "" : `<span class="fb">Reset ${PAGES.find((p) => p[0] === pageId)[1]}</span>`;
+document.getElementById("footer").innerHTML = `<span class="save">Saved</span>${resetPage}<span class="fb">Reset all</span><span class="fb done">Done</span>`;
+pages.classList.toggle("over", pages.scrollHeight > pages.clientHeight + 1);
+document.getElementById("caption").innerHTML = `<b>18 · Editor layout proposal</b> · page ${title} · look ${LOOK_NAME}${pages.scrollHeight > pages.clientHeight + 1 ? " · <b style=color:#ff7a7a>needs scrolling</b>" : ""}`;
+window.OH_OVERFLOW = pages.scrollHeight - pages.clientHeight;
+</script>
+</body>
+</html>

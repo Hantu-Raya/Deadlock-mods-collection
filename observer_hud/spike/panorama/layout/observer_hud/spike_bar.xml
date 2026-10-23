@@ -1,0 +1,20 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/observer_hud/spike_bar.vcss_c" />
+	</styles>
+	<Panel class="OHSpikeBar" hittest="false" hittestchildren="false">
+		<Panel id="OHSpikeLeft" class="OHSpikePlate">
+			<Panel id="OHSpikeLogoSlot" class="OHSpikeLogoSlot" />
+			<Label id="OHSpikeLeftText" class="OHSpikeText" text="OH SPIKE LEFT" />
+			<CitadelHeroImage id="OHSpikeBan" class="OHSpikeBan" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+		</Panel>
+		<Panel id="OHSpikeRight" class="OHSpikePlate">
+			<Label id="OHSpikeRightText" class="OHSpikeText" text="OH SPIKE RIGHT" />
+		</Panel>
+		<Panel id="OHSpikeClock" class="OHSpikeClock">
+			<Label id="OHSpikeStage" class="OHSpikeStage" text="GRAND FINAL" />
+			<Label id="OHSpikeEcho" class="OHSpikeEcho" text="(type in the ESC spike editor)" />
+		</Panel>
+		<Label id="OHSpikeGate" class="OHSpikeGate" text="GATE: SPECTATOR CSS OK" />
+	</Panel>
+</root>

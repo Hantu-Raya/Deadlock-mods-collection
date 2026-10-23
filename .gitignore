@@ -58,6 +58,9 @@ help.txt
 /.scratch/
 /.unlazy/
 /hp_colors_v2_bar_styles.png
+/observer_hud/designs/shots/
+/observer_hud/shots/
+/observer_hud/spike/shots/
 
 # Editor/System files
 .vscode/

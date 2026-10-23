@@ -1,0 +1,9 @@
+.OHSpikeMenu { width: 100%; height: 100%; }
+.OHSpikeButton { horizontal-align: center; vertical-align: top; margin-top: 40px; padding: 8px 16px; background-color: #1f2a1fe0; border: 2px solid #e8c37a; border-radius: 4px; }
+.OHSpikeButton:hover { background-color: #3a4a2ae0; }
+.OHSpikeButton Label { font-family: "Retail Demo"; font-weight: bold; font-size: 18px; color: #ffefd7; }
+.OHSpikeEditor { visibility: collapse; horizontal-align: center; vertical-align: center; width: 520px; flow-children: down; padding: 20px; background-color: #10130df0; border: 2px solid #e8c37a; border-radius: 6px; }
+.OHOpen .OHSpikeEditor { visibility: visible; }
+.OHSpikeHint { font-family: "Retail Demo"; font-size: 16px; color: #ffefd7; }
+.OHSpikeEntry { width: 100%; height: 40px; margin-top: 10px; font-size: 20px; color: #ffffff; background-color: #000000; border: 1px solid #ffefd7; }
+.OHSpikeEditor .OHSpikeButton { margin-top: 12px; }

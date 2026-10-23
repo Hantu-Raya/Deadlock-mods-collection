@@ -1,0 +1,177 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss" />
+		<include src="s2r://panorama/styles/observer_hud/oh_editor.vcss_c" />
+	</styles>
+	<Panel class="OHMenu" hittest="false">
+		<Panel id="OHEditor" class="OHEditor" hittest="false">
+			<Button id="OHBackdrop" class="OHBackdrop" />
+			<Panel id="OHShell" class="OHShell">
+				<Panel class="OHShellBg" hittest="false" />
+				<Panel id="OHBody" class="OHBody">
+					<Panel class="OHRail">
+						<Panel class="OHRailHead"><Label class="OHRailKicker" text="OBSERVER HUD" /><Label id="OHRailLook" class="OHNote OHRailLook" text="" /></Panel>
+						<Button id="OHNavMatch" class="OHNavButton"><Panel class="OHNavBrush" hittest="false" /><Label class="OHNavLabel" text="MATCH" hittest="false" /></Button>
+						<Button id="OHNavTeams" class="OHNavButton"><Panel class="OHNavBrush" hittest="false" /><Label class="OHNavLabel" text="TEAMS" hittest="false" /></Button>
+						<Button id="OHNavPlayers" class="OHNavButton"><Panel class="OHNavBrush" hittest="false" /><Label class="OHNavLabel" text="PLAYERS" hittest="false" /></Button>
+						<Button id="OHNavTopBar" class="OHNavButton"><Panel class="OHNavBrush" hittest="false" /><Label class="OHNavLabel" text="TOP BAR" hittest="false" /></Button>
+						<Button id="OHNavDesk" class="OHNavButton"><Panel class="OHNavBrush" hittest="false" /><Label class="OHNavLabel" text="NIGHT DESK" hittest="false" /><Label class="OHNavSub" text="off" hittest="false" /></Button>
+						<Button id="OHNavTimers" class="OHNavButton"><Panel class="OHNavBrush" hittest="false" /><Label class="OHNavLabel" text="TIMERS" hittest="false" /></Button>
+						<Button id="OHNavShare" class="OHNavButton"><Panel class="OHNavBrush" hittest="false" /><Label class="OHNavLabel" text="SHARE" hittest="false" /></Button>
+						<Panel class="OHCredits">
+							<Button id="OHDonate" class="SecondaryButton light OHDonate"><Label text="Donate" hittest="false" /></Button>
+							<Button id="OHAuthor" class="OHAuthor"><Label id="OHAuthorLabel" class="OHAuthorLabel" text="by hanturaya" hittest="false" /></Button>
+							<Label id="OHVersion" class="OHVersion" text="v0.1.0" />
+						</Panel>
+					</Panel>
+					<Panel class="OHContent">
+						<Panel class="OHPageHead">
+							<Label id="OHPageTitle" class="OHPageTitle" text="MATCH" />
+							<Label id="OHStatus" class="OHPageDescription" text="" />
+							<Button id="OHUseDesk" class="SecondaryButton light OHAction OHUseDesk"><Label text="Use Night Desk" /></Button>
+						</Panel>
+						<Panel class="OHPages">
+						<Panel class="OHPage OHPageMatch">
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Series" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="on the plates and in the centre tab" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Stage" /><Panel class="OHRowControls"><TextEntry id="OHStageEntry" class="OHEntry" maxchars="28" placeholder="e.g. Grand Final" text="" /></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Format" /><Panel class="OHRowControls"><Button id="OHBo1" class="SecondaryButton light OHChoice"><Label text="Bo1" /></Button><Button id="OHBo3" class="SecondaryButton light OHChoice"><Label text="Bo3" /></Button><Button id="OHBo5" class="SecondaryButton light OHChoice"><Label text="Bo5" /></Button><Button id="OHBo7" class="SecondaryButton light OHChoice"><Label text="Bo7" /></Button><Label id="OHFormatNote" class="OHNote OHInlineNote" text="" /></Panel></Panel>
+								<Panel class="OHRow"><Label id="OHAmberSeriesTitle" class="OHRowTitle OHTeamAmber" text="" /><Panel class="OHRowControls"><Button id="OHAmberSeriesDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHAmberSeriesValue" class="OHStepValue" text="" /><Button id="OHAmberSeriesUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button><Label id="OHAmberSeriesNote" class="OHNote OHInlineNote" text="" /></Panel></Panel>
+								<Panel class="OHRow"><Label id="OHSapphireSeriesTitle" class="OHRowTitle OHTeamSapphire" text="" /><Panel class="OHRowControls"><Button id="OHSapphireSeriesDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHSapphireSeriesValue" class="OHStepValue" text="" /><Button id="OHSapphireSeriesUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button><Label id="OHSapphireSeriesNote" class="OHNote OHInlineNote" text="" /></Panel></Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Bans" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="beside the clock" /></Panel>
+								<Panel class="OHRow"><Label id="OHAmberBansTitle" class="OHRowTitle OHTeamAmber" text="" /><Panel class="OHRowControls"><Button id="OHAmberBan0" class="OHBanSlot"><CitadelHeroImage id="OHAmberBan0Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHAmberBan0Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHAmberBan1" class="OHBanSlot"><CitadelHeroImage id="OHAmberBan1Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHAmberBan1Label" class="OHBanSlotLabel" text="" hittest="false" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label id="OHSapphireBansTitle" class="OHRowTitle OHTeamSapphire" text="" /><Panel class="OHRowControls"><Button id="OHSapphireBan0" class="OHBanSlot"><CitadelHeroImage id="OHSapphireBan0Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHSapphireBan0Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHSapphireBan1" class="OHBanSlot"><CitadelHeroImage id="OHSapphireBan1Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHSapphireBan1Label" class="OHBanSlotLabel" text="" hittest="false" /></Button></Panel></Panel>
+							</Panel>
+						</Panel>
+						<Panel class="OHPage OHPageTeams">
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamAmber" text="Amber side" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Team name" /><Panel class="OHRowControls"><TextEntry id="OHAmberNameEntry" class="OHEntry OHNameEntry" maxchars="28" placeholder="e.g. Night Owls" text="" /><Label class="OHInlineLabel" text="Tag" /><TextEntry id="OHAmberTagEntry" class="OHEntry OHTagEntry" maxchars="4" placeholder="NOW" text="" /></Panel></Panel>
+								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHAmberLogoEntry" class="OHEntry" maxchars="512" placeholder="https://.../logo.png (optional)" text="" /><Label id="OHAmberLogoNote" class="OHNote" text="" /></Panel></Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamSapphire" text="Sapphire side" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Team name" /><Panel class="OHRowControls"><TextEntry id="OHSapphireNameEntry" class="OHEntry OHNameEntry" maxchars="28" placeholder="e.g. Brass Saints" text="" /><Label class="OHInlineLabel" text="Tag" /><TextEntry id="OHSapphireTagEntry" class="OHEntry OHTagEntry" maxchars="4" placeholder="BRS" text="" /></Panel></Panel>
+								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHSapphireLogoEntry" class="OHEntry" maxchars="512" placeholder="https://.../logo.png (optional)" text="" /><Label id="OHSapphireLogoNote" class="OHNote" text="" /></Panel></Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Team logos" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="both sides" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Shape" /><Panel class="OHRowControls"><Button id="OHLogoCircle" class="SecondaryButton light OHChoice"><Label text="Circle" /></Button><Button id="OHLogoSquare" class="SecondaryButton light OHChoice"><Label text="Square" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Size" /><Panel class="OHRowControls"><Button id="OHLogoSizeDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHLogoSizeValue" class="OHStepValue OHPollValue" text="" /><Button id="OHLogoSizeUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button><Label id="OHLogoSizeNote" class="OHNote OHInlineNote" text="" /></Panel></Panel>
+								<Panel class="OHRow OHDeskOnly"><Label class="OHRowTitle" text="Name gap" /><Panel class="OHRowControls"><Button id="OHLogoGapDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHLogoGapValue" class="OHStepValue OHPollValue" text="" /><Button id="OHLogoGapUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button><Label class="OHNote OHInlineNote" text="Night Desk only: logo to team name" /></Panel></Panel>
+							</Panel>
+						</Panel>
+						<Panel class="OHPage OHPagePlayers">
+							<Panel class="OHCols">
+								<Panel class="OHCard OHColCard">
+									<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamAmber" text="Amber side" /></Panel>
+									<Panel id="OHAmberPlayer0Row" class="OHRow OHPlayerRow"><Label id="OHAmberPlayer0Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHAmberPlayer0Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHAmberPlayer1Row" class="OHRow OHPlayerRow"><Label id="OHAmberPlayer1Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHAmberPlayer1Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHAmberPlayer2Row" class="OHRow OHPlayerRow"><Label id="OHAmberPlayer2Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHAmberPlayer2Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHAmberPlayer3Row" class="OHRow OHPlayerRow"><Label id="OHAmberPlayer3Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHAmberPlayer3Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHAmberPlayer4Row" class="OHRow OHPlayerRow"><Label id="OHAmberPlayer4Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHAmberPlayer4Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHAmberPlayer5Row" class="OHRow OHPlayerRow"><Label id="OHAmberPlayer5Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHAmberPlayer5Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Label id="OHAmberPlayersEmpty" class="OHNote OHPlayersEmpty" text="Players appear here once the match is spectated." />
+								</Panel>
+								<Panel class="OHCard OHColCard OHColCardLast">
+									<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamSapphire" text="Sapphire side" /></Panel>
+									<Panel id="OHSapphirePlayer0Row" class="OHRow OHPlayerRow"><Label id="OHSapphirePlayer0Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHSapphirePlayer0Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHSapphirePlayer1Row" class="OHRow OHPlayerRow"><Label id="OHSapphirePlayer1Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHSapphirePlayer1Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHSapphirePlayer2Row" class="OHRow OHPlayerRow"><Label id="OHSapphirePlayer2Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHSapphirePlayer2Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHSapphirePlayer3Row" class="OHRow OHPlayerRow"><Label id="OHSapphirePlayer3Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHSapphirePlayer3Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHSapphirePlayer4Row" class="OHRow OHPlayerRow"><Label id="OHSapphirePlayer4Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHSapphirePlayer4Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Panel id="OHSapphirePlayer5Row" class="OHRow OHPlayerRow"><Label id="OHSapphirePlayer5Game" class="OHRowTitle OHPlayerGame" text="" /><Panel class="OHRowControls"><TextEntry id="OHSapphirePlayer5Entry" class="OHEntry" maxchars="24" placeholder="alias (optional)" text="" /></Panel></Panel>
+									<Label id="OHSapphirePlayersEmpty" class="OHNote OHPlayersEmpty" text="Players appear here once the match is spectated." />
+								</Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Purchase notices" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="on the buyer's card, under the status column" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Show each" /><Panel class="OHRowControls"><Button id="OHBuysOff" class="SecondaryButton light OHChoice"><Label text="Off" /></Button><Button id="OHBuys3" class="SecondaryButton light OHChoice"><Label text="3 s" /></Button><Button id="OHBuys5" class="SecondaryButton light OHChoice"><Label text="5 s" /></Button><Button id="OHBuys8" class="SecondaryButton light OHChoice"><Label text="8 s" /></Button><Button id="OHBuys15" class="SecondaryButton light OHChoice"><Label text="15 s" /></Button><Label class="OHNote OHInlineNote" text="newest on top, three at most" /></Panel></Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Status column" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="under each top-bar card; this PC only, not in share codes" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Status column" /><Panel class="OHRowControls"><Button id="OHDebuffToggle" class="OHToggle"><Panel class="OHToggleOff" hittest="false" /><Panel class="OHToggleOn" hittest="false" /></Button><Label id="OHDebuffToggleLabel" class="OHToggleText" text="" /><Label class="OHNote OHInlineNote" text="ultimates and debuffs with their time left" /></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="World-bar poll" /><Panel class="OHRowControls"><Button id="OHPollDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHPollValue" class="OHStepValue OHPollValue" text="" /><Button id="OHPollUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button><Label class="OHNote OHInlineNote" text="lower reacts faster and costs more CPU; default 250 ms" /></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Status log" /><Panel class="OHRowControls"><Button id="OHLogToggle" class="OHToggle"><Panel class="OHToggleOff" hittest="false" /><Panel class="OHToggleOn" hittest="false" /></Button><Label id="OHLogToggleLabel" class="OHToggleText" text="" /><Label class="OHNote OHInlineNote" text="[OH-DB] console lines; leave off unless reporting a bug" /></Panel></Panel>
+							</Panel>
+						</Panel>
+						<Panel class="OHPage OHPageTopBar">
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Look" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Look" /><Panel class="OHRowControls"><Button id="OHLookNames" class="SecondaryButton light OHChoice OHWideChoice"><Label text="Base Game+ Names" /></Button><Button id="OHLookDesk" class="SecondaryButton light OHChoice OHWideChoice"><Label text="Night Desk" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="" /><Panel class="OHRowControls"><Label id="OHLookNote" class="OHNote OHInlineNote" text="" /></Panel></Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Organiser and event" /><Label class="OHScope" text="BOTH LOOKS" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Organiser name" /><Panel class="OHRowControls"><TextEntry id="OHOrgEntry" class="OHEntry OHNameEntry" maxchars="24" placeholder="e.g. Community Cup" text="" /><Label class="OHNote OHInlineNote" text="centre of the top bar" /></Panel></Panel>
+								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Organiser logo URL" /><Panel class="OHRowControls"><TextEntry id="OHOrgLogoEntry" class="OHEntry" maxchars="512" placeholder="https://.../logo.png (replaces the name)" text="" /><Label id="OHOrgLogoNote" class="OHNote" text="" /></Panel></Panel>
+								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Event title" /><Panel class="OHRowControls"><TextEntry id="OHEventEntry" class="OHEntry" maxchars="40" placeholder="e.g. Community Cup Season 2" text="" /><Label id="OHEventNote" class="OHNote" text="" /></Panel></Panel>
+							</Panel>
+						</Panel>
+						<Panel class="OHPage OHPageDesk">
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Info card" /><Label class="OHScope" text="NIGHT DESK ONLY" /><Label class="OHNote OHWhere" text="right of the band" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Title" /><Panel class="OHRowControls"><TextEntry id="OHInfoTitleEntry" class="OHEntry" maxchars="24" placeholder="e.g. Prize pool (empty: no card)" text="" /></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Value" /><Panel class="OHRowControls"><TextEntry id="OHInfoValueEntry" class="OHEntry" maxchars="16" placeholder="e.g. $2,130" text="" /></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Caption" /><Panel class="OHRowControls"><TextEntry id="OHInfoCaptionEntry" class="OHEntry" maxchars="32" placeholder="e.g. Donate to increase" text="" /></Panel></Panel>
+							</Panel>
+						</Panel>
+						<Panel class="OHPage OHPageTimers">
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Objective timers" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="under the clock" /></Panel><Label class="OHHelp" text="How long before its spawn each timer shows. A held rejuvenator always shows." />
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Bridge buff" /><Panel class="OHRowControls"><Button id="OHCueBridgeOff" class="SecondaryButton light OHChoice"><Label text="Off" /></Button><Button id="OHCueBridge15" class="SecondaryButton light OHChoice"><Label text="15 s" /></Button><Button id="OHCueBridge30" class="SecondaryButton light OHChoice"><Label text="30 s" /></Button><Button id="OHCueBridge60" class="SecondaryButton light OHChoice"><Label text="60 s" /></Button><Button id="OHCueBridge120" class="SecondaryButton light OHChoice"><Label text="2 min" /></Button><Button id="OHCueBridgeAlways" class="SecondaryButton light OHChoice"><Label text="Always" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Urn" /><Panel class="OHRowControls"><Button id="OHCueUrnOff" class="SecondaryButton light OHChoice"><Label text="Off" /></Button><Button id="OHCueUrn15" class="SecondaryButton light OHChoice"><Label text="15 s" /></Button><Button id="OHCueUrn30" class="SecondaryButton light OHChoice"><Label text="30 s" /></Button><Button id="OHCueUrn60" class="SecondaryButton light OHChoice"><Label text="60 s" /></Button><Button id="OHCueUrn120" class="SecondaryButton light OHChoice"><Label text="2 min" /></Button><Button id="OHCueUrnAlways" class="SecondaryButton light OHChoice"><Label text="Always" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Mid-boss" /><Panel class="OHRowControls"><Button id="OHCueMidOff" class="SecondaryButton light OHChoice"><Label text="Off" /></Button><Button id="OHCueMid15" class="SecondaryButton light OHChoice"><Label text="15 s" /></Button><Button id="OHCueMid30" class="SecondaryButton light OHChoice"><Label text="30 s" /></Button><Button id="OHCueMid60" class="SecondaryButton light OHChoice"><Label text="60 s" /></Button><Button id="OHCueMid120" class="SecondaryButton light OHChoice"><Label text="2 min" /></Button><Button id="OHCueMidAlways" class="SecondaryButton light OHChoice"><Label text="Always" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Rift" /><Panel class="OHRowControls"><Button id="OHCueRiftOff" class="SecondaryButton light OHChoice"><Label text="Off" /></Button><Button id="OHCueRiftAlways" class="SecondaryButton light OHChoice"><Label text="On" /></Button><Label class="OHNote OHInlineNote" text="the game warns 20 s before it opens" /></Panel></Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Soul lead graph" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="under the timers and any objective health bar" /></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Shows for" /><Panel class="OHRowControls"><Button id="OHGraphOff" class="SecondaryButton light OHChoice"><Label text="Off" /></Button><Button id="OHGraph15" class="SecondaryButton light OHChoice"><Label text="15 s" /></Button><Button id="OHGraph30" class="SecondaryButton light OHChoice"><Label text="30 s" /></Button><Button id="OHGraph60" class="SecondaryButton light OHChoice"><Label text="60 s" /></Button><Button id="OHGraphAlways" class="SecondaryButton light OHChoice"><Label text="Always" /></Button><Label class="OHNote OHInlineNote" text="at each mark" /></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Marks every" /><Panel class="OHRowControls"><Button id="OHGraphEvery60" class="SecondaryButton light OHChoice"><Label text="1 min" /></Button><Button id="OHGraphEvery120" class="SecondaryButton light OHChoice"><Label text="2 min" /></Button><Button id="OHGraphEvery180" class="SecondaryButton light OHChoice"><Label text="3 min" /></Button><Button id="OHGraphEvery300" class="SecondaryButton light OHChoice"><Label text="5 min" /></Button><Button id="OHGraphEvery600" class="SecondaryButton light OHChoice"><Label text="10 min" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Size · X · Y" /><Panel class="OHRowControls"><Button id="OHGraphSizeDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHGraphSizeValue" class="OHStepValue OHPollValue" text="" /><Button id="OHGraphSizeUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button><Label class="OHNote OHInlineNote" text="X" /><Button id="OHGraphXDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHGraphXValue" class="OHStepValue OHPollValue" text="" /><Button id="OHGraphXUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button><Label class="OHNote OHInlineNote" text="Y" /><Button id="OHGraphYDown" class="SecondaryButton light OHStepButton"><Label text="-" /></Button><Label id="OHGraphYValue" class="OHStepValue OHPollValue" text="" /><Button id="OHGraphYUp" class="SecondaryButton light OHStepButton"><Label text="+" /></Button></Panel></Panel>
+							</Panel>
+						</Panel>
+						<Panel class="OHPage OHPageShare">
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Share code" /></Panel><Label class="OHHelp" text="Copy the code to another observer PC, or paste one here and import it." />
+								<Panel class="OHShareRow"><TextEntry id="OHShareEntry" class="OHEntry OHShareEntry" maxchars="8192" placeholder="OHC1...." text="" /><Button id="OHShareCopy" class="SecondaryButton light OHAction"><Label text="Copy code" /></Button><Button id="OHShareImport" class="SecondaryButton light OHAction"><Label text="Import" /></Button></Panel>
+								<Label id="OHShareStatus" class="OHNote OHShareStatus" text="" />
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="What the code carries" /></Panel>
+								<Panel class="OHInfoCols"><Panel class="OHInfoCol"><Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="Match" /><Label class="OHInfoText" text="Stage, format, series wins and bans." /></Panel><Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="Players" /><Label class="OHInfoText" text="Every alias, by in-game name. The status column stays on this PC." /></Panel><Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="Night Desk" /><Label class="OHInfoText" text="The info card." /></Panel></Panel><Panel class="OHInfoCol"><Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="Teams" /><Label class="OHInfoText" text="Names, tags, logo URLs, logo shape, size and gap." /></Panel><Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="Top bar" /><Label class="OHInfoText" text="The look, organiser name and logo, event title." /></Panel><Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="Timers" /><Label class="OHInfoText" text="The objective timers and the soul lead graph settings." /></Panel></Panel></Panel>
+							</Panel>
+							<Panel class="OHCard">
+								<Panel class="OHCardHead"><Label class="OHCardTitle" text="How to use it" /></Panel>
+								<Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="1. Copy" /><Label class="OHInfoText" text="Press Copy code: the code is selected in the box and copied." /></Panel>
+								<Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="2. Send" /><Label class="OHInfoText" text="Paste it to the other observer (chat, Discord, a text file)." /></Panel>
+								<Panel class="OHRow OHInfoRow"><Label class="OHRowTitle" text="3. Import" /><Label class="OHInfoText" text="On that PC, paste the code in the box and press Import. The top bar changes at once." /></Panel>
+							</Panel>
+						</Panel>
+						</Panel>
+						<Panel class="OHFooter">
+							<Label id="OHSaveStatus" class="OHSaveStatus" text="" />
+							<CitadelHTMLPanel id="OHSupporterStrip" class="OHSupporterStrip" hittest="false" hittestchildren="false" acceptsfocus="false" />
+							<Button id="OHResetPage" class="OHFooterButton OHResetButton"><Label id="OHResetPageLabel" text="RESET PAGE" /></Button>
+							<Button id="OHReset" class="OHFooterButton OHResetButton"><Label id="OHResetLabel" text="RESET ALL" /></Button>
+							<Button id="OHDone" class="OHFooterButton OHDoneButton"><Label text="DONE" /></Button>
+						</Panel>
+					</Panel>
+				</Panel>
+				<Panel class="OHStoreWrap">
+					<CitadelHTMLPanel id="OHStore" class="OHStore" hittest="false" acceptsfocus="false" />
+				</Panel>
+				<Panel id="OHPicker" class="OHPicker">
+					<Panel class="OHPickerHead">
+						<Label id="OHPickerTitle" class="OHPickerTitle" text="" />
+						<Button id="OHPickerNone" class="SecondaryButton light OHAction"><Label text="No ban" /></Button>
+						<Button id="OHPickerCancel" class="SecondaryButton light OHAction"><Label text="Cancel" /></Button>
+					</Panel>
+					<Panel id="OHHeroGrid" class="OHHeroGrid" />
+				</Panel>
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

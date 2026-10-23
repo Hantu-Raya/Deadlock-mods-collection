@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 8 · Hairline</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/hybrid.css">
+<style>
+/* Hairline: the cleanest of the set. No plates: a short scrim, one brass rule, and a
+   single-ruled frame for the clock. Series digits sit beside the frame, large.
+   v2 (RzR feedback): stage on top with the format in small letters, event title alone
+   below, one frame line instead of two, monogram logo slots instead of stock emblems. */
+.scrim { position: absolute; left: 0; top: 0; width: 1920px; height: 150px; background: linear-gradient(to bottom, rgba(8, 7, 6, 0.9), rgba(8, 7, 6, 0.62) 60%, rgba(8, 7, 6, 0)); }
+.rule { position: absolute; top: 92px; height: 1px; background: var(--brass); }
+.rule.amber { left: 120px; right: calc(50% + 80px); background: linear-gradient(to right, rgba(214, 176, 106, 0), var(--brass) 18%); }
+.rule.sapphire { right: 120px; left: calc(50% + 80px); background: linear-gradient(to left, rgba(214, 176, 106, 0), var(--brass) 18%); }
+.frame { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); width: 150px; height: 112px; border: 1px solid var(--brass-dim); text-align: center; }
+.frame .st { margin-top: 12px; font: 600 12px/1 "Reaver"; letter-spacing: 0.22em; text-transform: uppercase; color: var(--brass); white-space: nowrap; }
+.frame .fmt { margin-top: 4px; font: 700 9px/1 "Retail Demo"; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.frame .clock { margin-top: 6px; font: 600 38px/1 "VALVE Oracle"; color: var(--text); }
+.frame .ld { margin-top: 7px; font: 600 13px/1 "VALVE Oracle"; letter-spacing: 0.04em; }
+.side { position: absolute; top: 14px; display: flex; align-items: flex-start; gap: 18px; }
+.side.amber { right: calc(50% + 91px); flex-direction: row-reverse; }
+.side.sapphire { left: calc(50% + 91px); }
+.ser { width: 40px; padding-top: 14px; text-align: center; font: 600 40px/1 "VALVE Oracle"; }
+.amber .ser { color: var(--amber-hi); }
+.sapphire .ser { color: var(--sapphire-hi); }
+.cards { display: flex; gap: 8px; --cw: 70px; --ch: 44px; }
+.ident { width: 214px; display: flex; align-items: center; gap: 12px; padding-top: 6px; }
+.amber .ident { flex-direction: row-reverse; text-align: right; }
+.ident .col { min-width: 0; flex: 1; }
+.ident .tn { max-width: 158px; }
+.amber .ident .tn { margin-left: auto; }
+.ident .s { margin-top: 6px; font: 600 13px/1 "VALVE Oracle"; color: var(--muted); }
+.ident .s b { color: var(--text); font-weight: 600; }
+.event { position: absolute; left: 50%; top: 132px; transform: translateX(-50%); font: 600 11px/1 "Reaver"; letter-spacing: 0.3em; text-transform: uppercase; color: var(--brass); text-shadow: 0 1px 3px #000; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="scrim"></div>
+  <div id="root"></div>
+  <div class="design-tag"><b>8 · Hairline</b> — one brass rule, no plates</div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/hybrid.js"></script>
+<script>
+OH.mount((oh) => {
+  const t = oh.teams;
+  const side = (k) => `<div class="side ${k}"><div class="ser">${t[k].series}</div>
+      <div class="cards">${oh.cards(k)}</div>
+      <div class="ident">${oh.logo(k)}<div class="col"><div class="tn">${t[k].name}</div><div class="s"><b>${t[k].kills}</b> K · ${oh.souls(t[k].souls)}</div></div></div></div>`;
+  document.getElementById("root").innerHTML = `<div class="rule amber"></div><div class="rule sapphire"></div>${side("amber")}${side("sapphire")}
+    <div class="frame"><div class="st">${oh.match.stage}</div><div class="fmt">Bo${oh.match.bestOf}</div><div class="clock">${oh.match.clock}</div><div class="ld">${oh.leadHtml()}</div></div>
+    <div class="event">${oh.match.event}</div>`;
+  oh.fitText(".tn", 13);
+  oh.fitText(".hc .nm", 10);
+});
+</script>
+</body>
+</html>

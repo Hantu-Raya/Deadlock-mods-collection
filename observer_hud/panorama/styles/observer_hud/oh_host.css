@@ -1,0 +1,29 @@
+/* Included by this mod's hud_spectate_bar.xml (the host layout). While spectating, the stock
+   "SPECTATING <name>" block (#spectate_target, with the Next/Previous Player hints) and the camera
+   controls (#camera_section: Change Camera, Zoom Out, ...) are hidden (user 2026-10-23); the keys
+   still work. */
+.spec_mode #spectate_target,
+.TeamSpectator #spectate_target,
+.replay_playback #spectate_target,
+.spec_mode #camera_section,
+.TeamSpectator #camera_section,
+.replay_playback #camera_section
+{
+	visibility: collapse;
+}
+
+/* The team tint at the top of the screen while watching a player fades out by half height instead of
+   the full 240 px bar (user 2026-10-23, edited live in the Panorama debugger); same selectors as the
+   stock hud_spectate_bar.css rules, which this sheet follows. team1Color&30 / team2Color&30 written out
+   (#D6880C / #4F74C3, sampled live), as in this mod's other sheets. */
+.spectatingUnit.spectatingTeam1 .SpectateTopBar
+{
+	background-color: gradient( linear, 0% 0%, 0% 50%, from( #D6880C30 ), to( #D6880C00 ) );
+	border-color: #D6880C;
+}
+
+.spectatingUnit.spectatingTeam2 .SpectateTopBar
+{
+	background-color: gradient( linear, 0% 0%, 0% 50%, from( #4F74C330 ), to( #4F74C300 ) );
+	border-color: #4F74C3;
+}

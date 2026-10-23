@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 13 · Slam Rail</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/v2.css">
+<style>
+/* Slam Rail (round 4, after the "Death Slam" broadcast bar): a 62 px rail over the stock bar,
+   which moves down 62 px. Each team name is centred over its six cards in the bright team colour,
+   with the player names in capitals above each card. Logos sit at the far ends with the stage on
+   one side and the event on the other; bans hang under the logos. A centre plate holds the
+   organiser wordmark between the two series scores. */
+.rail { position: absolute; left: 0; top: 0; width: 1920px; height: 62px; background: linear-gradient(180deg, rgba(12, 22, 24, 0.96), rgba(7, 13, 15, 0.94)); border-bottom: 2px solid rgba(110, 170, 160, 0.35); }
+.glow { position: absolute; top: 0; width: 600px; height: 62px; }
+.glow.t1 { left: 294px; background: linear-gradient(90deg, rgba(214, 136, 12, 0), rgba(214, 136, 12, 0.2) 50%, rgba(214, 136, 12, 0)); }
+.glow.t2 { left: 1026px; background: linear-gradient(90deg, rgba(79, 116, 195, 0), rgba(79, 116, 195, 0.24) 50%, rgba(79, 116, 195, 0)); }
+.name { position: absolute; top: 5px; width: 528px; text-align: center; font: 700 28px/30px "Retail Demo"; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
+.name.t1 { left: 330px; color: var(--team1Bright); }
+.name.t2 { left: 1062px; color: var(--team2Bright); }
+.who { position: absolute; top: 40px; width: 86px; transform: translateX(-50%); text-align: center; font: 700 12px/15px "Retail Demo"; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 239, 215, 0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who.dead { color: rgba(255, 239, 215, 0.4); }
+/* Logo squares at the ends */
+.lg { position: absolute; top: 6px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.55); border: 2px solid; font: 700 13px/1 "Retail Demo"; letter-spacing: 0.04em; color: var(--offWhite); }
+.lg.t1 { left: 20px; border-color: var(--team1); }
+.lg.t2 { right: 20px; border-color: var(--team2); }
+.lg img { max-width: 44px; max-height: 44px; object-fit: contain; }
+.side { position: absolute; top: 12px; width: 220px; white-space: nowrap; }
+.side.t1 { left: 84px; }
+.side.t2 { right: 84px; text-align: right; }
+.side .a { font: 700 15px/1 "Retail Demo"; letter-spacing: 0.08em; text-transform: uppercase; color: var(--offWhite); overflow: hidden; text-overflow: ellipsis; }
+.side .b { margin-top: 7px; font: 700 11px/1 "Retail Demo"; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 239, 215, 0.6); overflow: hidden; text-overflow: ellipsis; }
+/* Centre plate: series, wordmark, series; hangs 8 px under the rail, above the stock clock */
+.plate { position: absolute; left: 862px; top: 0; width: 196px; height: 70px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: linear-gradient(180deg, #13252a, #0a1416); border: 2px solid rgba(110, 170, 160, 0.45); border-top: 0; border-radius: 0 0 8px 8px; }
+.sc { width: 26px; font: 700 30px/1 "VALVE Oracle"; text-align: center; }
+.sc.t1 { color: var(--team1Bright); }
+.sc.t2 { color: var(--team2Bright); }
+.org { max-width: 116px; max-height: 50px; font: 400 18px/19px "Valve Pulp"; text-transform: uppercase; color: #bfe9df; text-align: center; overflow: hidden; text-shadow: 0 2px 0 #06302b; }
+.org img { max-width: 116px; max-height: 52px; object-fit: contain; }
+/* Bans under the logos */
+.bans { position: absolute; top: 72px; display: flex; align-items: center; gap: 6px; }
+.bans.t1 { left: 20px; }
+.bans.t2 { right: 20px; flex-direction: row-reverse; }
+.bans .lbl { padding: 3px 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.6); font: 700 9px/1 "Retail Demo"; letter-spacing: 0.18em; color: rgba(255, 239, 215, 0.75); }
+.bans .ban { width: 32px; height: 32px; }
+.bans .ban img { width: 34px; height: 46px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div id="band"></div>
+  <div class="topbar" id="topbar"></div>
+  <div class="design-tag"><b>13 · Slam Rail</b> — centred team names, caps names row</div>
+  <button class="open-ed" id="openEd" type="button" aria-haspopup="dialog">Tournament setup (Esc)</button>
+  <div class="ed-back" id="edBack">
+    <div class="ed" id="ed" role="dialog" aria-modal="true" aria-labelledby="edTitle"></div>
+  </div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/v2.js"></script>
+<script>
+V2.mount({
+  band: 62,
+  renderBand: (S, h) => {
+    const team = (key) => {
+      const t = S.teams[key];
+      return `<div class="glow ${key}"></div><div class="name ${key}" data-fit="28,16">${h.esc(t.name)}</div>${h.names(key, "who")}
+        ${h.logo(t, "lg " + key)}
+        <div class="bans ${key}"><span class="lbl">BANS</span>${h.ban(t.bans[0])}${h.ban(t.bans[1])}</div>`;
+    };
+    return `<div class="rail"></div>${team("t1")}${team("t2")}
+      <div class="side t1"><div class="a">${h.esc(S.stage)}</div><div class="b">Game ${S.game} · Best of ${S.bestOf}</div></div>
+      <div class="side t2"><div class="a" data-fit="15,11">${h.esc(S.event)}</div><div class="b">First to ${h.wins()}</div></div>
+      <div class="plate"><span class="sc t1">${S.teams.t1.series}</span>${h.orgLogo("org")}<span class="sc t2">${S.teams.t2.series}</span></div>`;
+  },
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+{
+ "method": "jevify: judge_batch with each design's top-band screenshot plus build notes; rubrics frozen before judging. Pass 1 absolute scores (0-4), pass 2 round-robin pairwise in both orders (20 games, 8 per design).",
+ "judge": "typesafe/jev-1.14.0",
+ "date": "2026-10-22",
+ "absolute": {
+  "questions": {
+   "theme": {
+    "type": "score",
+    "instructions": "Deadlock's base game look: 1920s occult New York, art deco and pulp touches, the stock amber (#CF9943) vs sapphire (#5165AE) team colours, the game's own fonts (Reaver serif, Retail Demo, VALVE Oracle numerals) and its torn-paper/brass motifs. How strongly does this top bar read as part of that game?",
+    "criteria": [
+     "Generic; could belong to any game",
+     "A few Deadlock cues",
+     "Clearly Deadlock-adjacent",
+     "Feels like a Deadlock screen",
+     "Indistinguishable from an official Deadlock broadcast surface"
+    ]
+   },
+   "legibility": {
+    "type": "score",
+    "instructions": "On a 1080p stream, how quickly can a viewer read the clock, both team names, the series score, and each player's state (health, ultimate ready or cooldown, dead with respawn timer)?",
+    "criteria": [
+     "Hard to read",
+     "Readable with effort",
+     "Readable",
+     "Quick to read",
+     "Instant at a glance"
+    ]
+   },
+   "occlusion": {
+    "type": "score",
+    "instructions": "How little of the gameplay view does it cover (height, opaque area, full-width bands)?",
+    "criteria": [
+     "Covers a lot",
+     "Heavy",
+     "Moderate",
+     "Light",
+     "Minimal"
+    ]
+   },
+   "organizer": {
+    "type": "score",
+    "instructions": "For a community tournament organizer: room and clear places for event name, stage, team names, team logos, series score; would it survive long team names and different logos?",
+    "criteria": [
+     "Poor fit",
+     "Weak",
+     "Adequate",
+     "Good",
+     "Excellent"
+    ]
+   },
+   "feasibility": {
+    "type": "score",
+    "instructions": "Using the build notes in the state, how directly can this be built in Deadlock Panorama, which supports gradients, images, borders, radii, opacity, transforms, opacity-mask images, text-shadow and radial clip arcs, but not box-shadow glows, filter blur or clip-path, and has no runtime SVG drawing?",
+    "criteria": [
+     "Needs things Panorama lacks",
+     "Major workarounds",
+     "Some baked textures/workarounds",
+     "Mostly direct",
+     "Fully direct with stock assets"
+    ]
+   },
+   "verdict": {
+    "type": "choice",
+    "instructions": "Overall, for a community tournament observer top bar in Deadlock's own style:",
+    "criteria": {
+     "shortlist": "Strong on theme and legibility with no serious weakness; a top pick.",
+     "alternative": "Viable, with one clear weakness or a narrower use case.",
+     "drop": "A serious weakness in theme, legibility or feasibility."
+    }
+   }
+  },
+  "results": {
+   "d2-deco-marquee": {
+    "theme": {
+     "score": 3.17,
+     "confidence": 0.61
+    },
+    "legibility": {
+     "score": 1.66,
+     "confidence": 0.38
+    },
+    "occlusion": {
+     "score": 2.18,
+     "confidence": 0
+    },
+    "organizer": {
+     "score": 1.55,
+     "confidence": 0.39
+    },
+    "feasibility": {
+     "score": 2.31,
+     "confidence": 0.61
+    },
+    "verdict": "alternative",
+    "verdict_p": {
+     "shortlist": 0.28,
+     "alternative": 0.48,
+     "drop": 0.24
+    }
+   },
+   "d4-ritual-sigil": {
+    "theme": {
+     "score": 2.82,
+     "confidence": 0.71
+    },
+    "legibility": {
+     "score": 1.89,
+     "confidence": 0.24
+    },
+    "occlusion": {
+     "score": 2.5,
+     "confidence": 0.22
+    },
+    "organizer": {
+     "score": 1.49,
+     "confidence": 0.42
+    },
+    "feasibility": {
+     "score": 2.25,
+     "confidence": 0.28
+    },
+    "verdict": "alternative",
+    "verdict_p": {
+     "shortlist": 0.26,
+     "alternative": 0.5,
+     "drop": 0.24
+    }
+   },
+   "d1-patron-ledger": {
+    "theme": {
+     "score": 3.1,
+     "confidence": 0.68
+    },
+    "legibility": {
+     "score": 1.9,
+     "confidence": 0.22
+    },
+    "occlusion": {
+     "score": 1.98,
+     "confidence": 0.02
+    },
+    "organizer": {
+     "score": 1.2,
+     "confidence": 0.52
+    },
+    "feasibility": {
+     "score": 2.73,
+     "confidence": 0
+    },
+    "verdict": "alternative",
+    "verdict_p": {
+     "shortlist": 0.3,
+     "alternative": 0.5,
+     "drop": 0.2
+    }
+   },
+   "d5-broadcast-slate": {
+    "theme": {
+     "score": 1.99,
+     "confidence": 0.08
+    },
+    "legibility": {
+     "score": 1.81,
+     "confidence": 0.25
+    },
+    "occlusion": {
+     "score": 2.66,
+     "confidence": 0.32
+    },
+    "organizer": {
+     "score": 1.62,
+     "confidence": 0.33
+    },
+    "feasibility": {
+     "score": 1.33,
+     "confidence": 0.45
+    },
+    "verdict": "alternative",
+    "verdict_p": {
+     "shortlist": 0.28,
+     "alternative": 0.47,
+     "drop": 0.25
+    }
+   },
+   "d3-pulp-broadsheet": {
+    "theme": {
+     "score": 3.04,
+     "confidence": 0.66
+    },
+    "legibility": {
+     "score": 1.59,
+     "confidence": 0.46
+    },
+    "occlusion": {
+     "score": 2,
+     "confidence": 0
+    },
+    "organizer": {
+     "score": 1.59,
+     "confidence": 0.35
+    },
+    "feasibility": {
+     "score": 2.16,
+     "confidence": 0.51
+    },
+    "verdict": "alternative",
+    "verdict_p": {
+     "shortlist": 0.26,
+     "alternative": 0.56,
+     "drop": 0.18
+    }
+   }
+  }
+ },
+ "pairwise": {
+  "question": {
+   "winner": {
+    "type": "choice",
+    "instructions": "Two candidate observer top bars for community Deadlock tournaments, image A first then image B (each is the top 200px of a 1920x1080 match frame). Which should be built? Weigh, in order: reads as Deadlock's own base-game style; a viewer reads clock, team names, series and player state at a glance; covers little of the gameplay; fits organisers' long team names and logos.",
+    "criteria": {
+     "A": "Image A is the better top bar on balance.",
+     "B": "Image B is the better top bar on balance.",
+     "tie": "Neither is clearly better."
+    }
+   }
+  },
+  "wins_of_8": {
+   "d5-broadcast-slate": 8,
+   "d4-ritual-sigil": 5,
+   "d1-patron-ledger": 5,
+   "d2-deco-marquee": 2
+  },
+  "A_position_picks": "11/20",
+  "unsure_games": [
+   "d1-patron-ledger|d5-broadcast-slate",
+   "d5-broadcast-slate|d1-patron-ledger",
+   "d4-ritual-sigil|d1-patron-ledger",
+   "d2-deco-marquee|d3-pulp-broadsheet",
+   "d3-pulp-broadsheet|d2-deco-marquee"
+  ],
+  "games": {
+   "d1-patron-ledger|d5-broadcast-slate": "B",
+   "d4-ritual-sigil|d3-pulp-broadsheet": "A",
+   "d5-broadcast-slate|d2-deco-marquee": "A",
+   "d2-deco-marquee|d5-broadcast-slate": "B",
+   "d5-broadcast-slate|d3-pulp-broadsheet": "A",
+   "d1-patron-ledger|d2-deco-marquee": "A",
+   "d5-broadcast-slate|d1-patron-ledger": "A",
+   "d5-broadcast-slate|d4-ritual-sigil": "A",
+   "d1-patron-ledger|d3-pulp-broadsheet": "A",
+   "d4-ritual-sigil|d2-deco-marquee": "A",
+   "d2-deco-marquee|d1-patron-ledger": "B",
+   "d2-deco-marquee|d4-ritual-sigil": "B",
+   "d4-ritual-sigil|d1-patron-ledger": "A",
+   "d3-pulp-broadsheet|d4-ritual-sigil": "B",
+   "d2-deco-marquee|d3-pulp-broadsheet": "A",
+   "d4-ritual-sigil|d5-broadcast-slate": "B",
+   "d3-pulp-broadsheet|d5-broadcast-slate": "B",
+   "d3-pulp-broadsheet|d2-deco-marquee": "B",
+   "d3-pulp-broadsheet|d1-patron-ledger": "B",
+   "d1-patron-ledger|d4-ritual-sigil": "A"
+  }
+ },
+ "escalation_rule": "any score confidence < 0.5, verdict top p < 0.6, or verdict disagreeing with the score totals; I compare those against the screenshots myself",
+ "reading": "Weak signal. Pass 1 confidences are mostly under 0.5 and every verdict is 'alternative' near 0.5, so all five escalated. Theme scores rank d2 3.17, d1 3.10, d3 3.04, d4 2.82, d5 1.99; feasibility ranks d1 first and d5 last (its trend graph). Pass 2 has d5 winning all 8 games, then d1 and d4 5, d2 2, d3 0, which conflicts with its own instruction to weigh theme first; the judge appears to reward the compact, low-occlusion bar. d1 vs d5 was a coin flip in both orders."
+}

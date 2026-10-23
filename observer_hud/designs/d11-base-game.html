@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 11 · Base Game+</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+/* Base Game+: the stock spectator top bar, rebuilt from the game's own citadel_hud_top_bar
+   layout and CSS (pak01, client 6805), plus only the tournament additions. Stock values are
+   quoted with their selector. team1Color/team2Color are set by the engine, not in CSS; they
+   were sampled from a live 1080p frame. The *Bright fills are estimates.
+   Tournament additions (all marked .tx): team name plates with logo and series score, hero
+   bans, stage + format, event title, player aliases. */
+:root {
+  --offWhite: #ffefd7;            /* @define offWhite */
+  --offBlack: #10130d;            /* @define offBlack */
+  --team1: #d6880c;               /* team1Color, sampled */
+  --team2: #4f74c3;               /* team2Color, sampled */
+  --team1Bright: #ffc15a;         /* team1ColorBright, estimate */
+  --team2Bright: #8fb2ff;         /* team2ColorBright, estimate */
+  --team1Fg: #2a1d08;             /* team1Foreground: dark text on amber, sampled */
+  --enemyRed: #ff5656;            /* .enemy #HealthBar_Fill */
+  --respawn: #fe420e;             /* .RespawnTimer */
+}
+/* CitadelHudTopBar: .spec_mode margin-top 8px; #TeamsContainer 1260px; teams 528px. */
+.topbar { position: absolute; left: 0; top: 8px; width: 1920px; height: 200px; color: var(--offWhite); }
+.team { position: absolute; top: 0; width: 528px; height: 180px; display: flex; z-index: 2; }   /* #PlayersContainer z-index 2: players over the soul plates */
+.team.t1 { left: 330px; }
+.team.t2 { left: 1062px; }
+
+/* CitadelHudTopBarPlayer: width playerDetailsWidth 88px; #PlayerDetailsContainer 180px. */
+.pl { position: relative; width: 88px; height: 180px; }
+/* #HeroImageArea 100px: coin ~70px (measured), hero badge = card art through hero_image_mask. */
+.coin { position: absolute; left: 9px; top: 22px; width: 70px; height: 70px; border-radius: 50%; z-index: 1; }
+.t1 .coin { background: var(--team1); }
+.t2 .coin { background: var(--team2); }
+.badge { position: absolute; left: 9px; top: -3px; width: 70px; height: 95px; overflow: hidden; z-index: 2;
+  -webkit-mask: var(--m-hero-image-mask-psd) 0 0 / 100% 100% no-repeat; mask: var(--m-hero-image-mask-psd) 0 0 / 100% 100% no-repeat; }
+.badge img { width: 70px; height: 95px; }
+/* #HealthBar 16x50, friend rotateZ(-10deg) margin-left 10, enemy rotateZ(7deg). */
+.hb { position: absolute; top: 30px; width: 14px; height: 46px; }
+.t1 .hb { left: 2px; transform: rotate(-10deg); }
+.t2 .hb { right: 2px; transform: rotate(7deg); }
+.hb .contents { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.87);
+  -webkit-mask: var(--m-healthbar-backer-vert-mask) 0 0 / 100% 100% no-repeat; mask: var(--m-healthbar-backer-vert-mask) 0 0 / 100% 100% no-repeat; }
+.hb .fill { position: absolute; left: 0; right: 0; bottom: 0; }
+.t1 .hb .fill { background: var(--team1Bright); }
+.t2 .hb .fill { background: var(--team2Bright); }
+.hb .fill.low { background: var(--enemyRed); }
+.hb .border { position: absolute; inset: 0; background: var(--offBlack);
+  -webkit-mask: var(--m-healthbar-backer-vert-border) 0 0 / 100% 100% no-repeat; mask: var(--m-healthbar-backer-vert-border) 0 0 / 100% 100% no-repeat; }
+/* .SoulsValueContainer: margin-top 76, padding-top 20, radius 0 0 3 3; .SoulsValue 15px numericOracle bold. */
+.souls { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); z-index: 0; padding: 20px 6px 2px;   /* tucked under the coin like stock */ border-radius: 0 0 3px 3px; font: 700 15px/1 "VALVE Oracle"; white-space: nowrap; }
+.t1 .souls { background: var(--team1); color: var(--team1Fg); }
+.t2 .souls { background: var(--team2); color: var(--offWhite); }
+.souls small { font-size: 12px; font-weight: 500; margin-left: 1px; opacity: 0.9; }   /* .demote 12px */
+/* Stock ultimate, unchanged. #StatusRow margin-top 125. .UltimateStatus 22px circle, opacity .6;
+   .UltimateUnlocked: offBlack, box-shadow 0 0 8px black. .UltimateStatusBG team colour.
+   #UltimateAbilityIconMini 22px icon_ultimate_off. .UltimateCooldownReady: BG none, opacity 1,
+   box-shadow 0 0 4px black, icon_ultimate. .Dead .UltimateStatus opacity .3. */
+.ult { position: absolute; left: 33px; top: 125px; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; opacity: 0.6; background: var(--offBlack); box-shadow: 0 0 8px 3px #000; }
+.ult .bg { position: absolute; inset: 0; }
+.t1 .ult .bg { background: var(--team1); }
+.t2 .ult .bg { background: var(--team2); }
+.ult img { position: absolute; inset: 0; width: 22px; height: 22px; }
+.ult.ready { opacity: 1; background: none; box-shadow: 0 0 4px 3px #000; }
+.ult.ready .bg { display: none; }
+/* .Dead: coin wash offBlack .7, soul tag and ult opacity .3, health collapsed; .RespawnTimer #FE420E 32px. */
+.pl.dead .coin { background: var(--offBlack); opacity: 0.7; }
+.pl.dead .badge img { filter: saturate(0) brightness(0.55); }   /* Panorama: saturation 0, brightness */
+.pl.dead .souls, .pl.dead .ult { opacity: 0.3; }
+.pl.dead .hb { display: none; }
+.respawn { position: absolute; left: 0; right: 0; top: 36px; z-index: 3; text-align: center; font: 700 32px/1 "VALVE Oracle"; color: var(--respawn); text-shadow: 0 0 5px var(--offBlack); }
+
+/* .GameClock: #00000090, radius 5, padding 5, margin-top 8; .GameTime 80x20 numericBlock 14px semi-bold. */
+.clock { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); padding: 5px; border-radius: 5px; background: rgba(0, 0, 0, 0.565); }
+.clock span { display: block; width: 80px; height: 20px; padding-top: 3px; text-align: center; font: 600 15px/1 "VALVE Oracle"; color: rgba(255, 239, 215, 0.9); }
+/* .TeamNetworth 300px, margin-top 45; .TeamScore 145px; .ScoreBG team colour through dust_01 mask; .ScoreLabel 22px oracle bold. */
+.networth { position: absolute; left: 50%; top: 45px; transform: translateX(-50%); width: 300px; height: 34px; z-index: 1; }
+.score { position: absolute; top: 0; width: 145px; height: 34px; display: flex; align-items: center; gap: 4px; }
+.score.t1 { left: 0; justify-content: flex-end; padding-right: 5px; color: var(--team1Fg); }
+.score.t2 { right: 0; padding-left: 5px; color: #fff; }
+.score::before { content: ""; position: absolute; inset: 0; -webkit-mask: var(--m-dust-01-psd) 0 0 / 300px 300px; mask: var(--m-dust-01-psd) 0 0 / 300px 300px; }
+.score.t1::before { background: var(--team1); left: -50px; }
+.score.t2::before { background: var(--team2); right: -50px; }
+.score b { position: relative; font: 700 22px/1 "VALVE Oracle"; }
+.score b small { font-size: 14px; font-weight: 500; opacity: 0.8; }
+.score i { position: relative; width: 30px; height: 26px; background: center / contain no-repeat; }
+.score.t1 i { background-image: url("assets/game/hud__core__icon_team1_psd.png"); }
+.score.t2 i { background-image: url("assets/game/hud__core__icon_team2_psd.png"); }
+
+/* ---- Tournament additions (.tx), built from the same stock pieces ---- */
+.tx-stage { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); padding: 6px 12px 7px; border-radius: 5px; background: rgba(0, 0, 0, 0.565); text-align: center; white-space: nowrap; }
+.tx-stage .st { font: 700 13px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; color: var(--offWhite); }
+.tx-stage .fmt { margin-top: 3px; font: 700 9px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 239, 215, 0.6); }
+.tx-event { position: absolute; left: 50%; top: 136px; transform: translateX(-50%); font: 600 11px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 239, 215, 0.85); text-shadow: 0 1px 3px #000, 0 0 2px #000; white-space: nowrap; }
+.tx-team { position: absolute; top: 22px; width: 250px; }
+.tx-team.t1 { left: 72px; }
+.tx-team.t2 { left: 1598px; }
+.tx-plate { position: relative; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 0 0 8px; }
+.t2 .tx-plate { flex-direction: row-reverse; padding: 0 8px 0 0; }
+.tx-plate::before { content: ""; position: absolute; inset: 0; -webkit-mask: var(--m-dust-01-psd) 0 0 / 300px 300px; mask: var(--m-dust-01-psd) 0 0 / 300px 300px; }
+.t1 .tx-plate::before { background: var(--team1); }
+.t2 .tx-plate::before { background: var(--team2); }
+.tx-logo { position: relative; flex: none; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.04em; }
+.t1 .tx-logo.mono { border: 1.5px solid var(--team1Fg); color: var(--team1Fg); }
+.t2 .tx-logo.mono { border: 1.5px solid var(--offWhite); color: var(--offWhite); }
+.tx-logo img { max-width: 28px; max-height: 28px; object-fit: contain; }
+.tx-name { position: relative; flex: 1; min-width: 0; font: 700 17px/1 "Retail Demo"; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t1 .tx-name { color: var(--team1Fg); }
+.t2 .tx-name { color: #fff; text-align: right; }
+.tx-series { position: relative; flex: none; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--offBlack); font: 700 24px/1 "VALVE Oracle"; color: var(--offWhite); }
+.tx-bans { margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+.t1 .tx-bans { justify-content: flex-end; }
+.t2 .tx-bans { flex-direction: row-reverse; justify-content: flex-end; }
+.tx-bans .lbl { padding: 3px 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.565); font: 700 9px/1 "Retail Demo"; letter-spacing: 0.18em; color: rgba(255, 239, 215, 0.7); }
+.ban { position: relative; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: var(--offBlack); border: 1.5px solid rgba(255, 239, 215, 0.35); }
+.ban img { position: absolute; left: -2px; top: -2px; width: 36px; height: 49px; filter: saturate(0) brightness(0.8); }
+.ban::after { content: ""; position: absolute; left: -4px; right: -4px; top: 50%; height: 2px; background: var(--enemyRed); transform: rotate(-45deg); }
+.ban.empty { border-style: dashed; }
+.ban.empty::after { display: none; }
+/* Alias on the portrait, over the lower coin and above the soul tag; the ultimate keeps its stock spot alone. */
+.tx-alias { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); z-index: 3; max-width: 82px; padding: 2px 5px 3px; border-radius: 2px; background: rgba(16, 19, 13, 0.82); font: 700 11px/1 "Retail Demo"; letter-spacing: 0.02em; color: var(--offWhite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl.dead .tx-alias { color: rgba(255, 239, 215, 0.5); }
+
+/* ---- Mock of the in-game setup editor (Escape menu). Not part of the top bar. ---- */
+.open-ed { position: absolute; right: 24px; bottom: 20px; min-height: 44px; padding: 10px 16px; background: rgba(16, 19, 13, 0.9); border: 1px solid var(--team1); color: var(--offWhite); font: 700 13px/1 "Retail Demo"; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.open-ed:focus-visible, .ed button:focus-visible, .ed input:focus-visible, .ed select:focus-visible { outline: 2px solid var(--team1Bright); outline-offset: 2px; }
+.ed-back { position: absolute; left: 0; right: 0; top: 196px; bottom: 0; background: rgba(0, 0, 0, 0.55); display: none; }   /* top bar stays undimmed so edits show live */
+.ed-back.on { display: block; }
+.ed { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); width: 980px; max-height: 820px; overflow: auto; padding: 22px 26px 24px; background: rgba(16, 19, 13, 0.97); border-top: 3px solid var(--team1); color: var(--offWhite); font: 15px/1.35 "Retail Demo", sans-serif; }
+.ed h2 { font: 700 22px/1 "Retail Demo"; letter-spacing: 0.08em; text-transform: uppercase; }
+.ed .sub { margin-top: 6px; color: rgba(255, 239, 215, 0.65); font-size: 14px; }
+.ed fieldset { border: 0; margin-top: 18px; }
+.ed legend { font: 700 12px/1 "Retail Demo"; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 239, 215, 0.6); margin-bottom: 8px; }
+.ed .row { display: grid; grid-template-columns: 1fr 1fr 140px; gap: 12px; }
+.ed .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+.ed .col.t1 legend { color: var(--team1Bright); }
+.ed .col.t2 legend { color: var(--team2Bright); }
+.ed label { display: block; font-size: 13px; color: rgba(255, 239, 215, 0.75); margin-top: 8px; }
+.ed input, .ed select { display: block; width: 100%; margin-top: 4px; min-height: 34px; padding: 6px 8px; background: #050604; color: var(--offWhite); border: 1px solid rgba(255, 239, 215, 0.25); border-radius: 3px; font: 15px "Retail Demo", sans-serif; }
+.ed .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ed .trip { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+.ed .err { color: var(--enemyRed); font-size: 12px; min-height: 14px; margin-top: 2px; }
+.ed .btns { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+.ed button { min-height: 40px; padding: 8px 18px; background: transparent; color: var(--offWhite); border: 1px solid rgba(255, 239, 215, 0.4); font: 700 13px/1 "Retail Demo"; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.ed button.primary { background: var(--team1); border-color: var(--team1); color: var(--team1Fg); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="topbar" id="topbar"></div>
+  <div class="design-tag"><b>11 · Base Game+</b> — stock top bar + tournament info</div>
+  <button class="open-ed" id="openEd" type="button" aria-haspopup="dialog">Tournament setup (Esc)</button>
+  <div class="ed-back" id="edBack">
+    <div class="ed" id="ed" role="dialog" aria-modal="true" aria-labelledby="edTitle"></div>
+  </div>
+</div>
+<script src="shared/data.js"></script>
+<script>
+OH.mount((oh) => {
+  "use strict";
+  const HERO_NAMES = { haze: "Haze", inferno: "Infernus", lash: "Lash", kelvin: "Kelvin", wraith: "Wraith", bull: "Abrams",
+    gigawatt: "Seven", digger: "Mo & Krill", spectre: "Lady Geist", hornet: "Vindicta", synth: "Pocket", sumo: "Dynamo",
+    astro: "Holliday", bebop: "Bebop", viscous: "Viscous", yamato: "Yamato", mirage: "Mirage", shiv: "Shiv" };
+  const card = (id) => `assets/game/heroes/${id}_card_psd.png`;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // http(s) only, no credentials or spaces; mirrors $.DLFState.cleanUrl's rules.
+  const cleanUrl = (u) => {
+    u = String(u || "").trim();
+    if (!u) return "";
+    if (u.length > 512 || /[\s\\\u0000-\u001f]/.test(u)) return null;
+    try { const x = new URL(u); return (x.protocol === "http:" || x.protocol === "https:") && !x.username && !x.password ? x.href : null; }
+    catch { return null; }
+  };
+  const fresh = () => ({
+    event: oh.match.event, stage: oh.match.stage, bestOf: oh.match.bestOf, clock: oh.match.clock,
+    teams: {
+      t1: { src: oh.teams.amber, name: oh.teams.amber.name, tag: oh.teams.amber.tag, logo: "", series: 1, bans: ["astro", "viscous"], alias: oh.teams.amber.players.map((p) => p.name) },
+      t2: { src: oh.teams.sapphire, name: oh.teams.sapphire.name, tag: oh.teams.sapphire.tag, logo: "", series: 1, bans: ["bebop", "yamato"], alias: oh.teams.sapphire.players.map((p) => p.name) },
+    },
+  });
+  let S = fresh();
+  const k = (n) => (n / 1000).toFixed(1);
+
+  const player = (key, p, i) => `
+    <div class="pl ${p.dead ? "dead" : ""}">
+      <div class="coin"></div>
+      <div class="badge"><img src="${p.portrait}" alt=""></div>
+      <div class="hb"><div class="contents"><div class="fill ${p.hp > 0 && p.hp < 0.3 ? "low" : ""}" style="height:${Math.round(p.hp * 100)}%"></div></div><div class="border"></div></div>
+      ${p.dead ? `<div class="respawn">${p.dead}</div>` : ""}
+      <div class="souls">${p.souls.toFixed(1)}<small>k</small></div>
+      <div class="ult ${p.ult === "ready" ? "ready" : ""}"><div class="bg"></div><img src="assets/game/hud__top_bar__icon_ultimate${p.ult === "ready" ? "" : "_off"}.svg" alt=""></div>
+      <div class="tx-alias">${esc(S.teams[key].alias[i] || p.name)}</div>
+    </div>`;
+  const logo = (t) => {
+    const url = cleanUrl(t.logo);
+    return url ? `<span class="tx-logo"><img src="${esc(url)}" alt="" data-fallback="${esc(t.tag)}"></span>` : `<span class="tx-logo mono">${esc(t.tag)}</span>`;
+  };
+  const ban = (id) => id ? `<span class="ban" title="${esc(HERO_NAMES[id])}"><img src="${card(id)}" alt="${esc(HERO_NAMES[id])} banned"></span>` : `<span class="ban empty" aria-label="no ban"></span>`;
+  const txTeam = (key) => {
+    const t = S.teams[key];
+    return `<div class="tx-team ${key}">
+      <div class="tx-plate">${logo(t)}<span class="tx-name">${esc(t.name)}</span><span class="tx-series">${t.series}</span></div>
+      <div class="tx-bans"><span class="lbl">BANS</span>${ban(t.bans[0])}${ban(t.bans[1])}</div>
+    </div>`;
+  };
+  const render = () => {
+    const a = S.teams.t1.src, b = S.teams.t2.src;
+    document.getElementById("topbar").innerHTML = `
+      <div class="team t1">${a.players.map((p, i) => player("t1", p, i)).join("")}</div>
+      <div class="team t2">${b.players.map((p, i) => player("t2", p, i)).join("")}</div>
+      <div class="clock"><span>${esc(S.clock)}</span></div>
+      <div class="networth"><div class="score t1"><b>${k(a.souls)}<small>k</small></b><i></i></div><div class="score t2"><i></i><b>${k(b.souls)}<small>k</small></b></div></div>
+      <div class="tx-stage"><div class="st">${esc(S.stage)}</div><div class="fmt">Bo${S.bestOf}</div></div>
+      <div class="tx-event">${esc(S.event)}</div>
+      ${txTeam("t1")}${txTeam("t2")}`;
+    // Team names shrink to fit before they ellipsize (Panorama: text-overflow: shrink).
+    const fit = () => document.querySelectorAll(".tx-name").forEach((el) => {
+      el.style.fontSize = ""; let size = 17;
+      while (el.scrollWidth > el.clientWidth && size > 12) el.style.fontSize = --size + "px";
+    });
+    fit(); if (document.fonts) document.fonts.ready.then(fit);
+    // A logo that fails to load falls back to the monogram (DLF keeps the emblem the same way).
+    document.querySelectorAll(".tx-logo img").forEach((img) => img.addEventListener("error", () => {
+      const span = img.parentElement; span.classList.add("mono"); span.textContent = img.dataset.fallback;
+    }, { once: true }));
+  };
+
+  // ---- Editor mock ----
+  const ed = document.getElementById("ed"), back = document.getElementById("edBack"), openBtn = document.getElementById("openEd");
+  const heroOptions = (sel) => `<option value="">None</option>` + Object.entries(HERO_NAMES).map(([id, n]) => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(n)}</option>`).join("");
+  const teamCol = (key, label) => {
+    const t = S.teams[key], max = Math.ceil(S.bestOf / 2);
+    return `<fieldset class="col ${key}"><legend>${label}</legend>
+      <div class="trip">
+        <label>Team name<input data-k="${key}.name" value="${esc(t.name)}" maxlength="40"></label>
+        <label>Tag<input data-k="${key}.tag" value="${esc(t.tag)}" maxlength="4"></label>
+        <label>Series<input data-k="${key}.series" type="number" min="0" max="${max}" value="${t.series}"></label>
+      </div>
+      <label>Logo URL (optional, http/https)<input data-k="${key}.logo" value="${esc(t.logo)}" placeholder="https://…/logo.png" inputmode="url"></label>
+      <div class="err" id="err-${key}" aria-live="polite"></div>
+      <div class="pair">
+        <label>Ban 1<select data-k="${key}.ban0">${heroOptions(t.bans[0])}</select></label>
+        <label>Ban 2<select data-k="${key}.ban1">${heroOptions(t.bans[1])}</select></label>
+      </div>
+      <div class="pair">${t.src.players.map((p, i) => `<label>${esc(HERO_NAMES[p.heroId] || p.heroId)} player<input data-k="${key}.alias${i}" value="${esc(t.alias[i])}" maxlength="24"></label>`).join("")}</div>
+    </fieldset>`;
+  };
+  const drawEditor = () => {
+    ed.innerHTML = `<h2 id="edTitle">Tournament setup</h2>
+      <p class="sub">Mock of the in-game editor in the Escape menu. Edits show on the top bar at once.</p>
+      <fieldset><legend>Match</legend><div class="row">
+        <label>Event title<input data-k="event" value="${esc(S.event)}" maxlength="48"></label>
+        <label>Stage<input data-k="stage" value="${esc(S.stage)}" maxlength="32"></label>
+        <label>Format<select data-k="bestOf">${[1, 3, 5, 7].map((n) => `<option value="${n}" ${n === S.bestOf ? "selected" : ""}>Bo${n}</option>`).join("")}</select></label>
+      </div></fieldset>
+      <div class="cols">${teamCol("t1", "Amber side (left)")}${teamCol("t2", "Sapphire side (right)")}</div>
+      <div class="btns"><button type="button" id="edReset">Reset</button><button type="button" class="primary" id="edClose">Done</button></div>`;
+    document.getElementById("edClose").onclick = closeEd;
+    document.getElementById("edReset").onclick = () => { S = fresh(); drawEditor(); render(); };
+  };
+  ed.addEventListener("input", (e) => {
+    const key = e.target.dataset.k; if (!key) return;
+    const v = e.target.value;
+    if (key === "event" || key === "stage") S[key] = v;
+    else if (key === "bestOf") { S.bestOf = +v; const m = Math.ceil(S.bestOf / 2); for (const t of Object.values(S.teams)) t.series = Math.min(t.series, m); drawEditor(); }
+    else {
+      const [tk, f] = key.split("."), t = S.teams[tk];
+      if (f === "name" || f === "tag") t[f] = f === "tag" ? v.toUpperCase() : v;
+      else if (f === "series") t.series = Math.max(0, Math.min(Math.ceil(S.bestOf / 2), Math.floor(+v || 0)));
+      else if (f === "logo") { t.logo = v; document.getElementById("err-" + tk).textContent = cleanUrl(v) === null ? "Not used: needs a plain http(s) address." : ""; }
+      else if (f.startsWith("ban")) t.bans[+f.slice(3)] = v;
+      else if (f.startsWith("alias")) t.alias[+f.slice(5)] = v;
+    }
+    render();
+  });
+  let lastFocus = null;
+  const openEd = () => { lastFocus = document.activeElement; drawEditor(); back.classList.add("on"); ed.querySelector("input").focus(); };
+  const closeEd = () => { back.classList.remove("on"); (lastFocus && lastFocus !== document.body ? lastFocus : openBtn).focus(); };
+  openBtn.onclick = openEd;
+  back.addEventListener("click", (e) => { if (e.target === back) closeEd(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (back.classList.contains("on")) closeEd(); else openEd();
+  });
+  if (/[?&]editor=1\b/.test(location.search)) openEd();
+  render();
+});
+</script>
+</body>
+</html>

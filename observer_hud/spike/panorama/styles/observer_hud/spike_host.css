@@ -1,0 +1,2 @@
+/* Spike: move the stock "SPECTATING" block below the right plate and its bans. */
+.spec_mode #spectate_target, .TeamSpectator #spectate_target, .replay_playback #spectate_target { margin-top: 130px; }

@@ -1,0 +1,29 @@
+/* ---- Design 19 (2026-10-23, live: the stock objective health sat under the timers and the soul lead graph).
+   Stock #objectives_health_friendly (hud.xml, gameplay_hud, z-index 20; hud_team_objective_health.css and
+   hud_objective_health.css from the installed game, client 6813): a tier-2 walker is a 400 x 75 panel at HUD
+   y 160 (players container margin 100 + team 20 + tier-2 40) with the 100 x 50 walker image over a 16 px bar
+   (98% wide; black back, 3 px radius, margin 0 5 5 5; the fill is hero_healthbar_fill_center_darker washed in
+   the team colour and cut by healthbar_mask). Both teams' walkers sit side by side (800 px). The mid-boss is
+   the neutral container (margin-top 40, max 500 px): its name in oracle 22 px over the bar, shard colour.
+   Values here are copied; the panel itself is the game's and keeps all of its styling. */
+.ohp { position: absolute; left: 0; width: 1920px; display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 5; }
+.ohp .teams { display: flex; justify-content: center; }
+.ohp .objective { width: 400px; height: 75px; display: flex; flex-direction: column; align-items: center; }
+.ohp .objective.boss { width: 500px; height: 70px; }
+.ohp .top { height: 50px; display: flex; align-items: flex-end; justify-content: center; }
+.ohp .entityImage { width: 100px; height: 50px; background: url("../assets/game/npcs__tier_2_boss_psd.png") center / contain no-repeat; }
+.ohp .name { font: 600 22px/1 "VALVE Oracle"; letter-spacing: 1px; text-transform: uppercase; color: var(--offWhite); text-shadow: 0 0 10px #000; margin-bottom: 4px; }
+.ohp .HealthBars { width: 98%; height: 16px; display: flex; }
+.ohp .healthbar_background { flex: 1; height: 100%; margin: 0 5px 5px; background: #000; border-radius: 3px; position: relative; overflow: hidden; }
+.ohp .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--wash) url("../assets/game/hud__world_space__hero_healthbar_fill_center_darker_psd.png") center / cover; background-blend-mode: multiply; -webkit-mask: var(--m-healthbar-mask-png) 0 0 / 376px 100% no-repeat; mask: var(--m-healthbar-mask-png) 0 0 / 376px 100% no-repeat; }
+.ohp .t1 { --wash: #D4860B; } .ohp .t2 { --wash: #4D75C3; } .ohp .boss { --wash: #99FFD6; }
+.ohp .lost { position: absolute; top: 0; bottom: 0; background: rgb(255, 166, 166); }
+.stage:not(.oh-amber):not(.oh-both) .ohp .objective.t1, .stage:not(.oh-sapphire):not(.oh-both) .ohp .objective.t2, .stage:not(.oh-mid) .ohp .objective.boss { display: none; }
+.stage.oh-mid .ohp .teams { display: none; }
+.stage.oh-mid .ohp .neutral { margin-top: 40px; }
+/* While the rift HUD and an objective bar both show, the graph waits (design 19 rev 2): it would sit
+   about 380 px down. Mockup-only marker where it would have been; not part of the HUD. */
+.stage.gr-held .lead { display: none; }
+.ohp-held { position: absolute; left: 50%; transform: translateX(-50%); width: 216px; height: 62px; box-sizing: border-box; border: 2px dashed #ff4fd8; color: #ff9cec; font: 700 11px/1.25 "Retail Demo"; letter-spacing: 0.06em; text-transform: uppercase; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 10px; z-index: 6; pointer-events: none; }
+.stage.gr-held .ohp-held { display: flex; }
+.stage.gr-off .ohp-held { display: none; }

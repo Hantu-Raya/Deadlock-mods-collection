@@ -1,0 +1,59 @@
+/* Round 2 (designs 6-10): Deco Marquee x Broadcast Slate. People liked both for being clean,
+   so these share one restrained kit: two surface tones, one brass accent, an 8 px grid,
+   no textures. Round 1 review fixes are built in: 6 px health bars, 12 px names, a dark
+   overlay instead of greyscale for dead players, a fixed logo slot, and team names that
+   shrink to fit (Panorama: text-overflow: shrink) before they ellipsize. */
+:root {
+  --lacquer: rgba(13, 12, 10, 0.94);
+  --lacquer-2: rgba(24, 21, 16, 0.94);
+  --brass: #d6b06a;
+  --brass-dim: rgba(214, 176, 106, 0.38);
+  --text: #efe6d6;
+  --muted: #9d927f;
+}
+
+/* Player card */
+.hc { width: var(--cw, 72px); }
+.hc .pic { position: relative; width: var(--cw, 72px); height: var(--ch, 48px); overflow: hidden; }
+.amber .hc .pic { background: linear-gradient(to bottom, #4a3316, #18110a); }
+.sapphire .hc .pic { background: linear-gradient(to bottom, #222c55, #0b0f22); }
+.hc.arch .pic { border-radius: calc(var(--cw, 72px) / 2) calc(var(--cw, 72px) / 2) 0 0; border: 1px solid var(--brass-dim); border-bottom: 0; }
+.hc .pic img { position: absolute; left: -3px; top: -6px; width: calc(var(--cw, 72px) + 6px); }
+.hc.arch .pic img { top: -2px; }
+.hc .over { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 7, 6, 0.68); font: 600 24px/1 "VALVE Oracle"; color: var(--text); }
+.hc .hp { margin-top: 3px; height: 6px; background: rgba(0, 0, 0, 0.62); }
+.hc .hp b { display: block; height: 6px; }
+.amber .hc .hp b { background: var(--amber-hi); }
+.sapphire .hc .hp b { background: var(--sapphire-hi); }
+.hc .hp b.low { background: var(--low); }
+.hc .row { margin-top: 4px; height: 13px; }
+.hc .nm { display: block; font: 600 12px/1 "Retail Demo"; letter-spacing: 0.03em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hc.dead .nm { color: var(--muted); }
+/* Ultimate chip on the portrait's bottom-right corner: glyph when ready, seconds otherwise. */
+.hc .ul { position: absolute; right: 0; bottom: 0; min-width: 18px; height: 16px; padding: 0 3px; display: flex; align-items: center; justify-content: center; background: rgba(8, 7, 6, 0.82); font: 600 11px/1 "VALVE Oracle"; color: var(--muted); }
+.hc .ul.ready i { width: 12px; height: 12px; -webkit-mask: var(--m-icon-ultimate) center / contain no-repeat; mask: var(--m-icon-ultimate) center / contain no-repeat; }
+.amber .hc .ul.ready i { background: var(--amber-hi); }
+.sapphire .hc .ul.ready i { background: var(--sapphire-hi); }
+
+/* Team identity */
+.lg { flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.lg img { max-width: 44px; max-height: 44px; object-fit: contain; }
+.lg.mono { border-radius: 50%; border: 1px solid; font: 700 12px/1 "Reaver"; letter-spacing: 0.06em; }
+.amber .lg.mono { border-color: var(--amber); color: var(--amber-hi); }
+.sapphire .lg.mono { border-color: var(--sapphire-hi); color: var(--sapphire-hi); }
+.tn { font: 700 20px/1.1 "Reaver"; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead-amber { color: var(--amber-hi); }
+.lead-sapphire { color: var(--sapphire-hi); }
+
+/* Soul-lead history as bars: amber up, sapphire down. Panels, not SVG, so Panorama can draw it. */
+.trend { position: relative; display: flex; align-items: center; gap: 2px; }
+.trend i { flex: 1; position: relative; height: 100%; }
+.trend i b { position: absolute; left: 0; right: 0; }
+.trend i b.up { bottom: 50%; background: var(--amber); }
+.trend i b.dn { top: 50%; background: var(--sapphire-hi); }
+.trend::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--brass-dim); }
+
+/* Soul share meter */
+.tug { position: relative; height: 8px; background: var(--sapphire); }
+.tug b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--amber); }
+.tug::after { content: ""; position: absolute; left: 50%; top: -3px; width: 2px; height: 14px; margin-left: -1px; background: var(--text); }

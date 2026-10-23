@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 10 · Brass Rail</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/hybrid.css">
+<style>
+/* Brass Rail: one continuous rail with design 2's arched portraits and a round clock
+   medallion; design 5's numbers, with the soul lead as a single share meter. */
+.rail { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 1590px; height: 86px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: var(--lacquer); border-bottom: 1px solid var(--brass); }
+.half { display: flex; align-items: center; gap: 16px; }
+.half.sapphire { flex-direction: row-reverse; }
+.ident { width: 214px; display: flex; align-items: center; gap: 12px; }
+.sapphire .ident { flex-direction: row-reverse; text-align: right; }
+.ident .col { min-width: 0; flex: 1; }
+.ident .tn { max-width: 158px; }
+.sapphire .ident .tn { margin-left: auto; }
+.ident .s { margin-top: 6px; font: 600 13px/1 "VALVE Oracle"; color: var(--muted); }
+.ident .s b { color: var(--text); font-weight: 600; }
+.cards { display: flex; gap: 6px; --cw: 66px; --ch: 48px; }
+.ser { width: 48px; text-align: center; font: 600 36px/1 "VALVE Oracle"; }
+.amber .ser { color: var(--amber-hi); margin-right: 76px; }
+.sapphire .ser { color: var(--sapphire-hi); margin-left: 76px; }
+.medal { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); width: 132px; height: 132px; border-radius: 50%; background: var(--lacquer-2); border: 1px solid var(--brass); text-align: center; }
+.medal::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; border: 1px solid var(--brass-dim); }
+.medal .g { margin-top: 30px; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.medal .clock { margin-top: 6px; font: 600 36px/1 "VALVE Oracle"; color: var(--text); }
+.medal .st { margin-top: 7px; font: 600 9px/1 "Reaver"; letter-spacing: 0.22em; text-transform: uppercase; color: var(--brass); }
+.meter { position: absolute; left: 50%; top: 148px; transform: translateX(-50%); width: 360px; }
+.meter .lbl { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font: 600 12px/1 "VALVE Oracle"; color: var(--text); text-shadow: 0 1px 3px #000; }
+.meter .lbl .c { font-size: 13px; letter-spacing: 0.04em; }
+.meter .ev { margin-top: 10px; text-align: center; font: 600 11px/1 "Reaver"; letter-spacing: 0.28em; text-transform: uppercase; color: var(--brass); text-shadow: 0 1px 3px #000; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="rail" id="rail"></div>
+  <div class="medal" id="medal"></div>
+  <div class="meter" id="meter"></div>
+  <div class="design-tag"><b>10 · Brass Rail</b> — one rail, clock medallion, share meter</div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/hybrid.js"></script>
+<script>
+OH.mount((oh) => {
+  const t = oh.teams, m = oh.match;
+  const half = (k) => `<div class="half ${k}">
+      <div class="ident">${oh.logo(k)}<div class="col"><div class="tn">${t[k].name}</div><div class="s"><b>${t[k].kills}</b> K · ${oh.souls(t[k].souls)}</div></div></div>
+      <div class="cards">${oh.cards(k, { arch: true })}</div><div class="ser">${t[k].series}</div></div>`;
+  document.getElementById("rail").innerHTML = half("amber") + half("sapphire");
+  document.getElementById("medal").innerHTML = `<div class="g">Game ${m.game} · Bo${m.bestOf}</div><div class="clock">${m.clock}</div><div class="st">${m.stage}</div>`;
+  document.getElementById("meter").innerHTML = `<div class="lbl"><span>${oh.souls(t.amber.souls)}</span><span class="c">${oh.leadHtml()}</span><span>${oh.souls(t.sapphire.souls)}</span></div>
+    <div class="tug"><b style="width:${(oh.share() * 100).toFixed(1)}%"></b></div><div class="ev">${m.event}</div>`;
+  oh.fitText(".tn", 13);
+  oh.fitText(".hc .nm", 10);
+});
+</script>
+</body>
+</html>

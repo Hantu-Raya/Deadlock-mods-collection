@@ -1,0 +1,116 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/observer_hud/oh_band.vcss_c" />
+	</styles>
+	<Panel class="OHBand" hittest="false" hittestchildren="false">
+		<Panel id="OHBandBack" class="OHBandBack" />
+		<Panel id="OHStripLeft" class="OHStrip" />
+		<Panel id="OHStripRight" class="OHStrip" />
+		<Panel id="OHJoinLeft" class="OHJoin OHJoinLeft" />
+		<Panel id="OHJoinRight" class="OHJoin OHJoinRight" />
+		<Panel id="OHTeamLeft" class="OHTeam OHLeft">
+			<Panel id="OHPlateLeft" class="OHPlate">
+				<Panel class="OHPlateText">
+					<Label id="OHNameLeft" class="OHName" text="" />
+					<Label id="OHCapLeft" class="OHCap" text="" />
+				</Panel>
+				<Panel id="OHLogoLeft" class="OHLogo">
+					<Label id="OHMonoLeft" class="OHMono" text="" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="OHTeamRight" class="OHTeam OHRight">
+			<Panel id="OHPlateRight" class="OHPlate">
+				<Panel id="OHLogoRight" class="OHLogo">
+					<Label id="OHMonoRight" class="OHMono" text="" />
+				</Panel>
+				<Panel class="OHPlateText">
+					<Label id="OHNameRight" class="OHName" text="" />
+					<Label id="OHCapRight" class="OHCap" text="" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="OHCornerLeft" class="OHCorner OHCornerL">
+			<Label id="OHCornerEvent" class="OHCornerA" text="" />
+			<Label id="OHCornerStage" class="OHCornerB" text="" />
+		</Panel>
+		<Panel id="OHCornerRight" class="OHCorner OHCornerR">
+			<Label id="OHCornerGame" class="OHCornerA OHCornerGame" text="" />
+			<Label id="OHCornerFirst" class="OHCornerB" text="" />
+		</Panel>
+		<Panel id="OHDividerLeft" class="OHDivider" />
+		<Panel id="OHDividerRight" class="OHDivider" />
+		<Panel id="OHDeskLeft" class="OHDeskTeam OHLeft">
+			<Label id="OHDeskNameLeft" class="OHDeskName" text="" />
+			<Panel id="OHDeskBansLeft" class="OHDeskBans">
+				<Label class="OHDeskBansLabel" text="BANS" />
+				<Panel id="OHDeskBanLeft0" class="OHDeskBan">
+					<CitadelHeroImage id="OHDeskBanLeft0Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+					<Panel class="OHDeskBanSlash" />
+				</Panel>
+				<Panel id="OHDeskBanLeft1" class="OHDeskBan">
+					<CitadelHeroImage id="OHDeskBanLeft1Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+					<Panel class="OHDeskBanSlash" />
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="OHDeskRight" class="OHDeskTeam OHRight">
+			<Panel id="OHDeskBansRight" class="OHDeskBans">
+				<Panel id="OHDeskBanRight1" class="OHDeskBan">
+					<CitadelHeroImage id="OHDeskBanRight1Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+					<Panel class="OHDeskBanSlash" />
+				</Panel>
+				<Panel id="OHDeskBanRight0" class="OHDeskBan">
+					<CitadelHeroImage id="OHDeskBanRight0Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+					<Panel class="OHDeskBanSlash" />
+				</Panel>
+				<Label class="OHDeskBansLabel" text="BANS" />
+			</Panel>
+			<Label id="OHDeskNameRight" class="OHDeskName" text="" />
+		</Panel>
+		<Panel id="OHWhoRow" class="OHWhoRow">
+			<Label id="OHWho0" class="OHWho" text="" />
+			<Label id="OHWho1" class="OHWho" text="" />
+			<Label id="OHWho2" class="OHWho" text="" />
+			<Label id="OHWho3" class="OHWho" text="" />
+			<Label id="OHWho4" class="OHWho" text="" />
+			<Label id="OHWho5" class="OHWho" text="" />
+			<Label id="OHWho6" class="OHWho" text="" />
+			<Label id="OHWho7" class="OHWho" text="" />
+			<Label id="OHWho8" class="OHWho" text="" />
+			<Label id="OHWho9" class="OHWho" text="" />
+			<Label id="OHWho10" class="OHWho" text="" />
+			<Label id="OHWho11" class="OHWho" text="" />
+		</Panel>
+		<Panel id="OHArch" class="OHArch">
+			<Panel id="OHArchLeft" class="OHArchClip OHArchClipLeft"><Panel id="OHArchCurveLeft" class="OHArchCurve" /></Panel>
+			<Panel id="OHArchRight" class="OHArchClip OHArchClipRight"><Panel id="OHArchCurveRight" class="OHArchCurve" /></Panel>
+		</Panel>
+		<Panel id="OHMid" class="OHMid">
+			<Panel id="OHScoreLeft" class="OHScore OHScoreL"><Label id="OHScoreTextLeft" class="OHScoreText" text="" /></Panel>
+			<Panel id="OHOrgLogo" class="OHOrgLogo" />
+			<Label id="OHOrgName" class="OHOrgName" text="" />
+			<Panel id="OHMidSeries" class="OHMidSeries">
+				<Label id="OHMidSeriesLeft" class="OHMidDigit" text="" />
+				<Label class="OHMidDash" text="–" />
+				<Label id="OHMidSeriesRight" class="OHMidDigit" text="" />
+			</Panel>
+			<Panel id="OHScoreRight" class="OHScore OHScoreR"><Label id="OHScoreTextRight" class="OHScoreText" text="" /></Panel>
+		</Panel>
+		<Panel id="OHRings" class="OHRings">
+			<Panel id="OHPlateEdgeLeft" class="OHPlateEdge OHPlateEdgeLeft" />
+			<Panel id="OHPlateEdgeRight" class="OHPlateEdge OHPlateEdgeRight" />
+			<Panel id="OHDeskLogoLeft" class="OHDeskLogo OHDeskLogoLeft">
+				<Label id="OHDeskMonoLeft" class="OHDeskMono" text="" />
+			</Panel>
+			<Panel id="OHDeskLogoRight" class="OHDeskLogo OHDeskLogoRight">
+				<Label id="OHDeskMonoRight" class="OHDeskMono" text="" />
+			</Panel>
+		</Panel>
+		<Panel id="OHInfo" class="OHInfo">
+			<Label id="OHInfoTitle" class="OHInfoTitle" text="" />
+			<Label id="OHInfoValue" class="OHInfoValue" text="" />
+			<Label id="OHInfoCaption" class="OHInfoCaption" text="" />
+		</Panel>
+	</Panel>
+</root>

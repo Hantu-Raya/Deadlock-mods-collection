@@ -1,0 +1,48 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/observer_hud/oh_bar.vcss_c" />
+	</styles>
+	<Panel class="OHBar" hittest="false" hittestchildren="false">
+		<Panel id="OHBansLeft" class="OHBans OHLeft">
+			<Panel id="OHBanLeft0" class="OHBan">
+				<CitadelHeroImage id="OHBanLeft0Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+				<Panel class="OHBanSlash" />
+			</Panel>
+			<Panel id="OHBanLeft1" class="OHBan">
+				<CitadelHeroImage id="OHBanLeft1Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+				<Panel class="OHBanSlash" />
+			</Panel>
+		</Panel>
+		<Panel id="OHBansRight" class="OHBans OHRight">
+			<Panel id="OHBanRight1" class="OHBan">
+				<CitadelHeroImage id="OHBanRight1Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+				<Panel class="OHBanSlash" />
+			</Panel>
+			<Panel id="OHBanRight0" class="OHBan">
+				<CitadelHeroImage id="OHBanRight0Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+				<Panel class="OHBanSlash" />
+			</Panel>
+		</Panel>
+		<Panel id="OHClock" class="OHClock">
+			<Panel id="OHScoreSpace" class="OHScoreSpace" />
+			<Panel id="OHCues" class="OHCues">
+				<Panel id="OHCueRow" class="OHCueRow">
+					<Panel id="OHCue0" class="OHCue"><Panel class="OHCueIcon" /><Label id="OHCue0Time" class="OHCueTime" text="" /></Panel>
+					<Panel id="OHCue1" class="OHCue"><Panel class="OHCueIcon" /><Label id="OHCue1Time" class="OHCueTime" text="" /></Panel>
+					<Panel id="OHCue2" class="OHCue"><Panel class="OHCueIcon" /><Label id="OHCue2Time" class="OHCueTime" text="" /></Panel>
+					<Panel id="OHCue3" class="OHCue"><Panel class="OHCueIcon" /><Label id="OHCue3Time" class="OHCueTime" text="" /></Panel>
+				</Panel>
+			</Panel>
+			<Panel id="OHGraph" class="OHGraph">
+				<Panel class="OHGraphHead">
+					<Label class="OHGraphTitle" text="SOUL LEAD" />
+					<Label id="OHGraphLead" class="OHGraphLead" text="" />
+				</Panel>
+				<Panel id="OHGraphPlot" class="OHGraphPlot">
+					<Panel class="OHGraphZero" />
+					<Panel id="OHGraphDraw" class="OHGraphDraw" />
+				</Panel>
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

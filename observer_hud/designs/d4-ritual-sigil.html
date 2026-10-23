@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 4 · Ritual Sigil</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<style>
+/* Ritual Sigil: no band at all. Floating rings over a soft vignette keep the most of the
+   game visible. Each ring is an arc: in game the same radial clip the stock status
+   timers and DLF's pickup rings use (clip: radial(50% 50%, 0deg, Xdeg)). */
+.vignette {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 220px;
+  background: radial-gradient(ellipse 980px 200px at 50% 0%, rgba(8, 7, 6, 0.86), rgba(8, 7, 6, 0.45) 55%, rgba(8, 7, 6, 0) 100%);
+}
+.core { position: absolute; left: 50%; top: 10px; width: 156px; height: 156px; transform: translateX(-50%); }
+.ring { position: absolute; inset: 0; border-radius: 50%; }
+.ring.share {
+  background: conic-gradient(var(--amber) 0 var(--a), var(--sapphire) var(--a) 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 69px, #000 70px, #000 75px, transparent 76px);
+  mask: radial-gradient(circle, transparent 69px, #000 70px, #000 75px, transparent 76px);
+}
+.ring.inner { inset: 12px; border: 1px solid rgba(229, 214, 193, 0.28); background: radial-gradient(circle, rgba(14, 12, 10, 0.92), rgba(14, 12, 10, 0.7)); }
+.core .logo { position: absolute; left: 50%; top: 50%; width: 108px; height: 108px; transform: translate(-50%, -50%); opacity: 0.1; }
+.core .txt { position: absolute; left: 0; right: 0; text-align: center; }
+.core .game { top: 38px; font: 600 11px/1 "Retail Demo"; letter-spacing: 0.3em; text-transform: uppercase; color: #b9ad9a; }
+.core .clock { top: 56px; font: 600 38px/1 "VALVE Oracle"; color: #f4eadb; }
+.core .lead { top: 102px; font: 600 13px/1 "VALVE Oracle"; color: var(--amber-hi); letter-spacing: 0.06em; }
+.event { position: absolute; left: 50%; top: 172px; transform: translateX(-50%); font: 600 12px/1 "Reaver"; letter-spacing: 0.32em; text-transform: uppercase; color: #cbbfae; white-space: nowrap; text-shadow: 0 1px 3px #000; }
+
+.side { position: absolute; top: 18px; display: flex; align-items: flex-start; gap: 22px; }
+.side.left { right: calc(50% + 100px); flex-direction: row-reverse; }
+.side.right { left: calc(50% + 100px); }
+.ident { width: 240px; padding-top: 6px; }
+.left .ident { text-align: right; }
+.ident .top { display: flex; align-items: center; gap: 10px; }
+.left .ident .top { flex-direction: row-reverse; }
+.ident .sig { width: 34px; height: 44px; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.amber .ident .sig { --m: var(--m-team1-icon); background: var(--amber-hi); }
+.sapphire .ident .sig { --m: var(--m-team2-icon); background: var(--sapphire-hi); }
+.ident .name { font: 400 26px/1 "Reaver"; text-transform: uppercase; letter-spacing: 0.08em; color: #f4eadb; white-space: nowrap; }
+.ident .line { margin-top: 10px; height: 1px; }
+.amber .line { background: linear-gradient(to left, var(--amber), rgba(207, 153, 67, 0)); }
+.sapphire .line { background: linear-gradient(to right, var(--sapphire-hi), rgba(143, 163, 230, 0)); }
+.ident .meta { margin-top: 8px; display: flex; gap: 12px; align-items: center; font: 600 13px/1 "VALVE Oracle"; color: #cbbfae; }
+.left .ident .meta { justify-content: flex-end; }
+.dots { display: flex; gap: 5px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid #cbbfae; }
+.amber .dot.on { background: var(--amber-hi); border-color: var(--amber-hi); }
+.sapphire .dot.on { background: var(--sapphire-hi); border-color: var(--sapphire-hi); }
+
+.cards { display: flex; gap: 8px; }
+.card { width: 66px; text-align: center; }
+.disc { position: relative; width: 66px; height: 66px; }
+.disc .arc {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--c) 0 var(--hp), rgba(229, 214, 193, 0.14) var(--hp) 360deg);
+  -webkit-mask: radial-gradient(circle, transparent 29px, #000 30px); mask: radial-gradient(circle, transparent 29px, #000 30px);
+}
+.amber .disc { --c: var(--amber-hi); }
+.sapphire .disc { --c: var(--sapphire-hi); }
+.disc.low { --c: var(--low); }
+.disc .face { position: absolute; inset: 5px; border-radius: 50%; overflow: hidden; background: #15120e; }
+.disc .face img { position: absolute; left: -9px; top: -3px; width: 74px; }
+.card.dead .face img { filter: grayscale(1) brightness(0.4); }
+.respawn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 24px/1 "VALVE Oracle"; color: #f4eadb; }
+.ultdot { position: absolute; left: 50%; bottom: -4px; width: 10px; height: 10px; transform: translateX(-50%); border-radius: 50%; background: #2a251f; border: 1px solid #6a6155; }
+.ultdot.ready { background: #f4eadb; border-color: #f4eadb; }
+.pname { margin-top: 9px; font: 600 11px/1 "Retail Demo"; letter-spacing: 0.06em; color: #e6dccb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
+.ultcd { margin-top: 3px; height: 10px; font: 600 10px/1 "VALVE Oracle"; color: #9d9282; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="vignette"></div>
+  <div id="root"></div>
+  <div class="design-tag"><b>4 · Ritual Sigil</b> — floating rings, no band</div>
+</div>
+<script src="shared/data.js"></script>
+<script>
+OH.mount((oh) => {
+  const card = (p) => `
+    <div class="card ${p.dead ? "dead" : ""}">
+      <div class="disc ${p.hp > 0 && p.hp < 0.3 ? "low" : ""}" style="--hp:${Math.round(p.hp * 360)}deg">
+        <div class="arc"></div><div class="face"><img src="${p.portrait}" alt="">${p.dead ? `<div class="respawn">${p.dead}</div>` : ""}</div>
+        <div class="ultdot ${p.ult === "ready" ? "ready" : ""}"></div>
+      </div>
+      <div class="pname">${p.name}</div>
+      <div class="ultcd">${p.ult === "ready" ? "" : p.ult}</div>
+    </div>`;
+  const side = (key) => {
+    const t = oh.teams[key];
+    const dots = Array.from({ length: Math.ceil(oh.match.bestOf / 2) }, (_, i) => `<span class="dot ${i < t.series ? "on" : ""}"></span>`).join("");
+    return `<div class="side ${t.side} ${key}">
+      <div class="ident"><div class="top"><i class="sig"></i><div class="name">${t.name}</div></div>
+        <div class="line"></div>
+        <div class="meta"><span class="dots">${dots}</span><span>${oh.souls(t.souls)}</span><span>${t.kills} K</span></div></div>
+      <div class="cards">${t.players.map(card).join("")}</div>
+    </div>`;
+  };
+  const a = oh.teams.amber.souls, s = oh.teams.sapphire.souls;
+  const lead = oh.lead();
+  document.getElementById("root").innerHTML = side("amber") + side("sapphire") + `
+    <div class="core" style="--a:${Math.round(360 * a / (a + s))}deg">
+      <div class="ring share"></div><div class="ring inner"></div>
+      <img class="logo" src="${oh.asset("icons__deadlock_logo.svg")}" alt="">
+      <div class="txt game">Game ${oh.match.game} · Bo${oh.match.bestOf}</div>
+      <div class="txt clock">${oh.match.clock}</div>
+      <div class="txt lead">${oh.teams[lead.team].tag} +${oh.souls(lead.value)}</div>
+    </div>
+    <div class="event">${oh.match.event} · ${oh.match.stage}</div>`;
+});
+</script>
+</body>
+</html>

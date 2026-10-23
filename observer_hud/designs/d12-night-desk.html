@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Observer HUD · 12 · Night Desk</title>
+<link rel="stylesheet" href="assets/generated.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/v2.css">
+<style>
+/* Night Desk, rev 3 (user, 2026-10-22: "minimal like Brass Slate", keep the line graph rather than
+   Brass Slate's bars). Night Desk's layout in design 6's materials: one lacquer band, one brass
+   hairline, team names in Reaver, muted small caps for everything secondary. Team colour appears
+   only where it carries meaning: a 2 px line under each team's cards, the logo ring, the series
+   digits, the graph pins. No tints, ornaments or boxes. The info card is off by default (editor:
+   give it a title to show it). The stock bar moves down 56 px. Rev 2: shots/d12-night-desk-rev2.png. */
+:root {
+  --lacquer: rgba(13, 12, 10, 0.94);       /* design 6 */
+  --lacquer-2: rgba(24, 21, 16, 0.94);
+  --brass: #d6b06a;
+  --brass-dim: rgba(214, 176, 106, 0.38);
+  --text: #efe6d6;
+  --muted: #9d927f;
+}
+.bd { position: absolute; left: 0; top: 0; width: 1920px; height: 56px; background: rgba(13, 12, 10, 0.82); backdrop-filter: blur(4px); border-bottom: 1px solid var(--brass); }   /* Panorama: world-blur gaussian(2,2,2), stock ingameHudBlur */
+.tl { position: absolute; top: 54px; width: 528px; height: 2px; }
+.tl.t1 { left: 330px; background: var(--team1); }
+.tl.t2 { left: 1062px; background: var(--team2); }
+/* Corners: event and stage left, game right */
+.corner { position: absolute; top: 0; width: 236px; padding: 13px 16px 0; white-space: nowrap; }
+.corner.l { left: 0; }
+.corner.r { right: 0; text-align: right; }
+.corner .a { font: 700 13px/1 "Retail Demo"; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+.corner .b { margin-top: 7px; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.corner.r .a { font: 600 17px/1 "VALVE Oracle"; letter-spacing: 0.08em; }
+.corner.r .b { margin-top: 5px; }
+.dv { position: absolute; top: 12px; width: 1px; height: 32px; background: var(--brass-dim); }
+.dv.l { left: 240px; }
+.dv.r { right: 240px; }
+/* Team: logo ring, Reaver name, bans */
+.lg { position: absolute; top: 9px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font: 700 11px/1 "Reaver"; letter-spacing: 0.06em; }
+.lg.mono { border: 1px solid; }
+.lg.t1 { left: 254px; border-color: var(--team1); color: var(--team1Bright); }
+.lg.t2 { right: 254px; border-color: var(--team2); color: var(--team2Bright); }
+.lg img { max-width: 36px; max-height: 36px; object-fit: contain; }
+.nm { position: absolute; top: 6px; width: 440px; font: 700 22px/26px "Reaver"; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm.t1 { left: 304px; }
+.nm.t2 { left: 1176px; text-align: right; }
+.bans { position: absolute; top: 6px; height: 24px; display: flex; align-items: center; gap: 5px; }
+.bans.t1 { left: 766px; }
+.bans.t2 { left: 1062px; flex-direction: row-reverse; }
+.bans .lbl { font: 700 9px/1 "Retail Demo"; letter-spacing: 0.18em; color: var(--muted); }
+.bans .ban { width: 24px; height: 24px; border-color: var(--brass-dim); }
+.bans .ban img { left: -2px; top: -2px; width: 26px; height: 36px; }
+/* Names row: one label per card, centred on it */
+.who { position: absolute; top: 35px; width: 86px; transform: translateX(-50%); text-align: center; font: 600 12px/15px "Retail Demo"; letter-spacing: 0.02em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who.dead { color: var(--muted); }
+/* Centre: wordmark (or organiser logo) over the series, design 6's .mid */
+.mid { position: absolute; left: 864px; top: 0; width: 192px; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--lacquer-2); border-left: 1px solid var(--brass); border-right: 1px solid var(--brass); }
+.org { max-width: 172px; font: 400 15px/1 "Reaver"; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brass); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.org img { max-width: 172px; max-height: 26px; object-fit: contain; }
+.ser { margin-top: 5px; font: 600 15px/1 "VALVE Oracle"; letter-spacing: 0.1em; color: var(--brass-dim); }
+.ser b { font-weight: 600; }
+.t1c { color: var(--team1Bright); }
+.t2c { color: var(--team2Bright); }
+/* Info card: off by default */
+.info { position: absolute; left: 16px; top: 108px; width: 220px; padding: 9px 12px 10px; background: rgba(13, 12, 10, 0.82); backdrop-filter: blur(4px); border: 1px solid var(--brass-dim); }
+.info .t { font: 700 10px/1 "Retail Demo"; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.info .v { margin-top: 6px; font: 600 22px/1 "VALVE Oracle"; color: var(--text); }
+.info .c { margin-top: 6px; font: 600 10px/1 "Retail Demo"; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+/* Soul lead graph, in the 204 px gap between the teams under the stock soul plates (clear of
+   every card's ability status column). One pin per 5:00 of game time; it fades in at each 5:00
+   mark for the editor's time (default 30 s). Segments are rotated 2 px panels. Rev 3b
+   (user): no soul value on each pin and no 5m time labels; the header's current lead is the only number. Rev 3c (user): design 5's team-colour fill. */
+.lead { position: absolute; left: 50%; top: 130px; transform: translateX(-50%); width: 200px; padding: 6px 8px 4px; background: rgba(13, 12, 10, 0.82); backdrop-filter: blur(4px); border: 1px solid var(--brass-dim); transition: opacity 0.3s; }
+.lead.off { opacity: 0; }
+.lead .hd { display: flex; justify-content: space-between; align-items: baseline; font: 700 10px/1 "Retail Demo"; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.lead .hd b { font: 600 12px/1 "VALVE Oracle"; letter-spacing: 0.04em; }
+.plot { position: relative; height: 50px; margin-top: 4px; }
+.zero { position: absolute; left: 0; right: 0; top: 25px; height: 1px; background: var(--brass-dim); }
+/* Fill (design 5): amber above the zero line, sapphire below. Panorama has no polygon fill, so
+   the area is 2 px columns from the zero line to the line, rebuilt only when a pin lands. */
+.col { position: absolute; width: 2px; }
+.col.t1 { background: rgba(214, 136, 12, 0.5); }
+.col.t2 { background: rgba(79, 116, 195, 0.65); }
+.seg { position: absolute; height: 2px; margin-top: -1px; background: var(--text); transform-origin: 0 50%; }
+.pin { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--text); }
+.pin.t1 { background: var(--team1Bright); }
+.pin.t2 { background: var(--team2Bright); }
+@media (prefers-reduced-motion: reduce) { .lead { transition: none; } }
+.demo { position: absolute; right: 24px; bottom: 76px; min-height: 40px; padding: 8px 14px; background: rgba(16, 19, 13, 0.9); border: 1px solid rgba(255, 239, 215, 0.4); color: var(--offWhite); font: 700 12px/1 "Retail Demo"; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.demo:focus-visible { outline: 2px solid var(--team1Bright); outline-offset: 2px; }
+/* Objective cues (round 5b) in a 34 px slot right under the soul plates; the graph sits below the slot
+   whether or not a cue is showing, so nothing moves when one appears. */
+.obj.desk { top: 88px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div id="band"></div>
+  <div class="topbar" id="topbar"></div>
+  <div id="objsheet"></div>
+  <div class="design-tag"><b>12 · Night Desk</b> — Brass Slate materials, soul lead graph</div>
+  <button class="demo" id="demo" type="button" aria-pressed="true">Graph: shown (G)</button>
+  <button class="open-ed" id="openEd" type="button" aria-haspopup="dialog">Tournament setup (Esc)</button>
+  <div class="ed-back" id="edBack">
+    <div class="ed" id="ed" role="dialog" aria-modal="true" aria-labelledby="edTitle"></div>
+  </div>
+</div>
+<script src="shared/data.js"></script>
+<script src="shared/v2.js"></script>
+<script>
+let graphOn = !/[?&]graph=0\b/.test(location.search);   // mock of the 5:00-mark timer: G toggles it
+V2.mount({
+  // Sample cues for the main view, all four at once so each icon shows: bridge buff in 0:22, Night Owls
+  // holding the rejuvenator (2:41 left), rift opening in 0:14, urn in 0:48.
+  objectives: { bridge: 22, urn: 48, rift: { state: "warn", secs: 14 }, mid: { state: "held", team: "t1", secs: 161 } },
+  objSheet: "desk",
+  band: 56,
+  clock: "25:12",          // 12 s after the 25:00 pin, inside the default 30 s window
+  infoCard: true,
+  info: /[?&]info=1\b/.test(location.search) ? {} : { title: "" },   // off by default; ?info=1 shows the sample
+  leadGraph: true,
+  renderUnderClock: (S, h) => {
+    if (!S.graph.show) return h.objectives("desk");
+    // Mock pins (k souls, amber positive) at 0, 5, … 25 min, with one clear sapphire lead so both fills show.
+    // In game each pin is the stock team soul totals' difference sampled at that 5:00 mark.
+    const nowMin = 25, pins = [0, -0.6, 2.4, -2.1, 3.0, 3.3].map((v, i) => ({ m: i * 5, v }));
+    const W = 184, pad = 6, top = 25, amp = 20;
+    const max = Math.max(1, Math.ceil(Math.max(...pins.map((p) => Math.abs(p.v)))));
+    const xy = (p) => [pad + (p.m / nowMin) * (W - 2 * pad), top - (p.v / max) * amp];
+    const side = (v) => (v > 0 ? "t1" : v < 0 ? "t2" : "");
+    const segs = pins.slice(1).map((p, i) => {
+      const [x1, y1] = xy(pins[i]), [x2, y2] = xy(p);
+      const len = Math.hypot(x2 - x1, y2 - y1), deg = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+      return `<i class="seg" style="left:${x1.toFixed(1)}px;top:${y1.toFixed(1)}px;width:${len.toFixed(1)}px;transform:rotate(${deg.toFixed(1)}deg)"></i>`;
+    }).join("");
+    // Area fill: one 2 px column per step, height from the zero line to the interpolated line.
+    const pts = pins.map(xy), fill = [];
+    for (let x = pts[0][0]; x < pts[pts.length - 1][0]; x += 2) {
+      const j = Math.min(pts.length - 2, pts.findIndex((q, k) => k < pts.length - 1 && x < pts[k + 1][0]));
+      const [x1, y1] = pts[j], [x2, y2] = pts[j + 1], y = y1 + ((x + 1 - x1) / (x2 - x1)) * (y2 - y1);
+      if (Math.abs(y - top) < 0.5) continue;
+      fill.push(`<i class="col ${y < top ? "t1" : "t2"}" style="left:${x.toFixed(1)}px;top:${Math.min(y, top).toFixed(1)}px;height:${Math.abs(y - top).toFixed(1)}px"></i>`);
+    }
+    const dots = pins.map((p) => {
+      const [x, y] = xy(p), s = side(p.v);
+      return `<i class="pin ${s}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px"></i>`;
+    }).join("");
+    const a = S.teams.t1.src.souls, b = S.teams.t2.src.souls, lead = a - b, lk = lead > 0 ? "t1" : "t2";
+    return `<div class="lead${graphOn ? "" : " off"}" id="lead" aria-label="Soul lead graph">
+      <div class="hd"><span>Soul lead</span><b class="${lk}c">${h.esc(S.teams[lk].tag)} +${(Math.abs(lead) / 1000).toFixed(1)}k</b></div>
+      <div class="plot">${fill.join("")}<i class="zero"></i>${segs}${dots}</div>
+    </div>${h.objectives("desk")}`;
+  },
+  renderBand: (S, h) => {
+    const team = (key) => {
+      const t = S.teams[key];
+      return `<div class="tl ${key}"></div>${h.logo(t, "lg " + key)}
+        <div class="nm ${key}" data-fit="22,14">${h.esc(t.name)}</div>
+        <div class="bans ${key}"><span class="lbl">BANS</span>${h.ban(t.bans[0])}${h.ban(t.bans[1])}</div>
+        ${h.names(key, "who")}`;
+    };
+    const info = S.info.title.trim() ? `<div class="info"><div class="t">${h.esc(S.info.title)}</div>${S.info.value ? `<div class="v">${h.esc(S.info.value)}</div>` : ""}${S.info.caption ? `<div class="c">${h.esc(S.info.caption)}</div>` : ""}</div>` : "";
+    return `<div class="bd"></div>${team("t1")}${team("t2")}
+      <div class="corner l"><div class="a" data-fit="13,10">${h.esc(S.event)}</div><div class="b">${h.esc(S.stage)} · Bo${S.bestOf}</div></div>
+      <div class="corner r"><div class="a">GAME ${S.game}</div><div class="b">First to ${h.wins()}</div></div>
+      <div class="dv l"></div><div class="dv r"></div>
+      <div class="mid">${h.orgLogo("org")}<div class="ser"><b class="t1c">${S.teams.t1.series}</b> – <b class="t2c">${S.teams.t2.series}</b></div></div>${info}`;
+  },
+});
+(() => {
+  const btn = document.getElementById("demo");
+  const sync = () => { const el = document.getElementById("lead"); if (el) el.classList.toggle("off", !graphOn); btn.textContent = `Graph: ${graphOn ? "shown" : "hidden"} (G)`; btn.setAttribute("aria-pressed", String(graphOn)); };
+  btn.onclick = () => { graphOn = !graphOn; sync(); };
+  document.addEventListener("keydown", (e) => { if ((e.key === "g" || e.key === "G") && !/INPUT|SELECT/.test(e.target.tagName)) { graphOn = !graphOn; sync(); } });
+  sync();
+})();
+</script>
+</body>
+</html>

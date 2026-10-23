@@ -1,0 +1,943 @@
+/* Tournament setup editor (observer_hud/editor.xml), loaded into the stock #EscapeMenu by oh_host.js
+   and driven by oh_menu.js; opened from the native TOURNAMENT SETUP entry in the stock menu list.
+   Look: the stock Settings screen as HP Colors v3 reproduces it (hp_colors_v3_menu.css), but as a
+   window, not the whole screen (user 2026-10-22): environment backdrop, a rail of pages with the
+   green paper brush, a green page title, cards of "label | control" rows with the stock hover wash,
+   stock SecondaryButton light pills ("fill Selected" when picked) and the stock switch. offWhite
+   #FFEFD7, offBlack #10130D, green #5FE69E; team cards use the top-bar Amber/Sapphire. The Escape
+   menu hides the HUD, so the backdrop covers the whole screen and the window is centred. #OHBackdrop (a Button) must stay the first child of #OHEditor:
+   it takes the clicks around the window so they never reach the stock menu (DLF finding). */
+
+.OHMenu
+{
+	width: 100%;
+	height: 100%;
+}
+
+.OHEditor
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+}
+
+.OHOpen .OHEditor
+{
+	visibility: visible;
+}
+
+.OHBackdrop
+{
+	width: 100%;
+	height: 100%;
+	background-color: #000000E6;
+}
+
+/* ---------------------------------------------------------------- window */
+
+.OHShell
+{
+	width: 1280px;
+	height: 780px;
+	horizontal-align: center;
+	vertical-align: center;
+	border: 1px solid #FFEFD71C;
+	border-radius: 6px;
+	background-color: #0B0D10;
+}
+
+.OHShellBg
+{
+	width: 100%;
+	height: 100%;
+	background-image: url("s2r://panorama/images/buttons/temp_background_environment_png.vtex");
+	background-size: cover;
+	background-position: center;
+	opacity: 0.7;
+}
+
+.OHBody
+{
+	width: 100%;
+	height: 100%;
+	flow-children: right;
+}
+
+/* The body stays laid out but draws nothing behind the hero picker. */
+.OHPicking .OHBody
+{
+	opacity: 0;
+}
+
+/* ---------------------------------------------------------------- rail */
+
+.OHRail
+{
+	width: 230px;
+	height: 100%;
+	padding: 28px 12px 0px 12px;
+	flow-children: down;
+}
+
+.OHRailHead
+{
+	margin: 0px 0px 18px 24px;
+	flow-children: down;
+}
+
+.OHRailLook
+{
+	margin-top: 3px;
+}
+
+.OHRailKicker
+{
+	margin: 0px;
+	font-family: oracle;
+	font-size: 14px;
+	font-weight: semi-bold;
+	letter-spacing: 2px;
+	color: #FFEFD766;
+}
+
+.OHNavButton
+{
+	width: 100%;
+	height: 44px;
+	flow-children: right;
+	overflow: noclip;
+}
+
+.OHNavBrush
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	background-image: url("s2r://panorama/images/textures/paper_tile_1k_psd.vtex");
+	wash-color: #5FE69E;
+	brightness: 4;
+	transform: rotateX(-20deg) rotateY(20deg);
+	opacity-mask: url("s2r://panorama/images/buttons/button_nav_mask_threshold_psd.vtex");
+	opacity-mask-threshold: 2% 1%;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.2s;
+}
+
+.OHNavButton:hover .OHNavBrush
+{
+	opacity: 0.2;
+}
+
+.OHNavButton.Selected .OHNavBrush
+{
+	opacity: 1;
+}
+
+.OHNavLabel
+{
+	margin-left: 24px;
+	vertical-align: center;
+	font-family: oracle;
+	font-size: 24px;
+	font-weight: semi-bold;
+	text-transform: uppercase;
+	color: #FFEFD788;
+	white-space: nowrap;
+}
+
+.OHNavButton:hover .OHNavLabel
+{
+	color: #FFEFD7;
+}
+
+.OHNavButton.Selected .OHNavLabel
+{
+	color: #10130D;
+}
+
+/* NIGHT DESK reads "off" while Base Game+ Names is picked. */
+.OHNavSub
+{
+	margin-left: 8px;
+	vertical-align: center;
+	font-family: sans;
+	font-size: 14px;
+	color: #FFEFD788;
+	visibility: collapse;
+}
+
+.OHNavOff .OHNavSub
+{
+	visibility: visible;
+}
+
+.OHNavOff .OHNavLabel
+{
+	color: #FFEFD744;
+}
+
+.OHNavButton.Selected .OHNavSub,
+.OHNavButton.Selected.OHNavOff .OHNavLabel
+{
+	color: #10130D;
+}
+
+/* Credits at the rail's foot: DONATE (Ko-fi), the author link (X) and the version. */
+.OHCredits
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	padding: 0px 12px 22px 24px;
+	flow-children: up;
+}
+
+.OHVersion
+{
+	margin-top: 4px;
+	font-family: sans;
+	font-size: 14px;
+	color: #FFEFD744;
+}
+
+.OHAuthor
+{
+	margin-top: 10px;
+}
+
+.OHAuthorLabel
+{
+	font-family: sans;
+	font-size: 15px;
+	font-weight: semi-bold;
+	color: #FFEFD788;
+}
+
+.OHAuthor:hover .OHAuthorLabel
+{
+	color: #5FE69E;
+}
+
+.OHDonate
+{
+	padding: 4px 14px 4px 14px;
+}
+
+.OHDonate Label
+{
+	font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- content */
+
+.OHContent
+{
+	width: fill-parent-flow(1.0);
+	height: 100%;
+	padding: 22px 20px 0px 8px;
+	flow-children: down;
+}
+
+.OHPageHead
+{
+	width: 100%;
+	flow-children: down;
+	margin-bottom: 10px;
+}
+
+.OHPageTitle
+{
+	font-family: oracle;
+	font-size: 44px;
+	font-weight: bold;
+	letter-spacing: 1.5px;
+	color: gradient( linear, 0% 0%, 0% 100%, from( #5FE69E ), to( #A6FFB5 ) );
+}
+
+.OHPageDescription
+{
+	width: 100%;
+	font-family: sans;
+	font-size: 17px;
+	color: #FFEFD799;
+}
+
+.OHPages
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	flow-children: down;
+	padding-right: 14px;
+	overflow: squish scroll;
+}
+
+.OHPage
+{
+	width: 100%;
+	padding-bottom: 16px;
+	flow-children: down;
+	visibility: collapse;
+}
+
+.OHShowMatch .OHPageMatch,
+.OHShowTeams .OHPageTeams,
+.OHShowPlayers .OHPagePlayers,
+.OHShowTopBar .OHPageTopBar,
+.OHShowDesk .OHPageDesk,
+.OHShowTimers .OHPageTimers,
+.OHShowShare .OHPageShare
+{
+	visibility: visible;
+}
+
+/* Cards: a title, then rows. Night Desk's card shows only while Night Desk is picked. */
+.OHCard
+{
+	width: 100%;
+	flow-children: down;
+	margin-bottom: 14px;
+	padding-bottom: 4px;
+	background-color: #10130D59;
+	border-radius: 4px;
+}
+
+.OHCardTitle
+{
+	margin: 16px 0px 6px 24px;
+	font-size: 22px;
+	font-weight: bold;
+	letter-spacing: 0.5px;
+	color: #FFEFD7CC;
+}
+
+.OHTeamAmber
+{
+	color: #FFC15A;
+}
+
+.OHTeamSapphire
+{
+	color: #8FB2FF;
+}
+
+/* Card head: title, a scope tag in the rail kicker's type (BOTH LOOKS / NIGHT DESK ONLY) and where it shows. */
+.OHCardHead
+{
+	margin: 16px 0px 6px 24px;
+	flow-children: right;
+}
+
+.OHCardHead .OHCardTitle
+{
+	margin: 0px;
+	vertical-align: center;
+}
+
+.OHScope
+{
+	margin-left: 14px;
+	vertical-align: center;
+	font-family: oracle;
+	font-size: 14px;
+	font-weight: semi-bold;
+	letter-spacing: 2px;
+	color: #FFEFD766;
+}
+
+.OHNote.OHWhere
+{
+	margin: 0px 0px 0px 6px;
+	vertical-align: center;
+}
+
+/* Night Desk-only settings dim while Base Game+ Names is picked (values are kept and stay editable). */
+.OHPageDesk .OHCard,
+.OHDeskOnly
+{
+	opacity: 0.42;
+}
+
+.OHLookDeskOn .OHPageDesk .OHCard,
+.OHLookDeskOn .OHDeskOnly
+{
+	opacity: 1;
+}
+
+/* Use Night Desk sits at the right of the page head, only on NIGHT DESK under Base Game+ Names. */
+.OHUseDesk
+{
+	ignore-parent-flow: true;
+	horizontal-align: right;
+	vertical-align: top;
+	margin: 12px 14px 0px 0px;
+	visibility: collapse;
+}
+
+.OHShowDesk .OHUseDesk
+{
+	visibility: visible;
+}
+
+.OHLookDeskOn .OHUseDesk
+{
+	visibility: collapse;
+}
+
+/* Two cards side by side (PLAYERS) and two columns of help rows (SHARE). */
+.OHCols
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.OHColCard
+{
+	width: fill-parent-flow(1.0);
+	margin-right: 14px;
+}
+
+.OHColCardLast
+{
+	margin-right: 0px;
+}
+
+.OHColCard .OHRowTitle
+{
+	width: 170px;
+}
+
+.OHInfoCols
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.OHInfoCol
+{
+	width: 50%;
+	flow-children: down;
+}
+
+.OHInfoCol .OHRowTitle
+{
+	width: 120px;
+}
+
+/* Rows: stock settings rows, the label lights up and the row gets a wash on hover. */
+.OHRow
+{
+	width: 100%;
+	min-height: 48px;
+	padding: 6px 24px 6px 24px;
+	flow-children: right;
+	border-top: 1px solid #00000080;
+}
+
+.OHRow:hover
+{
+	background-color: #FFEFD70A;
+}
+
+.OHRowTitle
+{
+	width: 230px;
+	padding-right: 16px;
+	vertical-align: center;
+	font-size: 17px;
+	font-weight: semi-bold;
+	color: #FFEFD766;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHRow:hover .OHRowTitle
+{
+	color: #FFEFD7;
+}
+
+.OHRowControls
+{
+	width: fill-parent-flow(1.0);
+	vertical-align: center;
+	flow-children: right;
+	overflow: noclip;
+}
+
+.OHTallRow .OHRowControls
+{
+	flow-children: down;
+}
+
+.OHPlayerRow
+{
+	visibility: collapse;
+}
+
+.OHPlayerRow.OHShown
+{
+	visibility: visible;
+}
+
+.OHPlayerGame
+{
+	color: #FFEFD7AA;
+}
+
+.OHPlayersEmpty
+{
+	margin: 6px 24px 10px 24px;
+	visibility: collapse;
+}
+
+.OHPlayersEmpty.OHShown
+{
+	visibility: visible;
+}
+
+/* Read-only help rows (SHARE). */
+.OHInfoText
+{
+	width: fill-parent-flow(1.0);
+	vertical-align: center;
+	font-family: sans;
+	font-size: 16px;
+	color: #FFEFD799;
+}
+
+.OHInfoRow:hover .OHInfoText
+{
+	color: #FFEFD7CC;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.OHEntry
+{
+	width: 100%;
+	height: 36px;
+	padding: 6px 10px 4px 10px;
+	background-color: #10130D99;
+	border: 2px solid #FFEFD714;
+	border-radius: 4px;
+	font-family: sans;
+	font-size: 17px;
+	color: #FFEFD7DD;
+}
+
+.OHEntry #PlaceholderText
+{
+	color: #FFEFD744;
+}
+
+.OHRow:hover .OHEntry
+{
+	border: 2px solid #FFEFD722;
+}
+
+.OHEntry:focus,
+.OHRow:hover .OHEntry:focus
+{
+	border: 2px solid #5FE69E88;
+	color: #FFEFD7;
+}
+
+.OHNameEntry
+{
+	width: fill-parent-flow(1.0);
+}
+
+/* A second label inside a row (TEAMS: Tag), in the row title's type. */
+.OHInlineLabel
+{
+	margin: 0px 8px 0px 16px;
+	vertical-align: center;
+	font-size: 17px;
+	font-weight: semi-bold;
+	color: #FFEFD766;
+}
+
+.OHTagEntry
+{
+	width: 96px;
+}
+
+.OHNote
+{
+	margin-top: 3px;
+	font-family: sans;
+	font-size: 14px;
+	color: #FFEFD788;
+}
+
+.OHNote.OHError
+{
+	color: #FF7A7A;
+}
+
+.OHInlineNote
+{
+	margin: 0px 0px 0px 6px;
+	vertical-align: center;
+}
+
+.OHHelp
+{
+	width: 100%;
+	margin: 0px 24px 8px 24px;
+	font-family: sans;
+	font-size: 16px;
+	color: #FFEFD799;
+}
+
+/* Stock SecondaryButton light pills; picked ones get "fill Selected" from oh_menu.js. */
+.OHChoice
+{
+	min-width: 64px;
+	margin: 0px 8px 0px 0px;
+	vertical-align: center;
+}
+
+.OHWideChoice
+{
+	min-width: 190px;
+}
+
+.OHStepButton
+{
+	min-width: 40px;
+	vertical-align: center;
+}
+
+.OHStepValue
+{
+	width: 48px;
+	vertical-align: center;
+	text-align: center;
+	font-family: oracle;
+	font-size: 22px;
+	font-weight: bold;
+	color: #FFEFD7;
+}
+
+.OHPollValue
+{
+	width: 86px;
+	font-size: 18px;
+}
+
+.OHAction
+{
+	margin: 0px 0px 0px 8px;
+	vertical-align: center;
+}
+
+/* Stock switch (HP Colors v3 .HPC3Toggle). */
+.OHToggle
+{
+	width: 40px;
+	height: 20px;
+	vertical-align: center;
+	overflow: noclip;
+	background-image: url("s2r://panorama/images/buttons/switch_background.vsvg");
+	background-size: 40px 20px;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+.OHToggleOff,
+.OHToggleOn
+{
+	width: 20px;
+	height: 20px;
+	overflow: noclip;
+	background-size: 20px 20px;
+	background-repeat: no-repeat;
+	transition-property: opacity;
+	transition-duration: 0.1s;
+}
+
+.OHToggleOff
+{
+	background-image: url("s2r://panorama/images/buttons/switch_handle_off.vsvg");
+}
+
+.OHToggleOn
+{
+	margin-left: 20px;
+	background-image: url("s2r://panorama/images/buttons/switch_handle_on.vsvg");
+	opacity: 0;
+}
+
+.OHToggle.Checked .OHToggleOff
+{
+	opacity: 0;
+}
+
+.OHToggle.Checked .OHToggleOn
+{
+	opacity: 1;
+}
+
+.OHToggle:hover
+{
+	brightness: 1.3;
+}
+
+.OHToggleText
+{
+	margin-left: 12px;
+	vertical-align: center;
+	font-size: 16px;
+	font-weight: semi-bold;
+	color: #FFEFD788;
+}
+
+/* Ban slots: a dark well with the hero portrait. */
+.OHBanSlot
+{
+	width: 220px;
+	height: 44px;
+	margin-right: 10px;
+	flow-children: right;
+	background-color: #10130D99;
+	border: 2px solid #FFEFD714;
+	border-radius: 4px;
+}
+
+.OHBanSlot:hover
+{
+	border: 2px solid #FFEFD744;
+}
+
+.OHBanSlotImage
+{
+	width: 34px;
+	height: 34px;
+	margin: 3px 10px 3px 3px;
+	border-radius: 50%;
+	opacity: 0;
+}
+
+.OHBanSet .OHBanSlotImage
+{
+	opacity: 1;
+}
+
+.OHBanSlotLabel
+{
+	vertical-align: center;
+	font-family: sans;
+	font-size: 16px;
+	color: #FFEFD766;
+}
+
+.OHBanSet .OHBanSlotLabel
+{
+	color: #FFEFD7;
+}
+
+.OHShareRow
+{
+	width: 100%;
+	padding: 0px 24px 0px 24px;
+	flow-children: right;
+}
+
+.OHShareEntry
+{
+	width: fill-parent-flow(1.0);
+}
+
+.OHShareStatus
+{
+	margin: 4px 24px 10px 24px;
+}
+
+/* ---------------------------------------------------------------- footer */
+
+/* Stock Settings footer: block-type words, dim until hovered. */
+.OHFooter
+{
+	width: 100%;
+	height: 56px;
+	flow-children: right;
+}
+
+/* Local save state, as the stock Settings footer shows it. */
+.OHSaveStatus
+{
+	margin-right: 16px;
+	vertical-align: center;
+	font-family: block;
+	font-size: 18px;
+	text-transform: uppercase;
+	color: #FFEFD744;
+}
+
+.OHSaveStatus.OHSaveOk
+{
+	color: #5FE69E;
+}
+
+.OHSaveStatus.OHSaveWarn
+{
+	color: #FF7A7A;
+}
+
+/* Hidden save page: the collapsed-wrapper pattern of the DLF, Buff Timer and HP Colors v2 stores. */
+.OHStoreWrap
+{
+	width: 10px;
+	height: 10px;
+	ignore-parent-flow: true;
+	visibility: collapse;
+}
+
+.OHStore
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0.01;
+}
+
+/* HP Colors v3's hosted supporter strip (36 px), loaded only while the editor is open. */
+.OHSupporterStrip
+{
+	width: fill-parent-flow(1.0);
+	height: 36px;
+	vertical-align: center;
+	visibility: collapse;
+}
+
+.OHSupporterStrip.Open
+{
+	visibility: visible;
+}
+
+.OHNoPageReset #OHResetPage
+{
+	visibility: collapse;
+}
+
+.OHFooterButton
+{
+	height: 40px;
+	margin-left: 28px;
+	vertical-align: center;
+}
+
+.OHFooterButton Label
+{
+	vertical-align: center;
+	font-family: block;
+	font-size: 20px;
+	text-transform: uppercase;
+	color: #FFEFD744;
+}
+
+.OHFooterButton:hover Label
+{
+	color: #FFEFD7;
+}
+
+.OHDoneButton Label
+{
+	color: #5FE69E;
+}
+
+.OHDoneButton:hover Label
+{
+	color: #A6FFB5;
+}
+
+.OHResetButton.OHArmed Label
+{
+	color: #FF7A7A;
+}
+
+.OHFooterButton:active
+{
+	pre-transform-scale2d: 0.98;
+}
+
+/* ---------------------------------------------------------------- hero picker */
+
+.OHPicker
+{
+	width: 100%;
+	height: 100%;
+	flow-children: down;
+	padding: 24px 28px 20px 28px;
+	visibility: collapse;
+}
+
+.OHPicking .OHPicker
+{
+	visibility: visible;
+}
+
+.OHPickerHead
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 14px;
+}
+
+.OHPickerTitle
+{
+	width: fill-parent-flow(1.0);
+	vertical-align: center;
+	font-family: oracle;
+	font-size: 32px;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: gradient( linear, 0% 0%, 0% 100%, from( #5FE69E ), to( #A6FFB5 ) );
+}
+
+.OHHeroGrid
+{
+	width: 100%;
+	height: fill-parent-flow(1.0);
+	flow-children: right-wrap;
+	overflow: squish scroll;
+}
+
+.OHHeroTile
+{
+	width: 112px;
+	height: 96px;
+	margin: 0px 8px 8px 0px;
+	flow-children: down;
+	background-color: #10130D99;
+	border: 2px solid #FFEFD714;
+	border-radius: 4px;
+}
+
+.OHHeroTile:hover
+{
+	border: 2px solid #FFEFD7AA;
+}
+
+.OHHeroTile.OHTaken
+{
+	opacity: 0.3;
+}
+
+.OHHeroTileImage
+{
+	width: 56px;
+	height: 56px;
+	horizontal-align: center;
+	margin-top: 6px;
+}
+
+.OHHeroTileName
+{
+	horizontal-align: center;
+	margin-top: 4px;
+	font-family: sans;
+	font-size: 13px;
+	color: #FFEFD7CC;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

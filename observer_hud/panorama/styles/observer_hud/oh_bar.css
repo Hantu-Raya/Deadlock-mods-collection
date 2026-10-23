@@ -1,0 +1,410 @@
+/* Tournament bar (observer_hud/tournament_bar.xml), loaded into the stock #TopBar by oh_host.js.
+   Values are the stock top bar's (citadel_hud_top_bar.css, client 6812) as quoted in the d11 mockup:
+   offWhite #FFEFD7, offBlack #10130D, team1Color #D6880C and team2Color #4F74C3 (sampled live).
+   Class names are this mod's own: a replaced citadel_hud_top_bar.css must not restyle them.
+   oh_host.js sets the bar's width to the HUD width and places the teams and the clock stack from the
+   stock panels they belong to (margin-left/margin-top), so nothing here depends on the aspect ratio. */
+
+/* Panorama gives a child only the room inside its parent (ENGINE.md): the clock stack (timers, the rift HUD
+   moved under them, then the soul lead graph at up to 150 % and Y +300) needs about 640 px, else the graph
+   is squashed (live 2026-10-23 at 220 px). Transparent and hittest="false". */
+.OHBar
+{
+	height: 640px;
+	overflow: noclip;
+	visibility: collapse;
+}
+
+/* Only while spectating: the classes sit on the stock CitadelHud (#Hud). */
+.spec_mode .OHBar,
+.TeamSpectator .OHBar,
+.replay_playback .OHBar
+{
+	visibility: visible;
+}
+
+/* Base Game+ Names: each team's two bans beside the stock clock, on that team's side
+   (oh_host.js places them from #GameTime; BAN_SIZE). 32 px circles (28 before; user 2026-10-23
+   "make it bigger a bit"). */
+.OHBans
+{
+	height: 32px;
+	flow-children: right;
+	visibility: collapse;
+}
+
+.OHBans.OHHasBans
+{
+	visibility: visible;
+}
+
+.OHBan
+{
+	width: 32px;
+	height: 32px;
+	margin-left: 2px;
+	margin-right: 2px;
+	border-radius: 50%;
+	background-color: #10130D;
+	border: 2px solid #FFEFD759;
+	visibility: collapse;
+}
+
+.OHBan.OHBanSet
+{
+	visibility: visible;
+}
+
+/* The small hero image is a portrait card: taller than wide, the face in its upper part (mockup 30x41
+   at -2,-2 on a 28 px ban, scaled to 32 px). */
+.OHBanImage
+{
+	width: 34px;
+	height: 47px;
+	margin-left: -3px;
+	margin-top: -2px;
+	saturation: 0;
+	brightness: 0.8;
+}
+
+/* The red strike over a banned hero (stock .enemy health red). */
+.OHBanSlash
+{
+	width: 50px;
+	height: 2px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-color: #FF5656;
+	transform: rotateZ(-45deg);
+}
+
+/* Room for the stock kills row (.KillsAndAbilityPointsContainer, citadel_hud_top_bar.css): the stock rules
+   show it under .wants_scoreboard except during the hero draft, and the same classes show this spacer, so
+   the stack moves with the scoreboard in the same frame (user 2026-10-23: native classes, no polling).
+   oh_host.js only writes its height (the kills row's bottom under the stack's own spot). */
+.OHScoreSpace
+{
+	width: 100%;
+	height: 0px;
+	visibility: collapse;
+}
+
+.wants_scoreboard .OHScoreSpace
+{
+	visibility: visible;
+}
+
+.wants_scoreboard.PreGameHeroDraft .OHScoreSpace
+{
+	visibility: collapse;
+}
+
+/* The clock stack under the stock clock and networth: the objective chips, then Night Desk's soul lead
+   graph (Base Game+ Names rev 2 moved the stage into the plates, design 17). */
+.OHClock
+{
+	width: 360px;
+	height: fit-children;
+	flow-children: down;
+	overflow: noclip;
+}
+
+/* Night Desk: the clock bans give way to the band (oh_band.css). */
+.OHStyleDesk .OHBans
+{
+	visibility: collapse;
+}
+
+/* Soul lead graph (both looks, design 19): a pin per 5:00 of game time, a line between them and the
+   team-colour fill (2 px columns), drawn by oh_host.js into #OHGraphDraw. It fades in at each 5:00 mark. */
+/* Size and position come from oh_host.js (layoutGraph: width, padding, margins, fonts at state.graph.size,
+   centred in the 360 px clock stack plus state.graph.x/y); these are the 100% values. */
+.OHGraph
+{
+	width: 200px;
+	horizontal-align: left;
+	margin-left: 80px;
+	margin-top: 4px;
+	padding: 6px 8px 4px 8px;
+	flow-children: down;
+	background-color: #0D0C0AD0;
+	border: 1px solid #D6B06A61;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+}
+
+/* Blur only while shown: a faded-out graph must not leave a blurred patch over the world. */
+.OHGraph.OHGraphShown
+{
+	opacity: 1;
+	world-blur: gaussian(2,2,2);
+}
+
+.OHGraphHead
+{
+	width: 100%;
+	height: 13px;
+}
+
+.OHGraphTitle
+{
+	vertical-align: bottom;
+	font-family: "Retail Demo", "Noto Sans";
+	font-size: 10px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	color: #9D927F;
+}
+
+.OHGraphLead
+{
+	horizontal-align: right;
+	vertical-align: bottom;
+	font-family: VALVEOracle, Reaver, "Noto Sans";
+	font-size: 12px;
+	letter-spacing: 0px;
+	color: #FFC15A;
+}
+
+.OHGraphLead.OHSapphire
+{
+	color: #8FB2FF;
+}
+
+.OHGraphPlot
+{
+	width: 184px;
+	height: 50px;
+	margin-top: 4px;
+}
+
+.OHGraphZero
+{
+	width: 100%;
+	height: 1px;
+	margin-top: 25px;
+	background-color: #D6B06A61;
+}
+
+.OHGraphDraw
+{
+	width: 100%;
+	height: 100%;
+}
+
+.OHGraphFill
+{
+	width: 2px;
+	background-color: #D6880C80;
+}
+
+.OHGraphFill.OHSapphire
+{
+	background-color: #4F74C3A6;
+}
+
+.OHGraphSeg
+{
+	height: 2px;
+	background-color: #EFE6D6;
+	transform-origin: 0% 50%;
+}
+
+.OHGraphPin
+{
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background-color: #EFE6D6;
+}
+
+.OHGraphPin.OHAmber
+{
+	background-color: #FFC15A;
+}
+
+.OHGraphPin.OHSapphire
+{
+	background-color: #8FB2FF;
+}
+
+/* Objective cues (designs round 5b): small chips under the stage box (Base Game+ Names) or under the
+   soul plates (Night Desk, the graph below them), shown only while an objective is close. The visible
+   chips form one group centred under the clock, so the row is always symmetric; the mid-boss /
+   rejuvenator chip (the mid objective) goes in the middle of the group (exactly under the clock when
+   one or three chips show). Four chips span 196 px, inside the ~204 px column between the two team
+   panels, so they never touch a card. oh_host.js fills the slots in order (kind class + .OHOn); the
+   row keeps its height when empty, so the graph never moves. The stock rejuvenator charges stay. */
+.OHCues
+{
+	width: 100%;
+	height: 42px;
+	margin-top: 6px;
+}
+
+.OHCueRow
+{
+	horizontal-align: center;
+	width: fit-children;
+	height: 100%;
+	flow-children: right;
+}
+
+/* Icon over time, every chip the same size: Names copies the stock clock box. */
+.OHCue
+{
+	width: 46px;
+	height: 38px;
+	margin: 2px 2px 0px 2px;
+	flow-children: down;
+	background-color: #00000090;
+	border-radius: 4px;
+	world-blur: gaussian(2,2,2);
+	visibility: collapse;
+}
+
+.OHCue.OHOn
+{
+	visibility: visible;
+}
+
+.OHCueIcon
+{
+	width: 16px;
+	height: 16px;
+	horizontal-align: center;
+	margin-top: 3px;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	wash-color: #FFEFD7D9;
+}
+
+/* Full chip width with centred text: a fit-width label sat off the icon's centre line (live). */
+.OHCueTime
+{
+	width: 100%;
+	horizontal-align: center;
+	text-align: center;
+	margin-top: 1px;
+	font-family: VALVEOracle, Reaver, "Noto Sans";
+	font-size: 14px;
+	font-weight: bold;
+	letter-spacing: 0px;
+	color: #FFEFD7;
+}
+
+/* Stock icons: modifier icons are tinted like text; the rejuvenator keeps the stock top bar's icon and
+   yellow (.RejuvenatorIcon); rift and urn keep the colour images the stock kill feed shows, 18 px. */
+.OHKindBridge .OHCueIcon
+{
+	background-image: url("s2r://panorama/images/hud/modifiers/icon_powerup.vsvg");
+}
+
+.OHKindMid .OHCueIcon
+{
+	background-image: url("s2r://panorama/images/hud/icons/rejuvenator.vsvg");
+	wash-color: #FFCC00;
+}
+
+.OHKindRift .OHCueIcon,
+.OHKindUrn .OHCueIcon
+{
+	width: 18px;
+	height: 18px;
+	margin-top: 2px;
+	wash-color: none;
+}
+
+.OHKindRift .OHCueIcon
+{
+	background-image: url("s2r://panorama/images/minimap/minimap_icon_koth_png.vtex");
+}
+
+.OHKindUrn .OHCueIcon
+{
+	background-image: url("s2r://panorama/images/minimap/soul_jar_marker_psd.vtex");
+}
+
+.OHKindRift .OHCueTime,
+.OHKindUrn .OHCueTime
+{
+	margin-top: 0px;
+}
+
+/* Last 10 s amber, spawned / open teal; a held rejuvenator has a 3 px bar at the bottom in the
+   holder's stock team colour (square bottom corners) and its buff time in the stock goldColor
+   (#FFED79, user 2026-10-23: yellow while they have the buff). No blinking. */
+.OHCue.OHSoon .OHCueTime
+{
+	color: #FFC15A;
+}
+
+.OHCue.OHLive .OHCueTime
+{
+	color: #6FE8C8;
+}
+
+.OHCue.OHHeldAmber,
+.OHCue.OHHeldSapphire
+{
+	height: 38px;
+	border-radius: 4px 4px 0px 0px;
+}
+
+.OHCue.OHHeldAmber
+{
+	border-bottom: 3px solid #D6880C;
+}
+
+.OHCue.OHHeldSapphire
+{
+	border-bottom: 3px solid #4F74C3;
+}
+
+.OHCue.OHHeldAmber .OHCueTime,
+.OHCue.OHHeldSapphire .OHCueTime,
+.OHStyleDesk .OHCue.OHHeldAmber .OHCueTime,
+.OHStyleDesk .OHCue.OHHeldSapphire .OHCueTime
+{
+	color: #FFED79;
+}
+
+/* Night Desk: the band's lacquer with the brass frame; the graph sits below the row. */
+.OHStyleDesk .OHCues
+{
+	margin-top: 0px;
+}
+
+.OHStyleDesk .OHCue
+{
+	background-color: #0D0C0AD0;
+	border: 1px solid #D6B06A61;
+	border-radius: 0px;
+}
+
+.OHStyleDesk .OHCueTime
+{
+	color: #EFE6D6;
+}
+
+.OHStyleDesk .OHCue.OHHeldAmber
+{
+	border-bottom: 3px solid #D6880C;
+}
+
+.OHStyleDesk .OHCue.OHHeldSapphire
+{
+	border-bottom: 3px solid #4F74C3;
+}
+
+/* Parts hidden while their stock panel (#GameTime) is missing (oh_host.js place): a class, not inline
+   visibility, since a cleared inline collapse never shows a panel again (ENGINE.md). Last in the sheet
+   and as specific as each show rule, so it wins. */
+.OHClock.OHGone,
+.OHBans.OHGone,
+.OHBans.OHHasBans.OHGone
+{
+	visibility: collapse;
+}
