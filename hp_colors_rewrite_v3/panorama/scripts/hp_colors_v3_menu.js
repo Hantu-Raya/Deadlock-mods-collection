@@ -593,7 +593,10 @@
   // 29px alone and 12px beside an active shield bar (".shieldActive #tech_shield_bar").
   var LEGACY_BARRIER_STYLE = { backgroundColor: "rgba(0, 0, 0, 0.6)", border: "2px solid #10130D", borderRadius: "3px",
     ignoreParentFlow: "true", horizontalAlign: "right", transform: "rotateZ(12deg)", marginTop: "30px" };
+  // The recent heal/damage counters sit in #HealthRegenAndTotal at 6711+ offsets (165px/160px) made for its
+  // 250px width; in the old 115px box they start past its right edge, so they get 6710's too (ticket 41).
   var LEGACY_LAYOUT = [["regen", { width: "115px", horizontalAlign: "right", marginTop: "5px", marginRight: "10px" }],
+    ["healCounters", { marginLeft: "35px", marginTop: "30px" }], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
     ["box", { marginRight: "10px" }], ["numbers", { marginRight: "23px", visibility: "visible" }],
     ["shieldLeft", { backgroundColor: "#4BDC68" }]];
   // QOLLOCK 4.0.5 healthbar types 1-5 (core/ql_hud.js): each restyles these panels, so LEGACY_LAYOUT stays off.
@@ -604,7 +607,7 @@
   // stock look stays even if a clear does not take]. Live 6779/6782: margin longhands and horizontalAlign
   // throw when cleared alone, so margins clear through their base and the alignment goes back to the
   // sheet value (hud_health_container.css 6711-6805).
-  var LEGACY_OWNED = [["regen", "width"], ["regen", "margin"], ["regen", "horizontalAlign"], ["box", "margin"],
+  var LEGACY_OWNED = [["regen", "width"], ["regen", "margin"], ["regen", "horizontalAlign"], ["healCounters", "margin"], ["damageCounters", "margin"], ["box", "margin"],
     ["numbers", "margin"], ["numbers", "visibility"], ["shieldLeft", "backgroundColor"], ["shield", "visibility", "collapse"],
     ["merged", "visibility", "visible"], ["armor", "visibility"], ["lines", "visibility", "visible"], ["current", "opacity", "1"],
     ["bulletBox", "visibility"], ["bullet", "opacity", "1"], ["techBox", "visibility", "collapse"], ["tech", "opacity", "1"]];
@@ -656,6 +659,8 @@
     // Optional: the unfed spirit-shield numbers carry the barrier number while they exist.
     p.techBox = byId(regen, "TechShieldNumbers"); p.tech = byClass(p.techBox, "progress_bar_current");
     if (!valid(p.techBox) || !valid(p.tech)) p.techBox = p.tech = null;
+    // Optional: the recent heal/damage counters; without them the rest of the old layout still applies.
+    p.healCounters = byId(regen, "RecentHealContainer"); p.damageCounters = byId(regen, "RecentDamageContainer");
     return p;
   }
   // The game's #healthLines (own = false) or the owned copy beside it (own = true).

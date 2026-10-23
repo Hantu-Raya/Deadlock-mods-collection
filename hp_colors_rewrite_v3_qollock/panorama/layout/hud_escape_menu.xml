@@ -4408,7 +4408,7 @@
 						<Panel id="HPColorsPreviewFooter" class="HPC3PreviewFooter">
 							<Button id="HPColorsPreviewCreditsButton" class="SecondaryButton light HPC3CreditsButton"><Label text="CREDITS" hittest="false" /></Button>
 							<Button id="HPColorsPreviewDonateButton" class="SecondaryButton light HPC3CreditsButton"><Label text="DONATE" hittest="false" /></Button>
-							<Label id="HPColorsPreviewVersion" class="HPC3PreviewVersion" text="v3.3.1" hittest="false" />
+							<Label id="HPColorsPreviewVersion" class="HPC3PreviewVersion" text="v3.3.2" hittest="false" />
 						</Panel>
 						<CitadelHTMLPanel id="HPColorsSupporterStrip" class="HPC3SupporterStrip" hittest="false" hittestchildren="false" acceptsfocus="false" />
 					</Panel>

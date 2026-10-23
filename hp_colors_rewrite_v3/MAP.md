@@ -63,6 +63,13 @@ Feature tickets through 24 are implemented and VM-verified: Core, Indicators, Un
 
 Versions follow `settings/record.json` `release` (see [SPEC](SPEC.md#implementation-decisions)): fixes bump the patch, user-visible features the minor. Raise `hpv3` in hpv2-store `latest.json` only once a release can be downloaded.
 
+### 3.3.2 (2026-10-24, game 6819; built, not released)
+
+- **Fixed:** with *Your shield bar: Separate (old)* the recent heal and damage numbers beside the HP number no longer showed (GameBanana report, Commun4, 2026-10-23). The old layout shrank `#HealthRegenAndTotal` back to 115px but kept the 6711+ counter offsets (165px/160px, made for its 250px width), so both counters started past the box's right edge. Separate now also restores the 6710 offsets (heal 35px/30px, damage 35px/160px, inline and optional), skips them under QOLLOCK themes like the rest of the old layout, and clears them on release. See [ticket 41](issues/41-separate-shield-heal-damage-counters.md). Not checked in game.
+- **Tests:** `tests/legacy-shield.test.js` gets the stock counter panels in its HUD mock; the new counter test and the extended QOLLOCK default/theme and release tests were red before the change; a HUD without counters still attaches. Shield bench (`.scratch/shieldbar/boundary-t41-base.json` vs `boundary-t41.json`, 3 repeats): per-frame boundary calls unchanged in all 8 scenarios.
+- **Builds (`-SkipDeploy -AllowPinMismatch`: installed 6819, pin 6807; staged suite passed with 0 failures, 1354 release / 1355 debug, QOLLOCK 34, ShowRank 11; all show v3.3.2):** normal `2e6d27be` release / `5df18fc4` debug, QOLLOCK `f85e9eda` / `3cc72552`, ShowRank `05115240` / `87b43207`. Nothing installed.
+- **Upload archives** (`.build/archives/`, 7z LZMA2 `-mx=9` with `pak02_dir.vpk` at the root; each passes `7z t` and extracts back to the release md5): `hp_colors_v332.7z` (normal, `08fe3c49`), `hp_colors_v332_qollock.7z` (`84e6fb4e`), `hp_colors_v332_showrank.7z` (`abbf9394`). Patch notes: `docs/changelogs/2026-10-24_hp_colors_v3_3_2.txt` and `_discord.md`. Not uploaded; `latest.json` stays at 3.3.1 until the files can be downloaded.
+
 ### 3.3.1 (2026-10-22, game 6813; released: GameBanana normal `#FileInfo_1858989`, QOLLOCK `#FileInfo_1858990`; hpv2-store `latest.json` 3.3.1 at `8599bb5`)
 
 - **Fixed (QOLLOCK):** *Your shield bar: Separate (old)* did nothing on the QOLLOCK build (GameBanana report, 2026-10-22). The lane skipped every HUD that had QOLLOCK's `#currentHealthOverHearts`, which is part of every QOLLOCK healthbar type. It now runs there as well:
