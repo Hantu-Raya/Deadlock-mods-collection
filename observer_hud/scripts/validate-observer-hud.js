@@ -2429,14 +2429,21 @@ check("purchases: a notice on the buyer's card under the status column; old rows
   assert.equal(w.notices("Geist").length, 0, "a purchase 9 min old is history");
   // The hero id decides when both sides expose it; else the hero name from the row's dialog variable
   // (live, a top-bar badge can expose no heroid: showrank/docs/test_results.md). An unknown hero draws nothing.
-  w.buy("Doyle", "Extra Regen", { heroName: "Doyle-San" });
+  const doyleRow = w.buy("Doyle", "Extra Regen", { heroName: "Doyle-San" });
   w.card("Frostbyte").FindChildTraverse("HeroBadge").heroid = undefined;
-  w.buy("Frostbyte", "Extra Regen");
+  const frostRow = w.buy("Frostbyte", "Extra Regen");
   w.buy("Talon", "Extra Regen", { heroName: "Nobody", heroId: 9999 });
   w.advance(600);
   assert.equal(w.notices("Doyle").length, 1, "hero id match");
   assert.equal(w.notices("Frostbyte").length, 1, "hero name match when the badge has no heroid");
   assert.equal(AMBER.concat(SAPPHIRE).filter((name) => w.notices(name).length && !["Doyle", "Frostbyte", "Volt"].includes(name)).length, 0);
+  // The name is read only when the hero id finds no card (m2 review: every shown row used to get the
+  // bound label); which path matched is logged once per path, purchases only (the live probe for B10).
+  assert.equal(doyleRow.FindChildrenWithClassTraverse("OHBuyHero").length, 0, "an id-matched row gets no name label");
+  assert.equal(frostRow.FindChildrenWithClassTraverse("OHBuyHero").length, 1);
+  const buyLogs = w.harness.logs.filter((line) => line.startsWith("[OH-BUY] match"));
+  for (const path of ["id", "name", "none"]) assert.equal(buyLogs.filter((line) => line.startsWith(`[OH-BUY] match ${path}`)).length, 1, `match ${path} logged once: ${buyLogs.join(" | ")}`);
+  assert.ok(buyLogs.some((line) => /^\[OH-BUY\] match name: row name "[^{]/.test(line)), "the name path logs the row name text as read");
   // At the stock's 25-row cap the oldest row goes as the new one comes: still seen.
   while (w.purchases.children.length < 25) w.buy("Mole", "Extra Spirit", { time: "1:00" });
   w.advance(600);

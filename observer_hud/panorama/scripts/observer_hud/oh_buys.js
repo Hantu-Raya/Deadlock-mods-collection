@@ -102,18 +102,21 @@
   }
 
   // 6819's row has no hero name label (older stock and QOLLOCK's copy had .recentModPurchaserHero), but
-  // the engine still sets {s:recent_hero_name} on the row: a label of ours binds to it.
-  function rowHeroName(row) {
+  // the engine still sets {s:recent_hero_name} on the row: a label of ours binds to it. Returns the
+  // label's text as read ("{s:..." while the binding has not resolved).
+  function rowHeroText(row) {
     let label = row.FindChildrenWithClassTraverse("OHBuyHero")[0] || row.FindChildrenWithClassTraverse("recentModPurchaserHero")[0];
     if (!valid(label)) {
       label = $.CreatePanel("Label", row, "", { class: "OHBuyHero", text: "{s:recent_hero_name}" });
       label.style.visibility = "collapse";
     }
     const text = valid(label) ? label.text : "";
-    return typeof text === "string" && text.indexOf("{s:") < 0 ? text.trim().toUpperCase() : "";
+    return typeof text === "string" ? text : "";
   }
 
-  // The buyer's card: same team, same hero id, else same hero name; exactly one.
+  // The buyer's card: same team, same hero id, else (no id match) same hero name; exactly one. The
+  // name label is made and read only when the id finds no card. Which path matched is logged once per
+  // path (purchases only): live evidence for the name fallback (m1 audit B10, m2 review).
   function cardFor(row) {
     const team = $.OHState.TEAM_PANELS.find((entry) => row.BHasClass(entry.rowClass));
     const topBar = $.OHHost.topBar();
@@ -122,10 +125,18 @@
     const players = valid(teamPanel) ? teamPanel.FindChildTraverse("PlayersContainer") : null;
     if (!valid(players)) return null;
     const heroId = heroIdOf(row.FindChildTraverse("RecentPurchaseHeroImage"));
-    const heroName = rowHeroName(row);
     const cards = players.Children().filter((card) => valid(card) && card.paneltype === "CitadelHudTopBarPlayer");
     let found = heroId ? cards.filter((card) => heroIdOf(card.FindChildTraverse("HeroBadge")) === heroId) : [];
-    if (found.length === 0 && heroName) found = cards.filter((card) => labelText(card, "HeroName").toUpperCase() === heroName);
+    if (found.length) {
+      logOnce("match:id", `match id (hero ${heroId})`);
+      return found.length === 1 ? found[0] : null;
+    }
+    const raw = rowHeroText(row);
+    const heroName = raw.indexOf("{s:") < 0 ? raw.trim().toUpperCase() : "";
+    if (heroName) found = cards.filter((card) => labelText(card, "HeroName").toUpperCase() === heroName);
+    const why = `row name "${raw}", hero id ${heroId}, card heroes ${cards.map((card) => labelText(card, "HeroName")).join("/")}`;
+    if (found.length) logOnce("match:name", `match name: ${why}`);
+    else logOnce("match:none", `match none: ${why}`);
     return found.length === 1 ? found[0] : null;
   }
 
