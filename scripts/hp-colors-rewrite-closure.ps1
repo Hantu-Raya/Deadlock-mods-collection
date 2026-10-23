@@ -80,6 +80,27 @@ function Get-HpColorsRewriteClosureContract {
         'feeder_feed.js' {
             return @('FeederFeedStop', 'ff_entry', 'FeederRow', 'CitadelHudInfoFeed')
         }
+        'oh_state.js' {
+            return @('OHState', 'observer_hud_state', 'OHC1.')
+        }
+        'oh_host.js' {
+            return @('OHHost', 'OHHostStop', 'observer_hud/tournament_bar.xml', 'observer_hud/band.xml', 'OHBandHost', 'OHDebuffsHost', 'OHMenuAttach')
+        }
+        'oh_menu.js' {
+            return @('OHMenuAttach', 'OHMenuStop', 'TextEntryCopyToClipboard', 'ontextentrychange')
+        }
+        'oh_debuffs.js' {
+            return @('OHDebuffsStop', 'OH_DEBUFF_SNAPSHOT', 'OH_DEBUFF_CONFIG', 'cardsVersion')
+        }
+        'oh_buys.js' {
+            return @('OHBuysStop', 'RecentPurchasesContainer', 'recent_hero_name', 'OH_ITEM_ICONS')
+        }
+        'oh_debuff_world.js' {
+            return @('OHDebuffStop', 'OH_DEBUFF_SNAPSHOT', 'OH_DEBUFF_CONFIG', 'CitadelHudRoot')
+        }
+        'oh_debuff_relay.js' {
+            return @('oh_debuff_message', 'ClientUI_FireOutput')
+        }
         default {
             throw "No Closure ADVANCED output contract for Rewrite script: $ScriptName"
         }
@@ -113,7 +134,9 @@ function Invoke-HpColorsRewriteClosureAdvanced {
     param(
         [Parameter(Mandatory = $true)][string]$StageSourceRoot,
         [Parameter(Mandatory = $true)][string[]]$ScriptRelativePaths,
-        [Parameter(Mandatory = $true)][string]$WorkRoot
+        [Parameter(Mandatory = $true)][string]$WorkRoot,
+        # Panorama's V8 runs modern syntax; ECMASCRIPT_2020 skips Closure's ES5 transpilation and polyfills.
+        [string]$LanguageOut = 'ECMASCRIPT5_STRICT'
     )
 
     $scriptPaths = @(
@@ -135,13 +158,15 @@ function Invoke-HpColorsRewriteClosureAdvanced {
             $closureOutput = Join-Path $WorkRoot ("$scriptName.closure-advanced.js")
             $closureArgs = @(
                 '--yes'
-                'google-closure-compiler'
+                # Pinned (as HP Colors v3): npm's latest 20261020.0.0 depends on an unpublished
+                # google-closure-compiler-java and fails to install (2026-10-23).
+                'google-closure-compiler@20261011.0.0'
                 '--externs'
                 $externsPath
                 '--language_in'
                 'ECMASCRIPT_NEXT'
                 '--language_out'
-                'ECMASCRIPT5_STRICT'
+                $LanguageOut
                 '--js'
                 $scriptPath
                 '--compilation_level'
