@@ -246,7 +246,8 @@
     const topBar = root.FindChildTraverse("TopBar");
     if (!valid(topBar)) return;
     for (const [, teamId] of TEAM_PANELS) {
-      const players = findPlayers(topBar, teamId);
+      const team = topBar.FindChildTraverse(teamId);
+      const players = team ? team.FindChildTraverse("PlayersContainer") : null;
       if (!players) continue;
       for (const card of players.Children()) {
         for (const host of [card.FindChildTraverse("OHAliasHost"), card.FindChild("OHDebuffsHost")]) {
@@ -256,10 +257,14 @@
     }
   }
 
-  function findPlayers(topBar, teamId) {
-    const team = topBar.FindChildTraverse(teamId);
-    const players = valid(team) ? team.FindChildTraverse("PlayersContainer") : null;
-    return valid(players) ? players : null;
+  // A team's stock panel and its #PlayersContainer in UI.topBar, cached in UI.stock (cleared on a new
+  // #TopBar) and found again when rebuilt, so the top bar is not walked every tick (m1 audit O4).
+  function teamPanel(teamId) {
+    return stockPanel(`team:${teamId}`, UI.topBar, teamId);
+  }
+  function findPlayers(teamId) {
+    const team = teamPanel(teamId);
+    return team ? stockPanel(`players:${teamId}`, team, "PlayersContainer") : null;
   }
 
   // Moves the stock rift HUD (#KothCashInMeter: margin-top 110 at ui-scale 70%, 120 at 100% when in range
@@ -682,7 +687,7 @@
     if (!bar) return;
     let flipped = false;
     for (const [key, teamId] of TEAM_PANELS) {
-      const teamRect = rect(UI.topBar.FindChildTraverse(teamId));
+      const teamRect = rect(teamPanel(teamId));
       Teams[key].rect = teamRect;
       if (!teamRect) {
         logOnce(`team:${teamId}`, `no #${teamId} in the top bar; its plate keeps the stock side`);
@@ -1052,7 +1057,7 @@
   function ensureCards() {
     const cards = [];
     for (const [teamKey, teamId] of TEAM_PANELS) {
-      const players = findPlayers(UI.topBar, teamId);
+      const players = findPlayers(teamId);
       if (!players) continue;
       for (const panel of players.Children()) {
         if (panel.paneltype !== "CitadelHudTopBarPlayer") continue;
@@ -1491,8 +1496,8 @@
       // counts beside it stay. Its classes still drive the chip while it is collapsed.
       setStyle(timer, "opacity", "0");
       if (timer && timer.BHasClass("has_rejuv")) {
-        const amber = countIn(findPlayers(UI.topBar, "TeamFriendly"), "HasRejuvenator");
-        const sapphire = countIn(findPlayers(UI.topBar, "TeamEnemy"), "HasRejuvenator");
+        const amber = countIn(findPlayers("TeamFriendly"), "HasRejuvenator");
+        const sapphire = countIn(findPlayers("TeamEnemy"), "HasRejuvenator");
         if (Cues.heldAt === null) Cues.heldAt = Cues.sawFree ? t : -1;
         Cues.afterRejuv = true;
         // Exact from the pickup when it was seen; else from the stock circle.

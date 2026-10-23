@@ -307,11 +307,10 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
   const topBar = hud.FindChildTraverse("TopBar");
   loadInto(topBar, STOCK.topBar);
   const teams = {};
-  for (const [teamId, names] of [["TeamFriendly", AMBER], ["TeamEnemy", SAPPHIRE]]) {
-    const team = topBar.FindChildTraverse(teamId);
+  const fillTeam = (team, names) => {
     loadInto(team, STOCK.team);
     const players = team.FindChildTraverse("PlayersContainer");
-    teams[teamId] = names.map((name) => {
+    return names.map((name) => {
       const card = instantiate(STOCK.player, players);
       for (const label of card.FindChildrenWithClassTraverse("AlwaysPlayerName")
         .concat(card.FindChildrenWithClassTraverse("PlayerName"))) label.__text = name;
@@ -319,7 +318,29 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
       card.FindChildrenWithClassTraverse("HeroName")[0].__text = heroOf(name)[1];
       return card;
     });
-  }
+  };
+  const TEAM_NAMES = { TeamFriendly: AMBER, TeamEnemy: SAPPHIRE };
+  for (const teamId of Object.keys(TEAM_NAMES)) teams[teamId] = fillTeam(topBar.FindChildTraverse(teamId), TEAM_NAMES[teamId]);
+  // The stock team panels are static children of #TeamsContainer (citadel_hud_top_bar.xml): they come
+  // and go with that layout, never re-parented. remove() deletes one; rebuild() makes it again in place.
+  const removedTeams = {};
+  const removeTeam = (teamId) => {
+    const old = topBar.FindChildTraverse(teamId);
+    const parent = old.GetParent();
+    removedTeams[teamId] = { parent, index: parent.children.indexOf(old), type: old.paneltype, classes: [...old.classes] };
+    // Live, deleting a panel deletes its children; the adapter's DeleteAsync only marks the panel itself.
+    const kill = (panel) => { for (const child of panel.children) kill(child); panel.valid = false; };
+    kill(old);
+    old.DeleteAsync();
+  };
+  const rebuildTeam = (teamId) => {
+    const was = removedTeams[teamId];
+    const team = new MockPanel(was.type, was.parent, teamId);
+    was.parent.children.splice(was.parent.children.indexOf(team), 1);
+    was.parent.children.splice(was.index, 0, team);
+    for (const cls of was.classes) team.AddClass(cls);
+    teams[teamId] = fillTeam(team, TEAM_NAMES[teamId]);
+  };
   if (!gameTime) topBar.FindChildTraverse("GameTime").DeleteAsync();
   // The stock clock and soul plates (bound dialog variables in game).
   const clock = (value) => { const t = topBar.FindChildTraverse("GameTime"); if (t) t.__text = value; };
@@ -474,7 +495,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
   };
   return { harness, hud, hudRoot, topBar, teams, escapeMenu, spectateBar, bus, sent, loads, urls, contexts, runIn, bootHost,
     advance, geometry, addBar, units, giveDebuff, card, slots, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
-    state, who, clock, souls, host, purchases, buy, notices, noticeText };
+    state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam };
 }
 
 const countIn = (root, id) => {
@@ -855,13 +876,18 @@ check("host: parts hidden while #GameTime or a team panel is missing come back w
     w.press(look);
     w.press("OHDone");
     w.advance(1100);
-    const team = w.topBar.FindChildTraverse("TeamFriendly");
-    const parent = team.GetParent();
-    team.SetParent(null);
+    // The team panel is deleted and made again with its layout (as the stock top bar does), never
+    // detached: Amber's strip, desk block and names hide while it is missing and come back with it.
+    w.removeTeam("TeamFriendly");
     w.advance(1100);
-    team.SetParent(parent);
-    w.advance(1100);
+    assert.ok(gone("OHStripLeft"), `${look}: Amber's strip hides while its team panel is missing`);
+    if (look === "OHLookDesk") assert.ok(gone("OHDeskLeft"));
+    w.rebuildTeam("TeamFriendly");
+    w.geometry({ friendX: 330, enemyX: 1062 });
+    w.advance(2200);
     assert.ok(!gone("OHWho0") && !gone("OHStripLeft"), `${look}: Amber's names and strip are back`);
+    assert.equal(w.who("Kestrel"), "Kestrel", `${look}: the rebuilt cards have their names`);
+    assert.equal(countIn(w.topBar, "OHDebuffsHost"), 12, `${look}: every card has its status column again`);
     if (look === "OHLookDesk") deq(["OHArch", "OHRings", "OHDeskLeft"].map(gone), [false, false, false]);
   }
 });
@@ -2616,6 +2642,7 @@ check("column: the DEV switch and poll reach every world bar; OFF stops publishi
 // ---------------------------------------------------------------- budgets
 
 check("steady state: no writes while nothing changes; native calls per second under the budgets", () => {
+  let nodes = 0; // subtree node visits of the last counted window
   const counted = (harness) => {
     let positions = 0;
     const position = MockPanel.prototype.GetPositionWithinWindow;
@@ -2629,6 +2656,9 @@ check("steady state: no writes while nothing changes; native calls per second un
     return () => {
       MockPanel.prototype.GetPositionWithinWindow = position;
       const ops = Object.assign({}, harness.operationCounts, { positions });
+      // Subtree walks (mock DFS node visits): reported on their own (nodes), never in the totals, since
+      // they are cheap native compares, not JS<->native crossings; compare them as a before/after ratio.
+      nodes = (ops.findTraversals || 0) + (ops.classTraversalNodes || 0);
       for (const key of ["traversal", "findTraversals", "classTraversalNodes"]) delete ops[key];
       return Object.fromEntries(Object.entries(ops).filter(([, value]) => value));
     };
@@ -2666,6 +2696,7 @@ check("steady state: no writes while nothing changes; native calls per second un
   stop = counted(w.harness);
   w.advance(10000);
   const spectating = per(stop(), 10);
+  const spectatingNodes = Math.round(nodes / 10);
   // The usual in-game state: a status with a moving radial on every card, so the column counts down
   // at its 0.25 s tick (m1 audit O1: the 4 Hz tick re-validated every card and re-read every name).
   for (const name of [...AMBER, ...SAPPHIRE]) {
@@ -2677,9 +2708,9 @@ check("steady state: no writes while nothing changes; native calls per second un
   w.advance(10000);
   const countdown = per(stop(), 10);
   results.budgets = { notSpectating, notSpectatingTotal: total(notSpectating), spectating, spectatingTotal: total(spectating),
-    countdown, countdownTotal: total(countdown) };
+    countdown, countdownTotal: total(countdown), spectatingNodes };
   console.log(`   not spectating ${total(notSpectating)}/s ${JSON.stringify(notSpectating)}`);
-  console.log(`   spectating ${total(spectating)}/s ${JSON.stringify(spectating)}`);
+  console.log(`   spectating ${total(spectating)}/s ${JSON.stringify(spectating)} (subtree node visits ${spectatingNodes}/s)`);
   console.log(`   counting down ${total(countdown)}/s ${JSON.stringify(countdown)}`);
   assert.equal(notSpectating.textWrites || 0, 0);
   assert.equal(notSpectating.styleWrites || 0, 0);
