@@ -159,20 +159,21 @@ try {
 }
 
 Write-Host "`n[4/4] Writing release 7z..." -ForegroundColor Cyan
-$releaseEntries = @($vpkOut.Substring($dist.Length + 1))
+# The archive holds only pak10_dir.vpk at its root, no folders (user 2026-10-24); users put it in citadel\addons.
+$releaseEntries = @(Split-Path -Leaf $vpkOut)
 if (Test-Path -LiteralPath $archiveOut) { Remove-Item -LiteralPath $archiveOut -Force }
-Push-Location -LiteralPath $dist
+Push-Location -LiteralPath (Split-Path -Parent $vpkOut)
 try {
     & $sevenZip a -t7z -mx=9 $archiveOut @releaseEntries | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "7z failed for $archiveOut" }
 } finally {
     Pop-Location
 }
-$files = @(& $sevenZip l -slt $archiveOut | Where-Object { $_ -like 'Path = game\*' } | ForEach-Object { $_.Substring(7) } | Sort-Object)
+$files = @(& $sevenZip l -slt $archiveOut | Where-Object { $_ -like 'Path = *' } | ForEach-Object { $_.Substring(7) } | Where-Object { $_ -ne $archiveOut } | Sort-Object)
 if ($LASTEXITCODE -ne 0 -or (Compare-Object $files @($releaseEntries | Sort-Object))) {
     throw "Release 7z holds $($files -join ', ') instead of $($releaseEntries -join ', ')"
 }
-Write-Host "  Release -> $archiveOut (drag its game folder onto the Deadlock folder)" -ForegroundColor Green
+Write-Host "  Release -> $archiveOut (put pak10_dir.vpk in game\citadel\addons)" -ForegroundColor Green
 
 if ($Install) {
     if (-not (Test-Path -LiteralPath (Split-Path $destination -Parent))) { throw 'Deadlock addons folder missing' }
