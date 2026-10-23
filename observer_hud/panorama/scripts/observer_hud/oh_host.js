@@ -32,7 +32,10 @@
   const TEAM_PANELS = $.OHState.TEAM_PANELS.map((team) => [team.key, team.panelId]);
   const SIDES = ["Left", "Right"];
   const BAND = { names: 26, desk: 56 }; // band height per look; #TopBar moves down by this much
-  const STOCK_TOP_MARGIN = 8; // CitadelHudTopBar .spec_mode margin-top
+  const STOCK_TOP_MARGIN = 8; // CitadelHudTopBar .spec_mode margin-top, which the inline margin replaces
+  // The portraits hung 20-26 px under the band (user screenshots 2026-10-23 20:12, "not connected"):
+  // #TopBar tucks this much up, so they start a few px under it.
+  const TOP_BAR_TUCK = 16;
   const PLATE_MAX = 250; // the mockup's plate width
   const PLATE_COMPACT = 210; // below this the name drops to 14 px
   const PLATE_NARROW = 160; // below this the logo goes
@@ -693,7 +696,7 @@
     const width = Math.round(hud.w / hud.s);
     setStyle(UI.bar, "width", `${width}px`);
     setStyle(UI.band, "width", `${width}px`);
-    setStyle(UI.topBar, "marginTop", px(BAND[state.style] + STOCK_TOP_MARGIN));
+    setStyle(UI.topBar, "marginTop", px(BAND[state.style] + STOCK_TOP_MARGIN - TOP_BAR_TUCK));
     UI.pushed = true;
     const bar = rect(UI.bar);
     if (!bar) return;

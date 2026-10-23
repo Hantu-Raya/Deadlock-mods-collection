@@ -926,7 +926,9 @@ check("host: idles outside spectating, then injects the band, the bar, one colum
   assert.equal(countIn(w.escapeMenu, "OHMenuHost"), 1);
   assert.ok(w.bar().BHasClass("OHBar"), "the created panel takes the layout root's class");
   assert.ok(w.band().BHasClass("OHStyleNames") && !w.band().BHasClass("OHStyleDesk"), "Base Game+ Names is the default look");
-  assert.equal(w.topBar.style.marginTop, "34px", "the stock top bar moves down by the 26 px names strip (+ its stock 8 px)");
+  // The portraits start about 20 px under the stock top bar's top: the bar tucks 16 px up under the
+  // band so they hang from it (user screenshots 2026-10-23 20:12: a gap under the band).
+  assert.equal(w.topBar.style.marginTop, "18px", "the stock top bar sits under the 26 px names strip, 16 px tucked up (stock 8 px dropped)");
   assert.equal(w.who("Kestrel"), "Kestrel");
   assert.equal(w.who("Tidal"), "Tidal");
   w.hud.RemoveClass("spec_mode");
@@ -1376,7 +1378,7 @@ check("look: Night Desk moves the top bar 56 px down, swaps plates for the band 
   assert.ok(w.menu().BHasClass("OHLookDeskOn") && w.ui("OHLookDesk").BHasClass("OHSelected"));
   assert.ok(w.band().BHasClass("OHStyleDesk") && !w.band().BHasClass("OHStyleNames"));
   assert.ok(w.bar().BHasClass("OHStyleDesk"), "the bar hides its plates, clock bans and stage box");
-  assert.equal(w.topBar.style.marginTop, "64px");
+  assert.equal(w.topBar.style.marginTop, "48px");
   assert.equal(images(w.ui("OHLogoLeft")).length, 0, "the plate drops its logo");
   assert.equal(images(w.ui("OHDeskLogoLeft")).length, 1, "the band ring loads it");
   assert.equal(w.host().logoState("amber"), "loading");
@@ -1450,7 +1452,7 @@ check("look: Night Desk moves the top bar 56 px down, swaps plates for the band 
   w.geometry({ friendX: 330, enemyX: 1062 });
   w.press("OHLookNames");
   w.advance(1100);
-  assert.equal(w.topBar.style.marginTop, "34px");
+  assert.equal(w.topBar.style.marginTop, "18px");
   assert.ok(!w.bar().BHasClass("OHStyleDesk") && w.band().BHasClass("OHStyleNames"));
   assert.equal(images(w.ui("OHLogoLeft")).length, 1);
   assert.equal(images(w.ui("OHDeskLogoLeft")).length, 0);
