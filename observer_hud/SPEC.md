@@ -163,7 +163,7 @@ DLF's counter ("Ultimate cooldown" in `dlf/SPEC.md`), added 2026-10-23 without o
 
 ## Purchase notices
 
-DLF's QOLLOCK per-player purchase popups, rewritten (`oh_buys.js`, user 2026-10-23: "include the recent purchase from DLF ... rewrite it to improve compatibility and performance").
+DLF's QOLLOCK per-player purchase popups, rewritten (`oh_buys.js`, user 2026-10-23: "include the recent purchase from DLF ... rewrite it to improve compatibility and performance"). The recent-purchase feature was originally made by **bytenode** (user 2026-10-23); credit him wherever the feature is presented.
 
 - Source: the stock shop list `#RecentPurchasesContainer` (in `#CitadelHudHeroShop`, hud.xml). The engine appends a row per purchase and deletes the oldest at 25 ([ENGINE.md](ENGINE.md#objective-data)). No shop layout is overridden (DLF overrides `citadel_hud_hero_shop.xml`).
 - Each new row puts a notice on the buyer's top-bar card: the last child of the status column (`#OHBuys` in `debuffs.xml`), so it sits under the shown status slots and hides with the column (scoreboard, detail view, pre-game). One line, 32 px high and at most 205 px wide (about two and a quarter cards): a 25 px item icon (from `OH_ITEM_ICONS`, English shop name; other languages show the name only) and the name, shrunk only past 164 px (live 2026-10-23: at 126 px High-Velocity Rounds shrank thin). The frame, icon and name are 10 % smaller than first shipped (36 x 228 px, 28 px icon, 17 px name; user 2026-10-23). Newest on top, three at most, each for `buys` seconds, then a 0.4 s fade.

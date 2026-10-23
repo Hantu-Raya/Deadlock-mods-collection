@@ -1,6 +1,7 @@
 // Observer HUD purchase notices (host: this mod's hud_spectate_bar.xml), a rewrite of DLF's QOLLOCK
-// recent-purchase popups. The stock shop list (#RecentPurchasesContainer in #CitadelHudHeroShop) gets a
-// row per purchase: the engine appends it (flow-children: up draws it on top) and deletes the oldest
+// recent-purchase popups (the recent-purchase feature was originally made by bytenode). The stock shop
+// list (#RecentPurchasesContainer in #CitadelHudHeroShop) gets a row per purchase: the engine appends it
+// (flow-children: up draws it on top) and deletes the oldest
 // row at 25 (client.dll 6819, rva 0x1bdd790). The row carries the time, the buyer's hero image (heroid)
 // and {s:recent_hero_name} dialog variable, the item name, isTeam1Purchase (team 2, Amber) or
 // isTeam2Purchase (team 3, Sapphire), isTier1-4Purchase and isWeapon/Armor/TechPurchase. Each new row puts a notice on the buyer's top-bar
