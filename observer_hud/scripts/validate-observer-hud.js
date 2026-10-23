@@ -2635,6 +2635,69 @@ check("column: back to playing it idles; a status that ended meanwhile is gone o
   deq(w.icons("Volt"), [PETRIFY], "a new status shows");
 });
 
+check("column: after a hero swap rebuilds a card, its statuses are back within 2 s at every tick phase", () => {
+  // m2 review: when the column validated before the host re-injected the card's column, the card was
+  // dropped and nothing looked again until the 5 s rescan (5.3-5.5 s at host-tick phases 500-700 ms).
+  const late = [];
+  for (let phase = 0; phase < 1000; phase += 100) {
+    const w = statusWorld();
+    w.advance(3000 + phase);
+    w.card("Volt").FindChild("OHDebuffsHost").DeleteAsync(); // a swap rebuilds the card's children
+    w.giveDebuff("Volt", "ability_viper_petrifybola", { radial: () => -180 });
+    let t = 0;
+    while (t < 8000 && w.icons("Volt").length === 0) { w.advance(50); t += 50; }
+    if (t > 2000) late.push(`${phase} ms: ${t} ms`);
+  }
+  deq(late, [], "phases whose statuses came back later than 2 s");
+});
+
+check("column: the host's card registry drives the column (steady version, re-found labels, late names, paint errors)", () => {
+  const until = (w, ms, done) => { let t = 0; while (t < ms && !done()) { w.advance(50); t += 50; } return t; };
+  // Steady spectating: the registry neither changes nor churns.
+  let w = statusWorld();
+  w.advance(3000);
+  const host = w.host();
+  const version = host.cardsVersion();
+  const list = host.cards();
+  w.advance(10000);
+  assert.equal(host.cardsVersion(), version, "no version churn in steady state");
+  assert.equal(host.cards(), list, "the same array while nothing changes");
+  deq(list.map((card) => Object.keys(card).filter((key) => key !== "who").sort()), list.map(() => ["debuffs", "label", "panel", "teamKey"]));
+  // A card whose name label is replaced (same text): the column follows the re-found label.
+  const labels = () => w.card("Volt").FindChildrenWithClassTraverse("PlayerName").concat(w.card("Volt").FindChildrenWithClassTraverse("AlwaysPlayerName"));
+  const old = labels()[0];
+  const parent = old.GetParent();
+  for (const label of labels()) label.DeleteAsync();
+  const fresh = new MockPanel("Label", { operationCounts: w.harness.operationCounts });
+  fresh.AddClass("PlayerName");
+  fresh.__text = "Volt";
+  fresh.SetParent(parent);
+  w.giveDebuff("Volt", "ability_viper_petrifybola", { radial: () => -180 });
+  assert.ok(until(w, 4000, () => w.icons("Volt").length > 0) <= 2000, "a re-found label paints within 2 s");
+  // A name that binds on known panels after its snapshot arrived: matched within a second.
+  w = statusWorld();
+  w.advance(3000);
+  const voltLabels = w.card("Volt").FindChildrenWithClassTraverse("PlayerName").concat(w.card("Volt").FindChildrenWithClassTraverse("AlwaysPlayerName"));
+  for (const label of voltLabels) label.__text = "";
+  w.advance(2000);
+  w.giveDebuff("Volt", "ability_viper_petrifybola", { radial: () => -180 });
+  w.advance(300);
+  for (const label of voltLabels) label.__text = "Volt";
+  assert.ok(until(w, 4000, () => w.icons("Volt").length > 0) <= 1000, "a late name is matched within a second");
+  // A paint that throws once (a card rebuilt between registry changes): painted again within a second.
+  w = statusWorld();
+  w.advance(3000);
+  const icon = w.slots("Volt")[0].FindChildrenWithClassTraverse("OHDebuffIcon")[0];
+  const setImage = icon.SetImage;
+  let throws = 1;
+  icon.SetImage = function (src) {
+    if (throws-- > 0) throw new Error("dead panel");
+    return setImage.call(this, src);
+  };
+  w.giveDebuff("Volt", "ability_viper_petrifybola", { radial: () => -180 });
+  assert.ok(until(w, 4000, () => w.icons("Volt").length > 0) <= 1500, "a card recovers from a paint error");
+});
+
 check("column: the DEV switch and poll reach every world bar; OFF stops publishing and clears the cards", () => {
   const w = statusWorld();
   w.giveDebuff("Geist", "ability_viper_petrifybola");

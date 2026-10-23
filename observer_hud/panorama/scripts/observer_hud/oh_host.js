@@ -108,6 +108,7 @@
   const CUE_ORDER = ["Bridge", "Urn", "Rift"];
   const CUE_KINDS = ["Bridge", "Urn", "Rift", "Mid"];
   const CUE_STATES = ["OHSoon", "OHLive", "OHHeldAmber", "OHHeldSapphire"];
+  const NO_CARDS = Object.freeze([]); // $.OHHost.cards() while not spectating
 
   const S = $.OHState;
   const valid = S.valid;
@@ -1054,8 +1055,14 @@
     return label;
   }
 
+  // The card registry: the host's list of top-bar cards (`{ panel, teamKey, label, debuffs }`), shared
+  // with the status column ($.OHHost.cards()). The array is replaced only when its membership changes,
+  // and cardsVersion moves whenever the array or a shared field (a re-found label) changes, so readers
+  // may cache any field until the version moves (m1 audit R1, m2 review).
+  let cardsVersion = 0;
   function ensureCards() {
     const cards = [];
+    let changed = false;
     for (const [teamKey, teamId] of TEAM_PANELS) {
       const players = findPlayers(teamId);
       if (!players) continue;
@@ -1066,22 +1073,28 @@
         // looked for again (another top-bar mod may rename it: the column and notices still work).
         const known = UI.cards.find((card) => card.panel === panel);
         if (known && valid(known.debuffs)) {
-          if (!valid(known.label)) known.label = nameLabel(panel);
+          if (!valid(known.label)) {
+            const label = nameLabel(panel);
+            if (label !== known.label) changed = true;
+            known.label = label;
+          }
           cards.push(known);
           continue;
         }
         let debuffs = panel.FindChild("OHDebuffsHost");
         if (!valid(debuffs)) debuffs = inject(panel, "OHDebuffsHost", LAYOUT.debuffs);
         if (!valid(debuffs)) continue;
-        cards.push({ panel, teamKey, label: nameLabel(panel), debuffs, who: "" });
+        cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, who: "" });
       }
     }
-    // A card that moved to another slot rewrites its name label.
     if (cards.length !== UI.cards.length || cards.some((card, index) => UI.cards[index] !== card)) {
+      // A card that moved to another slot rewrites its name label.
       for (const card of cards) card.who = "";
       for (let i = cards.length; i < WHO_SLOTS; i++) setClass(UI.who[i], "OHShown", false);
+      UI.cards = cards;
+      changed = true;
     }
-    UI.cards = cards;
+    if (changed) cardsVersion++;
   }
 
   const cardName = (card) => {
@@ -1648,6 +1661,7 @@
       }
       ensureMenu();
       const watching = spectating();
+      if (watching !== watchingNow) cardsVersion++; // cards() turns [] or back
       watchingNow = watching;
       ensureMenuEntry(watching);
       if (watching) {
@@ -1698,6 +1712,9 @@
     topBar: () => valid(UI.topBar) ? UI.topBar : null,
     // Spectating at the last tick (no native call).
     watching: () => watchingNow,
+    // The card registry (see ensureCards): [] while not spectating; the version moves on any change.
+    cards: () => (watchingNow ? UI.cards : NO_CARDS),
+    cardsVersion: () => cardsVersion,
     roster: roster,
     // "none" | "loading" | "loaded" | "failed" for a team logo in the active look, or "org".
     logoState: (key) => {

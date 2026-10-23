@@ -2,7 +2,9 @@
 // DLF's dlf_debuffs.js with its rules. World healthbars (oh_debuff_world.js) send OH_DEBUFF_SNAPSHOT
 // { source, name, items: [[key, debuff, count, end, stun]] }; this draws each hero's statuses in the
 // four static slots of the column oh_host.js injects under each stock top-bar card
-// (observer_hud/debuffs.xml), matched by player name. A slot's colour is the applying team's: the
+// (observer_hud/debuffs.xml), matched by player name. The cards come from the host's registry
+// ($.OHHost.cards(), re-read when $.OHHost.cardsVersion() moves); the column never walks the top bar.
+// A slot's colour is the applying team's: the
 // other team for a debuff, the hero's own team for a listed buff. A count of 2+ shows as a badge; a
 // predicted end shows as whole seconds left plus END_PAD_MS, redrawn every 0.25 s while one runs. A stun is its own
 // slot with the stock stun mark (.OHStun). A status that goes away keeps its slot for FADE_MS with
@@ -14,8 +16,8 @@
   const TAG = "[OH-DB]";
   const TICK_SEC = 1;
   const COUNTDOWN_TICK_SEC = 0.25;
-  const RESCAN_MS = 5000;
-  const VALIDATE_MS = 1000; // cards and names are checked at most this often (the countdown ticks only paint)
+  const NAMES_MS = 1000; // card names are read at most this often (the countdown ticks only paint)
+  const REPAINT_MS = 5000; // a steady column repaints this often, so a name that binds late is matched
   // A snapshot for a name no card has (a hero that just spawned) rescans at once, at most every
   // UNMATCHED_RESCAN_MS; a throttled or fruitless rescan is retried at that deadline while the record
   // is at most UNMATCHED_WINDOW_MS unmatched (the card can appear just after the status).
@@ -34,11 +36,11 @@
   const EXTRA_ICONS = { citadel_ability_zip_line: "s2r://panorama/images/icons/properties/zipline.vsvg" };
   const EMPTY = [];
   // Stock top-bar team panels are fixed by game team: TeamFriendly is Amber (team 2), TeamEnemy is
-  // Sapphire (team 3). A debuff comes from the other team.
-  const TEAMS = [
-    { panelId: "TeamFriendly", own: "OHByAmber", other: "OHBySapphire" },
-    { panelId: "TeamEnemy", own: "OHBySapphire", other: "OHByAmber" }
-  ];
+  // Sapphire (team 3). A debuff comes from the other team. Keyed by the registry's teamKey.
+  const TEAMS = {
+    amber: { own: "OHByAmber", other: "OHBySapphire" },
+    sapphire: { own: "OHBySapphire", other: "OHByAmber" }
+  };
   const BY_CLASSES = ["OHByAmber", "OHBySapphire"];
 
   const context = $.GetContextPanel();
@@ -59,7 +61,8 @@
   const State = {
     records: new Map(), // source -> { name, items, at, instance, seq }
     cards: [],
-    nextRescanMs: 0,
+    cardsVersion: -1, // the registry version State.cards was built from
+    repaintAt: 0,
     on: DEFAULTS.dev.debuffs,
     poll: DEFAULTS.dev.debuffPollMs,
     log: DEFAULTS.dev.logStatus,
@@ -69,10 +72,7 @@
     unmatchedScanAt: 0,
     rescanQueued: false,
     counting: false, // a slot shows seconds left or is fading
-    idle: false, // not spectating at the last tick: the column does no work
-    // The 0.25 s countdown ticks paint only: the cards are validated (VALIDATE_MS) and their names read
-    // at most once a second (m1 audit O1: every countdown tick re-validated 12 cards and re-read their names).
-    validateAt: 0,
+    // The 0.25 s countdown ticks paint only: names are read at most once a second (m1 audit O1).
     names: [],
     namesAt: 0
   };
@@ -123,54 +123,57 @@
 
   // ------------------------------------------------------------------ cards
 
-  function scanCards() {
+  // Rebuilds State.cards from the host's registry when its version moved (or after a paint error,
+  // which sets cardsVersion to -1). A card's slot cache is kept by its column panel: a hero swap
+  // rebuilds the card's children, the host injects a new column (a new registry entry) and the slots
+  // are looked up again. Entries without a name label are skipped: snapshots match cards by name.
+  // Returns true when the list was rebuilt.
+  function syncCards() {
+    const version = $.OHHost.cardsVersion();
+    if (version === State.cardsVersion) return false;
+    State.cardsVersion = version;
     const cards = [];
-    const topBar = $.OHHost.topBar();
-    for (const team of TEAMS) {
-      const teamPanel = valid(topBar) ? topBar.FindChildTraverse(team.panelId) : null;
-      const players = valid(teamPanel) ? teamPanel.FindChildTraverse("PlayersContainer") : null;
-      if (!valid(players)) continue;
-      for (const panel of players.Children()) {
-        if (!valid(panel) || panel.paneltype !== "CitadelHudTopBarPlayer") continue;
-        // Reuse a card only while all its cached panels live: the engine can rebuild a card's children.
-        const known = State.cards.find((card) => card.panel === panel && card.team === team);
-        if (known && cardComplete(known)) {
-          cards.push(known);
-          continue;
-        }
-        const column = panel.FindChild("OHDebuffsHost"); // injected by oh_host.js
-        if (!valid(column)) continue;
-        const label = panel.FindChildrenWithClassTraverse("AlwaysPlayerName")[0] ||
-          panel.FindChildrenWithClassTraverse("PlayerName")[0] || null;
-        if (!valid(label)) continue; // snapshots match cards by name
-        const slots = [];
-        for (const slot of column.Children()) {
-          const image = slot.FindChildrenWithClassTraverse("OHDebuffIcon")[0];
-          const count = slot.FindChildrenWithClassTraverse("OHDebuffCount")[0];
-          const time = slot.FindChildrenWithClassTraverse("OHDebuffTime")[0];
-          if (valid(image) && valid(count) && valid(time)) {
-            slots.push({ panel: slot, image, count, time, key: "", stun: false, by: "", countText: "", timeText: "",
-              fading: false });
-          }
-        }
-        cards.push({ panel, label, column, slots, team, shown: [] });
+    for (const entry of $.OHHost.cards()) {
+      if (!entry.label || !valid(entry.debuffs)) continue;
+      const known = State.cards.find((card) => card.column === entry.debuffs);
+      if (known && slotsLive(known)) {
+        known.label = entry.label;
+        cards.push(known);
+        continue;
       }
+      const slots = [];
+      for (const slot of entry.debuffs.Children()) {
+        const image = slot.FindChildrenWithClassTraverse("OHDebuffIcon")[0];
+        const count = slot.FindChildrenWithClassTraverse("OHDebuffCount")[0];
+        const time = slot.FindChildrenWithClassTraverse("OHDebuffTime")[0];
+        if (image && count && time) {
+          slots.push({ panel: slot, image: image, count: count, time: time, key: "", stun: false, by: "", countText: "",
+            timeText: "", fading: false });
+        }
+      }
+      cards.push({ panel: entry.panel, label: entry.label, column: entry.debuffs, slots: slots,
+        team: TEAMS[entry.teamKey] || TEAMS.amber, shown: [] });
     }
     State.cards = cards;
     State.namesAt = 0;
+    return true;
   }
 
-  // Checks each card's panel, column and name label (at most every VALIDATE_MS); slots are checked when
-  // a rescan reuses a card.
-  const cardLive = (card) => valid(card.panel) && valid(card.column) && valid(card.label);
-  const cardComplete = (card) => cardLive(card) && card.slots.length > 0 &&
+  const slotsLive = (card) => card.slots.length > 0 &&
     card.slots.every((slot) => valid(slot.panel) && valid(slot.image) && valid(slot.count) && valid(slot.time));
-  const cardsValid = () => State.cards.length > 0 && State.cards.every(cardLive);
 
   const cardName = (card) => {
     const text = valid(card.label) ? card.label.text : "";
     return typeof text === "string" ? text.trim().toUpperCase() : "";
   };
+  // The cards' names, read at most every NAMES_MS (State.namesAt = 0 forces a read).
+  function cardNames(now) {
+    if (now >= State.namesAt) {
+      State.names = State.cards.map(cardName);
+      State.namesAt = now + NAMES_MS;
+    }
+    return State.names;
+  }
 
   // A label shows when its text is non-empty; writes happen only on change.
   function setBadge(slot, field, labelKey, flag, text) {
@@ -253,11 +256,7 @@
         if (!best || record.at > best.at) byName.set(record.name, record);
       }
     }
-    if (now >= State.namesAt) {
-      State.names = State.cards.map(cardName);
-      State.namesAt = now + VALIDATE_MS;
-    }
-    const names = State.names;
+    const names = cardNames(now);
     let counting = false;
     State.cards.forEach((card, index) => {
       const name = names[index];
@@ -266,8 +265,8 @@
       try {
         counting = paint(card, record ? record.items : EMPTY, now) || counting;
       } catch (e) {
-        // A card rebuilt since the last check: validate on the next tick.
-        State.validateAt = 0;
+        // A card rebuilt since the registry last moved: rebuild the list on the next tick.
+        State.cardsVersion = -1;
         logOnce("paint error", e);
       }
     });
@@ -287,7 +286,7 @@
       (item[3] === 0 || item[3] >= at - TTL_MS && item[3] <= at + MAX_END_AHEAD_MS));
   }
 
-  const hasCard = (name) => State.cards.some((card) => cardName(card) === name);
+  const hasCard = (name, now) => cardNames(now).indexOf(name) >= 0;
   // A record still waiting for its card: unmatched (unmatchedSince, 0 = has a card) for under UNMATCHED_WINDOW_MS.
   const waiting = (record, now) => record.unmatchedSince > 0 && now >= record.unmatchedSince &&
     now - record.unmatchedSince < UNMATCHED_WINDOW_MS;
@@ -298,15 +297,16 @@
     if (State.counting && !wasCounting) schedule(COUNTDOWN_TICK_SEC);
   }
 
-  // Rescans the cards, then rechecks the records that had no card; one still waiting queues a retry.
+  // Re-reads the registry and the names, then rechecks the records that had no card; one still waiting
+  // queues a retry.
   function rescanNow(now) {
     State.unmatchedScanAt = now;
-    scanCards();
-    State.nextRescanMs = now + RESCAN_MS;
+    syncCards();
+    State.namesAt = 0;
     let retry = false;
     for (const record of State.records.values()) {
       if (!record.unmatchedSince) continue;
-      if (!record.items.length || hasCard(record.name)) record.unmatchedSince = 0;
+      if (!record.items.length || hasCard(record.name, now)) record.unmatchedSince = 0;
       else retry = retry || waiting(record, now);
     }
     if (retry) queueRescan(now);
@@ -368,9 +368,10 @@
       State.records.set(message.source, record);
       // Not spectating: the record is kept (it expires as usual), but nothing is matched or painted.
       if (!$.OHHost.watching()) return;
+      syncCards(); // a registry change since the last tick (one version compare otherwise)
       const same = !!previous && previous.name === record.name && previous.sig === record.sig;
       // Names are compared for new or changed content, and for heartbeats of a record still without a card.
-      if (record.items.length && (!same || previous.unmatchedSince) && !hasCard(record.name)) {
+      if (record.items.length && (!same || previous.unmatchedSince) && !hasCard(record.name, now)) {
         record.unmatchedSince = previous && previous.unmatchedSince && previous.unmatchedSince <= now ? previous.unmatchedSince : now;
       }
       let rescanned = false;
@@ -409,25 +410,18 @@
     try {
       const now = Date.now();
       // Not spectating (back to playing): the column idles; the top bar stays valid, so without this it
-      // kept validating and rescanning (101.9 calls/s, m2 review). The first watching tick re-validates,
-      // rescans and re-reads the names, then paints what the records say (an expired status clears).
+      // kept validating and rescanning (101.9 calls/s, m2 review). The registry is [] meanwhile and its
+      // version moves on return, so the first watching tick rebuilds the list and paints what the
+      // records say (an expired status clears).
       if (!$.OHHost.watching()) {
-        State.idle = true;
         schedule(TICK_SEC);
         return;
       }
-      if (State.idle) {
-        State.idle = false;
-        State.validateAt = 0;
-        State.nextRescanMs = 0;
-        State.namesAt = 0;
-      }
       let dirty = refreshConfig(now) || State.counting;
-      const check = now >= State.validateAt;
-      if (check) State.validateAt = now + VALIDATE_MS;
-      if (now >= State.nextRescanMs || (check && !cardsValid())) {
-        scanCards();
-        State.nextRescanMs = now + RESCAN_MS;
+      if (syncCards()) dirty = true;
+      // A steady column repaints now and then, so a name that bound after its snapshot still matches.
+      if (now >= State.repaintAt) {
+        State.repaintAt = now + REPAINT_MS;
         dirty = true;
       }
       for (const [source, record] of State.records) {
