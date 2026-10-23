@@ -30,13 +30,13 @@
   const FADE_SEC = 0.4; // equal to the OHBuyFadeOut animation-duration in oh_debuffs.css
   const STALE_S = 10;
   // Heights in HUD px, equal to oh_debuffs.css: a status slot (.OHDebuff), a notice row (.OHBuy height +
-  // margin-top + margin-bottom: 40 - 2 + 1, a 36 px frame in a 2 px transparent rim), the gap above the
+  // margin-top + margin-bottom: 36 - 2 + 1, a 32 px frame in a 2 px transparent rim), the gap above the
   // stack (.OHBuys margin-top) and between stacked neighbours.
   const SLOT_H = 43;
-  const ROW_H = 39;
+  const ROW_H = 35;
   const STACK_TOP = 2;
   const STACK_GAP = 4;
-  const MAX_NOTICE_W = 232; // .OHBuy max-width (228 px frame + rim): a notice not laid out yet counts this wide
+  const MAX_NOTICE_W = 209; // .OHBuy max-width (205 px frame + rim): a notice not laid out yet counts this wide
   // Stock row class -> this mod's notice class (the stylesheet restyles no stock class).
   const ROW_CLASSES = [["isTier1Purchase", "OHBuyT1"], ["isTier2Purchase", "OHBuyT2"], ["isTier3Purchase", "OHBuyT3"],
     ["isTier4Purchase", "OHBuyT4"], ["isWeaponPurchase", "OHBuyWeapon"], ["isArmorPurchase", "OHBuyVitality"],

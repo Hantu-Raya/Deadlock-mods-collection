@@ -414,10 +414,12 @@
 
   // ------------------------------------------------------------------ logos
 
-  // A new Image per URL: its load events belong to that URL alone. The monogram (or wordmark) stays
-  // until the image reports ImageLoaded; a failed or replaced image is deleted. URLs are never logged.
+  // A new Image per source: its load events belong to that source alone. A URL gives one or more
+  // sources ($.OHState.logoSources: a host link's direct image or GIF, then a fallback); a failed source
+  // makes way for the next. The monogram (or wordmark) stays until an image reports ImageLoaded; a failed
+  // or replaced image is deleted. URLs are never logged.
   function logoSlot(logo, imageClass, onShown) {
-    return { logo, imageClass, onShown: onShown || null, image: null, url: "", logoState: "none", logoSeq: 0 };
+    return { logo, imageClass, onShown: onShown || null, image: null, url: "", sources: [], logoState: "none", logoSeq: 0 };
   }
   function showLogo(slot, on) {
     setClass(slot.logo, "OHLogoShown", on);
@@ -425,12 +427,17 @@
   }
   function setLogo(slot, url) {
     if (!slot || slot.url === url) return;
+    slot.url = url;
+    slot.sources = S.logoSources(url);
+    showLogo(slot, false);
+    loadLogo(slot, 0);
+  }
+  function loadLogo(slot, index) {
     if (valid(slot.image)) slot.image.DeleteAsync(0);
     slot.image = null;
-    slot.url = url;
-    showLogo(slot, false);
-    slot.logoState = url ? "loading" : "none";
-    if (!url || !valid(slot.logo)) return;
+    const source = index < slot.sources.length ? slot.sources[index] : "";
+    slot.logoState = source ? "loading" : "none";
+    if (!source || !valid(slot.logo)) return;
     // Team logos fill their circle or square (cover); the organiser logo fits inside its box.
     const image = $.CreatePanel("Image", slot.logo, `OHLogoImage${++slot.logoSeq}`, {
       scaling: slot.imageClass === "OHOrgLogoImage" ? "stretch-to-fit-preserve-aspect" : "stretch-to-cover-preserve-aspect", hittest: "false"
@@ -447,6 +454,10 @@
     });
     $.RegisterEventHandler("ImageFailedLoad", image, () => {
       if (slot.image !== image) return;
+      if (index + 1 < slot.sources.length) {
+        loadLogo(slot, index + 1);
+        return;
+      }
       slot.logoState = "failed";
       image.DeleteAsync(0);
       slot.image = null;
@@ -454,7 +465,7 @@
       $.Msg(`${TAG} a logo failed to load; showing the fallback`);
       notify();
     });
-    image.SetImage(url);
+    image.SetImage(source);
   }
 
   // ------------------------------------------------------------------ tournament bar (in #TopBar)

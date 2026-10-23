@@ -49,12 +49,12 @@
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamAmber" text="Amber side" /></Panel>
 								<Panel class="OHRow"><Label class="OHRowTitle" text="Team name" /><Panel class="OHRowControls"><TextEntry id="OHAmberNameEntry" class="OHEntry OHNameEntry" maxchars="28" placeholder="e.g. Night Owls" text="" /><Label class="OHInlineLabel" text="Tag" /><TextEntry id="OHAmberTagEntry" class="OHEntry OHTagEntry" maxchars="4" placeholder="NOW" text="" /></Panel></Panel>
-								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHAmberLogoEntry" class="OHEntry" maxchars="512" placeholder="https://.../logo.png (optional)" text="" /><Label id="OHAmberLogoNote" class="OHNote" text="" /></Panel></Panel>
+								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHAmberLogoEntry" class="OHEntry" maxchars="512" placeholder="image or GIF link: imgur, Giphy, Tenor... (optional)" text="" /><Label id="OHAmberLogoNote" class="OHNote" text="" /></Panel></Panel>
 							</Panel>
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamSapphire" text="Sapphire side" /></Panel>
 								<Panel class="OHRow"><Label class="OHRowTitle" text="Team name" /><Panel class="OHRowControls"><TextEntry id="OHSapphireNameEntry" class="OHEntry OHNameEntry" maxchars="28" placeholder="e.g. Brass Saints" text="" /><Label class="OHInlineLabel" text="Tag" /><TextEntry id="OHSapphireTagEntry" class="OHEntry OHTagEntry" maxchars="4" placeholder="BRS" text="" /></Panel></Panel>
-								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHSapphireLogoEntry" class="OHEntry" maxchars="512" placeholder="https://.../logo.png (optional)" text="" /><Label id="OHSapphireLogoNote" class="OHNote" text="" /></Panel></Panel>
+								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHSapphireLogoEntry" class="OHEntry" maxchars="512" placeholder="image or GIF link: imgur, Giphy, Tenor... (optional)" text="" /><Label id="OHSapphireLogoNote" class="OHNote" text="" /></Panel></Panel>
 							</Panel>
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Team logos" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="both sides" /></Panel>
@@ -106,7 +106,7 @@
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Organiser and event" /><Label class="OHScope" text="BOTH LOOKS" /></Panel>
 								<Panel class="OHRow"><Label class="OHRowTitle" text="Organiser name" /><Panel class="OHRowControls"><TextEntry id="OHOrgEntry" class="OHEntry OHNameEntry" maxchars="24" placeholder="e.g. Community Cup" text="" /><Label class="OHNote OHInlineNote" text="centre of the top bar" /></Panel></Panel>
-								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Organiser logo URL" /><Panel class="OHRowControls"><TextEntry id="OHOrgLogoEntry" class="OHEntry" maxchars="512" placeholder="https://.../logo.png (replaces the name)" text="" /><Label id="OHOrgLogoNote" class="OHNote" text="" /></Panel></Panel>
+								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Organiser logo URL" /><Panel class="OHRowControls"><TextEntry id="OHOrgLogoEntry" class="OHEntry" maxchars="512" placeholder="image or GIF link (replaces the name)" text="" /><Label id="OHOrgLogoNote" class="OHNote" text="" /></Panel></Panel>
 								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Event title" /><Panel class="OHRowControls"><TextEntry id="OHEventEntry" class="OHEntry" maxchars="40" placeholder="e.g. Community Cup Season 2" text="" /><Label id="OHEventNote" class="OHNote" text="" /></Panel></Panel>
 							</Panel>
 						</Panel>

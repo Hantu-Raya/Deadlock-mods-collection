@@ -4,7 +4,7 @@ texture, washed per slot/tier in CSS.
 Panorama draws a transformed panel's own edges without anti-aliasing (live 2026-10-23: the wobbling
 notice frame stair-stepped at 1600x900). An image is filtered, so the frame is drawn into images whose
 outer PAD texels are transparent: the panel's hard edge falls in empty texels and the visible edge is
-the texture's smooth one. One notice quad is 40 px high: PAD, a 36 px frame (outer corner radius 4),
+the texture's smooth one. One notice quad is 36 px high: PAD, a 32 px frame (outer corner radius 4),
 PAD. Three pieces (left cap, stretched middle, right cap) keep the border width at any notice width.
 The caps are transparent on both outer columns, so a wrapping sampler adds no seam; the middle is the
 same in every column (wrapping is harmless) and runs 3 px under each cap (CSS), so a cap's transparent
@@ -15,7 +15,7 @@ from pathlib import Path
 
 from PIL import Image
 
-HEIGHT = 40
+HEIGHT = 36  # oh_debuffs.css .OHBuy height (the validator compares)
 PAD = 2
 RADIUS = 4
 CAP_W = 9  # PAD + RADIUS + 2 band columns + 1 transparent column

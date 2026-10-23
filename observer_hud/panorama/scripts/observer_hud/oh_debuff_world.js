@@ -11,9 +11,12 @@
 // abilities in dlf/spectator-status.json (RULES) are sent: their debuffs (.isDebuff), their
 // non-debuff statuses only when listed as a buff, and a status listed with minStacks (Djinn's Mark)
 // only from that many stacks. A panel with the "stunned" class is a stun: its own item. Per ability
-// and kind the snapshot carries [key, debuff 0/1, count, end, stun 0/1]: count is the larger of the
+// and kind the snapshot carries [key, debuff 0/1, count, end, stun 0/1, hit]: count is the larger of the
 // #stacks label and the number of panels, end the predicted expiry (Date.now() ms; 0 = no countdown)
-// fitted from three samples of the native radial on #StatusEffectsBorder. Changes, plus a 4 s
+// fitted from three samples of the native radial on #StatusEffectsBorder, hit the bar's hit sequence
+// number of the item's last hit (rules with pulse only, else 0): a hit is a status panel that appears
+// or whose radial jumps back against its running direction by more than REFRESH_DEG (a refresh).
+// Changes, plus a 4 s
 // heartbeat while anything is shown, leave through a sibling relay as OH_DEBUFF_SNAPSHOT for
 // oh_debuffs.js. The editor's DEV settings arrive as OH_DEBUFF_CONFIG on this context's own
 // ClientUI_FireOutput listener. DEV status log (config log: true): hero bars print every status panel
@@ -35,6 +38,7 @@
   const MAX_COUNT = 99;
   const END_JITTER_MS = 400;
   const FIT_GAP_MS = 450;
+  const REFRESH_DEG = 20; // a 1.5 s radial moves 60 deg per 0.25 s sample; whole-degree noise is 1
   const KEY = /^[a-z0-9_]{1,64}$/;
   const RADIAL = /^radial\(\s*50(?:\.0+)?%\s+50(?:\.0+)?%\s*,\s*0(?:\.0+)?deg\s*,\s*(-?\d+(?:\.\d+)?)deg\s*\)$/;
   // One rule per ability in dlf/spectator-status.json; nothing else reaches the top bar. Keep equal to
@@ -43,6 +47,7 @@
   // that the status runs its radial on the cooldown is a hypothesis), so a genuine longer duration loses
   // its number too. buff: its non-debuff statuses show too (own team colour). minStacks: shown from that
   // many stacks (its stun regardless). ignore: status classes skipped (Bebop's bullet amp after the pull).
+  // pulse: each hit sends a new hit number, and the top-bar slot pulses once (Shining Wonder's bounces).
   const RULES = new Map([
     ["citadel_ability_bull_leap", { maxSeconds: 6, buff: true }],
     ["citadel_ability_hook", { maxSeconds: 3, buff: true, ignore: ["bullet_armor_reduction"] }],
@@ -77,7 +82,8 @@
     ["ability_artist_bamboogrove", { maxSeconds: 6 }],
     ["ability_warden_lock_down", { maxSeconds: 5 }],
     ["ability_doorman_luggage_cart", { maxSeconds: 6 }],
-    ["ability_nurse_fear", { maxSeconds: 6, ignore: ["nurse_fear_buildup"] }]
+    ["ability_nurse_fear", { maxSeconds: 6, ignore: ["nurse_fear_buildup"] }],
+    ["ability_unicorn_dazzlingorb", { maxSeconds: 3, pulse: true }]
   ]);
 
   // Ids of a stun with no applying ability; the only such stun seen live is the Hyperline knock-off.
@@ -113,8 +119,10 @@
   let sentName = "";
   let sentAt = 0;
   let errorShown = false;
-  let parts = new Map(); // status panel -> { border, stacks } (panels seen in the last sample)
+  let parts = new Map(); // status panel -> { border, stacks, angle, dir } (panels seen in the last sample)
   let fits = new Map(); // key -> { points: [{ angle, at }], end }
+  let hits = new Map(); // slot -> hit sequence number of its last hit (pulse rules)
+  let hitSeq = 0;
   let muted = new Set();
   let carrierIsRoot = true; // CLASS_PLAYER was last seen on the world panel (else on the dialog)
 
@@ -215,7 +223,7 @@
   // Child panels of one status, looked up once per status panel.
   function partsOf(effect) {
     let found = parts.get(effect);
-    if (!found) found = { border: effect.FindChildTraverse("StatusEffectsBorder"), stacks: effect.FindChild("stacks") };
+    if (!found) found = { border: effect.FindChildTraverse("StatusEffectsBorder"), stacks: effect.FindChild("stacks"), angle: null, dir: 0 };
     return found;
   }
 
@@ -304,6 +312,7 @@
       if (muted.size) unmuteAll();
       parts = new Map();
       fits = new Map();
+      hits = new Map();
       logged = new Map();
       announced = false;
       if (!dialog && inHud()) return -1;
@@ -352,14 +361,26 @@
       let entry = byKey.get(slot);
       if (!entry) {
         if (byKey.size >= MAX_KEYS) continue;
-        byKey.set(slot, (entry = { key, rule, stun, debuff: false, panels: 0, stacks: 0, angle: null }));
+        byKey.set(slot, (entry = { key, rule, stun, debuff: false, panels: 0, stacks: 0, angle: null, hit: false }));
       }
+      const known = parts.has(effect);
       const found = partsOf(effect);
       seen.set(effect, found);
       entry.debuff = entry.debuff || debuff;
       entry.panels++;
       entry.stacks = Math.max(entry.stacks, stackCount(found.stacks));
-      if (entry.angle === null) entry.angle = radialAngle(found.border);
+      if (rule.pulse) {
+        // Every panel's radial is read: a new panel or a jump back against the running direction is a hit.
+        const angle = radialAngle(found.border);
+        if (!known) entry.hit = true;
+        else if (angle !== null && found.angle !== null) {
+          const delta = angle - found.angle;
+          if (found.dir && delta * found.dir < -REFRESH_DEG) entry.hit = true;
+          else if (Math.abs(delta) >= 1) found.dir = delta > 0 ? 1 : -1;
+        }
+        found.angle = angle;
+        if (entry.angle === null) entry.angle = angle;
+      } else if (entry.angle === null) entry.angle = radialAngle(found.border);
     }
     muted = nextMuted;
     parts = seen;
@@ -372,9 +393,12 @@
       }
       // A stun is one status even when the engine shows it twice (a modifier panel and a state panel).
       const count = entry.stun ? 1 : Math.min(MAX_COUNT, Math.max(entry.panels, entry.stacks));
-      items.push([entry.key, entry.debuff ? 1 : 0, count, predictEnd(slot, entry.angle, now, entry.rule.maxSeconds), entry.stun ? 1 : 0]);
+      if (entry.hit) hits.set(slot, ++hitSeq);
+      items.push([entry.key, entry.debuff ? 1 : 0, count, predictEnd(slot, entry.angle, now, entry.rule.maxSeconds), entry.stun ? 1 : 0,
+        hits.get(slot) || 0]);
     }
     for (const key of fits.keys()) if (!byKey.has(key)) fits.delete(key);
+    for (const key of hits.keys()) if (!byKey.has(key)) hits.delete(key);
     publish(name, items);
     return pollMs / 1000;
   }

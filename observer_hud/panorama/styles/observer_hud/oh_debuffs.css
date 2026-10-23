@@ -66,6 +66,35 @@
 	animation-fill-mode: forwards;
 }
 
+/* One hit of a pulse rule (Shining Wonder's orb bouncing on this hero's head, user 2026-10-23): the
+   circle hops up and swells once, 0.35 s; oh_debuffs.js restarts it per hit. Transform only (no
+   layout); the slot does not clip. */
+@keyframes 'OHDebuffPulse'
+{
+	0%
+	{
+		transform: translateY(0px) scale3d(1, 1, 1);
+	}
+
+	35%
+	{
+		transform: translateY(-5px) scale3d(1.3, 1.3, 1);
+	}
+
+	100%
+	{
+		transform: translateY(0px) scale3d(1, 1, 1);
+	}
+}
+
+.OHDebuff.OHPulse .OHDebuffCircle
+{
+	animation-name: OHDebuffPulse;
+	animation-duration: 0.35s;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
+}
+
 /* The Hidden King (Amber) */
 .OHByAmber .OHDebuffCircle
 {
@@ -188,23 +217,24 @@
 }
 
 /* Purchase notices (oh_buys.js), DLF's QOLLOCK popups rewritten: the last child of the column, so they
-   sit under its shown slots. One line, a frame at most 228 px wide (about two and a half stock cards),
+   sit under its shown slots. One line, a frame at most 205 px wide (about two and a quarter stock cards),
    so long names such as High-Velocity Rounds keep full size (live 2026-10-23: at 126 px the name shrank
-   thin); oh_buys.js stacks any notices that would overlap, by measured width.
+   thin); oh_buys.js stacks any notices that would overlap, by measured width. The frame, icon and name
+   are 10 % smaller than first shipped (user 2026-10-23: 228 px wide, 36 px high frame, 28 px icon, 17 px).
    The surface is the stock shop item card's paper (citadel_shop_mod_view.css, 6819): the slot/tier
    card backer art (#CardBacker, cover), the paper wear washed per tier at 0.5 (.paperWear) and the
    paper grain multiplied over it (.paperTexture); layers OHBuyBacker, OHBuyWear, OHBuyPaper in
    OHBuyPaperBox. Framing follows QOLLOCK's feed (G:/QOLLOCK .quickItemInfo, .mod_icon): a 2 px
    slot-colour border (bright, dark, darker; tier 4 bright, 3 px) on the frame and the icon.
-   OHBuyBg wobbles with the stock chat bubble's poses at 30 % (.bubble_bg ChatGroove_Allies: stepped
+   OHBuyBg wobbles with the stock chat bubble's poses at 35 % (.bubble_bg ChatGroove_Allies: stepped
    rotate and skew, 4 s loop, 400 ms frames; user 2026-10-23, "Defend the York Base Guardian" bubble,
-   then "reduce the wobble to 20%", then "increase the wobble by 10%"). Panorama
+   then "reduce the wobble to 20%", then "increase the wobble by 10%", then "by 5%"). Panorama
    draws a transformed panel's edges without anti-aliasing (live 2026-10-23, 1600x900: CSS border and
    paper stair-stepped at the stock poses; at a third of them too subtle and still jagged). So the frame
    is three images (scripts/make-notice-frame.py: left cap, stretched middle, right cap, white, washed
    per slot/tier) drawn anti-aliased in the texture inside a 2 px transparent rim: the quads' hard edges
    fall in empty texels. The paper box sits 3 px in, its hard edge under the opaque band. The notice is
-   therefore 4 px larger than its frame: 40 px high, margins -2 and 1 keep the 39 px row (ROW_H) and the
+   therefore 4 px larger than its frame: 36 px high, margins -2 and 1 keep the 35 px row (ROW_H) and the
    frame's place under the column (STACK_TOP). The icon and name stay still, as the stock bubble's text.
    The name is the font of the stock "Spotted" chat ping bubble (#MessageText: oracle bold black).
    "oracle" is an @define in citadel_base_styles (VALVEOracle, Reaver, sans-serif), which this sheet
@@ -212,7 +242,7 @@
    is spelled out here. Tier 4 names use the stock card's light name colours. */
 .OHBuys
 {
-	width: 232px;
+	width: 209px;
 	height: fit-children;
 	horizontal-align: center;
 	margin-top: 2px;
@@ -250,8 +280,8 @@
 .OHBuy
 {
 	width: fit-children;
-	max-width: 232px;
-	height: 40px;
+	max-width: 209px;
+	height: 36px;
 	horizontal-align: center;
 	margin-top: -2px;
 	margin-bottom: 1px;
@@ -287,42 +317,42 @@
 	animation-frame-time: 400ms;
 }
 
-/* The stock ChatGroove_Allies keyframes (citadel_hud_top_bar_chat.css, 6819) at 30 %: stock
+/* The stock ChatGroove_Allies keyframes (citadel_hud_top_bar_chat.css, 6819) at 35 %: stock
    rotateZ(-1/1/-1/0deg) skew(9/3/7/-5deg). */
 @keyframes 'OHBuyGroove'
 {
 	0%
 	{
-		transform: rotateZ(-0.3deg) skew(2.7deg);
+		transform: rotateZ(-0.35deg) skew(3.15deg);
 	}
 
 	25%
 	{
-		transform: rotateZ(0.3deg) skew(0.9deg);
+		transform: rotateZ(0.35deg) skew(1.05deg);
 	}
 
 	50%
 	{
-		transform: rotateZ(-0.3deg) skew(2.1deg);
+		transform: rotateZ(-0.35deg) skew(2.45deg);
 	}
 
 	75%
 	{
-		transform: rotateZ(0deg) skew(-1.5deg);
+		transform: rotateZ(0deg) skew(-1.75deg);
 	}
 }
 
 .OHBuyPaperBox
 {
 	width: fill-parent-flow(1.0);
-	height: 34px;
+	height: 30px;
 	margin: 3px;
 	border-radius: 2px;
 	background-color: #AD7C46;
 	overflow: clip;
 }
 
-/* The frame: 40 px high pieces (2 px rim, 36 px frame), white, washed with the border colour below. */
+/* The frame: 36 px high pieces (2 px rim, 32 px frame), white, washed with the border colour below. */
 .OHBuyEdgeRow
 {
 	width: 100%;
@@ -413,9 +443,9 @@
 
 .OHBuyIcon
 {
-	width: 28px;
-	height: 28px;
-	margin: 0px 0px 0px 5px;
+	width: 25px;
+	height: 25px;
+	margin: 0px 0px 0px 4px;
 	vertical-align: center;
 	border-radius: 4px;
 	border: 2px solid #EC9719;
@@ -429,11 +459,11 @@
 /* The stock "Spotted" chat bubble's text (#MessageText: oracle bold black), with oracle spelled out. */
 .OHBuyName
 {
-	max-width: 182px;
-	margin: 0px 8px 0px 5px;
+	max-width: 164px;
+	margin: 0px 7px 0px 4px;
 	vertical-align: center;
 	font-family: VALVEOracle, Reaver, sans-serif;
-	font-size: 17px;
+	font-size: 15px;
 	font-weight: bold;
 	color: black;
 	text-shadow: none;

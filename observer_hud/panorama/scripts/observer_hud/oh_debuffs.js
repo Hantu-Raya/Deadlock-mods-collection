@@ -1,6 +1,6 @@
 // Observer HUD ability status column, HUD side (host: this mod's hud_spectate_bar.xml), ported from
 // DLF's dlf_debuffs.js with its rules. World healthbars (oh_debuff_world.js) send OH_DEBUFF_SNAPSHOT
-// { source, name, items: [[key, debuff, count, end, stun]] }; this draws each hero's statuses in the
+// { source, name, items: [[key, debuff, count, end, stun, hit]] }; this draws each hero's statuses in the
 // four static slots of the column oh_host.js injects under each stock top-bar card
 // (observer_hud/debuffs.xml), matched by player name. The cards come from the host's registry
 // ($.OHHost.cards(), re-read when $.OHHost.cardsVersion() moves); the column never walks the top bar.
@@ -8,7 +8,8 @@
 // other team for a debuff, the hero's own team for a listed buff. A count of 2+ shows as a badge; a
 // predicted end shows as whole seconds left plus END_PAD_MS, redrawn every 0.25 s while one runs. A stun is its own
 // slot with the stock stun mark (.OHStun). A status that goes away keeps its slot for FADE_MS with
-// .OHFading, whose CSS keyframe animation fades it out. The editor's DEV settings (state.dev) go to
+// .OHFading, whose CSS keyframe animation fades it out. A new hit number (pulse rules: Shining Wonder,
+// one per orb bounce) pulses its slot once (.OHPulse). The editor's DEV settings (state.dev) go to
 // every world bar as OH_DEBUFF_CONFIG on change and every 4 s, so bars created later pick them up.
 (() => {
   "use strict";
@@ -28,6 +29,7 @@
   const MAX_END_AHEAD_MS = 300000;
   const MAX_KEYS = 8;
   const MAX_COUNT = 99;
+  const MAX_HIT = 1e9;
   const FADE_MS = 1000; // equal to the OHDebuffFadeOut animation-duration in oh_debuffs.css
   const END_PAD_MS = 1000; // the countdown reads one second longer than the predicted end (user 2026-10-23)
   const KEY = /^[a-z0-9_]{1,64}$/;
@@ -150,7 +152,7 @@
         }
       }
       cards.push({ panel: entry.panel, label: entry.label, column: entry.debuffs, slots: slots,
-        team: TEAMS[entry.teamKey] || TEAMS.amber, shown: [] });
+        team: TEAMS[entry.teamKey] || TEAMS.amber, shown: [], hits: new Map() });
     }
     State.cards = cards;
     State.namesAt = 0;
@@ -208,8 +210,26 @@
     return next;
   }
 
+  // Restarts the one-shot pulse animation: TriggerClass where the engine has it, else the class goes
+  // off and comes back on the next frame (HP Colors v3 menu pattern).
+  function pulse(panel) {
+    if (typeof panel.TriggerClass === "function") {
+      panel.TriggerClass("OHPulse");
+      return;
+    }
+    if (!panel.BHasClass("OHPulse")) {
+      panel.AddClass("OHPulse");
+      return;
+    }
+    panel.RemoveClass("OHPulse");
+    $.Schedule(0, () => {
+      if (!stopped && valid(panel)) panel.AddClass("OHPulse");
+    });
+  }
+
   function paint(card, items, now) {
     const entries = entriesFor(card, items, now);
+    const hits = new Map(); // id -> hit number this paint (card.hits: the last one pulsed)
     let counting = false;
     card.slots.forEach((slot, index) => {
       const entry = index < entries.length ? entries[index] : null;
@@ -241,7 +261,13 @@
       const left = shownEnd > now ? Math.ceil((shownEnd - now) / 1000) : 0;
       setBadge(slot, "timeText", "time", "OHHasTime", left > 0 ? String(left) : "");
       counting = counting || left > 0 || fading;
+      const hit = item && !fading ? item[5] || 0 : 0;
+      if (hit) {
+        if (card.hits.get(entry.id) !== hit) pulse(slot.panel);
+        hits.set(entry.id, hit);
+      }
     });
+    card.hits = hits;
     return counting;
   }
 
@@ -275,7 +301,7 @@
 
   function validItems(items, at) {
     return Array.isArray(items) && items.length <= MAX_KEYS && items.every((item) =>
-      Array.isArray(item) && item.length === 5 &&
+      Array.isArray(item) && (item.length === 5 || item.length === 6 && Number.isInteger(item[5]) && item[5] >= 0 && item[5] <= MAX_HIT) &&
       typeof item[0] === "string" && KEY.test(item[0]) &&
       (item[1] === 0 || item[1] === 1) &&
       Number.isInteger(item[2]) && item[2] >= 1 && item[2] <= MAX_COUNT &&

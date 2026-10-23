@@ -99,6 +99,56 @@
     return match && HOST.test(match[1]) ? url : null;
   }
 
+  // The images to try for a logo URL, in order; the editor keeps the URL as typed. The game loads PNG,
+  // JPEG, still WebP and GIF; animated WebP draws grey bars while ImageLoaded still fires (DLF ENGINE.md,
+  // live 2026-10-16) and video does not load. So image and GIF hosts are asked for the file itself:
+  // imgur page and .gifv/.mp4/.webm/.webp links the GIF, then the still image (an id serves its stored
+  // image under either extension; user 2026-10-23 "support imgur and more with gifs"); Giphy and Tenor
+  // links the GIF (a Tenor page link plus .gif redirects to it); Discord's media proxy and fxtwitter
+  // WebP as GIF (DLF's logoSource); Discord CDN emoji, avatars and icons as GIF when animated, else
+  // PNG; X's WebP as PNG; GitHub blob pages raw; Dropbox share pages with raw=1. Other URLs load as typed.
+  const URL_PARTS = /^(https?:\/\/)([^/?#]+)([^?#]*)(?:\?([^#]*))?(?:#.*)?$/i;
+  const imgur = (id) => [`https://i.imgur.com/${id}.gif`, `https://i.imgur.com/${id}.png`];
+  const giphy = (id) => [`https://media.giphy.com/media/${id}/giphy.gif`];
+  function logoSources(url) {
+    const match = typeof url === "string" ? URL_PARTS.exec(url) : null;
+    if (!match) return url ? [url] : [];
+    const base = match[1] + match[2] + match[3];
+    const host = match[2].toLowerCase();
+    const path = match[3];
+    const params = match[4] ? match[4].split("&").filter((part) => part) : [];
+    const withQuery = (start, list) => (list.length ? `${start}?${list.join("&")}` : start);
+    const without = (name) => params.filter((part) => part.split("=")[0].toLowerCase() !== name);
+    let m = null;
+    if (/^(?:www\.|m\.)?imgur\.com$/.test(host) && (m = /^\/([A-Za-z0-9]{5,10})(?:\.[A-Za-z0-9]{3,4})?\/?$/.exec(path))) return imgur(m[1]);
+    if (host === "i.imgur.com" && (m = /^\/([A-Za-z0-9]{5,10})\.(?:gifv|mp4|webm|webp)$/i.exec(path))) return imgur(m[1]);
+    if (/^(?:www\.)?giphy\.com$/.test(host) && (m = /^\/(?:gifs|stickers|embed)\/(?:[^/]*-)?([A-Za-z0-9]{6,40})\/?$/.exec(path))) return giphy(m[1]);
+    if (/^media\d*\.giphy\.com$/.test(host) && (m = /^\/media\/(?:[^/]+\/)?([A-Za-z0-9]{6,40})\/[\w-]+\.(?:webp|mp4)$/i.exec(path))) return giphy(m[1]);
+    if (host === "i.giphy.com" && (m = /^\/([A-Za-z0-9]{6,40})\.(?:webp|mp4)$/i.exec(path))) return [`https://i.giphy.com/${m[1]}.gif`];
+    // Tenor media keys are an 11-character id plus a 5-character format code; AAAAC is the full GIF.
+    if (/^media\d*\.tenor\.com$/.test(host) && (m = /^(\/(?:m\/)?[A-Za-z0-9_-]{11})[A-Za-z0-9_-]{5}(\/[\w-]+)\.(?:gif|webp|mp4)$/.exec(path))) {
+      return [`https://${host}${m[1]}AAAAC${m[2]}.gif`];
+    }
+    if (/^(?:www\.)?tenor\.com$/.test(host) && /^\/(?:[a-z]{2}(?:-[A-Z]{2})?\/)?view\/[\w-]+-\d+$/.test(path)) return [`https://${host}${path}.gif`];
+    if (/\.webp$/i.test(path)) {
+      if (/^(?:media|images-ext-\d+)\.discordapp\.net$/.test(host)) return [withQuery(base, without("format").concat("format=gif"))];
+      if (/^(?:gif\.)?fxtwitter\.com$/.test(host)) return [withQuery(base.replace(/\.webp$/i, ".gif"), params)];
+      if (host === "cdn.discordapp.com" && /^\/(?:emojis|avatars|icons)\//.test(path)) {
+        const animated = params.some((part) => /^animated=true$/i.test(part)) || /\/a_[^/]*$/.test(path);
+        return [withQuery(base.replace(/\.webp$/i, animated ? ".gif" : ".png"), without("animated"))];
+      }
+      if (host === "pbs.twimg.com") return [withQuery(base.replace(/\.webp$/i, ""), ["format=png"].concat(without("format")))];
+    }
+    if (host === "pbs.twimg.com" && params.some((part) => /^format=webp$/i.test(part))) {
+      return [withQuery(base, params.map((part) => (/^format=webp$/i.test(part) ? "format=png" : part)))];
+    }
+    if (/^(?:www\.)?github\.com$/.test(host) && (m = /^\/([^/]+)\/([^/]+)\/blob\/(.+)$/.exec(path))) return [`https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`];
+    if (/^(?:www\.)?dropbox\.com$/.test(host) && /^\/(?:s|scl\/fi)\//.test(path)) {
+      return [withQuery(base, params.filter((part) => !/^(?:dl|raw)=/i.test(part)).concat("raw=1"))];
+    }
+    return [url];
+  }
+
   const pick = (value, fallback) => value === null || value === undefined ? fallback : value;
   const cleanInt = (value, min, max) => Number.isInteger(value) && value >= min && value <= max ? value : null;
 
@@ -284,7 +334,7 @@
     TEAMS: TEAMS, LIMITS: LIMITS, BEST_OF: BEST_OF, BAN_SLOTS: BAN_SLOTS, MAX_URL: MAX_URL,
     DEBUFF_POLL_STEPS: DEBUFF_POLL_STEPS, BUYS_SHOW: BUYS_SHOW, MAX_SHARE: MAX_SHARE, STYLES: STYLES, GRAPH_SHOW: GRAPH_SHOW, GRAPH_EVERY: GRAPH_EVERY, GRAPH_LIMITS: GRAPH_LIMITS, LOGO_SHAPES: LOGO_SHAPES, LOGO_LIMITS: LOGO_LIMITS, CUE_SHOW: CUE_SHOW, RIFT_SHOW: RIFT_SHOW,
     defaults: () => clone(DEFAULTS),
-    normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, monogram: monogram, winsNeeded: winsNeeded,
+    normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, logoSources: logoSources, monogram: monogram, winsNeeded: winsNeeded,
     checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, valid: valid, clone: clone,
     parseClock: parseClock, TEAM_PANELS: TEAM_PANELS
   });

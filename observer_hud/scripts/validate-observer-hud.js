@@ -652,7 +652,7 @@ check("spec: world RULES equal dlf/spectator-status.json; the stun-hiding rule i
   const rules = new vm.Script(/const RULES = (new Map\(\[[\s\S]*?\]\));/.exec(worldJs)[1]).runInNewContext({ Map });
   const specRules = spec.abilities.map((entry) => [entry.ability, Object.assign({ maxSeconds: entry.maxSeconds },
     entry.buff ? { buff: true } : {}, entry.minStacks ? { minStacks: entry.minStacks } : {},
-    entry.ignoreClasses ? { ignore: entry.ignoreClasses } : {})]);
+    entry.ignoreClasses ? { ignore: entry.ignoreClasses } : {}, entry.pulse ? { pulse: true } : {})]);
   deq(JSON.parse(JSON.stringify([...rules])), specRules);
   const icons = new vm.Script(`${read("panorama/scripts/observer_hud/oh_debuff_icons.js")}\nOH_DEBUFF_ICONS`).runInNewContext({});
   const known = new Set(Object.values(icons).flatMap((row) => row.split(" ").map((entry) => entry.split("=")[0])));
@@ -717,6 +717,68 @@ check("state: field-by-field fallback, rejection instead of truncation, series c
   deq([v2.style, v2.org, v2.info, v2.graph], ["desk", { name: "Community Cup", logo: { url: "" } },
     { title: "Prize pool", value: "$2,130", caption: "Donate" }, { show: 30, every: 300, size: 100, x: 0, y: 0 }], "a 17-character value keeps the sample");
   assert.equal(S.normalize({ style: "base" }).style, "names", "v1's look is gone: unknown looks fall back");
+});
+
+// Logo links from image and GIF hosts (user 2026-10-23: "support imgur and more with gifs"). The game
+// loads PNG, JPEG, still WebP and GIF; animated WebP draws grey bars (DLF ENGINE.md) and video does not
+// load. How it could fail: a page link (imgur, giphy, tenor, GitHub, Dropbox) loads HTML; a video or
+// animated WebP link loads instead of the host's GIF; a lookalike host or an album is rewritten; a
+// direct link is changed; a rewrite gives a URL cleanUrl would refuse; a still image fails as GIF.
+check("state: logo links from imgur, Giphy, Tenor, Discord, X, GitHub and Dropbox load the direct image or GIF", () => {
+  const S = stateApi;
+  const cases = [
+    ["", []],
+    ["https://cdn.example.org/logo.png", ["https://cdn.example.org/logo.png"]],
+    ["https://cdn.example.org/anim.webp", ["https://cdn.example.org/anim.webp"]],
+    // imgur: a page link or a video/WebP link becomes the GIF, the still image after it.
+    ["https://imgur.com/AbC12xy", ["https://i.imgur.com/AbC12xy.gif", "https://i.imgur.com/AbC12xy.png"]],
+    ["https://m.imgur.com/AbC12xy?share=1#top", ["https://i.imgur.com/AbC12xy.gif", "https://i.imgur.com/AbC12xy.png"]],
+    ["https://i.imgur.com/AbC12xy.gifv", ["https://i.imgur.com/AbC12xy.gif", "https://i.imgur.com/AbC12xy.png"]],
+    ["https://i.imgur.com/AbC12xy.mp4", ["https://i.imgur.com/AbC12xy.gif", "https://i.imgur.com/AbC12xy.png"]],
+    ["http://i.imgur.com/AbC12xy.webp", ["https://i.imgur.com/AbC12xy.gif", "https://i.imgur.com/AbC12xy.png"]],
+    ["https://i.imgur.com/AbC12xy.png", ["https://i.imgur.com/AbC12xy.png"]],
+    ["https://i.imgur.com/AbC12xy.gif", ["https://i.imgur.com/AbC12xy.gif"]],
+    ["https://imgur.com/a/AbC12xy", ["https://imgur.com/a/AbC12xy"]],
+    ["https://imgur.com/gallery/AbC12xy", ["https://imgur.com/gallery/AbC12xy"]],
+    ["https://notimgur.com/AbC12xy", ["https://notimgur.com/AbC12xy"]],
+    ["https://imgur.com.evil.example/AbC12xy", ["https://imgur.com.evil.example/AbC12xy"]],
+    // Giphy: page, embed, sticker and media links become the media GIF.
+    ["https://giphy.com/gifs/CatsMovie-cats-movie-LptvdvZLb3KLHJLc0W", ["https://media.giphy.com/media/LptvdvZLb3KLHJLc0W/giphy.gif"]],
+    ["https://giphy.com/gifs/Ev477g37MJORyOWfdG", ["https://media.giphy.com/media/Ev477g37MJORyOWfdG/giphy.gif"]],
+    ["https://giphy.com/embed/Ev477g37MJORyOWfdG", ["https://media.giphy.com/media/Ev477g37MJORyOWfdG/giphy.gif"]],
+    ["https://giphy.com/stickers/happy-dance-Ev477g37MJORyOWfdG", ["https://media.giphy.com/media/Ev477g37MJORyOWfdG/giphy.gif"]],
+    ["https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/LBb735fuQwRKAVzN23/100.webp", ["https://media.giphy.com/media/LBb735fuQwRKAVzN23/giphy.gif"]],
+    ["https://media.giphy.com/media/LBb735fuQwRKAVzN23/giphy.mp4", ["https://media.giphy.com/media/LBb735fuQwRKAVzN23/giphy.gif"]],
+    ["https://i.giphy.com/LBb735fuQwRKAVzN23.webp", ["https://i.giphy.com/LBb735fuQwRKAVzN23.gif"]],
+    ["https://media.giphy.com/media/LBb735fuQwRKAVzN23/giphy.gif", ["https://media.giphy.com/media/LBb735fuQwRKAVzN23/giphy.gif"]],
+    // Tenor: a media link of any format becomes its full GIF (format code AAAAC); a page link gets
+    // .gif, which Tenor redirects to the GIF.
+    ["https://media.tenor.com/1S3s5iesWX0AAAA1/despierto-gato.webp", ["https://media.tenor.com/1S3s5iesWX0AAAAC/despierto-gato.gif"]],
+    ["https://media.tenor.com/1S3s5iesWX0AAAP1/despierto-gato.mp4", ["https://media.tenor.com/1S3s5iesWX0AAAAC/despierto-gato.gif"]],
+    ["https://media1.tenor.com/m/62-aXIQUtvQAAAAM/amazing-adorable.gif", ["https://media1.tenor.com/m/62-aXIQUtvQAAAAC/amazing-adorable.gif"]],
+    ["https://tenor.com/view/amazing-cute-cat-gif-16964948043471566580", ["https://tenor.com/view/amazing-cute-cat-gif-16964948043471566580.gif"]],
+    ["https://tenor.com/en-GB/view/amazing-cat-gif-1696494804", ["https://tenor.com/en-GB/view/amazing-cat-gif-1696494804.gif"]],
+    // Discord: the media proxy and fxtwitter serve WebP as GIF (DLF); CDN emoji, avatars and icons
+    // as GIF when animated, else PNG.
+    ["https://media.discordapp.net/attachments/1/2/a.webp?ex=1&width=64", ["https://media.discordapp.net/attachments/1/2/a.webp?ex=1&width=64&format=gif"]],
+    ["https://fxtwitter.com/i/a.webp", ["https://fxtwitter.com/i/a.gif"]],
+    ["https://cdn.discordapp.com/emojis/123456789.webp?size=96&animated=true", ["https://cdn.discordapp.com/emojis/123456789.gif?size=96"]],
+    ["https://cdn.discordapp.com/emojis/123456789.webp?size=96", ["https://cdn.discordapp.com/emojis/123456789.png?size=96"]],
+    ["https://cdn.discordapp.com/icons/1/a_0123abcd.webp", ["https://cdn.discordapp.com/icons/1/a_0123abcd.gif"]],
+    ["https://cdn.discordapp.com/avatars/1/0123abcd.webp?size=128", ["https://cdn.discordapp.com/avatars/1/0123abcd.png?size=128"]],
+    // X: WebP renditions as PNG.
+    ["https://pbs.twimg.com/media/GAbCdEf.webp", ["https://pbs.twimg.com/media/GAbCdEf?format=png"]],
+    ["https://pbs.twimg.com/media/GAbCdEf?format=webp&name=small", ["https://pbs.twimg.com/media/GAbCdEf?format=png&name=small"]],
+    // GitHub blob pages and Dropbox share pages: the file itself.
+    ["https://github.com/org/repo/blob/main/art/logo.png", ["https://raw.githubusercontent.com/org/repo/main/art/logo.png"]],
+    ["https://www.dropbox.com/scl/fi/abc/logo.gif?rlkey=xyz&dl=0", ["https://www.dropbox.com/scl/fi/abc/logo.gif?rlkey=xyz&raw=1"]],
+    ["https://www.dropbox.com/s/abc/logo.png", ["https://www.dropbox.com/s/abc/logo.png?raw=1"]]
+  ];
+  for (const [url, expected] of cases) {
+    const sources = JSON.parse(JSON.stringify(S.logoSources(url)));
+    deq(sources, expected, url);
+    for (const source of sources) assert.equal(S.cleanUrl(source), source, `${source} passes cleanUrl`);
+  }
 });
 
 check("state: share codes round-trip, leave DEV out, and reject corrupt or newer codes", () => {
@@ -1185,6 +1247,26 @@ check("bar: a web logo shows only after ImageLoaded; a failed one keeps the mono
   assert.equal(text(w.ui("OHAmberLogoNote")), "Not used: needs a plain http(s) address.");
   assert.equal(w.state().amber.logo.url, "https://cdn.example.org/broken.png", "the refused URL changes nothing");
   assert.ok(!w.harness.logs.some((line) => line.includes("example.org")), "URLs are never logged");
+  // A host link loads its direct image; with a fallback (an imgur page: the GIF, then the still image)
+  // a failed source tries the next one, and only the last failure keeps the monogram.
+  const page = "https://imgur.com/AbC12xy";
+  w.type("OHAmberLogoEntry", page, { submit: true });
+  assert.equal(w.state().amber.logo.url, page, "the URL is kept as typed");
+  deq(images().map((image) => image.src), ["https://i.imgur.com/AbC12xy.gif"]);
+  images()[0].events.ImageFailedLoad();
+  deq(images().map((image) => image.src), ["https://i.imgur.com/AbC12xy.png"], "the still image after the GIF failed");
+  w.advance(1100);
+  assert.equal(text(w.ui("OHAmberLogoNote")), "Loading the logo...", "still loading while a source is left");
+  images()[0].events.ImageLoaded();
+  assert.ok(logo.BHasClass("OHLogoShown"), "the second source shows");
+  w.type("OHAmberLogoEntry", "https://i.imgur.com/ZzZ9876.gifv", { submit: true });
+  images()[0].events.ImageFailedLoad();
+  images()[0].events.ImageFailedLoad();
+  assert.equal(images().length, 0, "both sources failed");
+  assert.ok(!logo.BHasClass("OHLogoShown"));
+  w.advance(1100);
+  assert.ok(w.ui("OHAmberLogoNote").BHasClass("OHError"));
+  assert.ok(!w.harness.logs.some((line) => line.includes("imgur")), "host links are never logged either");
 });
 
 // ---------------------------------------------------------------- looks and soul lead graph
@@ -2403,10 +2485,16 @@ check("purchases: a notice on the buyer's card under the status column; old rows
       assert.ok(fs.existsSync(path.join(MODULE, "panorama", "images", `${image}.${ext}`)), `${image}.${ext} exists`);
     }
   }
-  // A notice row is 39 px (oh_buys.js ROW_H): the 40 px notice (36 px frame in a 2 px rim), -2 and +1 px margins.
+  // A notice row is 35 px (oh_buys.js ROW_H): the 36 px notice (32 px frame in a 2 px rim), -2 and +1 px margins.
   const row = /\n\.OHBuy\s*\{([^}]*)\}/.exec(sheet)[1];
   const px = (prop) => Number(new RegExp(`\\b${prop}:\\s*(-?\\d+)px`).exec(row)[1]);
-  assert.equal(px("height") + px("margin-top") + px("margin-bottom"), 39, "the notice row stays 39 px");
+  assert.equal(px("height") + px("margin-top") + px("margin-bottom"), 35, "the notice row stays 35 px");
+  // The frame images are drawn at the notice's height (make-notice-frame.py HEIGHT): stretched, the
+  // anti-aliased band and the transparent rim would blur or thin.
+  for (const image of new Set(frameImages)) {
+    const png = fs.readFileSync(path.join(MODULE, "panorama", "images", `${image}.png`));
+    assert.equal(png.readUInt32BE(20), px("height"), `${image}.png is as high as the notice`);
+  }
   const column = w.card("Volt").FindChild("OHDebuffsHost");
   assert.equal(w.card("Volt").FindChildTraverse("OHBuys").GetParent(), column, "inside the status column, under its slots");
   assert.equal(AMBER.concat(SAPPHIRE).filter((name) => w.notices(name).length).join(), "Volt");
@@ -2482,15 +2570,15 @@ check("purchases: one line each; a stack that would overlap its neighbour's move
   w.buy("Moth", "Extra Regen");
   w.buy("Doyle", "Extra Spirit");
   w.advance(600);
-  deq(["Kestrel", "Moth", "Doyle"].map(push), ["", "45px", ""], "Moth under Kestrel (2 + 39 + 4 px); Doyle clears Moth's lowered stack");
+  deq(["Kestrel", "Moth", "Doyle"].map(push), ["", "41px", ""], "Moth under Kestrel (2 + 35 + 4 px); Doyle clears Moth's lowered stack");
   w.buy("Kestrel", "Mystic Burst");
   w.advance(600);
-  deq(["Kestrel", "Moth", "Doyle"].map(push), ["", "84px", ""], "two rows on Kestrel push Moth further");
+  deq(["Kestrel", "Moth", "Doyle"].map(push), ["", "76px", ""], "two rows on Kestrel push Moth further");
   // A status slot on Moth (43 px) puts his stack lower already: only the rest is added.
   w.giveDebuff("Moth", "ability_viper_petrifybola", { radial: () => -180 });
   w.advance(1500);
   assert.equal(w.shownSlots("Moth").length, 1);
-  assert.equal(push("Moth"), `${2 + 78 + 4 - 43}px`);
+  assert.equal(push("Moth"), `${2 + 70 + 4 - 43}px`);
   // Cards of the other team and cards two apart never push each other.
   w.buy("Volt", "Extra Health");
   w.advance(600);
@@ -2506,7 +2594,7 @@ check("purchases: one line each; a stack that would overlap its neighbour's move
   w.buy("Frostbyte", "Extra Health");
   w.buy("Vesper", "Extra Regen");
   w.advance(600);
-  deq(["Frostbyte", "Vesper"].map(push), ["", "45px"], "Vesper (right of Frostbyte) moves under it");
+  deq(["Frostbyte", "Vesper"].map(push), ["", "41px"], "Vesper (right of Frostbyte) moves under it");
   // A notice as wide as one card does not reach its neighbour's.
   for (const name of ["Frostbyte", "Vesper"]) {
     for (const notice of w.card(name).FindChildTraverse("OHBuys").Children()) notice.actuallayoutwidth = 80;
@@ -2534,6 +2622,68 @@ check("column: stuns are their own item, Djinn's Mark from 8 stacks, listed buff
   // The stun panel is muted on the world bar (inline fallback to the stylesheet).
   const stunPanel = w.units.Kestrel.container.children.find((child) => child.BHasClass("stunned"));
   assert.equal(stunPanel.style.width, "0px");
+});
+
+// Shining Wonder (Celeste's orb, ability_unicorn_dazzlingorb): each hit slows its hero for 1.5 s
+// (VData SlowDuration) and the orb bounces on; the user asked for one pulse per bounce on a head
+// (2026-10-23). How it could fail: no pulse on the first hit; a pulse on every heartbeat or countdown
+// repaint; a refresh of the same status panel (its radial jumps back to the start) or a second panel
+// missed; a radial running the other way read as refreshes; other abilities pulsing; a pulse that
+// cannot restart while its class is still on; no pulse when the orb comes back after the status ended.
+check("column: Shining Wonder pulses once per orb hit (new panel or radial refresh), nothing else pulses", () => {
+  const w = statusWorld();
+  const pulses = new Map(); // hero -> pulse starts on its slots
+  const watch = (name) => {
+    pulses.set(name, 0);
+    for (const slot of w.slots(name)) {
+      const add = slot.AddClass.bind(slot);
+      slot.AddClass = (cls) => {
+        if (cls === "OHPulse") pulses.set(name, pulses.get(name) + 1);
+        return add(cls);
+      };
+    }
+  };
+  for (const name of ["Volt", "Moth", "Kestrel"]) watch(name);
+  const DURATION = 1500;
+  let voltHit = w.harness.now;
+  const forward = (from) => (now) => Math.min(0, -360 + ((now - from()) / DURATION) * 360); // -360 -> 0
+  w.giveDebuff("Volt", "ability_unicorn_dazzlingorb", { radial: forward(() => voltHit) });
+  w.advance(600);
+  deq(w.icons("Volt").length, 1, "Shining Wonder reaches the card");
+  assert.equal(pulses.get("Volt"), 1, "the first hit pulses");
+  w.advance(500);
+  assert.equal(pulses.get("Volt"), 1, "the countdown and its repaints do not pulse");
+  voltHit = w.harness.now; // the orb comes back: the same panel's radial restarts
+  w.advance(600);
+  assert.equal(pulses.get("Volt"), 2, "a refresh pulses once");
+  w.giveDebuff("Volt", "ability_unicorn_dazzlingorb", { radial: forward(() => w.harness.now - 100) });
+  w.advance(600);
+  assert.equal(pulses.get("Volt"), 3, "a second status panel pulses once");
+  w.advance(5000); // heartbeats only
+  assert.equal(pulses.get("Volt"), 3, "heartbeats do not pulse");
+  // A radial that runs from 0 towards -360: its countdown is no refresh, its restart is.
+  let mothHit = w.harness.now;
+  w.giveDebuff("Moth", "ability_unicorn_dazzlingorb", { radial: (now) => Math.max(-360, -((now - mothHit) / DURATION) * 360) });
+  w.advance(1200);
+  assert.equal(pulses.get("Moth"), 1, "reversed radial: one hit");
+  mothHit = w.harness.now;
+  w.advance(600);
+  assert.equal(pulses.get("Moth"), 2, "reversed radial: the restart pulses");
+  // Another ability's refresh never pulses.
+  let petrifyAt = w.harness.now;
+  w.giveDebuff("Kestrel", "ability_viper_petrifybola", { radial: (now) => Math.min(0, -360 + ((now - petrifyAt) / 6000) * 360) });
+  w.advance(1500);
+  petrifyAt = w.harness.now;
+  w.advance(1500);
+  assert.equal(w.icons("Kestrel").length, 1);
+  assert.equal(pulses.get("Kestrel"), 0, "only Shining Wonder pulses");
+  // The status ends, the slot fades and frees; the next orb pulses again.
+  for (const effect of w.units.Volt.container.children.slice()) effect.DeleteAsync();
+  w.advance(2500);
+  deq(w.icons("Volt"), []);
+  w.giveDebuff("Volt", "ability_unicorn_dazzlingorb", { radial: forward(() => w.harness.now - 100) });
+  w.advance(600);
+  assert.equal(pulses.get("Volt"), 4, "a new orb after the status ended pulses");
 });
 
 check("column: late hero class, recycled bars, HUD lists, forged and stale messages", () => {
