@@ -1070,7 +1070,7 @@
     return label;
   }
 
-  // The card registry: the host's list of top-bar cards (`{ panel, teamKey, label, debuffs }`), shared
+  // The card registry: the host's list of top-bar cards (`{ panel, teamKey, label, debuffs, ult }`), shared
   // with the status column ($.OHHost.cards()). The array is replaced only when its membership changes,
   // and cardsVersion moves whenever the array or a shared field (a re-found label) changes, so readers
   // may cache any field until the version moves (m1 audit R1, m2 review).
@@ -1093,13 +1093,14 @@
             if (label !== known.label) changed = true;
             known.label = label;
           }
+          if (!known.ult) known.ult = ultFor(panel, known.debuffs);
           cards.push(known);
           continue;
         }
         let debuffs = panel.FindChild("OHDebuffsHost");
         if (!valid(debuffs)) debuffs = inject(panel, "OHDebuffsHost", LAYOUT.debuffs);
         if (!valid(debuffs)) continue;
-        cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, who: "" });
+        cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, who: "", ult: ultFor(panel, debuffs) });
       }
     }
     if (cards.length !== UI.cards.length || cards.some((card, index) => UI.cards[index] !== card)) {
@@ -1116,6 +1117,63 @@
     const text = valid(card.label) ? card.label.text : "";
     return typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
   };
+
+  // ------------------------------------------------------------------ cards: ultimate cooldown
+
+  // DLF's counter (dlf_ult_cooldown.js) without overriding the stock card (user 2026-10-23: "we forgot to
+  // add the ultimate timer"). The game sets the ult_cooldown dialog variable on each card's
+  // #UltimateStatusBG, and a binding only sees variables on itself or an ancestor, so a hidden Label of
+  // ours bound to {i:ult_cooldown} (#OHUltSource: no size, no opacity, never collapsed) lives inside it,
+  // and the column's first row (#OHUltTime, under the stock icon) shows the seconds. The value moves once
+  // a second: read at 2 Hz while spectating, written only on change; 0 (ready), unbound or anything that
+  // is not 1-4 digits hides the number. ult is null when the card has no #UltimateStatusBG (another
+  // top-bar mod) or a read failed; the 1 s tick looks again.
+  const ULT_TICK_SEC = 0.5;
+  const ULT_BIND = "{i:ult_cooldown}";
+  const Ult = { running: false, gen: 0 };
+  function ultFor(panel, column) {
+    const shown = column.FindChild("OHUltTime");
+    const bg = panel.FindChildTraverse("UltimateStatusBG");
+    if (!shown || !bg) {
+      logOnce("ult", "a top-bar card has no ultimate panel; it gets no ultimate cooldown");
+      return null;
+    }
+    let source = bg.FindChild("OHUltSource");
+    if (!source) {
+      source = $.CreatePanel("Label", bg, "OHUltSource", { text: ULT_BIND, hittest: "false" });
+      for (const [key, value] of [["width", "0px"], ["height", "0px"], ["opacity", "0"]]) setStyle(source, key, value);
+    }
+    return { source: source, shown: shown, text: null, counting: false };
+  }
+  function ultTick(gen) {
+    if (stopped || gen !== Ult.gen) return;
+    if (!watchingNow) {
+      Ult.running = false;
+      return;
+    }
+    for (const card of UI.cards) {
+      const ult = card.ult;
+      if (!ult) continue;
+      try {
+        const text = ult.source.text;
+        if (text === ult.text) continue;
+        ult.text = text;
+        const seconds = typeof text === "string" && /^\d{1,4}$/.test(text) ? Number(text) : 0;
+        if (seconds > 0) setText(ult.shown, String(seconds));
+        setClass(ult.shown, "OHCounting", seconds > 0);
+        ult.counting = seconds > 0;
+      } catch (e) {
+        card.ult = null;
+      }
+    }
+    $.Schedule(ULT_TICK_SEC, () => ultTick(gen));
+  }
+  function startUlt() {
+    if (Ult.running) return;
+    Ult.running = true;
+    const gen = ++Ult.gen;
+    ultTick(gen);
+  }
 
   // The band shows each card's alias, else its in-game name; a name two cards share keeps the
   // in-game name on both. The same aliases (unique names only) go to the world healthbars (through the
@@ -1350,6 +1408,7 @@
   const FEED_GEOMETRY_MS = 30000;
   const GRID_HALF_W = 37; // oh_debuffs.css: a pair is 74 px wide
   const NOTICE_HALF_W = 105; // oh_debuffs.css .OHBuys 209 px
+  const ULT_ROW_H = 20; // oh_debuffs.css .OHUltTime, always reserved at the column's top
   const Feed = { margin: FEED_STOCK_TOP, holdUntil: 0, centres: null, key: "", at: 0, x: null, stockTop: 0 };
   // Card centres (screen x) and, found when first needed, each column's notice stack; the feed's
   // own place is read again with them.
@@ -1387,7 +1446,9 @@
         if (entry.centre - NOTICE_HALF_W * scale >= right) continue;
         const column = entry.card.debuffs;
         const height = Number(column.actuallayoutheight) || 0;
-        if (height <= 4 * scale) continue; // nothing shown (the empty notice stack's 2 px gap)
+        // Nothing shown: the reserved ultimate row (20 px) and the empty notice stack's 2 px gap, unless
+        // the ultimate counts.
+        if (height <= (ULT_ROW_H + 4) * scale && !(entry.card.ult && entry.card.ult.counting)) continue;
         if (!entry.buys) entry.buys = column.FindChild("OHBuys") || null;
         const half = entry.buys && entry.buys.GetChildCount() ? NOTICE_HALF_W : GRID_HALF_W;
         if (entry.centre - half * scale >= right) continue;
@@ -1951,6 +2012,7 @@
         restored = false;
         if (ensureBar() && ensureBand()) {
           ensureCards();
+          startUlt();
           renderNames();
           renderMarkers(Date.now());
           renderFeedNames();

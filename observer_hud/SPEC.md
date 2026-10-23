@@ -152,6 +152,15 @@ DLF's top-bar column, ported under an `OH` prefix (`dlf/AGENTS.md` runtime rules
 - World stun icons are hidden by `.WindowRoot.CLASS_PLAYER .statusEffect.stunned` in `oh_status_world.css`, plus an inline fallback. The selector stays short.
 - pak10 loses the two VData files to any lower-numbered pak that ships them; the column then shows only what stock data draws.
 
+## Ultimate cooldown
+
+DLF's counter ("Ultimate cooldown" in `dlf/SPEC.md`), added 2026-10-23 without overriding the stock card.
+
+- The game sets the `ult_cooldown` dialog variable on each card's `#UltimateStatusBG`; a binding only sees its own or an ancestor's variables. The host (`oh_host.js`, from the card registry) creates one hidden Label `#OHUltSource` bound to `{i:ult_cooldown}` inside it (0x0, opacity 0, never collapsed), reused after a layout reload.
+- The seconds show in the status column's first row, `#OHUltTime` in `debuffs.xml`, right under the stock ultimate icon: DLF's look (Jost 18 px bold, offWhite, dark outline). The host reads the source at 2 Hz while spectating and writes only on change. A value that is not 1-4 digits, 0 (ready) or an unbound label shows nothing; the stock `.UltimateCooldownReady` and a card without `.UltimateUnlocked` hide it in CSS as well.
+- The row's 20 px are always reserved (shown with opacity), so the column starts at 147 px, the statuses at 167 px, and nothing under it moves when an ultimate goes on cooldown. The kill feed treats the empty reserved row as nothing and a counting one as in its way.
+- A card without `#UltimateStatusBG` (another top-bar mod) gets no counter; it is logged once.
+
 ## Purchase notices
 
 DLF's QOLLOCK per-player purchase popups, rewritten (`oh_buys.js`, user 2026-10-23: "include the recent purchase from DLF ... rewrite it to improve compatibility and performance").

@@ -1,8 +1,8 @@
 /* Ability status column (observer_hud/debuffs.xml, one per stock top-bar card), ported from DLF's
    dlf_card.css with its colours. A slot's colour is the team applying the status, set per slot by
-   oh_debuffs.js: the other team for a debuff, the hero's own team for a listed buff. The stock card has
-   no DLF ultimate counter, so the column starts right under the stock ultimate (#StatusRow 125px + 22px
-   icon).
+   oh_debuffs.js: the other team for a debuff, the hero's own team for a listed buff. The column starts
+   right under the stock ultimate icon (#StatusRow 125px + 22px). Its first row is the ultimate cooldown
+   (#OHUltTime, oh_host.js), 20 px always reserved, so the statuses start at 167 px (DLF: 172).
    Layout (user 2026-10-23): a centred grid two wide, up to six (#OHDebuffGrid). One status sits in the
    card's middle; a pair sits 20 px left and right of it; an odd last one is centred under the row
    above. Every slot is a 40x39 box at the grid's top centre, moved to its place with an inline
@@ -19,11 +19,40 @@
 	height: fit-children;
 	horizontal-align: center;
 	vertical-align: top;
-	margin-top: 152px;
+	margin-top: 147px;
 	flow-children: down;
 	overflow: noclip;
 	z-index: 30;
 	visibility: collapse;
+}
+
+/* Ultimate cooldown in seconds (oh_host.js copies the game's ult_cooldown; user 2026-10-23), DLF's
+   counter look. Shown with opacity, never collapsed: its 20 px stay reserved, so the statuses and the
+   purchase notices under it do not jump when an ultimate goes on cooldown or comes back. */
+.OHUltTime
+{
+	width: 88px;
+	height: 20px;
+	horizontal-align: center;
+	text-align: center;
+	font-family: Jost, Noto Sans, sans-serif;
+	font-size: 18px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 3.0 #10130D;
+	opacity: 0;
+}
+
+.OHUltTime.OHCounting
+{
+	opacity: 1;
+}
+
+/* Stock card classes: a locked or ready ultimate shows no number, whatever the value says. */
+CitadelHudTopBarPlayer:not(.UltimateUnlocked) .OHUltTime,
+.UltimateCooldownReady .OHUltTime
+{
+	opacity: 0;
 }
 
 .OHDebuffGrid

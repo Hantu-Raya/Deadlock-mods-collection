@@ -125,10 +125,12 @@ const results = { checks: [], runs: [], budgets: null };
 // markers; their names are read once a second while an alias exists: spectating 1106.4 -> 1120.4,
 // countdown 1443.8 -> 1457.8. Kill feed placement (2026-10-23, the stock #EventFeed in the scenario):
 // spectating 1123.4, countdown 1465.0. Kill feed aliases (2026-10-23, the scenario's alias): a 0.25 s
-// child count watch plus one rows pass a second: spectating 1129.4, countdown 1471.0. Re-measure before raising.
-const BUDGET_SPECTATING = 1130;
+// child count watch plus one rows pass a second: spectating 1129.4, countdown 1471.0. Ultimate cooldown
+// (2026-10-23): each card's source label is read at 2 Hz while spectating (24 text reads and 2 schedules a
+// second): spectating 1155.4, countdown 1497.0. Re-measure before raising.
+const BUDGET_SPECTATING = 1156;
 const BUDGET_IDLE = 12;
-const BUDGET_COUNTDOWN = 1475;
+const BUDGET_COUNTDOWN = 1498;
 const BUDGET_AFTER = 15; // spectated, then back to playing
 
 let lastLogs = null;
@@ -246,18 +248,18 @@ const heroOf = (player) => HEROES[AMBER.includes(player) ? AMBER.indexOf(player)
 
 // ---------------------------------------------------------------- the world: HUD + world bars on one bus
 
-// A Label text as the engine keeps it: "{s:key}" stays bound to the nearest ancestor's dialog variable
-// (it follows later changes of that variable); any other text is literal. Writing the label's text
-// rebinds or unbinds it the same way.
+// A Label text as the engine keeps it: "{s:key}" or "{i:key}" stays bound to the nearest ancestor's dialog
+// variable (it follows later changes of that variable); any other text is literal. Writing the label's
+// text rebinds or unbinds it the same way.
 function bindText(label, value) {
   let literal = String(value);
   Object.defineProperty(label, "__text", { configurable: true, enumerable: false,
     get: () => {
-      const bound = /^\{s:(\w+)\}$/.exec(literal);
+      const bound = /^\{[si]:(\w+)\}$/.exec(literal);
       if (!bound) return literal;
       let owner = label.parent;
       while (owner && !(owner.__dialog && bound[1] in owner.__dialog)) owner = owner.parent;
-      return owner ? owner.__dialog[bound[1]] : literal;
+      return owner ? String(owner.__dialog[bound[1]]) : literal;
     },
     set: (next) => { literal = String(next); } });
   return label;
@@ -362,6 +364,8 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
         .concat(card.FindChildrenWithClassTraverse("PlayerName"))) label.__text = name;
       card.FindChildTraverse("HeroBadge").heroid = heroOf(name)[0];
       card.FindChildrenWithClassTraverse("HeroName")[0].__text = heroOf(name)[1];
+      // The engine sets each card's ult_cooldown dialog variable on #UltimateStatusBG (0: ready or locked).
+      card.FindChildTraverse("UltimateStatusBG").__dialog = { ult_cooldown: 0 };
       return card;
     });
   };
@@ -528,6 +532,8 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     return effect;
   };
   const card = (name) => teams.TeamFriendly[AMBER.indexOf(name)] || teams.TeamEnemy[SAPPHIRE.indexOf(name)];
+  // The game's ultimate cooldown for a card (seconds; 0 when ready), or any raw value.
+  const ult = (name, value) => { card(name).FindChildTraverse("UltimateStatusBG").__dialog.ult_cooldown = value; };
   // The status slots of a card's column (in #OHDebuffGrid), and where each sits: x from the card's
   // centre, y from the grid's top, read from the slot's inline translate3d (oh_debuffs.js places them).
   const slots = (name) => {
@@ -584,7 +590,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     return ctx[ctx.length - 1].$.OHHost;
   };
   return { harness, hud, hudRoot, topBar, teams, escapeMenu, spectateBar, bus, sent, loads, urls, contexts, runIn, bootHost,
-    advance, geometry, addBar, units, giveDebuff, card, slots, placeOf, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
+    advance, geometry, addBar, units, giveDebuff, card, ult, slots, placeOf, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
     state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam, indicators, marker, markerName,
     eventFeed, killRow, feedNames };
 }
@@ -2697,19 +2703,83 @@ check("aliases: kill feed rows show the killer's and victim's alias soon after t
   deq(w.feedNames(before), ["Kestrel", "Volt"], "no aliases outside spectating");
 });
 
+// Ultimate cooldown (user 2026-10-23: "we forgot to add the ultimate timer"; DLF SPEC "Ultimate cooldown",
+// without overriding the stock card). The game sets ult_cooldown on each card's #UltimateStatusBG, and a
+// binding sees only its own or an ancestor's dialog variables. How it could fail: the source label is not
+// inside #UltimateStatusBG, so it never binds and nothing shows; 0 (ready), an unbound label or garbage
+// shows a number; it lags more than half a second behind the game; it rewrites an unchanged value; the
+// row sits under the statuses instead of under the icon; a rebuilt card gets no counter, or a layout
+// reload adds a second source label to the stock card; it keeps polling after spectating ends.
+check("ultimate: each card counts its ultimate cooldown under the stock icon; nothing at 0, unbound or garbage", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  const shown = (name) => w.card(name).FindChild("OHDebuffsHost").FindChild("OHUltTime");
+  const counter = (name) => shown(name).BHasClass("OHCounting") ? shown(name).__text : "";
+  const bg = (name) => w.card(name).FindChildTraverse("UltimateStatusBG");
+  deq(w.card("Kestrel").FindChild("OHDebuffsHost").Children().map((child) => child.id), ["OHUltTime", "OHDebuffGrid", "OHBuys"],
+    "the counter is the column's first row, under the stock ultimate icon");
+  for (const name of [...AMBER, ...SAPPHIRE]) assert.equal(countIn(bg(name), "OHUltSource"), 1, `${name}: one source label in #UltimateStatusBG`);
+  assert.equal(counter("Kestrel"), "", "ready: nothing");
+  w.ult("Kestrel", 37);
+  w.advance(500);
+  assert.equal(counter("Kestrel"), "37", "within half a second");
+  assert.equal(counter("Moth"), "", "only the card whose ultimate counts");
+  const writes = trackWrites(shown("Kestrel"));
+  w.advance(2000);
+  deq(writes, [], "an unchanged value is not rewritten");
+  w.ult("Kestrel", 36);
+  w.advance(500);
+  assert.equal(counter("Kestrel"), "36");
+  for (const raw of [0, "", "-3", "abc", "12345"]) {
+    w.ult("Kestrel", raw);
+    w.advance(500);
+    assert.equal(counter("Kestrel"), "", `nothing for ${JSON.stringify(raw)}`);
+  }
+  delete bg("Kestrel").__dialog.ult_cooldown;
+  w.advance(500);
+  assert.equal(counter("Kestrel"), "", "nothing while the label is unbound");
+  bg("Kestrel").__dialog.ult_cooldown = 0;
+  // A hero swap rebuilds the card's children: the new card gets its counter back.
+  const kestrel = w.card("Kestrel");
+  const status = bg("Kestrel").GetParent();
+  kestrel.FindChild("OHDebuffsHost").DeleteAsync();
+  bg("Kestrel").DeleteAsync();
+  new MockPanel("Panel", status, "UltimateStatusBG").__dialog = { ult_cooldown: 52 };
+  w.advance(1600);
+  assert.equal(counter("Kestrel"), "52", "a rebuilt card counts again");
+  // A layout reload keeps one source label per card.
+  w.bootHost();
+  w.advance(2000);
+  for (const name of [...AMBER, ...SAPPHIRE]) assert.equal(countIn(bg(name), "OHUltSource"), 1, `${name}: one source label after a reload`);
+  assert.equal(counter("Kestrel"), "52", "the reloaded host counts");
+  // Back to playing: the column hides (CSS) and nothing reads the cards any more.
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2000);
+  w.ult("Kestrel", 51);
+  w.advance(2000);
+  assert.equal(counter("Kestrel"), "52", "not polled outside spectating");
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.AddClass(cls);
+  w.advance(1600);
+  assert.equal(counter("Kestrel"), "51", "polled again when spectating resumes");
+});
+
 // The stock kill feed (hud_data_feed.xml #EventFeed: top left, margin-top 200) ran over Player 1's status
 // grid and purchase notices (user screenshot 2026-10-23 19:32, Night Desk at 1920x1080). How it could
 // fail: it stays over them; it moves for a card whose grid or notices it does not reach (Moth, the next
-// card); it moves for a column with nothing shown; it jumps back up while a status blinks (it must hold
-// a moment before going up); it is left moved after spectating; rewrites in steady state.
+// card); it moves for a column with nothing shown, or for the ultimate row reserved at the column's top
+// while no counter shows; it stays over a counting ultimate; it jumps back up while a status blinks (it
+// must hold a moment before going up); it is left moved after spectating; rewrites in steady state.
 check("kill feed: moves under the status grid and purchase notices of the cards it reaches, then back", () => {
   const w = world();
   w.clock("12:30");
   w.bootHost();
   w.advance(2000);
   const host = (name) => w.card(name).FindChild("OHDebuffsHost");
-  // Columns start 152 layout px under the card (stock ultimate); empty, a column is the 2 px notice gap.
-  for (const name of [...AMBER, ...SAPPHIRE]) Object.assign(host(name), { actualyoffset: 152, actuallayoutheight: 2 });
+  // Columns start 147 layout px under the card (under the stock ultimate icon); empty, a column is the
+  // ultimate row it always reserves (20 px) plus the 2 px notice gap.
+  const EMPTY = 22;
+  for (const name of [...AMBER, ...SAPPHIRE]) Object.assign(host(name), { actualyoffset: 147, actuallayoutheight: EMPTY });
   const marginWrites = [];
   let margin = w.eventFeed.style.marginTop;
   Object.defineProperty(w.eventFeed.style, "marginTop", { configurable: true, get: () => margin,
@@ -2722,43 +2792,51 @@ check("kill feed: moves under the status grid and purchase notices of the cards 
   host("Kestrel").actualyoffset = 210;
   w.advance(1100);
   assert.equal(top(), 200, "an empty column does not move it");
-  host("Kestrel").actualyoffset = 152;
-  // Kestrel (the leftmost card, 330-418) shows three rows of statuses: the column ends at 8 + 152 + 117.
-  host("Kestrel").actuallayoutheight = 117;
+  // A counting ultimate is something: in Night Desk (56 px lower) its row ends under the feed's top.
+  host("Kestrel").actualyoffset = 203;
+  w.ult("Kestrel", 40);
+  w.advance(1600); // the counter (2 Hz), then the feed (1 s host tick)
+  assert.equal(top(), 8 + 203 + EMPTY + 6, "under Kestrel's ultimate counter");
+  w.ult("Kestrel", 0);
+  w.advance(3200);
+  assert.equal(top(), 200, "the counter ends: back after the hold");
+  host("Kestrel").actualyoffset = 147;
+  // Kestrel (the leftmost card, 330-418) shows three rows of statuses: the column ends at 8 + 147 + 20 + 117.
+  host("Kestrel").actuallayoutheight = 20 + 117;
   w.advance(1100);
-  assert.equal(top(), 277 + 6, "6 px under Kestrel's column (no rows yet: the feed is taken as 360 px wide)");
+  assert.equal(top(), 292 + 6, "6 px under Kestrel's column (no rows yet: the feed is taken as 360 px wide)");
   const before = marginWrites.length;
   w.advance(5000);
   assert.equal(marginWrites.length, before, "no rewrites in steady state");
   // Kill rows that end before Kestrel's grid (374 - 37 = 337): back up, but only after a 2 s hold.
   const narrow = w.killRow(200);
   w.advance(1100);
-  assert.equal(top(), 283, "held");
+  assert.equal(top(), 298, "held");
   w.advance(2100);
   assert.equal(top(), 200, "rows clear of the grid: back to the stock place");
   // A purchase notice (209 px, centred: from 269) reaches a 300 px row that the grid (from 337) does not.
   w.buy("Kestrel", "Extra Health");
   w.advance(600);
   assert.equal(w.notices("Kestrel").length, 1);
-  host("Kestrel").actuallayoutheight = 117 + 37;
+  host("Kestrel").actuallayoutheight = 20 + 117 + 37;
   w.killRow(300);
   w.advance(1100);
-  assert.equal(top(), 160 + 154 + 6, "under the notice it reaches");
+  assert.equal(top(), 155 + 174 + 6, "under the notice it reaches");
   // Moth's column (the next card, its grid from 425) is out of the feed's reach.
   host("Moth").actuallayoutheight = 300;
   w.advance(1100);
-  assert.equal(top(), 320, "the next card's column does not move it");
+  assert.equal(top(), 335, "the next card's column does not move it");
   // Kestrel's column empties (the notice fades) and the rows go: back after the hold.
-  host("Kestrel").actuallayoutheight = 2;
+  host("Kestrel").actuallayoutheight = EMPTY;
   for (const row of w.eventFeed.Children().slice()) row.DeleteAsync();
   w.advance(1100);
-  assert.equal(top(), 320, "held");
+  assert.equal(top(), 335, "held");
   w.advance(2100);
   assert.equal(top(), 200);
   // Back to playing: the stock margin, written once.
-  host("Kestrel").actuallayoutheight = 117;
+  host("Kestrel").actuallayoutheight = 20 + 117;
   w.advance(1100);
-  assert.equal(top(), 283);
+  assert.equal(top(), 298);
   for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
   w.advance(2100);
   assert.equal(top(), 200, "the stock place outside spectating");
@@ -3321,7 +3399,7 @@ check("column: the host's card registry drives the column (steady version, re-fo
   w.advance(10000);
   assert.equal(host.cardsVersion(), version, "no version churn in steady state");
   assert.equal(host.cards(), list, "the same array while nothing changes");
-  deq(list.map((card) => Object.keys(card).filter((key) => key !== "who").sort()), list.map(() => ["debuffs", "label", "panel", "teamKey"]));
+  deq(list.map((card) => Object.keys(card).filter((key) => key !== "who").sort()), list.map(() => ["debuffs", "label", "panel", "teamKey", "ult"]));
   // A card whose name label is replaced (same text): the column follows the re-found label.
   const labels = () => w.card("Volt").FindChildrenWithClassTraverse("PlayerName").concat(w.card("Volt").FindChildrenWithClassTraverse("AlwaysPlayerName"));
   const old = labels()[0];
