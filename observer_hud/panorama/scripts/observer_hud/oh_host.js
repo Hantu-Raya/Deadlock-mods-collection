@@ -1232,6 +1232,108 @@
     Markers.replaced = 0;
   }
 
+  // Kill feed names (user 2026-10-23): a stock kill row (CitadelHudInfoFeed) shows the killer and victim
+  // through Label.killerInfo / Label.victimInfo bound to {s:killer_name} / {s:victim_name}. With an alias
+  // the label gets the alias (which unbinds it) and a hidden Label of ours, bound to the same variable,
+  // keeps reading the in-game name, so a row the engine reuses shows its new names; without one the label
+  // is bound again. Names resolve as the markers' (by name, else a name no card shows by its hero image).
+  // Rows live a few seconds, so while spectating with aliases a FEED_NAMES_S watch reads the row count
+  // and passes over the rows when it moves; the 1 s tick passes over them too (reused rows).
+  const FEED_NAMES_S = 0.25;
+  const FEED_LABELS = [["killerInfo", "{s:killer_name}", "KillerImage"], ["victimInfo", "{s:victim_name}", "VictimImage"]];
+  const FeedNames = { rows: new Map(), replaced: 0, count: -1, watching: false, gen: 0 };
+  const boundText = (label, bind) => {
+    const text = label.text;
+    return typeof text === "string" && text !== bind ? text : "";
+  };
+  // The row's two names, or null for other rows (team events, bans) and rows not built yet.
+  function feedRowNames(row) {
+    const names = [];
+    for (const [cls, bind, image] of FEED_LABELS) {
+      const label = row.FindChildrenWithClassTraverse(cls)[0];
+      if (!label) return null;
+      names.push({ label: label, bind: bind, hero: row.FindChildTraverse(image), real: "", hidden: null, alias: "", sig: "", shown: "" });
+    }
+    return names;
+  }
+  function renderFeedName(row, name) {
+    const real = boundText(name.hidden || name.label, name.bind);
+    if (real !== name.real) {
+      name.real = real;
+      name.sig = "";
+    }
+    if (name.sig !== Aliases.sig) {
+      name.alias = Aliases.count && real ? markerAlias(name) : "";
+      name.sig = Aliases.sig;
+    }
+    if (name.alias) {
+      if (!name.hidden) {
+        name.hidden = $.CreatePanel("Label", row, "", { text: name.bind, hittest: "false" });
+        for (const [key, value] of [["width", "0px"], ["height", "0px"], ["opacity", "0"]]) setStyle(name.hidden, key, value);
+      }
+      if (name.shown !== name.alias) {
+        name.label.text = name.alias;
+        name.shown = name.alias;
+      }
+      return true;
+    }
+    if (name.shown) {
+      name.label.text = name.bind;
+      name.shown = "";
+    }
+    return false;
+  }
+  function renderFeedNames() {
+    if (!Aliases.count && !FeedNames.replaced) return;
+    const feed = stockPanel("eventFeed", UI.hud, "EventFeed");
+    if (!feed) return;
+    const rows = feed.Children();
+    const seen = new Map();
+    let replaced = 0;
+    for (const row of rows) {
+      let names = FeedNames.rows.get(row);
+      if (!names) names = feedRowNames(row);
+      if (!names) continue;
+      seen.set(row, names);
+      for (const name of names) if (renderFeedName(row, name)) replaced++;
+    }
+    FeedNames.rows = seen;
+    FeedNames.count = rows.length;
+    FeedNames.replaced = replaced;
+    if (Aliases.count && !FeedNames.watching) {
+      FeedNames.watching = true;
+      const gen = ++FeedNames.gen;
+      $.Schedule(FEED_NAMES_S, () => watchFeedNames(gen));
+    }
+  }
+  function watchFeedNames(gen) {
+    if (stopped || gen !== FeedNames.gen || !watchingNow || !Aliases.count) {
+      if (gen === FeedNames.gen) FeedNames.watching = false;
+      return;
+    }
+    // No validity call at this rate: the tick re-finds a rebuilt feed; a deleted panel throws here.
+    const feed = UI.stock.eventFeed;
+    try {
+      if (feed && feed.GetChildCount() !== FeedNames.count) renderFeedNames();
+    } catch (e) {
+      UI.stock.eventFeed = null;
+    }
+    $.Schedule(FEED_NAMES_S, () => watchFeedNames(gen));
+  }
+  // Spectating ended: every kill row shows the in-game names, bound again.
+  function restoreFeedNames() {
+    for (const names of FeedNames.rows.values()) {
+      for (const name of names) {
+        if (name.shown && valid(name.label)) name.label.text = name.bind;
+        name.shown = "";
+        name.sig = "";
+      }
+    }
+    FeedNames.replaced = 0;
+    FeedNames.gen++;
+    FeedNames.watching = false;
+  }
+
   // The stock kill feed (hud_data_feed.xml #EventFeed: top left, margin-top FEED_STOCK_TOP) ran over the
   // leftmost card's status grid and purchase notices (user screenshot 2026-10-23, Night Desk). While
   // spectating it moves down (inline margin-top) to FEED_GAP px under the lowest column it reaches: a card
@@ -1850,6 +1952,7 @@
           ensureCards();
           renderNames();
           renderMarkers(Date.now());
+          renderFeedNames();
           place();
           sampleGraph();
           renderGraph();
@@ -1866,6 +1969,7 @@
         placePause(false);
         placeSpread(false);
         restoreMarkers();
+        restoreFeedNames();
         if (Feed.margin !== FEED_STOCK_TOP) placeFeed(false, 0);
         if (UI.pushed && valid(UI.topBar)) {
           // The stock top bar returns to its own place.

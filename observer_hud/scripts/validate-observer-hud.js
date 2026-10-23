@@ -124,7 +124,8 @@ const results = { checks: [], runs: [], budgets: null };
 // 101.9 -> 14.7). Aliases on the far-away markers (2026-10-23): the scenario gained the 12 stock
 // markers; their names are read once a second while an alias exists: spectating 1106.4 -> 1120.4,
 // countdown 1443.8 -> 1457.8. Kill feed placement (2026-10-23, the stock #EventFeed in the scenario):
-// spectating 1123.4, countdown 1465.0. Re-measure before raising.
+// spectating 1123.4, countdown 1465.0. Kill feed aliases (2026-10-23, the scenario's alias): a 0.25 s
+// child count watch plus one rows pass a second: spectating 1129.4, countdown 1471.0. Re-measure before raising.
 const BUDGET_SPECTATING = 1130;
 const BUDGET_IDLE = 12;
 const BUDGET_COUNTDOWN = 1475;
@@ -219,7 +220,9 @@ const STOCK = {
   // per player (CitadelUserName#PlayerName holds the name Label; stock CSS "#PlayerName Label").
   indicator: parseLayout(/<snippet name="PlayerEntry">([\s\S]*?)<\/snippet>/.exec(read("stock/hud_unit_indicators_v2.xml"))[1]),
   // The kill feed: HudDataFeed#DataFeed loads this; #EventFeed (top left, margin-top 200px) holds the rows.
-  dataFeed: parseLayout(read("stock/hud_data_feed.xml"))
+  dataFeed: parseLayout(read("stock/hud_data_feed.xml")),
+  // A kill row (CitadelHudInfoFeed): killer and victim names bound to {s:killer_name} / {s:victim_name}.
+  feedInfo: parseLayout(read("stock/citadel_hud_data_feed_info.xml"))
 };
 const OWN = {
   spectate: parseLayout(read("panorama/layout/hud_spectate_bar.xml")),
@@ -431,11 +434,20 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
   Object.defineProperty(eventFeed, "actualyoffset", { configurable: true,
     get: () => { const m = /^(-?\d+(?:\.\d+)?)px$/.exec(String(eventFeed.style.marginTop || "")); return m ? Number(m[1]) : 200; },
     set: () => {} });
-  const killRow = (widthPx) => {
-    const row = new MockPanel("Panel", eventFeed, "");
+  // A kill row of a given screen width; with { killer, victim } it is a stock CitadelHudInfoFeed whose
+  // dialog variables the engine set (killerHero / victimHero: the hero images' heroid).
+  const killRow = (widthPx, kill = null) => {
+    const row = kill ? instantiate(STOCK.feedInfo, eventFeed) : new MockPanel("Panel", eventFeed, "");
     row.actuallayoutwidth = widthPx;
+    if (kill) {
+      row.__dialog = { killer_name: kill.killer, victim_name: kill.victim };
+      for (const label of row.FindChildrenWithClassTraverse("personaName")) bindText(label, label.__text);
+      row.FindChildTraverse("KillerImage").heroid = kill.killerHero || 0;
+      row.FindChildTraverse("VictimImage").heroid = kill.victimHero || 0;
+    }
     return row;
   };
+  const feedNames = (row) => ["killerInfo", "victimInfo"].map((cls) => row.FindChildrenWithClassTraverse(cls)[0].text);
   const escapeMenu = hud.FindChildTraverse("EscapeMenu");
   if (escape === "stock") loadInto(escapeMenu, STOCK.escape);
   else if (escape === "hpv3") loadInto(escapeMenu, parseLayout(fs.readFileSync(HPV3_ESCAPE, "utf8")));
@@ -574,7 +586,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
   return { harness, hud, hudRoot, topBar, teams, escapeMenu, spectateBar, bus, sent, loads, urls, contexts, runIn, bootHost,
     advance, geometry, addBar, units, giveDebuff, card, slots, placeOf, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
     state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam, indicators, marker, markerName,
-    eventFeed, killRow };
+    eventFeed, killRow, feedNames };
 }
 
 const countIn = (root, id) => {
@@ -641,7 +653,7 @@ check("the two overrides are the pinned stock files plus this mod's include line
     assert.equal(crypto.createHash("sha256").update(stripped).digest("hex"), pin.files[stock], `${local} = stock + includes`);
   }
   for (const name of ["hud", "hud_escape_menu", "citadel_hud_top_bar", "citadel_hud_top_bar_team", "citadel_hud_top_bar_player", "unit_status_overlay_v2",
-    "citadel_hud_hero_shop", "hud_unit_indicators_v2", "hud_data_feed"]) {
+    "citadel_hud_hero_shop", "hud_unit_indicators_v2", "hud_data_feed", "citadel_hud_data_feed_info"]) {
     const digest = crypto.createHash("sha256").update(fs.readFileSync(path.join(MODULE, `stock/${name}.xml`))).digest("hex");
     assert.equal(digest, pin.files[`game/citadel/pak01_dir/panorama/layout/${name}.xml`], `stock/${name}.xml matches the pin`);
   }
@@ -2631,6 +2643,58 @@ check("aliases: far-away hero markers show the alias (by name, else by hero), an
   for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
   w.advance(2100);
   assert.equal(w.markerName(kes).text, "Kestrel", "no aliases outside spectating");
+});
+
+// Kill feed names (user 2026-10-23, screenshot 20:29: aliases "Player N" on the band, in-game names in
+// the feed). Stock rows are CitadelHudInfoFeed with Label.killerInfo / Label.victimInfo bound to
+// {s:killer_name} / {s:victim_name}. How it could fail: a row keeps the in-game names; the alias shows a
+// tick late (rows live a few seconds); a name without an alias is written; a nickname that no card
+// shows gets nothing although its hero is unique; a row the engine reuses for another kill keeps the
+// old alias; a cleared alias or the end of spectating leaves a row on the alias; polling without
+// aliases; rewrites in steady state.
+check("aliases: kill feed rows show the killer's and victim's alias soon after they appear", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  const before = w.killRow(300, { killer: "Kestrel", victim: "Volt" });
+  const counted = trackWrites(before.FindChildrenWithClassTraverse("killerInfo")[0]);
+  w.advance(2000);
+  deq(counted, [], "nothing is written without aliases");
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer0Entry", "Player 1");
+  w.type("OHSapphirePlayer0Entry", "Player 7");
+  w.type("OHAmberPlayer2Entry", "Player 3");
+  w.advance(1100);
+  deq(w.feedNames(before), ["Player 1", "Player 7"], "a row already shown gets the aliases");
+  // A new row: the aliases within 0.3 s; a name without an alias stays bound and untouched.
+  const row = w.killRow(320, { killer: "Moth", victim: "Kestrel" });
+  const mothLabel = row.FindChildrenWithClassTraverse("killerInfo")[0];
+  const mothWrites = trackWrites(mothLabel);
+  w.advance(300);
+  deq(w.feedNames(row), ["Moth", "Player 1"], "the victim's alias within 0.3 s; Moth has none");
+  deq(mothWrites, [], "a name without an alias is not written");
+  // A Steam nickname no card shows: matched by the killer's hero image.
+  const nick = w.killRow(320, { killer: "my friend doyle", victim: "Moth", killerHero: heroOf("Doyle")[0] });
+  w.advance(300);
+  deq(w.feedNames(nick), ["Player 3", "Moth"], "a nickname row by its hero");
+  // The engine reuses the row for another kill: the new names (and their aliases) show.
+  row.__dialog.killer_name = "Volt";
+  row.__dialog.victim_name = "Mole";
+  w.advance(1100);
+  deq(w.feedNames(row), ["Player 7", "Mole"], "a reused row shows the new kill's names");
+  const writes = trackWrites(row.FindChildrenWithClassTraverse("killerInfo")[0]);
+  w.advance(5000);
+  deq(writes, [], "no rewrites in steady state");
+  // Cleared: the in-game name, still bound.
+  w.type("OHSapphirePlayer0Entry", "");
+  w.advance(1100);
+  deq(w.feedNames(row), ["Volt", "Mole"], "cleared: the in-game name");
+  row.__dialog.killer_name = "Talon";
+  assert.equal(w.feedNames(row)[0], "Talon", "the cleared label is bound again");
+  // Back to playing: the in-game names.
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2100);
+  deq(w.feedNames(before), ["Kestrel", "Volt"], "no aliases outside spectating");
 });
 
 // The stock kill feed (hud_data_feed.xml #EventFeed: top left, margin-top 200) ran over Player 1's status
