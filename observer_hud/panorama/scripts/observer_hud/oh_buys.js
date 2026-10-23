@@ -29,10 +29,11 @@
   const MAX_SHOWN = 3;
   const FADE_SEC = 0.4; // equal to the OHBuyFadeOut animation-duration in oh_debuffs.css
   const STALE_S = 10;
-  // Heights in HUD px, equal to oh_debuffs.css: a status slot (.OHDebuff), a notice row (.OHBuy height +
-  // margin-top + margin-bottom: 36 - 2 + 1, a 32 px frame in a 2 px transparent rim), the gap above the
-  // stack (.OHBuys margin-top) and between stacked neighbours.
-  const SLOT_H = 43;
+  // Heights in HUD px, equal to oh_debuffs.css: a row of the status grid (.OHDebuffGrid.OHRows1-3, two
+  // statuses per row), a notice row (.OHBuy height + margin-top + margin-bottom: 36 - 2 + 1, a 32 px
+  // frame in a 2 px transparent rim), the gap above the stack (.OHBuys margin-top) and between stacked
+  // neighbours.
+  const GRID_ROW_H = 39;
   const ROW_H = 35;
   const STACK_TOP = 2;
   const STACK_GAP = 4;
@@ -223,7 +224,12 @@
     else Buys.pushed.delete(host);
   }
 
-  const shownCount = (column) => column.Children().filter((slot) => slot.BHasClass("OHShown")).length;
+  // The status grid's height: its rows of two (shown slots, fading ones included).
+  function gridHeight(column) {
+    const grid = column.FindChild("OHDebuffGrid");
+    const shown = grid ? grid.Children().filter((slot) => slot.BHasClass("OHShown")).length : 0;
+    return Math.ceil(shown / 2) * GRID_ROW_H;
+  }
 
   // One team's stacks by x: each moves under every earlier stack it would overlap (moving down can
   // meet another, so repeat until none). x comes from GetPositionWithinWindow, in screen px like the
@@ -240,7 +246,7 @@
       for (const notice of host.Children()) reach = Math.max(reach, Number(notice.actuallayoutwidth) || 0);
       if (!(reach > 0)) reach = MAX_NOTICE_W * (Number(card.actualuiscale_x) || 1);
       const x = Number(card.GetPositionWithinWindow().x) + (Number(card.actuallayoutwidth) || 0) / 2;
-      stacks.push({ host, rows, reach, x, natural: shownCount(column) * SLOT_H, top: 0, bottom: 0 });
+      stacks.push({ host, rows, reach, x, natural: gridHeight(column), top: 0, bottom: 0 });
     }
     stacks.sort((a, b) => a.x - b.x);
     stacks.forEach((stack, i) => {

@@ -1,8 +1,11 @@
 // Observer HUD ability status column, HUD side (host: this mod's hud_spectate_bar.xml), ported from
 // DLF's dlf_debuffs.js with its rules. World healthbars (oh_debuff_world.js) send OH_DEBUFF_SNAPSHOT
 // { source, name, items: [[key, debuff, count, end, stun, hit]] }; this draws each hero's statuses in the
-// four static slots of the column oh_host.js injects under each stock top-bar card
-// (observer_hud/debuffs.xml), matched by player name. The cards come from the host's registry
+// six slots of the column oh_host.js injects under each stock top-bar card (observer_hud/debuffs.xml),
+// matched by player name: a centred grid two wide (one in the middle, a pair either side of it, an odd
+// last one centred under the row above; user 2026-10-23). A status keeps its slot panel while it shows,
+// so when one comes or goes the others glide to their new places and the new one pops in.
+// The cards come from the host's registry
 // ($.OHHost.cards(), re-read when $.OHHost.cardsVersion() moves); the column never walks the top bar.
 // A slot's colour is the applying team's: the
 // other team for a debuff, the hero's own team for a listed buff. A count of 2+ shows as a badge; a
@@ -32,6 +35,11 @@
   const MAX_HIT = 1e9;
   const FADE_MS = 1000; // equal to the OHDebuffFadeOut animation-duration in oh_debuffs.css
   const END_PAD_MS = 1000; // the countdown reads one second longer than the predicted end (user 2026-10-23)
+  // Grid places, equal to oh_debuffs.css: a pair's centres 20 px either side of the middle, rows 39 px
+  // apart (.OHDebuff height, .OHRows1-3), three rows at most (six slots in debuffs.xml).
+  const GRID_HALF = 20;
+  const ROW_PITCH = 39;
+  const MAX_ROWS = 3;
   const KEY = /^[a-z0-9_]{1,64}$/;
   const GENERIC_ICON = "s2r://panorama/images/icons/properties/debuff.vsvg";
   // Listed abilities without an ability image (spectator-status.json; the validator checks).
@@ -141,17 +149,18 @@
         cards.push(known);
         continue;
       }
+      const grid = entry.debuffs.FindChild("OHDebuffGrid");
       const slots = [];
-      for (const slot of entry.debuffs.Children()) {
+      for (const slot of valid(grid) ? grid.Children() : []) {
         const image = slot.FindChildrenWithClassTraverse("OHDebuffIcon")[0];
         const count = slot.FindChildrenWithClassTraverse("OHDebuffCount")[0];
         const time = slot.FindChildrenWithClassTraverse("OHDebuffTime")[0];
         if (image && count && time) {
           slots.push({ panel: slot, image: image, count: count, time: time, key: "", stun: false, by: "", countText: "",
-            timeText: "", fading: false });
+            timeText: "", fading: false, place: "", glide: false, shownSeq: 0 });
         }
       }
-      cards.push({ panel: entry.panel, label: entry.label, column: entry.debuffs, slots: slots,
+      cards.push({ panel: entry.panel, label: entry.label, column: entry.debuffs, grid: grid, slots: slots, rows: 0,
         team: TEAMS[entry.teamKey] || TEAMS.amber, shown: [], hits: new Map() });
     }
     State.cards = cards;
@@ -159,7 +168,7 @@
     return true;
   }
 
-  const slotsLive = (card) => card.slots.length > 0 &&
+  const slotsLive = (card) => card.slots.length > 0 && valid(card.grid) &&
     card.slots.every((slot) => valid(slot.panel) && valid(slot.image) && valid(slot.count) && valid(slot.time));
 
   const cardName = (card) => {
@@ -183,8 +192,9 @@
     slot[field] = text;
   }
 
-  // What a card shows: the statuses it showed before, in place (gone ones fading until fadeEnd),
-  // then new ones. Fading entries make room first when the column is full.
+  // What a card shows, in display order: the statuses it showed before, in place (gone ones fading
+  // until fadeEnd), then new ones. Fading entries make room first when the column is full. An entry
+  // keeps its slot panel (entry.slot) for as long as it shows.
   function entriesFor(card, items, now) {
     const fresh = new Map();
     for (const item of items) fresh.set(item[4] ? item[0] + "#stun" : item[0], item);
@@ -192,22 +202,61 @@
     for (const entry of card.shown) {
       const item = fresh.get(entry.id);
       if (item) {
-        next.push({ id: entry.id, item, fadeEnd: 0 });
+        next.push({ id: entry.id, item, fadeEnd: 0, slot: entry.slot });
         fresh.delete(entry.id);
       } else if (!entry.fadeEnd) {
         const last = entry.item;
-        next.push({ id: entry.id, item: [last[0], last[1], last[2], 0, last[4]], fadeEnd: now + FADE_MS });
+        next.push({ id: entry.id, item: [last[0], last[1], last[2], 0, last[4]], fadeEnd: now + FADE_MS, slot: entry.slot });
       } else if (entry.fadeEnd > now) {
         next.push(entry);
       }
     }
-    for (const [id, item] of fresh) next.push({ id, item, fadeEnd: 0 });
+    for (const [id, item] of fresh) next.push({ id, item, fadeEnd: 0, slot: -1 });
     while (next.length > card.slots.length) {
       const fading = next.findIndex((entry) => entry.fadeEnd);
       next.splice(fading < 0 ? next.length - 1 : fading, 1);
     }
+    // New entries take the free slot panels, lowest first.
+    const used = new Set(next.map((entry) => entry.slot));
+    let free = 0;
+    for (const entry of next) {
+      if (entry.slot >= 0) continue;
+      while (used.has(free)) free++;
+      entry.slot = free;
+      used.add(free);
+    }
     card.shown = next;
     return next;
+  }
+
+  // The place of the k-th of n statuses: rows of two, 20 px left and right of the card's middle, an
+  // odd last one centred (user 2026-10-23). Equal to oh_debuffs.css (.OHDebuff 40x39 at the grid's
+  // top centre).
+  function placeFor(k, n) {
+    const row = k >> 1;
+    const x = row * 2 + 1 < n ? (k & 1 ? GRID_HALF : -GRID_HALF) : 0;
+    return `translate3d(${x}px, ${row * ROW_PITCH}px, 0px)`;
+  }
+
+  // Moves a shown slot to its place. A slot that just appeared is placed without glide (it pops in
+  // where it belongs, the circle's OHDebuffPop), and glides from the next frame on.
+  function place(slot, at, appeared) {
+    if (appeared) {
+      if (slot.glide) {
+        slot.panel.RemoveClass("OHGlide");
+        slot.glide = false;
+      }
+      const seq = ++slot.shownSeq;
+      $.Schedule(0, () => {
+        if (stopped || seq !== slot.shownSeq || !slot.key || !valid(slot.panel)) return;
+        slot.panel.AddClass("OHGlide");
+        slot.glide = true;
+      });
+    }
+    if (slot.place !== at) {
+      slot.panel.style.transform = at;
+      slot.place = at;
+    }
   }
 
   // Restarts the one-shot pulse animation: TriggerClass where the engine has it, else the class goes
@@ -230,9 +279,12 @@
   function paint(card, items, now) {
     const entries = entriesFor(card, items, now);
     const hits = new Map(); // id -> hit number this paint (card.hits: the last one pulsed)
+    const bySlot = new Array(card.slots.length).fill(-1); // slot -> display index
+    entries.forEach((entry, index) => { bySlot[entry.slot] = index; });
     let counting = false;
     card.slots.forEach((slot, index) => {
-      const entry = index < entries.length ? entries[index] : null;
+      const order = bySlot[index];
+      const entry = order >= 0 ? entries[order] : null;
       const item = entry ? entry.item : null;
       const key = item ? item[0] : "";
       const fading = !!entry && entry.fadeEnd > 0;
@@ -240,12 +292,21 @@
         slot.panel.SetHasClass("OHFading", fading);
         slot.fading = fading;
       }
+      const appeared = !!key && !slot.key;
       if (slot.key !== key) {
         if (key) slot.image.SetImage(iconFor(key));
+        else {
+          // Freed: no glide, no leftover pulse when the panel shows another status later.
+          slot.shownSeq++;
+          if (slot.glide) slot.panel.RemoveClass("OHGlide");
+          slot.glide = false;
+          slot.panel.RemoveClass("OHPulse");
+        }
         slot.panel.SetHasClass("OHShown", !!key);
         slot.key = key;
         if (State.log && key) $.Msg(`${TAG} show ${cardName(card)} ${key} ${iconFor(key)}`);
       }
+      if (key) place(slot, placeFor(order, entries.length), appeared);
       const stun = !!item && item[4] === 1;
       if (slot.stun !== stun) {
         slot.panel.SetHasClass("OHStun", stun);
@@ -267,6 +328,12 @@
         hits.set(entry.id, hit);
       }
     });
+    // The grid is as tall as its rows, so the purchase notices sit under the last one.
+    const rows = Math.ceil(entries.length / 2);
+    if (card.rows !== rows && valid(card.grid)) {
+      for (let n = 1; n <= MAX_ROWS; n++) card.grid.SetHasClass(`OHRows${n}`, n === rows);
+      card.rows = rows;
+    }
     card.hits = hits;
     return counting;
   }

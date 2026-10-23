@@ -3,10 +3,14 @@
 		<include src="s2r://panorama/styles/observer_hud/oh_debuffs.vcss_c" />
 	</styles>
 	<Panel class="OHDebuffs" hittest="false" hittestchildren="false">
-		<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
-		<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
-		<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
-		<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
+		<Panel id="OHDebuffGrid" class="OHDebuffGrid">
+			<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
+			<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
+			<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
+			<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
+			<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
+			<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
+		</Panel>
 		<Panel id="OHBuys" class="OHBuys" hittest="false" />
 	</Panel>
 </root>

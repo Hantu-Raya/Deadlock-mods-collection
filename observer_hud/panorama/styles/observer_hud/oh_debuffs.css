@@ -1,13 +1,21 @@
 /* Ability status column (observer_hud/debuffs.xml, one per stock top-bar card), ported from DLF's
-   dlf_card.css with its behaviour: four static slots under the stock ultimate. A slot's colour is the
-   team applying the status, set per slot by oh_debuffs.js: the other team for a debuff, the hero's
-   own team for a listed buff. Each slot is a plain 52x43 box (it carries the state classes) holding
-   the 38px circle, and the stun mark and stack count as siblings on the circle's bottom-left and
-   top-right edges (a rounded panel clips what sticks out of it). The stock card has no DLF ultimate
-   counter, so the column starts right under the stock ultimate (#StatusRow 125px + 22px icon). */
+   dlf_card.css with its colours. A slot's colour is the team applying the status, set per slot by
+   oh_debuffs.js: the other team for a debuff, the hero's own team for a listed buff. The stock card has
+   no DLF ultimate counter, so the column starts right under the stock ultimate (#StatusRow 125px + 22px
+   icon).
+   Layout (user 2026-10-23): a centred grid two wide, up to six (#OHDebuffGrid). One status sits in the
+   card's middle; a pair sits 20 px left and right of it; an odd last one is centred under the row
+   above. Every slot is a 40x39 box at the grid's top centre, moved to its place with an inline
+   translate3d by oh_debuffs.js; a status keeps its slot panel, so when one is added or ends the others
+   glide (.OHGlide: transform transition, no layout) and the new one pops in where it belongs. Sizes
+   for the 88 px stock card (playerDetailsWidth): 34 px circles, 6 px apart inside a pair, the pair
+   74 px wide, so 14 px to the next card's pair keeps each card's statuses grouped. The grid's height is
+   its rows (.OHRows1-3), so the purchase notices follow under it (ROW_PITCH in oh_buys.js). The stun
+   mark and stack count are siblings of the circle on its bottom-left and top-right edges (a rounded
+   panel clips what sticks out of it). */
 .OHDebuffs
 {
-	width: 52px;
+	width: 88px;
 	height: fit-children;
 	horizontal-align: center;
 	vertical-align: top;
@@ -18,10 +26,24 @@
 	visibility: collapse;
 }
 
+.OHDebuffGrid
+{
+	width: 88px;
+	height: 0px;
+	horizontal-align: center;
+	overflow: noclip;
+}
+
+.OHDebuffGrid.OHRows1 { height: 39px; }
+.OHDebuffGrid.OHRows2 { height: 78px; }
+.OHDebuffGrid.OHRows3 { height: 117px; }
+
 .OHDebuff
 {
-	width: 52px;
-	height: 43px;
+	width: 40px;
+	height: 39px;
+	horizontal-align: center;
+	vertical-align: top;
 	overflow: noclip;
 	visibility: collapse;
 }
@@ -31,15 +53,53 @@
 	visibility: visible;
 }
 
+/* Placed slots glide to a new place; a slot's first placement is written before this class. */
+.OHDebuff.OHGlide
+{
+	transition-property: transform;
+	transition-duration: 0.22s;
+	transition-timing-function: ease-out;
+}
+
 .OHDebuffCircle
 {
-	width: 38px;
-	height: 38px;
+	width: 34px;
+	height: 34px;
 	horizontal-align: center;
 	vertical-align: top;
 	border-radius: 50%;
 	border: 2px solid #10130DCC;
 	background-color: #E8892B;
+}
+
+/* A new status pops in: the circle grows from 40 % past full size and settles, 0.22 s. */
+@keyframes 'OHDebuffPop'
+{
+	0%
+	{
+		opacity: 0;
+		transform: scale3d(0.4, 0.4, 1);
+	}
+
+	60%
+	{
+		opacity: 1;
+		transform: scale3d(1.12, 1.12, 1);
+	}
+
+	100%
+	{
+		opacity: 1;
+		transform: scale3d(1, 1, 1);
+	}
+}
+
+.OHDebuff.OHShown .OHDebuffCircle
+{
+	animation-name: OHDebuffPop;
+	animation-duration: 0.22s;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
 }
 
 /* A status that went away fades out once over 1 s (FADE_MS in oh_debuffs.js), then holds at 0 until
@@ -110,8 +170,8 @@
 /* Same white wash the world healthbar puts on ability images. */
 .OHDebuffIcon
 {
-	width: 26px;
-	height: 26px;
+	width: 22px;
+	height: 22px;
 	horizontal-align: center;
 	vertical-align: center;
 	wash-color: #FFFFFF;
@@ -125,7 +185,7 @@
 	vertical-align: center;
 	text-align: center;
 	font-family: Jost, Noto Sans, sans-serif;
-	font-size: 20px;
+	font-size: 18px;
 	font-weight: bold;
 	color: #FFFFFF;
 	text-shadow: 0px 0px 0px 3.0 #10130D;
@@ -152,17 +212,17 @@
 
 .OHDebuffStunMark
 {
-	width: 17px;
-	height: 17px;
-	margin-left: 3px;
-	margin-top: 25px;
+	width: 15px;
+	height: 15px;
+	margin-left: 0px;
+	margin-top: 22px;
 	horizontal-align: left;
 	vertical-align: top;
 	border-radius: 50%;
 	border: 1px solid #ffb800;
 	background-color: #10130DE6;
 	background-image: url("s2r://panorama/images/hud/modifiers/icon_stun.vsvg");
-	background-size: 11px 11px;
+	background-size: 10px 10px;
 	background-position: 50% 50%;
 	background-repeat: no-repeat;
 	wash-color: #ffb800;
@@ -179,7 +239,7 @@
 {
 	min-width: 15px;
 	height: 15px;
-	margin-right: 4px;
+	margin-right: 0px;
 	horizontal-align: right;
 	vertical-align: top;
 	padding: 0px 2px;

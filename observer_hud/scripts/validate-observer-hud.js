@@ -449,11 +449,19 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     return effect;
   };
   const card = (name) => teams.TeamFriendly[AMBER.indexOf(name)] || teams.TeamEnemy[SAPPHIRE.indexOf(name)];
+  // The status slots of a card's column (in #OHDebuffGrid), and where each sits: x from the card's
+  // centre, y from the grid's top, read from the slot's inline translate3d (oh_debuffs.js places them).
   const slots = (name) => {
     const column = card(name).FindChild("OHDebuffsHost");
-    return column ? column.Children() : [];
+    const grid = column ? column.FindChild("OHDebuffGrid") : null;
+    return grid ? grid.Children() : [];
   };
-  const shownSlots = (name) => slots(name).filter((slot) => slot.BHasClass("OHShown") && !slot.BHasClass("OHFading"));
+  const placeOf = (slot) => {
+    const m = /^translate3d\((-?\d+(?:\.\d+)?)px, (-?\d+(?:\.\d+)?)px, 0px\)$/.exec(String(slot.style.transform || ""));
+    return m ? { x: Number(m[1]), y: Number(m[2]) } : { x: NaN, y: NaN };
+  };
+  const byPlace = (list) => list.slice().sort((a, b) => placeOf(a).y - placeOf(b).y || placeOf(a).x - placeOf(b).x);
+  const shownSlots = (name) => byPlace(slots(name).filter((slot) => slot.BHasClass("OHShown") && !slot.BHasClass("OHFading")));
   const icons = (name) => shownSlots(name).map((slot) => slot.FindChildrenWithClassTraverse("OHDebuffIcon")[0].src);
   // Purchase notices on a card, newest first, without the fading ones.
   const notices = (name) => {
@@ -497,7 +505,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     return ctx[ctx.length - 1].$.OHHost;
   };
   return { harness, hud, hudRoot, topBar, teams, escapeMenu, spectateBar, bus, sent, loads, urls, contexts, runIn, bootHost,
-    advance, geometry, addBar, units, giveDebuff, card, slots, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
+    advance, geometry, addBar, units, giveDebuff, card, slots, placeOf, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
     state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam };
 }
 
@@ -2574,11 +2582,11 @@ check("purchases: one line each; a stack that would overlap its neighbour's move
   w.buy("Kestrel", "Mystic Burst");
   w.advance(600);
   deq(["Kestrel", "Moth", "Doyle"].map(push), ["", "76px", ""], "two rows on Kestrel push Moth further");
-  // A status slot on Moth (43 px) puts his stack lower already: only the rest is added.
+  // A status on Moth (one grid row, 39 px) puts his stack lower already: only the rest is added.
   w.giveDebuff("Moth", "ability_viper_petrifybola", { radial: () => -180 });
   w.advance(1500);
   assert.equal(w.shownSlots("Moth").length, 1);
-  assert.equal(push("Moth"), `${2 + 70 + 4 - 43}px`);
+  assert.equal(push("Moth"), `${2 + 70 + 4 - 39}px`);
   // Cards of the other team and cards two apart never push each other.
   w.buy("Volt", "Extra Health");
   w.advance(600);
@@ -2601,6 +2609,96 @@ check("purchases: one line each; a stack that would overlap its neighbour's move
   }
   w.advance(600);
   assert.equal(push("Vesper"), "2px", "measured widths that do not overlap leave both in place");
+});
+
+// The column as a centred two-wide grid (user 2026-10-23): one status sits in the card's middle; a
+// second moves the first left and pops in on the right, the pair symmetric about the middle; a third
+// sits centred under the pair; a fourth moves the third under the first and pops in under the second;
+// and so on, six at most (three rows). How it could fail: a lone status or a lone last one off-centre;
+// a pair not symmetric; a later status landing in a used place; a status that jumps to another slot
+// panel when one is added or removed (it must glide, so its panel keeps it); a new status gliding in
+// from where its panel last was (glide must be off for its first placement); places not closing up
+// after a status fades out; the grid's height (rows) not following, so the purchase notices sit wrong;
+// a pair as wide as a card, running into the neighbour's column; rewrites in steady state.
+check("column: statuses form a centred two-wide grid; new ones pop in, the rest glide to their places", () => {
+  const w = statusWorld();
+  const KEYS = ["ability_viper_petrifybola", "drifter_darkness", "citadel_ability_self_vacuum", "ability_guided_arrow",
+    "ability_gravity_lasso", "ability_ult_combo"];
+  const grid = w.card("Volt").FindChild("OHDebuffsHost").FindChild("OHDebuffGrid");
+  assert.ok(grid, "the slots sit in #OHDebuffGrid");
+  const all = w.slots("Volt");
+  assert.equal(all.length, 6, "six slots: three rows of two");
+  const writes = new Map(all.map((slot) => [slot, []])); // slot -> [{ value, glide }]
+  for (const slot of all) {
+    let value = slot.style.transform;
+    Object.defineProperty(slot.style, "transform", { configurable: true, get: () => value,
+      set: (next) => { writes.get(slot).push({ value: next, glide: slot.BHasClass("OHGlide") }); value = next; } });
+  }
+  const iconOf = (slot) => slot.FindChildrenWithClassTraverse("OHDebuffIcon")[0].src;
+  const panelOf = new Map(); // icon -> the slot panel that showed it first
+  const places = () => {
+    const out = {};
+    for (const slot of all.filter((s) => s.BHasClass("OHShown"))) {
+      const icon = iconOf(slot);
+      if (!panelOf.has(icon)) panelOf.set(icon, slot);
+      assert.equal(panelOf.get(icon), slot, "a status keeps its slot panel");
+      const { x, y } = w.placeOf(slot);
+      out[KEYS.find((key) => icon.includes(key.split("_").pop())) || icon] = `${x},${y}`;
+    }
+    return out;
+  };
+  const rows = () => [1, 2, 3].filter((n) => grid.BHasClass(`OHRows${n}`));
+  const expected = [
+    [["0,0"], 1],
+    [["-20,0", "20,0"], 1],
+    [["-20,0", "20,0", "0,39"], 2],
+    [["-20,0", "20,0", "-20,39", "20,39"], 2],
+    [["-20,0", "20,0", "-20,39", "20,39", "0,78"], 3],
+    [["-20,0", "20,0", "-20,39", "20,39", "-20,78", "20,78"], 3]
+  ];
+  deq(rows(), [], "no status: no rows (height 0)");
+  KEYS.forEach((key, n) => {
+    w.giveDebuff("Volt", key);
+    w.advance(600);
+    const now = places();
+    deq(KEYS.slice(0, n + 1).map((k) => now[k]), expected[n][0], `${n + 1} statuses`);
+    deq(rows(), [expected[n][1]], `${n + 1} statuses: ${expected[n][1]} rows`);
+  });
+  // Every slot's first placement is written without glide (it pops in where it belongs); every move after with it.
+  for (const [slot, list] of writes) {
+    if (!list.length) continue;
+    assert.equal(list[0].glide, false, "first placement without glide");
+    assert.ok(list.slice(1).every((entry) => entry.glide), "moves glide");
+    assert.ok(slot.BHasClass("OHGlide"), "glide on once placed");
+  }
+  // Steady: nothing is rewritten.
+  const count = () => [...writes.values()].reduce((sum, list) => sum + list.length, 0);
+  const before = count();
+  w.advance(6000);
+  assert.equal(count(), before, "no rewrites in steady state");
+  // The first status ends: it fades where it is, then the rest close up, each on its own panel.
+  const first = w.units.Volt.container.children.find((child) => child.id === `status_${KEYS[0]}`);
+  const firstSlot = panelOf.get(iconOf(all.find((s) => w.placeOf(s).x === -20 && w.placeOf(s).y === 0)));
+  first.DeleteAsync();
+  w.advance(600);
+  assert.ok(firstSlot.BHasClass("OHFading"), "fading in place");
+  deq(w.placeOf(firstSlot), { x: -20, y: 0 });
+  w.advance(1500);
+  const after = places();
+  deq(KEYS.slice(1).map((k) => after[k]), ["-20,0", "20,0", "-20,39", "20,39", "0,78"], "the rest close up");
+  assert.ok(!firstSlot.BHasClass("OHShown") && !firstSlot.BHasClass("OHGlide"), "the freed slot hides and loses its glide");
+  deq(rows(), [3]);
+  // A new status takes the free panel and pops in at the end of the order, without gliding.
+  w.giveDebuff("Volt", KEYS[0]);
+  const writesBefore = writes.get(firstSlot).length;
+  w.advance(600);
+  const back = writes.get(firstSlot).slice(writesBefore);
+  deq(back.map((entry) => [entry.value, entry.glide]), [["translate3d(20px, 78px, 0px)", false]], "pops in at its new place");
+  // A pair (2 x 20 px from the middle plus one circle) leaves at least 12 px to the next card's pair on
+  // the 88 px stock card (playerDetailsWidth), twice the 6 px inside a pair.
+  const sheet = read("panorama/styles/observer_hud/oh_debuffs.css");
+  const circle = Number(/\n\.OHDebuffCircle\s*\{[^}]*\bwidth:\s*(\d+)px/.exec(sheet)[1]);
+  assert.ok(40 + circle <= 88 - 12 && 40 - circle >= 6, `pair span ${40 + circle} px, inner gap ${40 - circle} px`);
 });
 
 check("column: stuns are their own item, Djinn's Mark from 8 stacks, listed buffs in the hero's own colour", () => {
