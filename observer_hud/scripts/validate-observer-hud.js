@@ -40,7 +40,9 @@ const { MockPanel, createPanoramaHarness, createVmContext, runInVm } =
 // VM objects come from other realms: compare their JSON.
 // The local save page (hpv2-store /oh/) runs behind a fake CEF panel: SetURL with the page URL runs the
 // real page script against a disk object that survives simulated restarts (one world per process);
-// its title comes back through the panel's HTMLTitle handler 50 ms later.
+// its title comes back through the panel's HTMLTitle handler 50 ms later. A load made while offline,
+// or one of the next web.lostLoads loads, leaves a dead document (an error page): later URLs that only
+// change the fragment reach nothing until the panel navigates elsewhere (about:blank) and back.
 const STORE_PAGE = process.env.OH_STORE_PAGE || "D:/hpv2-store/oh/index.html";
 const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/";
 const storeScript = fs.existsSync(STORE_PAGE) ? /<script>([\s\S]*)<\/script>/.exec(fs.readFileSync(STORE_PAGE, "utf8"))[1] : "";
@@ -48,10 +50,17 @@ MockPanel.prototype.SetURL = function (url) {
   let root = this;
   while (root.GetParent()) root = root.GetParent();
   const web = root.__web;
-  if (!web || web.offline) return true;
+  if (!web) return true;
+  (web.urls = web.urls || []).push(String(url));
   const base = String(url).split("#")[0];
   if (base !== STORE_URL) { this.__page = null; return true; }
   const panel = this;
+  if (panel.__page && panel.__page.dead) return true;
+  if (!panel.__page && (web.offline || web.lostLoads > 0)) {
+    if (!web.offline) web.lostLoads--;
+    panel.__page = { dead: true };
+    return true;
+  }
   if (!panel.__page) {
     const page = { title: "", hash: "", href: url, listeners: [] };
     page.sandbox = {
@@ -67,16 +76,28 @@ MockPanel.prototype.SetURL = function (url) {
     };
     page.hash = url.includes("#") ? url.slice(url.indexOf("#")) : "";
     panel.__page = page;
-    vm.runInNewContext(storeScript, page.sandbox);
-  } else {
-    panel.__page.href = url;
-    panel.__page.hash = url.includes("#") ? url.slice(url.indexOf("#")) : "";
-    for (const fn of panel.__page.listeners) fn();
+    // web.loadDelay (ms): the page runs only after the load; leaving it before then cancels the load.
+    const run = () => {
+      if (panel.__page !== page) return;
+      page.live = true;
+      vm.runInNewContext(storeScript, page.sandbox);
+      emitTitle(panel, web);
+    };
+    if (web.loadDelay) web.harness.scheduler.schedule(web.loadDelay / 1000, run);
+    else run();
+    return true;
   }
-  const title = panel.__page.title;
-  if (!web.mute) web.harness.scheduler.schedule(0.05, () => { if (panel.events.HTMLTitle) panel.events.HTMLTitle(panel, title); });
+  panel.__page.href = url;
+  panel.__page.hash = url.includes("#") ? url.slice(url.indexOf("#")) : "";
+  if (!panel.__page.live) return true;
+  for (const fn of panel.__page.listeners) fn();
+  emitTitle(panel, web);
   return true;
 };
+function emitTitle(panel, web) {
+  const title = panel.__page.title;
+  if (!web.mute) web.harness.scheduler.schedule(0.05, () => { if (panel.events.HTMLTitle) panel.events.HTMLTitle(panel, title); });
+}
 
 const plain = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const deq = (actual, expected, message) => assert.deepEqual(plain(actual), plain(expected), message);
@@ -1775,6 +1796,74 @@ check("save: the setup survives a restart through the local save page; damaged s
   e.hudRoot.__web.mute = false;
   e.advance(5000);
   assert.equal(e.state().event, "Typed first");
+});
+
+// Live 2026-10-23 (two launches with +map new_player_basics): one session showed the sample teams and
+// never loaded the save (OFFLINE - SESSION ONLY, nothing written), the next loaded it. The hello gave
+// up for good after 30 s, and its retries only changed the URL fragment, which never reloads a page
+// whose first load was lost. How a fix could fail: a lost first load still never recovers; a browser
+// that comes up after 30 s is never asked again; a late save overwrites edits made meanwhile; a slow
+// first load is cut off by the reloads; a really offline PC is asked forever.
+check("save: a lost or late save page is asked again; edits made meanwhile win; a dead page is not asked forever", () => {
+  assert.ok(storeScript, `save page source at ${STORE_PAGE}`);
+  const disk = {};
+  const a = world({ disk });
+  a.bootHost();
+  a.advance(3000);
+  a.press("OHMenuButton");
+  a.type("OHEventEntry", "Spring Cup");
+  a.advance(3000);
+  assert.equal(text(a.ui("OHSaveStatus")), "SAVED");
+  const record = disk["hantu.observer_hud.v1/state"];
+  const pageLoads = (w) => w.hudRoot.__web.urls.filter((url) => url.startsWith(STORE_URL)).length;
+  // The first load is lost (an error page): the page is loaded again and the save adopted.
+  const b = world({ disk });
+  b.hudRoot.__web.lostLoads = 1;
+  b.bootHost();
+  b.advance(20000);
+  assert.equal(b.state().event, "Spring Cup", "adopted after the lost load");
+  assert.equal(text(b.ui("OHSaveStatus")), "SAVED");
+  assert.ok(b.hudRoot.__web.urls.includes("about:blank"), "left the dead page to load it again");
+  // The browser answers only after a minute: session only at 30 s, then the save loads.
+  const c = world({ disk, offline: true });
+  c.bootHost();
+  c.advance(31000);
+  assert.equal(text(c.ui("OHSaveStatus")), "OFFLINE - SESSION ONLY");
+  c.hudRoot.__web.offline = false;
+  c.advance(60000);
+  assert.equal(c.state().event, "Spring Cup", "a late page still loads the save");
+  assert.equal(text(c.ui("OHSaveStatus")), "SAVED");
+  // Edits made while offline win over the late save, and are saved.
+  const d = world({ disk, offline: true });
+  d.bootHost();
+  d.advance(31000);
+  d.press("OHMenuButton");
+  d.type("OHEventEntry", "Typed offline");
+  d.hudRoot.__web.offline = false;
+  d.advance(60000);
+  assert.equal(d.state().event, "Typed offline");
+  assert.ok(disk["hantu.observer_hud.v1/state"].includes("Typed offline"), "the session's setup is saved");
+  disk["hantu.observer_hud.v1/state"] = record;
+  // Every load takes 9 s (longer than the first reload gap): a later load still completes.
+  const s = world({ disk });
+  s.hudRoot.__web.loadDelay = 9000;
+  s.bootHost();
+  s.advance(40000);
+  assert.equal(s.state().event, "Spring Cup", "a slow page loads the save");
+  // Really offline: asked for a few minutes, then only when the editor opens again.
+  const e = world({ disk, offline: true });
+  e.bootHost();
+  e.advance(300000);
+  assert.equal(text(e.ui("OHSaveStatus")), "OFFLINE - SESSION ONLY");
+  const asked = pageLoads(e);
+  e.advance(120000);
+  assert.equal(pageLoads(e), asked, "no requests after giving up");
+  e.hudRoot.__web.offline = false;
+  e.press("OHMenuButton");
+  e.advance(20000);
+  assert.ok(pageLoads(e) > asked, "opening the editor asks again");
+  assert.equal(e.state().event, "Spring Cup");
+  assert.equal(text(e.ui("OHSaveStatus")), "SAVED");
 });
 
 check("editor: credits rail (version, author link, donate) and HP Colors v3's supporter strip while open", () => {

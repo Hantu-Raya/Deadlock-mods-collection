@@ -28,7 +28,11 @@
   const RECORD_SCHEMA = 1;
   const READ_LIMIT = 8192;
   const HELLO_RETRY_S = 2;
-  const READY_TIMEOUT_MS = 30000;
+  const SLOW_RETRY_S = 5; // after READY_TIMEOUT_MS
+  const READY_TIMEOUT_MS = 30000; // then the footer says session only, while the page is still asked
+  const RETRY_WINDOW_MS = 180000; // then the page is asked again only when the editor opens
+  const FIRST_RELOAD_MS = 6000; // a lost load is reloaded after this, then after twice the last gap
+  const MAX_RELOAD_GAP_MS = 60000;
   const REPLY_TIMEOUT_S = 5;
   const SAVE_DELAY_S = 1.5;
   const SAVE_RETRY_S = [2, 4, 8];
@@ -481,6 +485,8 @@
     if (was !== open) setStrip(open);
     if (!open) closePicker();
     if (open) {
+      // The save page gave up while unanswered: opening the editor asks it again.
+      if (Store.phase === "unavailable" && Store.offline) startHello();
       rows = $.OHHost.roster();
       render();
       const gen = ++rosterGen;
@@ -642,7 +648,7 @@
   const Store = {
     panel: null, phase: "idle", seq: 0, gen: 0, helloId: "", startMs: 0, pendingId: "", pendingOp: "",
     savedRecord: "", sentRecord: "", retry: 0, readRetried: false, capacity: 4096, logosDropped: false,
-    adopt: true, bootVersion: 0, saveQueued: false, started: false
+    adopt: true, bootVersion: 0, saveQueued: false, started: false, reloadAt: 0, reloadGap: 0, offline: false
   };
 
   function setSaveStatus(text, tone) {
@@ -688,8 +694,21 @@
       return false;
     }
   }
-  function storeUnavailable(text) {
+  // A URL that only changes the fragment never reloads the page, so a lost load (an error page) would
+  // never answer: leaving it for about:blank makes the next hello load the page afresh.
+  function storeBlank() {
+    if (stopped || !valid(Store.panel)) return false;
+    try {
+      Store.panel.SetURL("about:blank");
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  // offline: the page did not answer; opening the editor asks it again.
+  function storeUnavailable(text, offline) {
     Store.phase = "unavailable";
+    Store.offline = !!offline;
     Store.gen++;
     Store.pendingId = "";
     Store.pendingOp = "";
@@ -701,30 +720,54 @@
     Store.adopt = !Store.started && !$.OHHost.carried();
     Store.started = true;
     Store.panel = UI.OHStore;
-    Store.gen++;
-    Store.pendingId = "";
-    Store.pendingOp = "";
-    Store.readRetried = false;
     Store.bootVersion = $.OHHost.version();
     try {
       $.RegisterEventHandler("HTMLTitle", Store.panel, onStoreTitle);
     } catch (e) {
-      storeUnavailable("OFFLINE - SESSION ONLY");
+      storeUnavailable("OFFLINE - SESSION ONLY", false);
       return;
     }
+    startHello();
+  }
+  // Asks the page until it answers: every HELLO_RETRY_S, slower and with the footer saying session
+  // only after READY_TIMEOUT_MS, and gives up after RETRY_WINDOW_MS. The page is reloaded after
+  // FIRST_RELOAD_MS and then at doubling gaps, so a slow load is not cut off every time.
+  function startHello() {
+    Store.gen++;
     Store.phase = "hello";
+    Store.offline = false;
+    Store.pendingId = "";
+    Store.pendingOp = "";
+    Store.readRetried = false;
     Store.startMs = Date.now();
+    Store.reloadAt = Store.startMs + FIRST_RELOAD_MS;
+    Store.reloadGap = FIRST_RELOAD_MS;
     setSaveStatus("LOADING SAVE", "");
     storeHello(Store.gen);
   }
-  // Re-sends hello until the page answers; gives up after READY_TIMEOUT_MS.
   function storeHello(gen) {
     if (gen !== Store.gen || Store.phase !== "hello") return;
-    if (Date.now() - Store.startMs >= READY_TIMEOUT_MS || !storeSend({ i: (Store.helloId = `h${++Store.seq}`), o: "hello" })) {
-      storeUnavailable("OFFLINE - SESSION ONLY");
+    const now = Date.now();
+    const waited = now - Store.startMs;
+    if (waited >= RETRY_WINDOW_MS) {
+      storeUnavailable("OFFLINE - SESSION ONLY", true);
       return;
     }
-    $.Schedule(HELLO_RETRY_S, () => storeHello(gen));
+    const slow = waited >= READY_TIMEOUT_MS;
+    if (slow) setSaveStatus("OFFLINE - SESSION ONLY", "warn");
+    let sent;
+    if (now >= Store.reloadAt) {
+      Store.reloadGap = Math.min(Store.reloadGap * 2, MAX_RELOAD_GAP_MS);
+      Store.reloadAt = now + Store.reloadGap;
+      sent = storeBlank();
+    } else {
+      sent = storeSend({ i: (Store.helloId = `h${++Store.seq}`), o: "hello" });
+    }
+    if (!sent) {
+      storeUnavailable("OFFLINE - SESSION ONLY", false);
+      return;
+    }
+    $.Schedule(slow ? SLOW_RETRY_S : HELLO_RETRY_S, () => storeHello(gen));
   }
   function storeRequest(op, message) {
     const id = `${op}${++Store.seq}`;
@@ -771,7 +814,7 @@
     if (Store.phase !== "read") return;
     if (!reply || reply.ok !== true) {
       if (Store.readRetried) {
-        storeUnavailable("OFFLINE - SESSION ONLY");
+        storeUnavailable("OFFLINE - SESSION ONLY", true);
         return;
       }
       Store.readRetried = true;
