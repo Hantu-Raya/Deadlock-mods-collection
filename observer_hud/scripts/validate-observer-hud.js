@@ -97,12 +97,14 @@ const results = { checks: [], runs: [], budgets: null };
 // Measured 2026-10-22 (v2): 1259.2/s spectating (12 hero bars at the 0.25 s poll, 60 idle bars, host with band, names and
 // graph sampling, column), 13.2/s not spectating. 2026-10-23 (design 19): 1295.8/s before the objective health
 // placement, 1300.8/s with it (the stock panel's parent rect and one class query per second).
-// Synthetic native calls per second (2026-10-23 audit with m1: spectating 1451.8 -> 1189.8, idle 13.7 -> 11.7,
-// every card counting down 2067.6 -> 1575.2, all under the live-like scenario). Re-measure before raising.
-const BUDGET_SPECTATING = 1200;
+// Synthetic native calls per second, live-like scenario (2026-10-23 audit with m1: spectating 1451.8 -> 1189.8,
+// idle 13.7 -> 11.7, every card counting down 2067.6 -> 1575.2; deferred items with m2: team-panel cache,
+// column idles after spectating, card registry: spectating 1106.4, countdown 1443.8, after spectating
+// 101.9 -> 14.7). Re-measure before raising.
+const BUDGET_SPECTATING = 1115;
 const BUDGET_IDLE = 12;
-const BUDGET_COUNTDOWN = 1590;
-const BUDGET_AFTER = 15; // spectated, then back to playing (101.9 before, 14.7 after the column idled and the restore ran once)
+const BUDGET_COUNTDOWN = 1450;
+const BUDGET_AFTER = 15; // spectated, then back to playing
 
 let lastLogs = null;
 // Engine model (ENGINE.md, live 2026-10-23): after style.visibility = "collapse", writing null clears the
