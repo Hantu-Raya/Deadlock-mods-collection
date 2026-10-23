@@ -33,9 +33,10 @@
   const SIDES = ["Left", "Right"];
   const BAND = { names: 26, desk: 56 }; // band height per look; #TopBar moves down by this much
   const STOCK_TOP_MARGIN = 8; // CitadelHudTopBar .spec_mode margin-top, which the inline margin replaces
-  // The portraits hung 20-26 px under the band (user screenshots 2026-10-23 20:12, "not connected"):
-  // #TopBar tucks this much up, so they start a few px under it.
-  const TOP_BAR_TUCK = 16;
+  // #TopBar tucks this much up under the band. At 0 the portraits hung 20-26 px under it (user
+  // screenshots 2026-10-23 20:12, "not connected"); at 16 Celeste's horns and tall hair crossed it
+  // (20:42, "too up").
+  const TOP_BAR_TUCK = 8;
   const PLATE_MAX = 250; // the mockup's plate width
   const PLATE_COMPACT = 210; // below this the name drops to 14 px
   const PLATE_NARROW = 160; // below this the logo goes
