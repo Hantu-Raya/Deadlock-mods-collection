@@ -1068,6 +1068,65 @@ check("series: the stock match-end screen adds one win to the winner, once per m
   deq([p.state().amber.series, p.state().sapphire.series], [0, 0]);
 });
 
+check("series: an end screen awards only after this map was seen without it (stale screens, reloads, first sight)", () => {
+  // m1 audit B11 / m2 review: the script and #Hud survive a map change while #TopBar is rebuilt, so a
+  // #MatchEnd that still carries the last result must not award again on the next map's bar, and must
+  // not swallow that map's own result.
+  const setup = () => {
+    const w = world();
+    w.bootHost();
+    w.advance(2000);
+    const end = w.hud.FindChildTraverse("MatchEnd");
+    const show = (...classes) => {
+      for (const cls of ["ShowMatchEnd", "MatchFinished", "MatchAbandoned", "Team1Victory", "Team2Victory"]) end.RemoveClass(cls);
+      for (const cls of classes) end.AddClass(cls);
+    };
+    const series = () => [w.state().amber.series, w.state().sapphire.series];
+    return { w, end, show, series };
+  };
+  // A stale screen over the next map's bar, then that map's real result.
+  let t = setup();
+  t.show("ShowMatchEnd", "MatchFinished", "Team1Victory");
+  t.w.advance(1100);
+  deq(t.series(), [1, 0]);
+  t.w.bar().DeleteAsync(); // the next map: a new #TopBar, the end screen still up with its classes
+  t.w.advance(3300);
+  deq(t.series(), [1, 0], "a stale end screen adds nothing on the next map");
+  t.show();
+  t.w.advance(1100);
+  t.show("ShowMatchEnd", "MatchFinished", "Team2Victory");
+  t.w.advance(1100);
+  deq(t.series(), [1, 1], "and the next map's own result still counts");
+  // ShowMatchEnd one tick before the result classes: still one win.
+  t = setup();
+  t.show("ShowMatchEnd");
+  t.w.advance(1100);
+  t.show("ShowMatchEnd", "MatchFinished", "Team1Victory");
+  t.w.advance(1100);
+  deq(t.series(), [1, 0], "classes arriving over two ticks");
+  // Spectating ends with the match, before the screen shows: still counted.
+  t = setup();
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) t.w.hud.RemoveClass(cls);
+  t.w.advance(1100);
+  t.show("ShowMatchEnd", "MatchFinished", "Team2Victory");
+  t.w.advance(1100);
+  deq(t.series(), [0, 1], "spectating ended before the screen");
+  // A layout reload while the screen shows: no second win.
+  t = setup();
+  t.show("ShowMatchEnd", "MatchFinished", "Team1Victory");
+  t.w.advance(1100);
+  t.w.bootHost();
+  t.w.advance(3300);
+  deq(t.series(), [1, 0], "a reload during the screen adds nothing");
+  // The first sight of a map is its end screen: not counted, and the observer is told.
+  t = setup();
+  t.show("ShowMatchEnd", "MatchFinished", "Team1Victory");
+  t.w.bar().DeleteAsync();
+  t.w.advance(3300);
+  deq(t.series(), [0, 0], "first sight is the end screen: no award");
+  assert.ok(t.w.harness.logs.some((line) => /match end seen.*series not changed/.test(line)), "logged once");
+});
+
 check("bar: a web logo shows only after ImageLoaded; a failed one keeps the monogram; a bad URL is refused and never logged", () => {
   const w = world();
   w.bootHost();

@@ -1584,8 +1584,12 @@
   // Hidden King) and Team2Victory otherwise (Sapphire), with MatchFinished; an abandoned game gets
   // MatchAbandoned instead. The winner's series goes up once per injected bar, i.e. once per map
   // load (a demo seek back and forth keeps one win), only for a game spectated on that bar, and never
-  // past the wins the format needs (normalize rejects a higher value). Not seen live yet.
-  const matchEnd = { panel: null, spectated: null, awarded: null };
+  // past the wins the format needs (normalize rejects a higher value). An end screen counts only after
+  // this bar has seen #MatchEnd without ShowMatchEnd while spectating (armed): #Hud survives a map
+  // change, so a screen still carrying the last result must not award again on the next map's bar
+  // (it also blocked that map's own result) nor after a layout reload (m1 audit B11). A map whose first
+  // sight is its end screen is not counted; the observer is told once. Not seen live yet.
+  const matchEnd = { panel: null, spectated: null, armed: null, awarded: null, told: null };
   function awardSeries(watching) {
     if (watching) matchEnd.spectated = UI.bar;
     if (!valid(UI.bar) || matchEnd.spectated !== UI.bar || matchEnd.awarded === UI.bar) return;
@@ -1594,9 +1598,18 @@
       if (!valid(matchEnd.panel)) return;
     }
     const panel = matchEnd.panel;
-    if (!panel.BHasClass("ShowMatchEnd") || !panel.BHasClass("MatchFinished") || panel.BHasClass("MatchAbandoned")) return;
+    if (!panel.BHasClass("ShowMatchEnd")) {
+      if (watching) matchEnd.armed = UI.bar;
+      return;
+    }
+    if (!panel.BHasClass("MatchFinished") || panel.BHasClass("MatchAbandoned")) return;
     const team = panel.BHasClass("Team1Victory") ? "amber" : panel.BHasClass("Team2Victory") ? "sapphire" : "";
     if (!team) return;
+    if (matchEnd.armed !== UI.bar) {
+      if (matchEnd.told !== UI.bar) $.Msg(`${TAG} match end seen without the game before it: series not changed; set it in the editor`);
+      matchEnd.told = UI.bar;
+      return;
+    }
     matchEnd.awarded = UI.bar;
     const wins = Math.min(state[team].series + 1, S.winsNeeded(state.bestOf));
     $.Msg(`${TAG} match end: ${team} wins (series ${team} ${wins})`);
