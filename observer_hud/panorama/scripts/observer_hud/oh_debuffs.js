@@ -69,6 +69,7 @@
     unmatchedScanAt: 0,
     rescanQueued: false,
     counting: false, // a slot shows seconds left or is fading
+    idle: false, // not spectating at the last tick: the column does no work
     // The 0.25 s countdown ticks paint only: the cards are validated (VALIDATE_MS) and their names read
     // at most once a second (m1 audit O1: every countdown tick re-validated 12 cards and re-read their names).
     validateAt: 0,
@@ -365,6 +366,8 @@
         instance: message.instance, seq: message.seq, sig: JSON.stringify(message.items), unmatchedSince: 0
       };
       State.records.set(message.source, record);
+      // Not spectating: the record is kept (it expires as usual), but nothing is matched or painted.
+      if (!$.OHHost.watching()) return;
       const same = !!previous && previous.name === record.name && previous.sig === record.sig;
       // Names are compared for new or changed content, and for heartbeats of a record still without a card.
       if (record.items.length && (!same || previous.unmatchedSince) && !hasCard(record.name)) {
@@ -405,6 +408,20 @@
     if (stopped) return;
     try {
       const now = Date.now();
+      // Not spectating (back to playing): the column idles; the top bar stays valid, so without this it
+      // kept validating and rescanning (101.9 calls/s, m2 review). The first watching tick re-validates,
+      // rescans and re-reads the names, then paints what the records say (an expired status clears).
+      if (!$.OHHost.watching()) {
+        State.idle = true;
+        schedule(TICK_SEC);
+        return;
+      }
+      if (State.idle) {
+        State.idle = false;
+        State.validateAt = 0;
+        State.nextRescanMs = 0;
+        State.namesAt = 0;
+      }
       let dirty = refreshConfig(now) || State.counting;
       const check = now >= State.validateAt;
       if (check) State.validateAt = now + VALIDATE_MS;

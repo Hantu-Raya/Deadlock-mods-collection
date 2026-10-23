@@ -102,6 +102,7 @@ const results = { checks: [], runs: [], budgets: null };
 const BUDGET_SPECTATING = 1200;
 const BUDGET_IDLE = 12;
 const BUDGET_COUNTDOWN = 1590;
+const BUDGET_AFTER = 15; // spectated, then back to playing (101.9 before, 14.7 after the column idled and the restore ran once)
 
 let lastLogs = null;
 // Engine model (ENGINE.md, live 2026-10-23): after style.visibility = "collapse", writing null clears the
@@ -2616,6 +2617,24 @@ check("editor: pages in match-day order; scope by look; stock pill and switch st
   deq(shown(), ["Timers"]);
 });
 
+check("column: back to playing it idles; a status that ended meanwhile is gone on return, a new one shows", () => {
+  const w = statusWorld();
+  w.giveDebuff("Volt", "ability_viper_petrifybola", { radial: () => -180 });
+  w.advance(3000);
+  deq(w.icons("Volt"), [PETRIFY]);
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2000);
+  w.units.Volt.container.children[0].DeleteAsync(); // the status ends while not spectating
+  w.advance(12000); // past the snapshot TTL
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.AddClass(cls);
+  w.advance(3000);
+  deq(w.icons("Volt"), [], "no stale icon on return");
+  assert.equal(w.slots("Volt").filter((slot) => slot.BHasClass("OHShown")).length, 0);
+  w.giveDebuff("Volt", "ability_viper_petrifybola", { radial: () => -180 });
+  w.advance(2000);
+  deq(w.icons("Volt"), [PETRIFY], "a new status shows");
+});
+
 check("column: the DEV switch and poll reach every world bar; OFF stops publishing and clears the cards", () => {
   const w = statusWorld();
   w.giveDebuff("Geist", "ability_viper_petrifybola");
@@ -2675,6 +2694,21 @@ check("steady state: no writes while nothing changes; native calls per second un
   let stop = counted(idle.harness);
   idle.advance(10000);
   const notSpectating = per(stop(), 10);
+  // Spectating, then back to playing (m2 review: 101.9/s, the column kept validating and rescanning
+  // because the top bar stays valid; no budget world ever left spectating).
+  const left = world();
+  left.bootHost();
+  left.advance(5000);
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) left.hud.RemoveClass(cls);
+  left.advance(5000);
+  reset(left);
+  stop = counted(left.harness);
+  left.advance(10000);
+  const leftSpectating = per(stop(), 10);
+  console.log(`   after spectating ${total(leftSpectating)}/s ${JSON.stringify(leftSpectating)}`);
+  assert.equal(leftSpectating.textWrites || 0, 0);
+  assert.equal(leftSpectating.styleWrites || 0, 0);
+  assert.ok(total(leftSpectating) <= BUDGET_AFTER, `after spectating: ${total(leftSpectating)}/s`);
 
   // Spectating with a full setup and nothing changing: bar, aliases, column, 12 hero bars with a
   // listed status and an unlisted one each (real bars carry item and regen statuses outside RULES),

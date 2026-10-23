@@ -1634,6 +1634,7 @@
 
   let bootDelay = 0.5;
   let watchingNow = false; // the last tick's spectating(): a plain flag for oh_buys.js's poll
+  let restored = false; // the stock panels were given back since spectating last ended
   function tick() {
     if (stopped) return;
     try {
@@ -1650,6 +1651,7 @@
       watchingNow = watching;
       ensureMenuEntry(watching);
       if (watching) {
+        restored = false;
         if (ensureBar() && ensureBand()) {
           ensureCards();
           renderNames();
@@ -1659,13 +1661,16 @@
           sampleCues();
         }
         placePause(true);
-      } else {
+      } else if (!restored) {
+        // Back to playing: the stock panels get their own places back, once (the writes are cached, but
+        // repeating this every tick cost validity reads for nothing).
+        restored = true;
         placeKoth(null, 0);
         placeObjectives(null, 0);
         placePause(false);
         placeSpread(false);
         if (UI.pushed && valid(UI.topBar)) {
-          // Back to playing: the stock top bar returns to its own place.
+          // The stock top bar returns to its own place.
           setStyle(UI.topBar, "marginTop", null);
           setStyle(UI.stock.timer, "opacity", null);
           UI.pushed = false;
