@@ -595,8 +595,12 @@
     ignoreParentFlow: "true", horizontalAlign: "right", transform: "rotateZ(12deg)", marginTop: "30px" };
   // The recent heal/damage counters sit in #HealthRegenAndTotal at 6711+ offsets (165px/160px) made for its
   // 250px width; in the old 115px box they start past its right edge, so they get 6710's too (ticket 41).
+  // Heal sits above the shield number, so while that (or the Rat King barrier) number shows it waits under
+  // current/max beside the damage (user 2026-10-24). The negative right margin keeps its 115px width.
+  var LEGACY_HEAL_TOP = { marginLeft: "35px", marginTop: "30px", marginRight: "0px" };
+  var LEGACY_HEAL_BESIDE = { marginLeft: "105px", marginTop: "160px", marginRight: "-105px" };
   var LEGACY_LAYOUT = [["regen", { width: "115px", horizontalAlign: "right", marginTop: "5px", marginRight: "10px" }],
-    ["healCounters", { marginLeft: "35px", marginTop: "30px" }], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
+    ["healCounters", LEGACY_HEAL_TOP], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
     ["box", { marginRight: "10px" }], ["numbers", { marginRight: "23px", visibility: "visible" }],
     ["shieldLeft", { backgroundColor: "#4BDC68" }]];
   // QOLLOCK 4.0.5 healthbar types 1-5 (core/ql_hud.js): each restyles these panels, so LEGACY_LAYOUT stays off.
@@ -819,6 +823,10 @@
     if (legacy.barrierBar && !legacy.barrierParts) legacyBarrierParts();
     r.capacity = p.bars.BHasClass("shieldActive"); // the shield max, also when empty
     r.barrier = p.bars.BHasClass("ratKingArmorActive");
+    if (!legacy.themed) {
+      var spot = r.capacity || r.barrier ? LEGACY_HEAL_BESIDE : LEGACY_HEAL_TOP;
+      for (var property in spot) writeLegacy("healCounters", property, spot[property]);
+    }
     writeLegacy("shield", "visibility", r.capacity ? "visible" : "collapse");
     writeLegacy("merged", "visibility", "collapse");
     writeLegacy("armor", "visibility", "collapse");

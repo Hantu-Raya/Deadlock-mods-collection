@@ -26,9 +26,15 @@ const OLD_LOOK = {
 };
 // Ticket 41: the recent heal/damage counters sit in #HealthRegenAndTotal at 6711+ offsets (165px/160px) made
 // for its 250px width; inside the old 115px box they start past its right edge, so they go back to 6710's.
+// While the shield (or Rat King barrier) number shows, heal rows above it would run into it, so heal moves
+// under current/max beside the damage (user 2026-10-24); the negative right margin keeps its width.
 const OLD_COUNTERS = {
-  RecentHealContainer: { marginLeft: '35px', marginTop: '30px' },
+  RecentHealContainer: { marginLeft: '35px', marginTop: '30px', marginRight: '0px' },
   RecentDamageContainer: { marginLeft: '35px', marginTop: '160px' },
+};
+const SHIELD_COUNTERS = {
+  RecentHealContainer: { marginLeft: '105px', marginTop: '160px', marginRight: '-105px' },
+  RecentDamageContainer: OLD_COUNTERS.RecentDamageContainer,
 };
 
 // Stock 6796 HUD: hud_health_container.xml hosting hud_health.xml (CitadelHudHealth #hud_health_bars).
@@ -128,10 +134,11 @@ const neverCollapsed = panel => panel.__styleWrites.every(write => !(write.prope
 function allWrites(h) { return ['container', 'bars', 'health', 'damage', 'heal', 'merged', 'barrier', 'lines', 'shield', 'shieldLeft', 'regen', 'healCounters', 'damageCounters', 'numbers', 'box', 'current', 'total']
   .reduce((sum, key) => sum + (h[key] ? h[key].__styleWrites.length : 0), 0); }
 const counterStyles = h => Object.keys(OLD_COUNTERS).map(id => [id, id === 'RecentHealContainer' ? h.healCounters : h.damageCounters]);
-function expectOldCounters(h) {
+function expectOldCounters(h, spots = OLD_COUNTERS) {
   for (const [id, panel] of counterStyles(h))
-    for (const [property, value] of Object.entries(OLD_COUNTERS[id])) assert.equal(panel.style[property], value, id + ' ' + property);
+    for (const [property, value] of Object.entries(spots[id])) assert.equal(panel.style[property], value, id + ' ' + property);
 }
+const expectShieldCounters = h => expectOldCounters(h, SHIELD_COUNTERS);
 function separate(h) { const f = launch(profile()); const tree = h(f); f.run(2000); setStyle(f, 'separate'); return { f, h: tree }; }
 
 test('ticket 38: Shield bar is a shared Bar setting under Your health bar, Merged by default, with plain help', () => {
@@ -164,8 +171,25 @@ test('ticket 38: Separate with no shield restores the old layout and leaves the 
 test('ticket 41: Separate moves the recent heal and damage counters back into the old 115px box', () => {
   const { f, h } = separate(hudTree); f.run(500);
   expectOldCounters(h);
-  h.engine({ H: 700, M: 1020, S: 600 }); f.run(300);
+  h.engine({ H: 700, M: 1020 }); f.run(300);
   expectOldCounters(h);
+});
+
+test('ticket 41: while a shield or barrier number shows, heal waits beside the damage, then goes back up', () => {
+  const { f, h } = separate(hudTree); f.run(500);
+  h.engine({ H: 700, M: 1020, S: 600 }); f.run(300);
+  expectShieldCounters(h);
+  h.engine({ H: 700, M: 1020, S: 0, cap: 600 }); f.run(300);
+  expectShieldCounters(h); // an empty shield still shows its "0"
+  h.engine({ H: 700, M: 1020 }); f.run(300);
+  expectOldCounters(h);
+  h.engine({ H: 700, M: 1020, B: 200 }); f.run(300);
+  expectShieldCounters(h); // the Rat King barrier number sits in the same spot
+  h.engine({ H: 700, M: 1020 }); f.run(300);
+  expectOldCounters(h);
+  const writes = h.healCounters.__styleWrites.length;
+  f.run(3000);
+  assert.equal(h.healCounters.__styleWrites.length, writes, 'no writes while the spot stays');
 });
 
 test('ticket 41: a HUD without the recent counters still gets the separate shield bar', () => {
@@ -353,7 +377,7 @@ test('ticket 40: a QOLLOCK HUD on its default healthbar gets the old look', () =
   assert.equal(h.regen.style.width, '115px'); assert.equal(h.numbers.style.visibility, 'visible');
   assert.equal(h.shieldLeft.style.backgroundColor, '#4BDC68'); assert.equal(h.shield.style.visibility, 'visible');
   assert.ok(Math.abs(fill(h) - 700 / 1020) < 1e-6, 'fill at health / max HP: ' + fill(h)); assert.equal(own(h).text, '700');
-  expectOldCounters(h);
+  expectShieldCounters(h);
 });
 
 test('ticket 40: a QOLLOCK healthbar theme keeps its layout and look; the bar is still corrected', () => {
@@ -364,7 +388,7 @@ test('ticket 40: a QOLLOCK healthbar theme keeps its layout and look; the bar is
   assert.ok(Math.abs(fill(h) - 700 / 1020) < 1e-6, 'fill at health / max HP: ' + fill(h)); assert.equal(own(h).text, '700');
   // Theme off (QOLLOCK type 0) within the 1 s HUD watch: the old layout; theme on again: handed back.
   h.hud.RemoveClass('minimalist_healthbar_active'); h.engine({ H: 700, M: 1020, S: 600 }); f.run(1200);
-  assert.equal(h.regen.style.width, '115px'); assert.equal(h.shieldLeft.style.backgroundColor, '#4BDC68'); expectOldCounters(h);
+  assert.equal(h.regen.style.width, '115px'); assert.equal(h.shieldLeft.style.backgroundColor, '#4BDC68'); expectShieldCounters(h);
   h.hud.AddClass('minimalist_healthbar_active'); h.engine({ H: 700, M: 1020, S: 600 }); f.run(1200);
   for (const panel of [h.box, h.numbers, h.shieldLeft, h.healCounters, h.damageCounters])
     for (const property of Object.keys(panel.style)) assert.ok([null, undefined, ''].includes(panel.style[property]), property + '=' + panel.style[property]);
@@ -449,7 +473,7 @@ test('ticket 38: Merged or HP Colors off releases everything; a pending reload r
   const { f, h } = separate(hudTree);
   h.engine({ H: 700, M: 1020, S: 0, cap: 600, bulletText: '' }); f.run(300); assert.equal(shown(ownZero(h)), true);
   h.engine({ H: 700, M: 1020, S: 600, B: 200 }); f.run(300); assert.equal(shown(ownBarrier(h)), true);
-  h.engine({ H: 700, M: 1020, S: 600 }); f.run(300); assert.ok(h.health.max < 1); expectOldCounters(h);
+  h.engine({ H: 700, M: 1020, S: 600 }); f.run(300); assert.ok(h.health.max < 1); expectShieldCounters(h);
   const released = () => {
     for (const panel of [h.regen, h.healCounters, h.damageCounters, h.box, h.numbers, h.lines, h.shield, h.shieldLeft, h.merged, h.barrier, h.current, h.bullet, h.bulletCurrent, h.tech, h.techCurrent])
       for (const property of Object.keys(panel.style)) {

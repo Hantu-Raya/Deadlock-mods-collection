@@ -44,6 +44,14 @@ Same approach as the rest of `LEGACY_LAYOUT`: the old look as a whole, inline, s
 5. **Cost:** two lookups and four style writes per attach; nothing per frame. Re-run the shield bench to confirm the per-frame counts are unchanged.
 6. **Docs and release:** ticket 38's old-layout list gains the counter values; MAP changelog; `settings/record.json` release 3.3.2 (fix); rebuild all six variants (normal, QOLLOCK, ShowRank; release and debug) through the wrappers with `-SkipDeploy`.
 
+## Follow-up: heal beside the damage while a shield shows (user 2026-10-24)
+Heal at its 6710 spot (35px/30px) sits above the shield number, so more than one heal row can run into the "600" and the HP number. The user wanted heal kept and asked: heal at the top, but while the shield is in, under current/max right beside the damage, back up once the shield is gone.
+- **Trigger:** the shield number shows (`shieldActive` on `#hud_health_bars`, also with an empty shield showing "0") or the Rat King barrier number shows (`ratKingArmorActive`; its number sits in the same spot). Read in the 50 ms sample, written only on change; a theme writes nothing (as before).
+- **Spot:** heal `margin-left 105px, margin-top 160px` (the damage row's top), right of the damage column at 35px. `margin-right -105px` keeps the space left for it at the 115px box's width, in case Panorama fits it to what the left margin leaves (10px, unverified), so it draws past the box's right edge, beside the bar like the 6711+ layout; `overflow: noclip` on the box (6711+) keeps it visible. Back up: `35px / 30px / 0px`.
+- **Why JS, not CSS:** the lane has no stylesheet in the HUD (it writes inline only; QOLLOCK's pak03 replaces the stock sheets) and inline margins beat any sheet rule, so a `.shieldActive` rule could not move the heal while the inline 6710 spot is set. The trigger is the game's own class, so it needs no extra reads.
+- **Tests:** `tests/legacy-shield.test.js` "heal waits beside the damage" (shield, empty shield, gone, barrier, gone; no writes while the spot stays) and the QOLLOCK default/theme and release cases with a shield up; red before the change. Bench (`boundary-t41b.json`): unchanged.
+- **Limits:** a heal value of 5+ digits may reach the damage column's longest label; not seen live.
+
 ## Considered
 - **B: keep the counters at their 6711 screen position** by offsetting their margins by the box's move. The offset depends on the width of `#HealthBarContent`, which is set by the HUD, so it needs a layout read on each HUD change and still breaks at other resolutions or HUD scales. Rejected.
 - **C: keep the 250px box and move only the HP and shield numbers** to the old spot. It changes the old look that ticket 38 restored, needs the same width-dependent offsets, and touches more panels. Rejected.
