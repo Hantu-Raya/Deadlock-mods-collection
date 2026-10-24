@@ -2,7 +2,7 @@
 
 **Report** (GameBanana, Commun4, 2026-10-23): "There is tiny bug if you use separete shield bar heal and dmg doesnt show near hp bar. With merged all good."
 
-**Status:** Plan A implemented in 3.3.2 (2026-10-24), VM-verified and built for all six variants; not uploaded and not checked in game (see the [MAP changelog](../MAP.md#changelog) for builds, archives and the bench). The cause below is inferred from the stylesheets and the lane's inline writes; the in-game check under "Still open" settles it.
+**Status:** done in 3.3.2. Accepted live by the user (2026-10-25, client 6819, ShowRank release `05115240`, screenshot in the sandbox as Rat King): with Separate (old), shield 600 and a barrier 175 up, the heal counter "+143" shows at its September spot above the shield and barrier numbers, next to the HP number 612 / 1168 ("I think this is fine"). Damage at its spot and two or more heal rows were not in the shot.
 
 ## Which numbers
 The stock `hud_health_container.xml` (6805, unchanged in the latest extracted copy) puts the recent heal and damage numbers inside `#HealthRegenAndTotal`, next to the HP number:
@@ -53,7 +53,7 @@ Heal at its 6710 spot (35px/30px) sits above the shield number, so more than one
 - **Reset (user 2026-10-25, "reset back to default so I can see the problem", chose the old September spot):** heal stays at 6701/6710's `35px / 30px` with a shield or barrier up too; no move, no `overflow` write. The runtime equals the first 3.3.2 build (`7e2fefa`) apart from a comment. Values re-checked against GameTracking 6701 (2026-09-25, the last build before 6711): heal 35px/30px flowing down, damage 35px/160px, shield number 63px down on the right (60px wide, margin-right 23px), current/max 100px down, no overflow rule on either counter. In that old layout two or more heal rows also reach the shield number.
 - **Why JS, not CSS:** the lane has no stylesheet in the HUD (it writes inline only; QOLLOCK's pak03 replaces the stock sheets) and inline margins beat any sheet rule, so a `.shieldActive` rule could not move the heal while the inline 6710 spot is set. The trigger is the game's own class, so it needs no extra reads.
 - **Tests now:** "with a shield or barrier up, heal stays at the September spot" (shield, empty shield, barrier, gone; heal only ever gets the two 6710 margins) and the QOLLOCK default/theme and release cases with a shield up; red before the reset.
-- **Open:** where heal can go while shielded so it neither covers the shield number nor leaves the health area, after the user has seen the September behaviour live.
+- **Settled:** the user accepted the September spot live (see Status); no spot beside the damage is planned.
 
 ## Considered
 - **B: keep the counters at their 6711 screen position** by offsetting their margins by the box's move. The offset depends on the width of `#HealthBarContent`, which is set by the HUD, so it needs a layout read on each HUD change and still breaks at other resolutions or HUD scales. Rejected.
