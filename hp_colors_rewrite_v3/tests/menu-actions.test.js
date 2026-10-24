@@ -91,6 +91,35 @@ test('ticket 31: credits opens exact user text and data-backed portraits; CLOSE,
   assert.equal(m.find('HPColorsCreditsYesdaddyPortrait').src, hero.portrait, 'the generated hero catalog supplies the image, not a copied path');
 });
 
+// Ticket 43: the credits dialog asks for bug reports and feedback on the author's Discord. FEEDBACK copies
+// the username (the menu's own CopyStringToClipboard, as preset COPY); a refused or throwing clipboard
+// still leaves the name readable. Nothing else changes: settings, storage, Undo and publication stay.
+test('ticket 43: credits FEEDBACK copies the Discord username, and a failed copy keeps it readable', () => {
+  const m = menu(), before = m.bundle(), settings = m.settings(), commits = m.commits.length;
+  m.activate('HPColorsPreviewCreditsButton');
+  const button = m.find('HPColorsFeedbackCopyButton'), status = m.find('HPColorsFeedbackStatus');
+  assert.match(m.find('HPColorsFeedbackText').text, /hanturaya101/); assert.match(m.find('HPColorsFeedbackText').text, /Discord/);
+  for (let p = button.GetParent(); p && p.id !== 'HPColorsCreditsDialog'; p = p.GetParent())
+    assert.equal(p.BHasClass('HPC3CreditEntry'), false, 'not inside a credit entry (hittestchildren false)');
+  assert.equal(status.text, '');
+  const copies = () => m.h.dispatches.filter(event => event[0] === 'CopyStringToClipboard').map(event => event[1]);
+  const n = copies().length;
+  m.activate('HPColorsFeedbackCopyButton');
+  assert.deepEqual(copies().slice(n), ['hanturaya101']);
+  assert.match(status.text, /copied/i); assert.match(status.text, /hanturaya101/);
+  assert.equal(m.find('HPColorsCreditsDialog').BHasClass('Open'), true, 'the dialog stays open');
+  const dispatch = m.h.$.DispatchEvent;
+  for (const fail of [() => false, () => { throw new Error('Invalid number of arguments for event in DispatchEvent for CopyStringToClipboard'); }]) {
+    m.h.$.DispatchEvent = (...args) => args[0] === 'CopyStringToClipboard' ? fail() : dispatch(...args);
+    m.activate('HPColorsFeedbackCopyButton');
+    assert.doesNotMatch(status.text, /copied/i); assert.match(status.text, /hanturaya101/);
+  }
+  m.h.$.DispatchEvent = dispatch;
+  m.activate('HPColorsCreditsCloseButton'); m.activate('HPColorsPreviewCreditsButton');
+  assert.equal(status.text, '', 'reopening starts without an old status');
+  assert.deepEqual(m.settings(), settings); assert.deepEqual(m.bundle(), before); assert.equal(m.commits.length, commits);
+});
+
 test('ticket 31: credits excludes every dialog/picker, cancels stale confirmations and preserves existing Undo', () => {
   const m = menu(), initial = m.settings();
   m.submit('HPColorsBarColorLowEnemyHex', '#123456');

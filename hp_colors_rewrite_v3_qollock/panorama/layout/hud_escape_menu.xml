@@ -4452,9 +4452,12 @@
 					</Panel>
 					<Label id="HPColorsCreditsRazorrzrText" class="HPC3DialogDescription HPC3CreditText" text="Critizing my ui and giving a solid gold" hittest="false" />
 				</Panel>
+				<Label id="HPColorsFeedbackText" class="HPC3DialogDescription HPC3CreditText" text="Found a bug or have feedback? Message hanturaya101 on Discord. FEEDBACK copies the name." hittest="false" />
 				<Panel class="HPC3PresetActions">
+					<Button id="HPColorsFeedbackCopyButton" class="InputButtonBorderRadius Fill CTA HPC3DialogButton"><Panel class="Bottom" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Top" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Content" hittest="false"><Label text="FEEDBACK" hittest="false" /></Panel></Button>
 					<Button id="HPColorsCreditsCloseButton" class="InputButton Fill HPC3DialogButton"><Panel class="Bottom" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Top" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Content" hittest="false"><Label text="CLOSE" hittest="false" /></Panel></Button>
 				</Panel>
+				<Label id="HPColorsFeedbackStatus" class="HPC3DialogDescription" text="" hittest="false" />
 				<Button id="HPColorsCreditsEscClose" class="HPC3EscClose"><Label class="HPC3EscKey" text="ESC" hittest="false" /><Label class="HPC3EscCloseLabel" text="CLOSE" hittest="false" /></Button>
 				</Panel>
 			</Panel>

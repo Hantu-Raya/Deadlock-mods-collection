@@ -400,7 +400,7 @@ test('number text ends next to its unit in both setting rows and the condition e
 test('all eight dialogs use notice paper/shadow siblings, Oracle headers and exact stock layered buttons', () => {
   const m = theme(), dialogs = m.find('HPColorsMenuHost').children.filter(panel => panel.BHasClass('HPC3Dialog'));
   assert.equal(dialogs.length, 8); assert.equal(m.find('HPColorsMenuHost').GetAttributeString('hpv3_boot', ''), 'ready');
-  const primaries = ['ResetPageConfirm', 'PresetDeleteConfirm', 'BundleReplaceConfirm', 'HeroClose', 'ConditionApply', 'PickerDone', 'UpdateDownload'].map(key => 'HPColors' + key + 'Button');
+  const primaries = ['ResetPageConfirm', 'PresetDeleteConfirm', 'BundleReplaceConfirm', 'HeroClose', 'ConditionApply', 'PickerDone', 'UpdateDownload', 'FeedbackCopy'].map(key => 'HPColors' + key + 'Button');
   for (const dialog of dialogs) {
     const backdrop = dialog.children[0], card = m.child(dialog, 'HPC3DialogCard'), content = m.child(card, 'HPC3NoticeContent');
     const shadow = m.child(card, 'HPC3NoticeShadow'), bg = m.child(card, 'HPC3NoticeBg'), header = m.child(content, 'HPC3NoticeHeader');

@@ -66,5 +66,5 @@ Question: on a QOLLOCK HUD (4.0.5, `.scratch/qolshield/`), can the September-spo
 - **C: keep the 250px box and move only the HP and shield numbers** to the old spot. It changes the old look that ticket 38 restored, needs the same width-dependent offsets, and touches more panels. Rejected.
 
 ## Still open
-- **Live confirmation of the cause.** Before or with the fix, a debug-build check with a shield up: heal and damage counters visible next to the HP number in Separate, matching Merged's timing and colours, on the stock HUD and on QOLLOCK type 0. Optional temporary probe: log `actualxoffset`/`actuallayoutwidth` of both containers in Separate vs Merged. Launching Deadlock needs the user's go-ahead.
+- **Live, partly done:** heal at its spot with a shield and barrier up on the stock HUD (ShowRank build) was seen and accepted (2026-10-25). Not seen: the damage counter in game, two or more heal rows, and QOLLOCK type 0 live (VM and source checks only, see "QOLLOCK double check").
 - **Which numbers the reporter means.** If they mean the in-bar heal/damage flashes (`#pending_incoming_damage`/`#pending_incoming_heal`), ask for a screenshot; that would be a separate cause in the max-rescale path.

@@ -535,9 +535,14 @@ function buildMenu(rows, sidesOf, reserved, release, news = []) {
     out(5, `<Label id="${id('HPColorsCredits' + key + 'Text')}" class="HPC3DialogDescription HPC3CreditText" text="${esc(text)}" hittest="false" />`);
     out(4, '</Panel>');
   }
+  // Ticket 43: bug reports and feedback go to the author's Discord; FEEDBACK copies the username. Outside
+  // the credit entries, whose hittestchildren is off.
+  out(4, `<Label id="${id('HPColorsFeedbackText')}" class="HPC3DialogDescription HPC3CreditText" text="Found a bug or have feedback? Message hanturaya101 on Discord. FEEDBACK copies the name." hittest="false" />`);
   out(4, '<Panel class="HPC3PresetActions">');
+  dialogAction(5, 'FeedbackCopy', 'FEEDBACK', true);
   dialogAction(5, 'CreditsClose', 'CLOSE');
   out(4, '</Panel>');
+  out(4, `<Label id="${id('HPColorsFeedbackStatus')}" class="HPC3DialogDescription" text="" hittest="false" />`);
   escClose(4, 'Credits');
   out(4, '</Panel>');
   out(3, '</Panel>');

@@ -594,9 +594,8 @@
   var LEGACY_BARRIER_STYLE = { backgroundColor: "rgba(0, 0, 0, 0.6)", border: "2px solid #10130D", borderRadius: "3px",
     ignoreParentFlow: "true", horizontalAlign: "right", transform: "rotateZ(12deg)", marginTop: "30px" };
   // The recent heal/damage counters sit in #HealthRegenAndTotal at 6711+ offsets (165px/160px) made for its
-  // 250px width; in the old 115px box they start past its right edge, so they get 6710's too (ticket 41).
-  // Heal keeps that spot with a shield up too (user 2026-10-25): moved beside the damage it was cut at the
-  // health area's edge live on 6819, also with overflow noclip on its container.
+  // 250px width; in the old 115px box they start past its right edge, so they get 6710's too, heal included
+  // while shielded: any spot right of the damage is cut at the health area's edge (live 6819, ticket 41).
   var LEGACY_LAYOUT = [["regen", { width: "115px", horizontalAlign: "right", marginTop: "5px", marginRight: "10px" }],
     ["healCounters", { marginLeft: "35px", marginTop: "30px" }], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
     ["box", { marginRight: "10px" }], ["numbers", { marginRight: "23px", visibility: "visible" }],
@@ -1844,8 +1843,18 @@
       var hero = contractRef.heroes.filter(function (hero) { return hero.key === entry[1]; })[0];
       panel("HPColorsCredits" + entry[0] + "Portrait").SetImage(hero && hero.portrait || "s2r://panorama/images/control_icons/no_hero_png.vtex");
     });
+    if (panel("HPColorsFeedbackStatus")) panel("HPColorsFeedbackStatus").text = "";
     panel("HPColorsCreditsDialog").AddClass("Open");
     panel("HPColorsCreditsCloseButton").SetFocus();
+  }
+  // Ticket 43: FEEDBACK copies the author's Discord username; the dialog text names it in case copying fails.
+  var FEEDBACK_DISCORD = "hanturaya101";
+  function copyFeedback() {
+    if (retired) return;
+    var copied = false;
+    try { copied = $.DispatchEvent("CopyStringToClipboard", FEEDBACK_DISCORD) !== false; } catch (error) { /* Shown below. */ }
+    var status = panel("HPColorsFeedbackStatus");
+    if (status) status.text = copied ? "Copied " + FEEDBACK_DISCORD + ". Paste it in Discord's Add Friend." : "Could not copy. Add " + FEEDBACK_DISCORD + " on Discord.";
   }
 
   // ---- Schema-owned page reset: includes folded rows and both sides ----
@@ -2500,6 +2509,7 @@
         if (typeof $.DispatchEvent === "function") $.DispatchEvent("ExternalBrowserGoToURL", "https://ko-fi.com/hantuaraya");
       } catch (error) { /* The external browser is optional. */ }
     });
+    on("HPColorsFeedbackCopyButton", "onactivate", copyFeedback);
     on("HPColorsCreditsCloseButton", "onactivate", closeCredits);
     on("HPColorsCreditsEscClose", "onactivate", closeCredits);
     on("HPColorsCreditsBackdrop", "onactivate", closeCredits);
