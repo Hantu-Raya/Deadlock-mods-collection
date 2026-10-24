@@ -27,15 +27,18 @@ const OLD_LOOK = {
 // Ticket 41: the recent heal/damage counters sit in #HealthRegenAndTotal at 6711+ offsets (165px/160px) made
 // for its 250px width; inside the old 115px box they start past its right edge, so they go back to 6710's.
 // While the shield (or Rat King barrier) number shows, heal rows above it would run into it, so heal moves
-// under current/max beside the damage (user 2026-10-24); the negative right margin keeps its width.
+// under current/max beside the damage (user 2026-10-24). Live 6819 (user screenshot 2026-10-25): there it
+// has 10px of the 115px box left and the stock container (no overflow rule: squish) squeezed the rows to a
+// sliver of the icon, so it draws unclipped (`noclip`, like the box itself) in both spots.
 const OLD_COUNTERS = {
-  RecentHealContainer: { marginLeft: '35px', marginTop: '30px', marginRight: '0px' },
+  RecentHealContainer: { marginLeft: '35px', marginTop: '30px', overflow: 'noclip' },
   RecentDamageContainer: { marginLeft: '35px', marginTop: '160px' },
 };
 const SHIELD_COUNTERS = {
-  RecentHealContainer: { marginLeft: '105px', marginTop: '160px', marginRight: '-105px' },
+  RecentHealContainer: { marginLeft: '105px', marginTop: '160px', overflow: 'noclip' },
   RecentDamageContainer: OLD_COUNTERS.RecentDamageContainer,
 };
+const NO_NEGATIVE_MARGIN = h => assert.ok(h.healCounters.__styleWrites.every(w => !String(w.value).startsWith('-')), 'no negative margin');
 
 // Stock 6796 HUD: hud_health_container.xml hosting hud_health.xml (CitadelHudHealth #hud_health_bars).
 function hudTree(f, options = {}) {
@@ -190,6 +193,7 @@ test('ticket 41: while a shield or barrier number shows, heal waits beside the d
   const writes = h.healCounters.__styleWrites.length;
   f.run(3000);
   assert.equal(h.healCounters.__styleWrites.length, writes, 'no writes while the spot stays');
+  NO_NEGATIVE_MARGIN(h);
 });
 
 test('ticket 41: a HUD without the recent counters still gets the separate shield bar', () => {

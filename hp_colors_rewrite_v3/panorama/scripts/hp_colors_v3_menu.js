@@ -596,11 +596,13 @@
   // The recent heal/damage counters sit in #HealthRegenAndTotal at 6711+ offsets (165px/160px) made for its
   // 250px width; in the old 115px box they start past its right edge, so they get 6710's too (ticket 41).
   // Heal sits above the shield number, so while that (or the Rat King barrier) number shows it waits under
-  // current/max beside the damage (user 2026-10-24). The negative right margin keeps its 115px width.
-  var LEGACY_HEAL_TOP = { marginLeft: "35px", marginTop: "30px", marginRight: "0px" };
-  var LEGACY_HEAL_BESIDE = { marginLeft: "105px", marginTop: "160px", marginRight: "-105px" };
+  // current/max beside the damage (user 2026-10-24). There 10px of the box are left, and the stock container
+  // (no overflow rule: squish) squeezed its rows to a sliver of the icon (live 6819, user screenshot
+  // 2026-10-25), so it draws unclipped like the box itself.
+  var LEGACY_HEAL_TOP = { marginLeft: "35px", marginTop: "30px" };
+  var LEGACY_HEAL_BESIDE = { marginLeft: "105px", marginTop: "160px" };
   var LEGACY_LAYOUT = [["regen", { width: "115px", horizontalAlign: "right", marginTop: "5px", marginRight: "10px" }],
-    ["healCounters", LEGACY_HEAL_TOP], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
+    ["healCounters", { overflow: "noclip" }], ["healCounters", LEGACY_HEAL_TOP], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
     ["box", { marginRight: "10px" }], ["numbers", { marginRight: "23px", visibility: "visible" }],
     ["shieldLeft", { backgroundColor: "#4BDC68" }]];
   // QOLLOCK 4.0.5 healthbar types 1-5 (core/ql_hud.js): each restyles these panels, so LEGACY_LAYOUT stays off.
@@ -611,7 +613,8 @@
   // stock look stays even if a clear does not take]. Live 6779/6782: margin longhands and horizontalAlign
   // throw when cleared alone, so margins clear through their base and the alignment goes back to the
   // sheet value (hud_health_container.css 6711-6805).
-  var LEGACY_OWNED = [["regen", "width"], ["regen", "margin"], ["regen", "horizontalAlign"], ["healCounters", "margin"], ["damageCounters", "margin"], ["box", "margin"],
+  var LEGACY_OWNED = [["regen", "width"], ["regen", "margin"], ["regen", "horizontalAlign"], ["healCounters", "margin"], ["healCounters", "overflow", "squish"],
+    ["damageCounters", "margin"], ["box", "margin"],
     ["numbers", "margin"], ["numbers", "visibility"], ["shieldLeft", "backgroundColor"], ["shield", "visibility", "collapse"],
     ["merged", "visibility", "visible"], ["armor", "visibility"], ["lines", "visibility", "visible"], ["current", "opacity", "1"],
     ["bulletBox", "visibility"], ["bullet", "opacity", "1"], ["techBox", "visibility", "collapse"], ["tech", "opacity", "1"]];
