@@ -595,14 +595,10 @@
     ignoreParentFlow: "true", horizontalAlign: "right", transform: "rotateZ(12deg)", marginTop: "30px" };
   // The recent heal/damage counters sit in #HealthRegenAndTotal at 6711+ offsets (165px/160px) made for its
   // 250px width; in the old 115px box they start past its right edge, so they get 6710's too (ticket 41).
-  // Heal sits above the shield number, so while that (or the Rat King barrier) number shows it waits under
-  // current/max beside the damage (user 2026-10-24). There 10px of the box are left, and the stock container
-  // (no overflow rule: squish) squeezed its rows to a sliver of the icon (live 6819, user screenshot
-  // 2026-10-25), so it draws unclipped like the box itself.
-  var LEGACY_HEAL_TOP = { marginLeft: "35px", marginTop: "30px" };
-  var LEGACY_HEAL_BESIDE = { marginLeft: "105px", marginTop: "160px" };
+  // Heal keeps that spot with a shield up too (user 2026-10-25): moved beside the damage it was cut at the
+  // health area's edge live on 6819, also with overflow noclip on its container.
   var LEGACY_LAYOUT = [["regen", { width: "115px", horizontalAlign: "right", marginTop: "5px", marginRight: "10px" }],
-    ["healCounters", { overflow: "noclip" }], ["healCounters", LEGACY_HEAL_TOP], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
+    ["healCounters", { marginLeft: "35px", marginTop: "30px" }], ["damageCounters", { marginLeft: "35px", marginTop: "160px" }],
     ["box", { marginRight: "10px" }], ["numbers", { marginRight: "23px", visibility: "visible" }],
     ["shieldLeft", { backgroundColor: "#4BDC68" }]];
   // QOLLOCK 4.0.5 healthbar types 1-5 (core/ql_hud.js): each restyles these panels, so LEGACY_LAYOUT stays off.
@@ -613,8 +609,7 @@
   // stock look stays even if a clear does not take]. Live 6779/6782: margin longhands and horizontalAlign
   // throw when cleared alone, so margins clear through their base and the alignment goes back to the
   // sheet value (hud_health_container.css 6711-6805).
-  var LEGACY_OWNED = [["regen", "width"], ["regen", "margin"], ["regen", "horizontalAlign"], ["healCounters", "margin"], ["healCounters", "overflow", "squish"],
-    ["damageCounters", "margin"], ["box", "margin"],
+  var LEGACY_OWNED = [["regen", "width"], ["regen", "margin"], ["regen", "horizontalAlign"], ["healCounters", "margin"], ["damageCounters", "margin"], ["box", "margin"],
     ["numbers", "margin"], ["numbers", "visibility"], ["shieldLeft", "backgroundColor"], ["shield", "visibility", "collapse"],
     ["merged", "visibility", "visible"], ["armor", "visibility"], ["lines", "visibility", "visible"], ["current", "opacity", "1"],
     ["bulletBox", "visibility"], ["bullet", "opacity", "1"], ["techBox", "visibility", "collapse"], ["tech", "opacity", "1"]];
@@ -826,10 +821,6 @@
     if (legacy.barrierBar && !legacy.barrierParts) legacyBarrierParts();
     r.capacity = p.bars.BHasClass("shieldActive"); // the shield max, also when empty
     r.barrier = p.bars.BHasClass("ratKingArmorActive");
-    if (!legacy.themed) {
-      var spot = r.capacity || r.barrier ? LEGACY_HEAL_BESIDE : LEGACY_HEAL_TOP;
-      for (var property in spot) writeLegacy("healCounters", property, spot[property]);
-    }
     writeLegacy("shield", "visibility", r.capacity ? "visible" : "collapse");
     writeLegacy("merged", "visibility", "collapse");
     writeLegacy("armor", "visibility", "collapse");
