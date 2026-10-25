@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Observer HUD promo (GameBanana gallery, 1920x1080). Same family as HP Colors v3's promo
+     (.tmp/promo_hpv3/promo7.html): blurred in-game backdrop, Oracle/Reaver headlines, Retail Demo body,
+     real screenshot crops only. Styling cues from Valve's "City Never Sleeps" update page
+     (playdeadlock.com/cityneversleeps, 2026-10-23): cream-framed photos set slightly askew, an orange
+     highlight box behind a headline word (#DB663B), small orange label tags, numbered stops joined by a
+     dashed route, film grain. Night Desk colours stay for the mod: brass #D6B06A, text #EFE6D6.
+     Render: node render.cjs [dN] (writes out/*.png). -->
+<style>
+@font-face { font-family: Oracle; src: url(fonts/valveoracle-semibold.ttf); }
+@font-face { font-family: OracleM; src: url(fonts/valveoracle-medium.ttf); }
+@font-face { font-family: Reaver; src: url(fonts/reaver-bold.otf); }
+@font-face { font-family: Retail; src: url(fonts/retaildemo-regular.otf); }
+@font-face { font-family: RetailB; src: url(fonts/retaildemo-bold.otf); }
+@font-face { font-family: RetailS; src: url(fonts/retaildemo-semibold.otf); }
+:root { --text: #EFE6D6; --dim: #EFE6D6B3; --faint: #EFE6D680; --brass: #D6B06A; --orange: #DB663B; --cream: #DCD4C2;
+  --ink: #0B0D09; --shadow: 0 26px 60px #0B0D09F0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); color: var(--text); font-family: Retail; }
+.page { position: absolute; inset: 0; display: none; overflow: hidden; }
+.page.on { display: block; }
+.blur { position: absolute; inset: -40px; background-position: center; background-size: cover; filter: blur(20px) brightness(.26) saturate(.75); }
+.vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 45%, transparent 30%, #0B0D09CC 100%); }
+/* film grain over everything (an SVG turbulence tile) */
+.grain { position: absolute; inset: 0; pointer-events: none; opacity: .06; mix-blend-mode: overlay; z-index: 50;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>"); }
+/* A whole 1080p frame, turned in perspective. */
+.stage { position: absolute; perspective: 2000px; }
+.frame { position: absolute; inset: 0; background-size: cover; background-position: center; border: 2px solid #D6B06A40;
+  box-shadow: var(--shadow); transform: rotateY(-18deg) rotateX(4deg); transform-origin: 100% 50%; }
+/* A region (--x, --y in source px) of a 1920x1080 source, scaled by --s. */
+.part { position: absolute; background-repeat: no-repeat; box-shadow: var(--shadow);
+  background-size: calc(1920px * var(--s)) calc(1080px * var(--s));
+  background-position: calc(var(--x) * var(--s) * -1px) calc(var(--y) * var(--s) * -1px); }
+/* a printed photo: cream border, set askew by --r */
+.photo { border: 7px solid var(--cream); outline: 1px solid #0B0D0966; transform: rotate(var(--r, 0deg)); }
+.flat { border: 2px solid #D6B06A55; }
+/* orange label tag, pinned to a photo's corner */
+.tag { position: absolute; left: -16px; top: -22px; font-family: Reaver; font-size: 22px; letter-spacing: .04em; text-transform: uppercase;
+  background: var(--orange); color: #1A0F08; padding: 8px 16px 6px; transform: rotate(-3deg); box-shadow: 0 6px 14px #0B0D0999; }
+.tag.r { left: auto; right: -16px; transform: rotate(3deg); }
+/* a tag that sits above the photo instead of on it */
+.tag.out { top: -50px; left: -10px; }
+/* d6 contact card */
+.contact { position: absolute; display: flex; align-items: center; gap: 22px; background: var(--cream); color: #1A140A; padding: 18px 30px 16px 22px; box-shadow: var(--shadow); transform: rotate(-1.5deg); }
+.contact .k { font-family: Reaver; font-size: 22px; letter-spacing: .06em; text-transform: uppercase; background: #5865F2; color: #fff; padding: 8px 14px 6px; }
+.contact .v { font-family: Oracle; font-size: 46px; line-height: 1; }
+.hl { background: var(--orange); color: #1A0F08; padding: 0 .14em; margin: 0 -.04em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.copy { position: absolute; left: 100px; width: 560px; }
+.brand { font-family: Reaver; font-size: 40px; letter-spacing: .02em; text-transform: uppercase; color: var(--dim); }
+.brand b { font-weight: normal; color: var(--brass); }
+.kicker { font-family: Oracle; font-size: 30px; color: var(--dim); margin-top: 40px; }
+h1 { font-family: Oracle; font-weight: normal; font-size: 84px; line-height: 1.02; text-transform: uppercase; margin-top: 8px; }
+p { font-family: RetailS; font-size: 31px; line-height: 1.35; color: var(--dim); margin-top: 24px; }
+.foot { position: absolute; left: 100px; bottom: 60px; font-family: RetailS; font-size: 24px; color: var(--faint); }
+.foot b { color: var(--dim); font-weight: normal; font-family: RetailB; }
+/* numbered stop on a dashed route */
+.stop { position: absolute; width: 58px; height: 58px; border-radius: 50%; background: var(--brass); color: #1A140A;
+  font-family: Oracle; font-size: 34px; line-height: 60px; text-align: center; box-shadow: 0 0 0 5px #0B0D09, 0 0 0 7px #D6B06A66; z-index: 5; }
+.route { position: absolute; border: 0 dashed #D6B06A99; z-index: 1; }
+/* the end of a callout's dashed leader */
+.call::before { content: ""; position: absolute; left: calc(50% - 5px); width: 12px; height: 12px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 3px #0B0D09; z-index: 2; }
+.call.up::before { top: calc(100% + var(--l) - 6px); }
+.call.down::before { bottom: calc(100% + var(--l) - 6px); }
+.center { position: absolute; left: 0; right: 0; text-align: center; }
+
+/* d1 cover */
+#d1 .title { font-family: Reaver; font-size: 128px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
+#d1 .title span { color: var(--brass); }
+
+/* d2 tiles */
+.tile { position: absolute; width: 560px; }
+.tile .part { position: relative; width: 560px; height: 280px; }
+.tile h3 { font-family: Oracle; font-weight: normal; font-size: 33px; margin-top: 22px; padding-left: 74px; position: relative; }
+.tile h3 .stop { left: 0; top: -8px; width: 54px; height: 54px; line-height: 56px; font-size: 30px; }
+.tile .t { font-family: RetailS; font-size: 23px; line-height: 1.3; color: var(--dim); margin-top: 6px; padding-left: 74px; }
+
+/* d3 callouts */
+.call { position: absolute; transform: translateX(-50%); text-align: center; font-family: RetailB; font-size: 22px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); white-space: nowrap; }
+.call::after { content: ""; position: absolute; left: 50%; width: 0; border-left: 2px dashed var(--brass); }
+.call.up::after { top: 100%; height: var(--l); }
+.call.down::after { bottom: 100%; height: var(--l); }
+.call .s { display: block; font-family: RetailS; letter-spacing: 0; text-transform: none; font-size: 21px; color: var(--dim); margin-top: 2px; }
+
+/* d4 steps */
+.step { position: absolute; font-family: Oracle; font-size: 34px; }
+.step .t { display: block; font-family: RetailS; font-size: 22px; color: var(--dim); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<!-- 1. Cover: the turned hero frame with three in-game-only photos in front. -->
+<section class="page" id="d1">
+  <div class="blur" style="background-image:url(src/222218.jpg)"></div>
+  <div class="vignette"></div>
+  <!-- the whole frame, turned -->
+  <div class="stage" style="left:720px;top:120px;width:1160px;height:652px"><div class="frame" style="background-image:url(src/222218.jpg);background-size:100% 100%;background-position:0 0;transform:rotateY(-12deg) rotateX(3deg)"></div></div>
+  <div class="copy" style="top:140px;width:660px">
+    <div class="title">Observer<br><span>HUD</span></div>
+    <p style="font-size:36px;margin-top:30px;color:var(--text)">See every debuff, buy and timer.<br><span class="hl">Built into the game.</span></p>
+  </div>
+  <div class="part photo" style="left:96px;top:530px;width:560px;height:300px;--s:1;--x:280;--y:30;background-image:url(src/222218.jpg)"><div class="tag">Every debuff</div></div>
+  <div class="part photo" style="left:640px;top:700px;width:738px;height:281px;--s:.99;--x:486;--y:30;background-image:url(src/vidB_9.jpg)"><div class="tag">Every buy</div></div>
+  <div class="foot" style="bottom:40px">Free · one pak · for tournament observers · <b>Night Desk</b> and <b>Base Game+ Names</b> · custom top bars: <b>hanturaya101</b> on Discord</div>
+  <div class="grain"></div>
+</section>
+
+<!-- 2. What only the game client knows: four numbered photos. -->
+<section class="page" id="d2">
+  <div class="blur" style="background-image:url(src/vidA_22.jpg)"></div>
+  <div class="vignette"></div>
+  <div class="copy" style="top:250px;width:540px">
+    <div class="brand">Observer <b>HUD</b></div>
+    <div class="kicker">Only inside the game</div>
+    <h1>What <span class="hl">no</span> overlay can show</h1>
+    <p>This data lives in the game client. Stream overlays and the public API never see it.</p>
+  </div>
+  <div class="tile" style="left:700px;top:110px">
+    <div class="part photo" style="--s:.98;--x:280;--y:28;background-image:url(src/222218.jpg)"></div>
+    <h3><span class="stop">1</span>Every debuff, on every player</h3><div class="t">Stuns, pulls and ultimates under each portrait, two wide.</div>
+  </div>
+  <div class="tile" style="left:1300px;top:110px">
+    <div class="part photo" style="--s:.98;--x:296;--y:40;background-image:url(src/vidB_9.jpg)"></div>
+    <h3><span class="stop">2</span>Every purchase, live</h3><div class="t">The item pops on the buyer's card the moment they buy it. Original feature by bytenode.</div>
+  </div>
+  <div class="tile" style="left:700px;top:575px">
+    <div class="part photo" style="--s:.75;--x:538;--y:30;background-image:url(src/222218.jpg)"></div>
+    <h3><span class="stop">3</span>Ultimate &amp; objective timers</h3><div class="t">Every ultimate's cooldown under its card, plus urn, bridge buff, rift and mid-boss.</div>
+  </div>
+  <div class="tile" style="left:1300px;top:575px">
+    <div class="part photo" style="--s:1.38;--x:885;--y:425;background-image:url(src/193244.jpg)"></div>
+    <h3><span class="stop">4</span>Your names in the world</h3><div class="t">Aliases on healthbars, far-away markers and the kill feed.</div>
+  </div>
+  <div class="grain"></div>
+</section>
+
+<!-- 3. The Night Desk band, enlarged, with callouts. Source 222218 x 240..1680 at 4/3. -->
+<section class="page" id="d3">
+  <div class="blur" style="background-image:url(src/222218.jpg)"></div>
+  <div class="vignette"></div>
+  <div class="center" style="top:28px">
+    <div class="brand" style="font-size:34px">Observer <b>HUD</b> · Night Desk</div>
+    <h1 style="font-size:62px;margin-top:4px">A broadcast band built into the <span class="hl">game</span></h1>
+  </div>
+  <div class="part flat" style="left:0;top:300px;width:1920px;height:440px;--s:1.3333;--x:240;--y:0;border-left:0;border-right:0;background-image:url(src/222218.jpg)"></div>
+  <!-- each label is centred on its target's x: (x-240)*4/3; band source y maps to 300 + y*4/3;
+       each dashed leader runs to its element and ends in a dot -->
+  <div class="call up" style="left:178px;bottom:830px;--l:71px">Bans</div>
+  <div class="call up" style="left:671px;bottom:850px;--l:94px">Team names &amp; logos<span class="s">imgur, Giphy, Discord links</span></div>
+  <div class="call up" style="left:959px;bottom:830px;--l:101px">Series score<span class="s">updates from the match-end screen</span></div>
+  <div class="call up" style="left:1311px;bottom:850px;--l:127px">Your player names<span class="s">aliases, typed once</span></div>
+  <div class="call down" style="left:959px;top:790px;--l:183px">Objective timers<span class="s">rift, urn, mid-boss, bridge buff</span></div>
+  <div class="call down" style="left:491px;top:790px;--l:130px">Debuffs per player<span class="s">two wide, under each portrait</span></div>
+  <div class="call down" style="left:1311px;top:790px;--l:190px">Ultimate cooldowns<span class="s">seconds, under every card</span></div>
+  <div class="foot" style="left:0;right:0;text-align:center;bottom:56px">No OBS scene. It stays in place through hero swaps, map loads and side swaps.</div>
+  <div class="grain"></div>
+</section>
+
+<!-- 4. Setup as a route: TEAMS -> PLAYERS -> SHARE, each a photo of that editor page. -->
+<section class="page" id="d4">
+  <div class="blur" style="background-image:url(src/205453.jpg)"></div>
+  <div class="vignette"></div>
+  <div class="copy" style="top:200px;width:500px">
+    <div class="brand">Observer <b>HUD</b></div>
+    <div class="kicker">Setup</div>
+    <h1>Ready in <span class="hl">two</span> minutes</h1>
+    <p>Everything from the Escape menu, saved on your PC.</p>
+  </div>
+  <!-- three rows on one dashed route: stop and label, then that whole editor page (title to last row) as a photo -->
+  <div class="route" style="left:652px;top:80px;width:0;height:768px;border-left-width:3px"></div>
+  <div class="stop" style="left:624px;top:80px">1</div>
+  <div class="stop" style="left:624px;top:468px">2</div>
+  <div class="stop" style="left:624px;top:848px">3</div>
+  <div class="step" style="left:700px;top:80px">Teams<span class="t">names, tags,<br>logo links</span></div>
+  <div class="step" style="left:700px;top:468px">Players<span class="t">an alias for each<br>in-game name</span></div>
+  <div class="step" style="left:700px;top:848px">Share<span class="t">paste on PC two,<br>press Import</span></div>
+  <div class="part photo" style="left:1080px;top:70px;width:782px;height:360px;--s:.76;--x:545;--y:170;background-image:url(src/205453.jpg)"></div>
+  <div class="part photo" style="left:1080px;top:458px;width:782px;height:352px;--s:.76;--x:545;--y:170;background-image:url(src/205506.jpg)"></div>
+  <div class="part photo" style="left:1080px;top:838px;width:782px;height:185px;--s:.76;--x:545;--y:170;background-image:url(src/205529.jpg)"></div>
+  <div class="grain"></div>
+</section>
+
+<!-- 5. Two looks: Night Desk and Base Game+ Names (whole top bars at 15/16; different matches). -->
+<section class="page" id="d5">
+  <div class="blur" style="background-image:url(src/205600.jpg)"></div>
+  <div class="vignette"></div>
+  <div class="center" style="top:50px">
+    <div class="brand">Observer <b>HUD</b></div>
+    <h1 style="font-size:72px;margin-top:8px"><span class="hl">Two</span> looks, same setup</h1>
+  </div>
+  <div class="part photo" style="left:60px;top:250px;width:1800px;height:412px;--s:.9375;--x:0;--y:0;background-image:url(src/205308.jpg)"><div class="tag out">Night Desk</div></div>
+  <div class="part photo" style="left:60px;top:735px;width:1800px;height:170px;--s:.9375;--x:0;--y:0;background-image:url(src/205600.jpg)"><div class="tag out">Base Game+ Names</div></div>
+  <div class="foot" style="left:0;right:0;text-align:center;bottom:44px">Night Desk: broadcast band, team logos, info card, soul lead graph · Base Game+ Names: the stock top bar with team plates</div>
+  <div class="grain"></div>
+</section>
+
+<!-- 6. Custom top bars to order: the DLF league bar (user's shot 20261023220115, client 6819) and a contact. -->
+<section class="page" id="d6">
+  <div class="blur" style="background-image:url(src/dlf_220115.jpg)"></div>
+  <div class="vignette"></div>
+  <div class="copy" style="top:100px;width:540px">
+    <div class="kicker" style="margin-top:0">Custom top bars</div>
+    <h1>Your league, <span class="hl">your</span> top bar</h1>
+    <p>I build top bars for leagues and tournaments: your art, logos and layout, built into the game. This one is for DLF.</p>
+  </div>
+  <div class="contact" style="left:100px;top:620px"><span class="k">Discord</span><span class="v">hanturaya101</span></div>
+  <div class="part photo" style="left:690px;top:70px;width:1166px;height:662px;--s:.6;--x:0;--y:0;background-image:url(src/dlf_220115.jpg)"><div class="tag out">Made for DLF</div></div>
+  <div class="part photo" style="left:60px;top:780px;width:1800px;height:246px;--s:.93;--x:0;--y:0;background-image:url(src/dlf_220115.jpg)"></div>
+  <div class="grain"></div>
+</section>
+
+<script>
+const p = new URLSearchParams(location.search).get('p') || 'd1';
+document.getElementById(p).classList.add('on');
+</script>
+</body>
+</html>

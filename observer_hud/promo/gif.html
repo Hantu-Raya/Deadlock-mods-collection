@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Observer HUD promo GIF parts (GameBanana screenshot slot: at most 6.1 MB, 400x100 to 2560x2048).
+     The GIF shows the top of the screen, where the mod lives (1920x560 of each recording), over a 1920x120
+     caption strip; title and end cards are 1920x680. Render: node gif.cjs, then bash make-gif.sh. -->
+<style>
+@font-face { font-family: Oracle; src: url(fonts/valveoracle-semibold.ttf); }
+@font-face { font-family: Reaver; src: url(fonts/reaver-bold.otf); }
+@font-face { font-family: RetailS; src: url(fonts/retaildemo-semibold.otf); }
+:root { --text: #EFE6D6; --dim: #EFE6D6B3; --brass: #D6B06A; --orange: #DB663B; --cream: #DCD4C2; --ink: #0B0D09; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; overflow: hidden; background: var(--ink); color: var(--text); }
+.page { position: absolute; left: 0; top: 0; width: 1920px; display: none; overflow: hidden; background: var(--ink); }
+.page.on { display: block; }
+.strip { height: 120px; border-top: 4px solid var(--orange); display: flex; align-items: center; gap: 36px; padding: 0 56px; }
+.strip .b { font-family: Reaver; font-size: 34px; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); }
+.strip .b b { color: var(--brass); font-weight: normal; }
+.strip .t { font-family: Oracle; font-size: 60px; text-transform: uppercase; }
+.strip .s { font-family: RetailS; font-size: 32px; color: var(--dim); margin-left: auto; }
+.card { height: 680px; text-align: center; padding-top: 150px; }
+.card .title { font-family: Reaver; font-size: 170px; line-height: .9; text-transform: uppercase; }
+.card .title span { color: var(--brass); }
+.card .tag { font-family: RetailS; font-size: 52px; margin-top: 46px; }
+.hl { background: var(--orange); color: #1A0F08; padding: 0 .14em; }
+.card .row { display: flex; justify-content: center; gap: 30px; margin-top: 40px; }
+.pill { background: var(--cream); color: #1A140A; padding: 16px 30px 14px; font-family: Oracle; font-size: 50px; display: flex; align-items: center; gap: 20px; }
+.pill .k { font-family: Reaver; font-size: 28px; letter-spacing: .06em; text-transform: uppercase; background: #5865F2; color: #fff; padding: 8px 14px 6px; }
+.card .credit { font-family: RetailS; font-size: 36px; color: var(--dim); margin-top: 44px; }
+</style>
+</head>
+<body>
+<section class="page" id="g1"><div class="strip"><div class="b">Observer <b>HUD</b></div><div class="t">Every purchase, live</div><div class="s">original feature by bytenode</div></div></section>
+<section class="page" id="g2"><div class="strip"><div class="b">Observer <b>HUD</b></div><div class="t">Ultimate &amp; objective timers</div><div class="s">seconds under every card</div></div></section>
+<section class="page" id="g3"><div class="strip"><div class="b">Observer <b>HUD</b></div><div class="t">Every debuff and stun</div><div class="s">two wide, under each portrait</div></div></section>
+<section class="page" id="title"><div class="card">
+  <div class="title">Observer <span>HUD</span></div>
+  <div class="tag">See every debuff, buy and timer. <span class="hl">Built into the game.</span></div>
+</div></section>
+<section class="page" id="end"><div class="card" style="padding-top:120px">
+  <div class="title">Observer <span>HUD</span></div>
+  <div class="row"><div class="pill"><span class="k">Discord</span>hanturaya101</div></div>
+  <div class="credit">Custom top bars for leagues on request · purchase notices originally by bytenode</div>
+</div></section>
+<script>
+const p = new URLSearchParams(location.search).get('p') || 'g1';
+document.getElementById(p).classList.add('on');
+</script>
+</body>
+</html>

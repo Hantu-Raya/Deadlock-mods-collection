@@ -1452,10 +1452,12 @@
         if (!entry.buys) entry.buys = column.FindChild("OHBuys") || null;
         const half = entry.buys && entry.buys.GetChildCount() ? NOTICE_HALF_W : GRID_HALF_W;
         if (entry.centre - half * scale >= right) continue;
-        // Read each time it counts: a just-injected column may not be laid out at its stock place yet.
-        bottom = Math.max(bottom, Number(column.GetPositionWithinWindow().y) + height);
+        // Read each time it counts: a just-injected column may not be laid out at its stock place yet,
+        // and one never laid out reads Infinity (live, DLF 2026-10-24): skipped.
+        const columnBottom = Number(column.GetPositionWithinWindow().y) + height;
+        if (Number.isFinite(columnBottom)) bottom = Math.max(bottom, columnBottom);
       }
-      if (bottom) want = Math.max(FEED_STOCK_TOP, Math.round(FEED_STOCK_TOP + (bottom + FEED_GAP * scale - Feed.stockTop) / scale));
+      if (bottom && Number.isFinite(Feed.stockTop)) want = Math.max(FEED_STOCK_TOP, Math.round(FEED_STOCK_TOP + (bottom + FEED_GAP * scale - Feed.stockTop) / scale));
       if (want >= Feed.margin) Feed.holdUntil = now + FEED_HOLD_MS;
       else if (now < Feed.holdUntil) return;
     }

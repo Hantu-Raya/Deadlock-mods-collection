@@ -1,0 +1,125 @@
+<strong>[<a href="https://www.twitch.tv/hanturaya101" target="_blank">Twitch</a>]</strong> | <strong>[<a href="https://x.com/hanturaya" target="_blank">Twitter</a>]</strong> | <strong>[<a href="https://ko-fi.com/hantuaraya" target="_blank">Support</a>]</strong><br><br>
+Observer HUD is a spectator HUD for community Deadlock tournaments. Under each player on the top bar it shows the crowd control on them with the seconds left, which a spectator normally can't see. It also shows purchases, ultimate cooldowns and objective timers, and puts your event, teams, logos, bans and series score on the stock top bar. You set it all up in game from the Escape menu.<br><br>
+
+<b>For observer PCs only.</b> The pak includes modified ability data so the status column works in spectator mode. Don't play matches with it installed: take it out of the addons folder before you queue.<br><br>
+
+<b>Status column</b>
+<ul>
+<li>Up to six status icons under every top-bar portrait, two per row, each with its seconds left.</li>
+<li>Each icon has the colour of the team that applied it. Stuns get a stun mark.</li>
+<li>Covers 34 abilities from 32 heroes (list further down), plus getting knocked off a zipline.</li>
+<li>Djinn's Mark shows from 8 stacks. Celeste's Shining Wonder pulses once each time the orb bounces on that hero.</li>
+</ul>
+
+<b>Ultimate cooldowns</b><br>
+The seconds left on each player's ultimate, right under its icon on the top bar. Nothing shows while it's ready.<br><br>
+
+<b>Purchase notices</b> (original feature by <a href="https://gamebanana.com/members/5222690" target="_blank">bytenode</a>, rewritten for this mod)
+<ul>
+<li>When a player buys an item, a small item card with its icon and name pops up under their portrait.</li>
+<li>Newest on top, three at most. Each one stays for 3, 5, 8 or 15 seconds (5 by default), or you can turn them off.</li>
+<li>Joining a game halfway or skipping through a demo doesn't flood the bar with old purchases.</li>
+<li>Item icons work with the English shop names. In other game languages the notice shows the name only.</li>
+<li>Rewritten from the version in the DLF Observer Mod. It reads the game's own recent-purchases list instead of replacing the shop layout, so shop mods can stay installed. While you're not spectating it only checks every 2 seconds whether you are; while you spectate it checks the list twice a second.</li>
+</ul>
+
+<b>Objective timers</b>
+<ul>
+<li>Small chips under the clock that only show when an objective is close: bridge buff, urn, rift, mid-boss respawn, and the time left on a held rejuvenator in the holder's team colour.</li>
+<li>The rift counts down from its 20 second warning, then shows LIVE while it's open. The game doesn't send the rift time any earlier.</li>
+<li>Per timer, choose how early it shows: 15, 30, 60 or 120 seconds, always, or off. The rift is just on or off.</li>
+<li>The stock objective health bars and rift meter move under the timers so nothing overlaps.</li>
+</ul>
+
+<b>Soul lead graph</b><br>
+Amber's soul lead over Sapphire across the match, with a pin every 5 minutes (or 1, 2, 3 or 10). By default it pops up for 30 seconds at each new pin. You can keep it on or turn it off, and change its size and position. The history starts when you start watching.<br><br>
+
+<b>Two top bar looks</b>
+<ul>
+<li><b>Base Game+ Names</b> (default) looks like the stock bar. Each team gets a plate with its name, logo and a stage/format line, and the player names sit in a row above the cards. The organiser logo or name sits in the centre between the series wins, and each team's two bans sit beside the clock.</li>
+<li><b>Night Desk</b> is a dark band across the top. Event, stage and format sit on the left, game number and "first to" on the right. Each team gets its name, player names and bans, the logos sit in an arch by the centre with the series score, and you can add an info card (for example a prize pool).</li>
+</ul>
+
+<b>Player aliases</b><br>
+Give players a display name. While you spectate, it replaces their in-game name in the top bar's names row, on their healthbar, on the off-screen hero markers and in the kill feed.<br><br>
+
+<b>Series score</b><br>
+Set the wins by hand. When the end screen of a game you're spectating names a winner, that team gets +1 automatically (once per map, never past what the format needs).<br><br>
+
+<b>Setup</b>
+<ul>
+<li>Open the Escape menu and click TOURNAMENT SETUP. The button only shows while you're spectating.</li>
+<li>Pages: MATCH, TEAMS, PLAYERS, TOP BAR, NIGHT DESK, TIMERS, SHARE. Changes apply as you type.</li>
+<li>Logos: paste an image URL. PNG, JPG and GIF work, and so do imgur, Giphy and Tenor links.</li>
+<li>Your setup is saved on this PC and comes back after a restart. SHARE gives you a code that copies the whole setup onto another observer PC.</li>
+<li>Saving goes through a small page on hantu-raya.github.io, loaded in Steam's built-in browser. If the page can't be reached, the editor says OFFLINE - SESSION ONLY and your settings last until you close the game.</li>
+</ul>
+
+<b>Also changed while spectating</b>
+<ul>
+<li>The SPECTATING name and the camera key hints are hidden. The keys still work.</li>
+<li>The pause screen becomes a small II box that shows the unpause countdown.</li>
+<li>The kill feed moves down when it would cover the first player's statuses.</li>
+</ul>
+
+<b>Install</b>
+<ul>
+<li>Extract <b>pak10_dir.vpk</b> from the archive into ...\steamapps\common\Deadlock\game\citadel\addons (create the addons folder if it's missing).</li>
+<li>Your game\citadel\gameinfo.gi must load the addons folder (the line <b>Game citadel/addons</b> above <b>Game citadel</b>). If your other GameBanana mods work, it already does.</li>
+<li>Fully restart Deadlock, spectate a match or play a demo, then open Escape and click TOURNAMENT SETUP.</li>
+<li>If another mod already uses pak10_dir.vpk, rename this one to a free number.</li>
+</ul>
+
+<b>Compatibility and known issues</b>
+<ul>
+<li>It doesn't replace the top bar, Escape menu or healthbar layouts, so mods that do (HP Colors, ShowRank, QOL Lock, Top Bar Plus) can stay installed.</li>
+<li>Don't use it together with the DLF Observer Mod. Both draw a band over the top bar.</li>
+<li>Mods that ship their own ability data (abilities.vdata_c or modifiers.vdata_c) in a lower-numbered pak take over those files. The status column then shows only what the game itself draws.</li>
+<li>When Bebop hooks someone, the hooked player isn't pulled toward Bebop on the observer's screen. It's a side effect of making the hook show in the column. Players in the match aren't affected.</li>
+<li>Ability data changes with Deadlock patches. I update the mod after each patch; until then, some statuses may be missing.</li>
+<li>Tested at 1920x1080 and 1600x900. Ultrawide and 4:3 haven't been tested yet.</li>
+</ul>
+
+<b>Abilities in the status column</b>
+<ul>
+<li>Abrams: Seismic Impact</li>
+<li>Baba: Feed The Birds (with stack count)</li>
+<li>Bebop: Grapple Arm</li>
+<li>Billy: Chain Gang (during the pull)</li>
+<li>Celeste: Shining Wonder</li>
+<li>Deadman Danny: Close The Deal</li>
+<li>The Doorman: Hotel Guest, Luggage Cart</li>
+<li>Drifter: Eternal Night</li>
+<li>Dynamo: Singularity</li>
+<li>Grey Talon: Guided Owl</li>
+<li>Haze: Sleep Dagger</li>
+<li>Holliday: Spirit Lasso</li>
+<li>Infernus: Concussive Combustion</li>
+<li>Kelvin: Frozen Shelter</li>
+<li>Lady Geist: Soul Exchange</li>
+<li>Lash: Death Slam</li>
+<li>Mirage: Djinn's Mark (from 8 stacks)</li>
+<li>Mo &amp; Krill: Combo</li>
+<li>Nurse Harrow: Lurking Terrors</li>
+<li>Paige: Rallying Charge</li>
+<li>Paradox: Paradoxical Swap</li>
+<li>Pocket: Affliction</li>
+<li>Rem: Naptime</li>
+<li>Sinclair: Rabbit Hex</li>
+<li>Solomon: Develop Queen, Rook Battery</li>
+<li>Victor: Shocking Reanimation</li>
+<li>Violet: Abstract Landscape</li>
+<li>Viscous: The Cube</li>
+<li>Vyper: Petrifying Bola</li>
+<li>Warden: Binding Word</li>
+<li>Wraith: Telekinesis</li>
+<li>Yamato: Flying Slash</li>
+<li>Any hero: knocked off a zipline</li>
+</ul>
+
+<b>Credits</b>
+<ul>
+<li>Purchase notices: the recent-purchase feature was originally made by <b><a href="https://gamebanana.com/members/5222690" target="_blank">bytenode</a></b>. This mod uses a rewritten version.</li>
+<li>Made by <a href="https://gamebanana.com/members/4577138" target="_blank">hanturaya</a>.</li>
+<li>For a custom top bar for your league, message <b>hanturaya101</b> on Discord.</li>
+</ul>

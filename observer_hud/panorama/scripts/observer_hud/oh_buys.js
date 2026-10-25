@@ -256,7 +256,8 @@
         moved = false;
         for (let j = 0; j < i; j++) {
           const other = stacks[j];
-          if (Math.abs(stack.x - other.x) * 2 >= stack.reach + other.reach) continue;
+          // A card never laid out reads Infinity (live, DLF 2026-10-24): it is not compared.
+          if (!isFinite(stack.x) || !isFinite(other.x) || Math.abs(stack.x - other.x) * 2 >= stack.reach + other.reach) continue;
           if (top < other.bottom && top + stack.rows * ROW_H > other.top) {
             top = other.bottom + STACK_GAP;
             moved = true;

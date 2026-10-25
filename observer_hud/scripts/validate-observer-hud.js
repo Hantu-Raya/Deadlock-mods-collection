@@ -152,6 +152,20 @@ function stuckHidden() {
   for (const root of WORLDS) visit(root);
   return [...new Set(stuck)];
 }
+// Live (DLF on client 6819, 2026-10-24) a panel never laid out reads Infinity from
+// GetPositionWithinWindow, and a style value with NaN or Infinity throws "Invalid value for property".
+// The mock accepts anything, so every check fails on such a write instead.
+function invalidStyles() {
+  const bad = [];
+  const visit = (panel) => {
+    for (const { property, value } of panel.__styleWrites || []) {
+      if (typeof value === "string" && /NaN|Infinity|undefined/.test(value)) bad.push(`${panel.id || panel.paneltype}.${property}=${value}`);
+    }
+    for (const child of panel.children || []) visit(child);
+  };
+  for (const root of WORLDS) visit(root);
+  return [...new Set(bad)];
+}
 
 function check(name, fn) {
   if (process.env.OH_CHECK && !name.includes(process.env.OH_CHECK)) return;
@@ -160,6 +174,8 @@ function check(name, fn) {
     fn();
     const stuck = stuckHidden();
     assert.deepEqual(stuck, [], `visibility collapse then null leaves these hidden live: ${stuck.join(", ")}`);
+    const bad = invalidStyles();
+    assert.deepEqual(bad, [], `these style values throw live: ${bad.join(", ")}`);
   } catch (error) {
     console.log(`not ok - ${name}\n  last logs:\n    ${(lastLogs || []).slice(-25).join("\n    ")}`);
     throw error;
@@ -2808,6 +2824,14 @@ check("kill feed: moves under the status grid and purchase notices of the cards 
   const before = marginWrites.length;
   w.advance(5000);
   assert.equal(marginWrites.length, before, "no rewrites in steady state");
+  // A column that was never laid out (just injected) reads Infinity live (DLF's soul graph, client
+  // 6819, 2026-10-24): it is skipped, never written as "Infinitypx".
+  host("Kestrel").GetPositionWithinWindow = () => ({ x: Infinity, y: Infinity });
+  w.advance(1100);
+  assert.ok(!marginWrites.some((value) => /NaN|Infinity/.test(String(value))), `no Infinity margin: ${marginWrites.join(", ")}`);
+  delete host("Kestrel").GetPositionWithinWindow;
+  w.advance(1100);
+  assert.equal(top(), 298, "back under Kestrel's column once it is laid out");
   // Kill rows that end before Kestrel's grid (374 - 37 = 337): back up, but only after a 2 s hold.
   const narrow = w.killRow(200);
   w.advance(1100);

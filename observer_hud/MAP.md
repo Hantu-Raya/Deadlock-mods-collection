@@ -24,9 +24,9 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Status column and spectator VData | yes (shared spec; centred two-wide grid in pak10 `66e4f617`) | VM; build verifies packed VData | seen in v1 (vertical column); the `unnamed` fix and the grid not seen |
 | Purchase notices (DLF's, rewritten) | yes (pak10 `e4c5b7a7`) | VM (pinned stock shop layout) | seen on `5bc49641` to `d046f3b8` (demo: list fills, cards right; VALVEOracle text seen on `9260a4a6`; 228 px width seen; wobble jagged on `26fe7a1c`, too subtle and jagged on `7fa3fd49`, image frame at full poses on `bd88bfdc`, 20 % on `d046f3b8`: user asked for 10 % more, then 5 % more); the 35 % wobble and the 10 % smaller frame not seen |
 
-- Installed pak10: SHA-256 `5e1243e8...` (2026-10-23, client 6819), matching `dist/observer_hud/game/citadel/addons/pak10_dir.vpk`. Latest change: the ultimate cooldown counter under each card's ultimate; see the changelog. DLF's pak01 was moved to `citadel/addons_disabled/` so the two top bars do not overlap.
+- Installed pak10: none since 2026-10-24 (DLF's pak01 is installed for its tests; checked in `citadel/addons`). The last installed pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release). Latest change in that build: the ultimate cooldown counter under each card's ultimate; see the changelog.
 - Validator `.tmp/observer-hud-validate.json` (2026-10-23): 56 checks passed; live-like scenario 1155.4 native calls per second spectating (budget 1156), 1497.0 with every card counting down (budget 1498), 14.7 after spectating (budget 15), 11.7 never spectated (budget 12).
-- Release: `dist/Observer_HUD_<yy.MM.dd>.7z` is built by the wrapper; the GameBanana page and archive upload are not done (user's go-ahead needed). Public version 0.1.0.
+- Release: public version 0.1.0, GameBanana page https://gamebanana.com/mods/731315 (user, 2026-10-24). The archive held only `pak10_dir.vpk` (`5e1243e8`, client 6819); the local `dist/Observer_HUD_26.10.24.7z` was overwritten by a later build on 2026-10-24 and removed, so the GameBanana file is the copy of record. Page copy `promo/gamebanana.html`, Discord post `docs/changelogs/2026-10-24_observer_hud_0_1_0_discord.txt`.
 
 ## Remaining verification
 
@@ -55,10 +55,14 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 
 ## Open decisions and later
 
-- Publishing: the GameBanana page and release archive wait for the user's go-ahead ([PLAN.md](PLAN.md) "Open decisions").
+- Publishing: the GameBanana page is up (https://gamebanana.com/mods/731315). Each later release needs the user's go-ahead.
 - Later (PLAN): aliases that follow the Steam account; an organiser preset file (`-MatchFile`, as DLF has); stage text in other languages; an Escape-menu Watch tab (the user asked, then preferred demo playback; research notes in PLAN "Later").
 
 ## Changelog
+
+### 2026-10-24 (source only, not released)
+
+- Kill feed: a status column that was never laid out reads Infinity (live in DLF, client 6819), and the feed wrote `margin-top: Infinitypx`, which throws live. Such columns are now skipped; the purchase-notice stacking ignores a card without a screen x. The validator fails every check that writes a NaN/Infinity style (the new guard found the feed case). Not in the published v0.1.0 pak. Built as pak10 `3a0dac1b`, not installed; the build overwrote `dist/Observer_HUD_26.10.24.7z` (the 0.1.0 archive, pak10 `5e1243e8`; the GameBanana upload is the remaining copy), so the new archive was renamed `dist/Observer_HUD_26.10.24_unreleased-feedfix.7z`.
 
 ### 2026-10-23
 
