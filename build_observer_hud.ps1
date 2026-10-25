@@ -70,7 +70,16 @@ $closureScripts = @(
 # Purchase notice frame pieces (observer_hud/scripts/make-notice-frame.py), each a PNG + .vtex.
 $images = @(
     'observer_hud/buy_frame2_l', 'observer_hud/buy_frame2_m', 'observer_hud/buy_frame2_r',
-    'observer_hud/buy_frame3_l', 'observer_hud/buy_frame3_m', 'observer_hud/buy_frame3_r'
+    'observer_hud/buy_frame3_l', 'observer_hud/buy_frame3_m', 'observer_hud/buy_frame3_r',
+    # Post-game torn paper masks (observer_hud/scripts/make-torn-masks.py).
+    'observer_hud/torn_head_l',
+    'observer_hud/torn_head_r',
+    'observer_hud/torn_column_a',
+    'observer_hud/torn_column_b',
+    'observer_hud/torn_column_c',
+    'observer_hud/torn_graph',
+    'observer_hud/torn_track',
+    'observer_hud/torn_award'
 )
 $assets = @(
     @($layouts | ForEach-Object { "panorama/layout/$_.vxml_c" }) +

@@ -55,19 +55,18 @@
 	background-size: 1024px 1024px;
 	background-repeat: repeat;
 	background-img-opacity: 0.5;
-	opacity-mask: url("s2r://panorama/images/masks/rough_edge_02_png.vtex") 0.8;
 	opacity-mask-scale: 100% 100%;
 }
 
 .NSHeadLeft
 {
-	padding-left: 22px;
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_head_l.vtex") 1;
 	background-color: gradient( linear, 0% 0%, 100% 0%, from( #6F3806cc ), color-stop( 0.55, #55503Ecc ), to( #1b1915cc ) );
 }
 
 .NSHeadRight
 {
-	padding-right: 22px;
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_head_r.vtex") 1;
 	background-color: gradient( linear, 0% 0%, 100% 0%, from( #1b1915cc ), color-stop( 0.45, #54596Ccc ), to( #243265cc ) );
 }
 
@@ -82,6 +81,17 @@
 	background-repeat: no-repeat;
 	opacity-mask: url("s2r://panorama/images/post_game/hero_logo_mask_psd.vtex") 0.4;
 	opacity-mask-scale: 100% 100%;
+}
+
+/* the plates' inner margin (on the logos, so the plates carry no padding and their rims cover them) */
+#NSLogo1
+{
+	margin-left: 22px;
+}
+
+#NSLogo2
+{
+	margin-right: 22px;
 }
 
 /* A custom team logo (match card) replaces the wordmark once it loaded: the wordmark classes are removed
@@ -335,8 +345,20 @@
 	background-size: 512px 512px;
 	background-repeat: repeat;
 	background-img-opacity: 0.25;
-	opacity-mask: url("s2r://panorama/images/masks/rough_edge_02_png.vtex") 0.8;
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_column_a.vtex") 1;
 	opacity-mask-scale: 100% 100%;
+}
+
+.NSCol2 .NSPaper,
+.NSCol5 .NSPaper
+{
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_column_b.vtex") 1;
+}
+
+.NSCol3 .NSPaper,
+.NSCol6 .NSPaper
+{
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_column_c.vtex") 1;
 }
 
 .NSColumnTeam2 .NSPaper
@@ -539,7 +561,7 @@
 	background-size: 120px 120px;
 	background-repeat: repeat;
 	background-img-opacity: 0.35;
-	opacity-mask: url("s2r://panorama/images/masks/rough_edge_01_png.vtex") 1;
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_award.vtex") 1;
 	opacity-mask-scale: 100% 100%;
 	transform-origin: 10% 50%;
 	pre-transform-rotate2d: -3deg;
@@ -745,6 +767,12 @@
 	border-bottom: 0px solid #00000000;
 }
 
+/* ---------- torn paper ----------
+   Each torn surface has its own mask at its own size (observer_hud/scripts/make-torn-masks.py), at full
+   strength. opacity-mask reads alpha (live); the stock rough_edge masks have alpha 255 everywhere and
+   masked nothing, so these surfaces were plain dark rectangles (user 2026-10-26). No light rim. */
+
+
 /* ---------- soul lead graph ---------- */
 
 .NSGraph
@@ -778,7 +806,7 @@
 	background-size: 1024px 1024px;
 	background-repeat: repeat;
 	background-img-opacity: 0.5;
-	opacity-mask: url("s2r://panorama/images/masks/rough_edge_02_png.vtex") 0.8;
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_graph.vtex") 1;
 	opacity-mask-scale: 100% 100%;
 }
 
@@ -808,19 +836,19 @@
 .NSGraphCaptionRow
 {
 	flow-children: right;
-	margin-left: 12px;
+	margin-left: 20px;
 }
 
 .NSGraphTopRow
 {
 	vertical-align: top;
-	margin-top: 5px;
+	margin-top: 11px;
 }
 
 .NSGraphBottomRow
 {
 	vertical-align: bottom;
-	margin-bottom: 4px;
+	margin-bottom: 10px;
 }
 
 .NSGraphCaption
@@ -1064,20 +1092,20 @@
 	horizontal-align: center;
 	width: 164px;
 	height: 18px;
-	padding: 3px 4px;
 	background-color: #1b1915;
 	background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_psd.vtex");
 	background-size: 256px 256px;
 	background-repeat: repeat;
 	background-img-opacity: 0.3;
-	opacity-mask: url("s2r://panorama/images/masks/rough_edge_02_png.vtex") 0.8;
+	opacity-mask: url("s2r://panorama/images/observer_hud/torn_track.vtex") 1;
 	opacity-mask-scale: 100% 100%;
 }
 
 .NSProgressFill
 {
-	width: 100%;
-	height: 100%;
+	width: 156px;
+	height: 12px;
+	margin: 3px 4px;
 	background-color: #c6a269;
 	background-image: url("s2r://panorama/images/hud/top_bar/chat_texture_png.vtex");
 	background-size: 80px 80px;

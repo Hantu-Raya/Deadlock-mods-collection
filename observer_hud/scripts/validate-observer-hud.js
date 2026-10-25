@@ -830,6 +830,78 @@ check("ids and classes agree across layouts, stylesheets and scripts", () => {
   assert.match(read("panorama/scripts/observer_hud/oh_debuffs.js"), /const FADE_MS = 1000;/);
 });
 
+check("board: torn paper surfaces use their own full-strength mask at their own size, no faint frame or light border is left", () => {
+  // User 2026-10-26: dark edges around the header plates and the graph, and nothing looked like torn paper.
+  // opacity-mask reads alpha (live); the stock rough_edge masks have alpha 255 everywhere and masked nothing.
+  // How it could fail: a partial-strength mask leaves a faint frame; a mask is stretched to another size; a
+  // light rim comes back (user 2026-10-26: "I hate this light brown border"); an image is not shipped.
+  const css = read("panorama/styles/observer_hud/pg_board.css");
+  const board = read("panorama/layout/observer_hud/pg_board.xml");
+  const column = read("panorama/layout/observer_hud/pg_column.xml");
+  for (const m of css.matchAll(/opacity-mask:\s*url\("s2r:\/\/panorama\/images\/([\w/]+)\.vtex"\)\s*([\d.]+)?/g)) {
+    if (m[1] === "post_game/hero_logo_mask_psd") continue; // the wordmark's diagonal fade, meant to be partial
+    assert.equal(m[2] === undefined ? 1 : Number(m[2]), 1, `${m[1]} is used at full strength`);
+  }
+  const body = (sel) => {
+    const found = new RegExp(`\\n${sel.replace(/[.#]/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(css);
+    assert.ok(found, `${sel} has a rule`);
+    return found[1];
+  };
+  const px = (sel, prop) => Number(new RegExp(`(?:^|\\n)\\s*${prop}:\\s*(\\d+)px`).exec(body(sel))[1]);
+  const size = (image) => {
+    const png = fs.readFileSync(path.join(MODULE, "panorama", "images", "observer_hud", `${image}.png`));
+    return [png.readUInt32BE(16), png.readUInt32BE(20)];
+  };
+  // [surface rule, mask, rule giving the width, rule giving the height]
+  const surfaces = [
+    [".NSHeadLeft", "torn_head_l", ".NSHeadSide", ".NSHeader"],
+    [".NSHeadRight", "torn_head_r", ".NSHeadSide", ".NSHeader"],
+    [".NSPaper", "torn_column_a", ".NSPaper", ".NSPaper"],
+    [".NSAward", "torn_award", ".NSAward", ".NSAward"],
+    [".NSGraphPlot", "torn_graph", ".NSGraphPlot", ".NSGraphPlot"],
+    [".NSProgressTrack", "torn_track", ".NSProgressTrack", ".NSProgressTrack"]
+  ];
+  for (const [sel, mask, wSel, hSel] of surfaces) {
+    assert.match(body(sel), new RegExp(`opacity-mask:\\s*url\\("s2r://panorama/images/observer_hud/${mask}\\.vtex"\\)\\s*1;`), `${sel} uses ${mask}`);
+    deq(size(mask), [px(wSel, "width"), px(hSel, "height")], `${mask} is drawn at ${sel}'s size`);
+  }
+  for (const variant of ["torn_column_b", "torn_column_c"]) deq(size(variant), size("torn_column_a"), `${variant} matches the column paper`);
+  for (const [name, text] of [["pg_board.css", css], ["pg_board.xml", board], ["pg_column.xml", column]]) assert.ok(!/TornRim|_rim\.vtex/.test(text), `${name}: no light rim over the tears`);
+  // An RGBA8 PNG's pixels (the generator writes 8-bit RGBA, not interlaced).
+  const pixels = (image) => {
+    const png = fs.readFileSync(path.join(MODULE, "panorama", "images", "observer_hud", `${image}.png`));
+    const [w, h] = [png.readUInt32BE(16), png.readUInt32BE(20)];
+    assert.deepEqual([png[24], png[25], png[28]], [8, 6, 0], `${image}.png is 8-bit RGBA, not interlaced`);
+    const idat = [];
+    for (let at = 8; at < png.length;) {
+      const len = png.readUInt32BE(at);
+      if (png.toString("latin1", at + 4, at + 8) === "IDAT") idat.push(png.subarray(at + 8, at + 8 + len));
+      at += 12 + len;
+    }
+    const raw = require("zlib").inflateSync(Buffer.concat(idat));
+    const out = Buffer.alloc(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      const filter = raw[y * (w * 4 + 1)];
+      for (let i = 0; i < w * 4; i++) {
+        const x = raw[y * (w * 4 + 1) + 1 + i];
+        const a = i >= 4 ? out[y * w * 4 + i - 4] : 0;
+        const b = y > 0 ? out[(y - 1) * w * 4 + i] : 0;
+        const c = i >= 4 && y > 0 ? out[(y - 1) * w * 4 + i - 4] : 0;
+        const p = a + b - c;
+        const paeth = Math.abs(p - a) <= Math.abs(p - b) && Math.abs(p - a) <= Math.abs(p - c) ? a : Math.abs(p - b) <= Math.abs(p - c) ? b : c;
+        out[y * w * 4 + i] = (x + [0, a, b, (a + b) >> 1, paeth][filter]) & 255;
+      }
+    }
+    return { w, h, out };
+  };
+  for (const mask of ["torn_head_l", "torn_head_r", "torn_column_a", "torn_column_b", "torn_column_c", "torn_graph", "torn_track", "torn_award"]) {
+    // The mask is in alpha as well as grey (live: a mask with alpha 255 everywhere masked nothing).
+    const m = pixels(mask);
+    for (let i = 0; i < m.w * m.h; i++) assert.equal(m.out[i * 4 + 3], m.out[i * 4], `${mask}: alpha follows the grey`);
+    assert.ok(m.out[0] < 128 && m.out[(m.w * m.h - 1) * 4] < 128, `${mask}'s corners are torn away (at most a fibre)`);
+  }
+});
+
 check("board: ids the scripts look up exist in their layouts; classes they set have rules", () => {
   const board = read("panorama/layout/observer_hud/pg_board.xml");
   const column = read("panorama/layout/observer_hud/pg_column.xml");
