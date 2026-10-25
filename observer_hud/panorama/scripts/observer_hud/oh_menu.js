@@ -19,11 +19,14 @@
   const VERSION = "0.1.0";
   const AUTHOR_URL = "https://x.com/hanturaya";
   const DONATE_URL = "https://ko-fi.com/hantuaraya";
-  // Local save: the hpv2-store /oh/ page keeps one record in Steam's CEF localStorage (fragment in,
-  // HTMLTitle out; one key, hantu.observer_hud.v1/state). Same transport as DLF's /dlf/ page.
-  const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/";
-  const STORE_PREFIX = "OHS1:";
-  const STORE_VERSION = 1;
+  // Local save: the hpv2-store /oh/v2/ page (store v2) keeps the setup record and the match cards in Steam's
+  // CEF localStorage (fragment in, HTMLTitle out; keys hantu.observer_hud.v2/state and /matches). The v1
+  // page /oh/ stays for released paks and is never written; its record is read once, by the v2 page, to
+  // migrate. Same transport as DLF's /dlf/ page. A reply is cut at 4096 characters by the game, so the
+  // record is read in pieces (r with s = offset).
+  const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/v2/";
+  const STORE_PREFIX = "OHS2:";
+  const STORE_VERSION = 2;
   const RECORD_PREFIX = "OHS1.";
   const RECORD_SCHEMA = 1;
   const READ_LIMIT = 8192;
@@ -687,7 +690,8 @@
   const Store = {
     panel: null, phase: "idle", seq: 0, gen: 0, helloId: "", startMs: 0, pendingId: "", pendingOp: "",
     savedRecord: "", sentRecord: "", retry: 0, readRetried: false, capacity: 4096, logosDropped: false,
-    adopt: true, bootVersion: 0, saveQueued: false, started: false, reloadAt: 0, reloadGap: 0, offline: false
+    adopt: true, bootVersion: 0, saveQueued: false, started: false, reloadAt: 0, reloadGap: 0, offline: false,
+    readText: "", readPages: 0, fromV1: false, cards: [], cardWait: false, cardLogged: false, cardHooked: false
   };
 
   function setSaveStatus(text, tone) {
@@ -829,6 +833,8 @@
     Store.pendingOp = "";
     if (op === "r") onStoreRead(reply);
     else if (op === "w") onStoreWrite(reply);
+    else if (op === "u") onStoreCard(reply);
+    flushCards();
   }
   function onStoreTitle(panelOrTitle, eventTitle) {
     if (stopped) return;
@@ -846,6 +852,8 @@
       }
       Store.capacity = Number.isInteger(reply.m) && reply.m >= 1024 && reply.m <= READ_LIMIT ? reply.m : 4096;
       Store.phase = "read";
+      Store.readText = "";
+      Store.readPages = 0;
       storeRequest("r", {});
       return;
     }
@@ -860,10 +868,29 @@
         return;
       }
       Store.readRetried = true;
+      Store.readText = "";
+      Store.readPages = 0;
       storeRequest("r", {});
       return;
     }
-    const result = decodeRecord(reply.x === 1 ? reply.v : null);
+    // The record comes in pieces that each fit the game's 4096-character title (v = piece, s = its start, n = the whole length).
+    if (reply.x === 1) {
+      if (typeof reply.v !== "string" || reply.s !== Store.readText.length || !Number.isInteger(reply.n) || reply.n < 0 || reply.n > READ_LIMIT) {
+        storeUnavailable("OFFLINE - SESSION ONLY", true);
+        return;
+      }
+      Store.readText += reply.v;
+      Store.fromV1 = reply.f === 1;
+      if (Store.readText.length < reply.n) {
+        if (!reply.v.length || ++Store.readPages > 16) {
+          storeUnavailable("OFFLINE - SESSION ONLY", true);
+          return;
+        }
+        storeRequest("r", { s: Store.readText.length });
+        return;
+      }
+    }
+    const result = decodeRecord(reply.x === 1 ? Store.readText : null);
     if (result.kind === "corrupt" || result.kind === "newer") {
       Store.phase = "blocked";
       setSaveStatus(result.kind === "newer" ? "NEWER SAVE - RESET TO OVERWRITE" : "SAVE DAMAGED - RESET TO REPAIR", "warn");
@@ -871,7 +898,8 @@
     }
     Store.phase = "ready";
     if (result.kind === "valid") {
-      Store.savedRecord = reply.v;
+      // A record the page found under v1's key is not "saved" here: the next save writes the v2 key.
+      Store.savedRecord = Store.fromV1 ? "" : Store.readText;
       // Edits made while the save loaded, or a carried state, win over the record.
       if (Store.adopt && $.OHHost.version() === Store.bootVersion) $.OHHost.setState(result.state);
     }
@@ -922,6 +950,42 @@
       storeUnavailable("SAVE FAILED - SESSION ONLY");
     }
   }
+  // Match cards (plan phase 4): the host hands each card it writes to $.OHHost.onCard; it goes to the page's
+  // matches key with one upsert at a time, after the setup record's own requests (one request in flight).
+  // A failed upsert is tried again at CARD_RETRY_S, then dropped (the board still gets the card in this
+  // session, by the handoff). An unreachable store keeps at most CARD_QUEUE cards and costs nothing.
+  const CARD_RETRY_S = [2, 4];
+  const CARD_QUEUE = 3;
+  function queueCard(card) {
+    Store.cards.push({ card: card, tries: 0 });
+    while (Store.cards.length > CARD_QUEUE) Store.cards.shift();
+    flushCards();
+  }
+  function flushCards() {
+    if (stopped || (Store.phase !== "ready" && Store.phase !== "blocked") || Store.pendingOp || !Store.cards.length || Store.cardWait) return;
+    storeRequest("u", { c: Store.cards[0].card });
+  }
+  function onStoreCard(reply) {
+    const entry = Store.cards[0];
+    if (!entry) return;
+    if (reply && reply.ok === true) {
+      Store.cards.shift();
+    } else if (entry.tries < CARD_RETRY_S.length) {
+      const gen = Store.gen;
+      Store.cardWait = true;
+      $.Schedule(CARD_RETRY_S[entry.tries++], () => {
+        Store.cardWait = false;
+        if (gen === Store.gen) flushCards();
+      });
+    } else {
+      Store.cards.shift();
+      if (!Store.cardLogged) $.Msg(`${TAG} a match card could not be saved`);
+      Store.cardLogged = true;
+    }
+    // A setup save that waited for this request goes now.
+    if (Store.phase === "ready" && encodeSave().record !== Store.savedRecord) scheduleSave();
+  }
+
   // RESET ALL repairs a damaged or newer save by overwriting it.
   function unblockStore() {
     if (Store.phase !== "blocked") return;
@@ -947,6 +1011,11 @@
     setText(UI.OHVersion, `v${VERSION}`);
     render();
     startStore();
+    if (!Store.cardHooked) {
+      Store.cardHooked = true;
+      $.OHHost.onCard(queueCard);
+    }
+    if ($.OHHost.card()) queueCard($.OHHost.card());
     $.Msg(`${TAG} editor ready`);
   };
 

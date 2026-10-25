@@ -29,12 +29,20 @@
   if (typeof ctx.NSStop === "function") ctx.NSStop();
   let stopped = false;
   let matchListener = null;
+  let handoffListener = null;
   ctx.NSStop = () => {
     stopped = true;
-    if (matchListener === null) return;
-    try { $.UnregisterForUnhandledEvent("CitadelMatchDetailsUpdated", matchListener); } catch (e) { /* already gone */ }
-    matchListener = null;
+    if (matchListener !== null) {
+      try { $.UnregisterForUnhandledEvent("CitadelMatchDetailsUpdated", matchListener); } catch (e) { /* already gone */ }
+      matchListener = null;
+    }
+    if (handoffListener !== null) {
+      try { $.UnregisterForUnhandledEvent("ClientUI_FireOutput", handoffListener); } catch (e) { /* already gone */ }
+      handoffListener = null;
+    }
+    if (ST.panel && ok(ST.panel)) ST.panel.DeleteAsync(0);
   };
+  const OH = $.OHState; // cards are cleaned and matched with oh_state.js (loaded before this script)
 
   // [key, bound value, stock award class]; the label column in pg_board.xml is in the same order.
   const STATS = [
@@ -136,6 +144,8 @@
     UI.progressText = ctx.FindChildTraverse("NSProgressText");
     UI.progressStep = ctx.FindChildTraverse("NSProgressStep");
     UI.frame = ctx.FindChildTraverse("NSFrame");
+    UI.logo = [ctx.FindChildTraverse("NSLogo1"), ctx.FindChildTraverse("NSLogo2")];
+    UI.org = ctx.FindChildTraverse("NSOrgText");
   }
 
   // ---------- progress bar ----------
@@ -461,6 +471,210 @@
     trigger([UI.graph], "NSShow");
   }
 
+  // ---------- match cards: team names, logos and organiser in the header ----------
+  // A card names the two teams by the accounts of their players (OHState "match cards"). It arrives in
+  // this process from the HUD ("OHM1:" on ClientUI_FireOutput, sent again every few seconds because this
+  // script only runs once the post-game page has shown), or from the store page for a match nobody
+  // spectated in this session or after a restart. The header renders the stock names first and swaps when a
+  // card with at least OH.MATCH_MIN of the match's 12 accounts is known.
+  const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/v2/";
+  const STORE_PREFIX = "OHS2:";
+  const HELLO_S = 2; // the page is greeted at 0, 2, 4 and 6 s (the second load after a blank visit at 4 s)
+  const HELLO_TRIES = 4;
+  const QUERY_S = 4;
+  const MAX_CARDS = 12;
+  const ST = { panel: null, phase: "idle", gen: 0, seq: 0, id: "", forKey: "", tries: 0, handlerSet: false };
+  const CARDS = { handed: [], stored: new Map(), asked: new Set(), applied: null, accounts: [], team1: [], team2: [], id: "", key: "" };
+  const LOGOS = [{ image: null, url: "", sources: [], seq: 0 }, { image: null, url: "", sources: [], seq: 0 }];
+
+  // A card handed over: the newest per roster and match id wins (an older one is stale, an equal one is a repeat).
+  function onHandoff(raw) {
+    if (stopped) return;
+    const card = OH.decodeHandoff(raw);
+    if (!card) return;
+    const own = new Set(card.a.concat(card.b).map(String));
+    const at = CARDS.handed.findIndex((old) => card.id === old.id && OH.cardShared(old, own) >= OH.MATCH_MIN);
+    if (at >= 0) {
+      if (CARDS.handed[at].at > card.at) return;
+      CARDS.handed.splice(at, 1);
+    }
+    CARDS.handed.push(card);
+    while (CARDS.handed.length > MAX_CARDS) CARDS.handed.shift();
+    refreshCard();
+  }
+
+  function setLogo(side, url) {
+    const slot = LOGOS[side];
+    const panel = UI.logo[side];
+    if (!ok(panel) || slot.url === url) return;
+    slot.url = url;
+    slot.sources = url ? OH.logoSources(url) : [];
+    slot.seq++;
+    if (ok(slot.image)) slot.image.DeleteAsync(0);
+    slot.image = null;
+    showLogo(side, false);
+    loadLogo(side, 0);
+  }
+  // One Image per source: a failed one makes way for the next; the wordmark stays until ImageLoaded and
+  // when every source failed. URLs are never logged.
+  function loadLogo(side, index) {
+    const slot = LOGOS[side];
+    const panel = UI.logo[side];
+    if (ok(slot.image)) slot.image.DeleteAsync(0);
+    slot.image = null;
+    if (index >= slot.sources.length || !ok(panel)) return;
+    const seq = slot.seq;
+    const image = $.CreatePanel("Image", panel, `NSLogoImage${seq}_${index}`, { scaling: "stretch-to-fit-preserve-aspect", hittest: "false" });
+    image.AddClass("NSLogoImage");
+    slot.image = image;
+    $.RegisterEventHandler("ImageLoaded", image, () => {
+      if (stopped || slot.image !== image || slot.seq !== seq) return;
+      showLogo(side, true);
+    });
+    $.RegisterEventHandler("ImageFailedLoad", image, () => {
+      if (stopped || slot.image !== image || slot.seq !== seq) return;
+      loadLogo(side, index + 1);
+    });
+    image.SetImage(slot.sources[index]);
+  }
+  // A loaded custom logo takes the wordmark's place (no wash colour, no speckle mask): the wordmark classes go
+  // while it shows and come back with it.
+  function showLogo(side, on) {
+    const panel = UI.logo[side];
+    if (!ok(panel)) return;
+    panel.SetHasClass("NSLogoCustom", on);
+    panel.SetHasClass("NSLogo", !on);
+    panel.SetHasClass(`NSLogoTeam${side + 1}`, !on);
+    if (ok(LOGOS[side].image)) LOGOS[side].image.SetHasClass("NSLoaded", on);
+  }
+
+  // The header with the stock names, then the card's (the card's Amber team sits where its players sit).
+  function renderCard(card) {
+    CARDS.applied = card;
+    for (let i = 0; i < 2; i++) {
+      const entry = card ? card.t[OH.cardSide(card, CARDS.team1, CARDS.team2) === 0 ? i : 1 - i] : null;
+      setText(UI.names[i], entry && entry[0] ? entry[0] : $.Localize(`#Citadel_Team${i + 1}_Name`));
+      setLogo(i, entry ? entry[2] : "");
+    }
+    setText(UI.org, card && card.r ? card.r[0] : "");
+  }
+  // The best card now: handed ones and the one the store gave for this match.
+  function refreshCard() {
+    if (!CARDS.accounts.length) return;
+    const pool = CARDS.handed.concat(CARDS.stored.has(CARDS.key) ? [CARDS.stored.get(CARDS.key)] : []);
+    const card = OH.pickCard(pool, CARDS.accounts, CARDS.id);
+    if (card === CARDS.applied) return;
+    if (card && CARDS.applied && JSON.stringify(card) === JSON.stringify(CARDS.applied)) return;
+    renderCard(card);
+    if (card) log(`header: match card from the ${CARDS.handed.includes(card) ? "handoff" : "store"}, ${OH.cardShared(card, new Set(CARDS.accounts))} of ${CARDS.accounts.length} accounts shared`);
+  }
+  // A match was built: its 12 accounts, the stock header, a card if one is known, else one store query.
+  function identify(m) {
+    CARDS.team1 = m.teams[0].rows.map((r) => r.account).filter(Boolean);
+    CARDS.team2 = m.teams[1].rows.map((r) => r.account).filter(Boolean);
+    CARDS.accounts = CARDS.team1.concat(CARDS.team2);
+    CARDS.id = String(m.id || "");
+    CARDS.key = S.key;
+    CARDS.applied = undefined; // the header is redrawn for this match
+    renderCard(null);
+    refreshCard();
+    if (CARDS.applied || CARDS.asked.has(CARDS.key) || CARDS.accounts.length < OH.MATCH_MIN) return;
+    CARDS.asked.add(CARDS.key);
+    askStore();
+  }
+
+  // The store page (store v2): a hidden CitadelHTMLPanel made only now, when the page shows and nothing
+  // handed over fits. hello, then one query (o:"q") for this match's accounts, then about:blank. Replies are
+  // matched by request id and by match key, so a late one never names the next match. A few hellos, then it
+  // gives up until the next match.
+  function storePanel() {
+    if (ok(ST.panel)) return ST.panel;
+    const wrap = $.CreatePanel("Panel", ctx, "NSStoreWrap", { hittest: "false" });
+    wrap.AddClass("NSStoreWrap");
+    const panel = $.CreatePanel("CitadelHTMLPanel", wrap, "NSStore", { hittest: "false", acceptsfocus: "false" });
+    panel.AddClass("NSStore");
+    ST.panel = panel;
+    ST.handlerSet = false;
+    return panel;
+  }
+  function storeSend(message) {
+    const panel = storePanel();
+    if (!ST.handlerSet) {
+      ST.handlerSet = true;
+      $.RegisterEventHandler("HTMLTitle", panel, onStoreTitle);
+    }
+    panel.SetURL(`${STORE_URL}#${encodeURIComponent(JSON.stringify(message))}`);
+  }
+  function storeBlank() {
+    if (ok(ST.panel)) ST.panel.SetURL("about:blank");
+  }
+  function askStore() {
+    if (ST.phase !== "idle") return; // the running exchange asks for the current match when it is done
+    log("store: asking for the match card");
+    ST.phase = "hello";
+    ST.tries = 0;
+    const gen = ++ST.gen;
+    hello(gen);
+  }
+  function hello(gen) {
+    if (stopped || gen !== ST.gen || ST.phase !== "hello") return;
+    if (ST.tries >= HELLO_TRIES) { log("store: no answer, gave up"); storeDone(); return; }
+    try {
+      // The second visit starts from a blank page: a lost first load never answers a changed fragment.
+      if (ST.tries === 2) storeBlank();
+      ST.tries++;
+      ST.id = `h${++ST.seq}`;
+      storeSend({ i: ST.id, o: "hello" });
+    } catch (e) {
+      storeDone();
+      return;
+    }
+    $.Schedule(HELLO_S, () => hello(gen));
+  }
+  function query() {
+    const gen = ++ST.gen;
+    ST.phase = "query";
+    ST.forKey = CARDS.key;
+    ST.id = `q${++ST.seq}`;
+    try {
+      storeSend({ i: ST.id, o: "q", a: CARDS.accounts.map(Number), id: CARDS.id });
+    } catch (e) {
+      storeDone();
+      return;
+    }
+    $.Schedule(QUERY_S, () => { if (!stopped && gen === ST.gen && ST.phase === "query") storeDone(); });
+  }
+  function storeDone() {
+    ST.gen++;
+    ST.phase = "idle";
+    ST.id = "";
+    try { storeBlank(); } catch (e) { /* the panel is gone */ }
+  }
+  function onStoreTitle(panelOrTitle, eventTitle) {
+    if (stopped) return;
+    const title = eventTitle !== undefined ? eventTitle : panelOrTitle;
+    if (typeof title !== "string" || title.indexOf(STORE_PREFIX) !== 0) return;
+    let reply = null;
+    try { reply = JSON.parse(title.slice(STORE_PREFIX.length)); } catch (e) { return; }
+    if (!reply || typeof reply !== "object" || reply.i !== ST.id) return; // late, duplicate or foreign
+    if (reply.o === "ready" && ST.phase === "hello") {
+      if (typeof reply.h !== "string" || reply.h.split("#")[0] !== STORE_URL || reply.v !== 2 || reply.ok !== true) { storeDone(); return; }
+      query();
+      return;
+    }
+    if (reply.o !== "q" || ST.phase !== "query") return;
+    const key = ST.forKey;
+    storeDone();
+    if (reply.ok === true && reply.x === 1) {
+      const card = OH.cleanCard(reply.c);
+      if (card) CARDS.stored.set(key, card);
+    }
+    log(`store: answered, ${CARDS.stored.has(key) ? "a card" : "no card"} for the match`);
+    // The match changed while the reply was on its way: it names nothing now; the current match asks next.
+    if (key === CARDS.key) refreshCard();
+    else if (!CARDS.applied && CARDS.asked.has(CARDS.key) && !CARDS.stored.has(CARDS.key)) askStore();
+  }
+
   // ---------- show / teardown ----------
 
   // Remove the entrance classes, then add them back a frame later so the CSS animations restart.
@@ -501,6 +715,7 @@
     teardown();
     S.match = m;
     renderHeader(m);
+    identify(m);
     layoutScoreboard();
     const anyWin = m.teams[0].win || m.teams[1].win;
     m.teams.forEach((t, i) => {
@@ -875,5 +1090,6 @@
   log("board loaded");
   // Arrives about 0.5 s after citadel_match_details, also while the page is hidden (live P4).
   matchListener = $.RegisterForUnhandledEvent("CitadelMatchDetailsUpdated", () => { if (!stopped) wake(MATCH_WAKE_MS); });
+  handoffListener = $.RegisterForUnhandledEvent("ClientUI_FireOutput", onHandoff);
   wake(MATCH_WAKE_MS); // the page layout loads for a match
 })();

@@ -43,9 +43,15 @@ const { MockPanel, createPanoramaHarness, createVmContext, runInVm } =
 // its title comes back through the panel's HTMLTitle handler 50 ms later. A load made while offline,
 // or one of the next web.lostLoads loads, leaves a dead document (an error page): later URLs that only
 // change the fragment reach nothing until the panel navigates elsewhere (about:blank) and back.
-const STORE_PAGE = process.env.OH_STORE_PAGE || "D:/hpv2-store/oh/index.html";
-const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/";
-const storeScript = fs.existsSync(STORE_PAGE) ? /<script>([\s\S]*)<\/script>/.exec(fs.readFileSync(STORE_PAGE, "utf8"))[1] : "";
+// Two pages run behind it: v2 (this pak) and v1 (released paks, which must keep working beside it).
+const STORE_PAGE = process.env.OH_STORE_PAGE || "D:/hpv2-store/oh/v2/index.html";
+const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/v2/";
+const V1_PAGE = "D:/hpv2-store/oh/index.html";
+const V1_URL = "https://hantu-raya.github.io/hpv2-store/oh/";
+const pageScript = (file) => (fs.existsSync(file) ? /<script>([\s\S]*)<\/script>/.exec(fs.readFileSync(file, "utf8"))[1] : "");
+const storeScript = pageScript(STORE_PAGE);
+const v1Script = pageScript(V1_PAGE);
+const PAGE_SCRIPTS = { [STORE_URL]: storeScript, [V1_URL]: v1Script };
 MockPanel.prototype.SetURL = function (url) {
   let root = this;
   while (root.GetParent()) root = root.GetParent();
@@ -53,16 +59,17 @@ MockPanel.prototype.SetURL = function (url) {
   if (!web) return true;
   (web.urls = web.urls || []).push(String(url));
   const base = String(url).split("#")[0];
-  if (base !== STORE_URL) { this.__page = null; return true; }
+  if (!PAGE_SCRIPTS[base]) { this.__page = null; return true; }
+  if (this.__page && this.__page.base !== base) this.__page = null; // another page: a fresh load
   const panel = this;
   if (panel.__page && panel.__page.dead) return true;
   if (!panel.__page && (web.offline || web.lostLoads > 0)) {
     if (!web.offline) web.lostLoads--;
-    panel.__page = { dead: true };
+    panel.__page = { dead: true, base };
     return true;
   }
   if (!panel.__page) {
-    const page = { title: "", hash: "", href: url, listeners: [] };
+    const page = { title: "", hash: "", href: url, base, listeners: [] };
     page.sandbox = {
       window: { addEventListener: (name, fn) => { if (name === "hashchange") page.listeners.push(fn); } },
       location: { get hash() { return page.hash; }, get href() { return page.href; } },
@@ -72,7 +79,7 @@ MockPanel.prototype.SetURL = function (url) {
         setItem: (key, value) => { web.disk[key] = String(value); },
         removeItem: (key) => { delete web.disk[key]; }
       },
-      JSON, Math, Error, String, decodeURIComponent
+      JSON, Math, Error, String, decodeURIComponent, Date
     };
     page.hash = url.includes("#") ? url.slice(url.indexOf("#")) : "";
     panel.__page = page;
@@ -80,7 +87,7 @@ MockPanel.prototype.SetURL = function (url) {
     const run = () => {
       if (panel.__page !== page) return;
       page.live = true;
-      vm.runInNewContext(storeScript, page.sandbox);
+      vm.runInNewContext(PAGE_SCRIPTS[base], page.sandbox);
       emitTitle(panel, web);
     };
     if (web.loadDelay) web.harness.scheduler.schedule(web.loadDelay / 1000, run);
@@ -95,8 +102,15 @@ MockPanel.prototype.SetURL = function (url) {
   return true;
 };
 function emitTitle(panel, web) {
-  const title = panel.__page.title;
-  if (!web.mute) web.harness.scheduler.schedule(0.05, () => { if (panel.events.HTMLTitle) panel.events.HTMLTitle(panel, title); });
+  // The game cuts HTMLTitle at 4096 characters (live P7, 2026-10-25).
+  const title = String(panel.__page.title).slice(0, 4096);
+  const deliver = () => {
+    if (panel.events.HTMLTitle) panel.events.HTMLTitle(panel, title);
+    for (const fn of ((panel.__handlers || {}).HTMLTitle || []).slice()) fn(panel, title);
+  };
+  // web.hold keeps replies back until web.release() (a late reply).
+  if (web.hold) (web.held = web.held || []).push(deliver);
+  else if (!web.mute) web.harness.scheduler.schedule(0.05, deliver);
 }
 
 const plain = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -375,7 +389,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     childReadCounts: harness.childReadCounts, eventSetCounter: harness.eventSetCounter });
   WORLDS.push(hudRoot);
   // The save page: a disk shared between worlds is one PC's localStorage across restarts.
-  hudRoot.__web = { disk: disk || {}, offline, harness };
+  hudRoot.__web = { disk: disk || {}, offline, harness, release() { const held = this.held || []; this.held = []; for (const fn of held) fn(); } };
   // Most checks start from blank text (no sample values): the side names, no event, stage, organiser
   // or info card, as an observer who cleared the samples. samples: true keeps the shipped defaults.
   if (!samples && !disk) { // a world with a save disk is a fresh process: nothing carried
@@ -1868,7 +1882,7 @@ check("save: the setup survives a restart through the local save page; damaged s
   assert.equal(text(a.ui("OHSaveStatus")), "SAVING");
   a.advance(3000);
   assert.equal(text(a.ui("OHSaveStatus")), "SAVED");
-  const record = disk["hantu.observer_hud.v1/state"];
+  const record = disk["hantu.observer_hud.v2/state"];
   assert.ok(record && record.startsWith("OHS1."), "one key, OHS1 record");
   // Restart: a new process adopts the saved setup.
   const b = world({ disk });
@@ -1880,7 +1894,7 @@ check("save: the setup survives a restart through the local save page; damaged s
   assert.equal(b.state().graph.every, 120);
   assert.equal(b.who("Kestrel"), "Kes");
   // A damaged record is left alone (nothing written) until RESET ALL.
-  disk["hantu.observer_hud.v1/state"] = record.slice(0, -2) + "x}";
+  disk["hantu.observer_hud.v2/state"] = record.slice(0, -2) + "x}";
   const c = world({ disk });
   c.bootHost();
   c.advance(3000);
@@ -1888,12 +1902,12 @@ check("save: the setup survives a restart through the local save page; damaged s
   c.press("OHMenuButton");
   c.type("OHStageEntry", "Final");
   c.advance(3000);
-  assert.ok(disk["hantu.observer_hud.v1/state"].endsWith("x}"), "an edit does not overwrite a damaged save");
+  assert.ok(disk["hantu.observer_hud.v2/state"].endsWith("x}"), "an edit does not overwrite a damaged save");
   c.press("OHReset");
   c.press("OHReset");
   c.advance(3000);
   assert.equal(text(c.ui("OHSaveStatus")), "SAVED");
-  assert.ok(!disk["hantu.observer_hud.v1/state"].endsWith("x}"));
+  assert.ok(!disk["hantu.observer_hud.v2/state"].endsWith("x}"));
   // No page (offline Steam browser): session only after 30 s, edits still apply.
   const d = world({ offline: true });
   d.bootHost();
@@ -1930,7 +1944,7 @@ check("save: a lost or late save page is asked again; edits made meanwhile win; 
   a.type("OHEventEntry", "Spring Cup");
   a.advance(3000);
   assert.equal(text(a.ui("OHSaveStatus")), "SAVED");
-  const record = disk["hantu.observer_hud.v1/state"];
+  const record = disk["hantu.observer_hud.v2/state"];
   const pageLoads = (w) => w.hudRoot.__web.urls.filter((url) => url.startsWith(STORE_URL)).length;
   // The first load is lost (an error page): the page is loaded again and the save adopted.
   const b = world({ disk });
@@ -1958,8 +1972,8 @@ check("save: a lost or late save page is asked again; edits made meanwhile win; 
   d.hudRoot.__web.offline = false;
   d.advance(60000);
   assert.equal(d.state().event, "Typed offline");
-  assert.ok(disk["hantu.observer_hud.v1/state"].includes("Typed offline"), "the session's setup is saved");
-  disk["hantu.observer_hud.v1/state"] = record;
+  assert.ok(disk["hantu.observer_hud.v2/state"].includes("Typed offline"), "the session's setup is saved");
+  disk["hantu.observer_hud.v2/state"] = record;
   // Every load takes 9 s (longer than the first reload gap): a later load still completes.
   const s = world({ disk });
   s.hudRoot.__web.loadDelay = 9000;
@@ -2766,7 +2780,7 @@ check("identity: v1 name aliases move to legacy, still apply by name, and bind t
   assert.equal(w.who("Kestrel"), "Kes");
   // The save holds the v2 shape (phase 4 moves it to its own v2 key, so a released v1 pak keeps its record).
   w.advance(3000);
-  const saved = disk["hantu.observer_hud.v1/state"];
+  const saved = disk["hantu.observer_hud.v2/state"];
   assert.ok(!/"aliases"/.test(saved) && saved.includes('"players"') && saved.includes('"legacy"'), "v2 shape on disk");
   assert.ok(!saved.includes('"pending"'), "session aliases are never saved");
   // Clearing the box of a legacy-shown alias removes it.
@@ -3974,7 +3988,7 @@ function bindAll(label, value) {
     set: (next) => { literal = String(next); } });
   return label;
 }
-function boardWorld({ visible = true } = {}) {
+function boardWorld({ visible = true, disk = null, offline = false } = {}) {
   const harness = createPanoramaHarness({ now: 7000000, rootWidth: 1600, rootHeight: 900 });
   lastLogs = harness.logs;
   const bus = [];
@@ -4015,7 +4029,8 @@ function boardWorld({ visible = true } = {}) {
   MockPanel.prototype.BLoadLayout = function (file) {
     if (file === "file://{resources}/layout/observer_hud/pg_board.xml") {
       loadInto(this, PG.board);
-      runIn(this, [["pg_board.js", script("pg_board.js")]]);
+      // pg_board.xml includes oh_state.js (cards are cleaned with its helpers) before pg_board.js.
+      runIn(this, [["oh_state.js", script("oh_state.js")], ["pg_board.js", script("pg_board.js")]]);
       return true;
     }
     if (file === "file://{resources}/layout/observer_hud/pg_column.xml") {
@@ -4027,6 +4042,8 @@ function boardWorld({ visible = true } = {}) {
   const dash = new MockPanel("CitadelDashboardRoot", { operationCounts: harness.operationCounts, findCounts: harness.findCounts,
     childReadCounts: harness.childReadCounts, eventSetCounter: harness.eventSetCounter });
   WORLDS.push(dash);
+  // The dashboard's hidden CitadelHTMLPanel loads the https store page like the HUD's (live P7).
+  dash.__web = { disk: disk || {}, offline, harness, release() { const held = this.held || []; this.held = []; for (const fn of held) fn(); } };
   const page = instantiate(PG.page, dash);
   if (visible) page.AddClass("PageVisible");
   const scoreboard = page.FindChildTraverse("Scoreboard");
@@ -4080,7 +4097,8 @@ function boardWorld({ visible = true } = {}) {
   const columns = () => findAll(scoreboard, "Panel").filter((p) => p.valid && (p.classes.has("NSColumnTeam1") || p.classes.has("NSColumnTeam2")));
   return { harness, page, scoreboard, bus, fill, fire, selectScreen, boardHost, shown, columns,
     boot: () => runIn(page, [["pg_loader.js", script("pg_loader.js")]]),
-    reload: () => runIn(boardHost(), [["pg_board.js", script("pg_board.js")]]),
+    reload: () => runIn(boardHost(), [["oh_state.js", script("oh_state.js")], ["pg_board.js", script("pg_board.js")]]),
+    web: dash.__web, dash,
     advance: (ms) => harness.scheduler.runFor(ms, 1e6),
     text: (id) => boardHost().FindChildTraverse(id).__text };
 }
@@ -4209,6 +4227,429 @@ check("board: a layout reload keeps one loop and one match listener", () => {
   const ops = per(stop(), 10);
   assert.ok((ops.schedules || 0) <= 1.1, `one 1 s loop: ${ops.schedules} schedules/s`);
 });
+
+// ---------------------------------------------------------------- phase 4: match cards and store v2
+// Plan phase 4 (decisions 4-5). The HUD builds a match card (the accounts of each side and the team
+// snapshot) once both sides are known and again at match end; it reaches the board in the same process as
+// "OHM1:<json>" on ClientUI_FireOutput (live P3) and goes to the store page's matches key for later. The
+// board matches a card to its 12 accounts (at least 10 shared), asks the store only when no handed card
+// fits, and swaps its header. Store v2 (hpv2-store oh/v2/) keeps `state` and `matches` under its own keys
+// and never touches v1's, so released paks keep working.
+// How it could fail: a replied page longer than the game's 4096-character title cap reads back cut; a
+// state bigger than that is lost on a restart; v2 writes v1's key (or the reverse); two writers lose a
+// card; the cap drops the newest card or keeps dead teams; a card with 9 of 12 accounts names the wrong
+// teams; a forged or stale handoff renames the board; a late store reply names the next match; an offline
+// store stalls the board or the HUD; a custom logo hides the wordmark before it loaded (or after it failed);
+// the card is written while a side is unknown, or never again at match end.
+const V2 = "hantu.observer_hud.v2/";
+// One request run against a page script in its own sandbox (a second panel); returns the parsed reply.
+function pageCall(pageSource, disk, request, prefix = "OHS2:") {
+  let title = "";
+  const sandbox = {
+    window: { addEventListener() {} },
+    location: { hash: `#${encodeURIComponent(JSON.stringify(request))}`, href: "https://example.test/" },
+    document: { set title(value) { title = value; }, get title() { return title; } },
+    localStorage: { getItem: (key) => (Object.prototype.hasOwnProperty.call(disk, key) ? disk[key] : null),
+      setItem: (key, value) => { disk[key] = String(value); }, removeItem: (key) => { delete disk[key]; } },
+    JSON, Math, Error, String, decodeURIComponent, Date
+  };
+  vm.runInNewContext(pageSource, sandbox);
+  assert.ok(title.length <= 4096, `a reply fits the game's title cap (${title.length})`);
+  assert.ok(title.startsWith(prefix), `reply prefix ${prefix}`);
+  return JSON.parse(title.slice(prefix.length));
+}
+const ids = (base, n = 6) => Array.from({ length: n }, (_, i) => base + i);
+const card = (base, over = {}) => Object.assign({ a: ids(base), b: ids(base + 100), t: [["Night Owls", "NOW", "https://img.test/a.png"], ["Brass Saints", "BRS", ""]],
+  r: ["Community Cup", ""], w: 0, id: "", at: 1000 }, over);
+const matchesOf = (disk) => (disk[`${V2}matches`] ? JSON.parse(disk[`${V2}matches`]) : null);
+const sentCards = (w) => w.sent.filter((raw) => raw.startsWith("OHM1:")).map((raw) => JSON.parse(raw.slice(5)));
+
+check("store v2: the page keeps cards deduped, merges two writers, caps at 32 KB oldest first, answers one card under the title cap", () => {
+  assert.ok(storeScript, `store v2 page source at ${STORE_PAGE}`);
+  const disk = {};
+  const up = (c) => pageCall(storeScript, disk, { i: "u", o: "u", c });
+  assert.equal(pageCall(storeScript, disk, { i: "h", o: "hello" }).v, 2);
+  assert.equal(up(card(1000)).n, 1);
+  // The same team in a second match is stored once; a card for the same 12 accounts replaces the first.
+  assert.equal(up(card(2000, { w: 1 })).n, 2);
+  assert.equal(up(card(1000, { w: 2, at: 1500 })).n, 2, "the same 12 accounts: replaced, not added");
+  let data = matchesOf(disk);
+  assert.equal(data.m.length, 2);
+  assert.equal(data.T.length, 3, "Night Owls, Brass Saints and Community Cup, once each");
+  deq(data.m[1].w, 2, "the newer card won");
+  // Two panels at once: each handler reads, merges and writes in one go, so both cards stay.
+  up(card(3000));
+  up(card(4000));
+  assert.equal(matchesOf(disk).m.length, 4);
+  // A query: 10 of 12 accounts find the card, 9 do not; the reply names the teams.
+  const ask = (accounts, extra = {}) => pageCall(storeScript, disk, Object.assign({ i: "q", o: "q", a: accounts }, extra));
+  const ten = ids(3000, 6).concat(ids(3100, 4)).concat([777, 778]);
+  const hit = ask(ten);
+  assert.equal(hit.x, 1);
+  deq(hit.c.t[0], ["Night Owls", "NOW", "https://img.test/a.png"]);
+  const nine = ids(3000, 6).concat(ids(3100, 3)).concat([777, 778, 779]);
+  assert.equal(ask(nine).x, 0, "9 of 12 is not a match");
+  // The worst card still answers under the cap (3 URLs of 512 characters, 28/4/24-character names).
+  const long = `https://img.test/${"p".repeat(495)}`;
+  assert.equal(long.length, 512);
+  up(card(5000, { t: [["N".repeat(28), "ABCD", long], ["M".repeat(28), "WXYZ", long]], r: ["O".repeat(24), long] }));
+  const worst = ask(ids(5000, 6).concat(ids(5100, 6)));
+  assert.equal(worst.x, 1);
+  // A card for one match id answers only that match; an id-less card answers any.
+  up(card(6000, { id: "121880956", at: 2000 }));
+  assert.equal(ask(ids(6000, 6).concat(ids(6100, 6)), { id: "121917141" }).x, 0, "another match's own card");
+  assert.equal(ask(ids(6000, 6).concat(ids(6100, 6)), { id: "121880956" }).x, 1);
+  assert.equal(ask(ids(6000, 6).concat(ids(6100, 6))).x, 0, "no id asked: a card with an id is not used");
+  up(card(6000, { id: "", at: 2500, t: [["Fallback", "FB", ""], ["Other", "", ""]] }));
+  assert.equal(ask(ids(6000, 6).concat(ids(6100, 6)), { id: "121880956" }).c.t[0][0], "Night Owls", "the card written for that match wins");
+  assert.equal(ask(ids(6000, 6).concat(ids(6100, 6)), { id: "121700000" }).c.t[0][0], "Fallback", "other matches use the id-less card");
+  // Forged shapes are refused, not stored.
+  for (const bad of [null, "x", { a: [1], b: [] , t: []}, card(7000, { a: ids(7000, 7) }), card(7000, { a: ["x", 2, 3, 4, 5, 6] }), card(7000, { a: [7000, 7001, 7002, 7003, 7004, 7005], b: [7005, 7101, 7102, 7103, 7104, 7105] }),
+    card(7000, { t: [["x"], ["y", "z"]] }), card(7000, { a: [0, 2, 3, 4, 5, 6] }), card(7000, { a: [4294967296, 2, 3, 4, 5, 6] })]) {
+    assert.equal(up(bad).ok, false, `refused ${JSON.stringify(bad).slice(0, 40)}`);
+  }
+  // Bad text inside a good card is dropped to the stock name: a hostile URL never gets stored.
+  up(card(8000, { t: [["x".repeat(29), "tooLongTag", "javascript:alert(1)"], ["Ok", "", "http://a b"]], r: ["", "ftp://x"] }));
+  const stored = ask(ids(8000, 6).concat(ids(8100, 6))).c;
+  deq(stored.t, [["", "", ""], ["Ok", "", ""]]);
+  assert.equal(stored.r, 0);
+  // The cap: the oldest cards go first, then teams no card uses; the newest card is always kept.
+  for (let i = 0; i < 300; i++) up(card(100000 + i * 20, { t: [[`Team ${i}`, "", long], [`Other ${i}`, "", long]], at: 3000 + i }));
+  data = matchesOf(disk);
+  assert.ok(disk[`${V2}matches`].length <= 32768, `matches key ${disk[`${V2}matches`].length} chars`);
+  assert.ok(data.m.length > 20 && data.m.length < 300, `${data.m.length} cards kept`);
+  const last = ask(ids(100000 + 299 * 20, 6).concat(ids(100000 + 299 * 20 + 100, 6)));
+  assert.equal(last.x, 1, "the newest card stays");
+  assert.equal(ask(ids(1000, 6).concat(ids(1100, 6))).x, 0, "the oldest are gone");
+  const used = new Set();
+  for (const m of data.m) { used.add(m.t[0]); used.add(m.t[1]); if (m.o >= 0) used.add(m.o); }
+  assert.equal(used.size, data.T.length, "no team without a card is kept");
+  assert.ok(data.T.length < 2 + 2 * data.m.length, "and every shared team is listed once");
+});
+
+check("store v2: the setup saves under the v2 key and reads back in pieces; v1's record is read once to migrate and never written; the v1 page still works", () => {
+  const S = stateApiOf();
+  const disk = {};
+  const many = {};
+  const legacy = {};
+  for (let i = 1; i <= 24; i++) {
+    many[String(2000000 + i)] = { a: `alias ${i}${"x".repeat(10)}`, n: `in-game name ${i}${"y".repeat(10)}` };
+    legacy[`old name ${i}${"z".repeat(12)}`] = `legacy alias ${i}`;
+  }
+  const bigUrl = (c) => `https://img.test/${c.repeat(490)}`;
+  const big = S.normalize({ event: "Big Cup", amber: { name: "A", logo: { url: bigUrl("a") } }, sapphire: { name: "B", logo: { url: bigUrl("b") } },
+    org: { name: "O", logo: { url: bigUrl("o") } }, players: many, legacy });
+  const body = JSON.stringify({ s: 1, state: big });
+  const record = `OHS1.${S.checksum(body)}.${body}`;
+  assert.ok(record.length > 4200 && record.length <= 8192, `record ${record.length} chars (over the 4096 title cap)`);
+  // The v2 page hands it out in pieces that each fit the cap.
+  disk[`${V2}state`] = record;
+  let got = "";
+  for (let round = 0; round < 12; round++) {
+    const reply = pageCall(storeScript, disk, { i: `r${round}`, o: "r", s: got.length });
+    assert.equal(reply.ok, true);
+    assert.equal(reply.n, record.length);
+    assert.equal(reply.s, got.length);
+    got += reply.v;
+    if (got.length >= reply.n) break;
+  }
+  assert.equal(got, record, "pieces add up to the record");
+  // The pak adopts it after a restart.
+  const b = world({ disk });
+  b.bootHost();
+  b.advance(4000);
+  deq(b.state().players, big.players);
+  deq(b.state().legacy, big.legacy);
+  assert.equal(b.state().amber.logo.url, big.amber.logo.url);
+  assert.equal(b.state().org.logo.url, big.org.logo.url);
+  assert.equal(text(b.ui("OHSaveStatus")), "SAVED");
+  // v1 only: read once, written under v2 on the next save, the v1 key left byte for byte.
+  const v1Body = JSON.stringify({ s: 1, state: { event: "Old Cup", aliases: { Kestrel: "Kes" } } });
+  const v1Record = `OHS1.${S.checksum(v1Body)}.${v1Body}`;
+  const old = { "hantu.observer_hud.v1/state": v1Record };
+  const c = world({ disk: old });
+  c.bootHost();
+  c.advance(4000);
+  assert.equal(c.state().event, "Old Cup", "a v1 record migrates");
+  deq(c.state().legacy, { Kestrel: "Kes" });
+  c.press("OHMenuButton");
+  c.type("OHEventEntry", "New Cup");
+  c.advance(4000);
+  assert.ok(old[`${V2}state`] && old[`${V2}state`].includes("New Cup"), "the save goes to the v2 key");
+  assert.equal(old["hantu.observer_hud.v1/state"], v1Record, "v1's record is never written by v2");
+  // The v1 page is untouched and keeps working beside v2: its hello says version 1, it reads its own record
+  // and a v1 write leaves every v2 key alone.
+  assert.ok(v1Script, `v1 page source at ${V1_PAGE}`);
+  const hello = pageCall(v1Script, old, { i: "h", o: "hello" }, "OHS1:");
+  assert.equal(hello.v, 1);
+  assert.equal(pageCall(v1Script, old, { i: "r", o: "r" }, "OHS1:").v, v1Record);
+  const before = JSON.stringify([old[`${V2}state`], old[`${V2}matches`]]);
+  const newer = JSON.stringify({ s: 1, state: { event: "Written by v1" } });
+  assert.equal(pageCall(v1Script, old, { i: "w", o: "w", v: `OHS1.${S.checksum(newer)}.${newer}` }, "OHS1:").ok, true);
+  assert.equal(JSON.stringify([old[`${V2}state`], old[`${V2}matches`]]), before, "a v1 write leaves the v2 keys alone");
+});
+
+check("match card: written when both sides are known and again at match end, handed to the board; nothing while a side is unknown; offline is quiet", () => {
+  // A fresh install shows the sample teams (SPEC "Sample defaults"); a card with only those has nothing to show.
+  const fresh = world({ disk: {} });
+  fresh.bootHost();
+  markAll(fresh);
+  fresh.advance(15000);
+  deq(sentCards(fresh), [], "untouched sample names make no card");
+  const disk = {};
+  const w = world({ disk });
+  w.bootHost();
+  w.advance(2000);
+  w.press("OHMenuButton");
+  w.type("OHAmberNameEntry", "Owl Squad");
+  w.type("OHAmberTagEntry", "now");
+  w.type("OHSapphireNameEntry", "Saint Squad");
+  w.type("OHAmberLogoEntry", "https://img.test/a.png", { submit: true });
+  w.type("OHOrgEntry", "Cup Org");
+  w.advance(3000);
+  const marks = {};
+  for (const p of [...AMBER.slice(0, 5), ...SAPPHIRE.slice(0, 4)]) marks[p] = w.marker(p, { account: ACCOUNT_OF(p) });
+  w.advance(12000);
+  deq(sentCards(w), [], "9 accounts: not both sides known");
+  assert.equal(matchesOf(disk), null);
+  marks[SAPPHIRE[4]] = w.marker(SAPPHIRE[4], { account: ACCOUNT_OF(SAPPHIRE[4]) });
+  w.advance(3500);
+  const cards = sentCards(w);
+  assert.ok(cards.length >= 1, "a card once 5 + 5 accounts are known");
+  const first = cards[0];
+  deq([first.a.slice().sort(), first.b.slice().sort()], [AMBER.slice(0, 5).map(ACCOUNT_OF).sort(), SAPPHIRE.slice(0, 5).map(ACCOUNT_OF).sort()], "the accounts by side");
+  deq(first.t, [["Owl Squad", "NOW", "https://img.test/a.png"], ["Saint Squad", "BRS", ""]]);
+  deq([first.r, first.w, first.id], [["Cup Org", ""], 0, ""]);
+  assert.equal(matchesOf(disk).m.length, 1, "and in the store");
+  // The board may load later than the card: it is sent again every few seconds (same card).
+  w.advance(12000);
+  const again = sentCards(w);
+  assert.ok(again.length >= cards.length + 2 && again.every((c) => JSON.stringify(c) === JSON.stringify(again[0])), `resent: ${again.length}`);
+  // More accounts arrive: the card grows (the store replaces it: same match).
+  marks[AMBER[5]] = w.marker(AMBER[5], { account: ACCOUNT_OF(AMBER[5]) });
+  marks[SAPPHIRE[5]] = w.marker(SAPPHIRE[5], { account: ACCOUNT_OF(SAPPHIRE[5]) });
+  w.advance(3500);
+  const grown = sentCards(w).pop();
+  assert.equal(grown.a.length + grown.b.length, 12);
+  assert.equal(matchesOf(disk).m.length, 1, "replaced, not added");
+  // The team snapshot is taken when the card is written: a later rename is not sent until match end.
+  w.type("OHAmberNameEntry", "Renamed");
+  w.advance(12000);
+  assert.equal(sentCards(w).pop().t[0][0], "Owl Squad", "the snapshot as it was");
+  // Match end: the winner and the snapshot as it is then, written again.
+  const end = w.hud.FindChildTraverse("MatchEnd");
+  const show = (...classes) => {
+    for (const cls of ["ShowMatchEnd", "MatchFinished", "MatchAbandoned", "Team1Victory", "Team2Victory"]) end.RemoveClass(cls);
+    for (const cls of classes) end.AddClass(cls);
+  };
+  show();
+  w.advance(1100);
+  show("ShowMatchEnd", "MatchFinished", "Team2Victory");
+  w.advance(3500);
+  const last = sentCards(w).pop();
+  deq([last.w, last.t[0][0]], [2, "Renamed"], "winner and the names at match end");
+  const stored = matchesOf(disk);
+  assert.equal(stored.m.length, 1);
+  assert.equal(stored.m[0].w, 2);
+  // The next map: a new roster, a new card; the old one is no longer sent, and a stale end screen adds no winner.
+  for (const m of Object.values(marks)) m.DeleteAsync();
+  w.bar().DeleteAsync();
+  w.advance(1100);
+  const second = {};
+  for (const p of [...AMBER, ...SAPPHIRE]) second[p] = w.marker(p, { account: ACCOUNT_OF(p) + 5000 });
+  w.advance(3500);
+  const next = sentCards(w).pop();
+  assert.ok(next.a.every((id) => id > 5000) && next.w === 0, "the new map's own card, with no winner yet");
+  const mark = w.sent.length;
+  w.advance(12000);
+  assert.ok(w.sent.slice(mark).filter((raw) => raw.startsWith("OHM1:")).every((raw) => JSON.parse(raw.slice(5)).a.every((id) => id > 5000)), "only the new card is sent");
+  assert.equal(matchesOf(disk).m.length, 2);
+  // An offline store: the handoff still goes, nothing throws, nothing is stored.
+  const off = world({ offline: true });
+  off.bootHost();
+  off.advance(2000);
+  for (const p of [...AMBER, ...SAPPHIRE]) off.marker(p, { account: ACCOUNT_OF(p) });
+  off.advance(20000);
+  assert.ok(sentCards(off).length >= 2, "the board still gets its card");
+  assert.ok(!off.harness.logs.some((line) => /failed|error/i.test(line) && !/logo/.test(line)), "an unreachable store is no error");
+});
+
+const boardCard = (m, over = {}) => Object.assign({ a: m.teams[0].map((p) => Number(p.account)), b: m.teams[1].map((p) => Number(p.account)),
+  t: [["Night Owls", "NOW", ""], ["Brass Saints", "BRS", ""]], r: ["Community Cup", ""], w: 0, id: "", at: 2000 }, over);
+const handoff = (c) => `OHM1:${JSON.stringify(c)}`;
+const present = (w, m) => { w.fill(m); w.fire("CitadelMatchDetailsUpdated", m.id); w.advance(300); };
+const noBoardErrors = (w) => !w.harness.logs.some((line) => /tick failed|handoff failed|card failed/i.test(line));
+
+check("board: a handed card names the header by at least 10 of 12 accounts (either side up); forged and stale handoffs change nothing", () => {
+  const w = boardWorld();
+  const a = pgMatch(121917141);
+  w.fire("ClientUI_FireOutput", handoff(boardCard(a))); // before the board exists: nobody listens
+  w.boot();
+  w.advance(2000);
+  present(w, a);
+  deq([w.text("NSTeamName1"), w.text("NSTeamName2"), w.text("NSOrgText")], ["Hidden King", "Archmother", ""], "stock names first");
+  // The HUD sends the card again every few seconds: the header swaps when it lands.
+  const nine = boardCard(a, { b: boardCard(a).b.slice(0, 3).concat([1, 2, 3]), a: boardCard(a).a.slice(0, 3).concat([4, 5, 6]) });
+  w.fire("ClientUI_FireOutput", handoff(nine));
+  w.advance(300);
+  assert.equal(w.text("NSTeamName1"), "Hidden King", "6 + 6 of the accounts are foreign here: 6 shared is not a match");
+  const eight = boardCard(a, { a: boardCard(a).a.slice(0, 5).concat([7]), b: boardCard(a).b.slice(0, 5).concat([8]), at: 2100 });
+  w.fire("ClientUI_FireOutput", handoff(eight));
+  w.advance(300);
+  assert.equal(w.text("NSTeamName1"), "Night Owls", "10 of 12 shared: a match");
+  deq([w.text("NSTeamName2"), w.text("NSOrgText")], ["Brass Saints", "Community Cup"]);
+  const nineShared = boardCard(a, { a: boardCard(a).a.slice(0, 3).concat([71, 72, 73]), b: boardCard(a).b, t: [["Nine", "", ""], ["Nines", "", ""]], at: 2200 });
+  w.fire("ClientUI_FireOutput", handoff(nineShared));
+  w.advance(300);
+  assert.equal(w.text("NSTeamName1"), "Night Owls", "9 of 12 shared is not a match: the card is ignored");
+  // The roster decides the side, not the card's order: the card's Amber team sits on board side 2.
+  const swapped = boardCard(a, { a: boardCard(a).b, b: boardCard(a).a, at: 2300 });
+  w.fire("ClientUI_FireOutput", handoff(swapped));
+  w.advance(300);
+  deq([w.text("NSTeamName1"), w.text("NSTeamName2")], ["Brass Saints", "Night Owls"], "teams follow their players");
+  // Stale and newer: the newest card for a roster wins.
+  w.fire("ClientUI_FireOutput", handoff(boardCard(a, { t: [["Older", "", ""], ["Older B", "", ""]], at: 1000 })));
+  w.advance(300);
+  assert.equal(w.text("NSTeamName1"), "Brass Saints", "an older card does not replace a newer one");
+  w.fire("ClientUI_FireOutput", handoff(boardCard(a, { t: [["Newest", "", ""], ["Newest B", "", ""]], at: 9000 })));
+  w.advance(300);
+  deq([w.text("NSTeamName1"), w.text("NSTeamName2")], ["Newest", "Newest B"]);
+  // Another match on the same rows: unrelated accounts, so the stock names come back.
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  present(w, b);
+  assert.equal(w.text("NSTeamName1"), "Hidden King", "no card for this roster");
+  deq(w.text("NSOrgText"), "");
+  // Forged or broken handoffs: nothing changes, nothing throws.
+  const good = boardCard(b, { t: [["Forged", "", ""], ["Forged B", "", ""]] });
+  const forged = [
+    "garbage", "OHM1:", "OHM1:{not json", `OHM1:${JSON.stringify([1, 2, 3])}`, `OHM1:${JSON.stringify(Object.assign({}, good, { a: ["x", 2, 3, 4, 5, 6] }))}`,
+    `OHM1:${JSON.stringify(Object.assign({}, good, { a: good.a.concat([99]) }))}`, `OHM1:${JSON.stringify(Object.assign({}, good, { b: good.a }))}`,
+    `OHM1:${JSON.stringify(Object.assign({}, good, { t: [["only one"]] }))}`, `OHM1:${JSON.stringify(Object.assign({}, good, { a: [0, 2, 3, 4, 5, 6] }))}`,
+    `OHM1:${"x".repeat(100000)}`, `OHM1:${JSON.stringify(Object.assign({}, good, { pad: "y".repeat(5000) }))}`, 42, undefined, null, { a: 1 }
+  ];
+  for (const raw of forged) w.fire("ClientUI_FireOutput", raw);
+  w.advance(300);
+  assert.equal(w.text("NSTeamName1"), "Hidden King", "forged handoffs are ignored");
+  assert.ok(noBoardErrors(w), "and raise no error");
+  // Names that are too long or a hostile logo URL inside an otherwise valid card fall back to the stock text.
+  w.fire("ClientUI_FireOutput", handoff(boardCard(b, { t: [["N".repeat(29), "X", "javascript:alert(1)"], ["Fine", "", ""]], at: 3000 })));
+  w.advance(300);
+  deq([w.text("NSTeamName1"), w.text("NSTeamName2")], ["Hidden King", "Fine"], "a too-long name is dropped, not cut");
+  assert.equal(w.boardHost().FindChildTraverse("NSLogo1").Children().filter((p) => p.paneltype === "Image").length, 0, "no image for a hostile URL");
+  assert.ok(noBoardErrors(w));
+});
+
+check("board: a custom logo replaces the wordmark only once loaded and falls back to it when it fails", () => {
+  const w = boardWorld();
+  w.boot();
+  w.advance(2000);
+  const a = pgMatch(121917141);
+  present(w, a);
+  const logo = () => w.boardHost().FindChildTraverse("NSLogo1");
+  const images = () => logo().Children().filter((p) => p.paneltype === "Image" && p.valid);
+  w.fire("ClientUI_FireOutput", handoff(boardCard(a, { t: [["Night Owls", "NOW", "https://img.test/a.png"], ["Brass Saints", "BRS", ""]] })));
+  w.advance(300);
+  assert.equal(images().length, 1, "one image for the logo URL");
+  assert.equal(images()[0].src, "https://img.test/a.png");
+  assert.ok(!logo().BHasClass("NSLogoCustom"), "the wordmark stays until the image loaded");
+  assert.equal(w.boardHost().FindChildTraverse("NSLogo2").Children().filter((p) => p.paneltype === "Image").length, 0, "no URL, no image");
+  images()[0].__handlers.ImageLoaded[0]();
+  assert.ok(logo().BHasClass("NSLogoCustom"), "swapped on ImageLoaded");
+  // The card is sent again: the same logo is not loaded twice.
+  const image = images()[0];
+  w.fire("ClientUI_FireOutput", handoff(boardCard(a, { t: [["Night Owls", "NOW", "https://img.test/a.png"], ["Brass Saints", "BRS", ""]] })));
+  w.advance(300);
+  assert.equal(images().length, 1);
+  assert.strictEqual(images()[0], image, "same image, no reload");
+  // A failing logo: an imgur page link tries its GIF, then its PNG; both failing keeps the wordmark.
+  const b = pgMatch(121880956, { swap: true });
+  present(w, b);
+  assert.ok(!logo().BHasClass("NSLogoCustom"), "the next match starts with the wordmark");
+  w.fire("ClientUI_FireOutput", handoff(boardCard(b, { t: [["B1", "", "https://imgur.com/AbCdEfG"], ["B2", "", ""]] })));
+  w.advance(300);
+  assert.equal(images()[0].src, "https://i.imgur.com/AbCdEfG.gif");
+  images()[0].__handlers.ImageFailedLoad[0]();
+  assert.equal(images().length, 1);
+  assert.equal(images()[0].src, "https://i.imgur.com/AbCdEfG.png", "the next source");
+  images()[0].__handlers.ImageFailedLoad[0]();
+  assert.equal(images().length, 0, "a failed logo is deleted");
+  assert.ok(!logo().BHasClass("NSLogoCustom"), "the wordmark stays");
+  assert.ok(noBoardErrors(w));
+});
+
+check("board: without a handed card it asks the store once, only while the page shows; late, lost and offline replies are harmless", () => {
+  const disk = {};
+  const a = pgMatch(121917141);
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  pageCall(storeScript, disk, { i: "u", o: "u", c: boardCard(a, { at: 5000, t: [["Stored A", "SA", ""], ["Stored A2", "", ""]] }) });
+  pageCall(storeScript, disk, { i: "u", o: "u", c: boardCard(b, { at: 5000, t: [["Stored B", "SB", ""], ["Stored B2", "", ""]] }) });
+  const w = boardWorld({ visible: false, disk });
+  w.web.loadDelay = 800; // live: the first hello took 554 ms (P7)
+  w.boot();
+  w.advance(1000);
+  w.fill(a);
+  w.fire("CitadelMatchDetailsUpdated", a.id);
+  w.advance(3000);
+  assert.equal((w.web.urls || []).length, 0, "a hidden page asks nothing and makes no panel");
+  w.page.AddClass("PageVisible");
+  w.advance(300);
+  assert.equal(w.shown(), 1);
+  assert.equal(w.text("NSTeamName1"), "Hidden King", "the stock names render first");
+  w.advance(1500);
+  deq([w.text("NSTeamName1"), w.text("NSTeamName2")], ["Stored A", "Stored A2"], "the stored card names the header");
+  const urls = w.web.urls.slice();
+  assert.ok(urls.every((u) => u === "about:blank" || u.startsWith(`${STORE_URL}#`)), "only the v2 page is visited");
+  assert.equal(urls.filter((u) => decodeURIComponent(u).includes('"o":"q"')).length, 1, "one query");
+  assert.equal(urls[urls.length - 1], "about:blank", "the panel goes blank after the read");
+  w.advance(15000);
+  assert.equal(w.web.urls.length, urls.length, "no further requests for the same match");
+  // The next match: a new query on the same panel; a reply that arrives after the board moved on is not applied.
+  w.web.hold = true;
+  present(w, b);
+  w.advance(1500);
+  assert.equal(w.text("NSTeamName1"), "Hidden King", "reply not here yet");
+  const c = pgMatch(121999999, { swap: false });
+  w.fill(c);
+  w.fire("CitadelMatchDetailsUpdated", c.id);
+  w.advance(300);
+  w.web.release();
+  w.advance(1500);
+  assert.equal(w.text("NSTeamName1"), "Hidden King", "a late reply for another match names nothing");
+  assert.equal(w.text("NSMatch"), `MATCH ${c.id}`);
+  w.web.hold = false;
+  w.advance(10000);
+  assert.ok(noBoardErrors(w));
+  // A card handed in the same process wins and the store is not asked at all.
+  const w2 = boardWorld({ disk });
+  w2.boot();
+  w2.advance(1000);
+  w2.fire("ClientUI_FireOutput", handoff(boardCard(a, { at: 9000, t: [["Handed", "", ""], ["Handed B", "", ""]] })));
+  present(w2, a);
+  w2.advance(2000);
+  deq([w2.text("NSTeamName1"), w2.text("NSTeamName2")], ["Handed", "Handed B"]);
+  assert.equal((w2.web.urls || []).length, 0, "the handed card needs no store");
+  // Offline: stock names, a few tries at most, then quiet until the next match.
+  const off = boardWorld({ disk, offline: true });
+  off.boot();
+  off.advance(1000);
+  present(off, a);
+  off.advance(30000);
+  assert.equal(off.text("NSTeamName1"), "Hidden King");
+  assert.ok(off.web.urls.length <= 6, `${off.web.urls.length} requests while offline`);
+  const tries = off.web.urls.length;
+  off.advance(30000);
+  assert.equal(off.web.urls.length, tries, "gave up");
+  assert.ok(noBoardErrors(off));
+  // The steady state costs what it did: nothing written, within the board's budget (after the event's burst).
+  w2.advance(8000);
+  reset(w2);
+  const stop = counted(w2.harness);
+  w2.advance(10000);
+  const shownOps = per(stop(), 10);
+  assert.equal((shownOps.textWrites || 0) + (shownOps.styleWrites || 0) + (shownOps.classWrites || 0), 0, "no writes");
+  assert.ok(total(shownOps) <= BUDGET_BOARD.calls && weighted(shownOps) <= BUDGET_BOARD.us, `board with a card: ${total(shownOps)} calls/s, ${weighted(shownOps)} us/s`);
+});
+
 
 // ---------------------------------------------------------------- budgets
 

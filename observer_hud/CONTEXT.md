@@ -110,6 +110,12 @@ The vocabulary of the pak10 observer HUD: looks, top bar parts, objective cues, 
 
 **Pending alias**: An alias typed for a card whose account was unknown. By name, this session only (never saved or shared); binds to the account only within the map load it was typed in.
 
+**Match card**: What the HUD writes for one match: the Steam accounts of each side, the two team snapshots (name, tag, logo URL), the organiser and the winner. The board takes a card that shares at least 10 of the match's 12 accounts. See [SPEC.md](SPEC.md#match-cards).
+
+**Handoff**: A match card sent as `OHM1:<json>` on `ClientUI_FireOutput` from the HUD to the post-game board in the same process, repeated every 5 s.
+
+**Store v2**: The hpv2-store page `/oh/v2/` with the `state` and `matches` keys; the v1 page `/oh/` is untouched for released paks.
+
 **Legacy alias**: A v1 name-keyed alias kept in `legacy`. It still applies by name and shows a one-click bind chip once the card's account is known.
 
 **Roster**: The in-game names read from the stock cards, which fill the editor's alias rows.

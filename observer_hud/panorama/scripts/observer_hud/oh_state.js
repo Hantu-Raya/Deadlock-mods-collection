@@ -267,6 +267,90 @@
     return state;
   }
 
+  // ---- match cards (plan phase 4) ------------------------------------------------------------------
+  // A card names the two teams of one match by the Steam accounts of their players:
+  //   { a: [accounts of the Amber side], b: [Sapphire side] (1-6 numbers each, no repeats), t: [[name, tag, logo
+  //     URL], [name, tag, logo URL]] (Amber's, Sapphire's), r: [organiser name, logo URL] | 0,
+  //     w: 0 | 1 | 2 (the winner: 1 Amber, 2 Sapphire), id: match id text | "", at: seconds (newer wins) }.
+  // The HUD sends it to the post-game board as "OHM1:<json>" on ClientUI_FireOutput and to the store page's
+  // matches key; the board takes a card that shares at least MATCH_MIN of the match's accounts. Anything
+  // else sent on that channel (another mod, a forged message) fails cleanCard: bad names and URLs fall
+  // back to "" (the stock name shows), bad shapes and sizes are refused whole.
+  const MATCH_MIN = 10;
+  const CARD_PREFIX = "OHM1:";
+  const MAX_CARD = 2400;
+  function cardIds(raw, taken) {
+    if (!Array.isArray(raw) || raw.length > 6) return null;
+    const out = [];
+    for (const value of raw) {
+      const key = typeof value === "number" ? String(value) : value;
+      if (!isAccount(key) || taken.has(key)) return null;
+      taken.add(key);
+      out.push(Number(key));
+    }
+    return out;
+  }
+  function cleanCard(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const taken = new Set();
+    const a = cardIds(raw.a, taken);
+    const b = cardIds(raw.b, taken);
+    if (!a || !b || a.length + b.length < 2 || !Array.isArray(raw.t) || raw.t.length !== 2) return null;
+    const t = [];
+    for (const entry of raw.t) {
+      if (!Array.isArray(entry) || entry.length !== 3) return null;
+      t.push([cleanText(entry[0], LIMITS.name) || "", (cleanText(entry[1], LIMITS.tag) || "").toUpperCase(), cleanUrl(entry[2]) || ""]);
+    }
+    let r = 0;
+    if (Array.isArray(raw.r) && raw.r.length === 2) {
+      const name = cleanText(raw.r[0], LIMITS.org) || "";
+      const logo = cleanUrl(raw.r[1]) || "";
+      if (name || logo) r = [name, logo];
+    }
+    const card = {
+      a: a, b: b, t: t, r: r, w: raw.w === 1 || raw.w === 2 ? raw.w : 0,
+      id: typeof raw.id === "string" && /^\d{1,12}$/.test(raw.id) ? raw.id : "",
+      at: Number.isInteger(raw.at) && raw.at >= 0 && raw.at < 4e9 ? raw.at : 0
+    };
+    return JSON.stringify(card).length <= MAX_CARD ? card : null;
+  }
+  // The card in a ClientUI_FireOutput message, or null (not ours, too long, not JSON, not a card).
+  function decodeHandoff(message) {
+    if (typeof message !== "string" || message.length > MAX_CARD + CARD_PREFIX.length || message.slice(0, CARD_PREFIX.length) !== CARD_PREFIX) return null;
+    try {
+      return cleanCard(JSON.parse(message.slice(CARD_PREFIX.length)));
+    } catch (e) {
+      return null;
+    }
+  }
+  const encodeHandoff = (card) => CARD_PREFIX + JSON.stringify(card);
+  // How many of the wanted accounts (strings) are on one side of a card.
+  const sideShared = (ids, wanted) => ids.reduce((n, id) => n + (wanted.has(String(id)) ? 1 : 0), 0);
+  const cardShared = (card, wanted) => sideShared(card.a, wanted) + sideShared(card.b, wanted);
+  // The best card for these accounts (strings, up to 12): at least MATCH_MIN shared; a card written for
+  // this match id first, then one without an id, then the most shared, then the newest; null when none.
+  function pickCard(cards, accounts, id) {
+    const wanted = new Set(accounts);
+    let best = null;
+    let bestRank = -1;
+    for (const card of cards) {
+      const shared = cardShared(card, wanted);
+      if (shared < MATCH_MIN || (card.id && card.id !== id)) continue;
+      const rank = (card.id ? 3 : 2) * 1e12 + shared * 1e10 + card.at;
+      if (rank > bestRank) {
+        best = card;
+        bestRank = rank;
+      }
+    }
+    return best;
+  }
+  // Which card team is the board's team 1: 0 when the card's Amber side shares more with it, else 1.
+  function cardSide(card, team1, team2) {
+    const one = new Set(team1);
+    const two = new Set(team2);
+    return sideShared(card.a, one) + sideShared(card.b, two) >= sideShared(card.a, two) + sideShared(card.b, one) ? 0 : 1;
+  }
+
   // Up to three capitals for a team without a tag ("Night Owls" -> "NO").
   function monogram(team) {
     if (team.tag) return team.tag;
@@ -362,6 +446,8 @@
     defaults: () => clone(DEFAULTS),
     normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, logoSources: logoSources, monogram: monogram, winsNeeded: winsNeeded,
     checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, valid: valid, clone: clone,
-    parseClock: parseClock, TEAM_PANELS: TEAM_PANELS, isAccount: isAccount, MAX_ALIASES: MAX_ALIASES
+    parseClock: parseClock, TEAM_PANELS: TEAM_PANELS, isAccount: isAccount, MAX_ALIASES: MAX_ALIASES,
+    MATCH_MIN: MATCH_MIN, MAX_CARD: MAX_CARD, cleanCard: cleanCard, decodeHandoff: decodeHandoff, encodeHandoff: encodeHandoff,
+    pickCard: pickCard, cardSide: cardSide, cardShared: cardShared
   });
 })();

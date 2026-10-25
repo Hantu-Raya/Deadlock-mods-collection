@@ -1,6 +1,6 @@
 # Plan: post-game board in Observer HUD, account-keyed names, team names and logos, and a 90% runtime cut
 
-Status: **phases 1, 2 and 3 done** (2026-10-25); phases 4-5 are not built. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
+Status: **phases 1-4 done** (2026-10-25); phase 5 is not built. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
 - `BRIEF.md`;
 - `m2_round1.md`, `round2_from_parent.md`, `m2_round2.md`;
 - `scout_perf.md`, `scout_identity.md`;
@@ -149,7 +149,8 @@ That is about 0.04% of one core before JS execution and GC, which were not measu
 3. **Identity and aliases v2.** **Done 2026-10-25** (MAP changelog; the PLAYERS button was dropped by the user, so no hover or click path). Marker accounts per side (passive), the name-then-elimination join, pending aliases, legacy chips, migration, and the dead marker and kill-feed `heroid` fallback removed.
    - *Acceptance as planned:* VM checks for duplicate names, bots, persona labels that match no card, and map changes; aliases by account seen live.
    - *Result:* 7 new checks (all failed before the code), 68 in total. Weighted budgets unchanged (spectating 216.2, counting down 274.3 us/s); the scan costs 6.1 us/s while 6 of 12 accounts are known and nothing at 11 of 12. Live on demo 121685912 (client 6819, pak10 with a temporary probe default that keyed aliases by the demo's 11 accounts): 11 of 12 cards joined, and the names row showed the account aliases on 11 cards (`shots/live/phase3-aliases-by-account-demo-121685912.png`). Not seen live: typing an alias in the editor and the chip (no input control).
-4. **Session handoff, then store v2 and match cards.**
+4. **Session handoff, then store v2 and match cards.** **Done 2026-10-25** ([ADR 0010](../docs/adr/0010-store-v2-and-match-cards.md), MAP changelog).
+   - *Result:* 6 new checks (all failed before the code), 74 in total; budgets unchanged. The v2 page is at `/oh/v2/` (a new path, so `/oh/` v1 stays untouched; the plan's "new /oh/ page version" became a path). Tested on `oh/v2-test/` first, published, test path removed. Live on demo 121685912 (client 6819): handoff, store answer, store after a restart, header names and PNG/GIF logos; the board's first build asks the store before the HUD's next resend lands, so both sources answer.
    - The HUD sends the match card to the board through `ClientUI_FireOutput` (P3).
    - The store v2 page is tested on an https probe path first (needs approval), then published with approval, for old matches and restarts.
    - The header swaps when a card arrives.

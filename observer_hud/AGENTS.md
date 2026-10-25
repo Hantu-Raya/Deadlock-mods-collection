@@ -30,7 +30,7 @@ node observer_hud/scripts/verify-postgame-live.js <metadata.json> - pak10   # wr
 - `build_observer_hud.ps1 -GamePak <pak01_dir.vpk>` picks the game pak the VData baseline comes from (default: the installed game). The compiler step has a 300 s timeout and the build checks the required outputs.
 
 - The validator boots the host in the pinned stock `hud.xml` with the stock top bar, team and player layouts and the stock Escape menu (once more with HP Colors v3's), drives the editor, runs the world sampler in stock overlay contexts, and checks the steady-state budgets. It writes `.tmp/observer-hud-validate.json`. It proves no rendering or CSS behaviour.
-- `OH_CHECK=<text>` runs only matching checks. `OH_RUNTIME_ROOT=<staged panorama>` runs the VM scenarios on the Closure output (the build does this). `OH_STORE_PAGE=<path>` overrides the hosted save page source.
+- `OH_CHECK=<text>` runs only matching checks. `OH_RUNTIME_ROOT=<staged panorama>` runs the VM scenarios on the Closure output (the build does this). `OH_STORE_PAGE=<path>` overrides the v2 hosted page source (the v1 page at `D:/hpv2-store/oh/index.html` is also run, to prove it keeps working).
 - The build runs the validator twice (source, then Closure output), packs, checks the exact pak inventory and re-verifies the packed VData. `-Install` backs up the old pak10 and checks the hash.
 
 ## Runtime and test rules
@@ -51,8 +51,8 @@ node observer_hud/scripts/verify-postgame-live.js <metadata.json> - pak10   # wr
 
 ## Storage and hosted page
 
-- Follow the [local save contract](SPEC.md#local-save): hidden `CitadelHTMLPanel#OHStore`, fragment in and `HTMLTitle` out, reply prefix `OHS1:`, key `hantu.observer_hud.v1/state`, record `OHS1.<fnv1a32>.<{s:1,state}>`, cap `m` 8192. Never touch the HP Colors, Buff Timer or DLF keys.
-- The hosted source is `D:/hpv2-store/oh/index.html` (repo `Hantu-Raya/hpv2-store`), outside pak10. Never push, publish or upload the GameBanana page or the release archive without explicit user approval; the validator's fake CEF panel does not prove served bytes.
+- Follow the [local save contract](SPEC.md#local-save) and [match cards](SPEC.md#match-cards): hidden `CitadelHTMLPanel#OHStore`, fragment in and `HTMLTitle` out, reply prefix `OHS2:`, keys `hantu.observer_hud.v2/state` (record `OHS1.<fnv1a32>.<{s:1,state}>`, cap `m` 8192, read in pieces: a reply is cut at 4096 characters) and `hantu.observer_hud.v2/matches`. Never write v1's key and never touch the HP Colors, Buff Timer or DLF keys.
+- The hosted source is `D:/hpv2-store/oh/v2/index.html` (repo `Hantu-Raya/hpv2-store`), outside pak10; `oh/index.html` (v1) serves the released 0.1.0 pak and stays untouched ([ADR 0010](docs/adr/0010-store-v2-and-match-cards.md)). A new page version is tested on a temporary https path with its own keys first, then published, then the test path is removed. Never push, publish or upload the GameBanana page or the release archive without explicit user approval; the validator's fake CEF panel does not prove served bytes.
 - The public version is `VERSION` in `oh_menu.js` (0.1.0). Record each release in the [MAP changelog](MAP.md#changelog).
 
 ## Debug and live acceptance

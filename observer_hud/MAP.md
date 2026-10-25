@@ -20,13 +20,14 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Soul lead graph | yes | VM | seen (10:00, 15:00 marks; Friendly = Amber) |
 | Objective cues | yes | VM | seen: rift, urn, bridge buff, held rejuvenator; mid-boss respawn, the radial rejuvenator time, the yellow held text and the respawn-after-buff not seen |
 | Editor window, entry, credits | yes | VM | screens only |
-| Local save (hpv2-store `/oh/`, `125c2db`) | yes, published | VM (real page script) | seen once across a restart |
+| Local save (hpv2-store `/oh/` v1 `125c2db`; store v2 `/oh/v2/` `538cd0e`) | yes, both published (v1 untouched) | VM (real v1 and v2 page scripts) | v1 seen once across a restart; v2: v1's record migrated live and the card round trip works; the setup save/read on v2 was not looked at on screen |
 | Status column and spectator VData | yes (shared spec; centred two-wide grid in pak10 `66e4f617`) | VM; build verifies packed VData | seen in v1 (vertical column); the `unnamed` fix and the grid not seen |
 | Purchase notices (DLF's, rewritten) | yes (pak10 `e4c5b7a7`) | VM (pinned stock shop layout) | seen on `5bc49641` to `d046f3b8` (demo: list fills, cards right; VALVEOracle text seen on `9260a4a6`; 228 px width seen; wobble jagged on `26fe7a1c`, too subtle and jagged on `7fa3fd49`, image frame at full poses on `bd88bfdc`, 20 % on `d046f3b8`: user asked for 10 % more, then 5 % more); the 35 % wobble and the 10 % smaller frame not seen |
+| Match cards (HUD writes, board header, store v2) | yes (pak10 `3ee075c7`) | VM (store page, host card, board handoff, logos, store lookup) | seen: handoff, store after restart, header names and PNG/GIF logos; logo failure and editor-typed teams not seen |
 | Post-game board (`pg_*`, merged from the retired pak11) | yes (pak10 `341b2bba`) | VM (`board:` checks: events, 1 s check, budgets, reload, reused rows, untranslated rows) | seen on `341b2bba` (client 6819): matches 121917141 and 121880956 PASS `verify-postgame-live.js`, a cached reopen without events rebuilt, a 4th-row item tooltip on `1c5ff983` |
 
 - Installed pak10: `341b2bba` (2026-10-25, client 6819), with the post-game board, installed for the phase 2 live run and left installed. The old standalone pak11 (`9A6058A0`) was removed and is kept at `.tmp/pg/pak11_9a6058a0_installed.vpk`. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
-- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 68 checks passed. Weighted native time in the live-like scenario, against these budgets:
+- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 74 checks passed. Weighted native time in the live-like scenario, against these budgets:
 
   | State | us/s | Budget |
   |---|---:|---:|
@@ -70,6 +71,14 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 - Later (PLAN): aliases that follow the Steam account; an organiser preset file (`-MatchFile`, as DLF has); stage text in other languages; an Escape-menu Watch tab (the user asked, then preferred demo playback; research notes in PLAN "Later").
 
 ## Changelog
+
+### 2026-10-25, phase 4 (source only, not released; pak10 `3ee075c7`)
+
+- **Session handoff, match cards and store v2** (phase 4 of [decisions/postgame-identity-perf-plan.md](decisions/postgame-identity-perf-plan.md); [ADR 0010](docs/adr/0010-store-v2-and-match-cards.md)).
+  - **HUD:** builds a match card (accounts per side, team snapshot, organiser) once both sides have 5 known accounts, again when the set grows and at match end with the winner; hands it to the board as `OHM1:` on `ClientUI_FireOutput` every 5 s and upserts it into the store. Untouched sample names are left out.
+  - **Board:** `identify` swaps the header's names, organiser and logos for a card that shares at least 10 of the 12 accounts; the hidden store panel exists only while the page shows and only when no handed card fits; custom logos swap on `ImageLoaded`. `oh_state.js` is now also included by `pg_board.xml`.
+  - **Store v2:** the page lives at `oh/v2/` (hpv2-store `538cd0e`); `oh/` (v1) is untouched. The setup record is read in pieces under the 4096-character title cap (v1's over-4000-character read bug does not carry over), v1's record migrates on first read, cards are upserted, queried by accounts and capped at 32 KB. A temporary test copy `oh/v2-test/` (`ae39dd9`, `5e21d62`) was published for the live probe and removed.
+  - **Validator:** 74 checks (6 new, all failed before the code); budgets unchanged (spectating 216.2, counting down 274.3, board shown 2.3 / hidden 1.6 us/s). The fake CEF panel now cuts titles at 4096 characters and runs the v2 and v1 pages.
 
 ### 2026-10-25, phase 3 (source only, not released; pak10 `5a15dc6c`)
 

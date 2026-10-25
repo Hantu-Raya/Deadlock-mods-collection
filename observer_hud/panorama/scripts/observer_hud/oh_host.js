@@ -2062,6 +2062,71 @@
     setStyle(UI.entry, "visibility", shown ? "visible" : "collapse");
   }
 
+  // ------------------------------------------------------------------ match card
+
+  // The match card (plan phase 4, $.OHState "match cards"): the accounts of each side from the markers and
+  // the team snapshot, written once both sides are known (at least 5 accounts each; written again when the
+  // set of accounts grows) and again at match end with the winner. Each write goes to the editor's store
+  // panel (onCard) and to the post-game board in this process (ClientUI_FireOutput, live P3); the board's
+  // script is only loaded when the post-game page first shows, so the latest card is sent again every
+  // CARD_RESEND_MS, also after spectating ended, until the next map load. An untouched sample name (SPEC
+  // "Sample defaults") is left out of a card: the board keeps the stock name.
+  const CARD_RESEND_MS = 5000;
+  const Card = { gen: -1, sig: "", key: "", card: null, sentAt: 0, ended: -1 };
+  const cardListeners = [];
+  function snapshotCard(winner) {
+    const ids = { amber: [], sapphire: [] };
+    for (const entry of Accts.list) ids[entry.side].push(Number(entry.account));
+    if (ids.amber.length < 5 || ids.sapphire.length < 5) return null;
+    const sample = S.defaults();
+    const team = (key) => {
+      const own = state[key];
+      const untouched = own.name === sample[key].name && own.tag === sample[key].tag && !own.logo.url;
+      return untouched ? ["", "", ""] : [own.name, own.tag, own.logo.url];
+    };
+    const org = state.org.name === sample.org.name && !state.org.logo.url ? ["", ""] : [state.org.name, state.org.logo.url];
+    const card = S.cleanCard({ a: ids.amber.sort((x, y) => x - y), b: ids.sapphire.sort((x, y) => x - y), t: [team("amber"), team("sapphire")],
+      r: org, w: winner, id: "", at: Math.floor(Date.now() / 1000) });
+    // Nothing to show on the board (no names, no logos): not worth a card.
+    return card && (card.t.some((entry) => entry[0] || entry[2]) || card.r) ? card : null;
+  }
+  function publishCard(card) {
+    Card.card = card;
+    Card.sentAt = 0;
+    for (const fn of cardListeners.slice()) {
+      try { fn(card); } catch (e) { logOnce("cardListener", "a match card listener failed"); }
+    }
+    sendCard(Date.now());
+  }
+  function sendCard(now) {
+    if (!Card.card || now - Card.sentAt < CARD_RESEND_MS) return;
+    Card.sentAt = now;
+    try { $.DispatchEvent("ClientUI_FireOutput", S.encodeHandoff(Card.card)); } catch (e) { logOnce("cardSend", "could not hand over the match card"); }
+  }
+  function serviceCard() {
+    if (Card.gen !== mapGen) {
+      Card.gen = mapGen;
+      Card.sig = "";
+      Card.key = "";
+      Card.card = null;
+    }
+    if (Accts.sig === Card.sig) return;
+    Card.sig = Accts.sig;
+    const card = snapshotCard(0);
+    if (!card) return;
+    const key = `${card.a.join(",")}/${card.b.join(",")}`;
+    if (key === Card.key) return;
+    Card.key = key;
+    publishCard(card);
+  }
+  // The stock match-end screen named a winner (awardSeries): the card as it is now, with the winner.
+  function endCard(team) {
+    if (Card.ended === mapGen) return;
+    Card.ended = mapGen;
+    const card = snapshotCard(team === "amber" ? 1 : 2);
+    if (card) publishCard(card);
+  }
+
   // ------------------------------------------------------------------ series
 
   // The stock match-end screen (hud.xml #MatchEnd) names the winner. client.dll 6819 (static RE of
@@ -2096,6 +2161,7 @@
       return;
     }
     matchEnd.awarded = UI.bar;
+    endCard(team);
     const wins = Math.min(state[team].series + 1, S.winsNeeded(state.bestOf));
     $.Msg(`${TAG} match end: ${team} wins (series ${team} ${wins})`);
     if (wins === state[team].series) return;
@@ -2140,6 +2206,7 @@
           renderMarkers(Date.now());
           if (Accts.sig !== Join.sig) renderNames(); // a new account: the band and the maps now
           reconcileAliases();
+          serviceCard();
           renderFeedNames();
           place();
           sampleGraph();
@@ -2167,6 +2234,7 @@
         }
       }
       awardSeries(watching);
+      sendCard(Date.now());
     } catch (e) {
       logOnce("tick", `tick failed: ${e && e.message ? e.message : e}`);
     }
@@ -2185,6 +2253,9 @@
     carried: () => carried,
     setState: setState,
     onChange: (fn) => listeners.push(fn),
+    // The match card (the latest one written this map) and its writes: onCard(fn) calls fn(card) for each.
+    card: () => Card.card,
+    onCard: (fn) => cardListeners.push(fn),
     topBar: () => valid(UI.topBar) ? UI.topBar : null,
     // Spectating at the last tick (no native call).
     watching: () => watchingNow,
