@@ -4,7 +4,7 @@ A spectator top bar that community organisers can use for their own Deadlock tou
 
 ## Status
 
-**v2 is built** (2026-10-22): two looks picked in the editor, Base Game+ Names (default, design 14) and Night Desk (design 12, with the soul lead graph), as pak10. v1 (design 11, Base Game+) was live-tested on demo 121685912; v2 still needs its live run. v2.1 adds objective cues under the clock (bridge buff, mid-boss / rejuvenator in the middle, rift, urn), shown only while close (`decisions/objective-timers.md`). Read `AGENTS.md` for the runtime, build and verification; `PLAN.md` for the design and what is left (publishing needs the user's go-ahead).
+**0.1.0 is published** ([GameBanana](https://gamebanana.com/mods/731315)): two looks picked in the editor, Base Game+ Names (default) and Night Desk (with the soul lead graph), objective cues, the ability status column and purchase notices, as pak10. **0.2.0** adds the Night Shift post-game board (exact stats, souls by source, final items, the soul lead line with objectives, torn-paper header), aliases by Steam account, and team cards tied to the match id through the store v2 page. Read `AGENTS.md` for the runtime, build and verification; `MAP.md` for status and the changelog; `PLAN.md` for the design history (publishing needs the user's go-ahead).
 
 ```powershell
 node observer_hud/scripts/validate-observer-hud.js
@@ -20,8 +20,8 @@ Design history: round 1 (designs 1-5), round 2 (6-10, hybrids of 2 and 5), RzR's
 ```text
 panorama/               the mod (layouts, scripts, styles); see AGENTS.md
 stock/                  pinned GameTracking layouts for the validator
-scripts/                validate-observer-hud.js, refresh-stock.py
-shots/live/             in-game screens of v1
+scripts/                validate-observer-hud.js, verify-postgame-live.js, refresh-stock.py, make-torn-masks.py
+shots/live/             in-game screens
 spike/                  throwaway injection spike (not shipped)
 designs/
   index.html            picker page (screenshots, tradeoffs, recommendations)

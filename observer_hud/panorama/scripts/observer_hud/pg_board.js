@@ -20,6 +20,7 @@
   const BURST_S = 0.1; // after an event: waiting for the rows, the page or the screen focus
   const MATCH_WAKE_MS = 5000; // burst after the match event (and at boot: the page loads for a match)
   const SCREEN_WAKE_MS = 1000; // burst after a screen pick (the carousel sets Focused)
+  const INTRO_RESET_MS = 1000; // off the Scoreboard screen this long (the carousel has moved it away): entrance re-armed
   const LOADING_MAX_MS = 30000; // stop showing "loading" after this (a failed load shows the stock error)
   const SCAN_FROM = 0.2; // progress share of the rows; the scan steps fill the rest
   const TIP_ID = "PostGameGraphTooltip";
@@ -69,6 +70,9 @@
     "Denies": ["denies", "Denies"]
   };
   const LANE_TIERS = [["LaneStatTier1", "tier1"], ["LaneStatTier2", "tier2"], ["LaneStatBarracks", "base"]];
+  // Layout numbers shared with pg_board.css: GRAPH_H and the 1600 px plot = .NSGraphPlot; CHART_W =
+  // .NSGraphMid; the 105 px column = .NSColumn/.NSPaper/.NSPortrait; 702 px team and 196 px gutter
+  // (layoutScoreboard) = .NSHeadSide/.NSTeam and .NSHeadCentre/.NSLabels/.NSProgress. Change both.
   const GRAPH_H = 112; // the plot; the canvas fills it (1600 x 112)
   const CHART_W = 1512; // the lead's x range; the right gutter holds the final-lead pill
 
@@ -83,21 +87,24 @@
     for (const item of items) log(`data ${kind} + ${JSON.stringify(item)}`);
   };
   const num = (text) => { const n = parseInt(String(text).replace(/[^0-9-]/g, ""), 10); return Number.isFinite(n) ? n : 0; };
-  const secs = (text) => { const m = /^(\d+):(\d\d)$/.exec(String(text).trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : -1; };
+  const secs = (text) => { const s = OH.parseClock(text); return s === null ? -1 : s; };
   const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const fmtK = (v) => `${(v / 1000).toFixed(1)}K`;
 
   const UI = {
     page: null, screen: null, scoreboard: null, graphs: null, tip: null,
-    team: [null, null], names: [null, null], results: [null, null], worth: [null, null], kills: [null, null],
-    clock: null, match: null, soulsLabel: null, graph: null, bars: null, ticks: null, events: null, top: null, bottom: null,
+    names: [null, null], results: [null, null], worth: [null, null], kills: [null, null],
+    clock: null, match: null, soulsLabel: null, graph: null, ticks: null, events: null, top: null, bottom: null,
     progress: null, progressFill: null, progressText: null
   };
   const S = {
     key: "",
     gen: 0,
-    match: null, // { id, duration, teams: [{win, rows, totals}, ...] }
-    cols: [], // per player row: { hero, souls }
+    cols: [], // per player row: { hero, column, souls, plate, nameBlock, account, alias, items, delay }
+    focused: false, // the Scoreboard screen was focused at the last check
+    blurAt: 0, // Date.now() when it lost focus
+    introShown: false, // the entrance has played since the board was built or re-armed
+    introToken: 0, // bumps on every entrance change; a stale scheduled item fade-in does nothing
     tipMuted: false, // the stock tooltip is transparent (scan running, or not on the Graphs screen)
     sig: "", // first row's bound text when the board was built (steady-state check)
     bound: null, // that bound label (ours, inside a reused stock row)
@@ -128,7 +135,6 @@
 
   function bindUI() {
     for (const i of [1, 2]) {
-      UI.team[i - 1] = ctx.FindChildTraverse(`NSTeam${i}`);
       UI.names[i - 1] = ctx.FindChildTraverse(`NSTeamName${i}`);
       UI.results[i - 1] = ctx.FindChildTraverse(`NSResult${i}`);
       UI.worth[i - 1] = ctx.FindChildTraverse(`NSWorth${i}`);
@@ -348,20 +354,13 @@
   // dashboard cannot reach the HUD, so the board reads the saved setup record from the store page (op r, in
   // pieces under the title cap) once per match and keeps only the account -> alias map.
   const ALIASES = new Map();
-  const READ_LIMIT = 8192;
-  const RECORD_PREFIX = "OHS1.";
-  // The record ("OHS1.<fnv1a32>.<{s:1,state}>") -> account -> alias; an absent or damaged one gives none.
+  // The record (OH.decodeRecord) -> account -> alias; an absent, newer or damaged one gives none.
   function readAliases(record) {
     ALIASES.clear();
-    if (typeof record === "string" && record.length <= READ_LIMIT && record.slice(0, 5) === RECORD_PREFIX &&
-        record.charAt(13) === "." && OH.checksum(record.slice(14)) === record.slice(5, 13)) {
-      try {
-        const body = JSON.parse(record.slice(14));
-        if (body && body.s === 1 && body.state && typeof body.state === "object") {
-          const players = OH.normalize(body.state).players;
-          for (const account of Object.keys(players)) if (players[account].a) ALIASES.set(account, players[account].a);
-        }
-      } catch (e) { /* damaged: no aliases */ }
+    const saved = OH.decodeRecord(record);
+    if (saved.kind === "valid") {
+      const players = OH.normalize(saved.state).players;
+      for (const account of Object.keys(players)) if (players[account].a) ALIASES.set(account, players[account].a);
     }
     log(`names: ${ALIASES.size} alias(es) by account from the saved setup`);
     renderAliases();
@@ -485,7 +484,19 @@
       $.CreatePanel("Label", cell, "", { class: "NSCellValue", text: r.text[key], hittest: "false" });
     });
     renderName(column.FindChildTraverse("NSPlate"), r, nameBlock, main, column);
-    S.cols.push({ hero: r.hero, column, souls: column.FindChildTraverse("NSSouls"), plate: column.FindChildTraverse("NSPlate"), nameBlock, account: String(r.account || ""), alias: "" });
+    // Entrance stagger from the centre outward, as the NSCol delays in pg_board.css; the stock items follow.
+    const delay = 0.10 + 0.05 * (teamIndex === 0 ? 5 - index : index);
+    const entry = { hero: r.hero, column, souls: column.FindChildTraverse("NSSouls"), plate: column.FindChildTraverse("NSPlate"), nameBlock, account: String(r.account || ""), alias: "", items, delay };
+    S.cols.push(entry);
+    css(items, { opacity: "0", transitionProperty: "opacity", transitionDuration: "0.3s", transitionTimingFunction: "ease-out" });
+  }
+
+  // The stock items are not ours to class: they fade by an inline transition, shown after their column
+  // (live: a transition-delay written with the opacity was ignored and the items popped in first).
+  function itemsShown(c, on) {
+    if (!on) { css(c.items, { opacity: "0" }); return; }
+    const token = S.introToken;
+    $.Schedule(c.delay + 0.12, () => { if (!stopped && token === S.introToken) css(c.items, { opacity: "1" }); });
   }
 
   // Entrance animations start a frame after the panels are created and laid out (a trigger
@@ -1030,7 +1041,7 @@
     } else if (op.o === "r") {
       // The record in pieces (v = piece, s = its start, n = the whole length), each under the title cap.
       const piece = reply.ok === true && reply.x === 1 && typeof reply.v === "string" && reply.s === op.text.length &&
-        Number.isInteger(reply.n) && reply.n >= 0 && reply.n <= READ_LIMIT;
+        Number.isInteger(reply.n) && reply.n >= 0 && reply.n <= OH.RECORD_LIMIT;
       if (piece) {
         const text = op.text + reply.v;
         if (text.length < reply.n) {
@@ -1043,11 +1054,15 @@
 
   // ---------- show / teardown ----------
 
-  // Remove the entrance classes, then add them back a frame later so the CSS animations restart.
-  function replayIntro() {
+  // The entrance. Off the Scoreboard screen the board waits hidden: the frame without NSIntro (opacity 0),
+  // the columns without NSIn (opacity 0), the stock items transparent. It plays when the screen is focused
+  // and is re-armed only after the screen has been away INTRO_RESET_MS, so nothing on screen is ever hidden
+  // to replay it (user 2026-10-26: the contents showed, vanished, then revealed).
+  function playIntro() {
+    S.introShown = true;
+    S.introToken++;
+    // Restart the souls and graph animations; their columns and frame are still hidden here.
     const souls = S.cols.map((c) => c.souls).filter((p) => ok(p) && p.GetChildCount() > 0);
-    if (ok(UI.frame)) UI.frame.RemoveClass("NSIntro");
-    for (const c of S.cols) if (ok(c.column)) c.column.RemoveClass("NSIn");
     for (const p of souls) p.RemoveClass("NSShow");
     const graphOn = ok(UI.graph) && UI.graph.BHasClass("NSOn");
     if (graphOn) UI.graph.RemoveClass("NSShow");
@@ -1055,12 +1070,23 @@
     trigger(S.cols.map((c) => c.column), "NSIn");
     trigger(souls, "NSShow");
     if (graphOn) { trigger([UI.graph], "NSShow"); reveal(); }
+    for (const c of S.cols) itemsShown(c, true);
+  }
+
+  function resetIntro() {
+    S.introShown = false;
+    S.introToken++;
+    if (ok(UI.frame)) UI.frame.RemoveClass("NSIntro");
+    for (const c of S.cols) {
+      if (ok(c.column)) c.column.RemoveClass("NSIn");
+      itemsShown(c, false);
+    }
   }
 
   function show(m) {
     UI.frame.AddClass("NSOn");
-    trigger([UI.frame], "NSIntro");
-    trigger(S.cols.map((c) => c.column), "NSIn");
+    S.introShown = false;
+    if (UI.screen.BHasClass("Focused")) playIntro();
     for (const kid of UI.screen.Children()) {
       if (kid.id === "MatchID" || kid.BHasClass("MatchMode")) css(kid, { opacity: "0" });
     }
@@ -1073,7 +1099,12 @@
     S.gen++;
     unhoverItems(HOVER.items);
     if (ok(UI.frame)) { UI.frame.RemoveClass("NSOn"); UI.frame.RemoveClass("NSIntro"); }
-    for (const c of S.cols) if (ok(c.column)) c.column.DeleteAsync(0);
+    for (const c of S.cols) {
+      if (ok(c.column)) c.column.DeleteAsync(0);
+      css(c.items, { transitionDuration: "0s", opacity: "1" }); // the rows may stay stock
+    }
+    S.introShown = false;
+    S.introToken++;
     S.cols = [];
     if (ok(UI.graph)) { UI.graph.RemoveClass("NSOn"); UI.graph.RemoveClass("NSShow"); }
     S.graphScale = 0;
@@ -1085,7 +1116,6 @@
 
   function build(m) {
     teardown();
-    S.match = m;
     renderHeader(m);
     identify(m);
     layoutScoreboard();
@@ -1232,38 +1262,6 @@
     return parts;
   }
 
-  // The stock tooltip stays up after a scripted hover. Try the stock ways to close it; as a last
-  // resort make it transparent and give the opacity back when the Graphs screen is focused (tick).
-  function tipState(tip) {
-    const chain = [];
-    for (let p = tip, d = 0; ok(p) && d < 3; p = p.GetParent(), d++) chain.push(`${p.paneltype}#${p.id}${p.visible ? "" : "[hidden]"}`);
-    return chain.join(" < ");
-  }
-
-  function hideTip(gen) {
-    const tip = tooltip();
-    if (!tip) return;
-    const tries = [
-      ["mouseout", () => { const c = columns(); if (c.length) $.DispatchEvent("DispatchPanelEvent", c[c.length - 1], "onmouseout"); }],
-      ["hide(graphs)", () => $.DispatchEvent("CitadelHidePostGameGraphsTooltip", UI.graphs)],
-      ["UIHideCustomLayoutTooltip", () => $.DispatchEvent("UIHideCustomLayoutTooltip", TIP_ID)]
-    ];
-    log(`tooltip: ${tipState(tip)}`);
-    const step = (i) => {
-      if (stopped || gen !== S.gen) return;
-      if (!ok(tip) || !tip.visible) { log(`tooltip hidden after ${i ? tries[i - 1][0] : "nothing"}`); return; }
-      if (i >= tries.length) {
-        log(`tooltip still visible (${tipState(tip)}); made transparent until the Graphs screen opens`);
-        tip.style.opacity = "0";
-        S.tipMuted = true;
-        return;
-      }
-      try { tries[i][1](); } catch (e) { log(`hide ${tries[i][0]}: ${e}`); }
-      $.Schedule(0.1, () => step(i + 1));
-    };
-    step(0);
-  }
-
   function scan(m) {
     const gen = S.gen;
     const canvas = UI.graphs ? UI.graphs.FindChildTraverse("Graph") : null;
@@ -1408,7 +1406,6 @@
       logData("events", events);
       renderSouls(souls);
       renderGraph(series, events, m.duration);
-      hideTip(gen);
       progressDone();
     }, (i, total) => progress(SCAN_FROM + (1 - SCAN_FROM) * (i / total), "READING GRAPHS", `${i + 1} / ${total}`));
   }
@@ -1431,11 +1428,13 @@
     }
     if (!ok(UI.scoreboard) || !ok(UI.graphs) || !ok(UI.screen)) return false;
     if (!UI.page.BHasClass("PageVisible")) { if (S.loadingSince) { S.loadingSince = 0; progressHide(); } return false; }
-    // The board builds while the page opens on the Team1 screen; play the entrance again each
-    // time the Scoreboard screen comes into focus, so the user sees it.
+    // The board builds while the page opens on the Team1 screen; the entrance plays when the Scoreboard
+    // screen comes into focus and is re-armed once that screen has been away a while (playIntro).
     const focused = UI.screen.BHasClass("Focused");
-    if (focused && !S.focused && S.key) replayIntro();
+    if (!focused && S.focused) S.blurAt = Date.now();
     S.focused = focused;
+    if (S.key && focused && !S.introShown) playIntro();
+    if (S.key && !focused && S.introShown && Date.now() - S.blurAt >= INTRO_RESET_MS) resetIntro();
     // The stock graph tooltip does not close by script: it is drawn only on the Graphs screen and never while
     // the scan hovers (user 2026-10-25: it showed while loading; 2026-10-26: the user's own hover on the
     // Graphs screen left it over the scoreboard).
@@ -1449,11 +1448,6 @@
     // Steady state: the first row's bound label still reads what the board was built from.
     // Rows are reused across matches, so panel identity is not enough.
     if (S.key && ok(S.bound) && String(S.bound.text) === S.sig) return true;
-    if (!ok(UI.players)) {
-      const team = UI.scoreboard.FindChildTraverse("Team1");
-      UI.players = ok(team) ? team.FindChildTraverse("TeamPlayers") : null;
-      if (!ok(UI.players)) { loading(); return true; }
-    }
     const m = readMatch();
     if (!m) { loading(); return true; }
     S.bound = m.teams[0].rows[0].row.FindChild("NSBinds").FindChild("NSBind");

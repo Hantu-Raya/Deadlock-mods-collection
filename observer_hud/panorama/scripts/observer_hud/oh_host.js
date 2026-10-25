@@ -1189,19 +1189,18 @@
   // join below knows it, else a pending alias (typed before the account was known, by name), else a v1
   // legacy alias by name. Nothing is re-keyed silently: binding is the editor's chip or a pending alias
   // within its own map load (reconcileAliases).
-  const Aliases = { map: {}, upper: new Map(), names: new Set(), sig: "{}", count: 0 };
+  const Aliases = { map: {}, upper: new Map(), sig: "{}", count: 0 };
   const NO_ALIASES = Object.freeze({});
   // The account join: which Steam account sits on which card. cardAccount: card index -> account;
   // accountCard: account -> card index; byName: unique in-game name -> account; side: lower-case unique name ->
   // team key; key: what the join was computed from.
   const Join = { key: "", sig: "", names: [], cardAccount: new Map(), accountCard: new Map(), byName: new Map(), side: new Map() };
   // Accounts read from the far-away markers (CitadelUserName#PlayerName.accountid, live 2026-10-25): list of
-  // { account, side, persona }; sig changes when it does; gen is the map load it belongs to.
-  const Accts = { gen: -1, list: [], sig: "", known: 0, nextAt: 0 };
+  // { account, side, persona }; sig changes when it does.
+  const Accts = { list: [], sig: "", known: 0, nextAt: 0 };
   const ACCOUNT_SCAN_MS = 1000;
   const lower = (text) => String(text).toLowerCase();
   function resetIdentity() {
-    Accts.gen = mapGen;
     Accts.list = [];
     Accts.sig = "";
     Accts.known = 0;
@@ -1270,7 +1269,6 @@
       setClass(label, "OHShown", !!shown);
       card.who = shown;
     });
-    Aliases.names = new Set(names.filter(Boolean).map((name) => name.toUpperCase())); // every card's name
     const sig = JSON.stringify(map);
     if (sig !== Aliases.sig) {
       Aliases.map = map;
@@ -1400,8 +1398,7 @@
     }
     Accts.list = list;
     Accts.known = have.size;
-    const sig = list.map((entry) => `${entry.account}:${entry.side}:${entry.persona}`).sort().join("|");
-    if (sig !== Accts.sig) Accts.sig = sig;
+    Accts.sig = list.map((entry) => `${entry.account}:${entry.side}:${entry.persona}`).sort().join("|");
   }
   // Spectating ended: every marker shows the name the engine gave it.
   function restoreMarkers() {

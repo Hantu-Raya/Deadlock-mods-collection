@@ -21,7 +21,7 @@
 						<Panel class="OHCredits">
 							<Button id="OHDonate" class="SecondaryButton light OHDonate"><Label text="Donate" hittest="false" /></Button>
 							<Button id="OHAuthor" class="OHAuthor"><Label id="OHAuthorLabel" class="OHAuthorLabel" text="by hanturaya" hittest="false" /></Button>
-							<Label id="OHVersion" class="OHVersion" text="v0.1.0" />
+							<Label id="OHVersion" class="OHVersion" text="v0.2.0" />
 						</Panel>
 					</Panel>
 					<Panel class="OHContent">

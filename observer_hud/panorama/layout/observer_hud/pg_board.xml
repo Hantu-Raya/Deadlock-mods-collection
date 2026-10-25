@@ -26,7 +26,7 @@
 						<Label id="NSTeamName1" class="NSTeamName" text="" />
 						<Label id="NSResult1" class="NSResult" text="" />
 					</Panel>
-					<Panel class="NSHeadStat NSHeadWorth" hittest="false">
+					<Panel class="NSHeadStat" hittest="false">
 						<Label class="NSHeadCaption" text="NET WORTH" />
 						<Label id="NSWorth1" class="NSHeadWorthValue" text="" />
 					</Panel>
@@ -45,7 +45,7 @@
 						<Label class="NSHeadCaption" text="KILLS" />
 						<Label id="NSKills2" class="NSHeadKillsValue" text="" />
 					</Panel>
-					<Panel class="NSHeadStat NSHeadWorth" hittest="false">
+					<Panel class="NSHeadStat" hittest="false">
 						<Label class="NSHeadCaption" text="NET WORTH" />
 						<Label id="NSWorth2" class="NSHeadWorthValue" text="" />
 					</Panel>
@@ -57,7 +57,7 @@
 				</Panel>
 			</Panel>
 			<Panel id="NSBody" class="NSBody" hittest="false">
-				<Panel id="NSTeam1" class="NSTeam NSTeam1" hittest="false" />
+				<Panel class="NSTeam NSTeam1" hittest="false" />
 				<Panel id="NSLabels" class="NSLabels" hittest="false">
 					<Panel class="NSOrg" hittest="false">
 						<Label id="NSOrgText" class="NSOrgText" text="" />
@@ -74,7 +74,7 @@
 					<Label id="NSSoulsLabel" class="NSRowLabel NSSoulsLabel" text="SOULS BY SOURCE" />
 					<Label class="NSRowLabel NSItemsLabel" text="FINAL ITEMS" />
 				</Panel>
-				<Panel id="NSTeam2" class="NSTeam NSTeam2" hittest="false" />
+				<Panel class="NSTeam NSTeam2" hittest="false" />
 			</Panel>
 			<Panel id="NSGraph" class="NSGraph" hittest="false">
 				<!-- Soul lead: a line on a UICanvas (pg_board.js renderGraph), dots and labels over it, a pill in the right gutter. -->

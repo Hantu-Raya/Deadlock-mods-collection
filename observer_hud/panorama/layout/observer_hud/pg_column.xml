@@ -5,7 +5,7 @@
 		<include src="s2r://panorama/styles/observer_hud/pg_board.vcss_c" />
 	</styles>
 	<Panel class="NSColumn" hittest="false">
-		<!-- Torn paper card behind the column, reaching down under the stock item grid. -->
+		<!-- Dark paper card (a plain rectangle) behind the column, reaching down under the stock item grid. -->
 		<Panel class="NSPaper" hittest="false" />
 		<!-- Hero art: the gloat card for the winners, the critical card on a column with NSLoss. -->
 		<CitadelHeroImage id="NSPortrait" class="NSPortrait NSPortraitWin" heroimagestyle="hero_card_gloat" scaling="stretch-to-cover-preserve-aspect" hittest="false" />

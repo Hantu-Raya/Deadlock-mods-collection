@@ -429,6 +429,30 @@
     return { kind: "valid", state: body.state };
   }
 
+  // The saved setup record on the store page: "OHS1.<fnv1a32>.<{s:1,state}>", at most RECORD_LIMIT
+  // characters (oh_menu.js writes and reads it; pg_board.js reads its aliases). Session aliases (pending)
+  // are never saved.
+  const RECORD_PREFIX = "OHS1.";
+  const RECORD_SCHEMA = 1;
+  const RECORD_LIMIT = 8192;
+  function encodeRecord(state) {
+    const kept = clone(state);
+    delete kept.pending;
+    const body = JSON.stringify({ s: RECORD_SCHEMA, state: kept });
+    return `${RECORD_PREFIX}${checksum(body)}.${body}`;
+  }
+  // { kind: "valid", state } (state is raw) | { kind: "absent" } | { kind: "newer" } | { kind: "corrupt" }.
+  function decodeRecord(record) {
+    if (record === null || record === undefined) return { kind: "absent" };
+    if (typeof record !== "string" || record.length > RECORD_LIMIT || record.slice(0, 5) !== RECORD_PREFIX ||
+        record.charAt(13) !== "." || checksum(record.slice(14)) !== record.slice(5, 13)) return { kind: "corrupt" };
+    let body = null;
+    try { body = JSON.parse(record.slice(14)); } catch (e) { return { kind: "corrupt" }; }
+    if (!body || typeof body !== "object" || !body.state || typeof body.state !== "object") return { kind: "corrupt" };
+    if (body.s !== RECORD_SCHEMA) return { kind: Number.isInteger(body.s) && body.s > RECORD_SCHEMA ? "newer" : "corrupt" };
+    return { kind: "valid", state: body.state };
+  }
+
   const valid = (panel) => {
     try {
       return !!panel && panel.IsValid();
@@ -454,8 +478,9 @@
     defaults: () => clone(DEFAULTS),
     normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, logoSources: logoSources, monogram: monogram, winsNeeded: winsNeeded,
     checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, valid: valid, clone: clone,
+    RECORD_LIMIT: RECORD_LIMIT, encodeRecord: encodeRecord, decodeRecord: decodeRecord,
     parseClock: parseClock, TEAM_PANELS: TEAM_PANELS, isAccount: isAccount, MAX_ALIASES: MAX_ALIASES,
-    MATCH_MIN: MATCH_MIN, MAX_CARD: MAX_CARD, cleanCard: cleanCard, cleanTeam: cleanTeam, decodeHandoff: decodeHandoff, encodeHandoff: encodeHandoff,
+    MATCH_MIN: MATCH_MIN, cleanCard: cleanCard, cleanTeam: cleanTeam, decodeHandoff: decodeHandoff, encodeHandoff: encodeHandoff,
     pickCard: pickCard, cardSide: cardSide, cardShared: cardShared
   });
 })();

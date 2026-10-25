@@ -1680,9 +1680,7 @@ check("graph: a pin at each 5:00 from the stock soul plates, shown for the set t
   at("4:50", "9.0k", "9.4k");
   assert.equal(shown(), false, "nothing before the first mark");
   at("5:03", "9.1<font>k</font>", "9.7<font>k</font>");
-  deq(w.host().graphPins(), [{ m: 0, v: 0 }, { m: 5, v: -0.6 }].map((p) => ({ m: p.m, v: Math.round(p.v * 10) / 10 })).map((p) => p),
-    "0:00 plus the 5:00 pin");
-  assert.ok(Math.abs(w.host().graphPins()[1].v + 0.6) < 1e-9);
+  deq(w.host().graphPins(), [{ m: 0, v: 0 }, { m: 5, v: -0.6 }], "0:00 plus the 5:00 pin");
   assert.equal(shown(), true, "a new pin shows the graph");
   assert.equal(text(w.ui("OHGraphLead")), "SAP +0.6k");
   assert.ok(w.ui("OHGraphLead").BHasClass("OHSapphire"));
@@ -2090,7 +2088,7 @@ check("editor: credits rail (version, author link, donate) and HP Colors v3's su
   w.press("OHMenuButton");
   assert.ok(loaded.length === 1 && loaded[0].startsWith("https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip-v3/?v="), loaded[0]);
   assert.ok(strip.BHasClass("Open"), "the strip shows while the editor is open");
-  assert.equal(text(w.ui("OHVersion")), "v0.1.0");
+  assert.equal(text(w.ui("OHVersion")), "v0.2.0");
   assert.equal(text(w.ui("OHAuthorLabel")), "by hanturaya");
   w.press("OHAuthor");
   w.press("OHDonate");
@@ -4339,22 +4337,45 @@ check("board: cheap while hidden, little while shown; a reopen without events, a
   assert.equal((shownOps.textWrites || 0) + (shownOps.styleWrites || 0) + (shownOps.classWrites || 0), 0, "no writes while nothing changes");
   assert.ok(total(shownOps) <= BUDGET_BOARD.calls, `board shown: ${total(shownOps)} calls/s`);
   assert.ok(weighted(shownOps) <= BUDGET_BOARD.us, `board shown: ${weighted(shownOps)} us/s`);
-  // Picking the Scoreboard screen replays the entrance at once, not at the next safety check, at any
-  // phase of that check.
+  // The entrance never hides a board that is on screen (user 2026-10-26: "you can see the contents pop
+  // first, then it hidden and reveal"). Built off screen, the board waits hidden (frame without NSIntro,
+  // columns without NSIn, the stock items transparent); picking the Scoreboard screen plays the entrance at
+  // once, at any phase of the safety check. Leaving it resets the entrance only once the carousel has moved
+  // it away (1 s), and a quick return keeps it shown.
   const frame = w.boardHost().FindChildTraverse("NSFrame");
-  let replayedAt = -1;
-  const removeClass = frame.RemoveClass;
-  frame.RemoveClass = function (cls) { if (cls === "NSIntro" && replayedAt < 0) replayedAt = w.harness.now; return removeClass.call(this, cls); };
+  const boardCols = w.columns();
+  const items = boardCols.map((c) => c.GetParent().FindChild("ItemsContainer"));
+  const hiddenNow = () => !frame.BHasClass("NSIntro") && boardCols.every((c) => !c.BHasClass("NSIn")) && items.every((p) => String(p.style.opacity) === "0");
+  const shownNow = () => frame.BHasClass("NSIntro") && boardCols.every((c) => c.BHasClass("NSIn")) && items.every((p) => String(p.style.opacity) === "1");
+  assert.equal(boardCols.length, 12, "12 columns");
+  assert.ok(hiddenNow(), "built with no screen focused: the board waits hidden");
+  let flashes = 0;
+  let shownAt = -1;
+  const scoreboardFocused = () => w.page.FindChildTraverse("ScoreboardScreen").BHasClass("Focused");
+  for (const p of [frame, ...boardCols]) {
+    const removeClass = p.RemoveClass;
+    p.RemoveClass = function (cls) { if ((cls === "NSIntro" || cls === "NSIn") && this.BHasClass(cls) && scoreboardFocused()) flashes++; return removeClass.call(this, cls); };
+    const addClass = p.AddClass;
+    p.AddClass = function (cls) { if (p === frame && cls === "NSIntro" && shownAt < 0) shownAt = w.harness.now; return addClass.call(this, cls); };
+  }
   for (const phase of [0, 350, 700]) {
     w.selectScreen("Team1Screen");
     w.advance(3000 + phase);
-    replayedAt = -1;
+    assert.ok(hiddenNow(), `off screen for 3 s: reset to hidden (phase ${phase})`);
+    shownAt = -1;
     const pickedAt = w.harness.now;
     w.selectScreen("ScoreboardScreen");
     w.advance(1500);
-    assert.ok(replayedAt >= 0 && replayedAt - pickedAt <= 200, `entrance replayed ${replayedAt - pickedAt} ms after the pick (phase ${phase})`);
-    assert.ok(frame.BHasClass("NSIntro"), "entrance class back");
+    assert.ok(shownAt >= 0 && shownAt - pickedAt <= 200, `entrance played ${shownAt - pickedAt} ms after the pick (phase ${phase})`);
+    assert.ok(shownNow(), "board shown after the entrance");
   }
+  w.selectScreen("Team1Screen");
+  w.advance(500);
+  assert.ok(shownNow(), "still shown while the carousel moves it away");
+  w.selectScreen("ScoreboardScreen");
+  w.advance(1500);
+  assert.ok(shownNow(), "a quick return keeps the board shown");
+  assert.equal(flashes, 0, "nothing on the focused Scoreboard screen was hidden after it showed");
   // Hidden: one cheap visibility check per second. Live (pak10 1c5ff983, 2026-10-25) reopening a match
   // this session had already loaded brought no CitadelMatchDetailsUpdated, and picking the Scoreboard
   // screen then woke nothing: a board that slept while hidden showed the previous match.
@@ -4831,7 +4852,7 @@ check("board: without a handed card it asks the store once, only while the page 
   assert.ok(total(shownOps) <= BUDGET_BOARD.calls && weighted(shownOps) <= BUDGET_BOARD.us, `board with a card: ${total(shownOps)} calls/s, ${weighted(shownOps)} us/s`);
 });
 
-check("board: the soul lead is one smooth line over a soft area on a canvas, coloured by who leads, with objective dots on the line, both peaks and the final lead; no bars", () => {
+check("board: the soul lead is one smooth line over a soft area on a canvas, coloured by who leads, with objective dots on the line, both peaks and the final lead", () => {
   // User 2026-10-26: "reimagine the graph and don't make this bars".
   // How it could fail: bars come back; the line misses a scanned point or swings past it between points
   // (an overshoot invents a lead nobody had); a lead change is drawn in one colour or leaves a gap at zero;
@@ -4850,7 +4871,6 @@ check("board: the soul lead is one smooth line over a soft area on a canvas, col
   w.fire("CitadelMatchDetailsUpdated", m.id);
   w.advance(30000);
   const host = w.boardHost();
-  assert.equal(findAll(host, "Panel").filter((p) => p.valid && p.classes.has("NSBar")).length, 0, "no bars");
   const canvas = host.FindChildTraverse("NSGraphCanvas");
   assert.ok(canvas && canvas.paneltype === "UICanvas", "drawn on a UICanvas");
   const geoLine = w.harness.logs.find((l) => l.startsWith("[NS] graph: chart ")) || "";

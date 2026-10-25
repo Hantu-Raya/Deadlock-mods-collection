@@ -8,7 +8,7 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 
 - Start with [AGENTS.md](AGENTS.md) for rules and commands, [CONTEXT.md](CONTEXT.md) for vocabulary and [SPEC.md](SPEC.md) for behaviour.
 - Read [ENGINE.md](ENGINE.md) for native constraints, [docs/adr/](docs/adr/) for durable decisions and [LIVE-VERIFIED.md](LIVE-VERIFIED.md) before making live claims.
-- [README.md](README.md) is the human-facing page (it still says v2 "needs its live run"; the live run was done, see the ledger). [PLAN.md](PLAN.md) is the design history and the failure list. [decisions/](decisions/) holds the spike, objective timer and design-pick notes. `designs/`, `tools/` and `spike/` are not shipped.
+- [README.md](README.md) is the human-facing page. [PLAN.md](PLAN.md) is the design history and the failure list. [decisions/](decisions/) holds the spike, objective timer and design-pick notes. `designs/`, `tools/` and `spike/` are not shipped.
 
 ## Status
 
@@ -26,7 +26,7 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Match cards (HUD writes, board header, store v2) | yes (pak10 `3ee075c7`) | VM (store page, host card, board handoff, logos, store lookup) | seen: handoff, store after restart, header names and PNG/GIF logos; logo failure and editor-typed teams not seen |
 | Post-game board (`pg_*`, merged from the retired pak11) | yes (pak10 `341b2bba`) | VM (`board:` checks: events, 1 s check, budgets, reload, reused rows, untranslated rows) | seen on `341b2bba` (client 6819): matches 121917141 and 121880956 PASS `verify-postgame-live.js`, a cached reopen without events rebuilt, a 4th-row item tooltip on `1c5ff983` |
 
-- Installed pak10: `341b2bba` (2026-10-25, client 6819), with the post-game board, installed for the phase 2 live run and left installed. The old standalone pak11 (`9A6058A0`) was removed and is kept at `.tmp/pg/pak11_9a6058a0_installed.vpk`. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
+- Installed pak10: `31456840`, the 0.2.0 candidate (2026-10-26, client 6819, see LIVE-VERIFIED), with the post-game board. The old standalone pak11 (`9A6058A0`) was removed and is kept at `.tmp/pg/pak11_9a6058a0_installed.vpk`. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
 - Validator `.tmp/observer-hud-validate.json` (2026-10-25): 77 checks passed. Weighted native time in the live-like scenario, against these budgets:
 
   | State | us/s | Budget |
@@ -71,6 +71,13 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 - Later (PLAN): aliases that follow the Steam account; an organiser preset file (`-MatchFile`, as DLF has); stage text in other languages; an Escape-menu Watch tab (the user asked, then preferred demo playback; research notes in PLAN "Later").
 
 ## Changelog
+
+### 2026-10-26, 0.2.0 release preparation (source only, not released)
+
+- **Version 0.2.0** in the editor (`oh_menu.js` `VERSION`, `editor.xml`); README status rewritten for 0.1.0 published and 0.2.0's additions.
+- **No pop before the entrance** (user report: the contents showed, vanished, then revealed): the board now waits hidden off the Scoreboard screen and plays the entrance on focus; it is re-armed only after the screen has been away 1 s, so nothing on screen is hidden. The stock items fade in after their columns (inline transition written at build, opacity from a scheduled callback). Validator: the screen-pick check now fails on any shown-then-hidden class change on the focused screen.
+- **Code cleanup**: the probe-era tooltip close attempts and their log lines are gone (the tooltip never closed by script; it stays transparent off the Graphs screen); the saved-record codec is one implementation in `oh_state.js` (`encodeRecord`/`decodeRecord`/`RECORD_LIMIT`) used by the editor and the board; `secs` uses `parseClock`; unused state (`Aliases.names`, `Accts.gen`, `S.match`, `UI.team`, `UI.bars`, `UI.players`), the no-op portrait masks, the unused `NSFadeIn` keyframes, the `NSHeadWorth` class, the `NSTeam1/2` ids and the `MAX_CARD` export removed; stale comments fixed; JS layout numbers now name the CSS rules they must match. Validator 83 checks.
+- Still needed before publishing: push hpv2-store `c951606` (2-day card expiry on the store v2 page), then the user's go-ahead for the archive and the GameBanana page.
 
 ### 2026-10-26, match cards tied to the match id; board hover fixes (source only, not released; pak10 `763093c2`)
 

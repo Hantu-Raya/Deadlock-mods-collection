@@ -53,7 +53,7 @@ node observer_hud/scripts/verify-postgame-live.js <metadata.json> - pak10   # wr
 
 - Follow the [local save contract](SPEC.md#local-save) and [match cards](SPEC.md#match-cards): hidden `CitadelHTMLPanel#OHStore`, fragment in and `HTMLTitle` out, reply prefix `OHS2:`, keys `hantu.observer_hud.v2/state` (record `OHS1.<fnv1a32>.<{s:1,state}>`, cap `m` 8192, read in pieces: a reply is cut at 4096 characters) and `hantu.observer_hud.v2/matches`. Never write v1's key and never touch the HP Colors, Buff Timer or DLF keys.
 - The hosted source is `D:/hpv2-store/oh/v2/index.html` (repo `Hantu-Raya/hpv2-store`), outside pak10; `oh/index.html` (v1) serves the released 0.1.0 pak and stays untouched ([ADR 0010](docs/adr/0010-store-v2-and-match-cards.md)). A new page version is tested on a temporary https path with its own keys first, then published, then the test path is removed. Never push, publish or upload the GameBanana page or the release archive without explicit user approval; the validator's fake CEF panel does not prove served bytes.
-- The public version is `VERSION` in `oh_menu.js` (0.1.0). Record each release in the [MAP changelog](MAP.md#changelog).
+- The public version is `VERSION` in `oh_menu.js` (0.2.0, unreleased; 0.1.0 is on GameBanana). Record each release in the [MAP changelog](MAP.md#changelog).
 
 ## Debug and live acceptance
 

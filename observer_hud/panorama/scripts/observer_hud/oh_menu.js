@@ -16,7 +16,7 @@
   "use strict";
 
   const TAG = "[OH-MENU]";
-  const VERSION = "0.1.0";
+  const VERSION = "0.2.0";
   const AUTHOR_URL = "https://x.com/hanturaya";
   const DONATE_URL = "https://ko-fi.com/hantuaraya";
   // Local save: the hpv2-store /oh/v2/ page (store v2) keeps the setup record and the match cards in Steam's
@@ -27,9 +27,6 @@
   const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/v2/";
   const STORE_PREFIX = "OHS2:";
   const STORE_VERSION = 2;
-  const RECORD_PREFIX = "OHS1.";
-  const RECORD_SCHEMA = 1;
-  const READ_LIMIT = 8192;
   const HELLO_RETRY_S = 2;
   const SLOW_RETRY_S = 5; // after READY_TIMEOUT_MS
   const READY_TIMEOUT_MS = 30000; // then the footer says session only, while the page is still asked
@@ -725,33 +722,16 @@
     UI.OHSaveStatus.SetHasClass("OHSaveWarn", tone === "warn");
   }
 
-  // Session aliases (pending) are never saved.
-  function encodeRecord(value) {
-    const kept = S.clone(value);
-    delete kept.pending;
-    const body = JSON.stringify({ s: RECORD_SCHEMA, state: kept });
-    return `${RECORD_PREFIX}${S.checksum(body)}.${body}`;
-  }
   // The record to save: in full, or without logo URLs when over the page's capacity; null if neither fits.
   function encodeSave() {
     const state = $.OHHost.getState();
-    const full = encodeRecord(state);
+    const full = S.encodeRecord(state);
     if (full.length <= Store.capacity) return { record: full, logosDropped: false };
     const stripped = S.clone(state);
     for (const [team] of SIDES) stripped[team].logo.url = "";
     stripped.org.logo.url = "";
-    const record = encodeRecord(stripped);
+    const record = S.encodeRecord(stripped);
     return { record: record.length <= Store.capacity ? record : null, logosDropped: true };
-  }
-  function decodeRecord(record) {
-    if (record === null || record === undefined) return { kind: "absent" };
-    if (typeof record !== "string" || record.length > READ_LIMIT || record.slice(0, 5) !== RECORD_PREFIX ||
-        record.charAt(13) !== "." || S.checksum(record.slice(14)) !== record.slice(5, 13)) return { kind: "corrupt" };
-    let body = null;
-    try { body = JSON.parse(record.slice(14)); } catch (e) { return { kind: "corrupt" }; }
-    if (!body || typeof body !== "object" || !body.state || typeof body.state !== "object") return { kind: "corrupt" };
-    if (body.s !== RECORD_SCHEMA) return { kind: Number.isInteger(body.s) && body.s > RECORD_SCHEMA ? "newer" : "corrupt" };
-    return { kind: "valid", state: body.state };
   }
   const savedText = () => (Store.logosDropped ? "SAVED - LOGO URLS THIS SESSION ONLY" : "SAVED");
 
@@ -875,7 +855,7 @@
         storeUnavailable("SAVE PAGE OUTDATED - SESSION ONLY");
         return;
       }
-      Store.capacity = Number.isInteger(reply.m) && reply.m >= 1024 && reply.m <= READ_LIMIT ? reply.m : 4096;
+      Store.capacity = Number.isInteger(reply.m) && reply.m >= 1024 && reply.m <= S.RECORD_LIMIT ? reply.m : 4096;
       Store.phase = "read";
       Store.readText = "";
       Store.readPages = 0;
@@ -900,7 +880,7 @@
     }
     // The record comes in pieces that each fit the game's 4096-character title (v = piece, s = its start, n = the whole length).
     if (reply.x === 1) {
-      if (typeof reply.v !== "string" || reply.s !== Store.readText.length || !Number.isInteger(reply.n) || reply.n < 0 || reply.n > READ_LIMIT) {
+      if (typeof reply.v !== "string" || reply.s !== Store.readText.length || !Number.isInteger(reply.n) || reply.n < 0 || reply.n > S.RECORD_LIMIT) {
         storeUnavailable("OFFLINE - SESSION ONLY", true);
         return;
       }
@@ -915,7 +895,7 @@
         return;
       }
     }
-    const result = decodeRecord(reply.x === 1 ? Store.readText : null);
+    const result = S.decodeRecord(reply.x === 1 ? Store.readText : null);
     if (result.kind === "corrupt" || result.kind === "newer") {
       Store.phase = "blocked";
       setSaveStatus(result.kind === "newer" ? "NEWER SAVE - RESET TO OVERWRITE" : "SAVE DAMAGED - RESET TO REPAIR", "warn");

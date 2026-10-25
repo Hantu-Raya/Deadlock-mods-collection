@@ -1,11 +1,13 @@
-/* Night Shift post-game stats board (pak11), base-game Deadlock look: dark torn paper, ink halos,
-   stock team colours, stock post-game art. Design: .scratch/postgame_restyle/fable_round1.md and
-   round2.md (debated with fable51), textures picked by judge in texture_candidates.md.
+/* Night Shift post-game stats board (pak10, ADR 0009), base-game Deadlock look: dark paper, torn
+   header and graph, ink halos, stock team colours, stock post-game art.
    Sizes are 1080p pixels. Fonts are real family names (stock "oracle" = VALVEOracle,
    "block" = VALVEPulp, "sans" = Radiance); this sheet does not import citadel_base_styles, so the
    stock colour defines are written out: team1 #D4860B / bright #FBDCA0 / neutral #55503E,
    team2 #4D75C3 / bright #BDCBFF / neutral #54596C, offWhite #FFEFD7, offBlack #10130D.
-   Animations use only opacity and transforms. */
+   Animations use only opacity and transforms. Each torn surface (header plates, graph, award slip,
+   progress track) has its own mask at its own size (observer_hud/scripts/make-torn-masks.py), at full
+   strength: opacity-mask reads alpha, and the stock rough_edge masks (alpha 255) mask nothing. No light
+   rim (user 2026-10-26). */
 
 .NSBoard
 {
@@ -83,7 +85,7 @@
 	opacity-mask-scale: 100% 100%;
 }
 
-/* the plates' inner margin (on the logos, so the plates carry no padding and their rims cover them) */
+/* the plates' inner margin (on the logos, so the torn plates carry no padding) */
 #NSLogo1
 {
 	margin-left: 22px;
@@ -352,20 +354,13 @@
 	background-color: #191a1fee;
 }
 
-/* hero card, torn edge (rough_edge_01; the stock card masks are drawn for 284x800 cards) */
+/* hero card (a plain rectangle: the stock rough_edge masks carry no alpha and mask nothing) */
 .NSPortrait
 {
 	width: 105px;
 	height: 139px;
 	margin-bottom: -4px;
 	background-color: #10130D;
-	opacity-mask: url("s2r://panorama/images/masks/rough_edge_01_png.vtex") 1;
-	opacity-mask-scale: 100% 100%;
-}
-
-.NSColumnTeam2 .NSPortrait
-{
-	opacity-mask: url("s2r://panorama/images/masks/rough_edge_02_png.vtex") 1;
 }
 
 /* winners keep the gloat card; a losing column (NSLoss) swaps to the critical card */
@@ -752,12 +747,6 @@
 	padding-top: 40px;
 	border-bottom: 0px solid #00000000;
 }
-
-/* ---------- torn paper ----------
-   Each torn surface has its own mask at its own size (observer_hud/scripts/make-torn-masks.py), at full
-   strength. opacity-mask reads alpha (live); the stock rough_edge masks have alpha 255 everywhere and
-   masked nothing, so these surfaces were plain dark rectangles (user 2026-10-26). No light rim. */
-
 
 /* ---------- soul lead graph ---------- */
 
@@ -1240,12 +1229,6 @@
 {
 	0% { opacity: 0; transform: translateY( 10px ); }
 	100% { opacity: 1; transform: translateY( 0px ); }
-}
-
-@keyframes 'NSFadeIn'
-{
-	0% { opacity: 0; }
-	100% { opacity: 1; }
 }
 
 @keyframes 'NSRiseIn'
