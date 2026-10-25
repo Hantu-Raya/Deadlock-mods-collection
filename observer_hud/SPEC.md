@@ -183,6 +183,15 @@ DLF's counter ("Ultimate cooldown" in `dlf/SPEC.md`), added 2026-10-23 without o
 - The row's 20 px are always reserved (shown with opacity), so the column starts at 147 px, the statuses at 167 px, and nothing under it moves when an ultimate goes on cooldown. The kill feed treats the empty reserved row as nothing and a counting one as in its way.
 - A card without `#UltimateStatusBG` (another top-bar mod) gets no counter; it is logged once.
 
+## Urn carrier
+
+User 2026-10-26: the urn carrier's card shows the stock minimap urn (`soul_jar_marker_psd`, dark shadow) beside the stock ultimate icon. Ported from DLF (`dlf/panorama/scripts/dlf/dlf_urn.js`, `dlf/SPEC.md` "Urn carrier", engine facts in `dlf/ENGINE.md`) into `oh_host.js`; no stock card is overridden.
+
+- The mark: `#OHUrn` in the status column (`debuffs.xml`), outside the flow, 22 px up and 23 px right of the card's centre, shown by `.OHUrnHeld`; it hides with the column (scoreboard, detail view, pre-game).
+- Who: the kill feed's pickup row (`#EventFeed`, `.IdolPickedUp`, the picker as its killer). The name is the row's bound `{s:killer_name}` (with an alias in the label, the kill-feed names' hidden label keeps the real one); the card is the one card showing that in-game name, none when two do or none does (the hero image carries no id to JS). A reused row counts again when its event or name changes.
+- How long: each minimap player marker carries `.PlayerIsHoldingIdol` while its hero holds the urn, with no name. Once seen this session, the mark goes when no marker has it (dropped or delivered), and a pickup it does not confirm within 2 s (an old row read late) is dropped; until then the feed alone decides. It also goes on a `.IdolReturned` or `.IdolExpired` row, when the carrier's card is `.Dead` or rebuilt, and when spectating ends. Joined mid-carry with no pickup row left, nothing shows.
+- Cost: on the 1 s host tick while spectating, three class reads per feed row; the minimap only while someone carries the urn; classes change only when the carrier does. `[OH] urn: picked up by <name>` / `returned` / `expired` lines in console.log.
+
 ## Purchase notices
 
 DLF's QOLLOCK per-player purchase popups, rewritten (`oh_buys.js`, user 2026-10-23: "include the recent purchase from DLF ... rewrite it to improve compatibility and performance"). The recent-purchase feature was originally made by **bytenode** (user 2026-10-23); credit him wherever the feature is presented.

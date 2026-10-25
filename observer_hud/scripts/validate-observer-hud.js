@@ -3115,8 +3115,8 @@ check("ultimate: each card counts its ultimate cooldown under the stock icon; no
   const shown = (name) => w.card(name).FindChild("OHDebuffsHost").FindChild("OHUltTime");
   const counter = (name) => shown(name).BHasClass("OHCounting") ? shown(name).__text : "";
   const bg = (name) => w.card(name).FindChildTraverse("UltimateStatusBG");
-  deq(w.card("Kestrel").FindChild("OHDebuffsHost").Children().map((child) => child.id), ["OHUltTime", "OHDebuffGrid", "OHBuys"],
-    "the counter is the column's first row, under the stock ultimate icon");
+  deq(w.card("Kestrel").FindChild("OHDebuffsHost").Children().map((child) => child.id), ["OHUltTime", "OHDebuffGrid", "OHBuys", "OHUrn"],
+    "the counter is the column's first row, under the stock ultimate icon (the urn icon sits outside the flow)");
   for (const name of [...AMBER, ...SAPPHIRE]) assert.equal(countIn(bg(name), "OHUltSource"), 1, `${name}: one source label in #UltimateStatusBG`);
   assert.equal(counter("Kestrel"), "", "ready: nothing");
   w.ult("Kestrel", 37);
@@ -3160,6 +3160,88 @@ check("ultimate: each card counts its ultimate cooldown under the stock icon; no
   for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.AddClass(cls);
   w.advance(1600);
   assert.equal(counter("Kestrel"), "51", "polled again when spectating resumes");
+});
+
+// Urn carrier (user 2026-10-26: "grab who has the urn and display the urn icon at the side of the ult
+// icon"; DLF SPEC "Urn carrier", ported). The kill feed's pickup row (.IdolPickedUp, the picker as its
+// killer) names the carrier; the minimap's player markers carry .PlayerIsHoldingIdol while anyone holds it
+// (no name). How it could fail: the icon lands on no card or the wrong one (an alias in the feed label, a
+// name no card shows, two cards with one name); it stays after the urn is delivered, expired, dropped or
+// the carrier died; a reused row for the next pickup is not read; an old pickup row read late shows a
+// stale carrier; it rewrites classes in steady state; it stays after spectating ends.
+check("urn: the carrier's card shows the urn beside the ult icon from the feed's pickup row until it is delivered, dropped or the carrier dies", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  const icon = (name) => w.card(name).FindChild("OHDebuffsHost").FindChild("OHUrn");
+  const carriers = () => [...AMBER, ...SAPPHIRE].filter((name) => icon(name).BHasClass("OHUrnHeld"));
+  const event = (killer, cls) => { const row = w.killRow(300, { killer, victim: "" }); row.AddClass(cls); return row; };
+  const map = w.hud.FindChildTraverse("hud_minimap");
+  const holder = new MockPanel("Panel", map, "");
+  holder.classes = ["map_button", "player"];
+  deq(carriers(), [], "nobody carries the urn at first");
+  const row = event("Kestrel", "IdolPickedUp");
+  w.advance(1100);
+  deq(carriers(), ["Kestrel"], "the picker's card within a second");
+  let writes = 0;
+  for (const name of [...AMBER, ...SAPPHIRE]) {
+    const panel = icon(name);
+    for (const fn of ["AddClass", "RemoveClass", "SetHasClass"]) { const old = panel[fn]; panel[fn] = function (...args) { writes++; return old.apply(this, args); }; }
+  }
+  w.advance(5000);
+  assert.equal(writes, 0, "no class writes while nothing changes");
+  // The minimap confirms the carry; once seen, the carry ends when no marker holds the urn (dropped).
+  holder.AddClass("PlayerIsHoldingIdol");
+  w.advance(1100);
+  deq(carriers(), ["Kestrel"], "still Kestrel while a marker holds the urn");
+  holder.RemoveClass("PlayerIsHoldingIdol");
+  w.advance(1100);
+  deq(carriers(), [], "dropped: no marker holds it");
+  // The engine reuses the row for the next pickup.
+  row.__dialog.killer_name = "Volt";
+  holder.AddClass("PlayerIsHoldingIdol");
+  w.advance(1100);
+  deq(carriers(), ["Volt"], "a reused row names the new carrier");
+  w.card("Volt").AddClass("Dead");
+  w.advance(1100);
+  deq(carriers(), [], "the carrier died");
+  w.card("Volt").RemoveClass("Dead");
+  event("Moth", "IdolPickedUp");
+  w.advance(1100);
+  deq(carriers(), ["Moth"]);
+  event("Moth", "IdolReturned");
+  w.advance(1100);
+  deq(carriers(), [], "delivered");
+  event("Geist", "IdolPickedUp");
+  w.advance(1100);
+  event("", "IdolExpired");
+  w.advance(1100);
+  deq(carriers(), [], "expired");
+  // With the minimap seen this session, a pickup no marker confirms within 2 s (an old row read late) goes.
+  holder.RemoveClass("PlayerIsHoldingIdol");
+  event("Talon", "IdolPickedUp");
+  w.advance(1100);
+  deq(carriers(), ["Talon"], "shown at once");
+  w.advance(2100);
+  deq(carriers(), [], "never confirmed by the minimap: dropped");
+  // The feed label shows an alias: still the right card. A name no card shows: nobody.
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer2Entry", "Player 3");
+  w.advance(1100);
+  holder.AddClass("PlayerIsHoldingIdol");
+  event("Doyle", "IdolPickedUp");
+  w.advance(1100);
+  deq(carriers(), ["Doyle"], "the alias in the feed label does not hide the carrier");
+  event("my friend doyle", "IdolPickedUp");
+  w.advance(1100);
+  deq(carriers(), [], "a name no card shows is never guessed");
+  // Back to playing: no icon is left.
+  event("Kestrel", "IdolPickedUp");
+  w.advance(1100);
+  deq(carriers(), ["Kestrel"]);
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2100);
+  deq(carriers(), [], "no urn icon outside spectating");
 });
 
 // The stock kill feed (hud_data_feed.xml #EventFeed: top left, margin-top 200) ran over Player 1's status

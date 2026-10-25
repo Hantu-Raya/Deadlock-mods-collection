@@ -55,6 +55,30 @@ CitadelHudTopBarPlayer:not(.UltimateUnlocked) .OHUltTime,
 	opacity: 0;
 }
 
+/* The urn carrier (oh_host.js sets .OHUrnHeld; user 2026-10-26, DLF's look): the stock minimap urn
+   (hud_minimap .held_idol_image) with a dark shadow, beside the stock ultimate icon. The column starts
+   right under that icon (#StatusRow 125 px + 22 px), so the mark sits 22 px up and 23 px right of the
+   card's centre, outside the flow: nothing in the column moves. */
+.OHUrn
+{
+	width: 22px;
+	height: 22px;
+	horizontal-align: center;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	margin-top: -22px;
+	background-image: url("s2r://panorama/images/minimap/soul_jar_marker_psd.vtex");
+	background-size: 100% 100%;
+	img-shadow: 0px 0px 3px 3.0 #000000;
+	transform: translateX( 23px );
+	visibility: collapse;
+}
+
+.OHUrn.OHUrnHeld
+{
+	visibility: visible;
+}
+
 .OHDebuffGrid
 {
 	width: 88px;

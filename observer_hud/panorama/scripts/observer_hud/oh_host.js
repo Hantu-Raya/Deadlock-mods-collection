@@ -1107,6 +1107,9 @@
         let debuffs = panel.FindChild("OHDebuffsHost");
         if (!valid(debuffs)) debuffs = inject(panel, "OHDebuffsHost", LAYOUT.debuffs);
         if (!valid(debuffs)) continue;
+        // A layout reload finds its old column: no urn icon is left from the previous run.
+        const urn = debuffs.FindChild("OHUrn");
+        if (urn && urn.BHasClass("OHUrnHeld")) urn.RemoveClass("OHUrnHeld");
         cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, who: "", ult: ultFor(panel, debuffs) });
       }
     }
@@ -1509,6 +1512,94 @@
     FeedNames.replaced = 0;
     FeedNames.gen++;
     FeedNames.watching = false;
+  }
+
+  // ------------------------------------------------------------------ cards: urn carrier
+
+  // The urn carrier's card shows the stock minimap urn beside the ult icon (#OHUrn in debuffs.xml, class
+  // OHUrnHeld; user 2026-10-26, ported from DLF's dlf_urn.js). Sources (client.dll 6819, dlf/ENGINE.md):
+  // - the kill feed: a pickup row gets .IdolPickedUp with the picker as its killer (Label.killerInfo bound
+  //   to {s:killer_name}); .IdolReturned and .IdolExpired rows end the carry. Rows live a few seconds and
+  //   the engine reuses them, so a row counts again when its event or name changes. The name is the bound
+  //   one (an alias in the label is ours: the kill feed names keep the real name in a hidden label); the
+  //   card is the one card showing that name (the hero image carries no id to JS), none when two do;
+  // - the minimap: each player marker carries .PlayerIsHoldingIdol while its hero holds the urn, with no
+  //   name. Once seen, the carry ends when no marker has it (dropped or delivered), and a pickup it never
+  //   confirms within URN_GRACE_MS (an old row read late) goes. Read only while someone carries the urn.
+  // A dead carrier loses the icon at once. Read on the 1 s tick while spectating; classes change only
+  // when the carrier does.
+  const URN_EVENTS = ["IdolPickedUp", "IdolReturned", "IdolExpired"];
+  const URN_GRACE_MS = 2000;
+  const Urn = { rows: new Map(), card: null, shown: null, pickedAt: 0, held: false, minimapWorks: false };
+  const urnIcon = (card) => (card && valid(card.debuffs) ? card.debuffs.FindChild("OHUrn") : null);
+  function urnPicker(row, info) {
+    const names = FeedNames.rows.get(row);
+    if (names && names[0]) return boundText(names[0].hidden || names[0].label, names[0].bind);
+    return valid(info.label) ? boundText(info.label, "{s:killer_name}") : "";
+  }
+  function urnCard(name) {
+    const upper = name.replace(/\s+/g, " ").trim().toUpperCase();
+    if (!upper) return null;
+    const named = UI.cards.filter((card) => cardName(card).toUpperCase() === upper);
+    return named.length === 1 ? named[0] : null;
+  }
+  function readUrnFeed(now) {
+    const feed = stockPanel("eventFeed", UI.hud, "EventFeed");
+    if (!feed) return;
+    const seen = new Set();
+    for (const row of feed.Children()) {
+      let event = "";
+      for (const cls of URN_EVENTS) if (row.BHasClass(cls)) { event = cls; break; }
+      if (!event) continue;
+      seen.add(row);
+      let info = Urn.rows.get(row);
+      if (!info) {
+        info = { sig: "", label: row.FindChildrenWithClassTraverse("killerInfo")[0] || null };
+        Urn.rows.set(row, info);
+      }
+      const name = urnPicker(row, info);
+      const sig = `${event}|${name}`;
+      if (sig === info.sig) continue;
+      info.sig = sig;
+      if (event === "IdolPickedUp") {
+        Urn.card = urnCard(name);
+        Urn.pickedAt = now;
+        Urn.held = false;
+        $.Msg(`${TAG} urn: picked up by ${name || "?"}${Urn.card ? "" : " (no single card shows that name)"}`);
+      } else {
+        if (Urn.card) $.Msg(`${TAG} urn: ${event === "IdolReturned" ? "returned" : "expired"}`);
+        Urn.card = null;
+      }
+    }
+    for (const row of Urn.rows.keys()) if (!seen.has(row)) Urn.rows.delete(row);
+  }
+  function readUrnMinimap(now) {
+    const map = stockPanel("map", UI.hud, "hud_minimap");
+    if (!map) return;
+    if (map.FindChildrenWithClassTraverse("PlayerIsHoldingIdol").length > 0) {
+      Urn.held = true;
+      Urn.minimapWorks = true;
+    } else if (Urn.held || (Urn.minimapWorks && now - Urn.pickedAt >= URN_GRACE_MS)) {
+      Urn.card = null;
+    }
+  }
+  function showUrn(card) {
+    if (card === Urn.shown) return;
+    setClass(urnIcon(Urn.shown), "OHUrnHeld", false);
+    setClass(urnIcon(card), "OHUrnHeld", true);
+    Urn.shown = card;
+  }
+  function renderUrn(now) {
+    readUrnFeed(now);
+    if (Urn.card && (UI.cards.indexOf(Urn.card) < 0 || !valid(Urn.card.panel) || Urn.card.panel.BHasClass("Dead"))) Urn.card = null;
+    if (Urn.card) readUrnMinimap(now);
+    showUrn(Urn.card);
+  }
+  // Spectating ended: no icon is left. The rows already read stay read, so they do not count again.
+  function clearUrn() {
+    Urn.card = null;
+    Urn.held = false;
+    showUrn(null);
   }
 
   // The stock kill feed (hud_data_feed.xml #EventFeed: top left, margin-top FEED_STOCK_TOP) ran over the
@@ -2221,6 +2312,7 @@
           reconcileAliases();
           serviceCard();
           renderFeedNames();
+          renderUrn(Date.now());
           place();
           sampleGraph();
           renderGraph();
@@ -2238,6 +2330,7 @@
         placeSpread(false);
         restoreMarkers();
         restoreFeedNames();
+        clearUrn();
         if (Feed.margin !== FEED_STOCK_TOP) placeFeed(false, 0);
         if (UI.pushed && valid(UI.topBar)) {
           // The stock top bar returns to its own place.
