@@ -856,7 +856,6 @@ check("board: torn paper surfaces use their own full-strength mask at their own 
   const surfaces = [
     [".NSHeadLeft", "torn_head_l", ".NSHeadSide", ".NSHeader"],
     [".NSHeadRight", "torn_head_r", ".NSHeadSide", ".NSHeader"],
-    [".NSPaper", "torn_column_a", ".NSPaper", ".NSPaper"],
     [".NSAward", "torn_award", ".NSAward", ".NSAward"],
     [".NSGraphPlot", "torn_graph", ".NSGraphPlot", ".NSGraphPlot"],
     [".NSProgressTrack", "torn_track", ".NSProgressTrack", ".NSProgressTrack"]
@@ -865,7 +864,7 @@ check("board: torn paper surfaces use their own full-strength mask at their own 
     assert.match(body(sel), new RegExp(`opacity-mask:\\s*url\\("s2r://panorama/images/observer_hud/${mask}\\.vtex"\\)\\s*1;`), `${sel} uses ${mask}`);
     deq(size(mask), [px(wSel, "width"), px(hSel, "height")], `${mask} is drawn at ${sel}'s size`);
   }
-  for (const variant of ["torn_column_b", "torn_column_c"]) deq(size(variant), size("torn_column_a"), `${variant} matches the column paper`);
+  assert.ok(!/opacity-mask/.test(body(".NSPaper")), ".NSPaper (the stat columns) is not torn (user 2026-10-26)");
   for (const [name, text] of [["pg_board.css", css], ["pg_board.xml", board], ["pg_column.xml", column]]) assert.ok(!/TornRim|_rim\.vtex/.test(text), `${name}: no light rim over the tears`);
   // An RGBA8 PNG's pixels (the generator writes 8-bit RGBA, not interlaced).
   const pixels = (image) => {
@@ -894,7 +893,7 @@ check("board: torn paper surfaces use their own full-strength mask at their own 
     }
     return { w, h, out };
   };
-  for (const mask of ["torn_head_l", "torn_head_r", "torn_column_a", "torn_column_b", "torn_column_c", "torn_graph", "torn_track", "torn_award"]) {
+  for (const mask of ["torn_head_l", "torn_head_r", "torn_graph", "torn_track", "torn_award"]) {
     // The mask is in alpha as well as grey (live: a mask with alpha 255 everywhere masked nothing).
     const m = pixels(mask);
     for (let i = 0; i < m.w * m.h; i++) assert.equal(m.out[i * 4 + 3], m.out[i * 4], `${mask}: alpha follows the grey`);

@@ -329,11 +329,11 @@
 	transform-origin: 50% 0%;
 }
 
-/* dark torn paper behind plate, cells and souls: the stock dark paper tile through the stock
-   rough-edge mask. (The stock torn card svgs, key_player_bg_*, ignored wash-color and brightness
-   live and stayed a light slab.) Height stays inside the column's flow height: a fit-children
-   parent counts ignore-parent-flow children too (live: a 552 px card pushed the items onto the
-   graph). */
+/* dark paper behind plate, cells and souls, a plain rectangle: no tear on the stat columns (user
+   2026-10-26: "this part you actually don't need the paper tear"). (The stock torn card svgs,
+   key_player_bg_*, ignored wash-color and brightness live and stayed a light slab.) Height stays inside
+   the column's flow height: a fit-children parent counts ignore-parent-flow children too (live: a
+   552 px card pushed the items onto the graph). */
 .NSPaper
 {
 	ignore-parent-flow: true;
@@ -345,20 +345,6 @@
 	background-size: 512px 512px;
 	background-repeat: repeat;
 	background-img-opacity: 0.25;
-	opacity-mask: url("s2r://panorama/images/observer_hud/torn_column_a.vtex") 1;
-	opacity-mask-scale: 100% 100%;
-}
-
-.NSCol2 .NSPaper,
-.NSCol5 .NSPaper
-{
-	opacity-mask: url("s2r://panorama/images/observer_hud/torn_column_b.vtex") 1;
-}
-
-.NSCol3 .NSPaper,
-.NSCol6 .NSPaper
-{
-	opacity-mask: url("s2r://panorama/images/observer_hud/torn_column_c.vtex") 1;
 }
 
 .NSColumnTeam2 .NSPaper

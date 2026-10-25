@@ -74,9 +74,6 @@ $images = @(
     # Post-game torn paper masks (observer_hud/scripts/make-torn-masks.py).
     'observer_hud/torn_head_l',
     'observer_hud/torn_head_r',
-    'observer_hud/torn_column_a',
-    'observer_hud/torn_column_b',
-    'observer_hud/torn_column_c',
     'observer_hud/torn_graph',
     'observer_hud/torn_track',
     'observer_hud/torn_award'

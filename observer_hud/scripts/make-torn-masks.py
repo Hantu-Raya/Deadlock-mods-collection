@@ -23,9 +23,6 @@ SS = 4  # supersampling per axis
 MASKS = {
     "torn_head_l": (702, 96, 7, 5.0, 3, 11),
     "torn_head_r": (702, 96, 7, 5.0, 3, 12),
-    "torn_column_a": (105, 406, 4, 3.2, 2, 21),
-    "torn_column_b": (105, 406, 4, 3.2, 2, 22),
-    "torn_column_c": (105, 406, 4, 3.2, 2, 23),
     "torn_graph": (1600, 112, 6, 4.5, 3, 31),
     "torn_track": (164, 18, 2.5, 1.6, 1.5, 41),
     "torn_award": (108, 30, 2.5, 1.8, 1.5, 51),
