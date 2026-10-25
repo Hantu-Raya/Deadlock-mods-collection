@@ -2090,6 +2090,18 @@
     // Nothing to show on the board (no names, no logos): not worth a card.
     return card && (card.t.some((entry) => entry[0] || entry[2]) || card.r) ? card : null;
   }
+  // The accounts the markers gave, by side: { amber: [numbers], sapphire: [numbers] } (the editor asks the
+  // store which team they look like). The same arrays until the accounts change.
+  let sidesSig = "";
+  let sidesCache = { amber: [], sapphire: [] };
+  function sides() {
+    if (Accts.sig !== sidesSig) {
+      sidesSig = Accts.sig;
+      sidesCache = { amber: [], sapphire: [] };
+      for (const entry of Accts.list) sidesCache[entry.side].push(Number(entry.account));
+    }
+    return sidesCache;
+  }
   function publishCard(card) {
     Card.card = card;
     Card.sentAt = 0;
@@ -2255,6 +2267,7 @@
     onChange: (fn) => listeners.push(fn),
     // The match card (the latest one written this map) and its writes: onCard(fn) calls fn(card) for each.
     card: () => Card.card,
+    sides: sides,
     onCard: (fn) => cardListeners.push(fn),
     topBar: () => valid(UI.topBar) ? UI.topBar : null,
     // Spectating at the last tick (no native call).

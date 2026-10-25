@@ -9,6 +9,23 @@
 	<Panel class="NSBoard" hittest="false">
 		<!-- Outside NSFrame so it shows while the match is still loading (frame collapsed). JS drives
 		     #NSProgressFill with scale3d(f,1,1) and toggles NSIndeterminate / NSDone. -->
+		<!-- Team editor (plan phase 5): opened by a team's EDIT TEAM button, writes a match card for this match. -->
+		<Panel id="NSEdit" class="NSEdit" hittest="true">
+			<Panel class="NSEditBox" hittest="true">
+				<Label id="NSEditTitle" class="NSEditTitle" text="" hittest="false" />
+				<Label class="NSEditCaption" text="TEAM NAME" hittest="false" />
+				<TextEntry id="NSEditName" class="NSEditEntry" maxchars="28" placeholder="e.g. Night Owls" text="" />
+				<Label class="NSEditCaption" text="TAG" hittest="false" />
+				<TextEntry id="NSEditTag" class="NSEditEntry" maxchars="4" placeholder="NOW" text="" />
+				<Label class="NSEditCaption" text="LOGO URL (IMAGE OR GIF, OPTIONAL)" hittest="false" />
+				<TextEntry id="NSEditLogo" class="NSEditEntry" maxchars="512" placeholder="https://..." text="" />
+				<Label id="NSEditNote" class="NSEditNote" text="" hittest="false" />
+				<Panel class="NSEditButtons" hittest="false">
+					<Button id="NSEditSave" class="NSEditButton NSEditSave" hittest="true"><Label class="NSEditButtonLabel" text="SAVE" hittest="false" /></Button>
+					<Button id="NSEditCancel" class="NSEditButton" hittest="true"><Label class="NSEditButtonLabel" text="CANCEL" hittest="false" /></Button>
+				</Panel>
+			</Panel>
+		</Panel>
 		<Panel id="NSProgress" class="NSProgress" hittest="false">
 			<Label id="NSProgressText" class="NSProgressText" text="" />
 			<Panel class="NSProgressTrack" hittest="false">
@@ -25,6 +42,10 @@
 					<Panel class="NSTeamText" hittest="false">
 						<Label id="NSTeamName1" class="NSTeamName" text="" />
 						<Label id="NSResult1" class="NSResult" text="" />
+						<Panel class="NSTeamTools" hittest="false">
+							<Label id="NSTeamSuggest1" class="NSTeamSuggest" text="" hittest="false" />
+							<Button id="NSTeamEdit1" class="NSTeamEdit" hittest="true"><Label class="NSTeamEditLabel" text="EDIT TEAM" hittest="false" /></Button>
+						</Panel>
 					</Panel>
 					<Panel class="NSHeadStat NSHeadWorth" hittest="false">
 						<Label class="NSHeadCaption" text="NET WORTH" />
@@ -52,6 +73,10 @@
 					<Panel class="NSTeamText" hittest="false">
 						<Label id="NSTeamName2" class="NSTeamName" text="" />
 						<Label id="NSResult2" class="NSResult" text="" />
+						<Panel class="NSTeamTools" hittest="false">
+							<Label id="NSTeamSuggest2" class="NSTeamSuggest" text="" hittest="false" />
+							<Button id="NSTeamEdit2" class="NSTeamEdit" hittest="true"><Label class="NSTeamEditLabel" text="EDIT TEAM" hittest="false" /></Button>
+						</Panel>
 					</Panel>
 					<Panel id="NSLogo2" class="NSLogo NSLogoTeam2" hittest="false" />
 				</Panel>

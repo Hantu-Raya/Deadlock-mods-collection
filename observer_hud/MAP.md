@@ -27,7 +27,7 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Post-game board (`pg_*`, merged from the retired pak11) | yes (pak10 `341b2bba`) | VM (`board:` checks: events, 1 s check, budgets, reload, reused rows, untranslated rows) | seen on `341b2bba` (client 6819): matches 121917141 and 121880956 PASS `verify-postgame-live.js`, a cached reopen without events rebuilt, a 4th-row item tooltip on `1c5ff983` |
 
 - Installed pak10: `341b2bba` (2026-10-25, client 6819), with the post-game board, installed for the phase 2 live run and left installed. The old standalone pak11 (`9A6058A0`) was removed and is kept at `.tmp/pg/pak11_9a6058a0_installed.vpk`. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
-- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 74 checks passed. Weighted native time in the live-like scenario, against these budgets:
+- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 77 checks passed. Weighted native time in the live-like scenario, against these budgets:
 
   | State | us/s | Budget |
   |---|---:|---:|
@@ -71,6 +71,10 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 - Later (PLAN): aliases that follow the Steam account; an organiser preset file (`-MatchFile`, as DLF has); stage text in other languages; an Escape-menu Watch tab (the user asked, then preferred demo playback; research notes in PLAN "Later").
 
 ## Changelog
+
+### 2026-10-25, phase 5 (source only, not released; pak10 `7bdd0c2b`)
+
+- **Learned registry and inline editing** (phase 5). Page op `s` (hpv2-store v2, suggestions only), `USE <TEAM>?` chips on the editor's TEAMS page, `<TEAM>?` and an `EDIT TEAM` button plus an editor overlay on the board, which writes a card with the match id. Validator: 77 checks (3 new, failed before the code); budgets unchanged. **Not seen live** (no input control): the editor overlay, clicks, the chips; the layout of the new header row and overlay was not looked at on screen.
 
 ### 2026-10-25, phase 4 (source only, not released; pak10 `3ee075c7`)
 

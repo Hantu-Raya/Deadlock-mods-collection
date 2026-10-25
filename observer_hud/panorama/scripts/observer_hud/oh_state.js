@@ -290,6 +290,12 @@
     }
     return out;
   }
+  // [name, tag, logo URL] as a card keeps a team: three entries, bad text or URL emptied (the stock one
+  // shows); null when it is not a triple.
+  function cleanTeam(entry) {
+    if (!Array.isArray(entry) || entry.length !== 3) return null;
+    return [cleanText(entry[0], LIMITS.name) || "", (cleanText(entry[1], LIMITS.tag) || "").toUpperCase(), cleanUrl(entry[2]) || ""];
+  }
   function cleanCard(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const taken = new Set();
@@ -298,8 +304,9 @@
     if (!a || !b || a.length + b.length < 2 || !Array.isArray(raw.t) || raw.t.length !== 2) return null;
     const t = [];
     for (const entry of raw.t) {
-      if (!Array.isArray(entry) || entry.length !== 3) return null;
-      t.push([cleanText(entry[0], LIMITS.name) || "", (cleanText(entry[1], LIMITS.tag) || "").toUpperCase(), cleanUrl(entry[2]) || ""]);
+      const team = cleanTeam(entry);
+      if (!team) return null;
+      t.push(team);
     }
     let r = 0;
     if (Array.isArray(raw.r) && raw.r.length === 2) {
@@ -447,7 +454,7 @@
     normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, logoSources: logoSources, monogram: monogram, winsNeeded: winsNeeded,
     checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, valid: valid, clone: clone,
     parseClock: parseClock, TEAM_PANELS: TEAM_PANELS, isAccount: isAccount, MAX_ALIASES: MAX_ALIASES,
-    MATCH_MIN: MATCH_MIN, MAX_CARD: MAX_CARD, cleanCard: cleanCard, decodeHandoff: decodeHandoff, encodeHandoff: encodeHandoff,
+    MATCH_MIN: MATCH_MIN, MAX_CARD: MAX_CARD, cleanCard: cleanCard, cleanTeam: cleanTeam, decodeHandoff: decodeHandoff, encodeHandoff: encodeHandoff,
     pickCard: pickCard, cardSide: cardSide, cardShared: cardShared
   });
 })();

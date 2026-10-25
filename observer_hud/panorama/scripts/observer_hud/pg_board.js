@@ -146,6 +146,22 @@
     UI.frame = ctx.FindChildTraverse("NSFrame");
     UI.logo = [ctx.FindChildTraverse("NSLogo1"), ctx.FindChildTraverse("NSLogo2")];
     UI.org = ctx.FindChildTraverse("NSOrgText");
+    UI.suggest = [ctx.FindChildTraverse("NSTeamSuggest1"), ctx.FindChildTraverse("NSTeamSuggest2")];
+    UI.edit = ctx.FindChildTraverse("NSEdit");
+    UI.editTitle = ctx.FindChildTraverse("NSEditTitle");
+    UI.editName = ctx.FindChildTraverse("NSEditName");
+    UI.editTag = ctx.FindChildTraverse("NSEditTag");
+    UI.editLogo = ctx.FindChildTraverse("NSEditLogo");
+    UI.editNote = ctx.FindChildTraverse("NSEditNote");
+    // The click targets (a team's EDIT TEAM button, the editor's two buttons) are the only hit-testing parts.
+    [1, 2].forEach((i) => {
+      const button = ctx.FindChildTraverse(`NSTeamEdit${i}`);
+      if (ok(button)) button.SetPanelEvent("onactivate", () => openEdit(i - 1));
+    });
+    const save = ctx.FindChildTraverse("NSEditSave");
+    const cancel = ctx.FindChildTraverse("NSEditCancel");
+    if (ok(save)) save.SetPanelEvent("onactivate", saveEdit);
+    if (ok(cancel)) cancel.SetPanelEvent("onactivate", closeEdit);
   }
 
   // ---------- progress bar ----------
@@ -483,8 +499,8 @@
   const HELLO_TRIES = 4;
   const QUERY_S = 4;
   const MAX_CARDS = 12;
-  const ST = { panel: null, phase: "idle", gen: 0, seq: 0, id: "", forKey: "", tries: 0, handlerSet: false };
-  const CARDS = { handed: [], stored: new Map(), asked: new Set(), applied: null, accounts: [], team1: [], team2: [], id: "", key: "" };
+  const ST = { panel: null, phase: "idle", gen: 0, seq: 0, id: "", tries: 0, handlerSet: false, queue: [], cur: null };
+  const CARDS = { handed: [], stored: new Map(), suggest: new Map(), asked: new Set(), applied: null, accounts: [], team1: [], team2: [], id: "", key: "", editing: -1 };
   const LOGOS = [{ image: null, url: "", sources: [], seq: 0 }, { image: null, url: "", sources: [], seq: 0 }];
 
   // A card handed over: the newest per roster and match id wins (an older one is stale, an equal one is a repeat).
@@ -557,6 +573,7 @@
       setLogo(i, entry ? entry[2] : "");
     }
     setText(UI.org, card && card.r ? card.r[0] : "");
+    renderSuggest();
   }
   // The best card now: handed ones and the one the store gave for this match.
   function refreshCard() {
@@ -576,17 +593,20 @@
     CARDS.id = String(m.id || "");
     CARDS.key = S.key;
     CARDS.applied = undefined; // the header is redrawn for this match
+    closeEdit();
     renderCard(null);
     refreshCard();
     if (CARDS.applied || CARDS.asked.has(CARDS.key) || CARDS.accounts.length < OH.MATCH_MIN) return;
     CARDS.asked.add(CARDS.key);
-    askStore();
+    storeOp({ o: "q", key: CARDS.key, a: CARDS.accounts.map(Number), id: CARDS.id });
   }
 
-  // The store page (store v2): a hidden CitadelHTMLPanel made only now, when the page shows and nothing
-  // handed over fits. hello, then one query (o:"q") for this match's accounts, then about:blank. Replies are
-  // matched by request id and by match key, so a late one never names the next match. A few hellos, then it
-  // gives up until the next match.
+  // The store page (store v2): a hidden CitadelHTMLPanel made only now, when the page shows and there is
+  // something to ask or write. One exchange: hello, then each queued op in turn (q: the card for this match's
+  // accounts; s: the stored teams these sides look like, asked only when no card fits; u: a card the editor
+  // wrote), then about:blank. Replies are matched by request id and each q/s by its match key, so a late
+  // one never names the next match. A few hellos, then it gives up (a write is tried once more 10 s later).
+  const RETRY_S = 10;
   function storePanel() {
     if (ok(ST.panel)) return ST.panel;
     const wrap = $.CreatePanel("Panel", ctx, "NSStoreWrap", { hittest: "false" });
@@ -608,17 +628,17 @@
   function storeBlank() {
     if (ok(ST.panel)) ST.panel.SetURL("about:blank");
   }
-  function askStore() {
-    if (ST.phase !== "idle") return; // the running exchange asks for the current match when it is done
-    log("store: asking for the match card");
+  function storeOp(op) {
+    ST.queue.push(op);
+    if (ST.phase !== "idle") return; // the running exchange gets to it
+    log("store: asking");
     ST.phase = "hello";
     ST.tries = 0;
-    const gen = ++ST.gen;
-    hello(gen);
+    hello(++ST.gen);
   }
   function hello(gen) {
     if (stopped || gen !== ST.gen || ST.phase !== "hello") return;
-    if (ST.tries >= HELLO_TRIES) { log("store: no answer, gave up"); storeDone(); return; }
+    if (ST.tries >= HELLO_TRIES) { storeGiveUp(); return; }
     try {
       // The second visit starts from a blank page: a lost first load never answers a changed fragment.
       if (ST.tries === 2) storeBlank();
@@ -626,29 +646,54 @@
       ST.id = `h${++ST.seq}`;
       storeSend({ i: ST.id, o: "hello" });
     } catch (e) {
-      storeDone();
+      storeGiveUp();
       return;
     }
     $.Schedule(HELLO_S, () => hello(gen));
   }
-  function query() {
+  function nextOp() {
+    const op = ST.queue.shift();
+    if (!op) { storeDone(); return; }
     const gen = ++ST.gen;
-    ST.phase = "query";
-    ST.forKey = CARDS.key;
-    ST.id = `q${++ST.seq}`;
+    ST.phase = "op";
+    ST.cur = op;
+    ST.id = `${op.o}${++ST.seq}`;
+    const message = { i: ST.id, o: op.o };
+    if (op.o === "q") { message.a = op.a; message.id = op.id; }
+    else if (op.o === "s") { message.a = op.a; message.b = op.b; }
+    else message.c = op.c;
     try {
-      storeSend({ i: ST.id, o: "q", a: CARDS.accounts.map(Number), id: CARDS.id });
+      storeSend(message);
     } catch (e) {
-      storeDone();
+      storeGiveUp();
       return;
     }
-    $.Schedule(QUERY_S, () => { if (!stopped && gen === ST.gen && ST.phase === "query") storeDone(); });
+    $.Schedule(QUERY_S, () => { if (!stopped && gen === ST.gen && ST.phase === "op") storeGiveUp(); });
   }
   function storeDone() {
     ST.gen++;
     ST.phase = "idle";
     ST.id = "";
+    ST.cur = null;
     try { storeBlank(); } catch (e) { /* the panel is gone */ }
+  }
+  // No answer: reads are dropped (the next match asks again); a write stays for one more try.
+  function storeGiveUp() {
+    log("store: no answer, gave up");
+    const keep = [];
+    if (ST.cur && ST.cur.o === "u") keep.push(ST.cur);
+    for (const op of ST.queue) if (op.o === "u") keep.push(op);
+    ST.queue = [];
+    storeDone();
+    const retry = keep.filter((op) => ++op.tries < 2);
+    if (!retry.length) return;
+    ST.queue = retry;
+    $.Schedule(RETRY_S, () => {
+      if (stopped || ST.phase !== "idle" || !ST.queue.length) return;
+      ST.phase = "hello";
+      ST.tries = 0;
+      hello(++ST.gen);
+    });
   }
   function onStoreTitle(panelOrTitle, eventTitle) {
     if (stopped) return;
@@ -658,21 +703,99 @@
     try { reply = JSON.parse(title.slice(STORE_PREFIX.length)); } catch (e) { return; }
     if (!reply || typeof reply !== "object" || reply.i !== ST.id) return; // late, duplicate or foreign
     if (reply.o === "ready" && ST.phase === "hello") {
-      if (typeof reply.h !== "string" || reply.h.split("#")[0] !== STORE_URL || reply.v !== 2 || reply.ok !== true) { storeDone(); return; }
-      query();
+      if (typeof reply.h !== "string" || reply.h.split("#")[0] !== STORE_URL || reply.v !== 2 || reply.ok !== true) { storeGiveUp(); return; }
+      nextOp();
       return;
     }
-    if (reply.o !== "q" || ST.phase !== "query") return;
-    const key = ST.forKey;
-    storeDone();
-    if (reply.ok === true && reply.x === 1) {
-      const card = OH.cleanCard(reply.c);
-      if (card) CARDS.stored.set(key, card);
+    const op = ST.cur;
+    if (ST.phase !== "op" || !op || reply.o !== op.o) return;
+    if (op.o === "q") {
+      if (reply.ok === true && reply.x === 1) {
+        const card = OH.cleanCard(reply.c);
+        if (card) CARDS.stored.set(op.key, card);
+      }
+      log(`store: answered, ${CARDS.stored.has(op.key) ? "a card" : "no card"} for the match`);
+      if (op.key === CARDS.key) {
+        refreshCard();
+        // Nothing names these teams: which stored teams do the players look like?
+        if (!CARDS.applied && !CARDS.suggest.has(op.key)) storeOp({ o: "s", key: op.key, a: CARDS.team1.map(Number), b: CARDS.team2.map(Number) });
+      }
+    } else if (op.o === "s") {
+      const found = reply.ok === true && Array.isArray(reply.s) ? [0, 1].map((i) => {
+        const entry = reply.s[i] && typeof reply.s[i] === "object" ? OH.cleanTeam(reply.s[i].t) : null;
+        return entry && entry[0] ? entry : null;
+      }) : [null, null];
+      CARDS.suggest.set(op.key, found);
+      if (op.key === CARDS.key) renderSuggest();
     }
-    log(`store: answered, ${CARDS.stored.has(key) ? "a card" : "no card"} for the match`);
-    // The match changed while the reply was on its way: it names nothing now; the current match asks next.
-    if (key === CARDS.key) refreshCard();
-    else if (!CARDS.applied && CARDS.asked.has(CARDS.key) && !CARDS.stored.has(CARDS.key)) askStore();
+    nextOp();
+  }
+
+  // The suggestion under a team name ("<TEAM>?"): shown only while no card names the teams; applying it is the
+  // editor's job (prefilled), never automatic.
+  function renderSuggest() {
+    const found = CARDS.suggest.get(CARDS.key) || [null, null];
+    for (let i = 0; i < 2; i++) {
+      const label = UI.suggest[i];
+      if (!ok(label)) continue;
+      const entry = !CARDS.applied ? found[i] : null;
+      label.SetHasClass("NSShown", !!entry);
+      setText(label, entry ? `${entry[0]}?` : "");
+    }
+  }
+
+  // ---------- inline team editing (plan phase 5) ----------
+  // The EDIT TEAM button of a team opens the editor, prefilled from the card on screen or the suggestion.
+  // Saving writes a card for this match's accounts with its match id (so a match nobody spectated, or an old
+  // one, keeps its names after a restart and no other match borrows them): applied at once, kept for the
+  // session as a handed card and upserted into the store.
+  function entryFor(card, side) {
+    return card ? card.t[OH.cardSide(card, CARDS.team1, CARDS.team2) === 0 ? side : 1 - side] : null;
+  }
+  function openEdit(side) {
+    if (!ok(UI.edit) || !CARDS.accounts.length) return;
+    CARDS.editing = side;
+    const found = (CARDS.suggest.get(CARDS.key) || [null, null])[side];
+    const entry = entryFor(CARDS.applied, side) || found || ["", "", ""];
+    UI.editName.text = entry[0];
+    UI.editTag.text = entry[1];
+    UI.editLogo.text = entry[2];
+    setText(UI.editNote, "");
+    setText(UI.editTitle, `EDIT TEAM ${side + 1}${CARDS.applied ? "" : found ? " (SUGGESTED FROM EARLIER MATCHES)" : ""}`);
+    UI.edit.AddClass("NSShown");
+  }
+  function closeEdit() {
+    CARDS.editing = -1;
+    if (ok(UI.edit)) UI.edit.RemoveClass("NSShown");
+  }
+  function saveEdit() {
+    const side = CARDS.editing;
+    if (side < 0 || !S.match) return;
+    const name = OH.cleanText(String(UI.editName.text || ""), OH.LIMITS.name);
+    const tag = OH.cleanText(String(UI.editTag.text || ""), OH.LIMITS.tag);
+    const logo = OH.cleanUrl(String(UI.editLogo.text || ""));
+    if (name === null) { setText(UI.editNote, `The name is too long (${OH.LIMITS.name} characters at most).`); return; }
+    if (tag === null) { setText(UI.editNote, `The tag is too long (${OH.LIMITS.tag} characters at most).`); return; }
+    if (logo === null) { setText(UI.editNote, "The logo needs a plain http(s) address."); return; }
+    const m = S.match;
+    const base = CARDS.applied;
+    const team = [0, 1].map((i) => (i === side ? [name, tag.toUpperCase(), logo] : entryFor(base, i) || ["", "", ""]));
+    const card = OH.cleanCard({
+      a: CARDS.team1.map(Number), b: CARDS.team2.map(Number), t: team, r: base && base.r ? base.r : 0,
+      w: m.teams[0].win ? 1 : m.teams[1].win ? 2 : 0, id: CARDS.id, at: Math.floor(Date.now() / 1000)
+    });
+    if (!card) { setText(UI.editNote, "These players cannot be saved as a card."); return; }
+    closeEdit();
+    adopt(card);
+    storeOp({ o: "u", c: card, tries: 0 });
+  }
+  // A card from this PC's own edit or the handoff: the newest per roster and match id.
+  function adopt(card) {
+    const own = new Set(card.a.concat(card.b).map(String));
+    CARDS.handed = CARDS.handed.filter((old) => !(card.id === old.id && OH.cardShared(old, own) >= OH.MATCH_MIN && old.at <= card.at));
+    CARDS.handed.push(card);
+    while (CARDS.handed.length > MAX_CARDS) CARDS.handed.shift();
+    refreshCard();
   }
 
   // ---------- show / teardown ----------

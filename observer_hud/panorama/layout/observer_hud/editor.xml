@@ -49,11 +49,13 @@
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamAmber" text="Amber side" /></Panel>
 								<Panel class="OHRow"><Label class="OHRowTitle" text="Team name" /><Panel class="OHRowControls"><TextEntry id="OHAmberNameEntry" class="OHEntry OHNameEntry" maxchars="28" placeholder="e.g. Night Owls" text="" /><Label class="OHInlineLabel" text="Tag" /><TextEntry id="OHAmberTagEntry" class="OHEntry OHTagEntry" maxchars="4" placeholder="NOW" text="" /></Panel></Panel>
+								<Panel id="OHAmberSuggestRow" class="OHRow OHSuggestRow"><Label class="OHRowTitle" text="" /><Panel class="OHRowControls"><Button id="OHAmberUseTeam" class="OHUseChip" hittest="true"><Label id="OHAmberUseTeamLabel" class="OHUseChipLabel" text="" hittest="false" /></Button></Panel></Panel>
 								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHAmberLogoEntry" class="OHEntry" maxchars="512" placeholder="image or GIF link: imgur, Giphy, Tenor... (optional)" text="" /><Label id="OHAmberLogoNote" class="OHNote" text="" /></Panel></Panel>
 							</Panel>
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle OHTeamSapphire" text="Sapphire side" /></Panel>
 								<Panel class="OHRow"><Label class="OHRowTitle" text="Team name" /><Panel class="OHRowControls"><TextEntry id="OHSapphireNameEntry" class="OHEntry OHNameEntry" maxchars="28" placeholder="e.g. Brass Saints" text="" /><Label class="OHInlineLabel" text="Tag" /><TextEntry id="OHSapphireTagEntry" class="OHEntry OHTagEntry" maxchars="4" placeholder="BRS" text="" /></Panel></Panel>
+								<Panel id="OHSapphireSuggestRow" class="OHRow OHSuggestRow"><Label class="OHRowTitle" text="" /><Panel class="OHRowControls"><Button id="OHSapphireUseTeam" class="OHUseChip" hittest="true"><Label id="OHSapphireUseTeamLabel" class="OHUseChipLabel" text="" hittest="false" /></Button></Panel></Panel>
 								<Panel class="OHRow OHTallRow"><Label class="OHRowTitle" text="Logo URL" /><Panel class="OHRowControls"><TextEntry id="OHSapphireLogoEntry" class="OHEntry" maxchars="512" placeholder="image or GIF link: imgur, Giphy, Tenor... (optional)" text="" /><Label id="OHSapphireLogoNote" class="OHNote" text="" /></Panel></Panel>
 							</Panel>
 							<Panel class="OHCard">

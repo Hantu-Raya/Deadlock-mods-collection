@@ -151,6 +151,26 @@
     const player = account ? state.players[account] : undefined;
     return player ? player.a : (name && (state.pending[name] || state.legacy[name])) || "";
   }
+  // A team the store learned from earlier matches (plan phase 5), offered beside the team name: USE <TEAM>?.
+  // Never applied without the click, and not offered for the name the side already has.
+  function renderSuggest() {
+    const state = $.OHHost.getState();
+    SIDES.forEach(([team, side], index) => {
+      const suggestion = Store.suggest[index];
+      const show = !!suggestion && suggestion[0].toLowerCase() !== state[team].name.toLowerCase();
+      UI[`OH${side}SuggestRow`].SetHasClass("OHShown", show);
+      setText(UI[`OH${side}UseTeamLabel`], show ? `USE ${suggestion[0].toUpperCase()}?` : "");
+    });
+  }
+  function useSuggestion(team, index) {
+    const suggestion = Store.suggest[index];
+    if (!alive() || !suggestion) return;
+    edit((next) => {
+      next[team].name = suggestion[0];
+      next[team].tag = suggestion[1];
+      next[team].logo.url = suggestion[2];
+    });
+  }
   function renderPlayers() {
     const state = $.OHHost.getState();
     for (const [team, side] of SIDES) {
@@ -244,6 +264,7 @@
       });
     }
     renderPlayers();
+    renderSuggest();
     UI.OHDebuffToggle.SetHasClass("Checked", state.dev.debuffs);
     setText(UI.OHDebuffToggleLabel, state.dev.debuffs ? "ON" : "OFF");
     setText(UI.OHPollValue, `${state.dev.debuffPollMs} ms`);
@@ -613,6 +634,7 @@
       bind(UI[`OH${side}SeriesUp`], "onactivate", () => stepSeries(team, 1));
       bindLogo(team, UI[`OH${side}LogoEntry`]);
       for (let slot = 0; slot < S.BAN_SLOTS; slot++) bind(UI[`OH${side}Ban${slot}`], "onactivate", () => openPicker(team, slot));
+      bind(UI[`OH${side}UseTeam`], "onactivate", () => useSuggestion(team, SIDES.findIndex((pair) => pair[0] === team)));
       for (let slot = 0; slot < PLAYER_ROWS; slot++) {
         const entry = UI[`OH${side}Player${slot}Entry`];
         bind(entry, "ontextentrychange", () => commitAlias(team, slot, entry));
@@ -652,7 +674,7 @@
   for (const [, side] of SIDES) {
     IDS.push(`OH${side}NameEntry`, `OH${side}TagEntry`, `OH${side}SeriesDown`, `OH${side}SeriesValue`, `OH${side}SeriesUp`,
       `OH${side}LogoEntry`, `OH${side}LogoNote`, `OH${side}PlayersEmpty`, `OH${side}SeriesNote`, `OH${side}SeriesTitle`,
-      `OH${side}BansTitle`);
+      `OH${side}BansTitle`, `OH${side}SuggestRow`, `OH${side}UseTeam`, `OH${side}UseTeamLabel`);
     for (let slot = 0; slot < 2; slot++) IDS.push(`OH${side}Ban${slot}`, `OH${side}Ban${slot}Image`, `OH${side}Ban${slot}Label`);
     for (let slot = 0; slot < PLAYER_ROWS; slot++) {
       IDS.push(`OH${side}Player${slot}Row`, `OH${side}Player${slot}Game`, `OH${side}Player${slot}Entry`, `OH${side}Player${slot}Bind`);
@@ -676,6 +698,7 @@
       renderLogo("amber", "Amber");
       renderLogo("sapphire", "Sapphire");
       renderLogo("org", "Org");
+      maybeSuggest();
     } catch (e) {
       $.Msg(`${TAG} roster tick failed: ${e && e.message ? e.message : e}`);
     }
@@ -691,7 +714,8 @@
     panel: null, phase: "idle", seq: 0, gen: 0, helloId: "", startMs: 0, pendingId: "", pendingOp: "",
     savedRecord: "", sentRecord: "", retry: 0, readRetried: false, capacity: 4096, logosDropped: false,
     adopt: true, bootVersion: 0, saveQueued: false, started: false, reloadAt: 0, reloadGap: 0, offline: false,
-    readText: "", readPages: 0, fromV1: false, cards: [], cardWait: false, cardLogged: false, cardHooked: false
+    readText: "", readPages: 0, fromV1: false, cards: [], cardWait: false, cardLogged: false, cardHooked: false,
+    suggest: [null, null], suggestSig: ""
   };
 
   function setSaveStatus(text, tone) {
@@ -834,6 +858,7 @@
     if (op === "r") onStoreRead(reply);
     else if (op === "w") onStoreWrite(reply);
     else if (op === "u") onStoreCard(reply);
+    else if (op === "s") onStoreSuggest(reply);
     flushCards();
   }
   function onStoreTitle(panelOrTitle, eventTitle) {
@@ -984,6 +1009,28 @@
     }
     // A setup save that waited for this request goes now.
     if (Store.phase === "ready" && encodeSave().record !== Store.savedRecord) scheduleSave();
+  }
+
+  // Learned registry (plan phase 5): once the markers gave the accounts of both sides, the page is asked which
+  // stored team they look like (at least 4 of a side against at most 2 of another team). One ask per set of
+  // accounts, when the store is idle; the answer only fills the USE <TEAM>? chips.
+  function maybeSuggest() {
+    if (Store.phase !== "ready" || Store.pendingOp) return;
+    const known = $.OHHost.sides();
+    const sig = JSON.stringify(known);
+    if (sig === Store.suggestSig) return;
+    Store.suggestSig = sig;
+    Store.suggest = [null, null]; // other accounts: the old offer no longer applies
+    renderSuggest();
+    if (known.amber.length + known.sapphire.length >= 4) storeRequest("s", { a: known.amber, b: known.sapphire });
+  }
+  function onStoreSuggest(reply) {
+    if (!reply || reply.ok !== true || !Array.isArray(reply.s)) return;
+    Store.suggest = [0, 1].map((index) => {
+      const entry = reply.s[index] && typeof reply.s[index] === "object" ? S.cleanTeam(reply.s[index].t) : null;
+      return entry && entry[0] ? entry : null;
+    });
+    renderSuggest();
   }
 
   // RESET ALL repairs a damaged or newer save by overwriting it.

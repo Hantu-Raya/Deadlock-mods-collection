@@ -468,6 +468,42 @@
 	flow-children: down;
 }
 
+/* A team learned from earlier matches, offered (never applied) beside the team name. */
+.OHSuggestRow
+{
+	visibility: collapse;
+}
+
+.OHSuggestRow.OHShown
+{
+	visibility: visible;
+}
+
+.OHUseChip
+{
+	height: 32px;
+	padding: 0px 14px;
+	vertical-align: center;
+	background-color: #5FE69E22;
+	border: 2px solid #5FE69E66;
+	border-radius: 4px;
+}
+
+.OHUseChip:hover
+{
+	background-color: #5FE69E44;
+}
+
+.OHUseChipLabel
+{
+	vertical-align: center;
+	font-size: 13px;
+	font-weight: semi-bold;
+	color: #FFEFD7;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .OHPlayerRow
 {
 	visibility: collapse;

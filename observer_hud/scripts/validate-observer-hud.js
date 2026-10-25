@@ -4651,6 +4651,185 @@ check("board: without a handed card it asks the store once, only while the page 
 });
 
 
+// ---------------------------------------------------------------- phase 5: learned registry, inline editing
+// Plan phase 5 (decision 4). The page learns "team -> its 12 most recent accounts" from the cards of ended
+// matches (a winner is set; an untouched sample name never reaches a card) and only ever offers it: the
+// board shows "<team>?" and the editor "USE <team>?" when at least 4 of a side's accounts are members of
+// one team and at most 2 of another's. Nothing applies without a click. Clicking a team name on the board
+// opens an editor (name, tag, logo URL); saving writes a card with the match id for that match's accounts.
+// How it could fail: a suggestion is applied silently; a half-matching team (3 members, or a runner-up with
+// 3) is offered; an unfinished match (no winner) teaches; the registry grows past 12 accounts per team or
+// never forgets a leaver; the board edit names the wrong side; an edited old match loses its names after a
+// restart or lends them to another match; a bad name or URL is stored; the click target does not exist.
+const ended = (base, names, over = {}) => card(base, Object.assign({ w: 1, t: [[names[0], names[0].slice(0, 3).toUpperCase(), ""], [names[1], names[1].slice(0, 3).toUpperCase(), ""]] }, over));
+
+check("registry: a team is suggested from at least 4 of a side's accounts against at most 2 of another team; only ended matches teach; 12 members at most", () => {
+  const disk = {};
+  const up = (c) => pageCall(storeScript, disk, { i: "u", o: "u", c });
+  const ask = (a, b = []) => pageCall(storeScript, disk, { i: "s", o: "s", a, b });
+  // An unfinished match (no winner) teaches nothing.
+  up(card(1000, { w: 0 }));
+  deq(ask(ids(1000, 6), ids(1100, 6)).s, [0, 0], "no ended match yet");
+  up(ended(1000, ["Owl Squad", "Saint Squad"]));
+  let s = ask(ids(1000, 6), ids(1100, 6)).s;
+  deq([s[0].t[0], s[1].t[0], s[0].k], ["Owl Squad", "Saint Squad", 6]);
+  // 4 of 6 is enough; 3 is not.
+  const mixed = (n) => ids(1000, n).concat(ids(9000, 6 - n));
+  assert.equal(ask(mixed(4)).s[0].t[0], "Owl Squad", "4 members");
+  assert.equal(ask(mixed(3)).s[0], 0, "3 members");
+  // A runner-up with 3 of these accounts blocks it; with 2 it does not.
+  up(ended(2000, ["Third Team", "Fourth Team"], { a: ids(1000, 3).concat(ids(2000, 3)) })); // 3 of Owl Squad's accounts + 3 new
+  assert.equal(ask(ids(1000, 4).concat([9001, 9002])).s[0], 0, "4 against a runner-up with 3: no suggestion");
+  assert.equal(ask([1000, 1001, 1003, 1004, 9001, 9002]).s[0].t[0], "Owl Squad", "4 against a runner-up with 2");
+  // 12 most recent accounts per team: a roster that moved on forgets the leavers.
+  for (let i = 0; i < 4; i++) up(ended(30000 + i * 1000, ["Rotator", `Opp ${i}`], { a: ids(30000 + i * 1000, 6), at: 5000 + i }));
+  assert.equal(ask(ids(33000, 6)).s[0].t[0], "Rotator", "the newest players are members");
+  assert.equal(ask(ids(30000, 6)).s[0], 0, "players from 4 matches ago are not members any more");
+  assert.equal(ask(ids(33000, 6).concat(ids(32000, 6))).s[0].k, 12, "12 members at most, newest first");
+  assert.equal(ask(ids(31000, 6)).s[0], 0, "the third newest roster was pushed out too");
+  // Case does not make a new team; the newest tag and logo describe it.
+  up(ended(60000, ["Case Team", "Whoever"], { at: 5900 }));
+  up(ended(61000, ["case team", "Whoever"], { a: ids(60000, 6), b: ids(61100, 6), t: [["case team", "CAS", "https://img.test/new.png"], ["Whoever", "", ""]], at: 6000 }));
+  s = ask(ids(60000, 6)).s;
+  deq(s[0].t, ["case team", "CAS", "https://img.test/new.png"], "the same team by name, the newest card's look");
+  // Empty names (an untouched sample) are never learned.
+  up(ended(5000, ["", ""], { t: [["", "", ""], ["", "", ""]], r: ["Org", ""] }));
+  deq(ask(ids(5000, 6), ids(5100, 6)).s, [0, 0]);
+  // Replies fit the title cap.
+  assert.ok(JSON.stringify(ask(ids(1000, 6), ids(1100, 6))).length < 2000);
+});
+
+check("editor: a suggested team is offered as USE <team>? and applied only by a click", () => {
+  const disk = {};
+  for (const c of [ended(90000, ["Owl Squad", "Saint Squad"])]) pageCall(storeScript, disk, { i: "u", o: "u", c: Object.assign({}, c, { t: [["Owl Squad", "OWL", "https://img.test/o.png"], ["Saint Squad", "SQD", ""]] }) });
+  const w = world({ disk });
+  w.bootHost();
+  w.advance(3000);
+  w.press("OHMenuButton");
+  w.press("OHNavTeams");
+  const row = (side) => w.ui(`OH${side}SuggestRow`);
+  assert.ok(!row("Amber").BHasClass("OHShown"), "nothing without accounts");
+  // The accounts of the stored match (a = 90000.., b = 90100..).
+  const amber = AMBER.map((p, i) => w.marker(p, { account: 90000 + i, shown: p }));
+  const sapphire = SAPPHIRE.map((p, i) => w.marker(p, { account: 90100 + i, shown: p }));
+  w.advance(4000);
+  assert.ok(row("Amber").BHasClass("OHShown") && row("Sapphire").BHasClass("OHShown"), "both sides are offered");
+  assert.equal(text(w.ui("OHAmberUseTeamLabel")), "USE OWL SQUAD?");
+  assert.equal(text(w.ui("OHSapphireUseTeamLabel")), "USE SAINT SQUAD?");
+  assert.notEqual(w.state().amber.name, "Owl Squad", "never applied silently");
+  w.press("OHAmberUseTeam");
+  deq([w.state().amber.name, w.state().amber.tag, w.state().amber.logo.url], ["Owl Squad", "OWL", "https://img.test/o.png"], "a click applies name, tag and logo");
+  assert.notEqual(w.state().sapphire.name, "Saint Squad", "only the clicked side");
+  w.advance(2000);
+  assert.ok(!row("Amber").BHasClass("OHShown"), "already this team: no offer");
+  assert.ok(row("Sapphire").BHasClass("OHShown"));
+  // Another roster: nothing to offer.
+  for (const m of amber.concat(sapphire)) m.DeleteAsync();
+  w.bar().DeleteAsync();
+  w.advance(1100);
+  for (const p of [...AMBER, ...SAPPHIRE]) w.marker(p, { account: ACCOUNT_OF(p) + 7000 });
+  w.advance(6000);
+  assert.ok(!row("Sapphire").BHasClass("OHShown"), "accounts that are in no stored team");
+});
+
+const upCard = (disk, c) => pageCall(storeScript, disk, { i: "u", o: "u", c });
+const edit = (w, id, value) => { const entry = w.boardHost().FindChildTraverse(id); entry.text = value; };
+const click = (w, id) => w.boardHost().FindChildTraverse(id).events.onactivate();
+const names = (w) => [w.text("NSTeamName1"), w.text("NSTeamName2")];
+
+check("board: a stored team is suggested, never applied; clicking a team name edits it; the card keeps its match id through a restart", () => {
+  const disk = {};
+  const a = pgMatch(121917141, { win: 1 });
+  const mates = boardCard(a, { a: boardCard(a).a.slice(0, 4).concat([71, 72]), b: [81, 82, 83, 84, 85, 86], w: 1, t: [["Owl Squad", "OWL", ""], ["Strangers", "", ""]], at: 100 });
+  upCard(disk, mates); // an ended match with 4 of this roster's players: a suggestion, no card for this match
+  const w = boardWorld({ disk });
+  w.web.loadDelay = 500;
+  w.boot();
+  w.advance(1000);
+  present(w, a);
+  w.advance(3000);
+  assert.ok(w.boardHost().FindChildTraverse("NSTeamEdit1") && w.boardHost().FindChildTraverse("NSTeamEdit2"), "a deliberate click target for each team");
+  for (const id of ["NSTeamEdit1", "NSTeamEdit2"]) assert.notEqual(w.boardHost().FindChildTraverse(id).attributes.hittest, "false", `${id} takes the mouse`);
+  deq(names(w), ["Hidden King", "Archmother"], "the suggestion is not applied");
+  const hint = (side) => w.boardHost().FindChildTraverse(`NSTeamSuggest${side}`);
+  assert.ok(hint(1).BHasClass("NSShown"), "team 1 is suggested");
+  assert.equal(hint(1).text, "Owl Squad?");
+  assert.ok(!hint(2).BHasClass("NSShown"), "team 2 has no suggestion");
+  assert.ok(!w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"), "the editor is closed");
+  // Open it: filled from the suggestion.
+  click(w, "NSTeamEdit1");
+  assert.ok(w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"));
+  deq([w.boardHost().FindChildTraverse("NSEditName").text, w.boardHost().FindChildTraverse("NSEditTag").text], ["Owl Squad", "OWL"]);
+  // Bad input: nothing is written, the note says why.
+  const before = w.web.urls.length;
+  edit(w, "NSEditName", "N".repeat(29));
+  click(w, "NSEditSave");
+  assert.ok(/28/.test(w.text("NSEditNote")), `note: ${w.text("NSEditNote")}`);
+  assert.ok(w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"), "stays open");
+  edit(w, "NSEditName", "Edited Owls");
+  edit(w, "NSEditLogo", "javascript:alert(1)");
+  click(w, "NSEditSave");
+  assert.ok(/http/i.test(w.text("NSEditNote")), `note: ${w.text("NSEditNote")}`);
+  edit(w, "NSEditTag", "toolong");
+  edit(w, "NSEditLogo", "");
+  click(w, "NSEditSave");
+  assert.ok(/4/.test(w.text("NSEditNote")), "tag note");
+  assert.equal(w.web.urls.length, before, "nothing was sent");
+  click(w, "NSEditCancel");
+  assert.ok(!w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"));
+  deq(names(w), ["Hidden King", "Archmother"], "cancel changes nothing");
+  // A good edit: applied at once, written with this match's id and winner.
+  click(w, "NSTeamEdit1");
+  edit(w, "NSEditName", "Edited Owls");
+  edit(w, "NSEditTag", "eo");
+  edit(w, "NSEditLogo", "https://img.test/e.png");
+  click(w, "NSEditSave");
+  deq(names(w), ["Edited Owls", "Archmother"], "the header follows the edit");
+  assert.ok(!w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"), "saved: closed");
+  assert.ok(!hint(1).BHasClass("NSShown"), "a card now names it: no suggestion");
+  assert.equal(w.boardHost().FindChildTraverse("NSLogo1").Children().filter((p) => p.paneltype === "Image").length, 1, "its logo loads");
+  w.advance(3000);
+  const stored = matchesOf(disk);
+  const mine = stored.m.find((m) => m.id === "121917141");
+  assert.ok(mine, "a card for this match id was written");
+  deq([mine.a.slice().sort(), mine.b.slice().sort(), mine.w], [boardCard(a).a.slice().sort(), boardCard(a).b.slice().sort(), 1], "the match's accounts by board side, and who won");
+  deq(stored.T[mine.t[0]], ["Edited Owls", "EO", "https://img.test/e.png"]);
+  // Another team on the same page: a second edit keeps the first.
+  click(w, "NSTeamEdit2");
+  assert.equal(w.boardHost().FindChildTraverse("NSEditName").text, "", "no suggestion, no card: blank");
+  edit(w, "NSEditName", "Second Side");
+  click(w, "NSEditSave");
+  deq(names(w), ["Edited Owls", "Second Side"]);
+  w.advance(3000);
+  // Restart: a new process finds it by the match id; another match of the same players does not.
+  const again = boardWorld({ disk });
+  again.web.loadDelay = 500;
+  again.boot();
+  again.advance(1000);
+  present(again, a);
+  again.advance(3000);
+  deq(names(again), ["Edited Owls", "Second Side"], "an old match edited on the board keeps its names after a restart");
+  const rematch = pgMatch(121999999, { win: 1 });
+  rematch.teams = a.teams; // the same players
+  present(again, rematch);
+  again.advance(3000);
+  deq(names(again), ["Hidden King", "Archmother"], "another match does not borrow it");
+  // Writing an edit while the store is unreachable: it shows, nothing throws, few requests.
+  const off = boardWorld({ disk: {}, offline: true });
+  off.boot();
+  off.advance(1000);
+  present(off, a);
+  click(off, "NSTeamEdit2");
+  edit(off, "NSEditName", "Offline Name");
+  click(off, "NSEditSave");
+  assert.equal(off.text("NSTeamName2"), "Offline Name");
+  off.advance(40000);
+  assert.ok(off.web.urls.length <= 14, `${off.web.urls.length} requests offline`);
+  assert.equal(off.text("NSTeamName2"), "Offline Name", "kept for the session");
+  assert.ok(noBoardErrors(off) && noBoardErrors(again) && noBoardErrors(w));
+});
+
+
 // ---------------------------------------------------------------- budgets
 
 check("steady state: no writes while nothing changes; native calls per second under the budgets", () => {

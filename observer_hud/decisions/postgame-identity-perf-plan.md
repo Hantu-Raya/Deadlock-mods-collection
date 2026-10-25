@@ -1,6 +1,6 @@
 # Plan: post-game board in Observer HUD, account-keyed names, team names and logos, and a 90% runtime cut
 
-Status: **phases 1-4 done** (2026-10-25); phase 5 is not built. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
+Status: **phases 1-5 built** (2026-10-25); phase 5 is VM-verified only. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
 - `BRIEF.md`;
 - `m2_round1.md`, `round2_from_parent.md`, `m2_round2.md`;
 - `scout_perf.md`, `scout_identity.md`;
@@ -155,7 +155,7 @@ That is about 0.04% of one core before JS execution and GC, which were not measu
    - The store v2 page is tested on an https probe path first (needs approval), then published with approval, for old matches and restarts.
    - The header swaps when a card arrives.
    - *Acceptance:* VM checks for an offline store, a late reply and two writers; live, a spectated match shows its team names and logos on the board, in the same session and after a restart.
-5. **Learned registry and inline editing on the board.**
+5. **Learned registry and inline editing on the board.** **Built 2026-10-25, not seen live** (MAP changelog): 3 new checks, 77 in total.
    - *Acceptance:* an old match edited on the board keeps its names after a restart.
 
 ## Hover probe (2026-10-25, client 6819)
