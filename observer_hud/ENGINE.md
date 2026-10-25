@@ -99,3 +99,15 @@ The board runs in the dashboard (`CitadelDashboardRoot`), not the HUD. All rows 
 | `CitadelModIcon` is 51 px (3 px padding + 45 px art, `overflow: noclip`). Forcing it smaller lets neighbours overdraw it. Scale with padding 0, 45x45, `ui-scale: 75%`. A fit-children parent counts `ignore-parent-flow` children. `wash-color`, `saturation` and `brightness` did not recolour `post_game/key_player_bg_*.vsvg` or `trophy_bg.vsvg`; coloured shapes are `background-color` panels through a rough-edge `opacity-mask`. | **Live** (screens `.scratch/postgame_restyle/`). | — |
 | Opacity entrance animations work when `opacity: 0` sits in the same rule as the animation. A separate resting rule plus an ancestor-class animation rule left labels and icons invisible. Transform-only animations work either way. Trigger classes are added a frame after the panels exist. | **Live**. | — |
 | A `$.Msg` line is cut near 2 KB, so the `[NS] data` artifact logs one item per line. | **Live**. | — |
+
+## Account ids and hover
+
+Client 6819, 2026-10-25, demo 121685912 at tick 70000, probe pak10 (`.scratch/oh_hover_probe/`, `.scratch/oh_postgame/probe_run1_console.log`).
+
+| Fact | Build and evidence | Confidence boundary |
+|---|---|---|
+| `#unit_indicators_v2` holds 13 `PlayerEntry` panels. `CitadelUserName#PlayerName.accountid` is `0` until the marker is first set, then the player's Steam account (a number as text). 6 of 12 were set 8 s into the demo, 11 about a minute later; two entries never got one (one is the followed player; the other is unexplained). Side classes `team_1` (Amber) and `team_2` appear with the first set; an unset entry has none. | **Live**, two runs. | Entries never changed account within a run. |
+| The marker label shows the Steam persona. On the demo most equal the card's "Player N" name, so the name join resolves them; the rest need elimination. | **Live**: 11 of 12 cards joined (`[OH] accounts: 11 read from markers, 11 of 12 cards joined`). | Persona versus in-game name on real matches is not measured. |
+| The hovered top-bar card fires `CitadelTopDownScoreboardPlayerHovered` with no arguments on the card itself (stock `onmouseover` on `PlayerDetailsContainer` / `PlayerNameNWContainer`); `DispatchPanelEvent` with `onmouseover` fires it from JS. It opens no panel in the HUD context and changes no marker class. `citadel_show_account_ids 1` added no node either. | **Live** (synthetic hover only; a real mouse hover was not tested). | A tooltip in another context is unreachable from HUD JS. |
+| The card panel (`CitadelHudTopBarPlayer`) exposes no account property to JS. | **Live** (key dump). | — |
+

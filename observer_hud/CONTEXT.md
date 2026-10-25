@@ -102,11 +102,19 @@ The vocabulary of the pak10 observer HUD: looks, top bar parts, objective cues, 
 
 **Editor**: The TOURNAMENT SETUP window in the Escape menu, opened from a native entry the host adds to `#SubOptions`.
 
-**Alias**: A display name for a player, keyed by the in-game name on the card. A name two cards share keeps the stock name.
+**Alias**: A display name for a player. Keyed by Steam account (`players`) when the card's account is known, else a session alias by name (**pending**), else a v1 name-keyed alias (**legacy**). A name two cards share keeps the stock name.
+
+**Marker account**: The Steam account a far-away marker's `CitadelUserName#PlayerName.accountid` carries (0 until the marker is first set, and for a bot), with the marker's side class (`team_1` Amber, `team_2` Sapphire). The only passive account source in the HUD.
+
+**Account join**: Which marker account sits on which top-bar card, per side: the persona label equals the card name, else elimination (one card and one account left). A duplicate name, an unmatched persona and a bot stay unjoined.
+
+**Pending alias**: An alias typed for a card whose account was unknown. By name, this session only (never saved or shared); binds to the account only within the map load it was typed in.
+
+**Legacy alias**: A v1 name-keyed alias kept in `legacy`. It still applies by name and shows a one-click bind chip once the card's account is known.
 
 **Roster**: The in-game names read from the stock cards, which fill the editor's alias rows.
 
-**State**: The whole setup (`style`, event, stage, format, teams, organiser, info, graph, cues, aliases, dev). It is kept on the HUD root attribute `observer_hud_state`.
+**State**: The whole setup (`style`, event, stage, format, teams, organiser, info, graph, cues, buys, players, legacy, pending, dev). It is kept on the HUD root attribute `observer_hud_state`.
 
 **Share code**: `OHC1.<fnv1a>.<base64url>` of `{ s: 1, state }` without `dev`, copied between observer PCs.
 

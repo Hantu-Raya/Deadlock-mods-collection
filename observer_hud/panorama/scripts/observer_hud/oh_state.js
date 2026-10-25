@@ -5,7 +5,8 @@
 //          org: { name, logo: { url } }, info: { title, value, caption }, graph: { show, every, size, x, y },
 //          logo: { shape, size, gap },
 //          cues: { bridge, urn, rift, mid }, buys,
-//          aliases: { "<in-game name>": "<alias>" },
+//          players: { "<Steam account>": { a: alias, n: last seen in-game name } },
+//          legacy: { "<in-game name>": "<alias>" }, pending: { "<in-game name>": "<alias>" },
 //          dev: { debuffs, debuffPollMs, logStatus } }
 // style picks the look: "names" (Base Game+ Names, default) or "desk" (Night Desk). org is the
 // organiser wordmark or logo in the centre; info is Night Desk's optional card (no title: hidden);
@@ -20,7 +21,10 @@
 // buys: seconds a purchase notice shows on the buyer's top-bar card (BUYS_SHOW; 0 off).
 // Every field falls back on its own to the default when missing or invalid; text that is too long is
 // rejected, never truncated. series runs from 0 to the wins bestOf needs. bans hold CitadelHeroImage
-// hero IDs (0 = empty). Aliases are keyed by the player's in-game name for this session.
+// hero IDs (0 = empty). Aliases (v2): players are keyed by Steam account (at most 24); legacy holds the
+// v1 name-keyed aliases (a raw "aliases" key of an older save or code lands there; they still apply by name
+// and one click binds each to an account); pending are aliases typed before the card's account was known
+// (by name, this session only: never saved, never shared).
 // Share codes: OHC1.<fnv1a of the JSON>.<base64url JSON> with JSON { s: 1, state }.
 (() => {
   "use strict";
@@ -73,7 +77,7 @@
     logo: { shape: "circle", size: 30, gap: 12 },
     cues: { bridge: 30, urn: 30, rift: -1, mid: 30 },
     buys: 5,
-    aliases: {},
+    players: {}, legacy: {}, pending: {},
     dev: { debuffs: true, debuffPollMs: 250, logStatus: false }
   });
 
@@ -152,19 +156,37 @@
   const pick = (value, fallback) => value === null || value === undefined ? fallback : value;
   const cleanInt = (value, min, max) => Number.isInteger(value) && value >= min && value <= max ? value : null;
 
-  function normalizeAliases(raw, fallback) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return Object.assign({}, fallback);
-    const aliases = {};
-    let count = 0;
+  // name -> alias maps (legacy and pending): at most MAX_ALIASES; `into` already holds earlier sources.
+  function normalizeAliases(raw, into) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return into;
     for (const key of Object.keys(raw)) {
-      if (count >= MAX_ALIASES) break;
+      if (Object.keys(into).length >= MAX_ALIASES) break;
       const name = cleanText(key, LIMITS.gameName);
       const alias = cleanText(raw[key], LIMITS.alias);
       if (!name || !alias) continue;
-      aliases[name] = alias;
+      into[name] = alias;
+    }
+    return into;
+  }
+
+  // A Steam account id as the text the engine gives (1 to 4294967295, no leading zero); 0 is a bot.
+  const isAccount = (key) => typeof key === "string" && /^[1-9]\d{0,9}$/.test(key) && Number(key) <= 4294967295;
+  // players: account -> { a: alias, n: the in-game name last seen }; a bad account or alias is dropped,
+  // a last-seen name that is too long is dropped alone.
+  function normalizePlayers(raw) {
+    const players = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return players;
+    let count = 0;
+    for (const key of Object.keys(raw)) {
+      if (count >= MAX_ALIASES) break;
+      const entry = raw[key];
+      if (!isAccount(key) || !entry || typeof entry !== "object") continue;
+      const alias = cleanText(entry.a, LIMITS.alias);
+      if (!alias) continue;
+      players[key] = { a: alias, n: cleanText(entry.n, LIMITS.gameName) || "" };
       count++;
     }
-    return aliases;
+    return players;
   }
 
   function normalize(raw, defaults) {
@@ -233,7 +255,9 @@
       state.cues[kind] = allowed.includes(cues[kind]) ? cues[kind] : base.cues[kind];
     }
     state.buys = BUYS_SHOW.includes(source.buys) ? source.buys : base.buys;
-    state.aliases = normalizeAliases(source.aliases, base.aliases);
+    state.players = normalizePlayers(source.players);
+    state.legacy = normalizeAliases(source.aliases, normalizeAliases(source.legacy, {}));
+    state.pending = normalizeAliases(source.pending, {});
     const dev = source.dev && typeof source.dev === "object" ? source.dev : {};
     state.dev = {
       debuffs: typeof dev.debuffs === "boolean" ? dev.debuffs : base.dev.debuffs,
@@ -290,10 +314,12 @@
       return null;
     }
   }
-  // The DEV settings are diagnostics for this PC; they do not travel in a code.
+  // The DEV settings are diagnostics for this PC and the pending aliases belong to this session; neither
+  // travels in a code.
   function encodeShare(state) {
     const shared = clone(state);
     delete shared.dev;
+    delete shared.pending;
     const json = JSON.stringify({ s: SHARE_SCHEMA, state: shared });
     return SHARE_PREFIX + checksum(json) + "." + toBase64Url(json);
   }
@@ -336,6 +362,6 @@
     defaults: () => clone(DEFAULTS),
     normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, logoSources: logoSources, monogram: monogram, winsNeeded: winsNeeded,
     checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, valid: valid, clone: clone,
-    parseClock: parseClock, TEAM_PANELS: TEAM_PANELS
+    parseClock: parseClock, TEAM_PANELS: TEAM_PANELS, isAccount: isAccount, MAX_ALIASES: MAX_ALIASES
   });
 })();

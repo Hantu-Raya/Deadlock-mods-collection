@@ -99,6 +99,7 @@
   let stripOpens = 0;
   let rosterGen = 0; // the alias-row loop's generation (rosterTick)
   let rows = { amber: [], sapphire: [] }; // in-game names shown in the alias rows
+  let rowsSig = ""; // roster and accounts the rows were drawn for (rosterTick)
   const logoError = { amber: false, sapphire: false, org: false }; // a rejected URL is kept in its box
   const UI = {};
   const alive = () => !stopped && valid(root);
@@ -141,14 +142,23 @@
     note.SetHasClass("OHError", status === "failed");
   }
 
+  // The alias a card's name shows now: by its account when known, else the session alias, else the v1 one.
+  function aliasOf(state, name) {
+    const account = name ? $.OHHost.accountOf(name) : "";
+    const player = account ? state.players[account] : undefined;
+    return player ? player.a : (name && (state.pending[name] || state.legacy[name])) || "";
+  }
   function renderPlayers() {
     const state = $.OHHost.getState();
     for (const [team, side] of SIDES) {
       for (let slot = 0; slot < PLAYER_ROWS; slot++) {
         const name = rows[team][slot] || "";
+        const account = name ? $.OHHost.accountOf(name) : "";
         UI[`OH${side}Player${slot}Row`].SetHasClass("OHShown", !!name);
         setText(UI[`OH${side}Player${slot}Game`], name);
-        syncEntry(UI[`OH${side}Player${slot}Entry`], name && state.aliases[name] ? state.aliases[name] : "");
+        syncEntry(UI[`OH${side}Player${slot}Entry`], aliasOf(state, name));
+        // A v1 alias (by name) offers a one-click bind to the account once the card's account is known.
+        UI[`OH${side}Player${slot}Bind`].SetHasClass("OHShown", !!account && !state.players[account] && !!state.legacy[name]);
       }
       UI[`OH${side}PlayersEmpty`].SetHasClass("OHShown", rows[team].length === 0);
     }
@@ -318,11 +328,34 @@
     if (!name) return;
     const text = S.cleanText(String(entry.text || ""), S.LIMITS.alias);
     if (text === null) return;
-    const current = $.OHHost.getState().aliases[name] || "";
-    if (text === current) return;
+    if (text === aliasOf($.OHHost.getState(), name)) return;
+    const account = $.OHHost.accountOf(name);
     edit((next) => {
-      if (text) next.aliases[name] = text;
-      else delete next.aliases[name];
+      // An account's alias is keyed by the account; without one (a bot, an unmatched persona, a duplicate
+      // name, no marker yet) it is a session alias by name that binds later within this map load. A
+      // full list (24) keeps the alias as a session alias.
+      delete next.pending[name];
+      delete next.legacy[name];
+      if (account && (text === "" || next.players[account] || Object.keys(next.players).length < S.MAX_ALIASES)) {
+        if (text) next.players[account] = { a: text, n: name };
+        else delete next.players[account];
+      } else if (text) {
+        next.pending[name] = text;
+      }
+    });
+  }
+
+  // The chip: bind a v1 alias to the account the card now has. Nothing binds without this click.
+  function bindLegacy(team, slot) {
+    if (!alive()) return;
+    const name = rows[team][slot];
+    const account = name ? $.OHHost.accountOf(name) : "";
+    if (!account) return;
+    edit((next) => {
+      const alias = next.legacy[name];
+      if (!alias || next.players[account] || Object.keys(next.players).length >= S.MAX_ALIASES) return;
+      next.players[account] = { a: alias, n: name };
+      delete next.legacy[name];
     });
   }
 
@@ -445,7 +478,9 @@
         next.logo = base.logo;
         logoError.amber = logoError.sapphire = false;
       } else if (page === "Players") {
-        next.aliases = base.aliases;
+        next.players = base.players;
+        next.legacy = base.legacy;
+        next.pending = base.pending;
         next.buys = base.buys;
         next.dev = base.dev;
       } else if (page === "TopBar") {
@@ -583,9 +618,10 @@
           try { $.DispatchEvent("DropInputFocus", entry); } catch (e) {}
         });
         bind(entry, "onblur", () => commitAlias(team, slot, entry));
+        bind(UI[`OH${side}Player${slot}Bind`], "onactivate", () => bindLegacy(team, slot));
         bind(entry, "oncancel", () => {
           const name = rows[team][slot];
-          entry.text = name ? state().aliases[name] || "" : "";
+          entry.text = aliasOf(state(), name);
           try { $.DispatchEvent("DropInputFocus", entry); } catch (e) {}
         });
       }
@@ -616,7 +652,7 @@
       `OH${side}BansTitle`);
     for (let slot = 0; slot < 2; slot++) IDS.push(`OH${side}Ban${slot}`, `OH${side}Ban${slot}Image`, `OH${side}Ban${slot}Label`);
     for (let slot = 0; slot < PLAYER_ROWS; slot++) {
-      IDS.push(`OH${side}Player${slot}Row`, `OH${side}Player${slot}Game`, `OH${side}Player${slot}Entry`);
+      IDS.push(`OH${side}Player${slot}Row`, `OH${side}Player${slot}Game`, `OH${side}Player${slot}Entry`, `OH${side}Player${slot}Bind`);
     }
   }
 
@@ -627,7 +663,10 @@
     if (stopped || gen !== rosterGen || !alive() || !root.BHasClass("OHOpen")) return;
     try {
       const next = $.OHHost.roster();
-      if (JSON.stringify(next) !== JSON.stringify(rows)) {
+      // An account that arrives changes the row's alias and chip without changing the roster.
+      const sig = JSON.stringify(next) + "|" + next.amber.concat(next.sapphire).map((name) => $.OHHost.accountOf(name)).join(",");
+      if (sig !== rowsSig) {
+        rowsSig = sig;
         rows = next;
         renderPlayers();
       }
@@ -658,8 +697,11 @@
     UI.OHSaveStatus.SetHasClass("OHSaveWarn", tone === "warn");
   }
 
+  // Session aliases (pending) are never saved.
   function encodeRecord(value) {
-    const body = JSON.stringify({ s: RECORD_SCHEMA, state: value });
+    const kept = S.clone(value);
+    delete kept.pending;
+    const body = JSON.stringify({ s: RECORD_SCHEMA, state: kept });
     return `${RECORD_PREFIX}${S.checksum(body)}.${body}`;
   }
   // The record to save: in full, or without logo URLs when over the page's capacity; null if neither fits.

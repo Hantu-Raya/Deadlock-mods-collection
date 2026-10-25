@@ -143,7 +143,7 @@ const RAW_EXCLUDED = new Set(["childWrappers", "nodeVisits"]);
 // Measured 2026-10-25 before -> after the quick-poll world sampler, the watch gate and the respawn wake:
 // spectating 361 -> 216.2, counting down 483.8 -> 274.3, playing with pak10 installed 310.5 -> 4.3,
 // not spectating 4.3, after spectating 4.8 us/s. Re-measure before raising.
-const BUDGET_US = { spectating: 222, countdown: 280, idle: 6, after: 6, playing: 6 };
+const BUDGET_US = { spectating: 222, countdown: 280, idle: 6, after: 6, playing: 6, scan: 12 };
 // The post-game board (plan phase 2): at most 11 native calls per second while its page shows and
 // nothing changes; while hidden one visibility check a second (a reopen can bring no event, live).
 const BUDGET_BOARD = { calls: 11, us: 3, hiddenUs: 2 };
@@ -454,12 +454,20 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
   // CitadelUserName#PlayerName makes one Label holding the player's name (shown: what it displays,
   // e.g. a Steam friend nickname); the hero image carries heroid.
   const indicators = hud.FindChildTraverse("unit_indicators_v2");
-  const marker = (player, { shown = player, heroId = null } = {}) => {
+  const marker = (player, { shown = player, heroId = null, account = 0, side = null } = {}) => {
     const entry = instantiate(STOCK.indicator, indicators);
     entry.AddClass("visible");
-    entry.AddClass(AMBER.includes(player) ? "team_1" : "team_2");
+    entry.AddClass(side || (AMBER.includes(player) ? "team_1" : "team_2"));
     new MockPanel("Label", entry.FindChildTraverse("PlayerName"), "").__text = shown;
     entry.FindChildTraverse("HeroIcon").heroid = heroId === null ? heroOf(player)[0] : heroId;
+    // Live (client 6819): CitadelUserName#PlayerName.accountid is 0 until the marker is first set, then
+    // the player's Steam account (a bot stays 0); the 12th entry (the followed player) can stay 0.
+    const holder = entry.FindChildTraverse("PlayerName");
+    let value = String(account);
+    holder.accountReads = 0;
+    // A property read costs about a text read (P0: 200-250 ns), so the weighted budget counts it as one.
+    Object.defineProperty(holder, "accountid", { configurable: true, set: (next) => { value = String(next); },
+      get: () => { holder.accountReads++; if (holder.operationCounts) holder.operationCounts.textReads = (holder.operationCounts.textReads || 0) + 1; return value; } });
     return entry;
   };
   const markerName = (entry) => entry.FindChildTraverse("PlayerName").Children()[0];
@@ -627,6 +635,13 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     advance, geometry, addBar, units, giveDebuff, card, ult, slots, placeOf, shownSlots, icons, slotText, bar, band, menu, ui, press, type,
     state, who, clock, souls, host, purchases, buy, notices, noticeText, removeTeam, rebuildTeam, indicators, marker, markerName,
     eventFeed, killRow, feedNames };
+}
+
+// Steam accounts for the 12 stock markers, by player (live: 9-10 digit numbers, 0 for a bot).
+const ACCOUNT_OF = (player) => 90000 + (AMBER.includes(player) ? AMBER.indexOf(player) : 6 + SAPPHIRE.indexOf(player));
+// One marker per player with its account; `over` changes single markers ({ Kestrel: { shown: "nick" } }).
+function markAll(w, over = {}) {
+  return Object.fromEntries([...AMBER, ...SAPPHIRE].map((p) => [p, w.marker(p, Object.assign({ account: ACCOUNT_OF(p) }, over[p] || {}))]));
 }
 
 const countIn = (root, id) => {
@@ -872,7 +887,8 @@ check("state: field-by-field fallback, rejection instead of truncation, series c
   deq(s.sapphire.bans, [0, 6], "and once across teams");
   assert.equal(s.sapphire.tag, "BRS", "a 7-character tag is rejected (the sample stays)");
   assert.equal(s.sapphire.series, 0, "series 4 is more than Bo5 needs");
-  deq(s.aliases, { Kestrel: "Kes" });
+  deq(s.legacy, { Kestrel: "Kes" }, "a v1 name-keyed map is kept as legacy, never re-keyed");
+  deq([s.players, s.pending, s.aliases], [{}, {}, undefined]);
   assert.equal(s.dev.debuffPollMs, 250);
   // Sample values fill a fresh state; a name cleared to nothing shows the side's own name.
   deq([d.event, d.stage, d.amber.name, d.amber.tag, d.sapphire.name, d.org.name, d.info.title],
@@ -1842,6 +1858,7 @@ check("save: the setup survives a restart through the local save page; damaged s
   const disk = {};
   const a = world({ disk });
   a.bootHost();
+  markAll(a);
   a.advance(3000);
   assert.equal(text(a.ui("OHSaveStatus")), "SAVED", "a fresh PC saves the defaults");
   a.press("OHMenuButton");
@@ -1856,9 +1873,10 @@ check("save: the setup survives a restart through the local save page; damaged s
   // Restart: a new process adopts the saved setup.
   const b = world({ disk });
   b.bootHost();
+  markAll(b);
   b.advance(3000);
   assert.equal(b.state().event, "Spring Cup");
-  assert.equal(b.state().aliases.Kestrel, "Kes");
+  assert.equal(b.state().players[ACCOUNT_OF("Kestrel")].a, "Kes");
   assert.equal(b.state().graph.every, 120);
   assert.equal(b.who("Kestrel"), "Kes");
   // A damaged record is left alone (nothing written) until RESET ALL.
@@ -2100,9 +2118,9 @@ check("editor: RESET <PAGE> clears exactly the settings on the page shown; RESET
   assert.equal(text(w.ui("OHResetPageLabel")), "RESET PLAYERS");
   w.press("OHResetPage");
   assert.equal(text(w.ui("OHResetPageLabel")), "CONFIRM RESET PLAYERS");
-  assert.ok(Object.keys(w.state().aliases).length === 1, "the first press only arms");
+  assert.ok(Object.keys(w.state().pending).length === 1, "the first press only arms");
   w.press("OHResetPage");
-  deq([w.state().aliases, w.state().dev.debuffs], [{}, true], "aliases and the status column");
+  deq([w.state().pending, w.state().players, w.state().legacy, w.state().dev.debuffs], [{}, {}, {}, true], "aliases and the status column");
   assert.equal(w.state().event, "Cup", "other pages keep their values");
   // MATCH: stage, format, series wins and bans; the event title (TOP BAR) stays.
   w.press("OHNavMatch");
@@ -2597,13 +2615,219 @@ check("aliases: rows list the stock cards' names; an alias replaces the stock na
   assert.equal(w.who("Kestrel"), "Kes");
   w.type("OHAmberPlayer0Entry", "");
   assert.equal(w.who("Kestrel"), "Kestrel", "clearing the alias shows the stock name again");
-  deq(w.state().aliases, {});
+  deq(w.state().pending, {});
   // A focused entry is never overwritten by a render.
   const entry = w.ui("OHEventEntry");
   entry.keyFocus = true;
   entry.text = "typing";
   w.press("OHBo7");
   assert.equal(entry.text, "typing");
+});
+
+// ---------------------------------------------------------------- identity: accounts and aliases v2
+// Plan phase 3 (decisions/postgame-identity-perf-plan.md decisions 2-3). Live facts (client 6819, demo
+// 121685912, 2026-10-25): a far-away marker's CitadelUserName#PlayerName.accountid is 0 until the marker is
+// first set, then the player's Steam account (11 of 12 after a minute; the followed player and a bot stay 0;
+// 13 entries exist); the side class team_1 is Amber, team_2 Sapphire; the label shows the Steam persona,
+// which is often not the card's in-game name. The hovered top-bar card fires CitadelTopDownScoreboardPlayerHovered
+// with no account, so no hover path exists (ENGINE.md); the passive path is all there is.
+// How it could fail: an account joins the wrong card (a guess between two); a duplicate name is aliased;
+// a bot (account 0) is keyed by 0; a persona that matches no card gets no alias although elimination
+// settles it; an alias typed for an unresolved card binds to whoever is in that seat on the next map;
+// a v1 alias is lost, or re-keyed behind the user's back; accounts of the last map leak into the next;
+// the scan polls past the point where nothing new can come, or each entry is read again once known.
+check("identity: marker accounts join the cards by name, then by elimination within a side; the persona may match no card", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  // Amber: five personas equal the card names, one is a Steam nickname. Sapphire: two nicknames, two cards.
+  const m = markAll(w, { Ironclad: { shown: "ironclad on steam" }, Geist: { shown: "xX_g_Xx" }, Talon: { shown: "tal0n" } });
+  w.advance(1100);
+  const host = w.host();
+  assert.equal(host.accountOf("Kestrel"), String(ACCOUNT_OF("Kestrel")), "by name");
+  assert.equal(host.accountOf("Volt"), String(ACCOUNT_OF("Volt")), "by name, Sapphire");
+  assert.equal(host.accountOf("Ironclad"), String(ACCOUNT_OF("Ironclad")), "elimination: the one Amber card and the one Amber account left");
+  assert.ok(w.harness.logs.includes("[OH] accounts: 12 read from markers, 10 of 12 cards joined"), "the join is logged as counts only");
+  assert.ok(!w.harness.logs.some((line) => line.includes(String(ACCOUNT_OF("Kestrel")))), "an account id is never logged");
+  assert.equal(host.accountOf("Geist"), "", "two cards and two accounts left on Sapphire: no guess");
+  assert.equal(host.accountOf("Talon"), "");
+  // An alias for the elimination card is keyed by its account and shows on the nickname marker and the band.
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer5Entry", "Iron");
+  deq(w.state().players[ACCOUNT_OF("Ironclad")], { a: "Iron", n: "Ironclad" });
+  deq(w.state().pending, {});
+  w.advance(1100);
+  assert.equal(w.markerName(m.Ironclad).text, "Iron", "the nickname marker shows the alias through its account");
+  assert.equal(w.who("Ironclad"), "Iron");
+  // An unresolved card keeps a session alias by name.
+  w.type("OHSapphirePlayer3Entry", "Tal");
+  deq(w.state().pending, { Talon: "Tal" });
+  assert.equal(w.who("Talon"), "Tal");
+  assert.equal(w.markerName(m.Talon).text, "tal0n", "a nickname marker with no account is not matched by name");
+  // A Steam nickname must not take another card's alias: its account decides, not its label.
+  w.type("OHAmberPlayer0Entry", "Kes");
+  w.markerName(m.Geist).__text = "Kestrel";
+  w.advance(1100);
+  assert.equal(w.markerName(m.Geist).text, "Kestrel", "no account join for Geist: its label 'Kestrel' is not an alias for the Amber card");
+});
+
+check("identity: duplicate names get no alias and no account; a bot (account 0) keeps a session alias by name", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  const m = markAll(w, { Moth: { shown: "Kestrel" }, Doyle: { account: 0 } });
+  const rename = (name, to) => { for (const label of w.card(name).FindChildrenWithClassTraverse("PlayerName").concat(w.card(name).FindChildrenWithClassTraverse("AlwaysPlayerName"))) label.__text = to; };
+  rename("Moth", "Kestrel");
+  w.advance(1100);
+  const host = w.host();
+  assert.equal(host.accountOf("Kestrel"), "", "two cards named Kestrel: no account for the name");
+  assert.equal(host.accountOf("Doyle"), "", "a bot has no account to join");
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer0Entry", "Kes");
+  deq(w.state().pending, { Kestrel: "Kes" });
+  w.advance(1100);
+  assert.equal(w.who("Kestrel"), "Kestrel", "a shared name shows the stock name on both");
+  assert.equal(w.markerName(m.Kestrel).text, "Kestrel");
+  assert.equal(w.markerName(m.Moth).text, "Kestrel");
+  w.type("OHAmberPlayer1Entry", "Doy"); // the roster lists a shared name once: Kestrel, Doyle, .
+  deq(w.state().pending, { Kestrel: "Kes", Doyle: "Doy" });
+  deq(w.state().players, {}, "nothing is keyed by account 0 or by an ambiguous name");
+  w.advance(1100);
+  assert.equal(w.who("Doyle"), "Doy");
+  assert.equal(w.markerName(m.Doyle).text, "Doy", "the bot's marker takes the session alias by name");
+  // Once the duplicate is gone the alias shows again; it was never keyed to an account.
+  rename("Moth", "Moth");
+  w.advance(1100);
+  assert.equal(w.who("Kestrel"), "Kes");
+});
+
+check("identity: a pending alias binds to its account only within the map load it was typed in", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer0Entry", "Kes"); // before any marker has an account
+  deq(w.state().pending, { Kestrel: "Kes" });
+  assert.equal(w.who("Kestrel"), "Kes", "it shows at once, by name");
+  const first = markAll(w);
+  w.advance(1100);
+  deq(w.state().players[ACCOUNT_OF("Kestrel")], { a: "Kes", n: "Kestrel" }, "the account arrived on the same map: bound");
+  deq(w.state().pending, {});
+  assert.equal(w.who("Kestrel"), "Kes");
+  // Next map: a new #TopBar and new markers; the seat's player may be someone else now.
+  w.type("OHAmberPlayer1Entry", "Mo");
+  deq(w.state().players[ACCOUNT_OF("Moth")], { a: "Mo", n: "Moth" });
+  w.type("OHSapphirePlayer0Entry", "Vee");
+  deq(w.state().players[ACCOUNT_OF("Volt")], { a: "Vee", n: "Volt" });
+  for (const entry of Object.values(first)) entry.DeleteAsync();
+  w.bar().DeleteAsync();
+  w.advance(1100);
+  // Map 2: nobody has an account yet. An alias typed now is pending, and a later account binds it (same map).
+  w.type("OHAmberPlayer3Entry", "Fro");
+  deq(w.state().pending, { Frostbyte: "Fro" });
+  // Another map starts before any account was learned: the pending alias must not bind in map 3.
+  w.bar().DeleteAsync();
+  w.advance(1100);
+  const second = markAll(w, { Frostbyte: { account: 777001 }, Kestrel: { account: 777002 } });
+  w.advance(1100);
+  assert.equal(w.host().accountOf("Frostbyte"), "777001");
+  deq(w.state().pending, { Frostbyte: "Fro" }, "typed on another map load: still session-only, by name");
+  assert.ok(!w.state().players["777001"], "never bound to the new map's account");
+  assert.equal(w.who("Frostbyte"), "Fro", "it still shows by name for this session");
+  // The accounts of map 1 do not carry over: Kestrel's old account alias does not apply to the new account.
+  assert.equal(w.who("Kestrel"), "Kestrel", "account 777002 has no alias");
+  assert.ok(w.state().players[ACCOUNT_OF("Kestrel")], "the alias is still stored for the old account");
+  for (const entry of Object.values(second)) entry.DeleteAsync();
+});
+
+check("identity: v1 name aliases move to legacy, still apply by name, and bind to an account with one click", () => {
+  const S = stateApiOf();
+  const record = JSON.stringify({ s: 1, state: { aliases: { Kestrel: "Kes", Moth: "Mo" } } });
+  const disk = { "hantu.observer_hud.v1/state": `OHS1.${S.checksum(record)}.${record}` };
+  const w = world({ disk });
+  w.bootHost();
+  w.advance(3000);
+  deq(w.state().legacy, { Kestrel: "Kes", Moth: "Mo" });
+  deq([w.state().players, w.state().pending], [{}, {}]);
+  assert.equal(w.who("Kestrel"), "Kes", "a v1 alias keeps working by name");
+  w.press("OHMenuButton");
+  const chip = (side, slot) => w.ui(`OH${side}Player${slot}Bind`);
+  assert.ok(!chip("Amber", 0).BHasClass("OHShown"), "no chip while the card's account is unknown");
+  markAll(w, { Moth: { shown: "mothy" } });
+  w.advance(1100);
+  assert.ok(chip("Amber", 0).BHasClass("OHShown"), "a chip once the account is known");
+  assert.ok(chip("Amber", 1).BHasClass("OHShown"), "Moth too (the persona label does not matter)");
+  assert.ok(!chip("Amber", 2).BHasClass("OHShown"), "no chip for a card without a v1 alias");
+  deq(w.state().players, {}, "nothing is re-keyed silently");
+  w.press(`OHAmberPlayer0Bind`);
+  deq(w.state().players[ACCOUNT_OF("Kestrel")], { a: "Kes", n: "Kestrel" });
+  deq(w.state().legacy, { Moth: "Mo" });
+  assert.ok(!chip("Amber", 0).BHasClass("OHShown"));
+  assert.equal(w.who("Kestrel"), "Kes");
+  // The save holds the v2 shape (phase 4 moves it to its own v2 key, so a released v1 pak keeps its record).
+  w.advance(3000);
+  const saved = disk["hantu.observer_hud.v1/state"];
+  assert.ok(!/"aliases"/.test(saved) && saved.includes('"players"') && saved.includes('"legacy"'), "v2 shape on disk");
+  assert.ok(!saved.includes('"pending"'), "session aliases are never saved");
+  // Clearing the box of a legacy-shown alias removes it.
+  w.type("OHAmberPlayer1Entry", "");
+  deq(w.state().legacy, {});
+});
+
+check("identity: state normalizes players, legacy and pending; a share code carries players and legacy, never pending", () => {
+  const S = stateApiOf();
+  const many = {};
+  for (let i = 1; i <= 30; i++) many[String(1000 + i)] = { a: `a${i}`, n: `n${i}` };
+  const s = S.normalize({ players: Object.assign({ "0": { a: "bot" }, abc: { a: "x" }, "99999999999": { a: "x" }, "42": { a: "y".repeat(25) }, "43": { a: "ok", n: "n".repeat(33) }, "07": { a: "lead" } }, many),
+    legacy: { Kestrel: "Kes", "": "x" }, aliases: { Moth: "Mo" }, pending: { Doyle: "Doy", Volt: "z".repeat(25) } });
+  assert.equal(Object.keys(s.players).length, 24, "at most 24 players");
+  assert.ok(!("0" in s.players) && !("abc" in s.players) && !("99999999999" in s.players) && !("07" in s.players) && !("42" in s.players), "bad accounts and long aliases are rejected");
+  const t = S.normalize({ players: { "43": { a: "ok", n: "n".repeat(33) }, "44": { a: "fine" }, "4294967295": { a: "max", n: "N" }, "4294967296": { a: "over" } } });
+  deq(t.players, { "43": { a: "ok", n: "" }, "44": { a: "fine", n: "" }, "4294967295": { a: "max", n: "N" } }, "a last-seen name that is too long is dropped, the alias stays");
+  deq(s.legacy, { Kestrel: "Kes", Moth: "Mo" }, "legacy takes the v2 key and the v1 aliases key");
+  deq(s.pending, { Doyle: "Doy" });
+  const code = S.encodeShare(S.normalize({ players: { "123": { a: "A", n: "N" } }, legacy: { Moth: "Mo" }, pending: { Doyle: "Doy" } }));
+  const back = S.normalize(S.decodeShare(code).state);
+  deq([back.players, back.legacy, back.pending], [{ "123": { a: "A", n: "N" } }, { Moth: "Mo" }, {}]);
+  // A v1 share code (aliases by name) still imports.
+  const v1 = JSON.stringify({ s: 1, state: { aliases: { Kestrel: "Kes" } } });
+  const v1code = "OHC1." + S.checksum(v1) + "." + Buffer.from(v1).toString("base64url");
+  deq(S.normalize(S.decodeShare(v1code).state).legacy, { Kestrel: "Kes" });
+});
+
+check("identity: map changes forget the old accounts; the scan stops once 11 of 12 are known and reads each entry once", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  // 6 of 12 markers have an account (live: 6 at the first look, 11 about a minute later).
+  const entries = [...AMBER, ...SAPPHIRE].map((p, i) => w.marker(p, { account: i % 2 ? 0 : ACCOUNT_OF(p) }));
+  const holder = (e) => e.FindChildTraverse("PlayerName");
+  w.advance(1100);
+  const reads = () => entries.map((e) => holder(e).accountReads);
+  const base = reads();
+  w.advance(10000);
+  const grown = reads().map((n, i) => n - base[i]);
+  entries.forEach((e, i) => {
+    if (i % 2 === 0) assert.equal(grown[i], 0, `entry ${i} has its account and is not read again`);
+    else assert.ok(grown[i] >= 8 && grown[i] <= 11, `entry ${i} (account 0) is read once a second (${grown[i]})`);
+  });
+  // The accounts arrive (a marker is set the first time it is on screen): learned within a second, then silent.
+  entries.forEach((e, i) => { if (i % 2) holder(e).accountid = ACCOUNT_OF([...AMBER, ...SAPPHIRE][i]); });
+  entries[11].FindChildTraverse("PlayerName").accountid = 0; // the followed player stays 0
+  w.advance(1100);
+  assert.equal(w.host().accountOf("Vesper"), String(ACCOUNT_OF("Vesper")));
+  const after = reads();
+  w.advance(10000);
+  deq(reads(), after, "11 of 12 known: no entry is read any more");
+  // The next map: new entries with other accounts; nothing of the old map is kept.
+  for (const e of entries) e.DeleteAsync();
+  w.bar().DeleteAsync();
+  w.advance(1100);
+  assert.equal(w.host().accountOf("Vesper"), "", "the old map's accounts are gone with its markers");
+  markAll(w, { Kestrel: { account: 555 } });
+  w.advance(1100);
+  assert.equal(w.host().accountOf("Kestrel"), "555");
+  assert.equal(w.host().accountOf("Moth"), String(ACCOUNT_OF("Moth")));
 });
 
 // Counts text writes on one mock label (the stock name labels must be left alone unless an alias shows).
@@ -2682,11 +2906,12 @@ check("aliases: world healthbar names show the alias while spectating; recycled 
 
 // Aliases on the far-away hero markers (stock hud_unit_indicators_v2.xml, CitadelHudUnitIndicatorsV2
 // #unit_indicators_v2: name, hero icon, distance). How it could fail: the marker keeps the stock name;
-// a marker whose name is not the card's (a Steam friend nickname) never matches (the hero id must);
+// a marker whose name is not the card's (a Steam friend nickname) is matched by its account, never by its hero
+// (CitadelHeroImage exposes no hero id to JS, P1b live 2026-10-25);
 // the engine writing the name again wins for good; a marker that appears later is missed; clearing
 // the alias or leaving spectating leaves the alias; markers without an alias are written; rewrites in
 // steady state.
-check("aliases: far-away hero markers show the alias (by name, else by hero), and the stock name when cleared", () => {
+check("aliases: far-away hero markers show the alias (by name, else by account), and the stock name when cleared", () => {
   const w = world();
   w.bootHost();
   w.advance(2000);
@@ -2701,8 +2926,8 @@ check("aliases: far-away hero markers show the alias (by name, else by hero), an
   w.type("OHAmberPlayer0Entry", "Kes");
   w.type("OHAmberPlayer2Entry", "Dee");
   w.advance(1100);
-  deq([w.markerName(kes).text, w.markerName(moth).text, w.markerName(doyle).text], ["Kes", "Moth", "Dee"],
-    "alias by name; no alias: untouched; a nickname marker by its hero");
+  deq([w.markerName(kes).text, w.markerName(moth).text, w.markerName(doyle).text], ["Kes", "Moth", "my friend doyle"],
+    "alias by name; no alias: untouched; a nickname marker without an account is left alone (no hero match)");
   deq(mothWrites, [], "a marker without an alias is left alone");
   // The engine writes the name again: the alias is back within a tick.
   w.markerName(kes).__text = "Kestrel";
@@ -2732,8 +2957,8 @@ check("aliases: far-away hero markers show the alias (by name, else by hero), an
 // Kill feed names (user 2026-10-23, screenshot 20:29: aliases "Player N" on the band, in-game names in
 // the feed). Stock rows are CitadelHudInfoFeed with Label.killerInfo / Label.victimInfo bound to
 // {s:killer_name} / {s:victim_name}. How it could fail: a row keeps the in-game names; the alias shows a
-// tick late (rows live a few seconds); a name without an alias is written; a nickname that no card
-// shows gets nothing although its hero is unique; a row the engine reuses for another kill keeps the
+// tick late (rows live a few seconds); a name without an alias is written; a name that no card
+// shows is never guessed from its hero; a row the engine reuses for another kill keeps the
 // old alias; a cleared alias or the end of spectating leaves a row on the alias; polling without
 // aliases; rewrites in steady state.
 check("aliases: kill feed rows show the killer's and victim's alias soon after they appear", () => {
@@ -2757,10 +2982,10 @@ check("aliases: kill feed rows show the killer's and victim's alias soon after t
   w.advance(300);
   deq(w.feedNames(row), ["Moth", "Player 1"], "the victim's alias within 0.3 s; Moth has none");
   deq(mothWrites, [], "a name without an alias is not written");
-  // A Steam nickname no card shows: matched by the killer's hero image.
+  // A name no card shows is left alone: the hero image carries no id to JS (P1b), so there is no hero match.
   const nick = w.killRow(320, { killer: "my friend doyle", victim: "Moth", killerHero: heroOf("Doyle")[0] });
   w.advance(300);
-  deq(w.feedNames(nick), ["Player 3", "Moth"], "a nickname row by its hero");
+  deq(w.feedNames(nick), ["my friend doyle", "Moth"], "a row whose name no card shows gets no alias");
   // The engine reuses the row for another kill: the new names (and their aliases) show.
   row.__dialog.killer_name = "Volt";
   row.__dialog.victim_name = "Mole";
@@ -2936,6 +3161,7 @@ check("kill feed: moves under the status grid and purchase notices of the cards 
 check("editor: share code export and import on another PC, reset asks twice, DEV settings stay local", () => {
   const a = world();
   a.bootHost();
+  markAll(a);
   a.advance(2000);
   a.press("OHMenuButton");
   a.type("OHEventEntry", "Deadlock Community Cup");
@@ -2949,12 +3175,13 @@ check("editor: share code export and import on another PC, reset asks twice, DEV
   assert.ok(code.startsWith("OHC1."));
   const b = world();
   b.bootHost();
+  markAll(b);
   b.advance(2000);
   b.press("OHMenuButton");
   b.harness.clipboardText = code;
   b.press("OHShareImport"); // empty box: pastes the clipboard first
   assert.equal(b.state().event, "Deadlock Community Cup");
-  assert.equal(b.state().aliases.Moth, "Mothman");
+  assert.equal(b.state().players[ACCOUNT_OF("Moth")].a, "Mothman", "aliases by account travel in a code");
   assert.equal(b.state().dev.debuffs, true, "the DEV switch does not travel in a code");
   assert.equal(text(b.ui("OHShareStatus")), "Imported.");
   assert.equal(b.who("Moth"), "Mothman");
@@ -2970,7 +3197,7 @@ check("editor: share code export and import on another PC, reset asks twice, DEV
   b.press("OHReset");
   assert.equal(b.state().event, "Community Cup Season 2", "reset returns to the sample values");
   assert.equal(b.state().style, "names", "reset returns to the default look");
-  deq(b.state().aliases, {});
+  deq([b.state().players, b.state().legacy, b.state().pending], [{}, {}, {}]);
   b.press("OHDone");
   assert.ok(!b.menu().BHasClass("OHOpen"));
 });
@@ -4036,7 +4263,7 @@ check("steady state: no writes while nothing changes; native calls per second un
   w.type("OHAmberPlayer0Entry", "Kes");
   w.press("OHDone");
   // The stock far-away markers: one per other player (11 for a spectator's view, here all 12).
-  for (const name of [...AMBER, ...SAPPHIRE]) w.marker(name);
+  markAll(w);
   for (const name of [...AMBER, ...SAPPHIRE]) {
     w.giveDebuff(name, "ability_viper_petrifybola", { radial: () => -180 });
     w.giveDebuff(name, "upgrade_extra_regen", { debuff: false });
@@ -4077,6 +4304,41 @@ check("steady state: no writes while nothing changes; native calls per second un
   // 0.25 s poll, 60 idle bars, the column and the host tick. Re-measure before raising.
   assert.ok(weighted(spectating) <= BUDGET_US.spectating, `spectating budget: ${weighted(spectating)} us/s`);
   assert.ok(weighted(countdown) <= BUDGET_US.countdown, `countdown budget: ${weighted(countdown)} us/s`);
+});
+
+// The account scan while accounts are still arriving (live: 6 of 12 at the first look): one pass over the
+// markers a second, then nothing at 11 of 12. Measured with no alias, so the pass is the whole cost.
+check("identity: the account scan costs a few microseconds a second while accounts arrive, and nothing at 11 of 12", () => {
+  const b = world();
+  b.bootHost();
+  markAll(b);
+  b.advance(8000);
+  reset(b);
+  const stopBase = counted(b.harness);
+  b.advance(10000);
+  const baseOps = per(stopBase(), 10);
+  const base = weighted(baseOps); // every account known from the start: the host's own cost
+  const w = world();
+  w.bootHost();
+  w.advance(5000);
+  const entries = [...AMBER, ...SAPPHIRE].map((p, i) => w.marker(p, { account: i < 6 ? ACCOUNT_OF(p) : 0 }));
+  w.advance(3000);
+  reset(w);
+  let stop = counted(w.harness);
+  w.advance(10000);
+  const scanning = per(stop(), 10);
+  console.log(`   account scan (6 of 12 known) ${weighted(scanning)} us/s, ${total(scanning)} calls/s ${JSON.stringify(scanning)}`);
+  assert.ok(weighted(scanning) - base <= BUDGET_US.scan, `scan: ${weighted(scanning)} us/s`);
+  entries.forEach((e, i) => { if (i >= 6 && i < 11) e.FindChildTraverse("PlayerName").accountid = ACCOUNT_OF([...AMBER, ...SAPPHIRE][i]); });
+  w.advance(3000);
+  reset(w);
+  stop = counted(w.harness);
+  w.advance(10000);
+  const done = per(stop(), 10);
+  console.log(`   account scan (11 of 12 known) ${weighted(done)} us/s, ${total(done)} calls/s ${JSON.stringify(done)}`);
+  assert.ok((done.textReads || 0) <= (baseOps.textReads || 0) && (done.childrenReads || 0) <= (baseOps.childrenReads || 0) + 0.5, `11 of 12 known: the scan is off ${JSON.stringify(done)}`);
+  assert.ok(weighted(done) - base <= 2.5, `11 of 12 known: ${weighted(done)} vs ${base} us/s`);
+  results.accountScan = { baseUs: base, scanningUs: weighted(scanning), doneUs: weighted(done) };
 });
 
 const out = path.join(REPO, ".tmp", "observer-hud-validate.json");

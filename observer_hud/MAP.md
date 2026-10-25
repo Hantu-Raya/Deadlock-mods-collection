@@ -16,7 +16,7 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 |---|---|---|---|
 | Injection from `hud_spectate_bar.xml` | yes | VM | seen (spike, v1, v2) |
 | Base Game+ Names and Night Desk looks | yes (pak10 `3e28f4fe`) | VM | seen on 2026-10-22 builds at 1920x1080; Night Desk's centred logo and name (2026-10-23) not seen |
-| Names row and aliases | yes | VM | names seen; alias typing not seen |
+| Names row and aliases (v2: by Steam account) | yes (pak10 `5a15dc6c`) | VM (7 `identity:` checks) | names seen; marker accounts and the join seen on the demo (11 of 12 cards), account-keyed aliases seen on the band; typing an alias and the bind chip not seen |
 | Soul lead graph | yes | VM | seen (10:00, 15:00 marks; Friendly = Amber) |
 | Objective cues | yes | VM | seen: rift, urn, bridge buff, held rejuvenator; mid-boss respawn, the radial rejuvenator time, the yellow held text and the respawn-after-buff not seen |
 | Editor window, entry, credits | yes | VM | screens only |
@@ -26,7 +26,7 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Post-game board (`pg_*`, merged from the retired pak11) | yes (pak10 `341b2bba`) | VM (`board:` checks: events, 1 s check, budgets, reload, reused rows, untranslated rows) | seen on `341b2bba` (client 6819): matches 121917141 and 121880956 PASS `verify-postgame-live.js`, a cached reopen without events rebuilt, a 4th-row item tooltip on `1c5ff983` |
 
 - Installed pak10: `341b2bba` (2026-10-25, client 6819), with the post-game board, installed for the phase 2 live run and left installed. The old standalone pak11 (`9A6058A0`) was removed and is kept at `.tmp/pg/pak11_9a6058a0_installed.vpk`. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
-- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 61 checks passed. Weighted native time in the live-like scenario, against these budgets:
+- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 68 checks passed. Weighted native time in the live-like scenario, against these budgets:
 
   | State | us/s | Budget |
   |---|---:|---:|
@@ -70,6 +70,15 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 - Later (PLAN): aliases that follow the Steam account; an organiser preset file (`-MatchFile`, as DLF has); stage text in other languages; an Escape-menu Watch tab (the user asked, then preferred demo playback; research notes in PLAN "Later").
 
 ## Changelog
+
+### 2026-10-25, phase 3 (source only, not released; pak10 `5a15dc6c`)
+
+- **Identity and aliases v2** (phase 3 of [decisions/postgame-identity-perf-plan.md](decisions/postgame-identity-perf-plan.md)).
+  - **Passive accounts:** the host reads each far-away marker's `accountid` and side class, once a second while fewer than the cards minus one have one, and joins accounts to cards by name, then elimination (SPEC "Aliases"). 6 us/s while scanning, nothing after; the budgets are unchanged (216.2 / 274.3 us/s).
+  - **State:** `aliases` became `players` (by account, at most 24), `legacy` (v1 names, applied by name, one-click bind chip) and `pending` (session aliases by name that bind only within the map load; never saved or shared). A v1 save or share code imports into `legacy`.
+  - **Removed:** the marker and kill-feed hero fallback (`CitadelHeroImage` has no hero id in JS).
+  - **User decision, same day:** no "Learn accounts" button, no clickable names, no DLF PLAYERS-tab probe. A hover path was probed ([ENGINE.md](ENGINE.md#account-ids-and-hover)): the hover event carries no account; the real source is still open.
+  - **Validator:** 68 checks (7 new, all failed before the code). Live: 11 of 12 cards joined on the demo; aliases by account on the band.
 
 ### 2026-10-25 (source only, not released)
 

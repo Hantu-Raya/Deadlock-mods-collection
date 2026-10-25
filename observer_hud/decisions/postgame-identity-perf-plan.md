@@ -1,6 +1,6 @@
 # Plan: post-game board in Observer HUD, account-keyed names, team names and logos, and a 90% runtime cut
 
-Status: **phases 1 and 2 done** (2026-10-25); phases 3-5 are not built. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
+Status: **phases 1, 2 and 3 done** (2026-10-25); phases 4-5 are not built. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
 - `BRIEF.md`;
 - `m2_round1.md`, `round2_from_parent.md`, `m2_round2.md`;
 - `scout_perf.md`, `scout_identity.md`;
@@ -33,12 +33,12 @@ Status: **phases 1 and 2 done** (2026-10-25); phases 3-5 are not built. This pla
    - [ADR 0009](../docs/adr/0009-post-game-board-in-observer-hud.md) amends the override rule for `post_game/citadel_db_page_post_game_new.xml`. ShowRank overrides `citadel_db_post_game_scoreboard_new.xml`, a different file, so they do not clash. The stock page is pinned in `stock-pin.json`.
 2. **Identity in the HUD** (revised after P1).
    - **Accounts per side, no join needed:** each marker entry gives an account plus its side class (`team_1` = Amber, `team_2` = Sapphire). That is all a match card needs.
-   - Read every entry, collapsed ones included, at most once a second while some account is still unknown, then stop. An entry starts at 0 and gets its account the first time the marker is set; it never switched accounts in either run.
+   - Read every entry, collapsed ones included, at most once a second while fewer than the cards minus one have an account, then stop (as built: 13 entries exist and two never get one, so "all known" never comes). An entry starts at 0 and gets its account the first time the marker is set (6 of 12 8 s into the demo, 11 a minute later); it never switched accounts in any run.
    - The followed player in first person can stay 0. The post-game rows supply all 12 ids, so the ≥10 of 12 match still holds.
    - **Account to card (only needed for aliases)**, in order:
      1. The marker's name label equals the card's name.
      2. Elimination within a side: one unresolved card and one unresolved account.
-     3. The DLF PLAYERS probe behind a "Learn accounts" button on the editor's PLAYERS page, on demand only.
+     3. ~~The DLF PLAYERS probe behind a "Learn accounts" button~~ **Dropped (user, 2026-10-25):** no clickable names and no profile-card probe. An observer's *hover* over a player name was to learn the account instead; the engine fact behind it is open (see [Hover probe](#hover-probe-2026-10-25-client-6819)). Until it is found, an unjoined card keeps a session alias by name.
    - Hero id cannot join them: `CitadelHeroImage` exposes no hero property to JS (P1b; the card's `CitadelHeroBadge` does).
    - Live, the marker label shows the Steam persona, not the card's in-game name. On demo 121685912 that was "Player 11", "candyland" and so on, so step 1 never matched there.
    - Bots read 0 and keep name-keyed session aliases.
@@ -146,8 +146,9 @@ That is about 0.04% of one core before JS execution and GC, which were not measu
      - "0 for a hidden board" was dropped: live, a cached reopen brings no event, so the board keeps one `PageVisible` check a second.
      - The first live run had ShowRank Barebones installed; the pak11 run was dropped with pak11.
      - The user's hover bug (3rd and 4th item rows) was fixed and seen live.
-3. **Identity and aliases v2.** Marker accounts per side (passive), the name-then-elimination join, the PLAYERS button, pending aliases, chips, migration, and the dead marker `heroid` fallback removed.
-   - *Acceptance:* VM checks for duplicate names, bots, persona labels that match no card, and map changes; aliases by account seen live.
+3. **Identity and aliases v2.** **Done 2026-10-25** (MAP changelog; the PLAYERS button was dropped by the user, so no hover or click path). Marker accounts per side (passive), the name-then-elimination join, pending aliases, legacy chips, migration, and the dead marker and kill-feed `heroid` fallback removed.
+   - *Acceptance as planned:* VM checks for duplicate names, bots, persona labels that match no card, and map changes; aliases by account seen live.
+   - *Result:* 7 new checks (all failed before the code), 68 in total. Weighted budgets unchanged (spectating 216.2, counting down 274.3 us/s); the scan costs 6.1 us/s while 6 of 12 accounts are known and nothing at 11 of 12. Live on demo 121685912 (client 6819, pak10 with a temporary probe default that keyed aliases by the demo's 11 accounts): 11 of 12 cards joined, and the names row showed the account aliases on 11 cards (`shots/live/phase3-aliases-by-account-demo-121685912.png`). Not seen live: typing an alias in the editor and the chip (no input control).
 4. **Session handoff, then store v2 and match cards.**
    - The HUD sends the match card to the board through `ClientUI_FireOutput` (P3).
    - The store v2 page is tested on an https probe path first (needs approval), then published with approval, for old matches and restarts.
@@ -155,6 +156,15 @@ That is about 0.04% of one core before JS execution and GC, which were not measu
    - *Acceptance:* VM checks for an offline store, a late reply and two writers; live, a spectated match shows its team names and logos on the board, in the same session and after a restart.
 5. **Learned registry and inline editing on the board.**
    - *Acceptance:* an old match edited on the board keeps its names after a restart.
+
+## Hover probe (2026-10-25, client 6819)
+
+The user dropped the "Learn accounts" click probe and asked for a hover instead. Probe pak10 on demo 121685912 (`.scratch/oh_hover_probe/`, patch and console log), driven without a mouse (no input takeover was possible):
+
+- The stock card's `PlayerDetailsContainer` and `PlayerNameNWContainer` carry `onmouseover="CitadelTopDownScoreboardPlayerHovered();"`. `$.DispatchEvent("DispatchPanelEvent", panel, "onmouseover")` fires it: a per-card `$.RegisterEventHandler("CitadelTopDownScoreboardPlayerHovered", card, fn)` runs on the card that was hovered, and `$.RegisterForUnhandledEvent` sees it too. It carries **no arguments**. A hover therefore identifies the card, not the account.
+- Nothing appeared in the HUD context after it: no new panel (16040 nodes before and after, with `citadel_show_account_ids 1` too), no `accountid` outside the markers and the pregame summary, no marker class change beyond the visibility toggling that also happens without a hover. The card panel exposes no account property (its JS keys are the generic panel set).
+- Not found: which stock panel or tooltip shows an account on a real mouse hover. A tooltip, if any, is outside the HUD context. **For the parent:** with the patch applied, hover a card with the mouse; the probe logs `HOVER card` and walks the whole HUD tree for `accountid`, 6-11 digit labels and account/steam ids (limited to the HUD context; a tooltip in another context needs a tooltip layout override instead).
+- Markers meanwhile: accounts arrive per entry when the marker is first set (6 of 12 at 8 s, 11 after a minute); 13 entries exist and two never got one.
 
 ## Other opportunities found (not scheduled)
 

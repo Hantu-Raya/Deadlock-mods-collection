@@ -146,6 +146,7 @@
     return panel;
   }
 
+  let mapGen = 0; // +1 for each OHBar injected: one per map load (and per layout reload)
   let carried = false; // the state came from the HUD root (a layout reload), not a fresh process
   function adoptState() {
     try {
@@ -159,9 +160,13 @@
     }
   }
 
+  // The map load a pending alias was typed in (host-local: a carried or loaded one has none and never binds).
+  const PendingGen = new Map();
   function setState(next) {
     const style = state.style;
+    const before = state.pending;
     state = S.normalize(next);
+    for (const name of Object.keys(state.pending)) if (before[name] !== state.pending[name]) PendingGen.set(name, mapGen);
     version++;
     try {
       topPanel().SetAttributeString(S.ATTR, JSON.stringify(state));
@@ -485,6 +490,8 @@
     if (valid(old)) old.DeleteAsync(0);
     UI.bar = inject(UI.topBar, "OHBar", LAYOUT.bar);
     if (!UI.bar) return false;
+    mapGen++;
+    resetIdentity();
     const find = (id) => UI.bar.FindChildTraverse(id);
     for (const side of SIDES) {
       UI.clockBans[side] = {
@@ -1178,15 +1185,82 @@
   // The band shows each card's alias, else its in-game name; a name two cards share keeps the
   // in-game name on both. The same aliases (unique names only) go to the world healthbars (through the
   // status column's OH_DEBUFF_CONFIG) and the far-away hero markers: Aliases.map, in-game name -> alias.
+  // Where an alias comes from (aliases v2, plan phase 3): state.players by the card's account when the
+  // join below knows it, else a pending alias (typed before the account was known, by name), else a v1
+  // legacy alias by name. Nothing is re-keyed silently: binding is the editor's chip or a pending alias
+  // within its own map load (reconcileAliases).
   const Aliases = { map: {}, upper: new Map(), names: new Set(), sig: "{}", count: 0 };
   const NO_ALIASES = Object.freeze({});
+  // The account join: which Steam account sits on which card. cardAccount: card index -> account;
+  // accountCard: account -> card index; byName: unique in-game name -> account; side: lower-case unique name ->
+  // team key; key: what the join was computed from.
+  const Join = { key: "", sig: "", names: [], cardAccount: new Map(), accountCard: new Map(), byName: new Map(), side: new Map() };
+  // Accounts read from the far-away markers (CitadelUserName#PlayerName.accountid, live 2026-10-25): list of
+  // { account, side, persona }; sig changes when it does; gen is the map load it belongs to.
+  const Accts = { gen: -1, list: [], sig: "", known: 0, nextAt: 0 };
+  const ACCOUNT_SCAN_MS = 1000;
+  const lower = (text) => String(text).toLowerCase();
+  function resetIdentity() {
+    Accts.gen = mapGen;
+    Accts.list = [];
+    Accts.sig = "";
+    Accts.known = 0;
+    Accts.nextAt = 0;
+    Markers.entries = new Map();
+    Join.key = "";
+    Join.sig = "";
+  }
+  // A card's account: by the card name against the marker labels (unique on both ends within the side), then by
+  // elimination (one card and one account left in the side). A duplicate name, a persona that matches no
+  // card and a bot (account 0, never listed) join nothing; two cards and two accounts left is no guess.
+  function computeJoin(names) {
+    Join.names = names;
+    Join.cardAccount = new Map();
+    Join.accountCard = new Map();
+    Join.byName = new Map();
+    Join.side = new Map();
+    for (const team of S.TEAMS) {
+      const cards = [];
+      UI.cards.forEach((card, index) => { if (card.teamKey === team) cards.push(index); });
+      const accounts = Accts.list.filter((entry) => entry.side === team);
+      const used = new Set();
+      for (const index of cards) {
+        const name = lower(names[index]);
+        if (!name || cards.filter((other) => lower(names[other]) === name).length !== 1) continue;
+        const hits = accounts.filter((entry) => lower(entry.persona) === name);
+        if (hits.length === 1 && !used.has(hits[0].account)) {
+          Join.cardAccount.set(index, hits[0].account);
+          used.add(hits[0].account);
+        }
+      }
+      const cardsLeft = cards.filter((index) => !Join.cardAccount.has(index));
+      const accountsLeft = accounts.filter((entry) => !used.has(entry.account));
+      if (cardsLeft.length === 1 && accountsLeft.length === 1) Join.cardAccount.set(cardsLeft[0], accountsLeft[0].account);
+    }
+    Join.cardAccount.forEach((account, index) => Join.accountCard.set(account, index));
+    // Counts only (ids and names are never logged); one line per change of the join.
+    $.Msg(`${TAG} accounts: ${Accts.list.length} read from markers, ${Join.cardAccount.size} of ${UI.cards.length} cards joined`);
+    names.forEach((name, index) => {
+      if (!name || names.indexOf(name) !== names.lastIndexOf(name)) return;
+      Join.side.set(lower(name), UI.cards[index].teamKey);
+      if (Join.cardAccount.has(index)) Join.byName.set(name, Join.cardAccount.get(index));
+    });
+  }
   function renderNames() {
     const names = UI.cards.map(cardName);
+    const key = `${names.join("\n")}|${UI.cards.map((card) => card.teamKey.charAt(0)).join("")}|${Accts.sig}`;
+    if (key !== Join.key) {
+      Join.key = key;
+      Join.sig = Accts.sig;
+      computeJoin(names);
+    }
     const map = {};
     UI.cards.forEach((card, index) => {
       const name = names[index];
       const unique = name && names.indexOf(name) === names.lastIndexOf(name);
-      const alias = unique && Object.prototype.hasOwnProperty.call(state.aliases, name) ? state.aliases[name] : "";
+      const account = Join.cardAccount.get(index);
+      const player = account ? state.players[account] : undefined;
+      const alias = !unique ? "" : player ? player.a : state.pending[name] || state.legacy[name] || "";
       if (alias) map[name] = alias;
       const label = UI.who[index];
       if (!label) return;
@@ -1205,16 +1279,47 @@
       Aliases.count = Object.keys(map).length;
     }
   }
+  // The two state writes the join allows (aliases never move to an account any other way except the
+  // editor's own edit and chip): a pending alias binds to its card's account when that account arrived in
+  // the map load the alias was typed in; a player's last-seen name follows the card.
+  function reconcileAliases() {
+    let next = null;
+    UI.cards.forEach((card, index) => {
+      const name = Join.names[index];
+      const account = Join.cardAccount.get(index);
+      if (!name || !account || Join.byName.get(name) !== account) return;
+      const player = state.players[account];
+      if (player) {
+        if (player.n !== name) {
+          next = next || S.clone(state);
+          next.players[account].n = name;
+        }
+        return;
+      }
+      const alias = state.pending[name];
+      if (!alias || PendingGen.get(name) !== mapGen) return;
+      const target = next || state;
+      if (Object.keys(target.players).length >= S.MAX_ALIASES) return;
+      next = next || S.clone(state);
+      next.players[account] = { a: alias, n: name };
+      delete next.pending[name];
+    });
+    if (next) setState(next);
+  }
 
   // Far-away hero markers (stock hud_unit_indicators_v2.xml: CitadelHudUnitIndicatorsV2#unit_indicators_v2,
   // one PlayerEntry per player with its name in CitadelUserName#PlayerName's Label, the hero image and
-  // the distance). While spectating with aliases, a marker's name Label shows the alias: matched by the
-  // name it shows, else by its hero against the cards' (a Steam friend nickname is not the card's name).
-  // The name the engine wrote is kept (real) and written back when the alias goes or spectating ends;
-  // a name the engine writes again is taken as the new real name, and the alias goes back on. Nothing
-  // is read while there are no aliases and no alias shows. Stock styling stays (the stock Label).
+  // the distance). While spectating with aliases, a marker's name Label shows the alias: matched through its
+  // account when the join knows it, else by the name it shows. The hero image gives nothing (live
+  // 2026-10-25: CitadelHeroImage exposes no hero id to JS). The marker's account and side class (team_1
+  // Amber, team_2 Sapphire) are read while fewer than the cards minus one have an account, at most once a
+  // second, each entry until it has one (an entry goes from 0 to its account once, when the marker is first
+  // set; the followed player can stay 0). The name the engine wrote is kept (real) and written back when the
+  // alias goes or spectating ends; a name the engine writes again is taken as the new real name, and the
+  // alias goes back on. Nothing is read while there are no aliases, none shows and the accounts are known.
+  // Stock styling stays (the stock Label).
   const Markers = { root: null, retryAt: 0, entries: new Map(), replaced: 0 };
-  const MARKER_RESOLVE_MS = 5000; // a marker's alias is looked up again this often (hero swaps)
+  const MARKER_RESOLVE_MS = 5000; // a marker's alias is looked up again this often
   function markersRoot(now) {
     if (Markers.root && valid(Markers.root)) return Markers.root;
     Markers.entries = new Map();
@@ -1224,28 +1329,20 @@
     if (!found) Markers.retryAt = now + 10000;
     return Markers.root;
   }
+  // A marker's alias: its account's card decides when the join knows the account; otherwise the name it
+  // shows (a name some card shows, and for a marker of a known side only a card of that side).
   function markerAlias(info) {
-    const upper = info.real.toUpperCase();
-    const byName = Aliases.map[info.real] || Aliases.upper.get(upper);
-    if (byName) return byName;
-    // A name some card shows decides (no alias for it); only a name no card shows (a Steam friend
-    // nickname) is matched by its hero.
-    if (!info.real || Aliases.names.has(upper)) return "";
-    const hero = valid(info.hero) ? Number(info.hero.heroid) : NaN;
-    if (!(hero > 0)) return "";
-    let match = null;
-    for (const card of UI.cards) {
-      if (!card.badge || !valid(card.badge)) card.badge = card.panel.FindChildTraverse("HeroBadge") || null;
-      if (!card.badge || Number(card.badge.heroid) !== hero) continue;
-      if (match) return ""; // two cards with this hero: no guess
-      match = card;
-    }
-    return match ? Aliases.map[cardName(match)] || "" : "";
+    if (info.account && Join.accountCard.has(info.account)) return Aliases.map[Join.names[Join.accountCard.get(info.account)]] || "";
+    if (info.side && Join.side.get(lower(info.real)) !== info.side) return "";
+    return Aliases.map[info.real] || Aliases.upper.get(info.real.toUpperCase()) || "";
   }
+  const markerSide = (entry) => (entry.BHasClass("team_1") ? "amber" : entry.BHasClass("team_2") ? "sapphire" : "");
   function renderMarkers(now) {
-    if (!Aliases.count && !Markers.replaced) return;
+    const scan = Accts.known < Math.max(1, UI.cards.length - 1) && now >= Accts.nextAt;
+    if (!Aliases.count && !Markers.replaced && !scan) return;
     const root = markersRoot(now);
     if (!root) return;
+    if (scan) Accts.nextAt = now + ACCOUNT_SCAN_MS;
     const seen = new Map();
     let replaced = 0;
     for (const entry of root.Children()) {
@@ -1256,7 +1353,7 @@
           const holder = entry.FindChildTraverse("PlayerName");
           const label = holder ? holder.Children()[0] : null;
           if (!label) continue; // the native name Label is not made yet: look again next tick
-          info = { label: label, hero: entry.FindChildTraverse("HeroIcon"), real: "", shown: null, alias: "", sig: "", at: 0 };
+          info = { label: label, holder: holder, account: "", side: "", real: "", shown: null, alias: "", sig: "", at: 0 };
         }
       }
       seen.set(entry, info);
@@ -1266,6 +1363,15 @@
         info.real = typeof text === "string" ? text : "";
         info.shown = info.real;
         info.sig = "";
+      }
+      if (scan && !info.account) {
+        const raw = String(info.holder.accountid);
+        if (S.isAccount(raw)) {
+          info.account = raw;
+          info.side = markerSide(entry);
+        }
+      } else if (info.account && !info.side) {
+        info.side = markerSide(entry);
       }
       if (info.sig !== Aliases.sig || now - info.at >= MARKER_RESOLVE_MS) {
         info.alias = Aliases.count ? markerAlias(info) : "";
@@ -1281,6 +1387,21 @@
     }
     Markers.entries = seen;
     Markers.replaced = replaced;
+    if (scan || Accts.known) collectAccounts();
+  }
+  // The accounts the markers carry (one per entry; a repeat is ignored), as { account, side, persona }.
+  function collectAccounts() {
+    const list = [];
+    const have = new Set();
+    for (const info of Markers.entries.values()) {
+      if (!info || !info.account || !info.side || have.has(info.account)) continue;
+      have.add(info.account);
+      list.push({ account: info.account, side: info.side, persona: info.real });
+    }
+    Accts.list = list;
+    Accts.known = have.size;
+    const sig = list.map((entry) => `${entry.account}:${entry.side}:${entry.persona}`).sort().join("|");
+    if (sig !== Accts.sig) Accts.sig = sig;
   }
   // Spectating ended: every marker shows the name the engine gave it.
   function restoreMarkers() {
@@ -2017,6 +2138,8 @@
           startUlt();
           renderNames();
           renderMarkers(Date.now());
+          if (Accts.sig !== Join.sig) renderNames(); // a new account: the band and the maps now
+          reconcileAliases();
           renderFeedNames();
           place();
           sampleGraph();
@@ -2069,6 +2192,9 @@
     cards: () => (watchingNow ? UI.cards : NO_CARDS),
     cardsVersion: () => cardsVersion,
     roster: roster,
+    // The Steam account joined to the card showing this unique in-game name ("" when unknown, a duplicate
+    // name, a bot or a persona that matched no card); see computeJoin.
+    accountOf: (name) => Join.byName.get(name) || "",
     // Aliases for unique in-game names ({ name: alias }) and their signature, while spectating; {} and
     // "{}" otherwise (the world healthbars get them through the status column's OH_DEBUFF_CONFIG).
     aliases: () => (watchingNow ? Aliases.map : NO_ALIASES),

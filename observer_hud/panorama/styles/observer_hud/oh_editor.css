@@ -478,6 +478,43 @@
 	visibility: visible;
 }
 
+.OHPlayerRow .OHEntry
+{
+	width: fill-parent-flow(1.0);
+}
+
+/* The one-click bind of a v1 alias to the card's account (shown with OHShown). */
+.OHBindChip
+{
+	width: 112px;
+	height: 36px;
+	margin-left: 6px;
+	vertical-align: center;
+	background-color: #5FE69E22;
+	border: 2px solid #5FE69E66;
+	border-radius: 4px;
+	visibility: collapse;
+}
+
+.OHBindChip.OHShown
+{
+	visibility: visible;
+}
+
+.OHBindChip:hover
+{
+	background-color: #5FE69E44;
+}
+
+.OHBindChipLabel
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-size: 12px;
+	font-weight: semi-bold;
+	color: #FFEFD7;
+}
+
 .OHPlayerGame
 {
 	color: #FFEFD7AA;
