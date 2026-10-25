@@ -1,5 +1,5 @@
 <strong>[<a href="https://www.twitch.tv/hanturaya101" target="_blank">Twitch</a>]</strong> | <strong>[<a href="https://x.com/hanturaya" target="_blank">Twitter</a>]</strong> | <strong>[<a href="https://ko-fi.com/hantuaraya" target="_blank">Support</a>]</strong><br><br>
-Observer HUD is a spectator HUD for community Deadlock tournaments. Under each player on the top bar it shows the crowd control on them with the seconds left, which a spectator normally can't see. It also shows purchases, ultimate cooldowns and objective timers, and puts your event, teams, logos, bans and series score on the stock top bar. You set it all up in game from the Escape menu.<br><br>
+Observer HUD is a spectator HUD for community Deadlock tournaments. Under each player on the top bar it shows the crowd control on them with the seconds left, which a spectator normally can't see. It also shows purchases, ultimate cooldowns and objective timers, and puts your event, teams, logos, bans and series score on the stock top bar. You set it all up in game from the Escape menu. After the match, the post-game Scoreboard screen becomes a stats board for all 12 players with a soul lead graph.<br><br>
 
 <b>For observer PCs only.</b> The pak includes modified ability data so the status column works in spectator mode. Don't play matches with it installed: take it out of the addons folder before you queue.<br><br>
 
@@ -41,17 +41,27 @@ Amber's soul lead over Sapphire across the match, with a pin every 5 minutes (or
 </ul>
 
 <b>Player aliases</b><br>
-Give players a display name. While you spectate, it replaces their in-game name in the top bar's names row, on their healthbar, on the off-screen hero markers and in the kill feed.<br><br>
+Give players a display name. Aliases follow the player's Steam account, so they stick when someone changes their in-game name. While you spectate, the alias replaces their in-game name in the top bar's names row, on their healthbar, on the off-screen hero markers and in the kill feed, and the post-game board shows it too. Aliases made in 0.1.0 still work by name: click BIND TO ACCOUNT next to one on the PLAYERS page to move it to the account.<br><br>
 
 <b>Series score</b><br>
 Set the wins by hand. When the end screen of a game you're spectating names a winner, that team gets +1 automatically (once per map, never past what the format needs).<br><br>
+
+<b>Post-game stats board</b>
+<ul>
+<li>Open a match's post-game page and pick the Scoreboard screen. It becomes one board for all 12 players: exact souls, kills, deaths, assists, player damage, objective damage and healing, with the best value in each row marked.</li>
+<li>Souls by source for each player, their final items (hover one for its tooltip) and the MVP / Key Player slips.</li>
+<li>A soul lead line across the whole match, with the lane objectives marked where they fell, each team's biggest lead and the final lead.</li>
+<li>If you spectated that match with your setup, the header shows your team names, logos and organiser instead of the lobby names. They stay tied to that match for 2 days, also after a restart.</li>
+<li>It works for any match the post-game page can open, not only the ones you spectated. Everything is read from the game's own post-game page.</li>
+</ul>
 
 <b>Setup</b>
 <ul>
 <li>Open the Escape menu and click TOURNAMENT SETUP. The button only shows while you're spectating.</li>
 <li>Pages: MATCH, TEAMS, PLAYERS, TOP BAR, NIGHT DESK, TIMERS, SHARE. Changes apply as you type.</li>
 <li>Logos: paste an image URL. PNG, JPG and GIF work, and so do imgur, Giphy and Tenor links.</li>
-<li>Your setup is saved on this PC and comes back after a restart. SHARE gives you a code that copies the whole setup onto another observer PC.</li>
+<li>On TEAMS, a USE &lt;TEAM&gt;? button shows up when the players on a side match a team from your earlier matches. One click fills in its name, tag and logo.</li>
+<li>Your setup is saved on this PC and comes back after a restart. A setup saved with 0.1.0 is copied over the first time 0.2.0 starts. SHARE gives you a code that copies the whole setup onto another observer PC.</li>
 <li>Saving goes through a small page on hantu-raya.github.io, loaded in Steam's built-in browser. If the page can't be reached, the editor says OFFLINE - SESSION ONLY and your settings last until you close the game.</li>
 </ul>
 
@@ -74,6 +84,7 @@ Set the wins by hand. When the end screen of a game you're spectating names a wi
 <ul>
 <li>It doesn't replace the top bar, Escape menu or healthbar layouts, so mods that do (HP Colors, ShowRank, QOL Lock, Top Bar Plus) can stay installed.</li>
 <li>Don't use it together with the DLF Observer Mod. Both draw a band over the top bar.</li>
+<li>The post-game board replaces the post-game page layout (citadel_db_page_post_game_new.xml). Another mod that replaces that file conflicts with it. ShowRank Barebones was installed during testing and both worked.</li>
 <li>Mods that ship their own ability data (abilities.vdata_c or modifiers.vdata_c) in a lower-numbered pak take over those files. The status column then shows only what the game itself draws.</li>
 <li>When Bebop hooks someone, the hooked player isn't pulled toward Bebop on the observer's screen. It's a side effect of making the hook show in the column. Players in the match aren't affected.</li>
 <li>Ability data changes with Deadlock patches. I update the mod after each patch; until then, some statuses may be missing.</li>
