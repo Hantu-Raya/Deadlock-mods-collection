@@ -56,17 +56,28 @@ CitadelHudTopBarPlayer:not(.UltimateUnlocked) .OHUltTime,
 }
 
 /* The urn carrier (oh_host.js sets .OHUrnHeld; user 2026-10-26, DLF's look): the stock minimap urn
-   (hud_minimap .held_idol_image) with a dark shadow, beside the stock ultimate icon. The column starts
-   right under that icon (#StatusRow 125 px + 22 px), so the mark sits 22 px up and 23 px right of the
-   card's centre, outside the flow: nothing in the column moves. */
+   (hud_minimap .held_idol_image) with a dark shadow, beside the stock ultimate icon. It has its own host
+   (observer_hud/urn.xml) on the ult icon's row (#StatusRow 125 px, 22 px tall): inside the column it sat
+   22 px above the column's top and the column clipped it although it is noclip (live 2026-10-26: laid
+   out at the right place, never drawn, not even a background colour). 23 px right of the card's centre. */
+.OHUrnHost
+{
+	width: 88px;
+	height: 22px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 125px;
+	overflow: noclip;
+	z-index: 30;
+	visibility: collapse;
+}
+
 .OHUrn
 {
 	width: 22px;
 	height: 22px;
 	horizontal-align: center;
 	vertical-align: top;
-	ignore-parent-flow: true;
-	margin-top: -22px;
 	background-image: url("s2r://panorama/images/minimap/soul_jar_marker_psd.vtex");
 	background-size: 100% 100%;
 	img-shadow: 0px 0px 3px 3.0 #000000;
@@ -314,7 +325,10 @@ CitadelHudTopBarPlayer:not(.UltimateUnlocked) .OHUltTime,
 
 .spec_mode .OHDebuffs,
 .TeamSpectator .OHDebuffs,
-.replay_playback .OHDebuffs
+.replay_playback .OHDebuffs,
+.spec_mode .OHUrnHost,
+.TeamSpectator .OHUrnHost,
+.replay_playback .OHUrnHost
 {
 	visibility: visible;
 }
@@ -324,7 +338,11 @@ CitadelHudTopBarPlayer:not(.UltimateUnlocked) .OHUltTime,
 .gScoreboardOpen .OHDebuffs,
 .wants_scoreboard .OHDebuffs,
 .gDetailView .OHDebuffs,
-.GameStatePreGameWait .OHDebuffs
+.GameStatePreGameWait .OHDebuffs,
+.gScoreboardOpen .OHUrnHost,
+.wants_scoreboard .OHUrnHost,
+.gDetailView .OHUrnHost,
+.GameStatePreGameWait .OHUrnHost
 {
 	visibility: collapse;
 }

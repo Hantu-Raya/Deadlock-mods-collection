@@ -13,7 +13,5 @@
 			<Panel class="OHDebuff"><Panel class="OHDebuffCircle"><Image class="OHDebuffIcon" scaling="stretch-to-fit-preserve-aspect" /><Label class="OHDebuffTime" text="" /></Panel><Panel class="OHDebuffStunMark" /><Label class="OHDebuffCount" text="" /></Panel>
 		</Panel>
 		<Panel id="OHBuys" class="OHBuys" hittest="false" />
-		<!-- The urn carrier's mark beside the stock ultimate icon (oh_host.js sets OHUrnHeld); outside the flow. -->
-		<Panel id="OHUrn" class="OHUrn" hittest="false" />
 	</Panel>
 </root>

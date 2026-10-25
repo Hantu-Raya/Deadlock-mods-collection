@@ -4,7 +4,8 @@
 //   observer_hud/band.xml right after the stock #TopBar in its parent (header band; the stock corner
 //     icons stay outside its lacquer) while the stock #TopBar moves down by the band's height;
 //   observer_hud/tournament_bar.xml into #TopBar (plates, clock bans, stage, soul lead graph);
-//   observer_hud/debuffs.xml into each top-bar card (ability status column, drawn by oh_debuffs.js);
+//   observer_hud/debuffs.xml into each top-bar card (ability status column, drawn by oh_debuffs.js),
+//   and observer_hud/urn.xml beside its ult icon (the urn carrier's mark);
 //   observer_hud/editor.xml into #EscapeMenu (oh_menu.js).
 // Two looks (state.style): "names" Base Game+ Names (default: names strip, plates, bans beside the
 // clock, stage under the soul plates) and "desk" Night Desk (56 px band with corners, team names,
@@ -25,6 +26,7 @@
     band: "file://{resources}/layout/observer_hud/band.xml",
     bar: "file://{resources}/layout/observer_hud/tournament_bar.xml",
     debuffs: "file://{resources}/layout/observer_hud/debuffs.xml",
+    urn: "file://{resources}/layout/observer_hud/urn.xml",
     menu: "file://{resources}/layout/observer_hud/editor.xml"
   };
   const SPECTATOR_CLASSES = ["spec_mode", "TeamSpectator", "replay_playback"];
@@ -1077,7 +1079,7 @@
     return label;
   }
 
-  // The card registry: the host's list of top-bar cards (`{ panel, teamKey, label, debuffs, ult }`), shared
+  // The card registry: the host's list of top-bar cards (`{ panel, teamKey, label, debuffs, urn, ult }`), shared
   // with the status column ($.OHHost.cards()). The array is replaced only when its membership changes,
   // and cardsVersion moves whenever the array or a shared field (a re-found label) changes, so readers
   // may cache any field until the version moves (m1 audit R1, m2 review).
@@ -1101,16 +1103,14 @@
             known.label = label;
           }
           if (!known.ult) known.ult = ultFor(panel, known.debuffs);
+          if (!valid(known.urn)) known.urn = urnHost(panel);
           cards.push(known);
           continue;
         }
         let debuffs = panel.FindChild("OHDebuffsHost");
         if (!valid(debuffs)) debuffs = inject(panel, "OHDebuffsHost", LAYOUT.debuffs);
         if (!valid(debuffs)) continue;
-        // A layout reload finds its old column: no urn icon is left from the previous run.
-        const urn = debuffs.FindChild("OHUrn");
-        if (urn && urn.BHasClass("OHUrnHeld")) urn.RemoveClass("OHUrnHeld");
-        cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, who: "", ult: ultFor(panel, debuffs) });
+        cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, urn: urnHost(panel), who: "", ult: ultFor(panel, debuffs) });
       }
     }
     if (cards.length !== UI.cards.length || cards.some((card, index) => UI.cards[index] !== card)) {
@@ -1121,6 +1121,19 @@
       changed = true;
     }
     if (changed) cardsVersion++;
+  }
+
+  // The urn mark's host beside the card's ult icon (urn.xml). A layout reload finds its old host: no urn
+  // icon is left from the previous run. Without it the card still works, only without the mark.
+  function urnHost(panel) {
+    let host = panel.FindChild("OHUrnHost");
+    if (valid(host)) {
+      const icon = host.FindChild("OHUrn");
+      if (icon && icon.BHasClass("OHUrnHeld")) icon.RemoveClass("OHUrnHeld");
+      return host;
+    }
+    host = inject(panel, "OHUrnHost", LAYOUT.urn);
+    return valid(host) ? host : null;
   }
 
   const cardName = (card) => {
@@ -1516,7 +1529,7 @@
 
   // ------------------------------------------------------------------ cards: urn carrier
 
-  // The urn carrier's card shows the stock minimap urn beside the ult icon (#OHUrn in debuffs.xml, class
+  // The urn carrier's card shows the stock minimap urn beside the ult icon (#OHUrn in urn.xml, class
   // OHUrnHeld; user 2026-10-26, ported from DLF's dlf_urn.js). Sources (client.dll 6819, dlf/ENGINE.md):
   // - the kill feed: a pickup row gets .IdolPickedUp with the picker as its killer (Label.killerInfo bound
   //   to {s:killer_name}); .IdolReturned and .IdolExpired rows end the carry. Rows live a few seconds and
@@ -1531,7 +1544,7 @@
   const URN_EVENTS = ["IdolPickedUp", "IdolReturned", "IdolExpired"];
   const URN_GRACE_MS = 2000;
   const Urn = { rows: new Map(), card: null, shown: null, pickedAt: 0, held: false, minimapWorks: false };
-  const urnIcon = (card) => (card && valid(card.debuffs) ? card.debuffs.FindChild("OHUrn") : null);
+  const urnIcon = (card) => (card && valid(card.urn) ? card.urn.FindChild("OHUrn") : null);
   function urnPicker(row, info) {
     const names = FeedNames.rows.get(row);
     if (names && names[0]) return boundText(names[0].hidden || names[0].label, names[0].bind);

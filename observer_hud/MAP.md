@@ -23,6 +23,7 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Local save (hpv2-store `/oh/` v1 `125c2db`; store v2 `/oh/v2/` `c951606`) | yes, both published (v1 untouched) | VM (real v1 and v2 page scripts) | v1 seen once across a restart; v2: v1's record migrated live and the card round trip works; the setup save/read on v2 was not looked at on screen |
 | Status column and spectator VData | yes (shared spec; centred two-wide grid in pak10 `66e4f617`) | VM; build verifies packed VData | seen in v1 (vertical column); the `unnamed` fix and the grid not seen |
 | Purchase notices (DLF's, rewritten) | yes (pak10 `e4c5b7a7`) | VM (pinned stock shop layout) | seen on `5bc49641` to `d046f3b8` (demo: list fills, cards right; VALVEOracle text seen on `9260a4a6`; 228 px width seen; wobble jagged on `26fe7a1c`, too subtle and jagged on `7fa3fd49`, image frame at full poses on `bd88bfdc`, 20 % on `d046f3b8`: user asked for 10 % more, then 5 % more); the 35 % wobble and the 10 % smaller frame not seen |
+| Urn carrier mark (DLF's, ported) | yes (pak10 `5596c2d4`) | VM (`urn:` check) | seen on `5596c2d4` (demo 121685912 at 15:22: beside Saint-Luli's ult icon, gone on the return); the minimap drop, the carrier's death and expiry not seen |
 | Match cards (HUD writes, board header, store v2) | yes (pak10 `3ee075c7`) | VM (store page, host card, board handoff, logos, store lookup) | seen: handoff, store after restart, header names and PNG/GIF logos; logo failure and editor-typed teams not seen |
 | Post-game board (`pg_*`, merged from the retired pak11) | yes (pak10 `341b2bba`) | VM (`board:` checks: events, 1 s check, budgets, reload, reused rows, untranslated rows) | seen on `341b2bba` (client 6819): matches 121917141 and 121880956 PASS `verify-postgame-live.js`, a cached reopen without events rebuilt, a 4th-row item tooltip on `1c5ff983` |
 
@@ -71,6 +72,10 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 - Later (PLAN): aliases that follow the Steam account; an organiser preset file (`-MatchFile`, as DLF has); stage text in other languages; an Escape-menu Watch tab (the user asked, then preferred demo playback; research notes in PLAN "Later").
 
 ## Changelog
+
+### 2026-10-26, urn carrier mark drawn (source only, not released; pak10 `5596c2d4`)
+
+- **Urn mark moved to its own host** (`urn.xml`, `.OHUrnHost` on the card's ult icon row). Live on the 0.2.0 urn build (MD5 `243d93aa`) the pickup was read (`[OH] urn: picked up by SAINT-LULI`, the right card) but nothing was drawn: the mark sat 22 px above the status column's top and the column never drew it, even with a red background, while the same mark inside the column's rect showed. On `5596c2d4` it shows beside Saint-Luli's ult icon at 15:22 and goes on the return. Validator: the `urn:` check now requires the mark's host to be the card's own child; card registry entries carry `urn`. Spectating 217.2 us/s (budget 222). The release archive was rebuilt with this pak.
 
 ### 2026-10-26, 0.2.0 release preparation (source only, not released)
 

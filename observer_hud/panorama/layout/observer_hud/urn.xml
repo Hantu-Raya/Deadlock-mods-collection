@@ -1,0 +1,10 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/observer_hud/oh_debuffs.vcss_c" />
+	</styles>
+	<!-- The urn carrier's mark beside the stock ultimate icon (oh_host.js sets OHUrnHeld on #OHUrn), one per
+	     top-bar card on the ult icon's row; its own host because the column clips what sits above it. -->
+	<Panel class="OHUrnHost" hittest="false" hittestchildren="false">
+		<Panel id="OHUrn" class="OHUrn" hittest="false" />
+	</Panel>
+</root>

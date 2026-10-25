@@ -290,6 +290,7 @@ const OWN = {
   bar: parseLayout(read("panorama/layout/observer_hud/tournament_bar.xml")),
   band: parseLayout(read("panorama/layout/observer_hud/band.xml")),
   debuffs: parseLayout(read("panorama/layout/observer_hud/debuffs.xml")),
+  urn: parseLayout(read("panorama/layout/observer_hud/urn.xml")),
   editor: parseLayout(read("panorama/layout/observer_hud/editor.xml")),
   relay: parseLayout(read("panorama/layout/observer_hud/debuff_relay.xml"))
 };
@@ -380,6 +381,7 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     "file://{resources}/layout/observer_hud/tournament_bar.xml": OWN.bar,
     "file://{resources}/layout/observer_hud/band.xml": OWN.band,
     "file://{resources}/layout/observer_hud/debuffs.xml": OWN.debuffs,
+    "file://{resources}/layout/observer_hud/urn.xml": OWN.urn,
     "file://{resources}/layout/observer_hud/editor.xml": OWN.editor
   };
   MockPanel.prototype.BLoadLayout = function (file) {
@@ -3115,8 +3117,8 @@ check("ultimate: each card counts its ultimate cooldown under the stock icon; no
   const shown = (name) => w.card(name).FindChild("OHDebuffsHost").FindChild("OHUltTime");
   const counter = (name) => shown(name).BHasClass("OHCounting") ? shown(name).__text : "";
   const bg = (name) => w.card(name).FindChildTraverse("UltimateStatusBG");
-  deq(w.card("Kestrel").FindChild("OHDebuffsHost").Children().map((child) => child.id), ["OHUltTime", "OHDebuffGrid", "OHBuys", "OHUrn"],
-    "the counter is the column's first row, under the stock ultimate icon (the urn icon sits outside the flow)");
+  deq(w.card("Kestrel").FindChild("OHDebuffsHost").Children().map((child) => child.id), ["OHUltTime", "OHDebuffGrid", "OHBuys"],
+    "the counter is the column's first row, under the stock ultimate icon");
   for (const name of [...AMBER, ...SAPPHIRE]) assert.equal(countIn(bg(name), "OHUltSource"), 1, `${name}: one source label in #UltimateStatusBG`);
   assert.equal(counter("Kestrel"), "", "ready: nothing");
   w.ult("Kestrel", 37);
@@ -3168,18 +3170,22 @@ check("ultimate: each card counts its ultimate cooldown under the stock icon; no
 // (no name). How it could fail: the icon lands on no card or the wrong one (an alias in the feed label, a
 // name no card shows, two cards with one name); it stays after the urn is delivered, expired, dropped or
 // the carrier died; a reused row for the next pickup is not read; an old pickup row read late shows a
-// stale carrier; it rewrites classes in steady state; it stays after spectating ends.
+// stale carrier; it rewrites classes in steady state; it stays after spectating ends; it sits in the status
+// column, which clips it (live 2026-10-26: laid out above the column's top, never drawn).
 check("urn: the carrier's card shows the urn beside the ult icon from the feed's pickup row until it is delivered, dropped or the carrier dies", () => {
   const w = world();
   w.bootHost();
   w.advance(2000);
-  const icon = (name) => w.card(name).FindChild("OHDebuffsHost").FindChild("OHUrn");
+  const icon = (name) => w.card(name).FindChild("OHUrnHost").FindChild("OHUrn");
   const carriers = () => [...AMBER, ...SAPPHIRE].filter((name) => icon(name).BHasClass("OHUrnHeld"));
   const event = (killer, cls) => { const row = w.killRow(300, { killer, victim: "" }); row.AddClass(cls); return row; };
   const map = w.hud.FindChildTraverse("hud_minimap");
   const holder = new MockPanel("Panel", map, "");
   holder.classes = ["map_button", "player"];
   deq(carriers(), [], "nobody carries the urn at first");
+  for (const name of [...AMBER, ...SAPPHIRE]) {
+    assert.equal(icon(name).GetParent().GetParent(), w.card(name), `${name}: the mark's host is the card's own child, not the column`);
+  }
   const row = event("Kestrel", "IdolPickedUp");
   w.advance(1100);
   deq(carriers(), ["Kestrel"], "the picker's card within a second");
@@ -3974,7 +3980,7 @@ check("column: the host's card registry drives the column (steady version, re-fo
   w.advance(10000);
   assert.equal(host.cardsVersion(), version, "no version churn in steady state");
   assert.equal(host.cards(), list, "the same array while nothing changes");
-  deq(list.map((card) => Object.keys(card).filter((key) => key !== "who").sort()), list.map(() => ["debuffs", "label", "panel", "teamKey", "ult"]));
+  deq(list.map((card) => Object.keys(card).filter((key) => key !== "who").sort()), list.map(() => ["debuffs", "label", "panel", "teamKey", "ult", "urn"]));
   // A card whose name label is replaced (same text): the column follows the re-found label.
   const labels = () => w.card("Volt").FindChildrenWithClassTraverse("PlayerName").concat(w.card("Volt").FindChildrenWithClassTraverse("AlwaysPlayerName"));
   const old = labels()[0];

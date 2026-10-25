@@ -49,7 +49,7 @@ $vdata = @('abilities', 'modifiers')
 
 $layouts = @(
     'hud_spectate_bar', 'citadel_status_effect', 'post_game/citadel_db_page_post_game_new',
-    'observer_hud/band', 'observer_hud/tournament_bar', 'observer_hud/debuffs', 'observer_hud/editor',
+    'observer_hud/band', 'observer_hud/tournament_bar', 'observer_hud/debuffs', 'observer_hud/urn', 'observer_hud/editor',
     'observer_hud/debuff_relay', 'observer_hud/pg_board', 'observer_hud/pg_column'
 )
 $styles = @(
