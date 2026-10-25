@@ -72,6 +72,12 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 
 ## Changelog
 
+### 2026-10-25, board fixes (source only, not released; pak10 `6a64ebe0`)
+
+- **Lead graph and objective icons were missing** on demo 121685912 (user report): the graph's last column was 1 soul off the totals row, so the scan named no tooltip row and read 0 lead points. The rows are now named by the closer pairing within 0.5 %. Live: 40 lead points, 12 objectives, `verify-postgame-live.js` PASS (`live/121685912-pak10-verify.json`).
+- **The graph tooltip showed during loading** (user screenshot): the scan's hovers drew it until the scan ended. It is now transparent from the first hover and comes back on the Graphs screen.
+- Validator: 78 checks; the board world models the graph's columns and tooltip (a check failed on both bugs before the fix). `verify-postgame-live.js` accepts a series end within 0.5 % of the totals.
+
 ### 2026-10-25, phase 5 (source only, not released; pak10 `7bdd0c2b`)
 
 - **Learned registry and inline editing** (phase 5). Page op `s` (hpv2-store v2, suggestions only), `USE <TEAM>?` chips on the editor's TEAMS page, `<TEAM>?` and an `EDIT TEAM` button plus an editor overlay on the board, which writes a card with the match id. Validator: 77 checks (3 new, failed before the code); budgets unchanged. **Not seen live** (no input control): the editor overlay, clicks, the chips; the layout of the new header row and overlay was not looked at on screen.

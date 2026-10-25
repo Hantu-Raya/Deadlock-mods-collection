@@ -1,0 +1,34 @@
+{
+  "match": 121685912,
+  "build": "pak10",
+  "log": "G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/console.log",
+  "checks": {
+    "rows": 60,
+    "series": 40,
+    "souls": 12,
+    "events": 12
+  },
+  "uncovered": [
+    {
+      "team": 0,
+      "id": 10,
+      "t": 1335
+    },
+    {
+      "team": 0,
+      "id": 9,
+      "t": 1364
+    },
+    {
+      "team": 0,
+      "id": 0,
+      "t": 1427
+    },
+    {
+      "team": 0,
+      "id": 11,
+      "t": 1358
+    }
+  ],
+  "failures": []
+}

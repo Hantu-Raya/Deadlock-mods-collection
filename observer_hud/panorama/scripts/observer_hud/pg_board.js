@@ -105,7 +105,8 @@
     progressGen: 0, // bumps on every progress change so a stale fade-out does not hide a new run
     hooked: null, // the page whose screen-pick event wakes the board
     loop: 0, // token of the one scheduled check; a wake supersedes a pending one
-    burstUntil: 0 // Date.now() until which the board checks at BURST_S
+    burstUntil: 0, // Date.now() until which the board checks at BURST_S
+    scanning: 0 // gen of the scan in progress (0: none); the tooltip stays muted while it runs
   };
 
   // ---------- discovery ----------
@@ -897,10 +898,22 @@
     return ok(canvas) ? canvas.Children() : [];
   }
 
+  // The scan's hovers open the stock tooltip; it is made transparent at once, so it is never drawn
+  // while the board reads it (user 2026-10-25: the tooltip flashed over the screen during loading).
+  // It gets its opacity back when the Graphs screen is focused (step).
+  function muteTip() {
+    const tip = tooltip();
+    if (!tip || S.tipMuted) return;
+    tip.style.opacity = "0";
+    S.tipMuted = true;
+  }
+
   function hover(index) {
     const cols = columns();
     const col = cols[index < 0 ? cols.length + index : index];
+    muteTip();
     if (ok(col)) $.DispatchEvent("DispatchPanelEvent", col, "onmouseover");
+    muteTip(); // the first hover creates the tooltip
   }
 
   const graphType = (n) => {
@@ -1008,6 +1021,7 @@
     const canvas = UI.graphs ? UI.graphs.FindChildTraverse("Graph") : null;
     const count = ok(canvas) ? canvas.GetChildCount() : 0;
     if (!count) { log("scan: no graph columns"); progressDone(); return; }
+    S.scanning = gen;
     const totals = [m.teams[0].totals.value.souls, m.teams[1].totals.value.souls];
     const series = [];
     const souls = new Map();
@@ -1027,10 +1041,15 @@
         const tip = readTip();
         if (!tip || tip.rows.length !== 2 || tip.sig === prevSig) return null;
         if (!teamNames) {
-          const a = tip.rows.find((r) => r.value === totals[0]);
-          const b = tip.rows.find((r) => r.value === totals[1]);
-          if (!a || !b || a === b) return null;
-          teamNames = new Map([[a.name, 0], [b.name, 1]]);
+          // The last column's values equal the totals rows, give or take a few souls (live, demo
+          // 121685912: 171,451 in the graph against a totals row of 171,452), so the closer pairing names
+          // the two tooltip rows.
+          const [r0, r1] = tip.rows;
+          const keep = Math.abs(r0.value - totals[0]) + Math.abs(r1.value - totals[1]);
+          const swap = Math.abs(r0.value - totals[1]) + Math.abs(r1.value - totals[0]);
+          const tolerance = Math.max(50, 0.005 * (totals[0] + totals[1]));
+          if (r0.name === r1.name || keep === swap || Math.min(keep, swap) > tolerance) return null;
+          teamNames = keep < swap ? new Map([[r0.name, 0], [r1.name, 1]]) : new Map([[r0.name, 1], [r1.name, 0]]);
         }
         if (!teamNames.has(tip.rows[0].name) || !teamNames.has(tip.rows[1].name)) return null;
         return tip;
@@ -1122,6 +1141,7 @@
 
     log(`scan: ${jobs.length} steps, ${count} columns, button heroes ${buttonHero.slice(1).join(",")}`);
     runJobs(gen, jobs, (stats) => {
+      S.scanning = 0;
       for (const lane of lanes) {
         LANE_TIERS.forEach(([, tier], i) => {
           const labels = lane.sig[i];
@@ -1163,7 +1183,7 @@
     }
     if (!ok(UI.scoreboard) || !ok(UI.graphs) || !ok(UI.screen)) return false;
     if (!UI.page.BHasClass("PageVisible")) { if (S.loadingSince) { S.loadingSince = 0; progressHide(); } return false; }
-    if (S.tipMuted && ok(UI.tip) && ok(UI.graphs.GetParent()) && UI.graphs.GetParent().BHasClass("Focused")) {
+    if (S.tipMuted && S.scanning !== S.gen && ok(UI.tip) && ok(UI.graphs.GetParent()) && UI.graphs.GetParent().BHasClass("Focused")) {
       UI.tip.style.opacity = "1";
       S.tipMuted = false;
     }

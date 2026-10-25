@@ -3988,7 +3988,11 @@ function bindAll(label, value) {
     set: (next) => { literal = String(next); } });
   return label;
 }
-function boardWorld({ visible = true, disk = null, offline = false } = {}) {
+// graph (optional): the stock graph's 40 columns and its tooltip in team mode, as live (client 6819):
+// hovering a column through DispatchPanelEvent shows PostGameGraphTooltip under the dashboard root with
+// "m:ss | <team> | <souls> | (<pct>%) | <team> | ... | <total>", Archmother (team 2) first. Live
+// (demo 121685912) the last column read 171,451 against a totals row of 171,452.
+function boardWorld({ visible = true, disk = null, offline = false, graph = null } = {}) {
   const harness = createPanoramaHarness({ now: 7000000, rootWidth: 1600, rootHeight: 900 });
   lastLogs = harness.logs;
   const bus = [];
@@ -4006,7 +4010,7 @@ function boardWorld({ visible = true, disk = null, offline = false } = {}) {
       if (type === "CitadelUserName" && props.accountid) new MockPanel("Label", created, "").__text = `Persona ${props.accountid}`;
       return created;
     },
-    Schedule: (delay, fn) => harness.scheduler.schedule(delay, fn),
+    Schedule: (delay, fn) => harness.scheduler.schedule(delay, () => { frameCheck(); fn(); }),
     RegisterForUnhandledEvent: (name, fn) => { bus.push({ id: nextId, name, fn }); return nextId++; },
     UnregisterForUnhandledEvent: (name, id) => {
       const index = bus.findIndex((entry) => entry.id === id);
@@ -4017,7 +4021,10 @@ function boardWorld({ visible = true, disk = null, offline = false } = {}) {
       target.__handlers = target.__handlers || {};
       (target.__handlers[name] = target.__handlers[name] || []).push(fn);
     },
-    DispatchEvent: () => true,
+    DispatchEvent: (name, ...args) => {
+      if (graph && name === "DispatchPanelEvent" && args[1] === "onmouseover") showTip(args[0]);
+      return true;
+    },
     Localize: (token) => ({ "#Citadel_Team1_Name": "Hidden King", "#Citadel_Team2_Name": "Archmother" })[token] || token,
     Msg: (message) => harness.logs.push(String(message))
   });
@@ -4047,6 +4054,41 @@ function boardWorld({ visible = true, disk = null, offline = false } = {}) {
   const page = instantiate(PG.page, dash);
   if (visible) page.AddClass("PageVisible");
   const scoreboard = page.FindChildTraverse("Scoreboard");
+  // Graph model: columns under MatchDetailsGraphs#Graphs, one tooltip panel created on the first hover.
+  const tipLog = { opaqueFrames: 0, shows: 0 };
+  let tip = null;
+  const showTip = (col) => {
+    const cols = graphCanvas ? graphCanvas.children : [];
+    const c = cols.indexOf(col);
+    if (c < 0) return;
+    if (!tip) tip = new MockPanel("CitadelTooltipGraphPlayerNetWorth", dash, "PostGameGraphTooltip");
+    tip.visible = true;
+    tipLog.shows++;
+    for (const kid of tip.children.slice()) kid.DeleteAsync();
+    const f = (c + 1) / cols.length;
+    const t = Math.round(f * graph.duration);
+    const a = Math.round(graph.souls[0] * f);
+    const b = Math.round(graph.souls[1] * f);
+    const label = (text) => { new MockPanel("Label", tip, "").__text = text; };
+    label(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`);
+    for (const [name, v] of [["Archmother", b], ["Hidden King", a]]) {
+      label(name);
+      label(v.toLocaleString("en-US"));
+      label(`(${Math.round(100 * v / (a + b))}%)`);
+    }
+    label((a + b).toLocaleString("en-US"));
+  };
+  // A frame boundary while the scan runs: the tooltip must not be drawn (user report 2026-10-25).
+  let scanning = false;
+  const frameCheck = () => {
+    scanning = harness.logs.some((l) => l.startsWith("[NS] board shown")) && !harness.logs.some((l) => l.startsWith("[NS] scan done"));
+    if (scanning && tip && tip.visible && String(tip.style.opacity) !== "0") tipLog.opaqueFrames++;
+  };
+  let graphCanvas = null;
+  if (graph) {
+    graphCanvas = new MockPanel("Panel", page.FindChildTraverse("Graphs"), "Graph");
+    for (let i = 0; i < 40; i++) new MockPanel("Panel", graphCanvas, "");
+  }
   // The stock rows, cloned once by C++ and reused for the next match.
   const fill = (m) => {
     page.__dialog = { match_id: m.id, match_minutes: m.minutes, match_seconds: String(m.seconds).padStart(2, "0") };
@@ -4095,13 +4137,36 @@ function boardWorld({ visible = true, disk = null, offline = false } = {}) {
   const boardHost = () => page.FindChildTraverse("ScoreboardScreen").FindChild("NSHost");
   const shown = () => harness.logs.filter((line) => line.startsWith("[NS] board shown")).length;
   const columns = () => findAll(scoreboard, "Panel").filter((p) => p.valid && (p.classes.has("NSColumnTeam1") || p.classes.has("NSColumnTeam2")));
-  return { harness, page, scoreboard, bus, fill, fire, selectScreen, boardHost, shown, columns,
+  return { harness, page, scoreboard, bus, fill, fire, selectScreen, boardHost, shown, columns, tipLog,
+    tip: () => tip,
     boot: () => runIn(page, [["pg_loader.js", script("pg_loader.js")]]),
     reload: () => runIn(boardHost(), [["oh_state.js", script("oh_state.js")], ["pg_board.js", script("pg_board.js")]]),
     web: dash.__web, dash,
     advance: (ms) => harness.scheduler.runFor(ms, 1e6),
     text: (id) => boardHost().FindChildTraverse(id).__text };
 }
+
+check("board: the scan reads the lead with a totals row a few souls off, and the tooltip is never drawn while it runs", () => {
+  const m = pgMatch(121685912);
+  const totals = m.teams.map((team) => team.reduce((s, p) => s + p.net_worth, 0));
+  // Live (demo 121685912): the graph's last column was 1 soul under the Sapphire totals row.
+  const w = boardWorld({ graph: { duration: m.minutes * 60 + m.seconds, souls: [totals[0], totals[1] - 1] } });
+  w.boot();
+  w.fill(m);
+  w.fire("CitadelMatchDetailsUpdated", m.id);
+  w.advance(30000);
+  assert.ok(w.harness.logs.some((l) => l.startsWith("[NS] scan done")), "scan finished");
+  const series = w.harness.logs.filter((l) => l.startsWith("[NS] data series + "));
+  assert.ok(series.length >= 30, `lead points: ${series.length}`);
+  assert.ok(w.boardHost().FindChildTraverse("NSGraph").BHasClass("NSOn"), "lead graph shown");
+  assert.ok(w.tipLog.shows > 0, "the scan hovered the graph");
+  assert.equal(w.tipLog.opaqueFrames, 0, "tooltip drawn during the scan");
+  assert.equal(String(w.tip().style.opacity), "0", "tooltip stays transparent after the scan");
+  // Opening the Graphs screen gives the tooltip back for the user's own hovers.
+  w.selectScreen("GraphsScreen");
+  w.advance(1500);
+  assert.equal(String(w.tip().style.opacity), "1", "tooltip restored on the Graphs screen");
+});
 
 check("board: builds when the match loads, again for the next match on the reused rows, never twice for one", () => {
   const w = boardWorld();
