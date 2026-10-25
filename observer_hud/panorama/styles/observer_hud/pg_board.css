@@ -782,72 +782,166 @@
 	opacity-mask-scale: 100% 100%;
 }
 
-.NSGraphBars
+/* the drawing (canvas, dots, labels) is wiped in by a stepped clip from pg_board.js */
+.NSGraphDraw
+{
+	width: 100%;
+	height: 100%;
+	overflow: noclip;
+}
+
+.NSGraphCanvas,
+.NSGraphMarks
 {
 	width: 100%;
 	height: 100%;
 }
 
-.NSBar
-{
-	background-color: #E8920C;
-	transform-origin: 50% 100%;
-	transform: scale3d( 1, 0.001, 1 );
-}
-
-.NSBar.NSBarTeam2
-{
-	background-color: #4D7FE0;
-	transform-origin: 50% 0%;
-}
-
-/* arrival: JS adds NSShow to #NSGraph a frame after building the bars */
-.NSGraph.NSShow .NSBar
-{
-	animation-name: NSBarGrow;
-	animation-duration: 0.45s;
-	animation-timing-function: cubic-bezier( 0.25, 1, 0.5, 1 );
-	animation-fill-mode: forwards;
-	animation-delay: 0.10s;
-}
-
-.NSGraph.NSShow .NSBar.NSW1 { animation-delay: 0.15s; }
-.NSGraph.NSShow .NSBar.NSW2 { animation-delay: 0.20s; }
-.NSGraph.NSShow .NSBar.NSW3 { animation-delay: 0.25s; }
-.NSGraph.NSShow .NSBar.NSW4 { animation-delay: 0.30s; }
-.NSGraph.NSShow .NSBar.NSW5 { animation-delay: 0.35s; }
-.NSGraph.NSShow .NSBar.NSW6 { animation-delay: 0.40s; }
-.NSGraph.NSShow .NSBar.NSW7 { animation-delay: 0.45s; }
-
 .NSGraphMid
 {
-	width: 100%;
+	width: 1512px;
 	height: 1px;
 	vertical-align: center;
-	background-color: #FFEFD744;
+	background-color: #FFEFD740;
+}
+
+.NSGraphCaptionRow
+{
+	flow-children: right;
+	margin-left: 12px;
+}
+
+.NSGraphTopRow
+{
+	vertical-align: top;
+	margin-top: 5px;
+}
+
+.NSGraphBottomRow
+{
+	vertical-align: bottom;
+	margin-bottom: 4px;
+}
+
+.NSGraphCaption
+{
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-shadow: 0px 0px 0px 3 #10130D;
 }
 
 .NSGraphScale
 {
-	margin-left: 10px;
+	margin-left: 8px;
 	font-family: VALVEOracle, Reaver, sans-serif;
 	font-size: 13px;
 	font-weight: bold;
 	text-shadow: 0px 0px 0px 3 #10130D;
+	opacity: 0.7;
 }
 
 .NSGraphTop
 {
-	vertical-align: top;
-	margin-top: 4px;
 	color: #FBDCA0;
 }
 
 .NSGraphBottom
 {
-	vertical-align: bottom;
-	margin-bottom: 4px;
 	color: #BDCBFF;
+}
+
+/* objective, peak and end dots: a dark ring with a coloured core */
+.NSGraphObj,
+.NSGraphPeakDot,
+.NSGraphEndDot
+{
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background-color: #10130D;
+}
+
+.NSGraphDotCore
+{
+	width: 6px;
+	height: 6px;
+	horizontal-align: center;
+	vertical-align: center;
+	border-radius: 50%;
+	background-color: #FFB23A;
+}
+
+.NSObjTeam2 .NSGraphDotCore
+{
+	background-color: #86A9FF;
+}
+
+.NSGraphPeakDot .NSGraphDotCore,
+.NSGraphEndDot .NSGraphDotCore
+{
+	background-color: #FFEFD7;
+}
+
+.NSGraphPeakDot.NSPeakDotTeam1,
+.NSGraphEndDot.NSPeakDotTeam1
+{
+	background-color: #E8920C;
+}
+
+.NSGraphPeakDot.NSPeakDotTeam2,
+.NSGraphEndDot.NSPeakDotTeam2
+{
+	background-color: #4D7FE0;
+}
+
+.NSGraphPeak
+{
+	width: 140px;
+	text-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #FBDCA0;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	visibility: collapse;
+}
+
+.NSGraphPeak.NSPeakTeam2
+{
+	color: #BDCBFF;
+}
+
+.NSGraphPeak.NSOn
+{
+	visibility: visible;
+}
+
+/* the final lead, in the leader's colour */
+.NSGraphEnd
+{
+	height: 22px;
+	padding: 3px 9px 0px 9px;
+	border-radius: 3px;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 15px;
+	font-weight: bold;
+	color: #201500;
+	background-color: #E8920C;
+}
+
+.NSGraphEnd.NSEndTeam1
+{
+	background-color: #E8920C;
+}
+
+.NSGraphEnd.NSEndTeam2
+{
+	color: #FFFFFF;
+	background-color: #4D7FE0;
+	text-shadow: 0px 0px 0px 2 #10130D;
 }
 
 .NSGraphTicks
@@ -864,6 +958,12 @@
 	font-size: 12px;
 	color: #aeaa94;
 	text-shadow: 0px 0px 0px 2 #10130D;
+}
+
+/* the match length, under the end of the line */
+.NSTick.NSTickEnd
+{
+	color: #FFEFD7;
 }
 
 .NSGraphEvents
@@ -1179,11 +1279,6 @@
 	100% { transform: scale3d( 1, 1, 1 ); }
 }
 
-@keyframes 'NSBarGrow'
-{
-	0% { transform: scale3d( 1, 0.001, 1 ); }
-	100% { transform: scale3d( 1, 1, 1 ); }
-}
 
 @keyframes 'NSInkSeek'
 {

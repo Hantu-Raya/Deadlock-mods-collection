@@ -58,6 +58,12 @@ const clockDate = (nowMs) => class extends Date {
   constructor(...args) { if (args.length) super(...args); else super(nowMs()); }
   static now() { return nowMs(); }
 };
+// UICanvas (client.dll 6819, ui_canvas.cpp, static RE): ClearJS(color) and
+// DrawSoftLinePointsJS(nPoints, [x0, y0, x1, y1, ...], thickness, softness, color); a bad colour draws white.
+MockPanel.prototype.ClearJS = function (color) { this.__draws = []; this.__clear = color; };
+MockPanel.prototype.DrawSoftLinePointsJS = function (n, points, thickness, softness, color) {
+  (this.__draws = this.__draws || []).push({ n, pts: Array.from(points), thickness, softness, color });
+};
 MockPanel.prototype.SetURL = function (url) {
   let root = this;
   while (root.GetParent()) root = root.GetParent();
@@ -4029,6 +4035,7 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
     },
     DispatchEvent: (name, ...args) => {
       if (graph && name === "DispatchPanelEvent" && args[1] === "onmouseover") showTip(args[0]);
+      if (graph && graph.lanes && name === "CitadelMatchDetailsGraphClickPlayer") showLane(args[0], args[1]);
       return true;
     },
     Localize: (token) => ({ "#Citadel_Team1_Name": "Hidden King", "#Citadel_Team2_Name": "Archmother" })[token] || token,
@@ -4073,8 +4080,8 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
     for (const kid of tip.children.slice()) kid.DeleteAsync();
     const f = (c + 1) / cols.length;
     const t = Math.round(f * graph.duration);
-    const a = Math.round(graph.souls[0] * f);
-    const b = Math.round(graph.souls[1] * f);
+    // graph.values(f) -> [team 1, team 2] souls at fraction f (default: straight lines to the totals).
+    const [a, b] = graph.values ? graph.values(f) : [Math.round(graph.souls[0] * f), Math.round(graph.souls[1] * f)];
     const label = (text) => { new MockPanel("Label", tip, "").__text = text; };
     label(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`);
     for (const [name, v] of [["Archmother", b], ["Hidden King", a]]) {
@@ -4083,6 +4090,21 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
       label(`(${Math.round(100 * v / (a + b))}%)`);
     }
     label((a + b).toLocaleString("en-US"));
+  };
+  // Lane Stats (graph type 12): picking a player shows that player's lane (three lanes, by button);
+  // graph.lanes[lane] = [[team 1 tier 1 falls, team 2 tier 1 falls], [tier 2], [barracks]] in seconds, -1 = stands.
+  const showLane = (graphs, n) => {
+    const lane = graph.lanes[(Number(n) - 1) % graph.lanes.length];
+    const mmss = (t) => (t < 0 ? "-" : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`);
+    for (const id of ["LaneStatTier1", "LaneStatTier2", "LaneStatBarracks", "LaneStatKills", "LaneStatNetWorth"]) {
+      const old = graphs.FindChildTraverse(id);
+      if (old) old.DeleteAsync();
+    }
+    ["LaneStatTier1", "LaneStatTier2", "LaneStatBarracks"].forEach((id, i) => {
+      const panel = new MockPanel("Panel", graphs, id);
+      for (const text of [mmss(lane[i][0]), id, mmss(lane[i][1])]) { const l = new MockPanel("Label", panel, ""); l.text = text; }
+    });
+    for (const id of ["LaneStatKills", "LaneStatNetWorth"]) { const l = new MockPanel("Label", new MockPanel("Panel", graphs, id), ""); l.text = `${id} ${n}`; }
   };
   // A frame boundary while the scan runs: the tooltip must not be drawn (user report 2026-10-25).
   let scanning = false;
@@ -4736,6 +4758,106 @@ check("board: without a handed card it asks the store once, only while the page 
   const shownOps = per(stop(), 10);
   assert.equal((shownOps.textWrites || 0) + (shownOps.styleWrites || 0) + (shownOps.classWrites || 0), 0, "no writes");
   assert.ok(total(shownOps) <= BUDGET_BOARD.calls && weighted(shownOps) <= BUDGET_BOARD.us, `board with a card: ${total(shownOps)} calls/s, ${weighted(shownOps)} us/s`);
+});
+
+check("board: the soul lead is one smooth line over a soft area on a canvas, coloured by who leads, with objective dots on the line, both peaks and the final lead; no bars", () => {
+  // User 2026-10-26: "reimagine the graph and don't make this bars".
+  // How it could fail: bars come back; the line misses a scanned point or swings past it between points
+  // (an overshoot invents a lead nobody had); a lead change is drawn in one colour or leaves a gap at zero;
+  // a point is NaN or off the canvas; a dot, peak or final-lead label sits away from the line or names the
+  // wrong side; the captions miss the header's team names or keep stale ones; the reveal never finishes.
+  const m = pgMatch(121685912);
+  const T = m.teams.map((team) => team.reduce((s, p) => s + p.net_worth, 0));
+  // Team 1 ahead for the first half (peak +12.5K), team 2 for the second (peak -12.5K); the totals decide the end.
+  // A two-column fight spike at 30-33 % tests that the line does not swing past the points around it.
+  const bump = (f) => Math.round(6250 * Math.sin(2 * Math.PI * f)) + (f > 0.29 && f < 0.335 ? 2500 : 0);
+  const duration = m.minutes * 60 + m.seconds;
+  const lanes = [[[300, 520], [700, -1], [-1, -1]], [[410, 600], [800, 1200], [-1, 1300]], [[350, -1], [-1, -1], [-1, -1]]];
+  const w = boardWorld({ graph: { duration, souls: T, values: (f) => [Math.round(T[0] * f) + bump(f), Math.round(T[1] * f) - bump(f)], lanes } });
+  w.boot();
+  w.fill(m);
+  w.fire("CitadelMatchDetailsUpdated", m.id);
+  w.advance(30000);
+  const host = w.boardHost();
+  assert.equal(findAll(host, "Panel").filter((p) => p.valid && p.classes.has("NSBar")).length, 0, "no bars");
+  const canvas = host.FindChildTraverse("NSGraphCanvas");
+  assert.ok(canvas && canvas.paneltype === "UICanvas", "drawn on a UICanvas");
+  const geoLine = w.harness.logs.find((l) => l.startsWith("[NS] graph: chart ")) || "";
+  const geo = /chart (\d+)x(\d+), zero (\d+), half (\d+), scale (\d+)/.exec(geoLine);
+  assert.ok(geo, `geometry logged: ${geoLine}`);
+  const [W, H, Z, HALF, SCALE] = geo.slice(1).map(Number);
+  const logged = (kind) => w.harness.logs.filter((l) => l.startsWith(`[NS] data ${kind} + `)).map((l) => JSON.parse(l.slice(`[NS] data ${kind} + `.length)));
+  const lead = logged("series").map((p) => ({ x: p.t / duration * W, y: Z - (p.a - p.b) / SCALE * HALF, l: p.a - p.b }));
+  assert.ok(lead.length >= 30 && lead.some((p) => p.l > 0) && lead.some((p) => p.l < 0), "the test lead changes sides");
+  const draws = canvas.__draws || [];
+  for (const d of draws) {
+    assert.equal(d.pts.length, d.n * 2, "nPoints matches the array");
+    assert.ok(d.pts.every(Number.isFinite), "finite points");
+    for (let i = 0; i < d.pts.length; i += 2) assert.ok(d.pts[i] >= -0.5 && d.pts[i] <= 1600.5 && d.pts[i + 1] >= -0.5 && d.pts[i + 1] <= H + 0.5, `on the canvas: ${d.pts[i]},${d.pts[i + 1]}`);
+    assert.match(String(d.color), /^#[0-9A-F]{8}$/i, "colours are #RRGGBBAA");
+  }
+  const team = (color) => { const n = parseInt(color.slice(1, 7), 16); return ((n >> 16) & 255) > (n & 255) ? 1 : 2; };
+  // The area is drawn as zig-zags (every point pair shares its x); the line is the thin opaque polyline.
+  const zigzag = (d) => { for (let i = 0; i + 2 < d.pts.length; i += 4) if (d.pts[i] !== d.pts[i + 2]) return false; return d.n >= 4; };
+  // Amber (team 1 ahead) stays above zero, blue below; the runs meet at zero.
+  const lines = draws.filter((d) => d.thickness <= 4 && /FF$/i.test(d.color) && d.n > 2 && !zigzag(d));
+  assert.ok(lines.some((d) => team(d.color) === 1) && lines.some((d) => team(d.color) === 2), "both colours");
+  for (const d of lines) for (let i = 1; i < d.pts.length; i += 2) assert.ok(team(d.color) === 1 ? d.pts[i] <= Z + 0.6 : d.pts[i] >= Z - 0.6, "a run stays on its side of zero");
+  assert.ok(lines.some((d) => Math.abs(d.pts[1] - Z) < 0.6 && d.pts[0] > 1) && lines.some((d) => Math.abs(d.pts[d.pts.length - 1] - Z) < 0.6 && d.pts[d.pts.length - 2] < W - 1), "the runs meet at zero where the lead changes sides");
+  const all = [];
+  for (const d of lines) for (let i = 0; i < d.pts.length; i += 2) all.push([d.pts[i], d.pts[i + 1]]);
+  all.sort((p, q) => p[0] - q[0]);
+  const yAt = (x) => {
+    const k = all.findIndex((p) => p[0] >= x);
+    if (k <= 0) return all[Math.max(0, k)][1];
+    const [x0, y0] = all[k - 1];
+    const [x1, y1] = all[k];
+    return x1 === x0 ? y1 : y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+  };
+  for (const p of lead) assert.ok(Math.abs(yAt(p.x) - p.y) <= 1.5, `through (${p.x.toFixed(1)}, ${p.y.toFixed(1)}): ${yAt(p.x).toFixed(1)}`);
+  const knots = [{ x: 0, y: Z }].concat(lead);
+  for (let i = 1; i < knots.length; i++) {
+    const lo = Math.min(knots[i - 1].y, knots[i].y) - 0.6;
+    const hi = Math.max(knots[i - 1].y, knots[i].y) + 0.6;
+    for (const [x, y] of all) if (x > knots[i - 1].x + 0.01 && x < knots[i].x - 0.01) assert.ok(y >= lo && y <= hi, `no swing past the points between ${i - 1} and ${i} (${y.toFixed(1)} outside ${lo.toFixed(1)}..${hi.toFixed(1)})`);
+  }
+  // The soft area under the line, in both colours.
+  const fills = draws.filter(zigzag);
+  assert.ok(fills.some((d) => team(d.color) === 1) && fills.some((d) => team(d.color) === 2), "the area under the line in both colours");
+  // Objective dots sit on the line in the colour of the team that took the objective.
+  const events = logged("events");
+  assert.ok(events.length >= 8, `objectives read: ${events.length}`);
+  const px = (p, key) => parseFloat(String(p.style[key] || "0"));
+  const dots = findAll(host, "Panel").filter((p) => p.valid && p.classes.has("NSGraphObj"));
+  assert.equal(dots.length, events.length, "one dot per objective");
+  events.forEach((e, i) => {
+    const dot = dots[i];
+    const cx = px(dot, "marginLeft") + 5;
+    const cy = px(dot, "marginTop") + 5;
+    assert.ok(Math.abs(cx - e.t / duration * W) <= 1.5 && Math.abs(cy - yAt(cx)) <= 2, `objective ${i} on the line`);
+    assert.ok(dot.classes.has(e.killer === 2 ? "NSObjTeam2" : "NSObjTeam1"), `objective ${i} in the taker's colour`);
+  });
+  // Peaks and the final lead.
+  const text = (p) => String(p.__text ?? p.text ?? "");
+  const best = (sign) => lead.reduce((b, p) => (sign * p.l > sign * b.l ? p : b), { l: 0 });
+  for (const [sign, side] of [[1, 1], [-1, 2]]) {
+    const peak = host.FindChildTraverse(`NSGraphPeak${side}`);
+    assert.ok(peak && peak.classes.has("NSOn"), `team ${side} peak shown`);
+    assert.ok(text(peak).includes(`+${(Math.abs(best(sign).l) / 1000).toFixed(1)}K`), `team ${side} peak value: ${text(peak)}`);
+  }
+  const last = lead[lead.length - 1];
+  const end = host.FindChildTraverse("NSGraphEnd");
+  assert.equal(text(end), `+${(Math.abs(last.l) / 1000).toFixed(1)}K`, "the final lead");
+  assert.ok(end.classes.has(last.l < 0 ? "NSEndTeam2" : "NSEndTeam1"), "in the leader's colour");
+  assert.ok(Math.abs(px(end, "marginTop") + 11 - Math.max(11, Math.min(H - 11, last.y))) <= 2, "level with the line's end");
+  // Captions name the header's teams and follow a match card.
+  assert.ok(text(host.FindChildTraverse("NSGraphTop")).includes("HIDDEN KING") && text(host.FindChildTraverse("NSGraphBottom")).includes("ARCHMOTHER"), "captions from the header");
+  w.fire("ClientUI_FireOutput", handoff(boardCard(m, { t: [["Night Owls", "NOW", ""], ["Brass Saints", "BRS", ""]] })));
+  w.advance(500);
+  assert.ok(text(host.FindChildTraverse("NSGraphTop")).includes("NIGHT OWLS") && text(host.FindChildTraverse("NSGraphBottom")).includes("BRASS SAINTS"), "captions follow the card");
+  // The reveal finishes.
+  assert.equal(String(host.FindChildTraverse("NSGraphDraw").style.clip), "rect( 0%, 100%, 100%, 0% )", "fully revealed");
+  assert.ok(noBoardErrors(w));
 });
 
 check("board: a hovered item is drawn over its neighbours and the next players' items; it drops back when the mouse leaves", () => {

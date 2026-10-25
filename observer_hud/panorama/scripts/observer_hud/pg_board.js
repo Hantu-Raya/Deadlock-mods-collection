@@ -69,8 +69,8 @@
     "Denies": ["denies", "Denies"]
   };
   const LANE_TIERS = [["LaneStatTier1", "tier1"], ["LaneStatTier2", "tier2"], ["LaneStatBarracks", "base"]];
-  const GRAPH_W = 1600;
-  const GRAPH_H = 112;
+  const GRAPH_H = 112; // the plot; the canvas fills it (1600 x 112)
+  const CHART_W = 1512; // the lead's x range; the right gutter holds the final-lead pill
 
   const ok = (p) => !!(p && p.IsValid && p.IsValid());
   const log = (msg) => $.Msg(`${TAG} ${msg}`);
@@ -106,7 +106,10 @@
     hooked: null, // the page whose screen-pick event wakes the board
     loop: 0, // token of the one scheduled check; a wake supersedes a pending one
     burstUntil: 0, // Date.now() until which the board checks at BURST_S
-    scanning: 0 // gen of the scan in progress (0: none); the tooltip stays muted while it runs
+    scanning: 0, // gen of the scan in progress (0: none); the tooltip stays muted while it runs
+    graphScale: 0, // the lead graph's scale (0: no graph drawn)
+    revealToken: 0, // the running graph wipe; a new one supersedes it
+    graphDraws: [] // the lead graph's canvas strokes, painted by paint()
   };
 
   // ---------- discovery ----------
@@ -135,11 +138,17 @@
     UI.match = ctx.FindChildTraverse("NSMatch");
     UI.soulsLabel = ctx.FindChildTraverse("NSSoulsLabel");
     UI.graph = ctx.FindChildTraverse("NSGraph");
-    UI.bars = ctx.FindChildTraverse("NSGraphBars");
+    UI.draw = ctx.FindChildTraverse("NSGraphDraw");
+    UI.canvas = ctx.FindChildTraverse("NSGraphCanvas");
+    UI.marks = ctx.FindChildTraverse("NSGraphMarks");
+    UI.peaks = [ctx.FindChildTraverse("NSGraphPeak1"), ctx.FindChildTraverse("NSGraphPeak2")];
+    UI.end = ctx.FindChildTraverse("NSGraphEnd");
     UI.ticks = ctx.FindChildTraverse("NSGraphTicks");
     UI.events = ctx.FindChildTraverse("NSGraphEvents");
     UI.top = ctx.FindChildTraverse("NSGraphTop");
     UI.bottom = ctx.FindChildTraverse("NSGraphBottom");
+    UI.topScale = ctx.FindChildTraverse("NSGraphTopScale");
+    UI.bottomScale = ctx.FindChildTraverse("NSGraphBottomScale");
     UI.progress = ctx.FindChildTraverse("NSProgress");
     UI.progressFill = ctx.FindChildTraverse("NSProgressFill");
     UI.progressText = ctx.FindChildTraverse("NSProgressText");
@@ -515,49 +524,246 @@
     trigger(shown, "NSShow");
   }
 
-  function renderGraph(series, events, duration) {
-    if (!ok(UI.graph)) return;
-    const pts = series.filter((p) => p.t > 0 && p.t <= duration + 1);
-    if (pts.length < 5 || duration <= 0) { UI.graph.RemoveClass("NSOn"); return; }
-    const x = (t) => Math.round(Math.max(0, Math.min(1, t / duration)) * GRAPH_W);
-    const half = GRAPH_H / 2;
-    const maxAbs = Math.max(1000, ...pts.map((p) => Math.abs(p.a - p.b)));
-    UI.bars.RemoveAndDeleteChildren();
-    let prev = 0;
-    for (const p of pts) {
-      const x1 = x(p.t);
-      const lead = p.a - p.b; // team 1 lead up (amber), team 2 lead down (blue)
-      const h = Math.round(Math.abs(lead) / maxAbs * (half - 6));
-      if (h > 0 && x1 > prev) {
-        const bar = $.CreatePanel("Panel", UI.bars, "", { class: lead >= 0 ? "NSBar" : "NSBar NSBarTeam2", hittest: "false" });
-        bar.AddClass(`NSW${Math.min(7, Math.floor(8 * prev / GRAPH_W))}`); // left-to-right wave (CSS)
-        bar.style.width = `${Math.max(1, x1 - prev - 1)}px`;
-        bar.style.height = `${h}px`;
-        bar.style.marginLeft = `${prev}px`;
-        bar.style.marginTop = `${lead >= 0 ? half - h : half}px`;
+  // ---------- soul lead graph ----------
+  // User 2026-10-26: "reimagine the graph and don't make this bars". The lead (team 1 minus team 2) is one
+  // smooth line on a UICanvas (client.dll 6819 ui_canvas.cpp, static RE: ClearJS(color) and
+  // DrawSoftLinePointsJS(nPoints, [x0, y0, x1, y1, ...], thickness, softness, color); a colour that does not
+  // parse draws white). The line is a monotone cubic through the scanned points, so it never swings past them;
+  // amber above zero while team 1 leads, blue below, split exactly where the lead changes sides. Under it a
+  // soft two-band area (one zig-zag polyline per band and run). Objective dots sit on the line in the
+  // taker's colour with a hairline down to the stock icon; both peaks are labelled; the final lead is a pill
+  // in the right gutter. Everything is drawn once per match; a clip wipes it in from the left.
+  const PAD_Y = 12;
+  const STEP_X = 3;
+  const TEAM_RGB = ["E8920C", "4D7FE0"];
+  // [outer, inner] area colours: the team colour mixed 18 % / 38 % into the plot's paper (#1A1813).
+  const FILL_RGB = [["#3F2E12FF", "#684610FF"], ["#232A38FF", "#2D3F61FF"]];
+  const LINE_RGB = ["FFB23A", "86A9FF"];
+  const REVEAL_MS = 900;
+  const graphX = (t, duration) => Math.max(0, Math.min(1, t / duration)) * CHART_W;
+  // A tidy top for the scale (8 % headroom over the largest lead).
+  function graphScale(maxAbs) {
+    const unit = maxAbs > 20000 ? 5000 : maxAbs > 8000 ? 2000 : 1000;
+    return Math.max(unit, Math.ceil(maxAbs * 1.08 / unit) * unit);
+  }
+  // Fritsch-Carlson monotone cubic through (xs, ys), xs strictly increasing: never overshoots a knot.
+  function monotone(xs, ys) {
+    const n = xs.length;
+    const d = [];
+    for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]));
+    const m = new Array(n);
+    m[0] = d[0];
+    m[n - 1] = d[n - 2];
+    for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i < n - 1; i++) {
+      if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+      const a = m[i] / d[i];
+      const b = m[i + 1] / d[i];
+      const s = a * a + b * b;
+      if (s > 9) { const k = 3 / Math.sqrt(s); m[i] = k * a * d[i]; m[i + 1] = k * b * d[i]; }
+    }
+    return (x) => {
+      if (x <= xs[0]) return ys[0];
+      if (x >= xs[n - 1]) return ys[n - 1];
+      let lo = 0;
+      let hi = n - 1;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (xs[mid] <= x) lo = mid; else hi = mid; }
+      const h = xs[hi] - xs[lo];
+      const t = (x - xs[lo]) / h;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      return (2 * t3 - 3 * t2 + 1) * ys[lo] + (t3 - 2 * t2 + t) * h * m[lo] + (-2 * t3 + 3 * t2) * ys[hi] + (t3 - t2) * h * m[hi];
+    };
+  }
+  // Strokes are kept in S.graphDraws and painted by paint(), so the reveal can draw them up to an x.
+  function stroke(points, thickness, softness, color) {
+    if (points.length >= 4) S.graphDraws.push({ points, thickness, softness, color });
+  }
+  // Each stroke up to x = cutoff (a point past it is cut back to the cutoff on its segment).
+  function paint(cutoff) {
+    if (!ok(UI.canvas)) return;
+    UI.canvas.ClearJS("#00000000");
+    for (const d of S.graphDraws) {
+      let pts = d.points;
+      if (cutoff < CHART_W + 100) {
+        pts = [];
+        for (let i = 0; i < d.points.length; i += 2) {
+          const x = d.points[i];
+          const y = d.points[i + 1];
+          if (x <= cutoff) { pts.push(x, y); continue; }
+          const n = pts.length;
+          if (n >= 2 && pts[n - 2] < cutoff) pts.push(cutoff, pts[n - 1] + (y - pts[n - 1]) * (cutoff - pts[n - 2]) / (x - pts[n - 2]));
+          break;
+        }
       }
-      prev = x1;
+      if (pts.length >= 4) UI.canvas.DrawSoftLinePointsJS(pts.length / 2, pts, d.thickness, d.softness, d.color);
     }
-    setText(UI.top, `+${fmtK(maxAbs)}`);
-    setText(UI.bottom, `+${fmtK(maxAbs)}`);
+  }
+  // [{ side: 0 | 1, pts: [[x, y], ...] }]: the line split where it crosses zero (side 0 = team 1 ahead).
+  function leadRuns(samples, zero) {
+    const runs = [];
+    let run = null;
+    for (const [x, y] of samples) {
+      const side = y < zero - 1e-6 ? 0 : y > zero + 1e-6 ? 1 : -1;
+      if (!run) { run = { side, pts: [[x, y]] }; continue; }
+      if (side < 0 || side === run.side) { run.pts.push([x, y]); continue; }
+      if (run.side < 0) { run.side = side; run.pts.push([x, y]); continue; }
+      const [px, py] = run.pts[run.pts.length - 1];
+      const cx = py === zero ? px : px + (zero - py) * (x - px) / (y - py);
+      if (py !== zero) run.pts.push([cx, zero]);
+      runs.push(run);
+      run = { side, pts: [[cx, zero], [x, y]] };
+    }
+    if (run && run.side >= 0) runs.push(run);
+    return runs;
+  }
+  function renderGraph(series, events, duration) {
+    if (!ok(UI.graph) || !ok(UI.canvas)) return;
+    const pts = series.filter((p) => p.t > 0 && p.t <= duration + 1).sort((p, q) => p.t - q.t);
+    if (pts.length < 5 || duration <= 0) { UI.graph.RemoveClass("NSOn"); return; }
+    const zero = GRAPH_H / 2;
+    const half = zero - PAD_Y;
+    const scale = graphScale(Math.max(1000, ...pts.map((p) => Math.abs(p.a - p.b))));
+    const yOf = (lead) => zero - (lead / scale) * half;
+    // Knots in pixels from the game start (lead 0); a repeated time keeps its last reading.
+    const xs = [0];
+    const ys = [zero];
+    for (const p of pts) {
+      const x = graphX(p.t, duration);
+      if (x <= xs[xs.length - 1]) { if (x === xs[xs.length - 1] && xs.length > 1) ys[ys.length - 1] = yOf(p.a - p.b); continue; }
+      xs.push(x);
+      ys.push(yOf(p.a - p.b));
+    }
+    const curve = monotone(xs, ys);
+    const endX = xs[xs.length - 1];
+    const sampleXs = xs.slice();
+    for (let x = STEP_X; x < endX; x += STEP_X) sampleXs.push(x);
+    sampleXs.sort((a, b) => a - b);
+    const samples = [];
+    for (const x of sampleXs) if (!samples.length || x - samples[samples.length - 1][0] > 0.25 || xs.includes(x)) samples.push([x, curve(x)]);
+    const runs = leadRuns(samples, zero);
+    log(`graph: chart ${CHART_W}x${GRAPH_H}, zero ${zero}, half ${half}, scale ${scale}, ${xs.length - 1} points, ${runs.length} run(s)`);
+
+    S.graphDraws = [];
+    // The area: the team colour pre-mixed with the plot's dark paper, opaque (live: translucent strokes
+    // stacked into stripes where neighbours overlap). Full height faint, the part nearest the line stronger.
+    for (const run of runs) {
+      const outer = [];
+      const inner = [];
+      run.pts.forEach(([x, y], i) => {
+        const near = y + (zero - y) * 0.45;
+        if (i % 2) { outer.push(x, y, x, zero); inner.push(x, y, x, near); } else { outer.push(x, zero, x, y); inner.push(x, near, x, y); }
+      });
+      stroke(outer, STEP_X + 0.6, 0.4, FILL_RGB[run.side][0]);
+      stroke(inner, STEP_X + 0.6, 0.4, FILL_RGB[run.side][1]);
+    }
+    // Guides over the area: half and full scale, and one hairline per five minutes.
+    for (const f of [-1, -0.5, 0.5, 1]) stroke([0, zero - f * half, CHART_W, zero - f * half], 1, 0.5, f === 0.5 || f === -0.5 ? "#FFEFD710" : "#FFEFD71C");
+    for (let t = 300; t < duration; t += 300) stroke([graphX(t, duration), 2, graphX(t, duration), GRAPH_H - 2], 1, 0.5, "#FFEFD70E");
+    // Objective hairlines from the line down to the icons.
+    const objs = events.map((e) => { const x = graphX(e.t, duration); return { e, x, y: curve(Math.min(x, endX)) }; });
+    for (const o of objs) stroke([o.x, o.y + 6, o.x, GRAPH_H], 1, 0.5, "#FFEFD72E");
+    // The line: a glow, then the pen.
+    for (const run of runs) {
+      const flat = [];
+      for (const [x, y] of run.pts) flat.push(x, y);
+      stroke(flat, 9, 7, `#${TEAM_RGB[run.side]}48`);
+      stroke(flat, 3, 1, `#${LINE_RGB[run.side]}FF`);
+    }
+
+    // Marks: objective dots, peaks, the line's end and the final lead.
+    UI.marks.RemoveAndDeleteChildren();
+    const dot = (cls, x, y, size) => {
+      const ring = $.CreatePanel("Panel", UI.marks, "", { class: cls, hittest: "false" });
+      ring.style.marginLeft = `${(x - size / 2).toFixed(1)}px`;
+      ring.style.marginTop = `${(y - size / 2).toFixed(1)}px`;
+      $.CreatePanel("Panel", ring, "", { class: "NSGraphDotCore", hittest: "false" });
+      return ring;
+    };
+    for (const o of objs) dot(`NSGraphObj ${o.e.killer === 2 ? "NSObjTeam2" : "NSObjTeam1"}`, o.x, o.y, 10);
+    const leads = pts.map((p) => ({ t: p.t, l: p.a - p.b }));
+    [1, -1].forEach((sign, side) => {
+      const label = UI.peaks[side];
+      const best = leads.reduce((b, p) => (sign * p.l > sign * b.l ? p : b), { t: 0, l: 0 });
+      // A peak at the line's end is the final lead's pill already.
+      const atEnd = best.t === leads[leads.length - 1].t;
+      const show = !atEnd && sign * best.l >= Math.max(1500, 0.06 * scale);
+      if (ok(label)) label.SetHasClass("NSOn", show);
+      if (!show || !ok(label)) return;
+      const x = graphX(best.t, duration);
+      const y = yOf(best.l);
+      dot(`NSGraphPeakDot NSPeakDotTeam${side + 1}`, x, y, 10);
+      setText(label, `PEAK +${fmtK(Math.abs(best.l))}   ${clock(best.t)}`);
+      // Team 1 above its peak and team 2 below, unless that leaves the plot.
+      let top = side === 0 ? y - 24 : y + 8;
+      if (top < 2 || top > GRAPH_H - 18) top = side === 0 ? y + 8 : y - 24;
+      label.style.marginLeft = `${Math.max(4, Math.min(CHART_W - 144, x - 70)).toFixed(1)}px`;
+      label.style.marginTop = `${Math.max(2, Math.min(GRAPH_H - 18, top)).toFixed(1)}px`;
+    });
+    const last = leads[leads.length - 1];
+    const lastY = ys[ys.length - 1];
+    const lastSide = last.l < 0 ? 1 : 0;
+    dot(`NSGraphEndDot NSPeakDotTeam${lastSide + 1}`, endX, lastY, 10);
+    const pillY = Math.max(11, Math.min(GRAPH_H - 11, lastY));
+    stroke([endX + 5, lastY, CHART_W + 8, pillY], 1, 0.5, `#${TEAM_RGB[lastSide]}99`);
+    if (ok(UI.end)) {
+      setText(UI.end, `+${fmtK(Math.abs(last.l))}`);
+      UI.end.SetHasClass("NSEndTeam1", lastSide === 0);
+      UI.end.SetHasClass("NSEndTeam2", lastSide === 1);
+      UI.end.style.marginLeft = `${CHART_W + 8}px`;
+      UI.end.style.marginTop = `${(pillY - 11).toFixed(1)}px`;
+    }
+    S.graphScale = scale;
+    renderGraphCaptions();
+
     UI.ticks.RemoveAndDeleteChildren();
-    for (let t = 0; t <= duration; t += 300) {
+    for (let t = 0; t <= duration - 60; t += 300) {
       const tick = $.CreatePanel("Label", UI.ticks, "", { class: "NSTick", text: clock(t), hittest: "false" });
-      tick.style.marginLeft = `${Math.max(0, Math.min(GRAPH_W - 60, x(t) - 30))}px`;
+      tick.style.marginLeft = `${Math.max(0, Math.min(CHART_W - 60, graphX(t, duration) - 30)).toFixed(1)}px`;
     }
-    const end = $.CreatePanel("Label", UI.ticks, "", { class: "NSTick", text: clock(duration), hittest: "false" });
-    end.style.marginLeft = `${GRAPH_W - 60}px`;
+    const endTick = $.CreatePanel("Label", UI.ticks, "", { class: "NSTick NSTickEnd", text: clock(duration), hittest: "false" });
+    endTick.style.marginLeft = `${CHART_W - 30}px`;
     UI.events.RemoveAndDeleteChildren();
-    for (const e of events) {
+    for (const o of objs) {
+      const e = o.e;
       const cls = `NSEvent ${e.tier === "tier1" ? "NSEvTier1" : e.tier === "tier2" ? "NSEvTier2" : "NSEvBase"} ${e.killer === 2 ? "NSEvTeam2" : "NSEvTeam1"}`;
       const icon = $.CreatePanel("Panel", UI.events, "", { class: cls, hittest: "false" });
-      const left = Math.max(0, Math.min(GRAPH_W - 26, x(e.t) - 12));
-      icon.AddClass(`NSW${Math.min(7, Math.floor(8 * left / GRAPH_W))}`);
-      icon.style.marginLeft = `${left}px`;
+      const left = Math.max(0, Math.min(CHART_W - 26, o.x - (e.tier === "base" ? 13 : 11)));
+      icon.AddClass(`NSW${Math.min(7, Math.floor(8 * left / CHART_W))}`);
+      icon.style.marginLeft = `${left.toFixed(1)}px`;
     }
     UI.graph.RemoveClass("NSShow");
     UI.graph.AddClass("NSOn");
     trigger([UI.graph], "NSShow");
+    reveal();
+  }
+  // The team names from the header (the stock names or a match card's) on each side's caption.
+  function renderGraphCaptions() {
+    if (!S.graphScale) return;
+    const name = (i) => String(ok(UI.names[i]) ? UI.names[i].text || "" : "").toUpperCase();
+    setText(UI.top, `${name(0)} AHEAD`);
+    setText(UI.bottom, `${name(1)} AHEAD`);
+    const scale = S.graphScale % 1000 ? fmtK(S.graphScale) : `${S.graphScale / 1000}K`;
+    setText(UI.topScale, `+${scale}`);
+    setText(UI.bottomScale, `+${scale}`);
+  }
+  // Draw the graph in from the left: the canvas strokes are repainted up to a growing x (a panel clip does
+  // not reach a UICanvas, live 2026-10-26) and the dots and labels are wiped in with a stepped clip.
+  function reveal() {
+    if (!ok(UI.draw)) return;
+    const token = ++S.revealToken;
+    const t0 = Date.now();
+    const step = () => {
+      if (stopped || token !== S.revealToken || !ok(UI.draw)) return;
+      const f = Math.min(1, (Date.now() - t0) / REVEAL_MS);
+      const e = 1 - Math.pow(1 - f, 3);
+      paint(f >= 1 ? Infinity : e * (CHART_W + 96));
+      UI.draw.style.clip = f >= 1 ? "rect( 0%, 100%, 100%, 0% )" : `rect( 0%, ${(e * 100).toFixed(2)}%, 100%, 0% )`;
+      if (f < 1) $.Schedule(1 / 60, step);
+    };
+    paint(0);
+    UI.draw.style.clip = "rect( 0%, 0%, 100%, 0% )";
+    $.Schedule(1 / 60, step);
   }
 
   // ---------- match cards: team names, logos and organiser in the header ----------
@@ -653,6 +859,7 @@
       setLogo(i, entry ? entry[2] : "");
     }
     setText(UI.org, card && card.r ? card.r[0] : "");
+    renderGraphCaptions();
   }
   // The best card now: handed ones and the one the store gave for this match, each at most CARD_TTL_S old.
   // Every fitting card without a match id is tied to this match first, so among this match's cards the
@@ -847,7 +1054,7 @@
     trigger([UI.frame], "NSIntro");
     trigger(S.cols.map((c) => c.column), "NSIn");
     trigger(souls, "NSShow");
-    if (graphOn) trigger([UI.graph], "NSShow");
+    if (graphOn) { trigger([UI.graph], "NSShow"); reveal(); }
   }
 
   function show(m) {
@@ -869,6 +1076,11 @@
     for (const c of S.cols) if (ok(c.column)) c.column.DeleteAsync(0);
     S.cols = [];
     if (ok(UI.graph)) { UI.graph.RemoveClass("NSOn"); UI.graph.RemoveClass("NSShow"); }
+    S.graphScale = 0;
+    S.revealToken++;
+    S.graphDraws = [];
+    if (ok(UI.canvas)) UI.canvas.ClearJS("#00000000");
+    if (ok(UI.marks)) UI.marks.RemoveAndDeleteChildren();
   }
 
   function build(m) {

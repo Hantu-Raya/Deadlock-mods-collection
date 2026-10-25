@@ -77,11 +77,24 @@
 				<Panel id="NSTeam2" class="NSTeam NSTeam2" hittest="false" />
 			</Panel>
 			<Panel id="NSGraph" class="NSGraph" hittest="false">
+				<!-- Soul lead: a line on a UICanvas (pg_board.js renderGraph), dots and labels over it, a pill in the right gutter. -->
 				<Panel id="NSGraphPlot" class="NSGraphPlot" hittest="false">
-					<Panel id="NSGraphBars" class="NSGraphBars" hittest="false" />
 					<Panel class="NSGraphMid" hittest="false" />
-					<Label id="NSGraphTop" class="NSGraphScale NSGraphTop" text="" />
-					<Label id="NSGraphBottom" class="NSGraphScale NSGraphBottom" text="" />
+					<Panel class="NSGraphCaptionRow NSGraphTopRow" hittest="false">
+						<Label id="NSGraphTop" class="NSGraphCaption NSGraphTop" text="" />
+						<Label id="NSGraphTopScale" class="NSGraphScale NSGraphTop" text="" />
+					</Panel>
+					<Panel class="NSGraphCaptionRow NSGraphBottomRow" hittest="false">
+						<Label id="NSGraphBottom" class="NSGraphCaption NSGraphBottom" text="" />
+						<Label id="NSGraphBottomScale" class="NSGraphScale NSGraphBottom" text="" />
+					</Panel>
+					<Panel id="NSGraphDraw" class="NSGraphDraw" hittest="false">
+						<UICanvas id="NSGraphCanvas" class="NSGraphCanvas" hittest="false" />
+						<Panel id="NSGraphMarks" class="NSGraphMarks" hittest="false" />
+						<Label id="NSGraphPeak1" class="NSGraphPeak NSPeakTeam1" text="" />
+						<Label id="NSGraphPeak2" class="NSGraphPeak NSPeakTeam2" text="" />
+						<Label id="NSGraphEnd" class="NSGraphEnd" text="" />
+					</Panel>
 				</Panel>
 				<Panel id="NSGraphTicks" class="NSGraphTicks" hittest="false" />
 				<Panel id="NSGraphEvents" class="NSGraphEvents" hittest="false" />
