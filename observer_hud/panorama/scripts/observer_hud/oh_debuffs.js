@@ -77,13 +77,18 @@
     stateVersion: -1,
     configSig: "",
     aliasesSig: "{}", // the aliases last sent to the world bars
+    watch: null, // the spectating flag last sent to the world bars
+    wake: 0, // bumped when the card registry changes; sent as OH_DEBUFF_CONFIG wake
+    wakeSent: 0,
     configSentAt: 0,
     unmatchedScanAt: 0,
     rescanQueued: false,
     counting: false, // a slot shows seconds left or is fading
     // The 0.25 s countdown ticks paint only: names are read at most once a second (m1 audit O1).
     names: [],
-    namesAt: 0
+    namesAt: 0,
+    dead: new Map(), // card panel -> it carried the stock .Dead class at the last check
+    deadAt: 0
   };
 
   // ------------------------------------------------------------------ icons
@@ -107,9 +112,12 @@
 
   // ------------------------------------------------------------------ config
 
-  // Sends OH_DEBUFF_CONFIG to the world bars on change and every CONFIG_HEARTBEAT_MS: the DEV settings
-  // and the player aliases ($.OHHost.aliases(): unique in-game names, {} when not spectating), which
-  // the world bars show on their name labels. True when the switch or interval changed.
+  // Sends OH_DEBUFF_CONFIG to the world bars on change and every CONFIG_HEARTBEAT_MS: the DEV settings,
+  // the player aliases ($.OHHost.aliases(): unique in-game names, {} when not spectating), which the
+  // world bars show on their name labels, whether we are spectating (watch: false puts every world bar
+  // to sleep, so a PC that plays with pak10 installed pays nothing) and the wake counter (bumped when the
+  // card registry changes, so idle bars re-check their hero class at once). True when the switch or
+  // interval changed.
   function refreshConfig(now) {
     const version = $.OHHost.version();
     if (version !== State.stateVersion) {
@@ -119,16 +127,21 @@
       State.poll = dev.debuffPollMs;
       State.log = dev.logStatus;
     }
+    const watch = $.OHHost.watching();
     const sig = `${State.on}|${State.poll}|${State.log}`;
     const aliasesSig = $.OHHost.aliasesSig();
     const changed = sig !== State.configSig;
     if (changed) $.Msg(`${TAG} config icons=${State.on} poll=${State.poll} log=${State.log}`);
-    if (changed || aliasesSig !== State.aliasesSig || now < State.configSentAt || now - State.configSentAt >= CONFIG_HEARTBEAT_MS) {
+    if (changed || aliasesSig !== State.aliasesSig || watch !== State.watch || State.wake !== State.wakeSent ||
+        now < State.configSentAt || now - State.configSentAt >= CONFIG_HEARTBEAT_MS) {
       State.configSig = sig;
       State.aliasesSig = aliasesSig;
+      State.watch = watch;
+      State.wakeSent = State.wake;
       State.configSentAt = now;
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
-        magic_word: "OH_DEBUFF_CONFIG", on: State.on, poll: State.poll, log: State.log, aliases: $.OHHost.aliases(), at: now
+        magic_word: "OH_DEBUFF_CONFIG", on: State.on, poll: State.poll, log: State.log, watch: watch, wake: State.wake,
+        aliases: $.OHHost.aliases(), at: now
       }));
     }
     return changed;
@@ -175,6 +188,22 @@
 
   const slotsLive = (card) => card.slots.length > 0 && valid(card.grid) &&
     card.slots.every((slot) => valid(slot.panel) && valid(slot.image) && valid(slot.count) && valid(slot.time));
+
+  // True when a card lost the stock .Dead class since the last check (a respawn), read at most every
+  // NAMES_MS: one class read per card a second.
+  const respawned = (now) => {
+    if (now < State.deadAt && State.deadAt - now <= NAMES_MS) return false;
+    State.deadAt = now + NAMES_MS;
+    let back = false;
+    const next = new Map();
+    for (const card of State.cards) {
+      const dead = card.panel.BHasClass("Dead");
+      if (State.dead.get(card.panel) === true && !dead) back = true;
+      next.set(card.panel, dead);
+    }
+    State.dead = next;
+    return back;
+  };
 
   const cardName = (card) => {
     const text = valid(card.label) ? card.label.text : "";
@@ -510,13 +539,17 @@
       // version moves on return, so the first watching tick rebuilds the list and paints what the
       // records say (an expired status clears).
       if (!$.OHHost.watching()) {
-        // The world bars drop the aliases once (back to the stock names).
-        if (State.aliasesSig !== "{}") refreshConfig(now);
+        // The world bars hear it once (watch: false puts them to sleep and drops the aliases), then every
+        // CONFIG_HEARTBEAT_MS so a bar created while playing goes to sleep too.
+        refreshConfig(now);
         schedule(TICK_SEC);
         return;
       }
-      let dirty = refreshConfig(now) || State.counting;
-      if (syncCards()) dirty = true;
+      // A changed registry (a hero swap, a new map) or a respawn (a card loses the stock .Dead class; the
+      // hero may come back on another world panel) wakes idle world bars at once.
+      const rebuilt = syncCards();
+      if (rebuilt || respawned(now)) State.wake++;
+      let dirty = refreshConfig(now) || State.counting || rebuilt;
       // A steady column repaints now and then, so a name that bound after its snapshot still matches.
       if (now >= State.repaintAt) {
         State.repaintAt = now + REPAINT_MS;

@@ -24,8 +24,16 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Status column and spectator VData | yes (shared spec; centred two-wide grid in pak10 `66e4f617`) | VM; build verifies packed VData | seen in v1 (vertical column); the `unnamed` fix and the grid not seen |
 | Purchase notices (DLF's, rewritten) | yes (pak10 `e4c5b7a7`) | VM (pinned stock shop layout) | seen on `5bc49641` to `d046f3b8` (demo: list fills, cards right; VALVEOracle text seen on `9260a4a6`; 228 px width seen; wobble jagged on `26fe7a1c`, too subtle and jagged on `7fa3fd49`, image frame at full poses on `bd88bfdc`, 20 % on `d046f3b8`: user asked for 10 % more, then 5 % more); the 35 % wobble and the 10 % smaller frame not seen |
 
-- Installed pak10: none since 2026-10-24 (DLF's pak01 is installed for its tests; checked in `citadel/addons`). The last installed pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release). Latest change in that build: the ultimate cooldown counter under each card's ultimate; see the changelog.
-- Validator `.tmp/observer-hud-validate.json` (2026-10-23): 56 checks passed; live-like scenario 1155.4 native calls per second spectating (budget 1156), 1497.0 with every card counting down (budget 1498), 14.7 after spectating (budget 15), 11.7 never spectated (budget 12).
+- Installed pak10: none (DLF's pak01 is installed for its tests; checked in `citadel/addons`). Phase 1 was installed only for its live run on 2026-10-25 and removed afterwards. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
+- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 57 checks passed. Weighted native time in the live-like scenario, against these budgets:
+
+  | State | us/s | Budget |
+  |---|---:|---:|
+  | Spectating | 216.2 | 222 |
+  | Every card counting down | 274.3 | 280 |
+  | Playing with world bars | 4.3 | 6 |
+  | After spectating | 4.8 | 6 |
+  | Never spectated | 4.3 | 6 |
 - Release: public version 0.1.0, GameBanana page https://gamebanana.com/mods/731315 (user, 2026-10-24). The archive held only `pak10_dir.vpk` (`5e1243e8`, client 6819); the local `dist/Observer_HUD_26.10.24.7z` was overwritten by a later build on 2026-10-24 and removed, so the GameBanana file is the copy of record. Page copy `promo/gamebanana.html`, Discord post `docs/changelogs/2026-10-24_observer_hud_0_1_0_discord.txt`.
 
 ## Remaining verification
@@ -59,6 +67,22 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 - Later (PLAN): aliases that follow the Steam account; an organiser preset file (`-MatchFile`, as DLF has); stage text in other languages; an Escape-menu Watch tab (the user asked, then preferred demo playback; research notes in PLAN "Later").
 
 ## Changelog
+
+### 2026-10-25 (source only, not released)
+
+- **Performance, phase 1** of [decisions/postgame-identity-perf-plan.md](decisions/postgame-identity-perf-plan.md). The plan was debated with m2, with live probes P0-P8 on client 6819.
+  - **Sleeping:** the world bars work only when needed. The column's `OH_DEBUFF_CONFIG` now carries `watch` and `wake`. While not spectating every bar sleeps; before, a PC that played with pak10 installed kept every hero bar at its 0.25 s poll (310.5 → 4.3 us/s).
+  - **Hero bars** read a signature (child count and last child id; live P5: stuns and listed statuses always arrive as new panels) between 2 s full samples. They re-read the shown radials, stacks and name every 0.5 s, and pulse and `minStacks` rules at every poll.
+  - **Idle bars** keep the 2 s class re-check for 30 s after load, spectating or a wake, then 4 s. The column wakes them when its cards change or a card loses `.Dead` (a respawn).
+  - **Cost:** spectating 361 → 216.2 us/s, counting down 483.8 → 274.3.
+  - **Validator:**
+    - budgets are now weighted by live per-call cost;
+    - `GetChildCount` and `Children()`'s child wrappers count;
+    - a new playing scenario;
+    - a new check `column: latency floors` (worst of four phases: onset, stun, removal, stacks and pulse within 0.3 s, respawn within 1.6 s, spectating again within 1.5 s); a mutation of each new path failed it;
+    - `OH_ATTRIB=1` prints the cost per function.
+  - **Live run** (demo 121685912, temporary counters, removed): hero bars did about 103 quick polls and 15 full samples per 30 s, using 0-8 ms of JS time per bar per 30 s. The column kept showing statuses. No sample errors.
+  - **Why not 90 %:** the remaining cost is mostly the 0.25 s poll itself (a `$.Schedule` per hero bar, about 1 us each) plus the host placement. The 90 % target is not reachable while keeping a 0.25 s stun onset. Measured with the DEV world-bar poll at 0.5 s: spectating 176.6 and counting down 235 us/s (−51 % against the old 0.25 s numbers).
 
 ### 2026-10-24 (source only, not released)
 

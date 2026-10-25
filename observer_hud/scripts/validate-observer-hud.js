@@ -128,10 +128,23 @@ const results = { checks: [], runs: [], budgets: null };
 // child count watch plus one rows pass a second: spectating 1129.4, countdown 1471.0. Ultimate cooldown
 // (2026-10-23): each card's source label is read at 2 Hz while spectating (24 text reads and 2 schedules a
 // second): spectating 1155.4, countdown 1497.0. Re-measure before raising.
-const BUDGET_SPECTATING = 1156;
-const BUDGET_IDLE = 12;
-const BUDGET_COUNTDOWN = 1498;
-const BUDGET_AFTER = 15; // spectated, then back to playing
+// 2026-10-25 (phase 1 of decisions/postgame-identity-perf-plan.md): the budgets are weighted, in
+// microseconds of native time per second. Each counted operation is priced at its live per-call cost
+// (P0 probe, client 6819, 20k-call loops). Raw calls are still printed beside them. GetChildCount
+// (formerly "traversal" only) and Children()'s child wrappers now count; subtree node visits are
+// priced per node.
+const WEIGHT_NS = {
+  boundaryValidityCalls: 50, classReads: 400, classWrites: 1150, textReads: 225, textWrites: 750, styleReads: 650,
+  styleWrites: 1150, parentReads: 325, childrenReads: 350, childWrappers: 140, childCountReads: 200,
+  layoutWidthReads: 250, positions: 1000, schedules: 1000, boundaryQueries: 350, nodeVisits: 10, moveChildCalls: 1000,
+  parentWrites: 1000, cancellations: 1000, other: 400
+};
+const RAW_EXCLUDED = new Set(["childWrappers", "nodeVisits"]);
+// Measured 2026-10-25 before -> after the quick-poll world sampler, the watch gate and the respawn wake:
+// spectating 361 -> 216.2, counting down 483.8 -> 274.3, playing with pak10 installed 310.5 -> 4.3,
+// not spectating 4.3, after spectating 4.8 us/s. Re-measure before raising.
+const BUDGET_US = { spectating: 222, countdown: 280, idle: 6, after: 6, playing: 6 };
+const ATTRIB = { on: !!process.env.OH_ATTRIB, map: new Map() };
 
 let lastLogs = null;
 // Engine model (ENGINE.md, live 2026-10-23): after style.visibility = "collapse", writing null clears the
@@ -526,9 +539,11 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     for (const child of effects.children.slice()) child.DeleteAsync();
     loadInto(effects, OWN.status);
     const container = effects.FindChild("StatusEffectContainer");
-    const samples = { count: 0 };
-    const children = container.Children.bind(container);
-    container.Children = () => { samples.count++; return children(); };
+    const samples = { count: 0, quick: 0, get polls() { return this.count + this.quick; } };
+    // Through the prototype at call time, so the budget check's Children() accounting sees these reads.
+    // count: full samples (Children); quick: signature polls (GetChildCount, oh_debuff_world.js quick()).
+    container.Children = () => { samples.count++; return MockPanel.prototype.Children.call(container); };
+    container.GetChildCount = () => { samples.quick++; return MockPanel.prototype.GetChildCount.call(container); };
     const unit = { holder, dialog, effects, container, samples, name };
     units[name] = unit;
     runIn(effects, [["oh_debuff_world.js", script("oh_debuff_world.js")]]);
@@ -3328,6 +3343,91 @@ check("column: late hero class, recycled bars, HUD lists, forged and stale messa
   deq(w.icons("Mole"), []);
 });
 
+// Latency floors for the quick-poll world sampler (phase 1 of decisions/postgame-identity-perf-plan.md).
+// How it could fail: a status that keeps the child count (a refreshed radial, a stack change) waits for
+// the 2 s full sample; a stun or listed status waits for the full sample; a removal lingers; an idle bar
+// that becomes a hero (a respawn on another world panel) waits for the slow 4 s cap; bars keep polling
+// while the PC plays; spectating starts with sleeping bars.
+check("column: latency floors hold with quick polls (onset, stun, removal, stacks, pulse, respawn, playing)", () => {
+  const w = statusWorld();
+  for (const name of [...AMBER, ...SAPPHIRE]) w.giveDebuff(name, "upgrade_extra_regen", { debuff: false });
+  w.advance(35000); // past the 30 s wake window: steady state
+  // Milliseconds until cond() holds, in 25 ms steps, at most `limit`.
+  const until = (cond, limit) => {
+    for (let t = 0; t <= limit; t += 25) {
+      if (cond()) return t;
+      w.advance(25);
+    }
+    return Infinity;
+  };
+  const petrify = w.giveDebuff("Kestrel", "ability_viper_petrifybola");
+  const onset = until(() => w.icons("Kestrel").length === 1, 1000);
+  assert.ok(onset <= 300, `listed status onset ${onset} ms`);
+  w.giveDebuff("Doyle", "ability_viper_petrifybola", { css: "stunned" });
+  const stun = until(() => w.shownSlots("Doyle").some((slot) => slot.BHasClass("OHStun")), 1000);
+  assert.ok(stun <= 300, `stun onset ${stun} ms`);
+  petrify.DeleteAsync();
+  const gone = until(() => w.icons("Kestrel").length === 0, 1000);
+  assert.ok(gone <= 300, `removal ${gone} ms`);
+  // The rest are measured at several phases of the poll cycles and the worst one counts (one lucky
+  // phase must not hide a slow path).
+  const mark = w.giveDebuff("Moth", "mirage_sand_phantom", { stacks: "5" });
+  w.advance(2500); // a full sample has seen the 5-stack panel
+  deq(w.icons("Moth"), [], "5 stacks: not yet");
+  let stacks = 0;
+  for (let phase = 0; phase < 4; phase++) {
+    mark.setStacks("5");
+    assert.ok(until(() => w.icons("Moth").length === 0, 3000) < Infinity, "below 8 stacks again");
+    w.advance(2500 + phase * 130);
+    mark.setStacks("8");
+    stacks = Math.max(stacks, until(() => w.icons("Moth").length === 1, 3000));
+  }
+  assert.ok(stacks <= 300, `stack threshold ${stacks} ms (same panel, same count)`);
+  // Shining Wonder: a refresh keeps the panel and the count; the pulse must still come within a poll.
+  let pulses = 0;
+  let hit = w.harness.now;
+  w.giveDebuff("Volt", "ability_unicorn_dazzlingorb", { radial: (now) => Math.min(0, -360 + ((now - hit) / 4000) * 360) });
+  w.advance(1200);
+  for (const slot of w.slots("Volt")) {
+    const add = slot.AddClass.bind(slot);
+    slot.AddClass = (cls) => { if (cls === "OHPulse") pulses++; return add(cls); };
+  }
+  let pulse = 0;
+  for (let phase = 0; phase < 4; phase++) {
+    w.advance(700 + phase * 130);
+    const before = pulses;
+    hit = w.harness.now;
+    pulse = Math.max(pulse, until(() => pulses > before, 3000));
+  }
+  assert.ok(pulse <= 300, `refresh pulse ${pulse} ms`);
+  // A respawn: an idle non-hero bar (past its wake window, on the slow cap) becomes a hero bar while the
+  // hero's card loses .Dead; the column wakes the bars.
+  const spare = w.addBar("Talon", { hero: false });
+  w.giveDebuff("Talon", "ability_viper_petrifybola");
+  w.advance(35000);
+  const card = w.card("Kestrel");
+  let respawn = 0;
+  for (let phase = 0; phase < 4; phase++) {
+    spare.holder.RemoveClass("CLASS_PLAYER");
+    card.AddClass("Dead");
+    w.advance(40000 + phase * 1000); // back on the slow cap, at a new phase
+    spare.holder.AddClass("CLASS_PLAYER");
+    card.RemoveClass("Dead");
+    respawn = Math.max(respawn, until(() => w.icons("Talon").length === 1, 6000));
+  }
+  assert.ok(respawn <= 1600, `respawn pickup ${respawn} ms (column check once a second, then a wake)`);
+  // Back to playing: every world bar stops; spectating again wakes them within a column tick.
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2000);
+  const polls = w.units.Kestrel.samples.polls + w.units.Talon.samples.polls;
+  w.advance(10000);
+  assert.equal(w.units.Kestrel.samples.polls + w.units.Talon.samples.polls, polls, "no world polls while playing");
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.AddClass(cls);
+  w.giveDebuff("Kestrel", "ability_viper_petrifybola");
+  const back = until(() => w.icons("Kestrel").length === 1, 4000);
+  assert.ok(back <= 1500, `spectating again: ${back} ms`);
+});
+
 check("editor: pages in match-day order; scope by look; stock pill and switch states follow the state", () => {
   const w = world();
   w.bootHost();
@@ -3469,45 +3569,88 @@ check("column: the DEV switch and poll reach every world bar; OFF stops publishi
   w.press("OHDebuffToggle");
   w.advance(1500);
   deq(w.icons("Geist"), []);
-  const scans = w.units.Geist.samples.count;
+  const scans = w.units.Geist.samples.polls;
   w.advance(5000);
-  assert.equal(w.units.Geist.samples.count, scans, "OFF: no scans");
+  assert.equal(w.units.Geist.samples.polls, scans, "OFF: no scans");
   w.press("OHDebuffToggle");
   w.press("OHPollUp"); // 250 -> 500 ms
   w.advance(2000);
   deq(w.icons("Geist"), [PETRIFY]);
-  const a = w.units.Geist.samples.count;
+  const a = w.units.Geist.samples.polls;
   w.advance(10000);
-  const rate = w.units.Geist.samples.count - a;
-  assert.ok(rate >= 18 && rate <= 22, `0.5 s poll: ${rate} scans in 10 s`);
+  const rate = w.units.Geist.samples.polls - a;
+  assert.ok(rate >= 18 && rate <= 22, `0.5 s poll: ${rate} polls in 10 s`);
 });
 
 // ---------------------------------------------------------------- budgets
 
 check("steady state: no writes while nothing changes; native calls per second under the budgets", () => {
   let nodes = 0; // subtree node visits of the last counted window
+  // Counts every crossing the scripts make, including the ones the shared adapter books only as
+  // "traversal" (GetChildCount) and the child wrappers Children() allocates (live P0: about 140 ns each).
+  // OH_ATTRIB=1 prints the weighted cost per script function for each counted window (dev aid).
+  const blame = (key, n) => {
+    if (!ATTRIB.on || !(n > 0)) return;
+    const match = /at (\S+) \((oh_[a-z_]+\.js):(\d+)/.exec(new Error().stack || "");
+    const where = match ? `${match[2]} ${match[1]}` : "(adapter/other)";
+    ATTRIB.map.set(where, (ATTRIB.map.get(where) || 0) + n * (WEIGHT_NS[key] ?? WEIGHT_NS.other));
+  };
   const counted = (harness) => {
     let positions = 0;
-    const position = MockPanel.prototype.GetPositionWithinWindow;
-    MockPanel.prototype.GetPositionWithinWindow = function () {
+    let childCountReads = 0;
+    let childWrappers = 0;
+    const proto = MockPanel.prototype;
+    const position = proto.GetPositionWithinWindow;
+    const childCount = proto.GetChildCount;
+    const childrenOf = proto.Children;
+    ATTRIB.map = new Map();
+    if (ATTRIB.on) {
+      const counts = harness.operationCounts;
+      for (const key of Object.keys(WEIGHT_NS).concat(["findTraversals", "classTraversalNodes"])) {
+        let value = counts[key] || 0;
+        Object.defineProperty(counts, key, { configurable: true, enumerable: true, get: () => value,
+          set: (next) => { blame(key === "findTraversals" || key === "classTraversalNodes" ? "nodeVisits" : key, next - value); value = next; } });
+      }
+    }
+    proto.GetPositionWithinWindow = function () {
       positions++;
+      blame("positions", 1);
       const { parentReads, boundaryValidityCalls } = harness.operationCounts;
       const result = position.call(this);
       Object.assign(harness.operationCounts, { parentReads, boundaryValidityCalls });
       return result;
     };
+    proto.GetChildCount = function () {
+      childCountReads++;
+      blame("childCountReads", 1);
+      return childCount.call(this);
+    };
+    proto.Children = function () {
+      const list = childrenOf.call(this);
+      childWrappers += list.length;
+      blame("childWrappers", list.length);
+      return list;
+    };
     return () => {
-      MockPanel.prototype.GetPositionWithinWindow = position;
-      const ops = Object.assign({}, harness.operationCounts, { positions });
-      // Subtree walks (mock DFS node visits): reported on their own (nodes), never in the totals, since
-      // they are cheap native compares, not JS<->native crossings; compare them as a before/after ratio.
+      proto.GetPositionWithinWindow = position;
+      proto.GetChildCount = childCount;
+      proto.Children = childrenOf;
+      const ops = Object.assign({}, harness.operationCounts, { positions, childCountReads, childWrappers });
       nodes = (ops.findTraversals || 0) + (ops.classTraversalNodes || 0);
       for (const key of ["traversal", "findTraversals", "classTraversalNodes"]) delete ops[key];
+      ops.nodeVisits = nodes;
+      if (ATTRIB.on) {
+        const top = [...ATTRIB.map].sort((a, b) => b[1] - a[1]).slice(0, 25);
+        console.log(`   [attrib] top functions, us/s over a 10 s window:\n${top.map(([where, ns]) => `     ${(ns / 1e4).toFixed(1).padStart(6)}  ${where}`).join("\n")}`);
+      }
       return Object.fromEntries(Object.entries(ops).filter(([, value]) => value));
     };
   };
   const per = (ops, seconds) => Object.fromEntries(Object.entries(ops).map(([key, value]) => [key, Math.round(value / seconds * 10) / 10]));
-  const total = (ops) => Math.round(Object.values(ops).reduce((sum, value) => sum + value, 0) * 10) / 10;
+  // Raw calls: every JS<->native crossing (child wrappers and subtree node visits are not crossings).
+  const total = (ops) => Math.round(Object.entries(ops).reduce((sum, [key, value]) => sum + (RAW_EXCLUDED.has(key) ? 0 : value), 0) * 10) / 10;
+  // Weighted: microseconds of native time per second, from the live per-call costs (P0).
+  const weighted = (ops) => Math.round(Object.entries(ops).reduce((sum, [key, value]) => sum + value * (WEIGHT_NS[key] ?? WEIGHT_NS.other), 0) / 100) / 10;
   const reset = (w) => { for (const key of Object.keys(w.harness.operationCounts)) w.harness.operationCounts[key] = 0; };
 
   // Not spectating: the host only checks the HUD classes.
@@ -3529,10 +3672,26 @@ check("steady state: no writes while nothing changes; native calls per second un
   stop = counted(left.harness);
   left.advance(10000);
   const leftSpectating = per(stop(), 10);
-  console.log(`   after spectating ${total(leftSpectating)}/s ${JSON.stringify(leftSpectating)}`);
+  console.log(`   after spectating ${weighted(leftSpectating)} us/s, ${total(leftSpectating)} calls/s ${JSON.stringify(leftSpectating)}`);
   assert.equal(leftSpectating.textWrites || 0, 0);
   assert.equal(leftSpectating.styleWrites || 0, 0);
-  assert.ok(total(leftSpectating) <= BUDGET_AFTER, `after spectating: ${total(leftSpectating)}/s`);
+  assert.ok(weighted(leftSpectating) <= BUDGET_US.after, `after spectating: ${weighted(leftSpectating)} us/s`);
+
+  // Playing (not spectating) with pak10 installed: the world healthbars exist and carry statuses, but
+  // nothing of this mod shows. Before 2026-10-25 every hero bar kept its 0.25 s poll here.
+  const playing = statusWorld({ spectating: false });
+  for (const name of [...AMBER, ...SAPPHIRE]) {
+    playing.giveDebuff(name, "ability_viper_petrifybola", { radial: () => -180 });
+    playing.giveDebuff(name, "upgrade_extra_regen", { debuff: false });
+  }
+  for (let i = 0; i < 60; i++) playing.addBar(`trooper${i}`, { hero: false });
+  playing.advance(8000);
+  reset(playing);
+  stop = counted(playing.harness);
+  playing.advance(10000);
+  const playingOps = per(stop(), 10);
+  console.log(`   playing ${weighted(playingOps)} us/s, ${total(playingOps)} calls/s ${JSON.stringify(playingOps)}`);
+  assert.ok(weighted(playingOps) <= BUDGET_US.playing, `playing: ${weighted(playingOps)} us/s`);
 
   // Spectating with a full setup and nothing changing: bar, aliases, column, 12 hero bars with a
   // listed status and an unlisted one each (real bars carry item and regen statuses outside RULES),
@@ -3551,7 +3710,8 @@ check("steady state: no writes while nothing changes; native calls per second un
   }
   for (let i = 0; i < 60; i++) w.addBar(`trooper${i}`, { hero: false });
   for (const list of findAll(w.hud, "CitadelStatusEffect")) w.runIn(list, [["oh_debuff_world.js", script("oh_debuff_world.js")]]);
-  w.advance(8000);
+  // Past the world bars' 30 s wake window (the steady state of most of a match).
+  w.advance(35000);
   reset(w);
   stop = counted(w.harness);
   w.advance(10000);
@@ -3567,21 +3727,23 @@ check("steady state: no writes while nothing changes; native calls per second un
   stop = counted(w.harness);
   w.advance(10000);
   const countdown = per(stop(), 10);
-  results.budgets = { notSpectating, notSpectatingTotal: total(notSpectating), spectating, spectatingTotal: total(spectating),
-    countdown, countdownTotal: total(countdown), spectatingNodes };
-  console.log(`   not spectating ${total(notSpectating)}/s ${JSON.stringify(notSpectating)}`);
-  console.log(`   spectating ${total(spectating)}/s ${JSON.stringify(spectating)} (subtree node visits ${spectatingNodes}/s)`);
-  console.log(`   counting down ${total(countdown)}/s ${JSON.stringify(countdown)}`);
+  results.budgets = { notSpectating, notSpectatingTotal: total(notSpectating), notSpectatingUs: weighted(notSpectating),
+    spectating, spectatingTotal: total(spectating), spectatingUs: weighted(spectating),
+    countdown, countdownTotal: total(countdown), countdownUs: weighted(countdown),
+    after: leftSpectating, afterUs: weighted(leftSpectating), playing: playingOps, playingUs: weighted(playingOps), spectatingNodes };
+  console.log(`   not spectating ${weighted(notSpectating)} us/s, ${total(notSpectating)} calls/s ${JSON.stringify(notSpectating)}`);
+  console.log(`   spectating ${weighted(spectating)} us/s, ${total(spectating)} calls/s ${JSON.stringify(spectating)} (subtree node visits ${spectatingNodes}/s)`);
+  console.log(`   counting down ${weighted(countdown)} us/s, ${total(countdown)} calls/s ${JSON.stringify(countdown)}`);
   assert.equal(notSpectating.textWrites || 0, 0);
   assert.equal(notSpectating.styleWrites || 0, 0);
-  assert.ok(total(notSpectating) <= BUDGET_IDLE, `not spectating: ${total(notSpectating)}/s`);
+  assert.ok(weighted(notSpectating) <= BUDGET_US.idle, `not spectating: ${weighted(notSpectating)} us/s`);
   assert.equal(spectating.textWrites || 0, 0, "steady state writes no text");
   assert.equal(spectating.styleWrites || 0, 0, "steady state writes no styles");
   assert.equal(spectating.classWrites || 0, 0, "steady state writes no classes");
   // 12 hero bars (a listed and an unlisted status each, CLASS_PLAYER on the world panel as live) at the
   // 0.25 s poll, 60 idle bars, the column and the host tick. Re-measure before raising.
-  assert.ok(total(spectating) <= BUDGET_SPECTATING, `spectating budget: ${total(spectating)}/s`);
-  assert.ok(total(countdown) <= BUDGET_COUNTDOWN, `countdown budget: ${total(countdown)}/s`);
+  assert.ok(weighted(spectating) <= BUDGET_US.spectating, `spectating budget: ${weighted(spectating)} us/s`);
+  assert.ok(weighted(countdown) <= BUDGET_US.countdown, `countdown budget: ${weighted(countdown)} us/s`);
 });
 
 const out = path.join(REPO, ".tmp", "observer-hud-validate.json");

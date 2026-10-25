@@ -34,6 +34,10 @@
   const HEARTBEAT_MS = 4000;
   const IDLE_FIRST_S = 0.5;
   const IDLE_MAX_S = 2;
+  const IDLE_SLOW_S = 4; // an idle bar's cap once WAKE_WINDOW_MS has passed without a wake
+  const WAKE_WINDOW_MS = 30000;
+  const FULL_MS = 2000; // a hero bar's full sample at least this often (quick polls in between)
+  const RADIAL_MS = 500; // the shown statuses' radials and stacks between full samples
   const MAX_KEYS = 8;
   const MAX_COUNT = 99;
   const END_JITTER_MS = 400;
@@ -138,6 +142,17 @@
   let hitSeq = 0;
   let muted = new Set();
   let carrierIsRoot = true; // CLASS_PLAYER was last seen on the world panel (else on the dialog)
+  // Quick polls (2026-10-25, phase 1 of decisions/postgame-identity-perf-plan.md): see quick().
+  let watch = true; // spectating (OH_DEBUFF_CONFIG watch); false sleeps the loop
+  let wake = 0; // the column's wake counter: a change re-checks idle bars at once
+  let awakeAt = Date.now(); // load or the last wake: the 2 s idle cap holds for WAKE_WINDOW_MS after it
+  let tracked = []; // the shown status panels of the last full sample: { effect, found, slot, key, rule, stun, debuff }
+  let trackedFast = false; // a shown status needs every poll (pulse or minStacks rule)
+  let shownName = ""; // the in-game name of the last full sample
+  let listSig = ""; // "<child count>|<last child id>" of the last full sample
+  let fullAt = 0;
+  let radialAt = 0;
+  let quickOk = false; // a hero bar with a full sample to compare against
 
   const valid = (panel) => {
     try {
@@ -147,19 +162,23 @@
     }
   };
 
-  // The hero overlay this list belongs to, or null. Cheap: one parent read and one class read (a panel
-  // GetParent() just returned is live: no validity call).
+  // The hero overlay this list belongs to, or null. Cheap: the cached overlay is validated (a bar stays
+  // in its overlay; the engine recycles the whole world panel), so a re-check costs one validity call and
+  // one class read; the parent is read only until the overlay is known.
   function heroDialog() {
-    const parent = context.GetParent();
-    if (!parent || (parent.paneltype || parent.type) !== "ClientUIDialogPanel") return null;
-    if (parent !== dialog) {
-      restoreName();
-      if (valid(realLabel)) realLabel.DeleteAsync(0);
-      realLabel = null;
-      dialog = parent;
-      root = parent.GetParent();
-      namePanel = null;
-      carrierIsRoot = true;
+    let parent = dialog;
+    if (!parent || !valid(parent)) {
+      parent = context.GetParent();
+      if (!parent || (parent.paneltype || parent.type) !== "ClientUIDialogPanel") return null;
+      if (parent !== dialog) {
+        restoreName();
+        if (valid(realLabel)) realLabel.DeleteAsync(0);
+        realLabel = null;
+        dialog = parent;
+        root = parent.GetParent();
+        namePanel = null;
+        carrierIsRoot = true;
+      }
     }
     if (!valid(root)) return null;
     // The unit class sits on the overlay root or on the world panel above it (live: the world panel).
@@ -363,7 +382,9 @@
       announced = false;
       if (!dialog && inHud()) return -1;
       const delay = idleS;
-      idleS = Math.min(idleS * 2, IDLE_MAX_S);
+      // The 2 s cap holds for WAKE_WINDOW_MS after load or a wake (the hero class lands up to ~15 s late,
+      // ENGINE.md); after that an idle bar re-checks every IDLE_SLOW_S until the column wakes it.
+      idleS = Math.min(idleS * 2, Date.now() - awakeAt < WAKE_WINDOW_MS ? IDLE_MAX_S : IDLE_SLOW_S);
       return delay;
     }
     idleS = IDLE_FIRST_S;
@@ -379,12 +400,15 @@
     }
     if (log && name) logStatuses(name, list);
     if (!on) {
+      // Icons off: only the alias on the name label is kept up (once a second is plenty for a name).
       publish("", []);
       if (muted.size) unmuteAll();
-      return pollMs / 1000;
+      return 1;
     }
+    const now = Date.now();
     const byKey = new Map();
     const seen = new Map();
+    const nextTracked = [];
     // Children() returns live panels, so they are not checked again this sample; statusList() already
     // validated the list.
     const children = list ? list.Children() : [];
@@ -407,33 +431,54 @@
       if (!stun && !debuff && !rule.buff) continue;
       if (rule.ignore && rule.ignore.some((cls) => effect.BHasClass(cls))) continue;
       const slot = stun ? key + "#stun" : key;
-      let entry = byKey.get(slot);
-      if (!entry) {
-        if (byKey.size >= MAX_KEYS) continue;
-        byKey.set(slot, (entry = { key, rule, stun, debuff: false, panels: 0, stacks: 0, angle: null, hit: false }));
-      }
+      if (!byKey.has(slot) && byKey.size >= MAX_KEYS) continue;
       const known = parts.has(effect);
       const found = partsOf(effect);
       seen.set(effect, found);
-      entry.debuff = entry.debuff || debuff;
-      entry.panels++;
-      entry.stacks = Math.max(entry.stacks, stackCount(found.stacks));
-      if (rule.pulse) {
-        // Every panel's radial is read: a new panel or a jump back against the running direction is a hit.
-        const angle = radialAngle(found.border);
-        if (!known) entry.hit = true;
-        else if (angle !== null && found.angle !== null) {
-          const delta = angle - found.angle;
-          if (found.dir && delta * found.dir < -REFRESH_DEG) entry.hit = true;
-          else if (Math.abs(delta) >= 1) found.dir = delta > 0 ? 1 : -1;
-        }
-        found.angle = angle;
-        if (entry.angle === null) entry.angle = angle;
-      } else if (entry.angle === null) entry.angle = radialAngle(found.border);
+      const item = { effect: effect, found: found, slot: slot, key: key, rule: rule, stun: stun, debuff: debuff };
+      nextTracked.push(item);
+      accumulate(byKey, item, known);
     }
     muted = nextMuted;
     parts = seen;
-    const now = Date.now();
+    tracked = nextTracked;
+    trackedFast = tracked.some((item) => item.rule.pulse || item.rule.minStacks);
+    shownName = name;
+    // The signature the quick polls compare (live P5: new statuses arrive as new panels).
+    listSig = children.length ? `${children.length}|${children[children.length - 1].id}` : "0";
+    fullAt = now + FULL_MS;
+    radialAt = now + RADIAL_MS;
+    // The status log reads every panel at every poll; it never takes the quick path.
+    quickOk = !!name && !log;
+    publish(name, buildItems(byKey, now));
+    return pollMs / 1000;
+  }
+
+  // One shown status panel into its ability's entry: panels, stacks, the radial and (pulse rules) hits.
+  function accumulate(byKey, item, known) {
+    let entry = byKey.get(item.slot);
+    if (!entry) {
+      byKey.set(item.slot, (entry = { key: item.key, rule: item.rule, stun: item.stun, debuff: false, panels: 0, stacks: 0, angle: null, hit: false }));
+    }
+    const found = item.found;
+    entry.debuff = entry.debuff || item.debuff;
+    entry.panels++;
+    entry.stacks = Math.max(entry.stacks, stackCount(found.stacks));
+    if (item.rule.pulse) {
+      // Every panel's radial is read: a new panel or a jump back against the running direction is a hit.
+      const angle = radialAngle(found.border);
+      if (!known) entry.hit = true;
+      else if (angle !== null && found.angle !== null) {
+        const delta = angle - found.angle;
+        if (found.dir && delta * found.dir < -REFRESH_DEG) entry.hit = true;
+        else if (Math.abs(delta) >= 1) found.dir = delta > 0 ? 1 : -1;
+      }
+      found.angle = angle;
+      if (entry.angle === null) entry.angle = angle;
+    } else if (entry.angle === null) entry.angle = radialAngle(found.border);
+  }
+
+  function buildItems(byKey, now) {
     const items = [];
     for (const [slot, entry] of byKey) {
       if (!entry.stun && entry.stacks < (entry.rule.minStacks || 0)) {
@@ -448,8 +493,48 @@
     }
     for (const key of fits.keys()) if (!byKey.has(key)) fits.delete(key);
     for (const key of hits.keys()) if (!byKey.has(key)) hits.delete(key);
-    publish(name, items);
+    return items;
+  }
+
+  // Between full samples a hero bar reads only its status list's signature: the child count and the
+  // last child's id (live P5, client 6819: every stun and every listed status arrived as a new panel; no
+  // reorder, id change or visibility flip was seen). The statuses it shows are re-read for their radial
+  // and stacks every RADIAL_MS (the end fit takes samples FIT_GAP_MS apart), at every poll for pulse
+  // and minStacks rules (a refresh or a stack keeps the count). At the same RADIAL_MS the in-game name is
+  // compared while it matters (an alias exists or a status shows): a bar the engine gave to another hero
+  // takes a full sample. A full sample also runs on a changed signature and every FULL_MS (classes,
+  // recycled bars). Returns the delay, or -1 for a full sample.
+  function quick(now) {
+    if (now >= fullAt || !valid(container)) return -1;
+    const count = container.GetChildCount();
+    const last = count ? container.GetChild(count - 1) : null;
+    if ((count ? `${count}|${last ? last.id : ""}` : "0") !== listSig) return -1;
+    const due = now >= radialAt;
+    if (due) {
+      radialAt = now + RADIAL_MS;
+      if ((aliases.size || tracked.length) && realName().toUpperCase() !== shownName) return -1;
+    }
+    if (tracked.length && (trackedFast || due)) {
+      const byKey = new Map();
+      for (const item of tracked) accumulate(byKey, item, true);
+      publish(shownName, buildItems(byKey, now));
+    }
     return pollMs / 1000;
+  }
+
+  // Nothing to do (not spectating, or icons off with no alias): clear what this bar sent, give the stock
+  // name and stun panels back, and stop until a config message wakes the loop.
+  function sleep() {
+    try {
+      publish("", []);
+      restoreName();
+      if (muted.size) unmuteAll();
+    } catch (e) { /* a bar going away */ }
+    parts = new Map();
+    fits = new Map();
+    hits = new Map();
+    tracked = [];
+    quickOk = false;
   }
 
   function schedule(delayS) {
@@ -465,10 +550,20 @@
       context.OHDebuffStop();
       return;
     }
+    // Only while spectating, and only when there is something to show: icons, or an alias.
+    if (!watch || (!on && !aliases.size)) {
+      sleep();
+      return;
+    }
     let delay = IDLE_MAX_S;
     try {
-      delay = sample();
+      delay = quickOk ? quick(Date.now()) : -1;
+      if (delay < 0) {
+        quickOk = false;
+        delay = sample();
+      }
     } catch (e) {
+      quickOk = false;
       if (!errorShown) {
         errorShown = true;
         $.Msg(`${TAG} sample error: ${e && e.message ? e.message : e}`);
@@ -493,19 +588,36 @@
     if (!message || message.magic_word !== "OH_DEBUFF_CONFIG" || typeof message.on !== "boolean" ||
         !Number.isInteger(message.poll) || message.poll < MIN_POLL_MS || message.poll > MAX_POLL_MS) return;
     const nextLog = message.log === true;
-    // Aliases apply at the next sample; they alone do not restart the loop.
+    // Older senders have no watch flag: they only ran while spectating.
+    const nextWatch = message.watch !== false;
+    const nextWake = Number.isInteger(message.wake) ? message.wake : wake;
+    // Aliases apply at the next full sample (forced now); they restart the loop only from sleep.
     const nextAliases = parseAliases(message.aliases);
     const nextSig = JSON.stringify([...nextAliases]);
+    const wasActive = watch && (on || aliases.size > 0);
     if (nextSig !== aliasesSig) {
       aliases = nextAliases;
       aliasesSig = nextSig;
+      fullAt = 0;
     }
-    if (message.on === on && message.poll === pollMs && nextLog === log) return;
+    const woken = nextWake !== wake;
+    wake = nextWake;
+    if (message.on === on && message.poll === pollMs && nextLog === log && nextWatch === watch && !woken &&
+        wasActive === (watch && (on || aliases.size > 0))) return;
     on = message.on;
     pollMs = message.poll;
+    const started = nextWatch && !watch;
+    watch = nextWatch;
     if (nextLog !== log) announced = false;
     log = nextLog;
     if (!log) logged = new Map();
+    // A wake (the column saw its cards change: a respawn, a swap, a new map) or the start of spectating
+    // re-checks idle bars now and keeps the 2 s cap for WAKE_WINDOW_MS.
+    if (woken || started) {
+      idleS = IDLE_FIRST_S;
+      awakeAt = Date.now();
+    }
+    quickOk = false;
     generation++;
     tick();
   }
