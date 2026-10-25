@@ -3998,7 +3998,7 @@ function bindAll(label, value) {
 // hovering a column through DispatchPanelEvent shows PostGameGraphTooltip under the dashboard root with
 // "m:ss | <team> | <souls> | (<pct>%) | <team> | ... | <total>", Archmother (team 2) first. Live
 // (demo 121685912) the last column read 171,451 against a totals row of 171,452.
-function boardWorld({ visible = true, disk = null, offline = false, graph = null } = {}) {
+function boardWorld({ visible = true, disk = null, offline = false, graph = null, names = true } = {}) {
   const harness = createPanoramaHarness({ now: 7000000, rootWidth: 1600, rootHeight: 900 });
   lastLogs = harness.logs;
   const bus = [];
@@ -4013,7 +4013,7 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
         else created.attributes[key] = String(value);
       }
       // The engine's CitadelUserName makes one Label with the account's name (live).
-      if (type === "CitadelUserName" && props.accountid) new MockPanel("Label", created, "").__text = `Persona ${props.accountid}`;
+      if (names && type === "CitadelUserName" && props.accountid) new MockPanel("Label", created, "").__text = `Persona ${props.accountid}`;
       return created;
     },
     Schedule: (delay, fn) => harness.scheduler.schedule(delay, () => { frameCheck(); fn(); }),
@@ -4951,6 +4951,76 @@ check("board: the match's card is tied to its match id in the store and kept thr
   deq(names(off), ["Owl Squad", "Saint Squad"]);
   assert.ok(off.web.urls.length <= 14, `${off.web.urls.length} requests offline`);
   assert.ok(noBoardErrors(off) && noBoardErrors(again) && noBoardErrors(late) && noBoardErrors(w));
+});
+
+check("board: player names follow the editor's aliases by Steam account (the saved setup, read in pieces); no alias keeps the account name", () => {
+  // User 2026-10-26: the post-game player names change to the aliases set in the editor, by account id.
+  // How it could fail: the record is only partly read (over one title); an alias lands on the wrong column;
+  // a late read leaves the stock fallback over the plate; a name, pending or legacy alias is used instead of
+  // the account; a damaged record or an offline page throws; the next match keeps the last match's aliases.
+  const S = stateApiOf();
+  const a = pgMatch(121917141);
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  const acct = (m, t, k) => String(m.teams[t][k].account);
+  const recordOf = (players) => {
+    const state = S.defaults();
+    for (let i = 0; i < 20; i++) state.players[String(3000000 + i)] = { a: `Filler Alias Number ${i}`, n: `Filler Name Number ${i}` };
+    Object.assign(state.players, players);
+    for (let i = 0; i < 24; i++) state.legacy[`Legacy Player Name Number ${i}`] = `Legacy Alias Number ${i}`;
+    for (let i = 0; i < 20; i++) state.pending[`Pending Player Name No ${i}`] = `Pending Alias No ${i}`;
+    state.pending[`Persona ${acct(a, 0, 1)}`] = "Pending By Name";
+    const body = JSON.stringify({ s: 1, state });
+    return `OHS1.${S.checksum(body)}.${body}`;
+  };
+  const disk = { [`${V2}state`]: recordOf({ [acct(a, 0, 0)]: { a: "Alias Amber", n: "x" }, [acct(a, 1, 2)]: { a: "Alias Sapphire", n: "y" }, "4294967": { a: "Not Here", n: "z" } }) };
+  assert.ok(disk[`${V2}state`].length > 3000, "the record needs more than one reply");
+  const w = boardWorld({ disk });
+  w.web.loadDelay = 1500; // slower than the 1 s stock-name fallback: the alias must take the plate back
+  w.boot();
+  w.advance(1000);
+  present(w, a);
+  w.advance(6000);
+  const plate = (t, k) => w.scoreboard.FindChildTraverse(`Team${t + 1}`).FindChildTraverse("TeamPlayers").children[k].FindChildTraverse("NSPlate");
+  const shown = (t, k) => {
+    const p = plate(t, k);
+    if (!p || !p.BHasClass("NSAliased") || String(p.style.visibility) === "collapse") return "";
+    const label = p.FindChildTraverse("NSAlias");
+    return label.__text ?? label.text;
+  };
+  deq([shown(0, 0), shown(1, 2)], ["Alias Amber", "Alias Sapphire"], "aliases by account, on the right columns");
+  deq([shown(0, 1), shown(0, 2), shown(1, 0)], ["", "", ""], "no alias for these accounts (a pending alias by name is not used)");
+  // The next match on the reused rows, after the alias was changed in the editor: read again, nothing carried over.
+  disk[`${V2}state`] = recordOf({ [acct(b, 1, 0)]: { a: "Changed Alias", n: "x" } });
+  present(w, b);
+  w.advance(6000);
+  deq([shown(1, 0), shown(0, 0), shown(1, 2)], ["Changed Alias", "", ""], "the next match's aliases only");
+  assert.ok(noBoardErrors(w));
+  // An account name that never shows: the stock-name fallback takes the plate's place after 1 s; the alias,
+  // read later, takes it back.
+  disk[`${V2}state`] = recordOf({ [acct(a, 0, 0)]: { a: "Alias Amber", n: "x" } });
+  const blank = boardWorld({ disk, names: false });
+  blank.web.loadDelay = 1500;
+  blank.boot();
+  blank.advance(1000);
+  present(blank, a);
+  blank.advance(6000);
+  const bp = blank.scoreboard.FindChildTraverse("Team1").FindChildTraverse("TeamPlayers").children[0].FindChildTraverse("NSPlate");
+  assert.ok(bp.BHasClass("NSAliased") && String(bp.style.visibility) !== "collapse", "the alias plate is shown again");
+  assert.ok(noBoardErrors(blank));
+  // A damaged record, or no store: the account names stay, nothing throws.
+  const broken = boardWorld({ disk: { [`${V2}state`]: "OHS1.00000000.{\"s\":1}" } });
+  broken.boot();
+  broken.advance(1000);
+  present(broken, a);
+  broken.advance(6000);
+  assert.equal(broken.scoreboard.FindChildTraverse("Team1").FindChildTraverse("TeamPlayers").children[0].FindChildTraverse("NSPlate").BHasClass("NSAliased"), false, "damaged record: no alias");
+  const off = boardWorld({ disk, offline: true });
+  off.boot();
+  off.advance(1000);
+  present(off, a);
+  off.advance(30000);
+  assert.ok(off.web.urls.length <= 6, `${off.web.urls.length} requests offline`);
+  assert.ok(noBoardErrors(broken) && noBoardErrors(off));
 });
 
 

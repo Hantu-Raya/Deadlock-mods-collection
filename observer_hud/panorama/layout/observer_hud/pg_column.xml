@@ -15,7 +15,10 @@
 			<Panel class="NSAwardTrophy" hittest="false" />
 			<Label id="NSAwardText" class="NSAwardText" text="" />
 		</Panel>
-		<Panel id="NSPlate" class="NSPlate" hittest="false" />
+		<!-- The name: our CitadelUserName (the account name, made by script), or the editor's alias for the account (NSAliased). -->
+		<Panel id="NSPlate" class="NSPlate" hittest="false">
+			<Label id="NSAlias" class="NSAlias" text="" hittest="false" />
+		</Panel>
 		<Panel id="NSCells" class="NSCells" hittest="false" />
 		<Panel id="NSSouls" class="NSSouls" hittest="false" />
 	</Panel>

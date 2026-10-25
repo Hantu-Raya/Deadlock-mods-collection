@@ -413,6 +413,22 @@
 	text-shadow: 0px 0px 0px 3 #10130D;
 }
 
+/* the editor's alias for the account replaces the account name */
+.NSAlias
+{
+	visibility: collapse;
+}
+
+.NSPlate.NSAliased .NSAlias
+{
+	visibility: visible;
+}
+
+.NSPlate.NSAliased CitadelUserName
+{
+	visibility: collapse;
+}
+
 /* stat cells: ledger rows, translucent team tints over the paper, ink rules, Oracle numbers */
 .NSCells
 {

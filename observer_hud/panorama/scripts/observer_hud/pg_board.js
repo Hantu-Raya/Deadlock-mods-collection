@@ -313,7 +313,8 @@
   }
 
   // Player name: our own CitadelUserName (live: shows the account name); if it shows no text
-  // after a second, the stock name block (which ShowRank may extend) is shown instead.
+  // after a second, the stock name block (which ShowRank may extend) is shown instead. The editor's
+  // alias for the account (renderAliases) replaces either.
   function renderName(plate, r, nameBlock, main, column) {
     let own = null;
     try {
@@ -322,7 +323,7 @@
       own = null;
     }
     $.Schedule(1.0, () => {
-      if (stopped || !ok(plate)) return;
+      if (stopped || !ok(plate) || plate.BHasClass("NSAliased")) return;
       if (ok(own) && labelText(own)) return;
       if (!ok(nameBlock)) { logOnce("name:none", "names: no name for a row"); return; }
       hide(plate);
@@ -330,6 +331,46 @@
       main.MoveChildBefore(column, nameBlock);
       logOnce("name:stock", `names: own CitadelUserName empty; showing the stock name ("${labelText(nameBlock)}")`);
     });
+  }
+
+  // ---------- aliases ----------
+  // User 2026-10-26: a player's name follows the alias set in the editor for their Steam account
+  // (state.players[account].a; pending and legacy aliases are by in-game name and are not used here). The
+  // dashboard cannot reach the HUD, so the board reads the saved setup record from the store page (op r, in
+  // pieces under the title cap) once per match and keeps only the account -> alias map.
+  const ALIASES = new Map();
+  const READ_LIMIT = 8192;
+  const RECORD_PREFIX = "OHS1.";
+  // The record ("OHS1.<fnv1a32>.<{s:1,state}>") -> account -> alias; an absent or damaged one gives none.
+  function readAliases(record) {
+    ALIASES.clear();
+    if (typeof record === "string" && record.length <= READ_LIMIT && record.slice(0, 5) === RECORD_PREFIX &&
+        record.charAt(13) === "." && OH.checksum(record.slice(14)) === record.slice(5, 13)) {
+      try {
+        const body = JSON.parse(record.slice(14));
+        if (body && body.s === 1 && body.state && typeof body.state === "object") {
+          const players = OH.normalize(body.state).players;
+          for (const account of Object.keys(players)) if (players[account].a) ALIASES.set(account, players[account].a);
+        }
+      } catch (e) { /* damaged: no aliases */ }
+    }
+    log(`names: ${ALIASES.size} alias(es) by account from the saved setup`);
+    renderAliases();
+  }
+  function renderAliases() {
+    for (const c of S.cols) {
+      if (!ok(c.plate)) continue;
+      const alias = ALIASES.get(c.account) || "";
+      if (alias === (c.alias || "")) continue;
+      c.alias = alias;
+      setText(c.plate.FindChild("NSAlias"), alias);
+      c.plate.SetHasClass("NSAliased", !!alias);
+      // The stock-name fallback may already have taken the plate's place.
+      if (alias && String(c.plate.style.visibility) === "collapse") {
+        css(c.plate, { visibility: "visible" });
+        hide(c.nameBlock);
+      }
+    }
   }
 
   // CitadelModIcon is 51 px (3 px padding + 45 px art) with overflow noclip: forcing a smaller
@@ -435,7 +476,7 @@
       $.CreatePanel("Label", cell, "", { class: "NSCellValue", text: r.text[key], hittest: "false" });
     });
     renderName(column.FindChildTraverse("NSPlate"), r, nameBlock, main, column);
-    S.cols.push({ hero: r.hero, column, souls: column.FindChildTraverse("NSSouls") });
+    S.cols.push({ hero: r.hero, column, souls: column.FindChildTraverse("NSSouls"), plate: column.FindChildTraverse("NSPlate"), nameBlock, account: String(r.account || ""), alias: "" });
   }
 
   // Entrance animations start a frame after the panels are created and laid out (a trigger
@@ -641,7 +682,9 @@
     while (CARDS.handed.length > MAX_CARDS) CARDS.handed.shift();
     storeOp({ o: "u", c: tied, tries: 0 });
   }
-  // A match was built: its 12 accounts, the stock header, a card if one is known, else one store query.
+  // A match was built: its 12 accounts, the stock header, a card if one is known, else one store query;
+  // the cached aliases at once, then one read of the saved setup for this match.
+  let aliasKey = "";
   function identify(m) {
     CARDS.team1 = m.teams[0].rows.map((r) => r.account).filter(Boolean);
     CARDS.team2 = m.teams[1].rows.map((r) => r.account).filter(Boolean);
@@ -651,16 +694,22 @@
     CARDS.applied = undefined; // the header is redrawn for this match
     renderCard(null);
     refreshCard();
-    if (CARDS.applied || CARDS.asked.has(CARDS.key) || CARDS.accounts.length < OH.MATCH_MIN) return;
-    CARDS.asked.add(CARDS.key);
-    storeOp({ o: "q", key: CARDS.key, a: CARDS.accounts.map(Number), id: CARDS.id });
+    renderAliases();
+    if (!CARDS.applied && !CARDS.asked.has(CARDS.key) && CARDS.accounts.length >= OH.MATCH_MIN) {
+      CARDS.asked.add(CARDS.key);
+      storeOp({ o: "q", key: CARDS.key, a: CARDS.accounts.map(Number), id: CARDS.id });
+    }
+    if (CARDS.accounts.length && aliasKey !== CARDS.key) {
+      aliasKey = CARDS.key;
+      storeOp({ o: "r", key: CARDS.key, s: 0, text: "", pages: 0 });
+    }
   }
 
   // The store page (store v2): a hidden CitadelHTMLPanel made only now, when the page shows and there is
   // something to ask or write. One exchange: hello, then each queued op in turn (q: the card for this match's
-  // accounts; s: the stored teams these sides look like, asked only when no card fits; u: a card the editor
-  // wrote), then about:blank. Replies are matched by request id and each q/s by its match key, so a late
-  // one never names the next match. A few hellos, then it gives up (a write is tried once more 10 s later).
+  // accounts; u: a card tied to this match; r: the saved setup record, piece by piece, for the aliases), then
+  // about:blank. Replies are matched by request id and each q/r by its match key, so a late one never names
+  // the next match. A few hellos, then it gives up (a write is tried once more 10 s later).
   const RETRY_S = 10;
   function storePanel() {
     if (ok(ST.panel)) return ST.panel;
@@ -715,6 +764,7 @@
     ST.id = `${op.o}${++ST.seq}`;
     const message = { i: ST.id, o: op.o };
     if (op.o === "q") { message.a = op.a; message.id = op.id; }
+    else if (op.o === "r") message.s = op.s;
     else message.c = op.c;
     try {
       storeSend(message);
@@ -770,6 +820,16 @@
       }
       log(`store: answered, ${CARDS.stored.has(op.key) ? "a card" : "no card"} for the match`);
       if (op.key === CARDS.key) refreshCard();
+    } else if (op.o === "r") {
+      // The record in pieces (v = piece, s = its start, n = the whole length), each under the title cap.
+      const piece = reply.ok === true && reply.x === 1 && typeof reply.v === "string" && reply.s === op.text.length &&
+        Number.isInteger(reply.n) && reply.n >= 0 && reply.n <= READ_LIMIT;
+      if (piece) {
+        const text = op.text + reply.v;
+        if (text.length < reply.n) {
+          if (reply.v.length && op.pages < 8) ST.queue.unshift({ o: "r", key: op.key, s: text.length, text, pages: op.pages + 1 });
+        } else if (op.key === CARDS.key) readAliases(text);
+      } else if (reply.ok === true && reply.x === 0 && op.key === CARDS.key) readAliases(null);
     }
     nextOp();
   }
