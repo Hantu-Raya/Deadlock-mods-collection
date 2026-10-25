@@ -101,6 +101,12 @@ function Get-HpColorsRewriteClosureContract {
         'oh_debuff_relay.js' {
             return @('oh_debuff_message', 'ClientUI_FireOutput')
         }
+        'pg_loader.js' {
+            return @('NSHost', 'observer_hud/pg_board.xml', 'play_btn_grn_flame.webm', 'SetMovie', 'PlayButtonFX')
+        }
+        'pg_board.js' {
+            return @('NSStop', 'CitadelMatchDetailsUpdated', 'CitadelPostGameSelectScreenIndex', 'DispatchPanelEvent', 'PostGameGraphTooltip', 'accountid', 'heroid', 'observer_hud/pg_column.xml', 'PageVisible')
+        }
         default {
             throw "No Closure ADVANCED output contract for Rewrite script: $ScriptName"
         }

@@ -50,6 +50,7 @@ Important lanes:
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
 - `test_hpv2/` — standalone pak04 pickup indicators; read `test_hpv2/AGENTS.md` before changing its runtime, relay layouts, or `build_test_hpv2.ps1`.
 - `feeder_feed/` — pak08 FEEDER FEED tab in the damage report (kill-feed donors/recipients with server bounty and comeback math); read `feeder_feed/AGENTS.md` first.
+- `observer_hud/` — pak10 community-edition observer HUD for organiser-run tournaments, separate from DLF's league branding: two looks picked in its Escape-menu editor (Base Game+ Names, Night Desk with a soul lead graph), injected as a header band and into the stock spectator top bar from `hud_spectate_bar.xml`, plus the ability status column with spectator VData and per-player purchase notices (DLF's, rewritten). It also owns the Night Shift post-game stats board (`pg_*`: the stock post-game Scoreboard screen restyled with exact stats, souls by source, final items and a soul lead graph, read offline from the stock page; never reparent stock rows, that is fatal), shipped only in pak10 (the old standalone pak11 is retired). Read `observer_hud/AGENTS.md` first.
 - `fps/` — gameinfo/ConVar performance research; `fps/gameinfo_bench/` is the A/B benchmark harness. Read `fps/AGENTS.md` (ask before every benchmark launch; user hard limits) first.
 - `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
 - `anitaui/`, `soul_timer/`, `self_hp/`, `passive_items_mod/` — Anita UI settings host, unsecured soul-drain countdown, self health bar override, and passive items driven by generated JS config.
@@ -89,6 +90,11 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
 # Feeder Feed
 node feeder_feed/scripts/validate-feeder-feed.js
 powershell -ExecutionPolicy Bypass -File build_feeder_feed.ps1
+
+# Observer HUD (pak10, community tournaments, with the post-game board)
+node observer_hud/scripts/validate-observer-hud.js
+powershell -ExecutionPolicy Bypass -File build_observer_hud.ps1
+# Board E2E: citadel_match_details <id>, then node observer_hud/scripts/verify-postgame-live.js <metadata.json> - pak10
 
 # HP Colors Rewrite + QOLLOCK compatibility
 node --test scripts/validate-hp-colors-rewrite-qollock.test.js

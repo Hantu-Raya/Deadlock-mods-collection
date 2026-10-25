@@ -18,6 +18,7 @@
     "game/citadel/pak01_dir/panorama/layout/hud_unit_indicators_v2.xml": "769f08e557163d090001eb8666b5c7922c920fb79654076f97688079fa591083",
     "game/citadel/pak01_dir/panorama/layout/hud_data_feed.xml": "6394775637b7702a12588ef187171af42a4df82986dd504912c57a3fe7ff11cf",
     "game/citadel/pak01_dir/panorama/styles/hud_data_feed.css": "102a86b7e1a8b6d184affb9635366d252d4039644cc17d60b9cba9ad2a5d4024",
-    "game/citadel/pak01_dir/panorama/layout/citadel_hud_data_feed_info.xml": "9973979e5b5328f09431bf8deb7f7714bc06d7b6db13fe14266cd6fbd4cfd7ba"
+    "game/citadel/pak01_dir/panorama/layout/citadel_hud_data_feed_info.xml": "9973979e5b5328f09431bf8deb7f7714bc06d7b6db13fe14266cd6fbd4cfd7ba",
+    "game/citadel/pak01_dir/panorama/layout/post_game/citadel_db_page_post_game_new.xml": "9bcdf0f5a64f0e62a84439fb9b502b733de6433117eb6cc8f9537cb037981ac2"
   }
 }

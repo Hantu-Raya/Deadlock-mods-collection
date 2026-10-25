@@ -1,0 +1,33 @@
+{
+  "match": 121917141,
+  "log": "G:/SteamLibrary/steamapps/common/Deadlock/game/citadel/console.log",
+  "checks": {
+    "rows": 60,
+    "series": 40,
+    "souls": 12,
+    "events": 12
+  },
+  "uncovered": [
+    {
+      "team": 0,
+      "id": 10,
+      "t": 1326
+    },
+    {
+      "team": 0,
+      "id": 9,
+      "t": 1517
+    },
+    {
+      "team": 0,
+      "id": 0,
+      "t": 1670
+    },
+    {
+      "team": 0,
+      "id": 11,
+      "t": 1510
+    }
+  ],
+  "failures": []
+}

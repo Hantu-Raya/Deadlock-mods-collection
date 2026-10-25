@@ -218,6 +218,31 @@ The public version is **0.1.0** (`VERSION` in `oh_menu.js`, shown as `#OHVersion
 - Phases: hello, read, then ready, or blocked (damaged or newer save; only RESET ALL overwrites), or unavailable. Hello is re-sent every 2 s; from 30 s the footer says `OFFLINE - SESSION ONLY` and it is re-sent every 5 s; after 3 minutes it gives up until the editor is opened again. A fragment-only URL never reloads a page whose load was lost (an error page), so the panel visits `about:blank` 6 s in and then at doubling gaps (12, 24, ... up to 60 s), and the next hello loads the page afresh. A late answer still loads the save unless an edit came first. Saves throttle at 1.5 s, one request in flight, retries at 2, 4 and 8 s. Status shows in the footer `#OHSaveStatus`.
 - The record is adopted only by a fresh process (`$.OHHost.carried()` false) and only if no edit came first. The page never touches the HP Colors, Buff Timer or DLF keys.
 
+## Post-game board
+
+The Night Shift post-game stats board restyles the stock post-game **Scoreboard** screen into a tournament layout. It ships only in pak10 ([ADR 0009](docs/adr/0009-post-game-board-in-observer-hud.md)); the old standalone pak11 is retired. Engine facts are in [ENGINE.md](ENGINE.md#post-game-page).
+
+- **Contents:** a header with team names, result, net worth, kills, game time and match id. Then 12 player columns with exact stats, the MVP / Key Player slip, souls by source and final items, and a soul lead graph with objective icons. Everything is read offline from the stock page, so it works for any match the page can open, including `citadel_match_details <match_id>` from VConsole.
+- **Files:**
+  - `post_game/citadel_db_page_post_game_new.xml` is the pinned stock page plus the `pg_loader.js` include, minus the flame video `src` (the loader sets it again).
+  - `pg_loader.js` loads `pg_board.xml` into `#NSHost` in `#ScoreboardScreen`.
+  - `pg_board.js` with `pg_board.css` and `pg_column.xml` holds the scan, the render and one column layout per stock row.
+- **Scan:** a hidden label per row bound to `{i:net_worth}|{i:player_kills}|...` gives the exact values; the stock `Award*` classes mark the best cells. Then come the graph tooltips, opened with `DispatchPanelEvent` on the graph columns: the team lead over 40 columns, souls by source per player, and Lane Stats objective times. The scan restores the stock graph type afterwards and takes 0.1-0.5 s. It runs once per match key (match id plus heroes).
+- **Waking:** events act at once; a 1 s check covers everything else.
+  - `CitadelMatchDetailsUpdated` checks at once, then every 0.1 s for 5 s. That covers rows that land a moment after the event, and a page that shows after it.
+  - A screen pick (`CitadelPostGameSelectScreenIndex`) does the same for 1 s. The entrance replays when the Scoreboard screen gains focus, and the graph tooltip gets its opacity back on the Graphs screen.
+  - Otherwise one check a second. While the page shows it reads the first row's bound label, which changes when a new match lands on the reused rows. While the page is hidden it reads only `PageVisible`. Live, reopening a match already loaded this session brought no event, and the Scoreboard pick woke nothing. A board that slept while hidden showed the old match.
+- **Rows:** the stock rows are restyled in place and never reparented. The stock scroll container's `translateY(80px)` is replaced by an 80 px larger margin, so the rows are laid out where they are drawn and every item takes hover.
+- **E2E:** each scan logs `[NS] data rows|series|souls|events` blocks, one item per line. `scripts/verify-postgame-live.js <metadata.json> [console.log|-] [label]` compares the newest blocks with deadlock-api metadata and writes `live/<match>[-<label>]-verify.json`.
+- **Look rules** (user decisions, 2026-10-25; the design was debated with fable51, `.scratch/postgame_restyle/`):
+  - Base-game paper and ink with stock art only: dark paper tiles, rough-edge masks, starbursts, trophies, chalk progress outline.
+  - Portraits: `heroimagestyle="hero_card_gloat"` for the winners, `hero_card_critical` for the losers (`NSLoss`); both gloat if neither team won.
+  - Colour strength: no light grain over coloured fills ("too washed, base game has high vibrance"). The plates use the stock team colours as a vertical fade (#E8920C to #B86A08, #5A86DC to #3A5CA8); graph bars are flat #E8920C / #4D7FE0; souls sources use saturated hues.
+  - Best-of cells: the stock starburst behind an auto-sized label (padding 8px 3px, cell `overflow: noclip`), solid saturated colours, no shine gradients.
+  - Progress bar (`#NSProgress`, outside `#NSFrame`): LOADING MATCH (indeterminate), BUILDING BOARD (20 %), READING GRAPHS i / N, MATCH READ, then a fade. HEALING is `{i:player_healing}` (healing + barrier, like stock).
+  - MVP marks: stock `MVP_Rank1` = MVP, `MVP_Rank2` / `MVP_Rank3` = Key Player.
+- **Not covered offline:** the mid-boss kills and 4 of the 16 objectives (two shrines, one walker, the patron) are not on the page, so they are hidden. The organiser logo slot (`#NSOrgText`) stays empty until match cards arrive (plan phases 3-4).
+
 ## Budgets and logging
 
 - Validator budgets are weighted: microseconds of native time per second, each counted call priced at its live per-call cost (P0 probe, client 6819: `IsValid` 50 ns, `BHasClass` 400, `GetChildCount` 200, `Children()` 350 plus 140 per child, `$.Schedule` 1000, ...; table `WEIGHT_NS`). Raw calls are printed beside them. The live-like scenario has:
@@ -226,7 +251,12 @@ The public version is **0.1.0** (`VERSION` in `oh_menu.js`, shown as `#OHVersion
   - 12 far-away markers and the stock kill feed;
   - the host with band, names (one alias), graph sampling, column and objective health placement.
 
-  Budgets: 222 spectating, 280 while every card counts down (the column's 0.25 s tick), 6 when playing with pak10 installed (world bars and statuses present), 6 after spectating, 6 never spectated. There are zero text, style and class writes in steady state. `OH_ATTRIB=1` prints the weighted cost per script function.
+  Budgets: 222 spectating, 280 while every card counts down (the column's 0.25 s tick), 6 when playing with pak10 installed (world bars and statuses present), 6 after spectating, 6 never spectated. There are zero text, style and class writes in steady state. `OH_ATTRIB=1` prints the weighted cost per script function. The post-game board has its own budget:
+
+  | Board state | Budget | Measured | Old 0.15 s poll |
+  |---|---|---|---|
+  | Page shows, nothing changes | 11 calls/s and 3 us/s | 9 calls/s, 2.3 us/s | 113.9 calls/s, 28 us/s |
+  | Page hidden | 2 us/s | 1.6 us/s | — |
 
   Run of 2026-10-25, before -> after phase 1:
 

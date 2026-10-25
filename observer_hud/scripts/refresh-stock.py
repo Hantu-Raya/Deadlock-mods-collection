@@ -6,10 +6,11 @@
 
 `stock/*.xml` are verbatim stock layouts that the validator boots the mod inside; they are refreshed
 automatically, and so are the generated tables `panorama/scripts/observer_hud/oh_heroes.js` (ban
-picker), `oh_debuff_icons.js` (status column icons) and `oh_item_icons.js` (purchase notice icons). The two overrides
-(`hud_spectate_bar.xml`, `citadel_status_effect.xml`) carry this mod's includes on top of stock; for
-those the script only reports upstream drift. Rebase them by hand (diff the pinned and current stock
-file, port the change), then run --accept.
+picker), `oh_debuff_icons.js` (status column icons) and `oh_item_icons.js` (purchase notice icons). The three overrides
+(`hud_spectate_bar.xml`, `citadel_status_effect.xml`, `post_game/citadel_db_page_post_game_new.xml`) carry this
+mod's includes on top of stock (the post-game page also drops the flame video `src`); for those the script
+only reports upstream drift. Rebase them by hand (diff the pinned and current stock file, port the change),
+then run --accept.
 
 The table builders are DLF's (dlf/scripts/refresh-stock.py): they describe game data, not DLF.
 """
@@ -36,6 +37,7 @@ STOCK = {PANORAMA + f"layout/{name}.xml": f"stock/{name}.xml" for name in (
 OVERRIDDEN = {
     PANORAMA + "layout/hud_spectate_bar.xml": "panorama/layout/hud_spectate_bar.xml",
     PANORAMA + "layout/citadel_status_effect.xml": "panorama/layout/citadel_status_effect.xml",
+    PANORAMA + "layout/post_game/citadel_db_page_post_game_new.xml": "panorama/layout/post_game/citadel_db_page_post_game_new.xml",
 }
 HEROES_OUT = "panorama/scripts/observer_hud/oh_heroes.js"
 ICONS_OUT = "panorama/scripts/observer_hud/oh_debuff_icons.js"

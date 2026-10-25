@@ -3,15 +3,16 @@
 ## Scope and routing
 
 - This lane owns the pak10 observer HUD for community tournaments: two top bar looks (Base Game+ Names, Night Desk), an Escape-menu editor, objective cues and the ability status column. It is for observer PCs only: the pak ships modified ability and modifier VData.
+- It also owns the Night Shift post-game board (`pg_*`, [SPEC.md](SPEC.md#post-game-board)), shipped only in pak10 ([ADR 0009](docs/adr/0009-post-game-board-in-observer-hud.md)). The old standalone `postgame_stats/` lane and its pak11 are retired; never rebuild them.
 - Read [CONTEXT.md](CONTEXT.md) for terms, [SPEC.md](SPEC.md) for behavior, [MAP.md](MAP.md) for status, remaining checks and the changelog. Decisions live in [docs/adr/](docs/adr/); engine evidence in [ENGINE.md](ENGINE.md); native acceptance in [LIVE-VERIFIED.md](LIVE-VERIFIED.md).
 - [README.md](README.md) is the human-facing page, [PLAN.md](PLAN.md) the design history and failure list, [decisions/](decisions/) the spike, objective timer and design notes. Mockups (`designs/`, `tools/`) and the throwaway spike (`spike/`) are not shipped.
 - The status column shares `dlf/spectator-status.json` and `dlf/scripts/spectator_status.py` with DLF. Read `dlf/AGENTS.md` runtime rules before changing the sampler or the column.
 
 ## Source boundaries
 
-- Edit `observer_hud/panorama/`, `scripts/validate-observer-hud.js`, `scripts/refresh-stock.py` and `build_observer_hud.ps1`. Never edit `_observer_hud_build/`, `dist/observer_hud/`, VPKs or archives.
+- Edit `observer_hud/panorama/`, `scripts/validate-observer-hud.js`, `scripts/verify-postgame-live.js`, `scripts/refresh-stock.py` and `build_observer_hud.ps1`. Never edit `_observer_hud_build/`, `dist/observer_hud/`, VPKs or archives.
 - Generated: `panorama/scripts/observer_hud/oh_heroes.js`, `oh_debuff_icons.js` and `oh_item_icons.js` (`py observer_hud/scripts/refresh-stock.py`). `stock/*.xml` and `stock-pin.json` are verbatim pinned GameTracking inputs. When the script reports `REBASE NEEDED` for an override, port the stock change by hand, then run it with `--accept`.
-- pak10 overrides only `hud_spectate_bar.xml`, `citadel_status_effect.xml` and the two VData files `scripts/abilities.vdata_c` and `modifiers.vdata_c`. Everything else is loaded by the host with `BLoadLayout` into panels it creates (`OHBandHost`, `OHBar`, `OHDebuffsHost`, `OHMenuHost`); purchase notices read the stock shop list without overriding the shop layout. Do not override `citadel_hud_top_bar*.xml`, `hud_escape_menu.xml` or `unit_status_overlay_v2.xml` ([ADR 0001](docs/adr/0001-inject-from-hud-spectate-bar.md)); that keeps the mod beside HP Colors, ShowRank, QOLLOCK and Top Bar Plus.
+- pak10 overrides only `hud_spectate_bar.xml`, `citadel_status_effect.xml`, `post_game/citadel_db_page_post_game_new.xml` (the board's page, [ADR 0009](docs/adr/0009-post-game-board-in-observer-hud.md)) and the two VData files `scripts/abilities.vdata_c` and `modifiers.vdata_c`. Everything else is loaded with `BLoadLayout` into panels the scripts create (`OHBandHost`, `OHBar`, `OHDebuffsHost`, `OHMenuHost`, `NSHost`); purchase notices read the stock shop list without overriding the shop layout. Do not override `citadel_hud_top_bar*.xml`, `hud_escape_menu.xml`, `unit_status_overlay_v2.xml` ([ADR 0001](docs/adr/0001-inject-from-hud-spectate-bar.md)) or other post-game layouts (ShowRank owns `citadel_db_post_game_scoreboard_new.xml`); that keeps the mod beside HP Colors, ShowRank, QOLLOCK and Top Bar Plus.
 - The pak slot is pak10 (other slots in use: 01-08, 80, 81, 86, 89, 96-99; PLAN.md). Check for collisions before installing next to another mod.
 - The VData is rebuilt from the installed game on every build. Rebuild and re-release after every Deadlock patch; a renamed ability fails the build. pak10 loses those two files to any lower-numbered pak that also ships them ([ADR 0002](docs/adr/0002-spectator-vdata-in-one-pak.md)).
 
@@ -22,6 +23,8 @@ node observer_hud/scripts/validate-observer-hud.js
 powershell -ExecutionPolicy Bypass -File build_observer_hud.ps1            # dist\observer_hud + dist\Observer_HUD_<yy.MM.dd>.7z
 powershell -ExecutionPolicy Bypass -File build_observer_hud.ps1 -Install   # also installs pak10 on this PC
 py observer_hud/scripts/refresh-stock.py                                   # --check / --accept
+# Board E2E: launch Deadlock (dead.bat -vconsole -insecure), citadel_match_details <id> in VConsole, then
+node observer_hud/scripts/verify-postgame-live.js <metadata.json> - pak10   # writes live/<id>-pak10-verify.json
 ```
 
 - `build_observer_hud.ps1 -GamePak <pak01_dir.vpk>` picks the game pak the VData baseline comes from (default: the installed game). The compiler step has a 300 s timeout and the build checks the required outputs.
@@ -42,8 +45,9 @@ py observer_hud/scripts/refresh-stock.py                                   # --c
 - CSS: keep selectors short in `oh_status_world.css` (a long one failed the whole healthbar layout in DLF). Band labels use `width: fit-children` plus ellipsis and a host `max-width`, never `text-overflow: shrink`. Write the blur out (`world-blur: gaussian(2,2,2)`) where `citadel_base_styles` is not loaded. Details and evidence: [ENGINE.md](ENGINE.md#panorama-styling-behaviour).
 - Logos: one `Image` per URL, shown only after its own `ImageLoaded`; URLs pass `$.OHState.cleanUrl`. A failed or replaced image is deleted and the monogram stays.
 - Toggle collapsed panels with `visible` / `collapse`, not `null` (live 2026-10-22, editor entry). Own panels hidden while a stock panel is missing use the `OHGone` class; the validator fails any check in which a panel's inline visibility goes `collapse` then null.
-- Prefix console output with `[OH]`, `[OH-MENU]` or `[OH-DB]`. Never log logo URLs.
+- Prefix console output with `[OH]`, `[OH-MENU]` or `[OH-DB]`; the post-game board uses `[NS]` (its `[NS] data` lines are the E2E artifact). Never log logo URLs.
 - Keep `RULES` in `oh_debuff_world.js` equal to `dlf/spectator-status.json`; the validator compares them. Each new feature adds a validator check for its failure mode ([PLAN.md](PLAN.md) "How it can fail").
+- Post-game board: never reparent stock scoreboard row children (fatal live); restyle them in place and create own panels inside the rows through `pg_column.xml`. It wakes on `CitadelMatchDetailsUpdated` and `CitadelPostGameSelectScreenIndex`; a hidden page must cost nothing (the `board:` checks). Rules and evidence: [ENGINE.md](ENGINE.md#post-game-page).
 
 ## Storage and hosted page
 

@@ -8,10 +8,12 @@ param(
 
 # Observer HUD (pak10, observer PCs only): two tournament looks on the stock spectator top bar (Base
 # Game+ Names and Night Desk: header band, player names, plates or team names, bans, stage, organiser,
-# soul lead graph), an Escape-menu editor, the ability status column under each card, and
-# the spectator VData (dlf/spectator-status.json) that makes those statuses visible on world bars.
-# The Panorama parts are injected from hud_spectate_bar.xml (observer_hud/PLAN.md, approach B), so
-# the pak overrides only hud_spectate_bar.xml, citadel_status_effect.xml and the two VData files.
+# soul lead graph), an Escape-menu editor, the ability status column under each card, the spectator
+# VData (dlf/spectator-status.json) that makes those statuses visible on world bars, and the Night Shift
+# post-game board (pg_*, ADR 0009).
+# The HUD parts are injected from hud_spectate_bar.xml (observer_hud/PLAN.md, approach B), so the pak
+# overrides only hud_spectate_bar.xml, citadel_status_effect.xml, the post-game page
+# (post_game/citadel_db_page_post_game_new.xml, ADR 0009) and the two VData files.
 # The VData is rebuilt from -GamePak on every build: rebuild after every Deadlock patch.
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -46,23 +48,24 @@ if (-not (Test-Path -LiteralPath $GamePak)) { throw "Game pak not found: $GamePa
 $vdata = @('abilities', 'modifiers')
 
 $layouts = @(
-    'hud_spectate_bar', 'citadel_status_effect',
+    'hud_spectate_bar', 'citadel_status_effect', 'post_game/citadel_db_page_post_game_new',
     'observer_hud/band', 'observer_hud/tournament_bar', 'observer_hud/debuffs', 'observer_hud/editor',
-    'observer_hud/debuff_relay'
+    'observer_hud/debuff_relay', 'observer_hud/pg_board', 'observer_hud/pg_column'
 )
 $styles = @(
     'observer_hud/oh_host', 'observer_hud/oh_band', 'observer_hud/oh_bar', 'observer_hud/oh_debuffs',
-    'observer_hud/oh_editor', 'observer_hud/oh_status_world'
+    'observer_hud/oh_editor', 'observer_hud/oh_status_world', 'observer_hud/pg_board'
 )
 $scripts = @(
     'observer_hud/oh_state', 'observer_hud/oh_heroes', 'observer_hud/oh_debuff_icons', 'observer_hud/oh_item_icons',
     'observer_hud/oh_host', 'observer_hud/oh_menu', 'observer_hud/oh_debuffs', 'observer_hud/oh_buys',
-    'observer_hud/oh_debuff_world', 'observer_hud/oh_debuff_relay'
+    'observer_hud/oh_debuff_world', 'observer_hud/oh_debuff_relay', 'observer_hud/pg_loader', 'observer_hud/pg_board'
 )
 # Shipped as Closure ADVANCED output; the generated data tables (read as var OH_* globals) stay as written.
 $closureScripts = @(
     'observer_hud/oh_state', 'observer_hud/oh_host', 'observer_hud/oh_menu', 'observer_hud/oh_debuffs',
-    'observer_hud/oh_buys', 'observer_hud/oh_debuff_world', 'observer_hud/oh_debuff_relay'
+    'observer_hud/oh_buys', 'observer_hud/oh_debuff_world', 'observer_hud/oh_debuff_relay',
+    'observer_hud/pg_loader', 'observer_hud/pg_board'
 )
 # Purchase notice frame pieces (observer_hud/scripts/make-notice-frame.py), each a PNG + .vtex.
 $images = @(

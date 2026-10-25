@@ -1,6 +1,6 @@
 # Plan: post-game board in Observer HUD, account-keyed names, team names and logos, and a 90% runtime cut
 
-Status: **phase 1 done** (2026-10-25); phases 2-5 are not built. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
+Status: **phases 1 and 2 done** (2026-10-25); phases 3-5 are not built. This plan was debated with m2 (Claude Opus 5.5, medium effort) over two rounds, using two read-only scouts and the parent's DLL RE on client 6819. The probe pak ran twice the same day (results under [Probe results](#probe-results-2026-10-25-client-6819)) and was removed afterwards. All of it is in [`.scratch/oh_postgame/`](../../.scratch/oh_postgame/):
 - `BRIEF.md`;
 - `m2_round1.md`, `round2_from_parent.md`, `m2_round2.md`;
 - `scout_perf.md`, `scout_identity.md`;
@@ -27,11 +27,10 @@ Status: **phase 1 done** (2026-10-25); phases 2-5 are not built. This plan was d
 
 ## Decisions
 
-1. **One source lane, two outputs.**
-   - The board's sources move into `observer_hud/panorama/**/pg_*`. pak10 includes the board, and `build_postgame_stats.ps1` keeps building a standalone pak11 from the same files.
-   - Reason: pak10 ships spectator VData and is for observer PCs only, but every player can use the board. If both paks are installed, pak10 wins with identical files.
-   - pak11 must work without the store; with no match card it shows stock names.
-   - An ADR amends the override rule (`AGENTS.md:14`) for `post_game/citadel_db_page_post_game_new.xml`. ShowRank overrides `citadel_db_post_game_scoreboard_new.xml`, a different file, so they do not clash. The stock page is pinned in `observer_hud/stock/`.
+1. **One source lane, one output** (amended 2026-10-25 by the user: "only observer hud" with the board merged in).
+   - The board's sources moved into `observer_hud/panorama/**/pg_*`, and pak10 includes the board. The first draft also kept building a standalone pak11 from the same files; that was dropped, and `build_postgame_stats.ps1` and `postgame_stats/` were removed.
+   - With no match card the board shows stock names; it needs no store.
+   - [ADR 0009](../docs/adr/0009-post-game-board-in-observer-hud.md) amends the override rule for `post_game/citadel_db_page_post_game_new.xml`. ShowRank overrides `citadel_db_post_game_scoreboard_new.xml`, a different file, so they do not clash. The stock page is pinned in `stock-pin.json`.
 2. **Identity in the HUD** (revised after P1).
    - **Accounts per side, no join needed:** each marker entry gives an account plus its side class (`team_1` = Amber, `team_2` = Sapphire). That is all a match card needs.
    - Read every entry, collapsed ones included, at most once a second while some account is still unknown, then stop. An entry starts at 0 and gets its account the first time the marker is set; it never switched accounts in either run.
@@ -139,8 +138,14 @@ That is about 0.04% of one core before JS execution and GC, which were not measu
      - The latency check `column: latency floors` is green, and a mutation of each new path failed it.
      - The 85-90 % target was not met at a 0.25 s onset, because 12 hero bars × 4 polls/s of `$.Schedule` (≈ 1 µs each) are the floor. That floor is about 0.2 ms/s in total.
      - The live run used counters, not an A/B: the totals, about 0.2-0.4 ms/s, sit far below the game's CPU noise, so an FPS or CPU A/B cannot resolve them.
-2. **Merge with two outputs.** `pg_*` sources, ADR, Closure contracts (`accountid`, `heroid`, `heroimagestyle`, `PostGameGraphTooltip`, `DispatchPanelEvent`, `CitadelMatchDetailsUpdated`), the stock pin, and the event-driven board.
-   - *Acceptance:* `verify-live.js` passes on 121917141 and 121880956 from both the pak10 and pak11 builds with ShowRank installed, and the board costs 11/s or less.
+2. **Merge into pak10.** **Done 2026-10-25** (MAP changelog). It delivered the `pg_*` sources, ADR 0009, Closure contracts, the stock pin and the event-driven board.
+   - *Acceptance as amended:* `verify-postgame-live.js` passes on 121917141 and 121880956 from pak10, and the board costs 11 calls/s or less.
+   - *Result:*
+     - Both matches PASS on pak10 `341b2bba` (client 6819).
+     - The shown board costs 9 calls/s and 2.3 us/s, down from 113.9 and 28; the hidden board 1.6 us/s.
+     - "0 for a hidden board" was dropped: live, a cached reopen brings no event, so the board keeps one `PageVisible` check a second.
+     - The first live run had ShowRank Barebones installed; the pak11 run was dropped with pak11.
+     - The user's hover bug (3rd and 4th item rows) was fixed and seen live.
 3. **Identity and aliases v2.** Marker accounts per side (passive), the name-then-elimination join, the PLAYERS button, pending aliases, chips, migration, and the dead marker `heroid` fallback removed.
    - *Acceptance:* VM checks for duplicate names, bots, persona labels that match no card, and map changes; aliases by account seen live.
 4. **Session handoff, then store v2 and match cards.**

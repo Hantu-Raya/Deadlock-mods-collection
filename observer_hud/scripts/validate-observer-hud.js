@@ -144,6 +144,9 @@ const RAW_EXCLUDED = new Set(["childWrappers", "nodeVisits"]);
 // spectating 361 -> 216.2, counting down 483.8 -> 274.3, playing with pak10 installed 310.5 -> 4.3,
 // not spectating 4.3, after spectating 4.8 us/s. Re-measure before raising.
 const BUDGET_US = { spectating: 222, countdown: 280, idle: 6, after: 6, playing: 6 };
+// The post-game board (plan phase 2): at most 11 native calls per second while its page shows and
+// nothing changes; while hidden one visibility check a second (a reopen can bring no event, live).
+const BUDGET_BOARD = { calls: 11, us: 3, hiddenUs: 2 };
 const ATTRIB = { on: !!process.env.OH_ATTRIB, map: new Map() };
 
 let lastLogs = null;
@@ -671,13 +674,13 @@ check("own s2r:// references resolve to source files, and every source file is l
   for (const [list, dir, ext] of [[layouts, "layout", "xml"], [styles, "styles", "css"], [scripts, "scripts", "js"], [images, "images", "vtex"]]) {
     for (const name of list) assert.ok(fs.existsSync(path.join(PANORAMA, dir, `${name}.${ext}`)), `listed ${dir}/${name}.${ext} exists`);
   }
-  // Only the two host layouts and the VData override stock files; everything else has this mod's own names.
-  deq(layouts.filter((name) => !name.startsWith("observer_hud/")), ["hud_spectate_bar", "citadel_status_effect"]);
+  // Only the host layouts, the post-game page and the VData override stock files; everything else has this mod's own names.
+  deq(layouts.filter((name) => !name.startsWith("observer_hud/")), ["hud_spectate_bar", "citadel_status_effect", "post_game/citadel_db_page_post_game_new"]);
   assert.ok(styles.every((name) => name.startsWith("observer_hud/")) && scripts.every((name) => name.startsWith("observer_hud/")));
   assert.match(wrapper, /pak10_dir\.vpk/, "pak10");
 });
 
-check("the two overrides are the pinned stock files plus this mod's include lines only", () => {
+check("the three overrides are the pinned stock files plus this mod's include lines only", () => {
   const pin = JSON.parse(read("stock-pin.json"));
   const overrides = {
     "panorama/layout/hud_spectate_bar.xml": "game/citadel/pak01_dir/panorama/layout/hud_spectate_bar.xml",
@@ -689,6 +692,16 @@ check("the two overrides are the pinned stock files plus this mod's include line
       .replace(/\t<scripts>\n\t<\/scripts>\n/, "");
     assert.equal(crypto.createHash("sha256").update(stripped).digest("hex"), pin.files[stock], `${local} = stock + includes`);
   }
+  // The post-game page also drops the flame video src (the compiler rejects file://{resources}/videos);
+  // pg_loader.js sets the movie at runtime.
+  const flame = ' src="file://{resources}/videos/pick_screen/play_btn_grn_flame.webm"';
+  const page = read("panorama/layout/post_game/citadel_db_page_post_game_new.xml");
+  assert.ok(!page.includes(flame), "flame src dropped");
+  const restored = page.replace('\t\t<include src="s2r://panorama/scripts/observer_hud/pg_loader.vjs_c" />\n', "")
+    .replace('<MoviePanel id="PlayButtonFX" class="btn_fx"', `<MoviePanel id="PlayButtonFX" class="btn_fx"${flame}`);
+  assert.equal(crypto.createHash("sha256").update(restored).digest("hex"),
+    pin.files["game/citadel/pak01_dir/panorama/layout/post_game/citadel_db_page_post_game_new.xml"], "post-game page = stock + loader - flame src");
+  assert.match(read("panorama/scripts/observer_hud/pg_loader.js"), /play_btn_grn_flame\.webm/);
   for (const name of ["hud", "hud_escape_menu", "citadel_hud_top_bar", "citadel_hud_top_bar_team", "citadel_hud_top_bar_player", "unit_status_overlay_v2",
     "citadel_hud_hero_shop", "hud_unit_indicators_v2", "hud_data_feed", "citadel_hud_data_feed_info"]) {
     const digest = crypto.createHash("sha256").update(fs.readFileSync(path.join(MODULE, `stock/${name}.xml`))).digest("hex");
@@ -776,6 +789,37 @@ check("ids and classes agree across layouts, stylesheets and scripts", () => {
   assert.match(read("panorama/scripts/observer_hud/oh_debuffs.js"), /const FADE_MS = 1000;/);
 });
 
+check("board: ids the scripts look up exist in their layouts; classes they set have rules", () => {
+  const board = read("panorama/layout/observer_hud/pg_board.xml");
+  const column = read("panorama/layout/observer_hud/pg_column.xml");
+  const js = read("panorama/scripts/observer_hud/pg_board.js");
+  const css = read("panorama/styles/observer_hud/pg_board.css");
+  const idsIn = (xml) => new Set([...xml.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+  const boardIds = idsIn(board);
+  const used = new Set();
+  for (const m of js.matchAll(/ctx\.FindChildTraverse\(`?"?([A-Za-z0-9]+)(\$\{i\})?/g)) {
+    if (m[2]) for (const i of [1, 2]) used.add(`${m[1]}${i}`);
+    else used.add(m[1]);
+  }
+  assert.ok(used.size >= 12, `only ${used.size} board lookups parsed`);
+  for (const id of used) assert.ok(boardIds.has(id), `#${id} missing from pg_board.xml`);
+  const columnIds = idsIn(column);
+  const columnUsed = [...js.matchAll(/column\.FindChildTraverse\("([A-Za-z0-9]+)"\)/g)].map((m) => m[1]);
+  assert.ok(columnUsed.length >= 4, `only ${columnUsed.length} column lookups parsed`);
+  for (const id of columnUsed) assert.ok(columnIds.has(id), `#${id} missing from pg_column.xml`);
+  // Panels created under a stock row take the scoreboard's sheets (live), so the column layout includes ours.
+  for (const xml of [board, column]) assert.ok(xml.includes("s2r://panorama/styles/observer_hud/pg_board.vcss_c"), "board stylesheet included");
+  assert.match(read("panorama/scripts/observer_hud/pg_loader.js"), /"file:\/\/\{resources\}\/layout\/observer_hud\/pg_board\.xml"/);
+  assert.match(js, /"file:\/\/\{resources\}\/layout\/observer_hud\/pg_column\.xml"/);
+  const rules = new Set([...css.matchAll(/\.([A-Za-z][A-Za-z0-9_]*)/g)].map((m) => m[1]));
+  const set = new Set();
+  for (const m of js.matchAll(/class: "([^"$]+)"/g)) m[1].split(/\s+/).forEach((c) => set.add(c));
+  for (const m of js.matchAll(/(?:AddClass|SetHasClass|RemoveClass)\("([A-Za-z0-9_]+)"/g)) set.add(m[1]);
+  for (const key of ["souls", "kills", "assists", "pdmg", "odmg", "heal"]) set.add(`NSBest_${key}`);
+  for (const key of ["troopers", "neutrals", "breakables", "bonus", "kills", "objectives", "urn", "assists", "denies"]) set.add(`NSSrc_${key}`);
+  for (const c of set) assert.ok(rules.has(c), `.${c} has no rule in pg_board.css`);
+});
+
 check("spec: world RULES equal dlf/spectator-status.json; the stun-hiding rule is short and loads with the status list", () => {
   const spec = JSON.parse(readRepo("dlf/spectator-status.json"));
   const worldJs = read("panorama/scripts/observer_hud/oh_debuff_world.js");
@@ -802,14 +846,17 @@ check("spec: world RULES equal dlf/spectator-status.json; the stun-hiding rule i
 
 // ---------------------------------------------------------------- state rules
 
-const stateApi = (() => {
+// Loaded on first use (OH_CHECK runs that skip the state checks never load it).
+let stateApiMemo = null;
+const stateApiOf = () => {
+  if (stateApiMemo) return stateApiMemo;
   const context = createVmContext(createPanoramaHarness());
   runInVm(script("oh_state.js"), context, "oh_state.js");
-  return context.$.OHState;
-})();
+  return (stateApiMemo = context.$.OHState);
+};
 
 check("state: field-by-field fallback, rejection instead of truncation, series capped by the format", () => {
-  const S = stateApi;
+  const S = stateApiOf();
   const d = S.defaults();
   deq(S.normalize(null), d);
   const long = "x".repeat(29);
@@ -855,7 +902,7 @@ check("state: field-by-field fallback, rejection instead of truncation, series c
 // animated WebP link loads instead of the host's GIF; a lookalike host or an album is rewritten; a
 // direct link is changed; a rewrite gives a URL cleanUrl would refuse; a still image fails as GIF.
 check("state: logo links from imgur, Giphy, Tenor, Discord, X, GitHub and Dropbox load the direct image or GIF", () => {
-  const S = stateApi;
+  const S = stateApiOf();
   const cases = [
     ["", []],
     ["https://cdn.example.org/logo.png", ["https://cdn.example.org/logo.png"]],
@@ -912,7 +959,7 @@ check("state: logo links from imgur, Giphy, Tenor, Discord, X, GitHub and Dropbo
 });
 
 check("state: share codes round-trip, leave DEV out, and reject corrupt or newer codes", () => {
-  const S = stateApi;
+  const S = stateApiOf();
   const s = S.normalize({ event: "Cup ✓ ünïcode", amber: { name: "Night Owls", logo: { url: "https://x.org/l.png" } },
     aliases: { Kestrel: "Kes" }, dev: { debuffs: false } });
   const code = S.encodeShare(s);
@@ -1592,7 +1639,7 @@ check("graph: pins at the interval set in the editor; a new interval re-pins fro
   for (const every of [60, 120, 180, 300, 600]) assert.ok(w.ui(`OHGraphEvery${every}`), every);
   assert.equal(w.ui("OHGraphEvery120").BHasClass("Selected"), true);
   // Bad values fall back to 5:00.
-  assert.equal(stateApi.normalize({ graph: { every: 7 } }).graph.every, 300);
+  assert.equal(stateApiOf().normalize({ graph: { every: 7 } }).graph.every, 300);
 });
 
 check("graph: size and position from the editor; size keeps the top centre; rift HUD under the timers, graph under it; damage impact untouched", () => {
@@ -1632,7 +1679,7 @@ check("graph: size and position from the editor; size keeps the top centre; rift
   for (let i = 0; i < 100; i++) w.press("OHGraphYDown");
   deq([w.state().graph.x, w.state().graph.y], [-600, -40], "X and Y stop at their limits");
   // Bad values fall back field by field; share codes and saves carry the fields like the rest of graph.
-  deq(Object.assign({}, stateApi.normalize({ graph: { size: 155, x: 7, y: 301 } }).graph), { show: 30, every: 300, size: 100, x: 0, y: 0 });
+  deq(Object.assign({}, stateApiOf().normalize({ graph: { size: 155, x: 7, y: 301 } }).graph), { show: 30, every: 300, size: 100, x: 0, y: 0 });
   // The stock rift HUD (#KothCashInMeter: margin-top 110 at ui-scale 70%, citadel_hud_koth.css 6813) is
   // drawn behind the chips (live 2026-10-23): it moves under the timers, which stay put, and the soul lead
   // graph moves under it (user 2026-10-23). The mock engine lays the rift HUD out from its margin with
@@ -2006,7 +2053,7 @@ check("cues: each timer shows off, in a picked window before its spawn (default 
   assert.ok(!on().includes("Mid"), "30 s window: a 6:54 respawn is hidden");
   // Saved in the state and normalized: bad values fall back to the default.
   deq(w.state().cues, { bridge: 120, urn: 0, rift: -1, mid: 30 });
-  deq(stateApi.normalize({ cues: { bridge: 45, urn: -1, rift: 30, mid: "x" } }).cues, { bridge: 30, urn: -1, rift: -1, mid: 30 });
+  deq(stateApiOf().normalize({ cues: { bridge: 45, urn: -1, rift: 30, mid: "x" } }).cues, { bridge: 30, urn: -1, rift: -1, mid: 30 });
   // RESET TIMERS puts them back.
   w.press("OHNavTimers");
   w.press("OHResetPage");
@@ -2394,7 +2441,7 @@ check("logo: Night Desk team logo shape, size and gap; past 30 px the stock team
   const image = w.ui("OHDeskLogoLeft").Children().find((child) => child.paneltype === "Image");
   deq([image.style.width, image.style.height, image.style.borderRadius, image.attributes.scaling], ["48px", "48px", "2px", "stretch-to-cover-preserve-aspect"]);
   // Shares and saves carry the fields; bad values fall back field by field.
-  deq(Object.assign({}, stateApi.normalize({ logo: { shape: "hex", size: 51, gap: 48 } }).logo), { shape: "circle", size: 30, gap: 48 });
+  deq(Object.assign({}, stateApiOf().normalize({ logo: { shape: "hex", size: 51, gap: 48 } }).logo), { shape: "circle", size: 30, gap: 48 });
   // Base Game+ Names and leaving spectating give the stock teams their width back.
   w.press("OHLookNames");
   w.advance(1100);
@@ -3582,77 +3629,363 @@ check("column: the DEV switch and poll reach every world bar; OFF stops publishi
   assert.ok(rate >= 18 && rate <= 22, `0.5 s poll: ${rate} polls in 10 s`);
 });
 
+// ---------------------------------------------------------------- native cost metric
+
+let lastNodes = 0; // subtree node visits of the last counted window
+// Counts every crossing the scripts make, including the ones the shared adapter books only as
+// "traversal" (GetChildCount) and the child wrappers Children() allocates (live P0: about 140 ns each).
+// OH_ATTRIB=1 prints the weighted cost per script function for each counted window (dev aid).
+const blame = (key, n) => {
+  if (!ATTRIB.on || !(n > 0)) return;
+  const match = /at (\S+) \(((?:oh|pg)_[a-z_]+\.js):(\d+)/.exec(new Error().stack || "");
+  const where = match ? `${match[2]} ${match[1]}` : "(adapter/other)";
+  ATTRIB.map.set(where, (ATTRIB.map.get(where) || 0) + n * (WEIGHT_NS[key] ?? WEIGHT_NS.other));
+};
+const counted = (harness) => {
+  let positions = 0;
+  let childCountReads = 0;
+  let childWrappers = 0;
+  const proto = MockPanel.prototype;
+  const position = proto.GetPositionWithinWindow;
+  const childCount = proto.GetChildCount;
+  const childrenOf = proto.Children;
+  ATTRIB.map = new Map();
+  if (ATTRIB.on) {
+    const counts = harness.operationCounts;
+    for (const key of Object.keys(WEIGHT_NS).concat(["findTraversals", "classTraversalNodes"])) {
+      let value = counts[key] || 0;
+      Object.defineProperty(counts, key, { configurable: true, enumerable: true, get: () => value,
+        set: (next) => { blame(key === "findTraversals" || key === "classTraversalNodes" ? "nodeVisits" : key, next - value); value = next; } });
+    }
+  }
+  proto.GetPositionWithinWindow = function () {
+    positions++;
+    blame("positions", 1);
+    const { parentReads, boundaryValidityCalls } = harness.operationCounts;
+    const result = position.call(this);
+    Object.assign(harness.operationCounts, { parentReads, boundaryValidityCalls });
+    return result;
+  };
+  proto.GetChildCount = function () {
+    childCountReads++;
+    blame("childCountReads", 1);
+    return childCount.call(this);
+  };
+  proto.Children = function () {
+    const list = childrenOf.call(this);
+    childWrappers += list.length;
+    blame("childWrappers", list.length);
+    return list;
+  };
+  return () => {
+    proto.GetPositionWithinWindow = position;
+    proto.GetChildCount = childCount;
+    proto.Children = childrenOf;
+    const ops = Object.assign({}, harness.operationCounts, { positions, childCountReads, childWrappers });
+    lastNodes = (ops.findTraversals || 0) + (ops.classTraversalNodes || 0);
+    for (const key of ["traversal", "findTraversals", "classTraversalNodes"]) delete ops[key];
+    ops.nodeVisits = lastNodes;
+    if (ATTRIB.on) {
+      const top = [...ATTRIB.map].sort((a, b) => b[1] - a[1]).slice(0, 25);
+      console.log(`   [attrib] top functions, us/s over a 10 s window:\n${top.map(([where, ns]) => `     ${(ns / 1e4).toFixed(1).padStart(6)}  ${where}`).join("\n")}`);
+    }
+    return Object.fromEntries(Object.entries(ops).filter(([, value]) => value));
+  };
+};
+const per = (ops, seconds) => Object.fromEntries(Object.entries(ops).map(([key, value]) => [key, Math.round(value / seconds * 10) / 10]));
+// Raw calls: every JS<->native crossing (child wrappers and subtree node visits are not crossings).
+const total = (ops) => Math.round(Object.entries(ops).reduce((sum, [key, value]) => sum + (RAW_EXCLUDED.has(key) ? 0 : value), 0) * 10) / 10;
+// Weighted: microseconds of native time per second, from the live per-call costs (P0).
+const weighted = (ops) => Math.round(Object.entries(ops).reduce((sum, [key, value]) => sum + value * (WEIGHT_NS[key] ?? WEIGHT_NS.other), 0) / 100) / 10;
+const reset = (w) => { for (const key of Object.keys(w.harness.operationCounts)) w.harness.operationCounts[key] = 0; };
+
+// ---------------------------------------------------------------- post-game board (dashboard context)
+// The board runs in the dashboard, in the post-game page override: pg_loader.js in CitadelPostGameNew
+// loads pg_board.xml (and pg_board.js) into #NSHost in #ScoreboardScreen. The engine side is modelled
+// from live (client 6819, 2026-10-25; ENGINE.md "Post-game page"):
+//  - the page layout loads on the first citadel_match_details; CitadelMatchDetailsUpdated arrives as an
+//    unhandled event about 0.5 s later, and CitadelPostGameSelectScreenIndex as a page event when a
+//    screen is picked; the dashboard sets PageVisible on the shown page;
+//  - C++ clones the scoreboard rows (six players and a TotalsRow per team) and reuses them when the
+//    next match opens; a label's {i:...}/{s:...} parts resolve from the row's (or page's) dialog
+//    variables in the same frame, integers comma-formatted;
+//  - the graph's columns are not modelled (no scan here; verify-postgame-live.js covers it live).
+//
+// How the board can fail, each with a check below:
+//  1. it polls while nobody looks at the page (cost while hidden) or too often while shown;
+//  2. it misses the match (an event before the page shows, a load without an event) or builds twice;
+//  3. a reused row set keeps the old match on screen;
+//  4. a layout reload leaves two loops or two match listeners;
+//  5. the entrance replays late when the Scoreboard screen is picked.
+const PG = {
+  page: parseLayout(read("panorama/layout/post_game/citadel_db_page_post_game_new.xml")),
+  board: parseLayout(read("panorama/layout/observer_hud/pg_board.xml")),
+  column: parseLayout(read("panorama/layout/observer_hud/pg_column.xml"))
+};
+const PG_SCREENS = ["Team1Screen", "Team2Screen", "ScoreboardScreen", "GraphsScreen"];
+const PG_HEROES = [[1, 2, 3, 4, 6, 7], [8, 10, 11, 12, 13, 14]];
+const PG_STATS = ["net_worth", "player_kills", "player_deaths", "player_assists", "player_dmg", "obj_dmg", "player_healing"];
+function pgMatch(id, { swap = false, win = 1 } = {}) {
+  const teams = PG_HEROES.map((heroes, t) => heroes.map((hero, k) => ({
+    hero: swap ? PG_HEROES[1 - t][k] : hero, account: String(100000 + (id % 1000) * 20 + t * 6 + k),
+    net_worth: 20000 + 1000 * k + 77 * t + (id % 97), player_kills: k + t, player_deaths: 6 - k, player_assists: 10 + k,
+    player_dmg: 15000 + 500 * k, obj_dmg: 3000 + 100 * k, player_healing: 2000 + 50 * k
+  })));
+  return { id: String(id), minutes: 31, seconds: 7, win, teams };
+}
+// A label text as the engine resolves it: every {s:key} / {i:key} part from the nearest ancestor that
+// has the dialog variable; an unresolved part stays as written.
+function bindAll(label, value) {
+  let literal = String(value);
+  Object.defineProperty(label, "__text", { configurable: true, enumerable: false,
+    get: () => literal.replace(/\{([si]):(\w+)\}/g, (all, kind, key) => {
+      let owner = label.parent;
+      while (owner && !(owner.__dialog && key in owner.__dialog)) owner = owner.parent;
+      if (!owner) return all;
+      return kind === "i" ? Number(owner.__dialog[key]).toLocaleString("en-US") : String(owner.__dialog[key]);
+    }),
+    set: (next) => { literal = String(next); } });
+  return label;
+}
+function boardWorld({ visible = true } = {}) {
+  const harness = createPanoramaHarness({ now: 7000000, rootWidth: 1600, rootHeight: 900 });
+  lastLogs = harness.logs;
+  const bus = [];
+  let nextId = 1;
+  const dollar = (panel) => ({
+    GetContextPanel: () => panel,
+    CreatePanel: (type, parent, id, props = {}) => {
+      const created = new MockPanel(type, parent, id);
+      for (const [key, value] of Object.entries(props)) {
+        if (key === "class") created.classes = String(value).split(/\s+/).filter(Boolean);
+        else if (key === "text") bindAll(created, value);
+        else created.attributes[key] = String(value);
+      }
+      // The engine's CitadelUserName makes one Label with the account's name (live).
+      if (type === "CitadelUserName" && props.accountid) new MockPanel("Label", created, "").__text = `Persona ${props.accountid}`;
+      return created;
+    },
+    Schedule: (delay, fn) => harness.scheduler.schedule(delay, fn),
+    RegisterForUnhandledEvent: (name, fn) => { bus.push({ id: nextId, name, fn }); return nextId++; },
+    UnregisterForUnhandledEvent: (name, id) => {
+      const index = bus.findIndex((entry) => entry.id === id);
+      if (index >= 0) bus.splice(index, 1);
+    },
+    // Panel event handlers add up (a reloaded script's old handler stays registered).
+    RegisterEventHandler: (name, target, fn) => {
+      target.__handlers = target.__handlers || {};
+      (target.__handlers[name] = target.__handlers[name] || []).push(fn);
+    },
+    DispatchEvent: () => true,
+    Localize: (token) => ({ "#Citadel_Team1_Name": "Hidden King", "#Citadel_Team2_Name": "Archmother" })[token] || token,
+    Msg: (message) => harness.logs.push(String(message))
+  });
+  const runIn = (panel, files) => {
+    const context = createVmContext(harness, { globals: { $: dollar(panel) } });
+    for (const [name, source] of files) runInVm(source, context, name);
+    return context;
+  };
+  MockPanel.prototype.BLoadLayout = function (file) {
+    if (file === "file://{resources}/layout/observer_hud/pg_board.xml") {
+      loadInto(this, PG.board);
+      runIn(this, [["pg_board.js", script("pg_board.js")]]);
+      return true;
+    }
+    if (file === "file://{resources}/layout/observer_hud/pg_column.xml") {
+      loadInto(this, PG.column);
+      return true;
+    }
+    return false;
+  };
+  const dash = new MockPanel("CitadelDashboardRoot", { operationCounts: harness.operationCounts, findCounts: harness.findCounts,
+    childReadCounts: harness.childReadCounts, eventSetCounter: harness.eventSetCounter });
+  WORLDS.push(dash);
+  const page = instantiate(PG.page, dash);
+  if (visible) page.AddClass("PageVisible");
+  const scoreboard = page.FindChildTraverse("Scoreboard");
+  // The stock rows, cloned once by C++ and reused for the next match.
+  const fill = (m) => {
+    page.__dialog = { match_id: m.id, match_minutes: m.minutes, match_seconds: String(m.seconds).padStart(2, "0") };
+    if (!scoreboard.children.length) {
+      // Stock CSS (6819): .ScoreboardScrollContainer { overflow: scroll squish; transform: translateY(80px); }
+      const inner = new MockPanel("Panel", scoreboard, "");
+      inner.classes.add("ScoreboardScrollContainer");
+      new MockPanel("Panel", inner, "MatchInfoContainer");
+      for (const t of [1, 2]) {
+        const team = new MockPanel("Panel", inner, `Team${t}`);
+        new MockPanel("Panel", team, "TeamTableHeader");
+        const players = new MockPanel("Panel", team, "TeamPlayers");
+        for (let k = 0; k < 7; k++) {
+          const row = new MockPanel("Panel", players, "");
+          new MockPanel("Panel", row, "StatCells");
+          const main = new MockPanel("Panel", row, "PlayerInfo");
+          if (k === 6) { row.classes.add("TotalsRow"); continue; }
+          new MockPanel("Label", new MockPanel("CitadelUserName", main, "PlayerName"), "");
+          const items = new MockPanel("Panel", main, "ItemsContainer");
+          for (let i = 0; i < 9; i++) new MockPanel("CitadelModIcon", items, "");
+        }
+      }
+    }
+    for (const t of [1, 2]) {
+      const team = scoreboard.FindChildTraverse(`Team${t}`);
+      if (m.win === t) team.classes.add("IsWinningTeam");
+      else team.classes.delete("IsWinningTeam");
+      const rows = team.FindChildTraverse("TeamPlayers").children;
+      const players = m.teams[t - 1];
+      players.forEach((p, k) => {
+        rows[k].__dialog = Object.assign({ hero_id: p.hero }, Object.fromEntries(PG_STATS.map((key) => [key, p[key]])));
+        const name = rows[k].FindChildTraverse("PlayerName");
+        name.accountid = p.account;
+        name.children[0].__text = `Persona ${p.account}`;
+      });
+      rows[6].__dialog = Object.assign({ hero_id: 0 }, Object.fromEntries(PG_STATS.map((key) => [key, players.reduce((s, p) => s + p[key], 0)])));
+    }
+  };
+  const fire = (name, ...args) => { for (const entry of bus.slice()) if (entry.name === name) entry.fn(...args); };
+  const pageEvent = (name, ...args) => { for (const fn of ((page.__handlers || {})[name] || []).slice()) fn(...args); };
+  // The carousel focuses the picked screen, then the page gets the screen index (live: 3 = Scoreboard).
+  const selectScreen = (id) => {
+    for (const screen of PG_SCREENS) page.FindChildTraverse(screen).classes[screen === id ? "add" : "delete"]("Focused");
+    pageEvent("CitadelPostGameSelectScreenIndex", PG_SCREENS.indexOf(id) + 1);
+  };
+  const boardHost = () => page.FindChildTraverse("ScoreboardScreen").FindChild("NSHost");
+  const shown = () => harness.logs.filter((line) => line.startsWith("[NS] board shown")).length;
+  const columns = () => findAll(scoreboard, "Panel").filter((p) => p.valid && (p.classes.has("NSColumnTeam1") || p.classes.has("NSColumnTeam2")));
+  return { harness, page, scoreboard, bus, fill, fire, selectScreen, boardHost, shown, columns,
+    boot: () => runIn(page, [["pg_loader.js", script("pg_loader.js")]]),
+    reload: () => runIn(boardHost(), [["pg_board.js", script("pg_board.js")]]),
+    advance: (ms) => harness.scheduler.runFor(ms, 1e6),
+    text: (id) => boardHost().FindChildTraverse(id).__text };
+}
+
+check("board: builds when the match loads, again for the next match on the reused rows, never twice for one", () => {
+  const w = boardWorld();
+  w.boot();
+  w.advance(2000);
+  // No rows yet: the indeterminate LOADING MATCH bar.
+  assert.ok(w.boardHost().BHasClass("NSBusy") && w.boardHost().FindChildTraverse("NSProgress").BHasClass("NSIndeterminate"), "loading bar");
+  assert.equal(w.shown(), 0);
+  const a = pgMatch(121917141);
+  w.fill(a);
+  w.fire("CitadelMatchDetailsUpdated", a.id);
+  w.advance(300);
+  assert.equal(w.shown(), 1, "built within 0.3 s of the match event");
+  assert.equal(w.text("NSMatch"), `MATCH ${a.id}`);
+  assert.equal(w.columns().length, 12);
+  // Exact values through the bound label (stock rows show "21k").
+  const first = w.columns()[0].FindChildrenWithClassTraverse("NSCellValue")[0];
+  assert.equal(first.__text, a.teams[0][0].net_worth.toLocaleString("en-US"));
+  // Live 2026-10-25 (user): items in the 3rd and 4th icon rows could not be hovered. The stock scroll
+  // container is drawn translateY(80px) below its box, and the scoreboard's box (fit to the untranslated
+  // rows) ends 80 px above the drawn rows, so hover never reaches their bottom 80 px. The rows must be laid
+  // out where they are drawn, at the same height as before (stock margin 49 + 80 + 1 measured = 130).
+  const shift = String(w.scoreboard.children[0].style.transform || "") === "none" ? 0 : 80;
+  assert.equal(shift, 0, "the stock scroll container is not translated");
+  assert.equal(parseInt(w.scoreboard.style.marginTop, 10) + shift, 129, "the rows stay at the same height");
+  w.advance(5000);
+  assert.equal(w.shown(), 1, "one build per match");
+  // The next match on the same rows (C++ reuses them).
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  w.fill(b);
+  w.fire("CitadelMatchDetailsUpdated", b.id);
+  w.advance(300);
+  assert.equal(w.shown(), 2);
+  assert.equal(w.text("NSMatch"), `MATCH ${b.id}`);
+  assert.equal(w.columns().length, 12, "the old match's columns are gone");
+  // A load that brings no event is still found by the safety check within its second.
+  const c = pgMatch(121999999);
+  w.fill(c);
+  w.advance(1100);
+  assert.equal(w.shown(), 3, "found without an event");
+  assert.equal(w.text("NSMatch"), `MATCH ${c.id}`);
+});
+
+check("board: cheap while hidden, little while shown; a reopen without events, an early event and a screen pick are found", () => {
+  const w = boardWorld({ visible: false });
+  w.boot();
+  // The match event can come before the page shows (live: event +0.5 s, page found +1.1 s).
+  const a = pgMatch(121917141);
+  w.fill(a);
+  w.fire("CitadelMatchDetailsUpdated", a.id);
+  w.advance(600);
+  assert.equal(w.shown(), 0, "nothing built while hidden");
+  w.page.AddClass("PageVisible");
+  w.advance(300);
+  assert.equal(w.shown(), 1, "built within 0.3 s of the page showing after an event");
+  w.advance(10000);
+  // Shown and built, nothing changing.
+  reset(w);
+  let stop = counted(w.harness);
+  w.advance(10000);
+  const shownOps = per(stop(), 10);
+  console.log(`   board shown ${weighted(shownOps)} us/s, ${total(shownOps)} calls/s ${JSON.stringify(shownOps)}`);
+  assert.equal((shownOps.textWrites || 0) + (shownOps.styleWrites || 0) + (shownOps.classWrites || 0), 0, "no writes while nothing changes");
+  assert.ok(total(shownOps) <= BUDGET_BOARD.calls, `board shown: ${total(shownOps)} calls/s`);
+  assert.ok(weighted(shownOps) <= BUDGET_BOARD.us, `board shown: ${weighted(shownOps)} us/s`);
+  // Picking the Scoreboard screen replays the entrance at once, not at the next safety check, at any
+  // phase of that check.
+  const frame = w.boardHost().FindChildTraverse("NSFrame");
+  let replayedAt = -1;
+  const removeClass = frame.RemoveClass;
+  frame.RemoveClass = function (cls) { if (cls === "NSIntro" && replayedAt < 0) replayedAt = w.harness.now; return removeClass.call(this, cls); };
+  for (const phase of [0, 350, 700]) {
+    w.selectScreen("Team1Screen");
+    w.advance(3000 + phase);
+    replayedAt = -1;
+    const pickedAt = w.harness.now;
+    w.selectScreen("ScoreboardScreen");
+    w.advance(1500);
+    assert.ok(replayedAt >= 0 && replayedAt - pickedAt <= 200, `entrance replayed ${replayedAt - pickedAt} ms after the pick (phase ${phase})`);
+    assert.ok(frame.BHasClass("NSIntro"), "entrance class back");
+  }
+  // Hidden: one cheap visibility check per second. Live (pak10 1c5ff983, 2026-10-25) reopening a match
+  // this session had already loaded brought no CitadelMatchDetailsUpdated, and picking the Scoreboard
+  // screen then woke nothing: a board that slept while hidden showed the previous match.
+  w.page.RemoveClass("PageVisible");
+  w.advance(6000);
+  reset(w);
+  stop = counted(w.harness);
+  w.advance(10000);
+  const hiddenOps = per(stop(), 10);
+  console.log(`   board hidden ${weighted(hiddenOps)} us/s, ${total(hiddenOps)} calls/s ${JSON.stringify(hiddenOps)}`);
+  assert.equal((hiddenOps.textWrites || 0) + (hiddenOps.styleWrites || 0) + (hiddenOps.classWrites || 0), 0, "no writes while hidden");
+  assert.ok(weighted(hiddenOps) <= BUDGET_BOARD.hiddenUs, `board hidden: ${weighted(hiddenOps)} us/s`);
+  results.board = { shown: shownOps, shownUs: weighted(shownOps), shownCalls: total(shownOps), hidden: hiddenOps, hiddenUs: weighted(hiddenOps) };
+  // A cached match reopened: the rows change and the page shows, with no event at all.
+  const b = pgMatch(121880956, { swap: true });
+  w.fill(b);
+  w.page.AddClass("PageVisible");
+  w.advance(1100);
+  assert.equal(w.shown(), 2, "the reopened match is built within a second of the page showing");
+  assert.equal(w.text("NSMatch"), `MATCH ${b.id}`);
+  // And the next match's event still acts at once.
+  const c = pgMatch(121999999);
+  w.fill(c);
+  w.fire("CitadelMatchDetailsUpdated", c.id);
+  w.advance(300);
+  assert.equal(w.shown(), 3, "built within 0.3 s of the match event");
+});
+
+check("board: a layout reload keeps one loop and one match listener", () => {
+  const w = boardWorld();
+  w.boot();
+  w.reload();
+  assert.equal(w.bus.filter((entry) => entry.name === "CitadelMatchDetailsUpdated").length, 1, "one match listener");
+  const a = pgMatch(121917141);
+  w.fill(a);
+  w.fire("CitadelMatchDetailsUpdated", a.id);
+  w.advance(6000);
+  assert.equal(w.shown(), 1, "one build");
+  reset(w);
+  const stop = counted(w.harness);
+  w.advance(10000);
+  const ops = per(stop(), 10);
+  assert.ok((ops.schedules || 0) <= 1.1, `one 1 s loop: ${ops.schedules} schedules/s`);
+});
+
 // ---------------------------------------------------------------- budgets
 
 check("steady state: no writes while nothing changes; native calls per second under the budgets", () => {
-  let nodes = 0; // subtree node visits of the last counted window
-  // Counts every crossing the scripts make, including the ones the shared adapter books only as
-  // "traversal" (GetChildCount) and the child wrappers Children() allocates (live P0: about 140 ns each).
-  // OH_ATTRIB=1 prints the weighted cost per script function for each counted window (dev aid).
-  const blame = (key, n) => {
-    if (!ATTRIB.on || !(n > 0)) return;
-    const match = /at (\S+) \((oh_[a-z_]+\.js):(\d+)/.exec(new Error().stack || "");
-    const where = match ? `${match[2]} ${match[1]}` : "(adapter/other)";
-    ATTRIB.map.set(where, (ATTRIB.map.get(where) || 0) + n * (WEIGHT_NS[key] ?? WEIGHT_NS.other));
-  };
-  const counted = (harness) => {
-    let positions = 0;
-    let childCountReads = 0;
-    let childWrappers = 0;
-    const proto = MockPanel.prototype;
-    const position = proto.GetPositionWithinWindow;
-    const childCount = proto.GetChildCount;
-    const childrenOf = proto.Children;
-    ATTRIB.map = new Map();
-    if (ATTRIB.on) {
-      const counts = harness.operationCounts;
-      for (const key of Object.keys(WEIGHT_NS).concat(["findTraversals", "classTraversalNodes"])) {
-        let value = counts[key] || 0;
-        Object.defineProperty(counts, key, { configurable: true, enumerable: true, get: () => value,
-          set: (next) => { blame(key === "findTraversals" || key === "classTraversalNodes" ? "nodeVisits" : key, next - value); value = next; } });
-      }
-    }
-    proto.GetPositionWithinWindow = function () {
-      positions++;
-      blame("positions", 1);
-      const { parentReads, boundaryValidityCalls } = harness.operationCounts;
-      const result = position.call(this);
-      Object.assign(harness.operationCounts, { parentReads, boundaryValidityCalls });
-      return result;
-    };
-    proto.GetChildCount = function () {
-      childCountReads++;
-      blame("childCountReads", 1);
-      return childCount.call(this);
-    };
-    proto.Children = function () {
-      const list = childrenOf.call(this);
-      childWrappers += list.length;
-      blame("childWrappers", list.length);
-      return list;
-    };
-    return () => {
-      proto.GetPositionWithinWindow = position;
-      proto.GetChildCount = childCount;
-      proto.Children = childrenOf;
-      const ops = Object.assign({}, harness.operationCounts, { positions, childCountReads, childWrappers });
-      nodes = (ops.findTraversals || 0) + (ops.classTraversalNodes || 0);
-      for (const key of ["traversal", "findTraversals", "classTraversalNodes"]) delete ops[key];
-      ops.nodeVisits = nodes;
-      if (ATTRIB.on) {
-        const top = [...ATTRIB.map].sort((a, b) => b[1] - a[1]).slice(0, 25);
-        console.log(`   [attrib] top functions, us/s over a 10 s window:\n${top.map(([where, ns]) => `     ${(ns / 1e4).toFixed(1).padStart(6)}  ${where}`).join("\n")}`);
-      }
-      return Object.fromEntries(Object.entries(ops).filter(([, value]) => value));
-    };
-  };
-  const per = (ops, seconds) => Object.fromEntries(Object.entries(ops).map(([key, value]) => [key, Math.round(value / seconds * 10) / 10]));
-  // Raw calls: every JS<->native crossing (child wrappers and subtree node visits are not crossings).
-  const total = (ops) => Math.round(Object.entries(ops).reduce((sum, [key, value]) => sum + (RAW_EXCLUDED.has(key) ? 0 : value), 0) * 10) / 10;
-  // Weighted: microseconds of native time per second, from the live per-call costs (P0).
-  const weighted = (ops) => Math.round(Object.entries(ops).reduce((sum, [key, value]) => sum + value * (WEIGHT_NS[key] ?? WEIGHT_NS.other), 0) / 100) / 10;
-  const reset = (w) => { for (const key of Object.keys(w.harness.operationCounts)) w.harness.operationCounts[key] = 0; };
-
   // Not spectating: the host only checks the HUD classes.
   const idle = world({ spectating: false });
   idle.bootHost();
@@ -3716,7 +4049,7 @@ check("steady state: no writes while nothing changes; native calls per second un
   stop = counted(w.harness);
   w.advance(10000);
   const spectating = per(stop(), 10);
-  const spectatingNodes = Math.round(nodes / 10);
+  const spectatingNodes = Math.round(lastNodes / 10);
   // The usual in-game state: a status with a moving radial on every card, so the column counts down
   // at its 0.25 s tick (m1 audit O1: the 4 Hz tick re-validated every card and re-read every name).
   for (const name of [...AMBER, ...SAPPHIRE]) {

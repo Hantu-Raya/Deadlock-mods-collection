@@ -23,9 +23,10 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
 | Local save (hpv2-store `/oh/`, `125c2db`) | yes, published | VM (real page script) | seen once across a restart |
 | Status column and spectator VData | yes (shared spec; centred two-wide grid in pak10 `66e4f617`) | VM; build verifies packed VData | seen in v1 (vertical column); the `unnamed` fix and the grid not seen |
 | Purchase notices (DLF's, rewritten) | yes (pak10 `e4c5b7a7`) | VM (pinned stock shop layout) | seen on `5bc49641` to `d046f3b8` (demo: list fills, cards right; VALVEOracle text seen on `9260a4a6`; 228 px width seen; wobble jagged on `26fe7a1c`, too subtle and jagged on `7fa3fd49`, image frame at full poses on `bd88bfdc`, 20 % on `d046f3b8`: user asked for 10 % more, then 5 % more); the 35 % wobble and the 10 % smaller frame not seen |
+| Post-game board (`pg_*`, merged from the retired pak11) | yes (pak10 `341b2bba`) | VM (`board:` checks: events, 1 s check, budgets, reload, reused rows, untranslated rows) | seen on `341b2bba` (client 6819): matches 121917141 and 121880956 PASS `verify-postgame-live.js`, a cached reopen without events rebuilt, a 4th-row item tooltip on `1c5ff983` |
 
-- Installed pak10: none (DLF's pak01 is installed for its tests; checked in `citadel/addons`). Phase 1 was installed only for its live run on 2026-10-25 and removed afterwards. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
-- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 57 checks passed. Weighted native time in the live-like scenario, against these budgets:
+- Installed pak10: `341b2bba` (2026-10-25, client 6819), with the post-game board, installed for the phase 2 live run and left installed. The old standalone pak11 (`9A6058A0`) was removed and is kept at `.tmp/pg/pak11_9a6058a0_installed.vpk`. The last installed release pak10 was `5e1243e8` (2026-10-23, client 6819, = the 0.1.0 release).
+- Validator `.tmp/observer-hud-validate.json` (2026-10-25): 61 checks passed. Weighted native time in the live-like scenario, against these budgets:
 
   | State | us/s | Budget |
   |---|---:|---:|
@@ -34,6 +35,8 @@ An observer-PC mod for community tournaments (pak10): two top bar looks, an Esca
   | Playing with world bars | 4.3 | 6 |
   | After spectating | 4.8 | 6 |
   | Never spectated | 4.3 | 6 |
+  | Post-game board shown (9 calls/s) | 2.3 | 3 |
+  | Post-game board hidden | 1.6 | 2 |
 - Release: public version 0.1.0, GameBanana page https://gamebanana.com/mods/731315 (user, 2026-10-24). The archive held only `pak10_dir.vpk` (`5e1243e8`, client 6819); the local `dist/Observer_HUD_26.10.24.7z` was overwritten by a later build on 2026-10-24 and removed, so the GameBanana file is the copy of record. Page copy `promo/gamebanana.html`, Discord post `docs/changelogs/2026-10-24_observer_hud_0_1_0_discord.txt`.
 
 ## Remaining verification
@@ -69,6 +72,16 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 ## Changelog
 
 ### 2026-10-25 (source only, not released)
+
+- **Post-game board merged (phase 2** of [decisions/postgame-identity-perf-plan.md](decisions/postgame-identity-perf-plan.md)). The Night Shift board from `postgame_stats/` is now `pg_*` in this lane, shipped only in pak10 ([ADR 0009](docs/adr/0009-post-game-board-in-observer-hud.md)).
+  - **One mod:** the user wants only Observer HUD with the board in it, so the standalone pak11, `build_postgame_stats.ps1` and `postgame_stats/` are gone. pak10 overrides the post-game page, which is pinned in `stock-pin.json` and tracked by `refresh-stock.py`. The pak holds 37 assets.
+  - **Event-driven:** `CitadelMatchDetailsUpdated` and `CitadelPostGameSelectScreenIndex` check at once, and one check a second covers the rest. It costs 9 calls and 2.3 us/s while the page shows (was 113.9 calls and 28 us/s at the 0.15 s poll) and 1.6 us/s while hidden. A first build slept while hidden. Live, a cached reopen brought no event and showed the old match, so the hidden check came back.
+  - **Hover fix** (user report): the 3rd and 4th item rows took no hover. The stock scroll container's `translateY(80px)` drew the rows 80 px below the scoreboard's box. The board now sets `transform: none` and moves the 80 px into the margin, and a 4th-row item showed its tooltip live.
+  - **Validator:** 61 checks (was 57).
+    - The `board:` checks model the dashboard page, including reused rows, the early event, the cached reopen, a reload, budgets and untranslated rows. A mutation of each new path failed them.
+    - The overrides check covers the page.
+    - Closure contracts were added for `pg_loader.js` and `pg_board.js`.
+  - **Live** (client 6819, pak10 `341b2bba`, `scripts/verify-postgame-live.js`): 121917141 and 121880956 PASS, with 60 row values, 40 lead points, 12 souls and 12 / 14 objectives (`live/*-pak10-verify.json`). A nav back to the previous match and a cached reopen both rebuilt. Screens are in `shots/live/v3-board-*.png`. The first run also had ShowRank Barebones (pak89) installed.
 
 - **Performance, phase 1** of [decisions/postgame-identity-perf-plan.md](decisions/postgame-identity-perf-plan.md). The plan was debated with m2, with live probes P0-P8 on client 6819.
   - **Sleeping:** the world bars work only when needed. The column's `OH_DEBUFF_CONFIG` now carries `watch` and `wake`. While not spectating every bar sleeps; before, a PC that played with pak10 installed kept every hero bar at its 0.25 s poll (310.5 → 4.3 us/s).
