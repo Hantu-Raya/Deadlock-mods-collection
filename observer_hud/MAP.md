@@ -72,6 +72,15 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 
 ## Changelog
 
+### 2026-10-26, match cards tied to the match id; board hover fixes (source only, not released; pak10 `763093c2`)
+
+- **Teams per match id, 2 days** (user request): the board ties the card that fits a match to its match id and writes it to the store, where it replaces the id-less HUD card; after a restart the match keeps its teams and another match of the same players does not borrow them. Cards older than 2 days are ignored by the board, and the v2 store page deletes them (page change in `D:/hpv2-store/oh/v2/index.html`, not yet published).
+- **The HUD sends team changes made during a live match** (the logo set during the match reaches the post-game header); after match end the card is frozen.
+- **No EDIT TEAM on the board** (user request): the board editor, its suggestion chip and its `s` query are removed; the editor's `USE <TEAM>?` stays.
+- **Hovered items are drawn on top** (user screenshot): an inline z-index on the hovered item and its ancestors (ENGINE.md, live).
+- **The graph tooltip stayed over the scoreboard** after the user hovered the graph on the Graphs screen (user screenshot): it is now drawn only on the Graphs screen.
+- Validator: 80 checks (new: item hover; store expiry and id-card supersede; card tied to the match id with restart, rematch, 2-day expiry and offline; tooltip re-hidden; HUD live rename). The page clock in the VM follows the harness.
+
 ### 2026-10-25, board fixes (source only, not released; pak10 `6a64ebe0`)
 
 - **Lead graph and objective icons were missing** on demo 121685912 (user report): the graph's last column was 1 soul off the totals row, so the scan named no tooltip row and read 0 lead points. The rows are now named by the closer pairing within 0.5 %. Live: 40 lead points, 12 objectives, `verify-postgame-live.js` PASS (`live/121685912-pak10-verify.json`).

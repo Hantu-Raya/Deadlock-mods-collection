@@ -98,7 +98,7 @@
     gen: 0,
     match: null, // { id, duration, teams: [{win, rows, totals}, ...] }
     cols: [], // per player row: { hero, souls }
-    tipMuted: false, // the stock tooltip was made transparent after the scan
+    tipMuted: false, // the stock tooltip is transparent (scan running, or not on the Graphs screen)
     sig: "", // first row's bound text when the board was built (steady-state check)
     bound: null, // that bound label (ours, inside a reused stock row)
     loadingSince: 0, // Date.now() when the visible page started waiting for match rows
@@ -147,22 +147,6 @@
     UI.frame = ctx.FindChildTraverse("NSFrame");
     UI.logo = [ctx.FindChildTraverse("NSLogo1"), ctx.FindChildTraverse("NSLogo2")];
     UI.org = ctx.FindChildTraverse("NSOrgText");
-    UI.suggest = [ctx.FindChildTraverse("NSTeamSuggest1"), ctx.FindChildTraverse("NSTeamSuggest2")];
-    UI.edit = ctx.FindChildTraverse("NSEdit");
-    UI.editTitle = ctx.FindChildTraverse("NSEditTitle");
-    UI.editName = ctx.FindChildTraverse("NSEditName");
-    UI.editTag = ctx.FindChildTraverse("NSEditTag");
-    UI.editLogo = ctx.FindChildTraverse("NSEditLogo");
-    UI.editNote = ctx.FindChildTraverse("NSEditNote");
-    // The click targets (a team's EDIT TEAM button, the editor's two buttons) are the only hit-testing parts.
-    [1, 2].forEach((i) => {
-      const button = ctx.FindChildTraverse(`NSTeamEdit${i}`);
-      if (ok(button)) button.SetPanelEvent("onactivate", () => openEdit(i - 1));
-    });
-    const save = ctx.FindChildTraverse("NSEditSave");
-    const cancel = ctx.FindChildTraverse("NSEditCancel");
-    if (ok(save)) save.SetPanelEvent("onactivate", saveEdit);
-    if (ok(cancel)) cancel.SetPanelEvent("onactivate", closeEdit);
   }
 
   // ---------- progress bar ----------
@@ -351,7 +335,7 @@
   // CitadelModIcon is 51 px (3 px padding + 45 px art) with overflow noclip: forcing a smaller
   // size let each neighbour draw over the art ("half cropped", live). Scale instead: no padding,
   // the 45 px container at ui-scale 75% = 33.75 px, three across in 105 px; stock hover and
-  // tooltip stay as they are.
+  // tooltip stay as they are, and the hovered item is lifted over its neighbours (hoverItems).
   function styleItems(items) {
     // Stock gives ItemsContainer a parent-relative height, which is 0 inside a fit-children row
     // (live: h=0 with the icons centred on it, so nothing showed).
@@ -360,6 +344,53 @@
     for (const icon of items.Children()) {
       css(icon, { width: "45px", height: "45px", padding: "0px", uiScale: "75%", margin: "0px 1px 1px 0px", verticalAlign: "top", horizontalAlign: "left", opacity: "1", saturation: "1" });
     }
+    items.SetPanelEvent("onmouseover", () => hoverItems(items));
+    items.SetPanelEvent("onmouseout", () => unhoverItems(items));
+  }
+
+  // ---------- item hover ----------
+  // Live (client 6819, 2026-10-26): the stock "#ItemsContainer CitadelModIcon:hover" scales an item 1.5x and
+  // later siblings drew over it: the next item, the next wrapped row, the next player's items. The stock
+  // ItemsContainer gets onmouseover/onmouseout while any of its items is hovered (the items keep their stock
+  // tooltips), so while the mouse is in one player's items a short poll finds the hovered item
+  // (BHasHoverStyle) and an inline z-index lifts it, and its ancestors up to the scoreboard over their
+  // siblings. Nothing runs while no items are hovered.
+  const HOVER_S = 0.02;
+  const HOVER = { items: null, icon: null, chain: [], token: 0 };
+  function lift(panel, on) {
+    if (ok(panel)) panel.style.zIndex = on ? "1" : "0";
+  }
+  function hoverItems(items) {
+    if (stopped || HOVER.items === items) return;
+    unhoverItems(HOVER.items);
+    HOVER.items = items;
+    HOVER.chain = [];
+    for (let p = items; ok(p) && p !== UI.scoreboard; p = p.GetParent()) HOVER.chain.push(p);
+    for (const p of HOVER.chain) lift(p, true);
+    pollHover(++HOVER.token);
+  }
+  function pollHover(token) {
+    if (stopped || token !== HOVER.token) return;
+    const items = HOVER.items;
+    // A lost onmouseout (the page closed, rows rebuilt) ends it too.
+    if (!ok(items) || !items.BHasHoverStyle()) { unhoverItems(items); return; }
+    let hovered = null;
+    for (const icon of items.Children()) if (icon.BHasHoverStyle()) { hovered = icon; break; }
+    if (hovered !== HOVER.icon) {
+      lift(HOVER.icon, false);
+      lift(hovered, true);
+      HOVER.icon = hovered;
+    }
+    $.Schedule(HOVER_S, () => pollHover(token));
+  }
+  function unhoverItems(items) {
+    if (!items || HOVER.items !== items) return;
+    HOVER.token++;
+    lift(HOVER.icon, false);
+    for (const p of HOVER.chain) lift(p, false);
+    HOVER.items = null;
+    HOVER.icon = null;
+    HOVER.chain = [];
   }
 
   function decorateRow(r, teamIndex, index, loss) {
@@ -493,7 +524,10 @@
   // this process from the HUD ("OHM1:" on ClientUI_FireOutput, sent again every few seconds because this
   // script only runs once the post-game page has shown), or from the store page for a match nobody
   // spectated in this session or after a restart. The header renders the stock names first and swaps when a
-  // card with at least OH.MATCH_MIN of the match's 12 accounts is known.
+  // card with at least OH.MATCH_MIN of the match's 12 accounts is known. The HUD cannot read the match id, so
+  // its cards have none: the board ties a card that fits this match to its match id and writes it to the store,
+  // where it replaces the id-less card, so the match keeps its teams after a restart and another match of the
+  // same players never borrows them. Cards older than CARD_TTL_S are ignored (user 2026-10-26).
   const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/v2/";
   const STORE_PREFIX = "OHS2:";
   const HELLO_S = 2; // the page is greeted at 0, 2, 4 and 6 s (the second load after a blank visit at 4 s)
@@ -501,7 +535,11 @@
   const QUERY_S = 4;
   const MAX_CARDS = 12;
   const ST = { panel: null, phase: "idle", gen: 0, seq: 0, id: "", tries: 0, handlerSet: false, queue: [], cur: null };
-  const CARDS = { handed: [], stored: new Map(), suggest: new Map(), asked: new Set(), applied: null, accounts: [], team1: [], team2: [], id: "", key: "", editing: -1 };
+  // tied: the cards this process tied to a match id and wrote (each once).
+  const CARDS = { handed: [], stored: new Map(), asked: new Set(), tied: new Set(), applied: null, accounts: [], team1: [], team2: [], id: "", key: "" };
+  // A card is a match's for 2 days after its time; older ones are ignored here and deleted by the store page
+  // (user 2026-10-26).
+  const CARD_TTL_S = 2 * 86400;
   const LOGOS = [{ image: null, url: "", sources: [], seq: 0 }, { image: null, url: "", sources: [], seq: 0 }];
 
   // A card handed over: the newest per roster and match id wins (an older one is stale, an equal one is a repeat).
@@ -574,17 +612,34 @@
       setLogo(i, entry ? entry[2] : "");
     }
     setText(UI.org, card && card.r ? card.r[0] : "");
-    renderSuggest();
   }
-  // The best card now: handed ones and the one the store gave for this match.
+  // The best card now: handed ones and the one the store gave for this match, each at most CARD_TTL_S old.
+  // Every fitting card without a match id is tied to this match first, so among this match's cards the
+  // newest wins (a team changed while the match was live replaces the older snapshot).
   function refreshCard() {
     if (!CARDS.accounts.length) return;
-    const pool = CARDS.handed.concat(CARDS.stored.has(CARDS.key) ? [CARDS.stored.get(CARDS.key)] : []);
-    const card = OH.pickCard(pool, CARDS.accounts, CARDS.id);
+    const now = Math.floor(Date.now() / 1000);
+    const wanted = new Set(CARDS.accounts);
+    const pool = () => CARDS.handed.concat(CARDS.stored.has(CARDS.key) ? [CARDS.stored.get(CARDS.key)] : []).filter((c) => now - c.at <= CARD_TTL_S);
+    if (CARDS.id) for (const c of pool()) if (!c.id && OH.cardShared(c, wanted) >= OH.MATCH_MIN) tie(c);
+    const card = OH.pickCard(pool(), CARDS.accounts, CARDS.id);
     if (card === CARDS.applied) return;
     if (card && CARDS.applied && JSON.stringify(card) === JSON.stringify(CARDS.applied)) return;
     renderCard(card);
-    if (card) log(`header: match card from the ${CARDS.handed.includes(card) ? "handoff" : "store"}, ${OH.cardShared(card, new Set(CARDS.accounts))} of ${CARDS.accounts.length} accounts shared`);
+    if (card) log(`header: match card${card.id ? " for the match id" : ""}, ${OH.cardShared(card, wanted)} of ${CARDS.accounts.length} accounts shared`);
+  }
+  // A copy of the card with this match id, kept as a handed card (the newest per roster and id) and written
+  // to the store once.
+  function tie(card) {
+    const tied = Object.assign({}, card, { id: CARDS.id });
+    const sig = JSON.stringify(tied);
+    if (CARDS.tied.has(sig)) return;
+    CARDS.tied.add(sig);
+    const own = new Set(tied.a.concat(tied.b).map(String));
+    CARDS.handed = CARDS.handed.filter((old) => !(old.id === tied.id && OH.cardShared(old, own) >= OH.MATCH_MIN && old.at <= tied.at));
+    CARDS.handed.push(tied);
+    while (CARDS.handed.length > MAX_CARDS) CARDS.handed.shift();
+    storeOp({ o: "u", c: tied, tries: 0 });
   }
   // A match was built: its 12 accounts, the stock header, a card if one is known, else one store query.
   function identify(m) {
@@ -594,7 +649,6 @@
     CARDS.id = String(m.id || "");
     CARDS.key = S.key;
     CARDS.applied = undefined; // the header is redrawn for this match
-    closeEdit();
     renderCard(null);
     refreshCard();
     if (CARDS.applied || CARDS.asked.has(CARDS.key) || CARDS.accounts.length < OH.MATCH_MIN) return;
@@ -661,7 +715,6 @@
     ST.id = `${op.o}${++ST.seq}`;
     const message = { i: ST.id, o: op.o };
     if (op.o === "q") { message.a = op.a; message.id = op.id; }
-    else if (op.o === "s") { message.a = op.a; message.b = op.b; }
     else message.c = op.c;
     try {
       storeSend(message);
@@ -716,87 +769,9 @@
         if (card) CARDS.stored.set(op.key, card);
       }
       log(`store: answered, ${CARDS.stored.has(op.key) ? "a card" : "no card"} for the match`);
-      if (op.key === CARDS.key) {
-        refreshCard();
-        // Nothing names these teams: which stored teams do the players look like?
-        if (!CARDS.applied && !CARDS.suggest.has(op.key)) storeOp({ o: "s", key: op.key, a: CARDS.team1.map(Number), b: CARDS.team2.map(Number) });
-      }
-    } else if (op.o === "s") {
-      const found = reply.ok === true && Array.isArray(reply.s) ? [0, 1].map((i) => {
-        const entry = reply.s[i] && typeof reply.s[i] === "object" ? OH.cleanTeam(reply.s[i].t) : null;
-        return entry && entry[0] ? entry : null;
-      }) : [null, null];
-      CARDS.suggest.set(op.key, found);
-      if (op.key === CARDS.key) renderSuggest();
+      if (op.key === CARDS.key) refreshCard();
     }
     nextOp();
-  }
-
-  // The suggestion under a team name ("<TEAM>?"): shown only while no card names the teams; applying it is the
-  // editor's job (prefilled), never automatic.
-  function renderSuggest() {
-    const found = CARDS.suggest.get(CARDS.key) || [null, null];
-    for (let i = 0; i < 2; i++) {
-      const label = UI.suggest[i];
-      if (!ok(label)) continue;
-      const entry = !CARDS.applied ? found[i] : null;
-      label.SetHasClass("NSShown", !!entry);
-      setText(label, entry ? `${entry[0]}?` : "");
-    }
-  }
-
-  // ---------- inline team editing (plan phase 5) ----------
-  // The EDIT TEAM button of a team opens the editor, prefilled from the card on screen or the suggestion.
-  // Saving writes a card for this match's accounts with its match id (so a match nobody spectated, or an old
-  // one, keeps its names after a restart and no other match borrows them): applied at once, kept for the
-  // session as a handed card and upserted into the store.
-  function entryFor(card, side) {
-    return card ? card.t[OH.cardSide(card, CARDS.team1, CARDS.team2) === 0 ? side : 1 - side] : null;
-  }
-  function openEdit(side) {
-    if (!ok(UI.edit) || !CARDS.accounts.length) return;
-    CARDS.editing = side;
-    const found = (CARDS.suggest.get(CARDS.key) || [null, null])[side];
-    const entry = entryFor(CARDS.applied, side) || found || ["", "", ""];
-    UI.editName.text = entry[0];
-    UI.editTag.text = entry[1];
-    UI.editLogo.text = entry[2];
-    setText(UI.editNote, "");
-    setText(UI.editTitle, `EDIT TEAM ${side + 1}${CARDS.applied ? "" : found ? " (SUGGESTED FROM EARLIER MATCHES)" : ""}`);
-    UI.edit.AddClass("NSShown");
-  }
-  function closeEdit() {
-    CARDS.editing = -1;
-    if (ok(UI.edit)) UI.edit.RemoveClass("NSShown");
-  }
-  function saveEdit() {
-    const side = CARDS.editing;
-    if (side < 0 || !S.match) return;
-    const name = OH.cleanText(String(UI.editName.text || ""), OH.LIMITS.name);
-    const tag = OH.cleanText(String(UI.editTag.text || ""), OH.LIMITS.tag);
-    const logo = OH.cleanUrl(String(UI.editLogo.text || ""));
-    if (name === null) { setText(UI.editNote, `The name is too long (${OH.LIMITS.name} characters at most).`); return; }
-    if (tag === null) { setText(UI.editNote, `The tag is too long (${OH.LIMITS.tag} characters at most).`); return; }
-    if (logo === null) { setText(UI.editNote, "The logo needs a plain http(s) address."); return; }
-    const m = S.match;
-    const base = CARDS.applied;
-    const team = [0, 1].map((i) => (i === side ? [name, tag.toUpperCase(), logo] : entryFor(base, i) || ["", "", ""]));
-    const card = OH.cleanCard({
-      a: CARDS.team1.map(Number), b: CARDS.team2.map(Number), t: team, r: base && base.r ? base.r : 0,
-      w: m.teams[0].win ? 1 : m.teams[1].win ? 2 : 0, id: CARDS.id, at: Math.floor(Date.now() / 1000)
-    });
-    if (!card) { setText(UI.editNote, "These players cannot be saved as a card."); return; }
-    closeEdit();
-    adopt(card);
-    storeOp({ o: "u", c: card, tries: 0 });
-  }
-  // A card from this PC's own edit or the handoff: the newest per roster and match id.
-  function adopt(card) {
-    const own = new Set(card.a.concat(card.b).map(String));
-    CARDS.handed = CARDS.handed.filter((old) => !(card.id === old.id && OH.cardShared(old, own) >= OH.MATCH_MIN && old.at <= card.at));
-    CARDS.handed.push(card);
-    while (CARDS.handed.length > MAX_CARDS) CARDS.handed.shift();
-    refreshCard();
   }
 
   // ---------- show / teardown ----------
@@ -829,6 +804,7 @@
   // stale board), so the board deletes its own columns; the rows' inline styles stay valid.
   function teardown() {
     S.gen++;
+    unhoverItems(HOVER.items);
     if (ok(UI.frame)) { UI.frame.RemoveClass("NSOn"); UI.frame.RemoveClass("NSIntro"); }
     for (const c of S.cols) if (ok(c.column)) c.column.DeleteAsync(0);
     S.cols = [];
@@ -1183,15 +1159,21 @@
     }
     if (!ok(UI.scoreboard) || !ok(UI.graphs) || !ok(UI.screen)) return false;
     if (!UI.page.BHasClass("PageVisible")) { if (S.loadingSince) { S.loadingSince = 0; progressHide(); } return false; }
-    if (S.tipMuted && S.scanning !== S.gen && ok(UI.tip) && ok(UI.graphs.GetParent()) && UI.graphs.GetParent().BHasClass("Focused")) {
-      UI.tip.style.opacity = "1";
-      S.tipMuted = false;
-    }
     // The board builds while the page opens on the Team1 screen; play the entrance again each
     // time the Scoreboard screen comes into focus, so the user sees it.
     const focused = UI.screen.BHasClass("Focused");
     if (focused && !S.focused && S.key) replayIntro();
     S.focused = focused;
+    // The stock graph tooltip does not close by script: it is drawn only on the Graphs screen and never while
+    // the scan hovers (user 2026-10-25: it showed while loading; 2026-10-26: the user's own hover on the
+    // Graphs screen left it over the scoreboard).
+    if (ok(UI.tip)) {
+      const show = !focused && S.scanning !== S.gen && ok(UI.graphs.GetParent()) && UI.graphs.GetParent().BHasClass("Focused");
+      if (show === S.tipMuted) {
+        UI.tip.style.opacity = show ? "1" : "0";
+        S.tipMuted = !show;
+      }
+    }
     // Steady state: the first row's bound label still reads what the board was built from.
     // Rows are reused across matches, so panel identity is not enough.
     if (S.key && ok(S.bound) && String(S.bound.text) === S.sig) return true;

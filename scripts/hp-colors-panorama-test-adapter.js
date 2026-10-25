@@ -297,6 +297,11 @@ class MockPanel {
     incrementCounter(this.operationCounts, 'classReads');
     return this.classes.has(String(className));
   }
+  // Live (client 6819): true while the mouse is over the panel or a child; tests set panel.hovered.
+  BHasHoverStyle() {
+    incrementCounter(this.operationCounts, 'classReads');
+    return !!this.hovered;
+  }
   BAscendantHasClass(className) {
     for (let panel = this; panel; panel = panel.parent) if (panel.BHasClass(className)) return true;
     return false;

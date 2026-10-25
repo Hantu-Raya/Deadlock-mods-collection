@@ -335,7 +335,8 @@
   const sideShared = (ids, wanted) => ids.reduce((n, id) => n + (wanted.has(String(id)) ? 1 : 0), 0);
   const cardShared = (card, wanted) => sideShared(card.a, wanted) + sideShared(card.b, wanted);
   // The best card for these accounts (strings, up to 12): at least MATCH_MIN shared; a card written for
-  // this match id first, then one without an id, then the most shared, then the newest; null when none.
+  // this match id first (the newest of them: a later snapshot of the same match), then one without an id
+  // (the most shared, then the newest); null when none.
   function pickCard(cards, accounts, id) {
     const wanted = new Set(accounts);
     let best = null;
@@ -343,7 +344,7 @@
     for (const card of cards) {
       const shared = cardShared(card, wanted);
       if (shared < MATCH_MIN || (card.id && card.id !== id)) continue;
-      const rank = (card.id ? 3 : 2) * 1e12 + shared * 1e10 + card.at;
+      const rank = card.id ? 3e12 + card.at : 2e12 + shared * 1e10 + card.at;
       if (rank > bestRank) {
         best = card;
         bestRank = rank;

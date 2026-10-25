@@ -2065,14 +2065,16 @@
   // ------------------------------------------------------------------ match card
 
   // The match card (plan phase 4, $.OHState "match cards"): the accounts of each side from the markers and
-  // the team snapshot, written once both sides are known (at least 5 accounts each; written again when the
-  // set of accounts grows) and again at match end with the winner. Each write goes to the editor's store
+  // the team snapshot, written once both sides are known (at least 5 accounts each), again when the set of
+  // accounts grows or the teams change while the match is live (user 2026-10-26: a logo set during the match
+  // must reach the post-game header), and at match end with the winner; after that the card is the ended
+  // match's and setting up the next teams leaves it alone. Each write goes to the editor's store
   // panel (onCard) and to the post-game board in this process (ClientUI_FireOutput, live P3); the board's
   // script is only loaded when the post-game page first shows, so the latest card is sent again every
   // CARD_RESEND_MS, also after spectating ended, until the next map load. An untouched sample name (SPEC
   // "Sample defaults") is left out of a card: the board keeps the stock name.
   const CARD_RESEND_MS = 5000;
-  const Card = { gen: -1, sig: "", key: "", card: null, sentAt: 0, ended: -1 };
+  const Card = { gen: -1, sig: "", version: -1, key: "", card: null, sentAt: 0, ended: -1 };
   const cardListeners = [];
   function snapshotCard(winner) {
     const ids = { amber: [], sapphire: [] };
@@ -2119,14 +2121,16 @@
     if (Card.gen !== mapGen) {
       Card.gen = mapGen;
       Card.sig = "";
+      Card.version = -1;
       Card.key = "";
       Card.card = null;
     }
-    if (Accts.sig === Card.sig) return;
+    if (Card.ended === mapGen || (Accts.sig === Card.sig && version === Card.version)) return;
     Card.sig = Accts.sig;
+    Card.version = version;
     const card = snapshotCard(0);
     if (!card) return;
-    const key = `${card.a.join(",")}/${card.b.join(",")}`;
+    const key = JSON.stringify([card.a, card.b, card.t, card.r]);
     if (key === Card.key) return;
     Card.key = key;
     publishCard(card);

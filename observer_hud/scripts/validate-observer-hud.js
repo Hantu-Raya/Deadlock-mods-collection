@@ -52,6 +52,12 @@ const pageScript = (file) => (fs.existsSync(file) ? /<script>([\s\S]*)<\/script>
 const storeScript = pageScript(STORE_PAGE);
 const v1Script = pageScript(V1_PAGE);
 const PAGE_SCRIPTS = { [STORE_URL]: storeScript, [V1_URL]: v1Script };
+// The store page's clock follows the harness (cards expire 2 days after their at).
+const PAGE_NOW = 7000000;
+const clockDate = (nowMs) => class extends Date {
+  constructor(...args) { if (args.length) super(...args); else super(nowMs()); }
+  static now() { return nowMs(); }
+};
 MockPanel.prototype.SetURL = function (url) {
   let root = this;
   while (root.GetParent()) root = root.GetParent();
@@ -79,7 +85,7 @@ MockPanel.prototype.SetURL = function (url) {
         setItem: (key, value) => { web.disk[key] = String(value); },
         removeItem: (key) => { delete web.disk[key]; }
       },
-      JSON, Math, Error, String, decodeURIComponent, Date
+      JSON, Math, Error, String, decodeURIComponent, Date: clockDate(() => web.harness.now)
     };
     page.hash = url.includes("#") ? url.slice(url.indexOf("#")) : "";
     panel.__page = page;
@@ -4166,6 +4172,14 @@ check("board: the scan reads the lead with a totals row a few souls off, and the
   w.selectScreen("GraphsScreen");
   w.advance(1500);
   assert.equal(String(w.tip().style.opacity), "1", "tooltip restored on the Graphs screen");
+  // The user's own hover leaves the tooltip open; back on the scoreboard it must not stay over the board
+  // (user report 2026-10-26).
+  w.selectScreen("ScoreboardScreen");
+  w.advance(1500);
+  assert.equal(String(w.tip().style.opacity), "0", "tooltip hidden again off the Graphs screen");
+  w.selectScreen("GraphsScreen");
+  w.advance(1500);
+  assert.equal(String(w.tip().style.opacity), "1", "and back on the Graphs screen");
 });
 
 check("board: builds when the match loads, again for the next match on the reused rows, never twice for one", () => {
@@ -4308,7 +4322,7 @@ check("board: a layout reload keeps one loop and one match listener", () => {
 // the card is written while a side is unknown, or never again at match end.
 const V2 = "hantu.observer_hud.v2/";
 // One request run against a page script in its own sandbox (a second panel); returns the parsed reply.
-function pageCall(pageSource, disk, request, prefix = "OHS2:") {
+function pageCall(pageSource, disk, request, prefix = "OHS2:", nowMs = PAGE_NOW) {
   let title = "";
   const sandbox = {
     window: { addEventListener() {} },
@@ -4316,7 +4330,7 @@ function pageCall(pageSource, disk, request, prefix = "OHS2:") {
     document: { set title(value) { title = value; }, get title() { return title; } },
     localStorage: { getItem: (key) => (Object.prototype.hasOwnProperty.call(disk, key) ? disk[key] : null),
       setItem: (key, value) => { disk[key] = String(value); }, removeItem: (key) => { delete disk[key]; } },
-    JSON, Math, Error, String, decodeURIComponent, Date
+    JSON, Math, Error, String, decodeURIComponent, Date: clockDate(() => nowMs)
   };
   vm.runInNewContext(pageSource, sandbox);
   assert.ok(title.length <= 4096, `a reply fits the game's title cap (${title.length})`);
@@ -4497,10 +4511,13 @@ check("match card: written when both sides are known and again at match end, han
   const grown = sentCards(w).pop();
   assert.equal(grown.a.length + grown.b.length, 12);
   assert.equal(matchesOf(disk).m.length, 1, "replaced, not added");
-  // The team snapshot is taken when the card is written: a later rename is not sent until match end.
+  // A team changed while the match is live is sent at once (user 2026-10-26: the logo set during the match
+  // must reach the post-game header), and the store keeps the one card for these players.
   w.type("OHAmberNameEntry", "Renamed");
-  w.advance(12000);
-  assert.equal(sentCards(w).pop().t[0][0], "Owl Squad", "the snapshot as it was");
+  w.advance(3500);
+  assert.equal(sentCards(w).pop().t[0][0], "Renamed", "a live rename is sent");
+  assert.equal(matchesOf(disk).m.length, 1, "still one card");
+  assert.equal(matchesOf(disk).T[matchesOf(disk).m[0].t[0]][0], "Renamed", "and stored");
   // Match end: the winner and the snapshot as it is then, written again.
   const end = w.hud.FindChildTraverse("MatchEnd");
   const show = (...classes) => {
@@ -4513,6 +4530,10 @@ check("match card: written when both sides are known and again at match end, han
   w.advance(3500);
   const last = sentCards(w).pop();
   deq([last.w, last.t[0][0]], [2, "Renamed"], "winner and the names at match end");
+  // After match end the card is that match's: setting up the next match's teams does not rename it.
+  w.type("OHAmberNameEntry", "Next Match Team");
+  w.advance(12000);
+  deq([sentCards(w).pop().t[0][0], sentCards(w).pop().w], ["Renamed", 2], "the ended match keeps its teams");
   const stored = matchesOf(disk);
   assert.equal(stored.m.length, 1);
   assert.equal(stored.m[0].w, 2);
@@ -4692,7 +4713,9 @@ check("board: without a handed card it asks the store once, only while the page 
   present(w2, a);
   w2.advance(2000);
   deq([w2.text("NSTeamName1"), w2.text("NSTeamName2")], ["Handed", "Handed B"]);
-  assert.equal((w2.web.urls || []).length, 0, "the handed card needs no store");
+  const asked = (w2.web.urls || []).map((u) => decodeURIComponent(u));
+  assert.equal(asked.filter((u) => u.includes('"o":"q"')).length, 0, "the handed card needs no query");
+  assert.equal(asked.filter((u) => u.includes('"o":"u"')).length, 1, "it is written once, tied to the match id");
   // Offline: stock names, a few tries at most, then quiet until the next match.
   const off = boardWorld({ disk, offline: true });
   off.boot();
@@ -4715,17 +4738,55 @@ check("board: without a handed card it asks the store once, only while the page 
   assert.ok(total(shownOps) <= BUDGET_BOARD.calls && weighted(shownOps) <= BUDGET_BOARD.us, `board with a card: ${total(shownOps)} calls/s, ${weighted(shownOps)} us/s`);
 });
 
+check("board: a hovered item is drawn over its neighbours and the next players' items; it drops back when the mouse leaves", () => {
+  // Live (client 6819, 2026-10-26): the stock :hover scales an item 1.5x; later siblings (the next item, the
+  // next wrapped row, the next player's column) drew over it. ItemsContainer gets onmouseover/onmouseout when
+  // any of its items is hovered, BHasHoverStyle names the item and an inline z-index lifts it.
+  const w = boardWorld();
+  w.boot();
+  w.advance(1000);
+  present(w, pgMatch(121685912));
+  w.advance(3000);
+  const rows = w.scoreboard.FindChildTraverse("Team1").FindChildTraverse("TeamPlayers").children;
+  const items = rows[0].FindChildTraverse("ItemsContainer");
+  const icons = items.children;
+  const z = (p) => String(p.style.zIndex ?? "");
+  const chain = [];
+  for (let p = items; p && p !== w.scoreboard; p = p.GetParent()) chain.push(p);
+  assert.equal(typeof items.events.onmouseover, "function", "the items listen for the mouse");
+  icons[2].hovered = true;
+  items.hovered = true;
+  items.events.onmouseover();
+  w.advance(100);
+  assert.equal(z(icons[2]), "1", "the hovered item is above the other items");
+  assert.ok(icons.every((p, i) => i === 2 || z(p) !== "1"), "only that item");
+  for (const p of chain) assert.equal(z(p), "1", `${p.id || p.paneltype} is above its siblings (the next players' items)`);
+  icons[2].hovered = false;
+  icons[4].hovered = true;
+  w.advance(100);
+  deq([z(icons[4]), z(icons[2])], ["1", "0"], "the mouse moved to another item of the same player");
+  let reads = 0;
+  for (const icon of icons) icon.BHasHoverStyle = function () { reads++; return !!this.hovered; };
+  icons[4].hovered = false;
+  items.hovered = false;
+  items.events.onmouseout();
+  w.advance(100);
+  assert.ok(icons.every((p) => z(p) !== "1") && chain.every((p) => z(p) === "0"), "all back down");
+  const after = reads;
+  w.advance(5000);
+  assert.equal(reads, after, "nothing is polled once the mouse left");
+  assert.ok(noBoardErrors(w));
+});
 
-// ---------------------------------------------------------------- phase 5: learned registry, inline editing
+
+// ---------------------------------------------------------------- phase 5: learned registry
 // Plan phase 5 (decision 4). The page learns "team -> its 12 most recent accounts" from the cards of ended
 // matches (a winner is set; an untouched sample name never reaches a card) and only ever offers it: the
-// board shows "<team>?" and the editor "USE <team>?" when at least 4 of a side's accounts are members of
-// one team and at most 2 of another's. Nothing applies without a click. Clicking a team name on the board
-// opens an editor (name, tag, logo URL); saving writes a card with the match id for that match's accounts.
+// editor shows "USE <team>?" when at least 4 of a side's accounts are members of one team and at most 2 of
+// another's. Nothing applies without a click. The board has no team editing (user 2026-10-26).
 // How it could fail: a suggestion is applied silently; a half-matching team (3 members, or a runner-up with
 // 3) is offered; an unfinished match (no winner) teaches; the registry grows past 12 accounts per team or
-// never forgets a leaver; the board edit names the wrong side; an edited old match loses its names after a
-// restart or lends them to another match; a bad name or URL is stored; the click target does not exist.
+// never forgets a leaver.
 const ended = (base, names, over = {}) => card(base, Object.assign({ w: 1, t: [[names[0], names[0].slice(0, 3).toUpperCase(), ""], [names[1], names[1].slice(0, 3).toUpperCase(), ""]] }, over));
 
 check("registry: a team is suggested from at least 4 of a side's accounts against at most 2 of another team; only ended matches teach; 12 members at most", () => {
@@ -4797,101 +4858,99 @@ check("editor: a suggested team is offered as USE <team>? and applied only by a 
   assert.ok(!row("Sapphire").BHasClass("OHShown"), "accounts that are in no stored team");
 });
 
-const upCard = (disk, c) => pageCall(storeScript, disk, { i: "u", o: "u", c });
-const edit = (w, id, value) => { const entry = w.boardHost().FindChildTraverse(id); entry.text = value; };
-const click = (w, id) => w.boardHost().FindChildTraverse(id).events.onactivate();
+const upCard = (disk, c, nowMs = PAGE_NOW) => pageCall(storeScript, disk, { i: "u", o: "u", c }, "OHS2:", nowMs);
 const names = (w) => [w.text("NSTeamName1"), w.text("NSTeamName2")];
+const DAY_S = 86400;
 
-check("board: a stored team is suggested, never applied; clicking a team name edits it; the card keeps its match id through a restart", () => {
+check("store v2: a card older than 2 days is deleted by the next request; a match-id card replaces the id-less card of its players", () => {
+  // User 2026-10-26: a match's teams are tied to its match id and expire and are deleted after 2 days.
+  const disk = {};
+  const t0 = 400000;
+  const a = pgMatch(121917141);
+  const b = pgMatch(121880956);
+  const rosterOf = (m) => boardCard(m).a.concat(boardCard(m).b);
+  upCard(disk, boardCard(a, { at: t0, t: [["Old", "", ""], ["Old B", "", ""]] }), t0 * 1000);
+  upCard(disk, boardCard(b, { at: t0 + DAY_S, t: [["Young", "", ""], ["Young B", "", ""]] }), (t0 + DAY_S) * 1000);
+  const later = (t0 + 2 * DAY_S + 1) * 1000;
+  const q = (m, id) => pageCall(storeScript, disk, { i: "q", o: "q", a: rosterOf(m), id }, "OHS2:", later);
+  assert.equal(q(a, "").x, 0, "older than 2 days: not answered");
+  assert.equal(matchesOf(disk).m.length, 1, "and deleted from the key, not only hidden");
+  assert.equal(q(b, "").c.t[0][0], "Young", "a day old: kept");
+  upCard(disk, boardCard(b, { at: t0 + DAY_S, id: "121880956", t: [["Young", "", ""], ["Young B", "", ""]] }), later);
+  deq(matchesOf(disk).m.map((m) => m.id || ""), ["121880956"], "the id-less card of these players made way for the match-id card");
+  upCard(disk, boardCard(a, { at: t0 }), later);
+  assert.equal(matchesOf(disk).m.length, 1, "an expired card is not stored");
+  // A newer id-less card (another map of the same players) stays next to an older match-id card.
+  upCard(disk, boardCard(b, { at: t0 + DAY_S + 50, t: [["Next Map", "", ""], ["Next Map B", "", ""]] }), later);
+  assert.equal(matchesOf(disk).m.length, 2, "a newer id-less card is kept");
+});
+
+check("board: the match's card is tied to its match id in the store and kept through a restart for 2 days; another match never borrows it; no team editing on the board", () => {
   const disk = {};
   const a = pgMatch(121917141, { win: 1 });
-  const mates = boardCard(a, { a: boardCard(a).a.slice(0, 4).concat([71, 72]), b: [81, 82, 83, 84, 85, 86], w: 1, t: [["Owl Squad", "OWL", ""], ["Strangers", "", ""]], at: 100 });
-  upCard(disk, mates); // an ended match with 4 of this roster's players: a suggestion, no card for this match
+  const owls = (over = {}) => boardCard(a, Object.assign({ at: 6000, w: 1, t: [["Owl Squad", "OWL", "https://img.test/o.png"], ["Saint Squad", "SQD", ""]] }, over));
+  // The HUD's card carries no match id (the HUD cannot read it); the board ties the card it shows to the match.
+  upCard(disk, owls());
   const w = boardWorld({ disk });
   w.web.loadDelay = 500;
   w.boot();
   w.advance(1000);
   present(w, a);
-  w.advance(3000);
-  assert.ok(w.boardHost().FindChildTraverse("NSTeamEdit1") && w.boardHost().FindChildTraverse("NSTeamEdit2"), "a deliberate click target for each team");
-  for (const id of ["NSTeamEdit1", "NSTeamEdit2"]) assert.notEqual(w.boardHost().FindChildTraverse(id).attributes.hittest, "false", `${id} takes the mouse`);
-  deq(names(w), ["Hidden King", "Archmother"], "the suggestion is not applied");
-  const hint = (side) => w.boardHost().FindChildTraverse(`NSTeamSuggest${side}`);
-  assert.ok(hint(1).BHasClass("NSShown"), "team 1 is suggested");
-  assert.equal(hint(1).text, "Owl Squad?");
-  assert.ok(!hint(2).BHasClass("NSShown"), "team 2 has no suggestion");
-  assert.ok(!w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"), "the editor is closed");
-  // Open it: filled from the suggestion.
-  click(w, "NSTeamEdit1");
-  assert.ok(w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"));
-  deq([w.boardHost().FindChildTraverse("NSEditName").text, w.boardHost().FindChildTraverse("NSEditTag").text], ["Owl Squad", "OWL"]);
-  // Bad input: nothing is written, the note says why.
-  const before = w.web.urls.length;
-  edit(w, "NSEditName", "N".repeat(29));
-  click(w, "NSEditSave");
-  assert.ok(/28/.test(w.text("NSEditNote")), `note: ${w.text("NSEditNote")}`);
-  assert.ok(w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"), "stays open");
-  edit(w, "NSEditName", "Edited Owls");
-  edit(w, "NSEditLogo", "javascript:alert(1)");
-  click(w, "NSEditSave");
-  assert.ok(/http/i.test(w.text("NSEditNote")), `note: ${w.text("NSEditNote")}`);
-  edit(w, "NSEditTag", "toolong");
-  edit(w, "NSEditLogo", "");
-  click(w, "NSEditSave");
-  assert.ok(/4/.test(w.text("NSEditNote")), "tag note");
-  assert.equal(w.web.urls.length, before, "nothing was sent");
-  click(w, "NSEditCancel");
-  assert.ok(!w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"));
-  deq(names(w), ["Hidden King", "Archmother"], "cancel changes nothing");
-  // A good edit: applied at once, written with this match's id and winner.
-  click(w, "NSTeamEdit1");
-  edit(w, "NSEditName", "Edited Owls");
-  edit(w, "NSEditTag", "eo");
-  edit(w, "NSEditLogo", "https://img.test/e.png");
-  click(w, "NSEditSave");
-  deq(names(w), ["Edited Owls", "Archmother"], "the header follows the edit");
-  assert.ok(!w.boardHost().FindChildTraverse("NSEdit").BHasClass("NSShown"), "saved: closed");
-  assert.ok(!hint(1).BHasClass("NSShown"), "a card now names it: no suggestion");
-  assert.equal(w.boardHost().FindChildTraverse("NSLogo1").Children().filter((p) => p.paneltype === "Image").length, 1, "its logo loads");
-  w.advance(3000);
-  const stored = matchesOf(disk);
-  const mine = stored.m.find((m) => m.id === "121917141");
-  assert.ok(mine, "a card for this match id was written");
-  deq([mine.a.slice().sort(), mine.b.slice().sort(), mine.w], [boardCard(a).a.slice().sort(), boardCard(a).b.slice().sort(), 1], "the match's accounts by board side, and who won");
-  deq(stored.T[mine.t[0]], ["Edited Owls", "EO", "https://img.test/e.png"]);
-  // Another team on the same page: a second edit keeps the first.
-  click(w, "NSTeamEdit2");
-  assert.equal(w.boardHost().FindChildTraverse("NSEditName").text, "", "no suggestion, no card: blank");
-  edit(w, "NSEditName", "Second Side");
-  click(w, "NSEditSave");
-  deq(names(w), ["Edited Owls", "Second Side"]);
-  w.advance(3000);
-  // Restart: a new process finds it by the match id; another match of the same players does not.
+  w.advance(4000);
+  deq(names(w), ["Owl Squad", "Saint Squad"], "the stored card names the header");
+  for (const id of ["NSTeamEdit1", "NSTeamEdit2", "NSEdit", "NSTeamSuggest1", "NSTeamSuggest2"]) assert.equal(w.boardHost().FindChildTraverse(id), null, `no ${id} on the board`);
+  const forMatch = () => matchesOf(disk).m.filter((m) => m.id === "121917141");
+  deq([forMatch().length, matchesOf(disk).m.length, forMatch()[0].at], [1, 1, 6000], "tied to the match id at the card's own time; the id-less card made way");
+  deq(matchesOf(disk).T[forMatch()[0].t[0]], ["Owl Squad", "OWL", "https://img.test/o.png"]);
+  // The HUD sends its card again every few seconds: the same card is not written again.
+  const writes = () => w.web.urls.filter((u) => decodeURIComponent(u).includes('"o":"u"')).length;
+  const once = writes();
+  w.fire("ClientUI_FireOutput", handoff(owls()));
+  w.advance(4000);
+  assert.equal(writes(), once, "written once");
+  // A newer card (the logo was changed while the match was live) replaces it, header and store.
+  w.fire("ClientUI_FireOutput", handoff(owls({ at: 6500, t: [["Owl Squad", "OWL", "https://img.test/new.png"], ["Saint Squad", "SQD", ""]] })));
+  w.advance(4000);
+  deq([forMatch().length, matchesOf(disk).T[forMatch()[0].t[0]][2]], [1, "https://img.test/new.png"], "the newest card for the match id");
+  const logos = w.boardHost().FindChildTraverse("NSLogo1").Children().filter((p) => p.paneltype === "Image" && p.valid);
+  assert.equal(logos[0].src, "https://img.test/new.png", "the header loads the newer logo");
+  // Restart: found by the match id; another match of the same players does not borrow it.
   const again = boardWorld({ disk });
   again.web.loadDelay = 500;
   again.boot();
   again.advance(1000);
   present(again, a);
-  again.advance(3000);
-  deq(names(again), ["Edited Owls", "Second Side"], "an old match edited on the board keeps its names after a restart");
+  again.advance(4000);
+  deq(names(again), ["Owl Squad", "Saint Squad"], "after a restart, by the match id");
   const rematch = pgMatch(121999999, { win: 1 });
-  rematch.teams = a.teams; // the same players
+  rematch.teams = a.teams;
   present(again, rematch);
-  again.advance(3000);
-  deq(names(again), ["Hidden King", "Archmother"], "another match does not borrow it");
-  // Writing an edit while the store is unreachable: it shows, nothing throws, few requests.
+  again.advance(4000);
+  deq(names(again), ["Hidden King", "Archmother"], "another match of the same players does not borrow it");
+  // Two days after the card: gone from the header and deleted from the store; a day-old handed card still shows.
+  const late = boardWorld({ disk });
+  late.harness.now = (6500 + 2 * DAY_S + 60) * 1000;
+  late.web.loadDelay = 500;
+  late.boot();
+  late.advance(1000);
+  late.fire("ClientUI_FireOutput", handoff(owls({ at: 6500 })));
+  present(late, a);
+  late.advance(4000);
+  deq(names(late), ["Hidden King", "Archmother"], "expired: stock names");
+  assert.equal(forMatch().length, 0, "expired: deleted from the store");
+  late.fire("ClientUI_FireOutput", handoff(owls({ at: 6500 + DAY_S })));
+  late.advance(4000);
+  deq(names(late), ["Owl Squad", "Saint Squad"], "a day old: shown");
+  // An unreachable store: the handed card still shows, a few requests at most, nothing throws.
   const off = boardWorld({ disk: {}, offline: true });
   off.boot();
   off.advance(1000);
+  off.fire("ClientUI_FireOutput", handoff(owls()));
   present(off, a);
-  click(off, "NSTeamEdit2");
-  edit(off, "NSEditName", "Offline Name");
-  click(off, "NSEditSave");
-  assert.equal(off.text("NSTeamName2"), "Offline Name");
   off.advance(40000);
+  deq(names(off), ["Owl Squad", "Saint Squad"]);
   assert.ok(off.web.urls.length <= 14, `${off.web.urls.length} requests offline`);
-  assert.equal(off.text("NSTeamName2"), "Offline Name", "kept for the session");
-  assert.ok(noBoardErrors(off) && noBoardErrors(again) && noBoardErrors(w));
+  assert.ok(noBoardErrors(off) && noBoardErrors(again) && noBoardErrors(late) && noBoardErrors(w));
 });
 
 
