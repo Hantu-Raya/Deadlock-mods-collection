@@ -70,6 +70,10 @@ p { font-family: RetailS; font-size: 31px; line-height: 1.35; color: var(--dim);
 /* d1 cover */
 #d1 .title { font-family: Reaver; font-size: 128px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
 #d1 .title span { color: var(--brass); }
+/* d0 0.2.0 cover */
+#d0 .title { font-family: Reaver; font-size: 112px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
+#d0 .title span { color: var(--brass); }
+#d0 .ver { display: inline-block; font-family: Reaver; font-size: 26px; letter-spacing: .06em; background: var(--brass); color: #1A140A; padding: 8px 16px 6px; transform: rotate(-3deg); box-shadow: 0 6px 14px #0B0D0999; margin-bottom: 26px; }
 
 /* d2 tiles */
 .tile { position: absolute; width: 560px; }
@@ -91,6 +95,23 @@ p { font-family: RetailS; font-size: 31px; line-height: 1.35; color: var(--dim);
 </style>
 </head>
 <body>
+
+<!-- 0. 0.2.0 cover: the Night Shift post-game board (user's shot 20261026075220, match 124845514, client 6819),
+     the whole frame turned, with the stat rows and the soul lead line in front. -->
+<section class="page" id="d0">
+  <div class="blur" style="background-image:url(src/pg_075220.jpg)"></div>
+  <div class="vignette"></div>
+  <div class="stage" style="left:700px;top:70px;width:1180px;height:664px"><div class="frame" style="background-image:url(src/pg_075220.jpg);background-size:100% 100%;background-position:0 0;transform:rotateY(-12deg) rotateX(3deg)"></div></div>
+  <div class="copy" style="top:110px;width:600px">
+    <div class="ver">New in 0.2.0</div>
+    <div class="title">Observer<br><span>HUD</span></div>
+    <p style="font-size:36px;margin-top:30px;color:var(--text)">The whole match on one board.<br><span class="hl">Built into the game.</span></p>
+  </div>
+  <div class="part photo" style="left:96px;top:600px;width:568px;height:262px;--s:.82;--x:162;--y:268;background-image:url(src/pg_075220.jpg)"><div class="tag">Exact stats</div></div>
+  <div class="part photo" style="left:700px;top:800px;width:1100px;height:124px;--s:.69;--x:160;--y:842;background-image:url(src/pg_075220.jpg)"><div class="tag">Soul lead</div></div>
+  <div class="foot" style="bottom:40px">Free · one pak · post-game board: exact stats, souls by source, final items, your team names and logos · custom top bars: <b>hanturaya101</b> on Discord</div>
+  <div class="grain"></div>
+</section>
 
 <!-- 1. Cover: the turned hero frame with three in-game-only photos in front. -->
 <section class="page" id="d1">
