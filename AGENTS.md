@@ -50,7 +50,8 @@ Important lanes:
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
 - `test_hpv2/` — standalone pak04 pickup indicators; read `test_hpv2/AGENTS.md` before changing its runtime, relay layouts, or `build_test_hpv2.ps1`.
 - `feeder_feed/` — pak08 FEEDER FEED tab in the damage report (kill-feed donors/recipients with server bounty and comeback math); read `feeder_feed/AGENTS.md` first.
-- `observer_hud/` — pak10 community-edition observer HUD for organiser-run tournaments, separate from DLF's league branding: two looks picked in its Escape-menu editor (Base Game+ Names, Night Desk with a soul lead graph), injected as a header band and into the stock spectator top bar from `hud_spectate_bar.xml`, plus the ability status column with spectator VData and per-player purchase notices (DLF's, rewritten). It also owns the Night Shift post-game stats board (`pg_*`: the stock post-game Scoreboard screen restyled with exact stats, souls by source, final items and a soul lead graph, read offline from the stock page; never reparent stock rows, that is fatal), shipped only in pak10 (the old standalone pak11 is retired). Read `observer_hud/AGENTS.md` first.
+- `observer_hud/` — pak10 community-edition observer HUD for organiser-run tournaments, separate from DLF's league branding: two looks picked in its Escape-menu editor (Base Game+ Names, Night Desk with a soul lead graph), injected as a header band and into the stock spectator top bar from `hud_spectate_bar.xml`, plus the ability status column with spectator VData and per-player purchase notices (DLF's, rewritten). It also owns the Night Shift post-game stats board (`pg_*`: the stock post-game Scoreboard screen restyled with exact stats, souls by source, final items and a soul lead graph, read offline from the stock page; never reparent stock rows, that is fatal). The old postgame_stats pak11 is retired; the new standalone fork is `detailed_postgame/`. Read `observer_hud/AGENTS.md` first.
+- `detailed_postgame/` — pak11 Detailed Post Scoreboard Menu: a standalone fork of Observer HUD's post-game board for any player, without its observer extras (match cards, logos, aliases, hosted store page). Never edit `observer_hud/` for it. pak01 (DLF) and pak10 override the same page and win over it. Read `detailed_postgame/AGENTS.md` first.
 - `fps/` — gameinfo/ConVar performance research; `fps/gameinfo_bench/` is the A/B benchmark harness. Read `fps/AGENTS.md` (ask before every benchmark launch; user hard limits) first.
 - `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
 - `anitaui/`, `soul_timer/`, `self_hp/`, `passive_items_mod/` — Anita UI settings host, unsecured soul-drain countdown, self health bar override, and passive items driven by generated JS config.
@@ -95,6 +96,10 @@ powershell -ExecutionPolicy Bypass -File build_feeder_feed.ps1
 node observer_hud/scripts/validate-observer-hud.js
 powershell -ExecutionPolicy Bypass -File build_observer_hud.ps1
 # Board E2E: citadel_match_details <id>, then node observer_hud/scripts/verify-postgame-live.js <metadata.json> - pak10
+
+# Detailed Post Scoreboard Menu (pak11, standalone post-game board)
+node detailed_postgame/scripts/validate-detailed-postgame.js
+powershell -ExecutionPolicy Bypass -File build_detailed_postgame.ps1 -Install
 
 # HP Colors Rewrite + QOLLOCK compatibility
 node --test scripts/validate-hp-colors-rewrite-qollock.test.js

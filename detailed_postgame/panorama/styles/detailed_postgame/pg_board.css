@@ -1,0 +1,1224 @@
+/* Night Shift post-game stats board (pak10, ADR 0009), base-game Deadlock look: dark paper, torn
+   header and graph, ink halos, stock team colours, stock post-game art.
+   Sizes are 1080p pixels. Fonts are real family names (stock "oracle" = VALVEOracle,
+   "block" = VALVEPulp, "sans" = Radiance); this sheet does not import citadel_base_styles, so the
+   stock colour defines are written out: team1 #D4860B / bright #FBDCA0 / neutral #55503E,
+   team2 #4D75C3 / bright #BDCBFF / neutral #54596C, offWhite #FFEFD7, offBlack #10130D.
+   Animations use only opacity and transforms. Each torn surface (header plates, graph, award slip,
+   progress track) has its own mask at its own size (detailed_postgame/scripts/make-torn-masks.py), at full
+   strength: opacity-mask reads alpha, and the stock rough_edge masks (alpha 255) mask nothing. No light
+   rim (user 2026-10-26). */
+
+.NSBoard
+{
+	width: 100%;
+	height: 100%;
+	font-family: Radiance, "Noto Sans", sans-serif;
+	color: #FFEFD7;
+}
+
+.NSFrame
+{
+	width: 1600px;
+	height: 100%;
+	horizontal-align: center;
+	flow-children: down;
+	margin-top: 22px;
+	visibility: collapse;
+}
+
+.NSFrame.NSOn
+{
+	visibility: visible;
+	opacity: 0;
+}
+
+/* NSIntro lands a frame after NSOn (JS trigger), so the first laid-out frame is not shown bare */
+.NSFrame.NSOn.NSIntro
+{
+	opacity: 1;
+}
+
+/* ---------- header: two dark torn paper scraps, plain centre ---------- */
+
+.NSHeader
+{
+	width: 100%;
+	height: 96px;
+	flow-children: right;
+}
+
+.NSHeadSide
+{
+	width: 702px;
+	height: 100%;
+	flow-children: right;
+	background-image: url("s2r://panorama/images/textures/paper_tile_1k_02_dark_psd.vtex");
+	background-size: 1024px 1024px;
+	background-repeat: repeat;
+	background-img-opacity: 0.5;
+	opacity-mask-scale: 100% 100%;
+}
+
+.NSHeadLeft
+{
+	opacity-mask: url("s2r://panorama/images/detailed_postgame/torn_head_l.vtex") 1;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #6F3806cc ), color-stop( 0.55, #55503Ecc ), to( #1b1915cc ) );
+}
+
+.NSHeadRight
+{
+	opacity-mask: url("s2r://panorama/images/detailed_postgame/torn_head_r.vtex") 1;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #1b1915cc ), color-stop( 0.45, #54596Ccc ), to( #243265cc ) );
+}
+
+/* team wordmark, stamped through the stock ink speckle */
+.NSLogo
+{
+	width: 112px;
+	height: 72px;
+	vertical-align: center;
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+	opacity-mask: url("s2r://panorama/images/post_game/hero_logo_mask_psd.vtex") 0.4;
+	opacity-mask-scale: 100% 100%;
+}
+
+/* the plates' inner margin (on the logos, so the torn plates carry no padding) */
+#NSLogo1
+{
+	margin-left: 22px;
+}
+
+#NSLogo2
+{
+	margin-right: 22px;
+}
+
+.NSLogoTeam1
+{
+	background-image: url("s2r://panorama/images/hud/objectives/team1_patron_logo_psd.vtex");
+	wash-color: #D4860B;
+}
+
+.NSLogoTeam2
+{
+	background-image: url("s2r://panorama/images/hud/objectives/team2_patron_logo_psd.vtex");
+	wash-color: #4D75C3;
+}
+
+.NSTeamText
+{
+	width: fill-parent-flow( 1.0 );
+	vertical-align: center;
+	flow-children: down;
+	margin-left: 14px;
+	margin-right: 14px;
+}
+
+.NSHeadRight .NSTeamText Label
+{
+	horizontal-align: right;
+	text-align: right;
+}
+
+.NSTeamName
+{
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 34px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 4 #10130D;
+	white-space: nowrap;
+	text-overflow: shrink;
+}
+
+/* result: the stock team screen's tilted Victorious / Defeat language */
+.NSResult
+{
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 21px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	transform-origin: 0% 50%;
+	pre-transform-rotate2d: -2.2deg;
+}
+
+.NSHeadRight .NSResult
+{
+	transform-origin: 100% 50%;
+	pre-transform-rotate2d: 2.2deg;
+}
+
+.NSResult.NSWin
+{
+	color: #FBDCA0;
+	text-shadow: 0px 0px 0px 4 #10130D;
+}
+
+.NSHeadRight .NSResult.NSWin
+{
+	color: #BDCBFF;
+}
+
+.NSResult.NSLoss
+{
+	color: #aeaa94;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	opacity-mask: url("s2r://panorama/images/main_menu/text_speckle_mask_main_psd.vtex") 1;
+	opacity-mask-scale: 180% 180%;
+}
+
+.NSHeadRight .NSResult.NSLoss
+{
+	color: #92aaad;
+}
+
+.NSHeadStat
+{
+	height: 100%;
+	flow-children: down;
+	margin-left: 14px;
+	margin-right: 14px;
+}
+
+.NSHeadCaption
+{
+	horizontal-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 13px;
+	letter-spacing: 1px;
+	color: #FFEFD7aa;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	margin-top: 20px;
+}
+
+.NSHeadWorthValue
+{
+	horizontal-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 31px;
+	font-weight: bold;
+	text-shadow: 0px 0px 0px 4 #10130D;
+}
+
+.NSHeadKillsValue
+{
+	horizontal-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 48px;
+	font-weight: bold;
+	text-shadow: 0px 0px 0px 5 #10130D;
+	margin-top: -8px;
+}
+
+.NSHeadKills .NSHeadCaption
+{
+	margin-top: 14px;
+}
+
+.NSHeadLeft .NSHeadWorthValue,
+.NSHeadLeft .NSHeadKillsValue
+{
+	color: #FBDCA0;
+}
+
+.NSHeadRight .NSHeadWorthValue,
+.NSHeadRight .NSHeadKillsValue
+{
+	color: #BDCBFF;
+}
+
+.NSHeadCentre
+{
+	width: 196px;
+	height: 100%;
+	flow-children: down;
+}
+
+.NSClockCaption
+{
+	horizontal-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 14px;
+	letter-spacing: 1px;
+	color: #FFEFD7cc;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	margin-top: 12px;
+}
+
+.NSClock
+{
+	horizontal-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 36px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 5 #10130D;
+}
+
+.NSMatch
+{
+	horizontal-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 12px;
+	letter-spacing: 1px;
+	color: #aeaa94aa;
+	text-shadow: 0px 0px 0px 2 #10130D;
+}
+
+/* ---------- body: spacers over the stock rows (restyled inline by pg_board.js) + label column ---------- */
+
+.NSBody
+{
+	width: 100%;
+	height: 700px;
+	flow-children: right;
+	margin-top: 12px;
+}
+
+.NSTeam
+{
+	width: 702px;
+}
+
+/* ---------- column (pg_column.xml, one per stock row) ---------- */
+
+.NSColumn
+{
+	width: 105px;
+	flow-children: down;
+	overflow: noclip;
+	transform-origin: 50% 0%;
+}
+
+/* dark paper behind plate, cells and souls, a plain rectangle: no tear on the stat columns (user
+   2026-10-26: "this part you actually don't need the paper tear"). (The stock torn card svgs,
+   key_player_bg_*, ignored wash-color and brightness live and stayed a light slab.) Height stays inside
+   the column's flow height: a fit-children parent counts ignore-parent-flow children too (live: a
+   552 px card pushed the items onto the graph). */
+.NSPaper
+{
+	ignore-parent-flow: true;
+	width: 105px;
+	height: 406px;
+	margin-top: 131px;
+	background-color: #1b1915ee;
+	background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_psd.vtex");
+	background-size: 512px 512px;
+	background-repeat: repeat;
+	background-img-opacity: 0.25;
+}
+
+.NSColumnTeam2 .NSPaper
+{
+	background-color: #191a1fee;
+}
+
+/* hero card (a plain rectangle: the stock rough_edge masks carry no alpha and mask nothing) */
+.NSPortrait
+{
+	width: 105px;
+	height: 139px;
+	margin-bottom: -4px;
+	background-color: #10130D;
+}
+
+/* winners keep the gloat card; a losing column (NSLoss) swaps to the critical card */
+.NSPortraitLoss,
+.NSColumn.NSLoss .NSPortraitWin
+{
+	visibility: collapse;
+}
+
+.NSColumn.NSLoss .NSPortraitLoss
+{
+	visibility: visible;
+}
+
+/* name plate: the stock team colour at full strength, fading to the stock darker team tone like
+   team1ColorFade / team2ColorFade. (The light chat_texture grain overlay greyed it to beige and
+   lavender; user, 2026-10-25: "too washed, base game has high vibrance".) */
+.NSPlate
+{
+	width: 100%;
+	height: 36px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #E8920C ), to( #B86A08 ) );
+	border-bottom: 1px solid #10130D;
+}
+
+.NSColumnTeam2 .NSPlate
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #5A86DC ), to( #3A5CA8 ) );
+}
+
+/* long names wrap to two lines like the target (EMPTY DREAMS), then shrink */
+.NSPlate Label,
+.NSPlate CitadelUserName
+{
+	width: 100px;
+	max-height: 33px;
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 15px;
+	line-height: 15px;
+	font-weight: bold;
+	text-transform: uppercase;
+	text-overflow: shrink;
+	color: #201500;
+}
+
+.NSColumnTeam2 .NSPlate Label,
+.NSColumnTeam2 .NSPlate CitadelUserName
+{
+	color: #FFFFFF;
+	text-shadow: 0px 0px 0px 3 #10130D;
+}
+
+/* stat cells: ledger rows, translucent team tints over the paper, ink rules, Oracle numbers */
+.NSCells
+{
+	width: 100%;
+	flow-children: down;
+	margin-top: 6px;
+}
+
+.NSCell
+{
+	width: 100%;
+	height: 38px;
+	background-color: #D4860B14;
+	border-bottom: 1px solid #10130D99;
+}
+
+.NSCell.NSOdd
+{
+	background-color: #D4860B08;
+}
+
+.NSColumnTeam2 .NSCell
+{
+	background-color: #4D75C314;
+}
+
+.NSColumnTeam2 .NSCell.NSOdd
+{
+	background-color: #4D75C308;
+}
+
+.NSCellValue
+{
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 21px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 4 #10130D;
+}
+
+.NSCell_deaths .NSCellValue
+{
+	opacity: 0.6;
+}
+
+/* best of 12: team starburst behind the number with the stock wobble. The label fits the number
+   (a fixed 64x38 box was narrower than "27,731" and the text sat at its top, so the burst was
+   off-centre; line-height 38px pushed the text below the burst live). Auto size plus symmetric
+   padding keeps the text where the plain cells put it and the burst on the text's centre.
+   Solid, saturated ink instead of the stock "shine" gradients plus brightness 1.3, which read
+   washed out at this size (user, 2026-10-25). */
+.NSCell.NSBest
+{
+	overflow: noclip;
+}
+
+.NSCell.NSBest .NSCellValue
+{
+	min-width: 42px;
+	padding: 8px 3px;
+	background-size: 42px 42px;
+	background-repeat: no-repeat;
+	background-position: 50% 50%;
+	background-img-opacity: 0.9;
+	text-shadow: 0px 0px 0px 4 #10130D;
+	animation-name: NSGroove;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+}
+
+.NSColumnTeam1 .NSCell.NSBest .NSCellValue
+{
+	background-image: url("s2r://panorama/images/post_game/starburst_team1.vsvg");
+}
+
+.NSColumnTeam2 .NSCell.NSBest .NSCellValue
+{
+	background-image: url("s2r://panorama/images/post_game/starburst_team2.vsvg");
+}
+
+.NSBest_souls .NSCellValue { color: #34F5A6; }
+.NSBest_kills .NSCellValue { color: #FF4040; }
+.NSBest_assists .NSCellValue { color: #FF7033; }
+.NSBest_heal .NSCellValue { color: #6CFF3A; }
+.NSColumnTeam1 .NSBest_pdmg .NSCellValue,
+.NSColumnTeam1 .NSBest_odmg .NSCellValue { color: #FFC24A; }
+.NSColumnTeam2 .NSBest_pdmg .NSCellValue,
+.NSColumnTeam2 .NSBest_odmg .NSCellValue { color: #7CC4FF; }
+
+/* MVP / Key Player slip pinned over the portrait's lower edge: gold paper scrap with a torn edge,
+   the stock trophy art and dark ink text (svg backgrounds ignore wash-color, so the slip is a
+   coloured, masked panel) */
+.NSAward
+{
+	ignore-parent-flow: true;
+	visibility: collapse;
+	width: 108px;
+	height: 30px;
+	margin-top: 104px;
+	margin-left: -2px;
+	flow-children: right;
+	background-color: #c6a269;
+	background-image: url("s2r://panorama/images/hud/top_bar/chat_texture_png.vtex");
+	background-size: 120px 120px;
+	background-repeat: repeat;
+	background-img-opacity: 0.35;
+	opacity-mask: url("s2r://panorama/images/detailed_postgame/torn_award.vtex") 1;
+	opacity-mask-scale: 100% 100%;
+	transform-origin: 10% 50%;
+	pre-transform-rotate2d: -3deg;
+	opacity: 0;
+}
+
+.NSColumn.NSKey .NSAward,
+.NSColumn.NSMVP .NSAward
+{
+	visibility: visible;
+}
+
+.NSColumn.NSMVP .NSAward
+{
+	background-color: #E6C694;
+}
+
+.NSColumn.NSIn .NSAward
+{
+	animation-name: NSStamp;
+	animation-duration: 0.5s;
+	animation-timing-function: cubic-bezier( 0.3, 1.6, 0.5, 1 );
+	animation-fill-mode: forwards;
+	animation-delay: 0.7s;
+}
+
+.NSAwardTrophy
+{
+	width: 24px;
+	height: 28px;
+	margin-left: 5px;
+	vertical-align: center;
+	background-image: url("s2r://panorama/images/post_game/key_player_trophy.vsvg");
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+.NSColumn.NSMVP .NSAwardTrophy
+{
+	background-image: url("s2r://panorama/images/post_game/mvp_trophy.vsvg");
+}
+
+.NSAwardText
+{
+	width: fill-parent-flow( 1.0 );
+	vertical-align: center;
+	margin-left: 3px;
+	margin-right: 3px;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 13px;
+	white-space: nowrap;
+	text-overflow: shrink;
+	font-weight: bold;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+	color: #201500;
+}
+
+/* souls by source: ink strokes, stock flat palette */
+.NSSouls
+{
+	width: 100%;
+	height: 92px;
+	margin-top: 4px;
+	flow-children: down;
+}
+
+.NSSrc
+{
+	width: 100%;
+	height: 18px;
+	border-bottom: 1px solid #10130D55;
+}
+
+.NSSrcBar
+{
+	height: 100%;
+	background-color: #888070;
+	transform-origin: 0% 50%;
+	transform: scale3d( 0.001, 1, 1 );
+}
+
+/* arrival: JS adds NSShow to the souls block a frame after creating the rows (never animate a
+   panel that is not laid out yet) */
+.NSSouls.NSShow .NSSrcBar
+{
+	animation-name: NSInkStroke;
+	animation-duration: 0.42s;
+	animation-timing-function: cubic-bezier( 0.25, 1, 0.5, 1 );
+	animation-fill-mode: forwards;
+}
+
+.NSSrcName
+{
+	vertical-align: center;
+	margin-left: 4px;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 11px;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 3 #10130D;
+}
+
+.NSSrcPct
+{
+	horizontal-align: right;
+	vertical-align: center;
+	margin-right: 4px;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 3 #10130D;
+}
+
+/* the labels are not animated: an opacity-0 resting state on these labels never came back live */
+.NSSouls.NSShow .NSSrc.NSR1 .NSSrcBar { animation-delay: 0.05s; }
+.NSSouls.NSShow .NSSrc.NSR2 .NSSrcBar { animation-delay: 0.10s; }
+.NSSouls.NSShow .NSSrc.NSR3 .NSSrcBar { animation-delay: 0.15s; }
+.NSSouls.NSShow .NSSrc.NSR4 .NSSrcBar { animation-delay: 0.20s; }
+
+/* saturated source colours (the stock "flat" defines read greyed out here; user 2026-10-25) */
+.NSSrc_troopers .NSSrcBar { background-color: #F0A21E; }
+.NSSrc_neutrals .NSSrcBar { background-color: #7CBC1D; }
+.NSSrc_breakables .NSSrcBar { background-color: #E8641A; }
+.NSSrc_bonus .NSSrcBar { background-color: #1FC98A; }
+.NSSrc_kills .NSSrcBar { background-color: #E8302E; }
+.NSSrc_objectives .NSSrcBar { background-color: #3D7BF0; }
+.NSSrc_urn .NSSrcBar { background-color: #2CB8D0; }
+.NSSrc_assists .NSSrcBar { background-color: #C2502A; }
+.NSSrc_denies .NSSrcBar { background-color: #9A9A9A; }
+
+/* ---------- label column ---------- */
+
+.NSLabels
+{
+	width: 196px;
+	flow-children: down;
+}
+
+/* spacer over the portrait, plate and award rows, so the row labels line up with the cells */
+.NSOrg
+{
+	width: 100%;
+	height: 171px;
+}
+
+.NSRowLabels
+{
+	width: 100%;
+	flow-children: down;
+	margin-top: 6px;
+}
+
+.NSRowLabel
+{
+	width: 100%;
+	height: 38px;
+	padding-top: 10px;
+	text-align: center;
+	vertical-align: top;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 16px;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	color: #FFEFD7cc;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	border-bottom: 1px solid #10130D55;
+}
+
+.NSSoulsLabel
+{
+	height: 96px;
+	padding-top: 38px;
+	border-bottom: 0px solid #00000000;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+}
+
+.NSSoulsLabel.NSEmpty
+{
+	opacity: 0.35;
+}
+
+.NSItemsLabel
+{
+	height: 110px;
+	padding-top: 40px;
+	border-bottom: 0px solid #00000000;
+}
+
+/* ---------- soul lead graph ---------- */
+
+.NSGraph
+{
+	width: 100%;
+	flow-children: down;
+	margin-top: 8px;
+	visibility: collapse;
+}
+
+.NSGraph.NSOn
+{
+	visibility: visible;
+	opacity: 0;
+}
+
+.NSGraph.NSOn.NSShow
+{
+	animation-name: NSRiseIn;
+	animation-duration: 0.35s;
+	animation-timing-function: ease-out;
+	animation-fill-mode: forwards;
+}
+
+.NSGraphPlot
+{
+	width: 1600px;
+	height: 112px;
+	background-color: #15130fdd;
+	background-image: url("s2r://panorama/images/textures/paper_tile_1k_02_dark_psd.vtex");
+	background-size: 1024px 1024px;
+	background-repeat: repeat;
+	background-img-opacity: 0.5;
+	opacity-mask: url("s2r://panorama/images/detailed_postgame/torn_graph.vtex") 1;
+	opacity-mask-scale: 100% 100%;
+}
+
+/* the drawing (canvas, dots, labels) is wiped in by a stepped clip from pg_board.js */
+.NSGraphDraw
+{
+	width: 100%;
+	height: 100%;
+	overflow: noclip;
+}
+
+.NSGraphCanvas,
+.NSGraphMarks
+{
+	width: 100%;
+	height: 100%;
+}
+
+.NSGraphMid
+{
+	width: 1512px;
+	height: 1px;
+	vertical-align: center;
+	background-color: #FFEFD740;
+}
+
+.NSGraphCaptionRow
+{
+	flow-children: right;
+	margin-left: 20px;
+}
+
+.NSGraphTopRow
+{
+	vertical-align: top;
+	margin-top: 11px;
+}
+
+.NSGraphBottomRow
+{
+	vertical-align: bottom;
+	margin-bottom: 10px;
+}
+
+.NSGraphCaption
+{
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	text-shadow: 0px 0px 0px 3 #10130D;
+}
+
+.NSGraphScale
+{
+	margin-left: 8px;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 13px;
+	font-weight: bold;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	opacity: 0.7;
+}
+
+.NSGraphTop
+{
+	color: #FBDCA0;
+}
+
+.NSGraphBottom
+{
+	color: #BDCBFF;
+}
+
+/* objective, peak and end dots: a dark ring with a coloured core */
+.NSGraphObj,
+.NSGraphPeakDot,
+.NSGraphEndDot
+{
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background-color: #10130D;
+}
+
+.NSGraphDotCore
+{
+	width: 6px;
+	height: 6px;
+	horizontal-align: center;
+	vertical-align: center;
+	border-radius: 50%;
+	background-color: #FFB23A;
+}
+
+.NSObjTeam2 .NSGraphDotCore
+{
+	background-color: #86A9FF;
+}
+
+.NSGraphPeakDot .NSGraphDotCore,
+.NSGraphEndDot .NSGraphDotCore
+{
+	background-color: #FFEFD7;
+}
+
+.NSGraphPeakDot.NSPeakDotTeam1,
+.NSGraphEndDot.NSPeakDotTeam1
+{
+	background-color: #E8920C;
+}
+
+.NSGraphPeakDot.NSPeakDotTeam2,
+.NSGraphEndDot.NSPeakDotTeam2
+{
+	background-color: #4D7FE0;
+}
+
+.NSGraphPeak
+{
+	width: 140px;
+	text-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #FBDCA0;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	visibility: collapse;
+}
+
+.NSGraphPeak.NSPeakTeam2
+{
+	color: #BDCBFF;
+}
+
+.NSGraphPeak.NSOn
+{
+	visibility: visible;
+}
+
+/* the final lead, in the leader's colour */
+.NSGraphEnd
+{
+	height: 22px;
+	padding: 3px 9px 0px 9px;
+	border-radius: 3px;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 15px;
+	font-weight: bold;
+	color: #201500;
+	background-color: #E8920C;
+}
+
+.NSGraphEnd.NSEndTeam1
+{
+	background-color: #E8920C;
+}
+
+.NSGraphEnd.NSEndTeam2
+{
+	color: #FFFFFF;
+	background-color: #4D7FE0;
+	text-shadow: 0px 0px 0px 2 #10130D;
+}
+
+.NSGraphTicks
+{
+	width: 1600px;
+	height: 18px;
+}
+
+.NSTick
+{
+	width: 60px;
+	text-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 12px;
+	color: #aeaa94;
+	text-shadow: 0px 0px 0px 2 #10130D;
+}
+
+/* the match length, under the end of the line */
+.NSTick.NSTickEnd
+{
+	color: #FFEFD7;
+}
+
+.NSGraphEvents
+{
+	width: 1600px;
+	height: 30px;
+}
+
+.NSEvent
+{
+	width: 22px;
+	height: 22px;
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-image: url("s2r://panorama/images/minimap/objective_icon_t1.vsvg");
+	wash-color: #D4860B;
+	transform-origin: 50% 50%;
+}
+
+/* opacity 0 sits in the same rule as the animation (the header logo pattern, which works live);
+   a separate opacity-0 resting rule left these icons hidden. The graph itself is transparent
+   until NSShow, so nothing flashes. */
+.NSGraph.NSShow .NSEvent
+{
+	opacity: 0;
+	animation-name: NSStampIcon;
+	animation-duration: 0.28s;
+	animation-timing-function: cubic-bezier( 0.3, 1.6, 0.5, 1 );
+	animation-fill-mode: forwards;
+	animation-delay: 0.40s;
+}
+
+.NSEvent.NSEvTier2,
+.NSEvent.NSEvBase
+{
+	background-image: url("s2r://panorama/images/minimap/objective_icon_t2.vsvg");
+}
+
+.NSEvent.NSEvBase
+{
+	width: 26px;
+	height: 26px;
+}
+
+.NSEvent.NSEvTeam2
+{
+	wash-color: #4D75C3;
+}
+
+.NSGraph.NSShow .NSEvent.NSW1 { animation-delay: 0.45s; }
+.NSGraph.NSShow .NSEvent.NSW2 { animation-delay: 0.50s; }
+.NSGraph.NSShow .NSEvent.NSW3 { animation-delay: 0.55s; }
+.NSGraph.NSShow .NSEvent.NSW4 { animation-delay: 0.60s; }
+.NSGraph.NSShow .NSEvent.NSW5 { animation-delay: 0.65s; }
+.NSGraph.NSShow .NSEvent.NSW6 { animation-delay: 0.70s; }
+.NSGraph.NSShow .NSEvent.NSW7 { animation-delay: 0.75s; }
+
+/* ---------- progress bar (outside NSFrame, in the label column's empty logo slot) ---------- */
+
+.NSProgress
+{
+	horizontal-align: center;
+	width: 196px;
+	margin-top: 196px;
+	flow-children: down;
+	visibility: collapse;
+}
+
+.NSBoard.NSBusy .NSProgress
+{
+	visibility: visible;
+}
+
+.NSProgress.NSDone
+{
+	animation-name: NSInkDry;
+	animation-duration: 0.35s;
+	animation-timing-function: ease-in;
+	animation-delay: 0.5s;
+	animation-fill-mode: forwards;
+}
+
+.NSProgressText
+{
+	horizontal-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 13px;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	color: #FFEFD7cc;
+	text-shadow: 0px 0px 0px 3 #10130D;
+	margin-bottom: 4px;
+}
+
+.NSProgressTrack
+{
+	horizontal-align: center;
+	width: 164px;
+	height: 18px;
+	background-color: #1b1915;
+	background-image: url("s2r://panorama/images/textures/paper_tile_1k_01_psd.vtex");
+	background-size: 256px 256px;
+	background-repeat: repeat;
+	background-img-opacity: 0.3;
+	opacity-mask: url("s2r://panorama/images/detailed_postgame/torn_track.vtex") 1;
+	opacity-mask-scale: 100% 100%;
+}
+
+.NSProgressFill
+{
+	width: 156px;
+	height: 12px;
+	margin: 3px 4px;
+	background-color: #c6a269;
+	background-image: url("s2r://panorama/images/hud/top_bar/chat_texture_png.vtex");
+	background-size: 80px 80px;
+	background-repeat: repeat;
+	background-img-opacity: 0.4;
+	transform-origin: 0% 50%;
+	transform: scale3d( 0.001, 1, 1 );
+	transition-property: transform;
+	transition-duration: 0.18s;
+	transition-timing-function: linear;
+}
+
+.NSProgress.NSIndeterminate .NSProgressFill
+{
+	opacity: 0;
+}
+
+.NSProgressSeek
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	height: 100%;
+	background-color: #c6a269;
+	transform-origin: 0% 50%;
+	visibility: collapse;
+}
+
+.NSProgress.NSIndeterminate .NSProgressSeek
+{
+	visibility: visible;
+	animation-name: NSInkSeek;
+	animation-duration: 1.2s;
+	animation-timing-function: ease-in-out;
+	animation-iteration-count: infinite;
+}
+
+/* hand-drawn chalk outline from the hideout rank blackboard, over both fills */
+.NSProgressFrame
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	height: 100%;
+	background-image: url("s2r://panorama/images/hideout/hideout_rank_blackboard_progressbar_border_psd.vtex");
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	wash-color: #FFEFD7;
+	opacity: 0.8;
+}
+
+.NSProgressStep
+{
+	horizontal-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 11px;
+	color: #aeaa94aa;
+	text-shadow: 0px 0px 0px 2 #10130D;
+	margin-top: 3px;
+}
+
+/* ---------- intro: header and label column, after the frame gets NSIntro ---------- */
+
+.NSFrame.NSIntro .NSHeader
+{
+	animation-name: NSDropIn;
+	animation-duration: 0.28s;
+	animation-timing-function: ease-out;
+	animation-fill-mode: forwards;
+}
+
+.NSFrame.NSIntro .NSLogo
+{
+	opacity: 0;
+	animation-name: NSStampIcon;
+	animation-duration: 0.26s;
+	animation-timing-function: cubic-bezier( 0.3, 1.6, 0.5, 1 );
+	animation-fill-mode: forwards;
+	animation-delay: 0.18s;
+}
+
+.NSFrame.NSIntro .NSLogoTeam2
+{
+	animation-delay: 0.26s;
+}
+
+.NSFrame.NSIntro .NSResult
+{
+	opacity: 0;
+	animation-name: NSFadeUp;
+	animation-duration: 0.30s;
+	animation-timing-function: cubic-bezier( 0.3, 1.6, 0.5, 1 );
+	animation-fill-mode: forwards;
+	animation-delay: 0.42s;
+}
+
+.NSFrame.NSIntro .NSHeadStat
+{
+	opacity: 0;
+	animation-name: NSFadeUp;
+	animation-duration: 0.24s;
+	animation-timing-function: ease-out;
+	animation-fill-mode: forwards;
+	animation-delay: 0.30s;
+}
+
+.NSFrame.NSIntro .NSLabels
+{
+	opacity: 0;
+	animation-name: NSFadeUp;
+	animation-duration: 0.30s;
+	animation-timing-function: ease-out;
+	animation-fill-mode: forwards;
+	animation-delay: 0.06s;
+}
+
+/* columns: stagger from the centre outward; the class NSIn is added a frame after the column
+   layout loads, so the animation starts on a laid-out panel */
+.NSColumn
+{
+	opacity: 0;
+}
+
+.NSColumn.NSIn
+{
+	animation-name: NSColumnIn;
+	animation-duration: 0.32s;
+	animation-timing-function: cubic-bezier( 0.2, 0.9, 0.3, 1.05 );
+	animation-fill-mode: forwards;
+	animation-delay: 0.10s;
+}
+
+.NSColumnTeam1.NSCol5.NSIn, .NSColumnTeam2.NSCol2.NSIn { animation-delay: 0.15s; }
+.NSColumnTeam1.NSCol4.NSIn, .NSColumnTeam2.NSCol3.NSIn { animation-delay: 0.20s; }
+.NSColumnTeam1.NSCol3.NSIn, .NSColumnTeam2.NSCol4.NSIn { animation-delay: 0.25s; }
+.NSColumnTeam1.NSCol2.NSIn, .NSColumnTeam2.NSCol5.NSIn { animation-delay: 0.30s; }
+.NSColumnTeam1.NSCol1.NSIn, .NSColumnTeam2.NSCol6.NSIn { animation-delay: 0.35s; }
+
+@keyframes 'NSDropIn'
+{
+	0% { opacity: 0; transform: translateY( -18px ); }
+	100% { opacity: 1; transform: translateY( 0px ); }
+}
+
+@keyframes 'NSFadeUp'
+{
+	0% { opacity: 0; transform: translateY( 10px ); }
+	100% { opacity: 1; transform: translateY( 0px ); }
+}
+
+@keyframes 'NSRiseIn'
+{
+	0% { opacity: 0; transform: translateY( 16px ); }
+	100% { opacity: 1; transform: translateY( 0px ); }
+}
+
+@keyframes 'NSColumnIn'
+{
+	0% { opacity: 0; transform: translateY( 24px ) scale3d( 0.96, 0.96, 1 ); }
+	100% { opacity: 1; transform: translateY( 0px ) scale3d( 1, 1, 1 ); }
+}
+
+/* stock AwardReveal shape with the slip's final tilt kept */
+@keyframes 'NSStamp'
+{
+	0% { opacity: 0; pre-transform-scale2d: 0.2; pre-transform-rotate2d: -10deg; }
+	80% { opacity: 1; pre-transform-scale2d: 1.1; pre-transform-rotate2d: 2deg; }
+	100% { opacity: 1; pre-transform-scale2d: 1; pre-transform-rotate2d: -3deg; }
+}
+
+@keyframes 'NSStampIcon'
+{
+	0% { opacity: 0; pre-transform-scale2d: 0.2; }
+	70% { opacity: 1; pre-transform-scale2d: 1.15; }
+	100% { opacity: 1; pre-transform-scale2d: 1; }
+}
+
+@keyframes 'NSGroove'
+{
+	0% { transform: rotateZ( -3deg ); }
+	25% { transform: rotateZ( -3deg ); }
+	26% { transform: rotateZ( 2deg ); }
+	50% { transform: rotateZ( 2deg ); }
+	51% { transform: rotateZ( -1deg ); }
+	75% { transform: rotateZ( -1deg ); }
+	76% { transform: rotateZ( 0deg ); }
+	100% { transform: rotateZ( 0deg ); }
+}
+
+@keyframes 'NSInkStroke'
+{
+	0% { transform: scale3d( 0.001, 1, 1 ); }
+	100% { transform: scale3d( 1, 1, 1 ); }
+}
+
+
+@keyframes 'NSInkSeek'
+{
+	0% { transform: translateX( 0px ) scale3d( 0.001, 1, 1 ); }
+	40% { transform: translateX( 0px ) scale3d( 0.45, 1, 1 ); }
+	100% { transform: translateX( 156px ) scale3d( 0.001, 1, 1 ); }
+}
+
+@keyframes 'NSInkDry'
+{
+	0% { opacity: 1; transform: translateY( 0px ); }
+	100% { opacity: 0; transform: translateY( -6px ); }
+}

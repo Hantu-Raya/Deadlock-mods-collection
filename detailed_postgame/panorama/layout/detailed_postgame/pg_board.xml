@@ -1,0 +1,101 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/detailed_postgame/pg_board.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/detailed_postgame/pg_board.vjs_c" />
+	</scripts>
+	<Panel class="NSBoard" hittest="false">
+		<!-- Outside NSFrame so it shows while the match is still loading (frame collapsed). JS drives
+		     #NSProgressFill with scale3d(f,1,1) and toggles NSIndeterminate / NSDone. -->
+		<Panel id="NSProgress" class="NSProgress" hittest="false">
+			<Label id="NSProgressText" class="NSProgressText" text="" />
+			<Panel class="NSProgressTrack" hittest="false">
+				<Panel id="NSProgressFill" class="NSProgressFill" hittest="false" />
+				<Panel class="NSProgressSeek" hittest="false" />
+				<Panel class="NSProgressFrame" hittest="false" />
+			</Panel>
+			<Label id="NSProgressStep" class="NSProgressStep" text="" />
+		</Panel>
+		<Panel id="NSFrame" class="NSFrame" hittest="false">
+			<Panel id="NSHeader" class="NSHeader" hittest="false">
+				<Panel class="NSHeadSide NSHeadLeft" hittest="false">
+					<Panel id="NSLogo1" class="NSLogo NSLogoTeam1" hittest="false" />
+					<Panel class="NSTeamText" hittest="false">
+						<Label id="NSTeamName1" class="NSTeamName" text="" />
+						<Label id="NSResult1" class="NSResult" text="" />
+					</Panel>
+					<Panel class="NSHeadStat" hittest="false">
+						<Label class="NSHeadCaption" text="NET WORTH" />
+						<Label id="NSWorth1" class="NSHeadWorthValue" text="" />
+					</Panel>
+					<Panel class="NSHeadStat NSHeadKills" hittest="false">
+						<Label class="NSHeadCaption" text="KILLS" />
+						<Label id="NSKills1" class="NSHeadKillsValue" text="" />
+					</Panel>
+				</Panel>
+				<Panel class="NSHeadCentre" hittest="false">
+					<Label class="NSClockCaption" text="GAME TIME" />
+					<Label id="NSClock" class="NSClock" text="" />
+					<Label id="NSMatch" class="NSMatch" text="" />
+				</Panel>
+				<Panel class="NSHeadSide NSHeadRight" hittest="false">
+					<Panel class="NSHeadStat NSHeadKills" hittest="false">
+						<Label class="NSHeadCaption" text="KILLS" />
+						<Label id="NSKills2" class="NSHeadKillsValue" text="" />
+					</Panel>
+					<Panel class="NSHeadStat" hittest="false">
+						<Label class="NSHeadCaption" text="NET WORTH" />
+						<Label id="NSWorth2" class="NSHeadWorthValue" text="" />
+					</Panel>
+					<Panel class="NSTeamText" hittest="false">
+						<Label id="NSTeamName2" class="NSTeamName" text="" />
+						<Label id="NSResult2" class="NSResult" text="" />
+					</Panel>
+					<Panel id="NSLogo2" class="NSLogo NSLogoTeam2" hittest="false" />
+				</Panel>
+			</Panel>
+			<Panel id="NSBody" class="NSBody" hittest="false">
+				<Panel class="NSTeam NSTeam1" hittest="false" />
+				<Panel id="NSLabels" class="NSLabels" hittest="false">
+					<Panel class="NSOrg" hittest="false" />
+					<Panel class="NSRowLabels" hittest="false">
+						<Label class="NSRowLabel" text="TOTAL SOULS" />
+						<Label class="NSRowLabel" text="KILLS" />
+						<Label class="NSRowLabel" text="DEATHS" />
+						<Label class="NSRowLabel" text="ASSISTS" />
+						<Label class="NSRowLabel" text="PLAYER DAMAGE" />
+						<Label class="NSRowLabel" text="OBJECTIVE DAMAGE" />
+						<Label class="NSRowLabel" text="HEALING" />
+					</Panel>
+					<Label id="NSSoulsLabel" class="NSRowLabel NSSoulsLabel" text="SOULS BY SOURCE" />
+					<Label class="NSRowLabel NSItemsLabel" text="FINAL ITEMS" />
+				</Panel>
+				<Panel class="NSTeam NSTeam2" hittest="false" />
+			</Panel>
+			<Panel id="NSGraph" class="NSGraph" hittest="false">
+				<!-- Soul lead: a line on a UICanvas (pg_board.js renderGraph), dots and labels over it, a pill in the right gutter. -->
+				<Panel id="NSGraphPlot" class="NSGraphPlot" hittest="false">
+					<Panel class="NSGraphMid" hittest="false" />
+					<Panel class="NSGraphCaptionRow NSGraphTopRow" hittest="false">
+						<Label id="NSGraphTop" class="NSGraphCaption NSGraphTop" text="" />
+						<Label id="NSGraphTopScale" class="NSGraphScale NSGraphTop" text="" />
+					</Panel>
+					<Panel class="NSGraphCaptionRow NSGraphBottomRow" hittest="false">
+						<Label id="NSGraphBottom" class="NSGraphCaption NSGraphBottom" text="" />
+						<Label id="NSGraphBottomScale" class="NSGraphScale NSGraphBottom" text="" />
+					</Panel>
+					<Panel id="NSGraphDraw" class="NSGraphDraw" hittest="false">
+						<UICanvas id="NSGraphCanvas" class="NSGraphCanvas" hittest="false" />
+						<Panel id="NSGraphMarks" class="NSGraphMarks" hittest="false" />
+						<Label id="NSGraphPeak1" class="NSGraphPeak NSPeakTeam1" text="" />
+						<Label id="NSGraphPeak2" class="NSGraphPeak NSPeakTeam2" text="" />
+						<Label id="NSGraphEnd" class="NSGraphEnd" text="" />
+					</Panel>
+				</Panel>
+				<Panel id="NSGraphTicks" class="NSGraphTicks" hittest="false" />
+				<Panel id="NSGraphEvents" class="NSGraphEvents" hittest="false" />
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

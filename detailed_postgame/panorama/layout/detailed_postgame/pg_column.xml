@@ -1,0 +1,23 @@
+<root>
+	<!-- Loaded into each stock scoreboard row. Panels created by script under a stock row take the
+	     scoreboard's stylesheets, not ours, so the board's pieces live in this own layout. -->
+	<styles>
+		<include src="s2r://panorama/styles/detailed_postgame/pg_board.vcss_c" />
+	</styles>
+	<Panel class="NSColumn" hittest="false">
+		<!-- Dark paper card (a plain rectangle) behind the column, reaching down under the stock item grid. -->
+		<Panel class="NSPaper" hittest="false" />
+		<!-- Hero art: the gloat card for the winners, the critical card on a column with NSLoss. -->
+		<CitadelHeroImage id="NSPortrait" class="NSPortrait NSPortraitWin" heroimagestyle="hero_card_gloat" scaling="stretch-to-cover-preserve-aspect" hittest="false" />
+		<CitadelHeroImage id="NSPortraitLoss" class="NSPortrait NSPortraitLoss" heroimagestyle="hero_card_critical" scaling="stretch-to-cover-preserve-aspect" hittest="false" />
+		<!-- MVP / Key Player slip (column class NSMVP / NSKey from the stock MVP_Rank1..3 classes). -->
+		<Panel class="NSAward" hittest="false">
+			<Panel class="NSAwardTrophy" hittest="false" />
+			<Label id="NSAwardText" class="NSAwardText" text="" />
+		</Panel>
+		<!-- The name: our CitadelUserName (the account name, made by script). -->
+		<Panel id="NSPlate" class="NSPlate" hittest="false" />
+		<Panel id="NSCells" class="NSCells" hittest="false" />
+		<Panel id="NSSouls" class="NSSouls" hittest="false" />
+	</Panel>
+</root>
