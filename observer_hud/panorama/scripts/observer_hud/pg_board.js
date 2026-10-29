@@ -75,6 +75,11 @@
   // (layoutScoreboard) = .NSHeadSide/.NSTeam and .NSHeadCentre/.NSLabels/.NSProgress. Change both.
   const GRAPH_H = 112; // the plot; the canvas fills it (1600 x 112)
   const CHART_W = 1512; // the lead's x range; the right gutter holds the final-lead pill
+  const HAIR = 2; // the thinnest canvas stroke: at least one full screen pixel down to 720p (UI scale 0.67)
+  // Objective drop lines are panels in #NSGraphStems, outside the paper's mask, from just under the dot past
+  // the time ticks to the icons: one piece, so no seam where the paper ends (user 2026-10-29: a canvas part
+  // over a panel part did not match). STEM_END = .NSGraphStems height (plot 112 + ticks 18 + 4 into the icon).
+  const STEM_END = 134;
 
   const ok = (p) => !!(p && p.IsValid && p.IsValid());
   const log = (msg) => $.Msg(`${TAG} ${msg}`);
@@ -151,6 +156,7 @@
     UI.end = ctx.FindChildTraverse("NSGraphEnd");
     UI.ticks = ctx.FindChildTraverse("NSGraphTicks");
     UI.events = ctx.FindChildTraverse("NSGraphEvents");
+    UI.stems = ctx.FindChildTraverse("NSGraphStems");
     UI.top = ctx.FindChildTraverse("NSGraphTop");
     UI.bottom = ctx.FindChildTraverse("NSGraphBottom");
     UI.topScale = ctx.FindChildTraverse("NSGraphTopScale");
@@ -668,12 +674,14 @@
       stroke(outer, STEP_X + 0.6, 0.4, FILL_RGB[run.side][0]);
       stroke(inner, STEP_X + 0.6, 0.4, FILL_RGB[run.side][1]);
     }
-    // Guides over the area: half and full scale, and one hairline per five minutes.
-    for (const f of [-1, -0.5, 0.5, 1]) stroke([0, zero - f * half, CHART_W, zero - f * half], 1, 0.5, f === 0.5 || f === -0.5 ? "#FFEFD710" : "#FFEFD71C");
-    for (let t = 300; t < duration; t += 300) stroke([graphX(t, duration), 2, graphX(t, duration), GRAPH_H - 2], 1, 0.5, "#FFEFD70E");
+    // Guides over the area: half and full scale, and one hairline per five minutes. Every hairline is HAIR
+    // px: the UI scale at 900p is 0.83, so a 1 px stroke is 0.83 screen px and drops out or shows depending on
+    // where it lands between pixels (live 2026-10-29: the 5:00 guide, a half-scale guide and most objective
+    // drop lines were missing while their twins drew).
+    for (const f of [-1, -0.5, 0.5, 1]) stroke([0, zero - f * half, CHART_W, zero - f * half], HAIR, 0.5, f === 0.5 || f === -0.5 ? "#FFEFD70A" : "#FFEFD712");
+    for (let t = 300; t < duration; t += 300) stroke([graphX(t, duration), 2, graphX(t, duration), GRAPH_H - 2], HAIR, 0.5, "#FFEFD70A");
     // Objective hairlines from the line down to the icons.
     const objs = events.map((e) => { const x = graphX(e.t, duration); return { e, x, y: curve(Math.min(x, endX)) }; });
-    for (const o of objs) stroke([o.x, o.y + 6, o.x, GRAPH_H], 1, 0.5, "#FFEFD72E");
     // The line: a glow, then the pen.
     for (const run of runs) {
       const flat = [];
@@ -716,7 +724,7 @@
     const lastSide = last.l < 0 ? 1 : 0;
     dot(`NSGraphEndDot NSPeakDotTeam${lastSide + 1}`, endX, lastY, 10);
     const pillY = Math.max(11, Math.min(GRAPH_H - 11, lastY));
-    stroke([endX + 5, lastY, CHART_W + 8, pillY], 1, 0.5, `#${TEAM_RGB[lastSide]}99`);
+    stroke([endX + 5, lastY, CHART_W + 8, pillY], HAIR, 0.5, `#${TEAM_RGB[lastSide]}70`);
     if (ok(UI.end)) {
       setText(UI.end, `+${fmtK(Math.abs(last.l))}`);
       UI.end.SetHasClass("NSEndTeam1", lastSide === 0);
@@ -735,6 +743,7 @@
     const endTick = $.CreatePanel("Label", UI.ticks, "", { class: "NSTick NSTickEnd", text: clock(duration), hittest: "false" });
     endTick.style.marginLeft = `${CHART_W - 30}px`;
     UI.events.RemoveAndDeleteChildren();
+    if (ok(UI.stems)) UI.stems.RemoveAndDeleteChildren();
     for (const o of objs) {
       const e = o.e;
       const cls = `NSEvent ${e.tier === "tier1" ? "NSEvTier1" : e.tier === "tier2" ? "NSEvTier2" : "NSEvBase"} ${e.killer === 2 ? "NSEvTeam2" : "NSEvTeam1"}`;
@@ -742,6 +751,13 @@
       const left = Math.max(0, Math.min(CHART_W - 26, o.x - (e.tier === "base" ? 13 : 11)));
       icon.AddClass(`NSW${Math.min(7, Math.floor(8 * left / CHART_W))}`);
       icon.style.marginLeft = `${left.toFixed(1)}px`;
+      if (ok(UI.stems)) {
+        const stem = $.CreatePanel("Panel", UI.stems, "", { class: `NSStem NSW${Math.min(7, Math.floor(8 * left / CHART_W))}`, hittest: "false" });
+        const top = Math.min(STEM_END - 4, o.y + 7); // below the dot and the line's pen
+        stem.style.marginLeft = `${(Math.max(1, Math.min(CHART_W - 1, o.x)) - HAIR / 2).toFixed(1)}px`;
+        stem.style.marginTop = `${top.toFixed(1)}px`;
+        stem.style.height = `${(STEM_END - top).toFixed(1)}px`;
+      }
     }
     UI.graph.RemoveClass("NSShow");
     UI.graph.AddClass("NSOn");

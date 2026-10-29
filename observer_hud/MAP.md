@@ -73,6 +73,12 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 
 ## Changelog
 
+### 2026-10-29, graph drop lines and hairlines from Detailed Post Scoreboard (source only, not released; pak10 `3d36b4bc`, built, not installed)
+
+- **Objective drop lines are one panel each** (`#NSGraphStems`, `STEM_END` 134) from 7 px under the dot past the paper's torn edge to 4 px into the icon. The canvas part stopped at the paper and did not match a panel part below it (user 2026-10-29, on detailed_postgame, live there on pak11 `07ab3496`).
+- **Every canvas stroke is at least 2 px** (`HAIR`): at UI scale 0.83 a 1 px stroke is 0.83 screen px and dropped out by sub-pixel position (5:00 guide, a half-scale guide, most drop lines; live in detailed_postgame on pak11 `7f41832b`).
+- Ported unchanged from `detailed_postgame` commits `cd081b3` and `e205a55`; validator `board: the soul lead ...` and the torn-mask check now assert both. Not live-verified in pak10.
+
 ### 2026-10-26, urn carrier mark drawn (source only, not released; pak10 `5596c2d4`)
 
 - **Urn mark moved to its own host** (`urn.xml`, `.OHUrnHost` on the card's ult icon row). Live on the 0.2.0 urn build (MD5 `243d93aa`) the pickup was read (`[OH] urn: picked up by SAINT-LULI`, the right card) but nothing was drawn: the mark sat 22 px above the status column's top and the column never drew it, even with a red background, while the same mark inside the column's rect showed. On `5596c2d4` it shows beside Saint-Luli's ult icon at 15:22 and goes on the return. Validator: the `urn:` check now requires the mark's host to be the card's own child; card registry entries carry `urn`. Spectating 217.2 us/s (budget 222). The release archive was rebuilt with this pak.

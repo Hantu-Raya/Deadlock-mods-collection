@@ -96,7 +96,7 @@
 						<Label id="NSGraphEnd" class="NSGraphEnd" text="" />
 					</Panel>
 				</Panel>
-				<!-- Objective drop lines below the paper (pg_board.js STEM_TOP): over the torn edge, under the tick labels and the icons. -->
+				<!-- Objective drop lines, one panel each from under the dot to the icon (pg_board.js STEM_END): over the torn edge, under the tick labels and the icons. -->
 				<Panel id="NSGraphStems" class="NSGraphStems" hittest="false" />
 				<Panel id="NSGraphTicks" class="NSGraphTicks" hittest="false" />
 				<Panel id="NSGraphEvents" class="NSGraphEvents" hittest="false" />

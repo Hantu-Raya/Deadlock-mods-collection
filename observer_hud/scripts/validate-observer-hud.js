@@ -895,6 +895,13 @@ check("board: torn paper surfaces use their own full-strength mask at their own 
     }
     return { w, h, out };
   };
+  // Objective drop lines: one panel each, outside the paper, ending 4 px into the icons (user 2026-10-29).
+  {
+    const js = read("panorama/scripts/observer_hud/pg_board.js");
+    const end = Number(/const STEM_END = (\d+);/.exec(js)[1]);
+    assert.equal(px(".NSGraphStems", "height"), end, ".NSGraphStems is STEM_END tall");
+    assert.equal(end, px(".NSGraphPlot", "height") + px(".NSGraphTicks", "height") + 4, "the stems reach 4 px into the icons");
+  }
   for (const mask of ["torn_head_l", "torn_head_r", "torn_graph", "torn_track", "torn_award"]) {
     // The mask is in alpha as well as grey (live: a mask with alpha 255 everywhere masked nothing).
     const m = pixels(mask);
@@ -5036,6 +5043,27 @@ check("board: the soul lead is one smooth line over a soft area on a canvas, col
   assert.ok(text(host.FindChildTraverse("NSGraphTop")).includes("NIGHT OWLS") && text(host.FindChildTraverse("NSGraphBottom")).includes("BRASS SAINTS"), "captions follow the card");
   // The reveal finishes.
   assert.equal(String(host.FindChildTraverse("NSGraphDraw").style.clip), "rect( 0%, 100%, 100%, 0% )", "fully revealed");
+  // How it failed live (2026-10-29, 1600x900, detailed_postgame): 1 px strokes are 0.83 screen px at UI scale
+  // 0.83 and drop out by sub-pixel position (the 5:00 guide and most objective drop lines). Nothing under 2 px.
+  const painted = host.FindChildTraverse("NSGraphCanvas").__draws || [];
+  assert.ok(painted.length >= 10, `strokes painted: ${painted.length}`);
+  const thin = painted.filter((d) => d.thickness < 2);
+  deq(thin.map((d) => `${d.thickness}px ${d.color}`), [], "every canvas stroke is at least 2 px");
+  // The drop lines (user 2026-10-29: the canvas part and the part below the paper did not match): none on the
+  // canvas; one panel per objective from 7 px under its dot to 4 px into its icon, centred on the dot.
+  deq(painted.filter((d) => d.color === "#FFEFD722").map((d) => d.pts), [], "no drop line on the canvas");
+  const stems = host.FindChildTraverse("NSGraphStems").children.filter((c) => c.valid);
+  const icons = host.FindChildTraverse("NSGraphEvents").children.filter((c) => c.valid);
+  const objDots = host.FindChildTraverse("NSGraphMarks").children.filter((c) => c.valid && c.classes.has("NSGraphObj"));
+  assert.ok(icons.length >= 5 && stems.length === icons.length && objDots.length === icons.length, `stems ${stems.length}, icons ${icons.length}, dots ${objDots.length}`);
+  for (const d of objDots) {
+    const cx = px(d, "marginLeft") + 5;
+    const cy = px(d, "marginTop") + 5;
+    const stem = stems.find((st) => Math.abs(px(st, "marginLeft") + 1 - cx) < 0.6);
+    assert.ok(stem, `a stem under the dot at x ${cx}`);
+    assert.ok(Math.abs(px(stem, "marginTop") - (cy + 7)) < 0.6, `stem starts under its dot: ${px(stem, "marginTop")} vs ${cy + 7}`);
+    assert.ok(Math.abs(px(stem, "marginTop") + px(stem, "height") - 134) < 0.6, "stem ends 4 px into the icon");
+  }
   assert.ok(noBoardErrors(w));
 });
 
