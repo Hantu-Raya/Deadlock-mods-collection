@@ -6,6 +6,8 @@
 		<include src="s2r://panorama/scripts/detailed_postgame/pg_board.vjs_c" />
 	</scripts>
 	<Panel class="NSBoard" hittest="false">
+		<!-- Copy carrier for the match id (pg_board.js copyByEntry): laid out, never seen or hit. -->
+		<TextEntry id="NSCopyEntry" class="NSCopyEntry" hittest="false" text="" />
 		<!-- Outside NSFrame so it shows while the match is still loading (frame collapsed). JS drives
 		     #NSProgressFill with scale3d(f,1,1) and toggles NSIndeterminate / NSDone. -->
 		<Panel id="NSProgress" class="NSProgress" hittest="false">
@@ -37,7 +39,8 @@
 				<Panel class="NSHeadCentre" hittest="false">
 					<Label class="NSClockCaption" text="GAME TIME" />
 					<Label id="NSClock" class="NSClock" text="" />
-					<Label id="NSMatch" class="NSMatch" text="" />
+					<!-- Click copies the match id (pg_board.js copyMatchId); the tooltip is the stock #MatchID one. -->
+					<Label id="NSMatch" class="NSMatch" text="" hittest="true" onmouseover="UIShowTextTooltip( #Citadel_PostGame_CopyMatchID )" onmouseout="UIHideTextTooltip()" />
 				</Panel>
 				<Panel class="NSHeadSide NSHeadRight" hittest="false">
 					<Panel class="NSHeadStat NSHeadKills" hittest="false">

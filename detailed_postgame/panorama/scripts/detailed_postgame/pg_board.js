@@ -33,6 +33,7 @@
   let matchListener = null;
   ctx.NSStop = () => {
     stopped = true;
+    try { if (S.hovered) unhover(); } catch (e) { /* page gone */ }
     if (matchListener !== null) {
       try { $.UnregisterForUnhandledEvent("CitadelMatchDetailsUpdated", matchListener); } catch (e) { /* already gone */ }
       matchListener = null;
@@ -107,7 +108,7 @@
     blurAt: 0, // Date.now() when it lost focus
     introShown: false, // the entrance has played since the board was built or re-armed
     introToken: 0, // bumps on every entrance change; a stale scheduled item fade-in does nothing
-    tipMuted: false, // the stock tooltip is transparent (scan running, or not on the Graphs screen)
+    hovered: null, // the graph column the scan last hovered (its stock onmouseout closes the tooltip)
     sig: "", // first row's bound text when the board was built (steady-state check)
     bound: null, // that bound label (ours, inside a reused stock row)
     loadingSince: 0, // Date.now() when the visible page started waiting for match rows
@@ -118,7 +119,9 @@
     scanning: 0, // gen of the scan in progress (0: none); the tooltip stays muted while it runs
     graphScale: 0, // the lead graph's scale (0: no graph drawn)
     revealToken: 0, // the running graph wipe; a new one supersedes it
-    graphDraws: [] // the lead graph's canvas strokes, painted by paint()
+    graphDraws: [], // the lead graph's canvas strokes, painted by paint()
+    matchId: "", // the shown match's id (copied by a click on #NSMatch)
+    copyToken: 0 // the running "copied" feedback; a newer click or match supersedes it
   };
 
   // ---------- discovery ----------
@@ -162,6 +165,7 @@
     UI.progressText = ctx.FindChildTraverse("NSProgressText");
     UI.progressStep = ctx.FindChildTraverse("NSProgressStep");
     UI.frame = ctx.FindChildTraverse("NSFrame");
+    if (ok(UI.match)) UI.match.SetPanelEvent("onactivate", copyMatchId);
   }
 
   // ---------- progress bar ----------
@@ -281,7 +285,49 @@
       setText(UI.kills[i], String(t.totals.value.kills));
     });
     setText(UI.clock, clock(m.duration));
-    setText(UI.match, `MATCH ${m.id}`);
+    S.matchId = String(m.id || "");
+    S.copyToken++; // a pending "copied" label is replaced by this match's
+    setText(UI.match, `MATCH ${S.matchId}`);
+    if (ok(UI.match)) UI.match.RemoveClass("NSCopied");
+  }
+
+  // ---------- copy the match id ----------
+  // The board hides the stock #MatchID labels (opacity 0), so its own #NSMatch copies the id on click, with
+  // the stock action those labels use: CitadelPostGameCopyMatchID(). Its page callback copies the page's
+  // uint64 match id as decimal text (Plat_SetClipboardText) and anchors its success feedback on the source
+  // panel, here #NSMatch (client.dll 6821 0x181b2bcb0). If dispatching it throws, a laid-out TextEntry with
+  // the id is selected and copied (TextEntryCopyToClipboard; CopyStringToClipboard threw in the Escape menu).
+  const COPIED_S = 1.5;
+  function copyByEntry(text) {
+    const entry = ctx.FindChildTraverse("NSCopyEntry"); // laid out from the start (pg_board.xml)
+    if (!ok(entry)) return false;
+    let copied = false;
+    try {
+      entry.text = text;
+      entry.SetFocus();
+      entry.SelectAll();
+      copied = $.DispatchEvent("TextEntryCopyToClipboard", entry) !== false;
+    } catch (e) { copied = false; }
+    try { $.DispatchEvent("DropInputFocus", entry); } catch (e) { /* focus stays */ }
+    return copied;
+  }
+  function copyMatchId() {
+    if (stopped || !S.matchId || !ok(UI.match)) return;
+    let route = "";
+    try {
+      $.DispatchEvent("CitadelPostGameCopyMatchID", UI.match);
+      route = "stock";
+    } catch (e) { route = ""; }
+    if (!route && copyByEntry(S.matchId)) route = "entry";
+    log(`match id ${route ? `copied (${route})` : "not copied"}`);
+    const token = ++S.copyToken;
+    setText(UI.match, route ? "MATCH ID COPIED" : `MATCH ${S.matchId}`);
+    UI.match.SetHasClass("NSCopied", !!route);
+    $.Schedule(COPIED_S, () => {
+      if (stopped || token !== S.copyToken || !ok(UI.match)) return;
+      setText(UI.match, `MATCH ${S.matchId}`);
+      UI.match.RemoveClass("NSCopied");
+    });
   }
 
   // Stock panels are restyled in place, never moved: C++ looks row children up by id later and a
@@ -788,6 +834,7 @@
   // stale board), so the board deletes its own columns; the rows' inline styles stay valid.
   function teardown() {
     S.gen++;
+    if (S.hovered) unhover(); // a scan cut short leaves its hover open
     unhoverItems(HOVER.items);
     if (ok(UI.frame)) { UI.frame.RemoveClass("NSOn"); UI.frame.RemoveClass("NSIntro"); }
     for (const c of S.cols) {
@@ -866,22 +913,33 @@
     return ok(canvas) ? canvas.Children() : [];
   }
 
-  // The scan's hovers open the stock tooltip; it is made transparent at once, so it is never drawn
-  // while the board reads it (user 2026-10-25: the tooltip flashed over the screen during loading).
-  // It gets its opacity back when the Graphs screen is focused (step).
-  function muteTip() {
+  // The stock tooltip (tooltip_base: .TooltipContainer opacity 0, .TooltipVisible opacity 1 with a 0.175 s
+  // fade) is shown and hidden by its TooltipVisible class: the native column mouseover sets it synchronously
+  // and the mouseout clears it, emitting the tooltip lifecycle events (client.dll 6821 0x181a9faf0,
+  // 0x18232c8c0; .scratch/m1_research/notes.md). The board never writes the tooltip's opacity: an inline
+  // opacity beats the class rule, and the old inline "1" on the Graphs screen kept the contents drawn after
+  // the mouse left the graph (user report 2026-10-29). Each scan hover drops TooltipVisible in the same turn
+  // (the rows stay readable, the fade never starts); the scan's last hover is closed by its stock onmouseout.
+  const TIP_SHOWN = "TooltipVisible";
+  function hideTip() {
     const tip = tooltip();
-    if (!tip || S.tipMuted) return;
-    tip.style.opacity = "0";
-    S.tipMuted = true;
+    if (tip && tip.BHasClass(TIP_SHOWN)) tip.RemoveClass(TIP_SHOWN);
+  }
+  // Ends the scan's synthetic hover the stock way (the column's own onmouseout), then makes sure.
+  function unhover() {
+    const col = S.hovered;
+    S.hovered = null;
+    try { if (ok(col)) $.DispatchEvent("DispatchPanelEvent", col, "onmouseout"); } catch (e) { /* hidden below */ }
+    hideTip();
   }
 
   function hover(index) {
     const cols = columns();
     const col = cols[index < 0 ? cols.length + index : index];
-    muteTip();
-    if (ok(col)) $.DispatchEvent("DispatchPanelEvent", col, "onmouseover");
-    muteTip(); // the first hover creates the tooltip
+    if (!ok(col)) return;
+    $.DispatchEvent("DispatchPanelEvent", col, "onmouseover");
+    S.hovered = col;
+    hideTip(); // the first hover creates the tooltip
   }
 
   const graphType = (n) => {
@@ -1078,6 +1136,7 @@
     log(`scan: ${jobs.length} steps, ${count} columns, button heroes ${buttonHero.slice(1).join(",")}`);
     runJobs(gen, jobs, (stats) => {
       S.scanning = 0;
+      unhover();
       for (const lane of lanes) {
         LANE_TIERS.forEach(([, tier], i) => {
           const labels = lane.sig[i];
@@ -1125,15 +1184,12 @@
     S.focused = focused;
     if (S.key && focused && !S.introShown) playIntro();
     if (S.key && !focused && S.introShown && Date.now() - S.blurAt >= INTRO_RESET_MS) resetIntro();
-    // The stock graph tooltip does not close by script: it is drawn only on the Graphs screen and never while
-    // the scan hovers (user 2026-10-25: it showed while loading; 2026-10-26: the user's own hover on the
-    // Graphs screen left it over the scoreboard).
-    if (ok(UI.tip)) {
-      const show = !focused && S.scanning !== S.gen && ok(UI.graphs.GetParent()) && UI.graphs.GetParent().BHasClass("Focused");
-      if (show === S.tipMuted) {
-        UI.tip.style.opacity = show ? "1" : "0";
-        S.tipMuted = !show;
-      }
+    // A graph tooltip shown off the Graphs screen is left over (the carousel moved while the mouse was on the
+    // graph, user 2026-10-26; or an interrupted scan): hide it the stock way. On the Graphs screen the stock
+    // owns it: shown on a column's mouseover, hidden on its mouseout.
+    if (ok(UI.tip) && S.scanning !== S.gen && UI.tip.BHasClass(TIP_SHOWN)) {
+      const graphsShown = ok(UI.graphs.GetParent()) && UI.graphs.GetParent().BHasClass("Focused");
+      if (!graphsShown) hideTip();
     }
     // Steady state: the first row's bound label still reads what the board was built from.
     // Rows are reused across matches, so panel identity is not enough.

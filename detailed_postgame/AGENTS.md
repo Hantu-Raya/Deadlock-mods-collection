@@ -27,6 +27,8 @@ powershell -ExecutionPolicy Bypass -File build_detailed_postgame.ps1 -Install   
 
 ## Runtime rules
 
+- Never write the stock graph tooltip's inline opacity: it beats the stock `.TooltipContainer` / `.TooltipVisible` rules, and the inherited inline `opacity: 1` kept the tooltip drawn after the mouse left the graph (user report 2026-10-29). The scan drops `TooltipVisible` after each synthetic hover and closes the last one with the column's stock `onmouseout`; off the Graphs screen a leftover `TooltipVisible` is removed. Evidence: `.scratch/m1_research/notes.md` (client.dll 6821 static RE, cross-checked with GPT-6 Astra).
+- The header `#NSMatch` copies the match id with the stock `CitadelPostGameCopyMatchID()` dispatched from itself (its page callback copies the page's id). If that throws, the laid-out `#NSCopyEntry` TextEntry is the fallback. Live 2026-10-29: the stock route copied `121685912`.
 - Never reparent stock scoreboard row children (fatal live). Restyle them in place and create own panels inside the rows through `pg_column.xml`.
 - The board wakes on `CitadelMatchDetailsUpdated` and `CitadelPostGameSelectScreenIndex`, plus one check a second that reads only `PageVisible` while hidden (the `board:` budgets).
 - Console lines use `[DPS]`. The `[DPS] data` lines are the E2E artifact.
