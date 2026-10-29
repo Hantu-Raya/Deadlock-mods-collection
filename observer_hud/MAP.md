@@ -73,7 +73,11 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 
 ## Changelog
 
-### 2026-10-29, graph drop lines and hairlines from Detailed Post Scoreboard (source only, not released; pak10 `3d36b4bc`, built, not installed)
+### 2026-10-29, post-game fixes from Detailed Post Scoreboard (source only, not released; pak10 `21d99ccc`, built, not installed)
+
+- **Click the header match id to copy it** (from detailed_postgame `989583b`, live there on pak11 `ad3b747f`): the board hides the stock `#MatchID` labels, so pak10 had no way to copy the id. `#NSMatch` now dispatches the stock `CitadelPostGameCopyMatchID()` from itself, with the `#NSCopyEntry` TextEntry fallback, and shows MATCH ID COPIED for 1.5 s.
+- **Graph tooltip never gets an inline opacity** (same commit): the old inline `1` on the Graphs screen kept the contents drawn after the mouse left the graph. The scan drops `TooltipVisible` per hover and closes the last with the column's `onmouseout`.
+- Validator: the copy check and the tooltip-scan check from detailed_postgame; both fail on the previous pak10 source.
 
 - **Objective drop lines are one panel each** (`#NSGraphStems`, `STEM_END` 134) from 7 px under the dot past the paper's torn edge to 4 px into the icon. The canvas part stopped at the paper and did not match a panel part below it (user 2026-10-29, on detailed_postgame, live there on pak11 `07ab3496`).
 - **Every canvas stroke is at least 2 px** (`HAIR`): at UI scale 0.83 a 1 px stroke is 0.83 screen px and dropped out by sub-pixel position (5:00 guide, a half-scale guide, most drop lines; live in detailed_postgame on pak11 `7f41832b`).

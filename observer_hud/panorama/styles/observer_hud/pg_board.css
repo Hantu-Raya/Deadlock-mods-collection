@@ -304,6 +304,27 @@
 	letter-spacing: 1px;
 	color: #aeaa94aa;
 	text-shadow: 0px 0px 0px 2 #10130D;
+	padding: 2px 6px;
+}
+
+/* click copies the id (pg_board.js copyMatchId) */
+.NSMatch:hover
+{
+	color: #FFEFD7;
+}
+
+.NSMatch.NSCopied
+{
+	color: #9fd77a;
+}
+
+/* the copy carrier: laid out but never seen or hit */
+.NSCopyEntry
+{
+	width: 10px;
+	height: 10px;
+	ignore-parent-flow: true;
+	opacity: 0;
 }
 
 /* ---------- body: spacers over the stock rows (restyled inline by pg_board.js) + label column ---------- */

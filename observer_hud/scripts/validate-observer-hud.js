@@ -4199,6 +4199,10 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
     },
     DispatchEvent: (name, ...args) => {
       if (graph && name === "DispatchPanelEvent" && args[1] === "onmouseover") showTip(args[0]);
+      // The native column mouseout hides the tooltip: TooltipVisible off (client.dll 6821 0x181a98620).
+      if (graph && name === "DispatchPanelEvent" && args[1] === "onmouseout" && tip && graphCanvas && graphCanvas.children.includes(args[0])) tip.classes.delete("TooltipVisible");
+      if (name === "CitadelPostGameCopyMatchID") { if (copy.stockThrows) throw new Error("Event arguments could not be parsed"); copy.stock.push(args[0]); }
+      if (name === "TextEntryCopyToClipboard") copy.entry.push({ text: String(args[0].text), selected: !!args[0].allSelected, focused: !!args[0].focused });
       if (graph && graph.lanes && name === "CitadelMatchDetailsGraphClickPlayer") showLane(args[0], args[1]);
       return true;
     },
@@ -4232,14 +4236,18 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
   if (visible) page.AddClass("PageVisible");
   const scoreboard = page.FindChildTraverse("Scoreboard");
   // Graph model: columns under MatchDetailsGraphs#Graphs, one tooltip panel created on the first hover.
+  // Stock tooltip_base (6821): .TooltipContainer { opacity: 0 } and .TooltipVisible { opacity: 1 }; the
+  // native show adds TooltipVisible, the native hide removes it. An inline opacity beats both rules.
   const tipLog = { opaqueFrames: 0, shows: 0 };
+  const copy = { stock: [], entry: [], stockThrows: false };
   let tip = null;
   const showTip = (col) => {
     const cols = graphCanvas ? graphCanvas.children : [];
     const c = cols.indexOf(col);
     if (c < 0) return;
-    if (!tip) tip = new MockPanel("CitadelTooltipGraphPlayerNetWorth", dash, "PostGameGraphTooltip");
+    if (!tip) { tip = new MockPanel("CitadelTooltipGraphPlayerNetWorth", dash, "PostGameGraphTooltip"); tip.classes.add("TooltipContainer"); }
     tip.visible = true;
+    tip.classes.add("TooltipVisible");
     tipLog.shows++;
     for (const kid of tip.children.slice()) kid.DeleteAsync();
     const f = (c + 1) / cols.length;
@@ -4274,8 +4282,11 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
   let scanning = false;
   const frameCheck = () => {
     scanning = harness.logs.some((l) => l.startsWith("[NS] board shown")) && !harness.logs.some((l) => l.startsWith("[NS] scan done"));
-    if (scanning && tip && tip.visible && String(tip.style.opacity) !== "0") tipLog.opaqueFrames++;
+    if (scanning && tipDrawn()) tipLog.opaqueFrames++;
   };
+  // What the player sees: the inline opacity if one was written, else the stock classes.
+  const tipDrawn = () => !!tip && tip.visible && (tip.style.opacity !== undefined && tip.style.opacity !== null && String(tip.style.opacity) !== ""
+    ? String(tip.style.opacity) !== "0" : tip.classes.has("TooltipVisible"));
   let graphCanvas = null;
   if (graph) {
     graphCanvas = new MockPanel("Panel", page.FindChildTraverse("Graphs"), "Graph");
@@ -4330,7 +4341,10 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
   const shown = () => harness.logs.filter((line) => line.startsWith("[NS] board shown")).length;
   const columns = () => findAll(scoreboard, "Panel").filter((p) => p.valid && (p.classes.has("NSColumnTeam1") || p.classes.has("NSColumnTeam2")));
   return { harness, page, scoreboard, bus, fill, fire, selectScreen, boardHost, shown, columns, tipLog,
-    tip: () => tip,
+    tip: () => tip, tipDrawn, copy,
+    // The player's own mouse on graph column c, and leaving it: the stock column events.
+    userHover: (c) => showTip(graphCanvas.children[c]),
+    userLeave: () => { if (tip) tip.classes.delete("TooltipVisible"); },
     boot: () => runIn(page, [["pg_loader.js", script("pg_loader.js")]]),
     reload: () => runIn(boardHost(), [["oh_state.js", script("oh_state.js")], ["pg_board.js", script("pg_board.js")]]),
     web: dash.__web, dash,
@@ -4353,19 +4367,34 @@ check("board: the scan reads the lead with a totals row a few souls off, and the
   assert.ok(w.boardHost().FindChildTraverse("NSGraph").BHasClass("NSOn"), "lead graph shown");
   assert.ok(w.tipLog.shows > 0, "the scan hovered the graph");
   assert.equal(w.tipLog.opaqueFrames, 0, "tooltip drawn during the scan");
-  assert.equal(String(w.tip().style.opacity), "0", "tooltip stays transparent after the scan");
-  // Opening the Graphs screen gives the tooltip back for the user's own hovers.
+  // How it failed (user report 2026-10-29): the board wrote the tooltip's inline opacity ("1" on the Graphs
+  // screen), which beats the stock .TooltipContainer opacity 0, so the contents stayed drawn after the mouse
+  // left the graph; and the scan's synthetic hover was never closed. The board must never write it.
+  const opacityWrites = () => (w.tip().__styleWrites || []).filter((x) => x.property === "opacity");
+  deq(opacityWrites(), [], "no inline opacity on the stock tooltip");
+  assert.ok(!w.tipDrawn(), "nothing drawn after the scan");
+  // The Graphs screen without a hover shows nothing; a hover shows it, leaving the graph hides it.
   w.selectScreen("GraphsScreen");
   w.advance(1500);
-  assert.equal(String(w.tip().style.opacity), "1", "tooltip restored on the Graphs screen");
-  // The user's own hover leaves the tooltip open; back on the scoreboard it must not stay over the board
-  // (user report 2026-10-26).
+  assert.ok(!w.tipDrawn(), "Graphs screen, no hover: no tooltip");
+  w.userHover(12);
+  w.advance(1500);
+  assert.ok(w.tipDrawn(), "hovering a column shows it (the board leaves the stock alone)");
+  w.userLeave();
+  w.advance(1500);
+  assert.ok(!w.tipDrawn(), "leaving the graph hides it");
+  // A hover left open when the carousel moves (user report 2026-10-26) is hidden off the Graphs screen.
+  w.userHover(30);
   w.selectScreen("ScoreboardScreen");
   w.advance(1500);
-  assert.equal(String(w.tip().style.opacity), "0", "tooltip hidden again off the Graphs screen");
+  assert.ok(!w.tipDrawn(), "hidden over the scoreboard");
   w.selectScreen("GraphsScreen");
   w.advance(1500);
-  assert.equal(String(w.tip().style.opacity), "1", "and back on the Graphs screen");
+  assert.ok(!w.tipDrawn(), "and not back without a hover");
+  w.userHover(5);
+  w.advance(1500);
+  assert.ok(w.tipDrawn(), "a new hover still shows it");
+  deq(opacityWrites(), [], "still no inline opacity");
 });
 
 check("board: builds when the match loads, again for the next match on the reused rows, never twice for one", () => {
@@ -5064,6 +5093,51 @@ check("board: the soul lead is one smooth line over a soft area on a canvas, col
     assert.ok(Math.abs(px(stem, "marginTop") - (cy + 7)) < 0.6, `stem starts under its dot: ${px(stem, "marginTop")} vs ${cy + 7}`);
     assert.ok(Math.abs(px(stem, "marginTop") + px(stem, "height") - 134) < 0.6, "stem ends 4 px into the icon");
   }
+  assert.ok(noBoardErrors(w));
+});
+
+check("copy: a click on the header match id copies it the stock way, says so, and comes back; a failing stock route falls back to a selected TextEntry", () => {
+  // How it could fail: the label takes no click (hittest off, or an ancestor blocks children); the stock event
+  // does not reach the page; the feedback
+  // stays, or an old timer overwrites a newer match; a throwing route leaves nothing copied or claims success.
+  const board = read("panorama/layout/observer_hud/pg_board.xml");
+  assert.match(board, /<Label id="NSMatch"[^>]*hittest="true"[^>]*onmouseover="UIShowTextTooltip\( #Citadel_PostGame_CopyMatchID \)"[^>]*onmouseout="UIHideTextTooltip\(\)"/);
+  assert.ok(!/hittestchildren="false"/.test(board), "no ancestor blocks the label");
+  assert.match(board, /<TextEntry id="NSCopyEntry" class="NSCopyEntry" hittest="false"/);
+  const w = boardWorld({ graph: { duration: 31 * 60 + 7, souls: [140000, 150000] } });
+  w.boot();
+  const a = pgMatch(121685912);
+  present(w, a);
+  w.advance(20000);
+  const label = w.boardHost().FindChildTraverse("NSMatch");
+  assert.equal(w.text("NSMatch"), "MATCH 121685912");
+  assert.equal(typeof label.events.onactivate, "function", "the label has a click handler");
+  label.events.onactivate();
+  // The page callback copies the page's match id; the source only anchors the stock feedback (0x181b2bcb0).
+  deq(w.copy.stock.map((p) => p === label), [true], "CitadelPostGameCopyMatchID from #NSMatch");
+  deq(w.copy.entry, [], "no fallback needed");
+  assert.equal(w.text("NSMatch"), "MATCH ID COPIED");
+  assert.ok(label.BHasClass("NSCopied"));
+  w.advance(1000);
+  label.events.onactivate(); // a second click restarts the feedback
+  w.advance(1000);
+  assert.equal(w.text("NSMatch"), "MATCH ID COPIED", "the first click's timer does not end the second's");
+  w.advance(1000);
+  assert.equal(w.text("NSMatch"), "MATCH 121685912");
+  assert.ok(!label.BHasClass("NSCopied"));
+  // The next match on the reused rows while "copied" shows: its own id, no stale restore.
+  label.events.onactivate();
+  const b = pgMatch(121917141, { swap: true, win: 2 });
+  present(w, b);
+  w.advance(3000);
+  assert.equal(w.text("NSMatch"), "MATCH 121917141");
+  assert.ok(!label.BHasClass("NSCopied"));
+  // A throwing stock route: the id goes through the selected TextEntry instead.
+  w.copy.stockThrows = true;
+  label.events.onactivate();
+  deq(w.copy.entry, [{ text: "121917141", selected: true, focused: true }], "fallback copies the bare id");
+  assert.equal(w.text("NSMatch"), "MATCH ID COPIED");
+  assert.ok(w.harness.logs.some((l) => l === "[NS] match id copied (entry)"));
   assert.ok(noBoardErrors(w));
 });
 
