@@ -931,6 +931,45 @@
 	height: 30px;
 }
 
+/* Objective drop lines, outside the paper's mask: from just under each dot (margin-top and height set by
+   pg_board.js) past the 112 px plot and the 18 px ticks to 4 px into the icons (STEM_END 134). */
+.NSGraphStems
+{
+	ignore-parent-flow: true;
+	width: 1600px;
+	height: 134px;
+}
+
+.NSStem
+{
+	width: 2px;
+	background-color: #FFEFD722;
+}
+
+.NSGraph.NSShow .NSStem
+{
+	opacity: 0;
+	animation-name: NSStemIn;
+	animation-duration: 0.28s;
+	animation-timing-function: ease-out;
+	animation-fill-mode: forwards;
+	animation-delay: 0.40s;
+}
+
+.NSGraph.NSShow .NSStem.NSW1 { animation-delay: 0.45s; }
+.NSGraph.NSShow .NSStem.NSW2 { animation-delay: 0.50s; }
+.NSGraph.NSShow .NSStem.NSW3 { animation-delay: 0.55s; }
+.NSGraph.NSShow .NSStem.NSW4 { animation-delay: 0.60s; }
+.NSGraph.NSShow .NSStem.NSW5 { animation-delay: 0.65s; }
+.NSGraph.NSShow .NSStem.NSW6 { animation-delay: 0.70s; }
+.NSGraph.NSShow .NSStem.NSW7 { animation-delay: 0.75s; }
+
+@keyframes 'NSStemIn'
+{
+	0% { opacity: 0; }
+	100% { opacity: 1; }
+}
+
 .NSEvent
 {
 	width: 22px;
