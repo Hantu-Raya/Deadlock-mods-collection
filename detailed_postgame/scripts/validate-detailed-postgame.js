@@ -842,6 +842,12 @@ check("board: the soul lead is one smooth line over a soft area on a canvas, col
   assert.ok(text(host.FindChildTraverse("NSGraphTop")).includes("HIDDEN KING") && text(host.FindChildTraverse("NSGraphBottom")).includes("ARCHMOTHER"), "captions keep the stock names");
   // The reveal finishes.
   assert.equal(String(host.FindChildTraverse("NSGraphDraw").style.clip), "rect( 0%, 100%, 100%, 0% )", "fully revealed");
+  // How it failed live (2026-10-29, 1600x900): 1 px strokes are 0.83 screen px at UI scale 0.83 and drop out
+  // by sub-pixel position (the 5:00 guide and most objective drop lines were missing). Nothing under 2 px.
+  const painted = host.FindChildTraverse("NSGraphCanvas").__draws || [];
+  assert.ok(painted.length >= 10, `strokes painted: ${painted.length}`);
+  const thin = painted.filter((d) => d.thickness < 2);
+  deq(thin.map((d) => `${d.thickness}px ${d.color}`), [], "every canvas stroke is at least 2 px");
   assert.ok(noBoardErrors(w));
 });
 

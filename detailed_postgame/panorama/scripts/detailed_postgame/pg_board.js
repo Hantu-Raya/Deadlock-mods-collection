@@ -70,6 +70,7 @@
   // (layoutScoreboard) = .NSHeadSide/.NSTeam and .NSHeadCentre/.NSLabels/.NSProgress. Change both.
   const GRAPH_H = 112; // the plot; the canvas fills it (1600 x 112)
   const CHART_W = 1512; // the lead's x range; the right gutter holds the final-lead pill
+  const HAIR = 2; // the thinnest canvas stroke: at least one full screen pixel down to 720p (UI scale 0.67)
 
   const ok = (p) => !!(p && p.IsValid && p.IsValid());
   const log = (msg) => $.Msg(`${TAG} ${msg}`);
@@ -680,12 +681,15 @@
       stroke(outer, STEP_X + 0.6, 0.4, FILL_RGB[run.side][0]);
       stroke(inner, STEP_X + 0.6, 0.4, FILL_RGB[run.side][1]);
     }
-    // Guides over the area: half and full scale, and one hairline per five minutes.
-    for (const f of [-1, -0.5, 0.5, 1]) stroke([0, zero - f * half, CHART_W, zero - f * half], 1, 0.5, f === 0.5 || f === -0.5 ? "#FFEFD710" : "#FFEFD71C");
-    for (let t = 300; t < duration; t += 300) stroke([graphX(t, duration), 2, graphX(t, duration), GRAPH_H - 2], 1, 0.5, "#FFEFD70E");
+    // Guides over the area: half and full scale, and one hairline per five minutes. Every hairline is HAIR
+    // px: the UI scale at 900p is 0.83, so a 1 px stroke is 0.83 screen px and drops out or shows depending on
+    // where it lands between pixels (live 2026-10-29: the 5:00 guide, a half-scale guide and most objective
+    // drop lines were missing while their twins drew).
+    for (const f of [-1, -0.5, 0.5, 1]) stroke([0, zero - f * half, CHART_W, zero - f * half], HAIR, 0.5, f === 0.5 || f === -0.5 ? "#FFEFD70A" : "#FFEFD712");
+    for (let t = 300; t < duration; t += 300) stroke([graphX(t, duration), 2, graphX(t, duration), GRAPH_H - 2], HAIR, 0.5, "#FFEFD70A");
     // Objective hairlines from the line down to the icons.
     const objs = events.map((e) => { const x = graphX(e.t, duration); return { e, x, y: curve(Math.min(x, endX)) }; });
-    for (const o of objs) stroke([o.x, o.y + 6, o.x, GRAPH_H], 1, 0.5, "#FFEFD72E");
+    for (const o of objs) stroke([o.x, o.y + 6, o.x, GRAPH_H], HAIR, 0.5, "#FFEFD722");
     // The line: a glow, then the pen.
     for (const run of runs) {
       const flat = [];
@@ -728,7 +732,7 @@
     const lastSide = last.l < 0 ? 1 : 0;
     dot(`NSGraphEndDot NSPeakDotTeam${lastSide + 1}`, endX, lastY, 10);
     const pillY = Math.max(11, Math.min(GRAPH_H - 11, lastY));
-    stroke([endX + 5, lastY, CHART_W + 8, pillY], 1, 0.5, `#${TEAM_RGB[lastSide]}99`);
+    stroke([endX + 5, lastY, CHART_W + 8, pillY], HAIR, 0.5, `#${TEAM_RGB[lastSide]}70`);
     if (ok(UI.end)) {
       setText(UI.end, `+${fmtK(Math.abs(last.l))}`);
       UI.end.SetHasClass("NSEndTeam1", lastSide === 0);
