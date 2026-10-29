@@ -1,0 +1,75 @@
+10/29 10:51:04 [PanoramaScript] [DPS] board loaded
+10/29 10:51:05 [PanoramaScript] [DPS] board shown: match 121685912, 6v6, 23:47
+10/29 10:51:05 [PanoramaScript] [DPS] data rows begin 2
+10/29 10:51:05 [PanoramaScript] [DPS] data rows + {"win":false,"totals":{"souls":130660,"kills":17,"deaths":39,"assists":43,"pdmg":121273,"odmg":7859,"heal":36726},"rows":[{"hero":86,"account":"1066762570","mvp":0,"souls":19267,"kills":3,"deaths":6,"assists":5,"pdmg":20899,"odmg":542,"heal":5870},{"hero":11,"account":"170723536","mvp":0,"souls":22095,"kills":3,"deaths":6,"assists":8,"pdmg":11732,"odmg":1554,"heal":8251},{"hero":65,"account":"1011336875","mvp":0,"souls":22806,"kills":3,"deaths":7,"assists":5,"pdmg":13406,"odmg":858,"heal":2241},{"hero":6,"account":"490375281","mvp":3,"souls":20309,"kills":2,"deaths":7,"assists":11,"pdmg":26241,"odmg":3473,"heal":7901},{"hero":31,"account":"318832623","mvp":0,"souls":26779,"kills":5,"deaths":5,"assists":6,"pdmg":16297,"odmg":1353,"heal":3116},{"hero":77,"account":"168616803","mvp":0,"souls":19404,"kills":1,"deaths":8,"assists":8,"pdmg":32698,"odmg":79,"heal":9347}]}
+10/29 10:51:05 [PanoramaScript] [DPS] data rows + {"win":true,"totals":{"souls":171452,"kills":39,"deaths":17,"assists":83,"pdmg":128671,"odmg":55061,"heal":67251},"rows":[{"hero":87,"account":"767130300","mvp":0,"souls":24753,"kills":3,"deaths":2,"assists":14,"pdmg":20011,"odmg":3826,"heal":23885},{"hero":18,"account":"1026868463","mvp":0,"souls":27825,"kills":10,"deaths":4,"assists":17,"pdmg":24925,"odmg":2100,"heal":11603},{"hero":7,"account":"1125154645","mvp":2,"souls":35146,"kills":9,"deaths":2,"assists":7,"pdmg":25344,"odmg":29703,"heal":4647},{"hero":84,"account":"897049097","mvp":0,"souls":28821,"kills":4,"deaths":2,"assists":12,"pdmg":12637,"odmg":12744,"heal":865},{"hero":15,"account":"1018009958","mvp":1,"souls":28066,"kills":9,"deaths":3,"assists":18,"pdmg":33733,"odmg":4875,"heal":7022},{"hero":12,"account":"1812398528","mvp":0,"souls":26841,"kills":4,"deaths":4,"assists":15,"pdmg":12021,"odmg":1813,"heal":19229}]}
+10/29 10:51:05 [PanoramaScript] [DPS] scan: 69 steps, 40 columns, button heroes 11,6,31,86,65,77,87,18,15,7,84,12
+10/29 10:51:06 [PanoramaScript] [DPS] scan done in 827 ms, 8 frames, 8 retries, 0 failed: 40 lead points, 12 souls, 3 lanes, 12 objectives
+10/29 10:51:06 [PanoramaScript] [DPS] data series begin 40
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":35,"a":1936,"b":2110}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":71,"a":3927,"b":4280}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":107,"a":5919,"b":6450}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":142,"a":7855,"b":8560}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":178,"a":9846,"b":10730}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":214,"a":12030,"b":13426}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":249,"a":14165,"b":16077}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":285,"a":16360,"b":18804}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":321,"a":18556,"b":21531}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":356,"a":20690,"b":24182}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":392,"a":23647,"b":28058}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":428,"a":26699,"b":32077}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":463,"a":29666,"b":35985}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":499,"a":32717,"b":40004}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":535,"a":35769,"b":44024}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":570,"a":38490,"b":48569}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":606,"a":41247,"b":53353}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":642,"a":44003,"b":58137}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":677,"a":46683,"b":62788}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":713,"a":49440,"b":67572}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":749,"a":52882,"b":71593}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":784,"a":56390,"b":75323}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":820,"a":59998,"b":79159}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":856,"a":63605,"b":82996}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":891,"a":67113,"b":86726}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":927,"a":71002,"b":91675}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":963,"a":74984,"b":96994}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":998,"a":78856,"b":102166}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1034,"a":82839,"b":107486}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1070,"a":86821,"b":112805}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1105,"a":90693,"b":117977}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1141,"a":94675,"b":123297}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1177,"a":98658,"b":128616}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1212,"a":102759,"b":134100}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1248,"a":107431,"b":140354}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1284,"a":112103,"b":146608}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1319,"a":116645,"b":152689}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1355,"a":121316,"b":158943}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1391,"a":125988,"b":165197}
+10/29 10:51:06 [PanoramaScript] [DPS] data series + {"t":1427,"a":130660,"b":171451}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls begin 12
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":11,"total":21408,"rows":[{"name":"Troopers","value":13184,"pct":62},{"name":"Enemy Kills","value":2762,"pct":13},{"name":"Trophy Collector","value":1878,"pct":9},{"name":"Haunts","value":843,"pct":4},{"name":"Kill Assists","value":827,"pct":4},{"name":"Objectives","value":710,"pct":3},{"name":"Team Catch-Up","value":671,"pct":3},{"name":"Breakable Pickups","value":383,"pct":2},{"name":"Denies","value":150,"pct":1}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":6,"total":19705,"rows":[{"name":"Troopers","value":9723,"pct":49},{"name":"Haunts","value":3629,"pct":18},{"name":"Enemy Kills","value":1998,"pct":10},{"name":"Kill Assists","value":1390,"pct":7},{"name":"Objectives","value":1355,"pct":7},{"name":"Breakable Pickups","value":1226,"pct":6},{"name":"Team Catch-Up","value":315,"pct":2},{"name":"Denies","value":69,"pct":0}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":31,"total":26091,"rows":[{"name":"Troopers","value":14717,"pct":56},{"name":"Enemy Kills","value":5168,"pct":20},{"name":"Breakable Pickups","value":2075,"pct":8},{"name":"Haunts","value":1920,"pct":7},{"name":"Objectives","value":712,"pct":3},{"name":"Team Catch-Up","value":690,"pct":3},{"name":"Kill Assists","value":676,"pct":3},{"name":"Denies","value":133,"pct":1}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":86,"total":19064,"rows":[{"name":"Troopers","value":10113,"pct":53},{"name":"Enemy Kills","value":2589,"pct":14},{"name":"Breakable Pickups","value":1806,"pct":9},{"name":"Team Catch-Up","value":1512,"pct":8},{"name":"Kill Assists","value":1407,"pct":7},{"name":"Objectives","value":921,"pct":5},{"name":"Haunts","value":435,"pct":2},{"name":"Denies","value":281,"pct":1}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":65,"total":22951,"rows":[{"name":"Troopers","value":15034,"pct":66},{"name":"Enemy Kills","value":2501,"pct":11},{"name":"Haunts","value":2401,"pct":10},{"name":"Breakable Pickups","value":736,"pct":3},{"name":"Objectives","value":713,"pct":3},{"name":"Cultist Sacrifice","value":699,"pct":3},{"name":"Kill Assists","value":628,"pct":3},{"name":"Denies","value":125,"pct":1},{"name":"Team Catch-Up","value":114,"pct":0}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":77,"total":19271,"rows":[{"name":"Troopers","value":10256,"pct":53},{"name":"Urn","value":2230,"pct":12},{"name":"Breakable Pickups","value":2187,"pct":11},{"name":"Enemy Kills","value":1653,"pct":9},{"name":"Kill Assists","value":846,"pct":4},{"name":"Objectives","value":709,"pct":4},{"name":"Haunts","value":662,"pct":3},{"name":"Team Catch-Up","value":540,"pct":3},{"name":"Denies","value":188,"pct":1}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":87,"total":24486,"rows":[{"name":"Troopers","value":8453,"pct":35},{"name":"Objectives","value":4015,"pct":16},{"name":"Haunts","value":3495,"pct":14},{"name":"Breakable Pickups","value":2362,"pct":10},{"name":"Kill Assists","value":2093,"pct":9},{"name":"Team Catch-Up","value":1819,"pct":7},{"name":"Enemy Kills","value":1400,"pct":6},{"name":"Urn","value":716,"pct":3},{"name":"Denies","value":133,"pct":1}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":18,"total":28399,"rows":[{"name":"Troopers","value":8176,"pct":29},{"name":"Enemy Kills","value":4713,"pct":17},{"name":"Objectives","value":3974,"pct":14},{"name":"Haunts","value":3623,"pct":13},{"name":"Kill Assists","value":2604,"pct":9},{"name":"Trophy Collector","value":2144,"pct":8},{"name":"Breakable Pickups","value":1567,"pct":6},{"name":"Team Catch-Up","value":854,"pct":3},{"name":"Urn","value":716,"pct":3},{"name":"Denies","value":28,"pct":0}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":15,"total":27561,"rows":[{"name":"Troopers","value":8823,"pct":32},{"name":"Enemy Kills","value":4565,"pct":17},{"name":"Objectives","value":4062,"pct":15},{"name":"Haunts","value":3798,"pct":14},{"name":"Kill Assists","value":3181,"pct":12},{"name":"Urn","value":1666,"pct":6},{"name":"Breakable Pickups","value":1411,"pct":5},{"name":"Denies","value":55,"pct":0}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":7,"total":34496,"rows":[{"name":"Troopers","value":15049,"pct":44},{"name":"Objectives","value":5247,"pct":15},{"name":"Haunts","value":3938,"pct":11},{"name":"Enemy Kills","value":3328,"pct":10},{"name":"Breakable Pickups","value":2715,"pct":8},{"name":"Urn","value":2366,"pct":7},{"name":"Kill Assists","value":1361,"pct":4},{"name":"Denies","value":492,"pct":1}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":84,"total":28505,"rows":[{"name":"Troopers","value":11650,"pct":41},{"name":"Haunts","value":5138,"pct":18},{"name":"Objectives","value":3953,"pct":14},{"name":"Breakable Pickups","value":2659,"pct":9},{"name":"Enemy Kills","value":1840,"pct":6},{"name":"Kill Assists","value":1662,"pct":6},{"name":"Urn","value":716,"pct":3},{"name":"Cultist Sacrifice","value":703,"pct":2},{"name":"Team Catch-Up","value":108,"pct":0},{"name":"Denies","value":76,"pct":0}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data souls + {"hero":12,"total":26157,"rows":[{"name":"Troopers","value":7223,"pct":28},{"name":"Haunts","value":3994,"pct":15},{"name":"Objectives","value":3870,"pct":15},{"name":"Breakable Pickups","value":3677,"pct":14},{"name":"Team Catch-Up","value":2610,"pct":10},{"name":"Kill Assists","value":2110,"pct":8},{"name":"Enemy Kills","value":1606,"pct":6},{"name":"Urn","value":716,"pct":3},{"name":"Denies","value":351,"pct":1}]}
+10/29 10:51:06 [PanoramaScript] [DPS] data events begin 12
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":475,"tier":"tier1","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":478,"tier":"tier1","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":501,"tier":"tier1","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":641,"tier":"tier2","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":834,"tier":"tier1","owner":2,"killer":1}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":986,"tier":"tier2","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":1002,"tier":"tier1","owner":2,"killer":1}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":1120,"tier":"tier2","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":1163,"tier":"tier1","owner":2,"killer":1}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":1321,"tier":"base","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":1323,"tier":"base","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] data events + {"t":1370,"tier":"base","owner":1,"killer":2}
+10/29 10:51:06 [PanoramaScript] [DPS] graph: chart 1512x112, zero 56, half 44, scale 45000, 40 points, 1 run(s)
