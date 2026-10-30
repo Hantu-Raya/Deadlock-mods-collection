@@ -32,6 +32,8 @@ EVERYONE_RECORDS = {
     "upgrade_siphon_bullets",
     "upgrade_surging_power",
     "upgrade_tech_overflow",
+    # 6828 Halloween candy: the eater's own Sugar Rush buff, same policy as the other self buffs.
+    "seasonal_ability_eat_halloween_candy",
     # Stock set EVERYONE explicitly until 6779 removed the field.
     "upgrade_unstoppable",
     "vanguard_aoe_buff",
