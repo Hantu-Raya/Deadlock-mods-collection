@@ -73,6 +73,11 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 
 ## Changelog
 
+### 2026-10-31, client 6828 rebuild (source only, not released; pak10 `f6e750de`, built, not installed)
+
+- `refresh-stock.py` moved the pin to GameTracking `cc187883` (6828): `stock/hud.xml` and `stock/citadel_hud_top_bar.xml` refreshed, `oh_heroes.js`, `oh_debuff_icons.js` and `oh_item_icons.js` regenerated. None of pak10's three layout overrides changed upstream, so no rebase. The VData was rebuilt from the installed 6828 game (`[spectator-status] verified 38 modifiers`). Validator 85 checks; `dist/Observer_HUD_26.10.31.7z`.
+- Stock 6828 wraps each post-game scoreboard row's commend button, icon and `LocalPlayerIdentifier` in a new `.CommendContainer`. The board does not look those panels up and keeps the row ids it uses, but the restyled rows are not seen live on 6828.
+
 ### 2026-10-29, post-game fixes from Detailed Post Scoreboard (source only, not released; pak10 `21d99ccc`, built, not installed)
 
 - **Click the header match id to copy it** (from detailed_postgame `989583b`, live there on pak11 `ad3b747f`): the board hides the stock `#MatchID` labels, so pak10 had no way to copy the id. `#NSMatch` now dispatches the stock `CitadelPostGameCopyMatchID()` from itself, with the `#NSCopyEntry` TextEntry fallback, and shows MATCH ID COPIED for 1.5 s.

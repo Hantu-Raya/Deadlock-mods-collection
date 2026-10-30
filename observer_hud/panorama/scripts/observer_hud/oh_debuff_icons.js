@@ -57,7 +57,7 @@ var OH_DEBUFF_ICONS = {
   "hud/icons": "citadel_ability_sprint=icon_speed.svg",
   "hud/modifiers": "upgrade_counterspell=icon_parry.svg upgrade_melee_rebuttal=icon_parry.svg",
   "icons": "cosmetic_ability_emote=icon_star.svg",
-  "items/seasonal": "cosmetic_ability_snowball=2025_snowball cosmetic_ability_voting_poster=voting_poster",
+  "items/seasonal": "cosmetic_ability_snowball=2025_snowball cosmetic_ability_voting_poster=voting_poster seasonal_ability_eat_halloween_candy=2026_candy",
   "items/spirit": "upgrade_prism_blast=ethereal_shift upgrade_self_bubble=ethereal_shift",
   "items/vitality": "upgrade_auto_cleanse=indomitable upgrade_juggernaut=juggernaut",
   "npcs": "vanguard_aoe_buff",
