@@ -278,7 +278,7 @@
 				</Panel>
 			</Panel>
 			<Panel id="ShowRankBarebonesCredit" class="ShowRankBarebonesCredit">
-				<Label class="ShowRankBarebonesCreditText" text="ShowRank v1.0.0 · made by" hittest="false" />
+				<Label class="ShowRankBarebonesCreditText" text="ShowRank v1.0.1 · made by" hittest="false" />
 				<Label id="ShowRankBarebonesCreditLink" class="ShowRankBarebonesCreditText ShowRankBarebonesCreditLink" text="hanturaya" onactivate="$.DispatchEvent(&apos;ExternalBrowserGoToURL&apos;, &apos;https://x.com/hanturaya&apos;);" />
 			</Panel>
 		</AsyncDataPanel>
