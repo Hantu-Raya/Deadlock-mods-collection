@@ -3,7 +3,10 @@ param(
     # Build only these pak specs (e.g. -Only pak03); default builds all four.
     [string[]]$Only,
     # Also copy each built pakXX_dir.vpk into the Deadlock addons folder.
-    [switch]$Deploy
+    [switch]$Deploy,
+    # Installed game pak whose scripts/abilities.vdata_c is the stock RERL source; archives and
+    # deployed paks go to the addons folder beside it.
+    [string]$GamePak = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\pak01_dir.vpk'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,8 +21,8 @@ $vpkeditcli = Get-RepoToolPath -ToolName 'vpkeditcli.exe' -Candidates @(
     (Join-Path $root "passive_items_mod\compiler\vpkeditcli.exe"),
     (Join-Path $root "vpk cli\vpkeditcli.exe")
 )
-$addons = "G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons"
-$stockPak01 = Join-Path (Split-Path $addons -Parent) "pak01_dir.vpk"
+$stockPak01 = $GamePak
+$addons = Join-Path (Split-Path $GamePak -Parent) "addons"
 $python = (Get-Command py.exe -ErrorAction SilentlyContinue).Source
 $sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
 $dateTag = Get-Date -Format 'MM_dd'
