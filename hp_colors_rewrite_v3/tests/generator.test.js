@@ -322,3 +322,40 @@ test('PAGES is the one page table: schema rows, NEW targets and the empty-page l
   assert.deepEqual(PAGES.filter(page => page.newsTarget).map(page => page.name), ['Bar', 'HP Text', 'Name', 'Indicators', 'Icons', 'Units', 'Colorblind']);
   assert.ok(PAGES.every(page => !page.placeholder || page.hasRows));
 });
+
+test('the world overlay and the menu preview come from one part table and the renderer reads the same ids', () => {
+  const { OVERLAY_PARTS } = require('../tools/lib/stock-layouts');
+  const { loadLayout, sourceRoot } = require('./boot-layout');
+  const ids = file => new Set([...fs.readFileSync(path.join(sourceRoot, 'panorama/layout', file), 'utf8').matchAll(/ id="([^"]+)"/g)].map(match => match[1]));
+  const world = ids('unit_status_overlay_v2.xml'), preview = ids('hud_escape_menu.xml');
+  const flat = nodes => nodes.flatMap(node => [node, ...flat(node.children || [])]);
+  const expected = [
+    ...OVERLAY_PARTS.pipLayers.map(name => ['Pip' + name, 'Pip' + name]),
+    ...OVERLAY_PARTS.statusLabels.map(name => [name + 'Anchor', name + 'Anchor']),
+    ...flat([...OVERLAY_PARTS.readout, ...OVERLAY_PARTS.bounty]).filter(node => !node.idless).map(node => [node.key, node.preview || node.key]),
+  ];
+  for (const [key, previewKey] of expected) {
+    assert.ok(world.has('HPColorsV3' + key), 'overlay has HPColorsV3' + key);
+    assert.ok(preview.has('HPColorsPreview' + previewKey), 'preview has HPColorsPreview' + previewKey);
+  }
+  // Nothing of those families exists in one layout only.
+  const family = /^(Pip|.*Anchor$|Readout|Bounty|HPPercent|HpPercent)/;
+  const only = (set, prefix) => [...set].filter(item => item.startsWith(prefix)).map(item => item.slice(prefix.length)).filter(name => family.test(name)).sort();
+  const worldNames = new Set(expected.map(pair => pair[0])), previewNames = new Set([...expected.map(pair => pair[1]), ...flat(OVERLAY_PARTS.bounty).map(node => node.key)]);
+  assert.deepEqual(only(world, 'HPColorsV3').filter(name => !worldNames.has(name) && !/^(Level|CanvasBounds|MotionFrame|PipGrid|BarOutline|KillMarker|PulseOverlay|RejuvenatorAnchor|.*Indicator)$/.test(name)), []);
+  assert.deepEqual(only(preview, 'HPColorsPreview').filter(name => !previewNames.has(name) && !/^(RejuvenatorAnchor|PipGrid)$/.test(name)), []);
+  // The renderer's published part table agrees: every owned part it finds by these ids is in the world layout and has a preview mirror.
+  const boot = loadLayout('hud_escape_menu.xml');
+  boot.includeScripts();
+  const parts = boot.harness.$.HPColorsV3Renderer.parts;
+  const worldKeys = new Set(expected.map(pair => pair[0]));
+  const owned = parts.filter(def => def.owned && worldKeys.has(def.id.replace(/^HPColorsV3/, '')));
+  assert.ok(owned.length >= OVERLAY_PARTS.pipLayers.length + OVERLAY_PARTS.statusLabels.length + 3, 'renderer parts cover the table');
+  for (const def of owned) {
+    assert.ok(world.has(def.id), def.key + ' id in the overlay layout');
+    if (def.preview) assert.ok(preview.has(def.id.replace(/^HPColorsV3/, 'HPColorsPreview')) || /Readout$/.test(def.id) || /ReadoutRow$/.test(def.id), def.key + ' has a preview id');
+  }
+  for (const name of OVERLAY_PARTS.pipLayers) assert.ok(parts.some(def => def.id === 'HPColorsV3Pip' + name), 'renderer has pip ' + name);
+  for (const name of OVERLAY_PARTS.statusLabels) assert.ok(parts.some(def => def.id === 'HPColorsV3' + name + 'Anchor'), 'renderer has ' + name + ' anchor');
+  for (const key of ['BountyAnchor', 'Bounty', 'BountyValue']) assert.ok(parts.some(def => def.id === 'HPColorsV3' + key), 'renderer has ' + key);
+});

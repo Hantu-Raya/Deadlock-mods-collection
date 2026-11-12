@@ -3,7 +3,11 @@
   // World-bar sampling and renderer facts only; the topbar owns discovery and artwork.
   if ($.HPColorsV3Timers) $.HPColorsV3Timers.stop();
   var context = $.GetContextPanel(), renderer = $.HPColorsV3Renderer;
-  var config = null, active = false, parts = null, stopped = false, offMessage = null, offState = null;
+  var bridgeMagics = $.HPColorsV3Bridge.MAGICS;
+  var GATE_MAGIC = bridgeMagics.PICKUP_SCAN_GATE.magic, ULTIMATE_MAGIC = bridgeMagics.ULTIMATE_SNAPSHOT.magic, BOUNTY_MAGIC = bridgeMagics.BOUNTY_SNAPSHOT.magic;
+  var PICKUP_MAGIC = bridgeMagics.PICKUP_SNAPSHOT.magic, MESSAGE_CAP = bridgeMagics.PICKUP_SCAN_GATE.cap; // the three topbar snapshots share one cap
+  // The renderer's view of this bar (name, ultimate-ready icon, pickup icons): read where used, never cached here.
+  var config = null, active = false, present = false, barRead = renderer.barFacts({ parts: null }), stopped = false, offMessage = null, offState = null;
   // Sampler state: the last pickup samples, the ms of the pass that took them (reset with them), the publisher
   // key and the last message sent. Endpoint state: gate, ult, bounty and their arrival times below.
   var jobs = {}, samples = [], lastAt = -Infinity, source = "", lastSent = null;
@@ -19,10 +23,6 @@
   // Ultimate snapshot players: [player, angle, rate, hero?]; bounty: [player, souls, hero?] (wire format frozen).
   var ULT_PLAYER = 0, ULT_ANGLE = 1, ULT_RATE = 2, ULT_HERO = 3, BOUNTY_PLAYER = 0, BOUNTY_SOULS = 1, BOUNTY_HERO = 2;
   function valid(panel) { try { return !!panel && panel.IsValid(); } catch (error) { return false; } }
-  function name(panel) {
-    var text = valid(panel) ? panel.text : "";
-    return typeof text === "string" && text.charAt(0) !== "{" ? text.trim().toUpperCase() : "";
-  }
   function enabled(key) { return !!(config && config.shared.enabled && config.shared[key]); }
   function anyTimerEnabled() { return enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || enabled("killBountyEnabled"); }
   function schedule(key, delay, fn) {
@@ -47,13 +47,13 @@
   function local(player) { return !!player && (player === gate.localName || player === gate.localHero); }
   // ======== Endpoint facts: what the renderer is told (state: gate, ult, bounty and their arrival times) ========
   function worldAllowed(now, player) {
-    return Number.isFinite(gate.at) && (!fresh(gate.at, GATE_WINDOW_MS, now) || gate.scan && !local(player === undefined ? name(parts && parts.name) : player));
+    return Number.isFinite(gate.at) && (!fresh(gate.at, GATE_WINDOW_MS, now) || gate.scan && !local(player === undefined ? barRead.barName : player));
   }
   function worldFacts(now, player) {
-    if (player === undefined && (ult || bounty || fresh(gate.at, GATE_WINDOW_MS, now) && (gate.localName || gate.localHero))) player = name(parts && parts.name);
+    if (player === undefined && (ult || bounty || fresh(gate.at, GATE_WINDOW_MS, now) && (gate.localName || gate.localHero))) player = barRead.barName;
     var angle = null, souls = null;
     if (ult && active && enabled("ultimateTimerEnabled") && fresh(ultimateAt, ULTIMATE_WINDOW_MS, now) &&
-        player === ult.name && !local(ult.name) && valid(parts && parts.ultReady) && parts.ultReady.visible === false)
+        player === ult.name && !local(ult.name) && barRead.ultReadyVisible === false)
       angle = Math.min(ULT_CEILING_DEG, ult.angle + ult.rate * (now - ultimateAt) / 1000);
     else ult = null;
     // Ticket 50: the topbar's kill bounty for this bar's name, while its snapshot is fresh.
@@ -75,23 +75,24 @@
       return !next || !before ? next === before : (next.rate === 0) === (before.rate === 0) &&
         Math.abs(Math.min(0, before.angle + before.rate * (next.at - before.at) / 1000) - next.angle) <= PICKUP_DRIFT_DEG;
     })) return;
-    if ($.HPColorsV3Bridge.pickup(source, record)) lastSent = { record: record, at: now };
+    if ($.HPColorsV3Bridge.send({ magic: PICKUP_MAGIC, source: source, instance: $.HPColorsV3Bridge.instance, at: Date.now(), record: record })) lastSent = { record: record, at: now };
   }
   function resetSamples() { samples = []; lastAt = -Infinity; }
   function sampleWorld(player) {
     var now = Date.now();
-    if (!active || !parts || !enabled("pickupTimersEnabled")) { resetSamples(); publish(null); return; }
-    if (player === undefined) player = name(parts.name);
+    if (!active || !present || !enabled("pickupTimersEnabled")) { resetSamples(); publish(null); return; }
+    if (player === undefined) player = barRead.barName;
     if (!worldAllowed(now, player)) { resetSamples(); publish(null); return; }
     var mask = 0, progress = [null, null, null, null], next = [];
     if (lastAt === now) return;
     if (!player || player.length > 256) { resetSamples(); publish(null); return; }
     renderer.refreshPickups();
-    (parts.pickupIcons || []).forEach(function (panel, i) {
-      var bit = parts.pickupKinds[i];
+    var pickups = barRead.pickups;
+    pickups.icons.forEach(function (panel, i) {
+      var bit = pickups.kinds[i];
       if (mask & (1 << bit) || !valid(panel) || panel.visible === false) return;
       mask |= 1 << bit;
-      var border = parts.pickupBorders[i], angle = valid(border) ? radial(border.style.clip, -360, 0) : null;
+      var border = pickups.borders[i], angle = valid(border) ? radial(border.style.clip, -360, 0) : null;
       var before = samples[bit], points = before && before.panel === panel && before.name === player ? before.points.slice(-2) : [];
       if (angle !== null) {
         points.push({ angle: angle, at: now });
@@ -116,14 +117,14 @@
     if (!valid(context)) { stop(); return; }
     if (!active || !anyTimerEnabled()) return;
     try {
-      var player = enabled("pickupTimersEnabled") ? name(parts && parts.name) : undefined;
+      var player = enabled("pickupTimersEnabled") ? barRead.barName : undefined;
       if (!jobs.ultimate) worldFacts(Date.now(), player);
       sampleWorld(player);
     } catch (error) { worldRace(); }
     schedule("world", WORLD_PASS_S, worldTick);
   }
   function onState(state) {
-    config = state.settings; active = state.active; parts = state.parts;
+    config = state.settings; active = state.active; present = !!state.parts; barRead = renderer.barFacts(state);
     if (source !== state.source) {
       publish(null); source = state.source || ""; lastSent = null; resetSamples(); ult = null; ultimateAt = -Infinity; bounty = null; bountyAt = -Infinity;
     }
@@ -138,16 +139,16 @@
   // ======== Endpoint: lifecycle and untrusted snapshots from the topbar ========
   function key(text) { return typeof text === "string" && text.length <= 256 && text === text.trim().toUpperCase(); }
   function receive(raw) {
-    if (stopped || !valid(context) || typeof raw !== "string" || raw.length > 4096) return;
-    var gateMessage = raw.indexOf("HPV3_PICKUP_SCAN_GATE") >= 0;
-    if (!gateMessage && raw.indexOf("HPV3_ULTIMATE_SNAPSHOT") < 0 && raw.indexOf("HPV3_BOUNTY_SNAPSHOT") < 0) return;
+    if (stopped || !valid(context) || typeof raw !== "string" || raw.length > MESSAGE_CAP) return;
+    var gateMessage = raw.indexOf(GATE_MAGIC) >= 0;
+    if (!gateMessage && raw.indexOf(ULTIMATE_MAGIC) < 0 && raw.indexOf(BOUNTY_MAGIC) < 0) return;
     // Only the scan gate is kept while inactive; every other bar (troopers, camps, allies off) would parse the
     // topbar's one-second snapshots just to drop them below.
     if (!gateMessage && !active) return;
     try {
       var m = JSON.parse(raw), now = Date.now();
       var localHero = m.localHero === undefined ? "" : m.localHero;
-      if (m.magic === "HPV3_PICKUP_SCAN_GATE" && typeof m.scan === "boolean" && typeof m.localName === "string" && m.localName.length <= 256 &&
+      if (m.magic === GATE_MAGIC && typeof m.scan === "boolean" && typeof m.localName === "string" && m.localName.length <= 256 &&
           typeof localHero === "string" && localHero.length <= 256 &&
           fresh(m.at, GATE_WINDOW_MS, now) && m.at >= gate.at && typeof m.since === "number" && Number.isFinite(m.since) && m.since >= gate.since && m.since <= m.at) {
         var localName = m.localName.trim().toUpperCase(); localHero = localHero.trim().toUpperCase();
@@ -155,10 +156,10 @@
         if (m.since > gate.since) { ult = null; ultimateAt = -Infinity; bounty = null; bountyAt = -Infinity; resetSamples(); lastSent = null; publish(null); }
         gate = { scan: m.scan, localName: localName, localHero: localHero, at: m.at, since: m.since };
         if (changed && active) {
-          var player = name(parts && parts.name); worldFacts(now, player);
+          var player = barRead.barName; worldFacts(now, player);
           if (!worldAllowed(now, player)) { resetSamples(); publish(null); }
         }
-      } else if (m.magic === "HPV3_ULTIMATE_SNAPSHOT" && active && Number.isFinite(gate.at) && enabled("ultimateTimerEnabled") && m.since === gate.since && fresh(m.at, ULTIMATE_WINDOW_MS, now) && m.at >= ultimateAt && m.at >= m.since && Array.isArray(m.players) && m.players.length <= 12) {
+      } else if (m.magic === ULTIMATE_MAGIC && active && Number.isFinite(gate.at) && enabled("ultimateTimerEnabled") && m.since === gate.since && fresh(m.at, ULTIMATE_WINDOW_MS, now) && m.at >= ultimateAt && m.at >= m.since && Array.isArray(m.players) && m.players.length <= 12) {
         var seen = Object.create(null);
         // [player, angle, rate, hero?]: either name may be "" (not unique on the topbar), never both; no name twice.
         if (!m.players.every(function (p) {
@@ -167,9 +168,9 @@
           if (!p[0] && !hero || p[0] && seen[p[0]] || hero && seen[hero] || typeof p[ULT_ANGLE] !== "number" || !Number.isFinite(p[ULT_ANGLE]) || p[ULT_ANGLE] < 0 || p[ULT_ANGLE] > 360 || typeof p[ULT_RATE] !== "number" || !Number.isFinite(p[ULT_RATE]) || p[ULT_RATE] < 0 || p[ULT_RATE] > 360 || p[ULT_ANGLE] === 360 && p[ULT_RATE] !== 0) return false;
           if (p[0]) seen[p[0]] = true; if (hero) seen[hero] = true; return true;
         })) return;
-        ultimateAt = m.at; var n = name(parts && parts.name), entry = n ? m.players.filter(function (p) { return matchesBar(p, ULT_HERO, n); })[0] : null;
+        ultimateAt = m.at; var n = barRead.barName, entry = n ? m.players.filter(function (p) { return matchesBar(p, ULT_HERO, n); })[0] : null;
         ult = entry && entry[ULT_ANGLE] < 360 ? { name: n, angle: entry[ULT_ANGLE], rate: entry[ULT_RATE] } : null; worldFacts(now, n);
-      } else if (m.magic === "HPV3_BOUNTY_SNAPSHOT" && active && Number.isFinite(gate.at) && enabled("killBountyEnabled") && m.since === gate.since && fresh(m.at, BOUNTY_WINDOW_MS, now) && m.at >= bountyAt && m.at >= m.since && Array.isArray(m.players) && m.players.length <= 12) {
+      } else if (m.magic === BOUNTY_MAGIC && active && Number.isFinite(gate.at) && enabled("killBountyEnabled") && m.since === gate.since && fresh(m.at, BOUNTY_WINDOW_MS, now) && m.at >= bountyAt && m.at >= m.since && Array.isArray(m.players) && m.players.length <= 12) {
         // Ticket 50: [player, souls, hero?] under the same name rules as the ultimate snapshot.
         var named = Object.create(null);
         if (!m.players.every(function (p) {
@@ -182,7 +183,7 @@
         // The 3s world tick still checks the bar's name, and a carrier change clears the value.
         var held = bounty && m.players.filter(function (p) { return matchesBar(p, BOUNTY_HERO, bounty.name); })[0];
         if (held && held[BOUNTY_SOULS] === bounty.value) { bountyAt = m.at; return; }
-        bountyAt = m.at; var bar = name(parts && parts.name), match = bar ? m.players.filter(function (p) { return matchesBar(p, BOUNTY_HERO, bar); })[0] : null;
+        bountyAt = m.at; var bar = barRead.barName, match = bar ? m.players.filter(function (p) { return matchesBar(p, BOUNTY_HERO, bar); })[0] : null;
         bounty = match ? { name: bar, value: match[BOUNTY_SOULS] } : null; worldFacts(now, bar);
       }
     } catch (error) { /* Untrusted transport is fail-closed; races retry at the next native sample. */ }

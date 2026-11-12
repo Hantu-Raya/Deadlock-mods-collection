@@ -1,8 +1,9 @@
 (function () {
   "use strict";
-  // requires: include order is settings, codec, from_v2, storage. The codec reads $.HPColorsV3Settings at load
-  // (contract below) and $.HPColorsV3FromV2 at call time (fromV2(): v2 codes and pre-v6 migration); from_v2 and
-  // storage read $.HPColorsV3Codec at call time, so a missing script is an error, never a silent skip.
+  // requires: the menu layout includes settings, from_v2, codec, storage (from_v2 loads BEFORE the codec). The codec reads
+  // $.HPColorsV3Settings at load (contract below) and $.HPColorsV3FromV2 at call time (fromV2(): v2 codes and pre-v6
+  // migration); from_v2 and storage read $.HPColorsV3Codec at call time, so the order does not matter: nothing reads
+  // another script while loading.
   var ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   // Record limits: the one owner. storage, from_v2 and the menu read $.HPColorsV3Codec.RECORD at call time.
   var RECORD = Object.freeze({
@@ -26,11 +27,8 @@
   });
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function contract() { return $.HPColorsV3Settings; }
-  function fromV2() {
-    var converter = $.HPColorsV3FromV2;
-    if (!converter) throw new Error("HPColorsV3FromV2 is not loaded: hp_colors_v3_from_v2.js must be included after the codec");
-    return converter;
-  }
+  // undefined when the script is absent: callers keep the baseline outcome (v2 codes throw, pending upgrade throws, conditions skip).
+  function fromV2() { return $.HPColorsV3FromV2; }
   // Slot and control lookups, built once per contract table (first match wins, like the scans they replace):
   // a sparse encode of a 128-preset library otherwise ran over two million control predicates.
   var lookups = null;
@@ -154,7 +152,7 @@
     diff.forEach(function (entry) {
       if (!Array.isArray(entry) || entry.length !== 2 || !Number.isInteger(entry[0]) || entry[0] < 0 || seen[entry[0]]) throw new Error("Invalid or duplicate setting slot");
       seen[entry[0]] = true;
-      var kind = classify(entry[0], entry[1]);
+      var kind = classify(entry[0], entry[1], newer);
       // Unknown slot: an error unless the record is from a newer build; retired slot: always skipped; bad value: skipped only when newer.
       if (kind === "unknown" || kind === "retired") { if (kind === "unknown" && !newer) throw new Error("Unknown setting slot"); return; }
       if (kind === "invalid") { if (newer) return; throw new Error("Invalid settings values"); }
@@ -185,10 +183,11 @@
   function retired(slot) { return (contract().retiredSlots || []).indexOf(Number(slot)) >= 0; }
   // The one verdict on a setting entry (slot id, value), shared by expand, expandRules and the newer-build check:
   // "ok", "unknown" (no such slot), "retired" (removed slot) or "invalid" (known slot, rejected value).
-  function classify(id, value) {
+  // newer: an unknown slot is then "unknown" without asking retired(). unchecked: skip the value check (the caller validates it).
+  function classify(id, value, newer, unchecked) {
     var slot = slotById(id);
-    if (!slot) return retired(id) ? "retired" : "unknown";
-    return contract().validateValue(controlOf(slot), value) ? "ok" : "invalid";
+    if (!slot) return newer ? "unknown" : retired(id) ? "retired" : "unknown";
+    return unchecked || contract().validateValue(controlOf(slot), value) ? "ok" : "invalid";
   }
   // A newer build wrote this entry: its slot is unknown here, or its value is rejected but of a plausible type.
   function futureEntry(id, value) {
@@ -232,7 +231,7 @@
       var cell = wire[i], rule = { slot: wire[i + 1], minTier: wire[i + 2], value: wire[i + 3] };
       if (!Number.isInteger(cell) || cell < 0 || seen[cell]) throw new Error("Invalid ability conditions");
       seen[cell] = true;
-      var kind = classify(cell, rule.value);
+      var kind = classify(cell, undefined, newer, true);
       if (kind === "retired" || kind === "unknown" && newer) continue;
       var single = {}; single[cell] = rule;
       try { sparseRules(single); } catch (error) { if (newer) continue; throw error; }
@@ -354,14 +353,15 @@
         // Only slots introduced after the record's version can lack deliberate edits.
         // v2 dev records were default-emitting before promotion existed; treat them as v1.
         if (bundle.v2pending || bundle.v2scopes || bundle.presets.some(function (preset) { return preset.v2pending || preset.v2scopes; })) {
-          var promote = fromV2().promotePending;
+          var promote = fromV2() && fromV2().promotePending;
+          if (typeof promote !== "function") throw new Error("V2 pending upgrade unavailable");
           promote(bundle,fromVersion);
           bundle.presets.forEach(function (preset) { promote(preset,fromVersion); });
           result.settings = bundle.settings;
           result.migrated = true;
         }
       }
-      if (upgraded) {
+      if (upgraded && fromV2()) {
         [bundle].concat(bundle.presets, bundle.v2scopes || []).forEach(function (item) {
           if (item.v2conditions !== undefined) {
             fromV2().promoteConditions(item, fromVersion); result.migrated = true;

@@ -1,23 +1,40 @@
 (function () {
   "use strict";
+  // ---- Relay identity. The class and layout path are pinned by layout/hp_colors_v3_relay.xml and tools/projects.js.
+  var RELAY_CLASS = "HPV3BridgeRelay";
+  var RELAY_ID = "HPColorsV3EventRelay";
+  var RELAY_LAYOUT = "file://{resources}/layout/hp_colors_v3_relay.xml";
+  var RELAY_ATTRIBUTE = "hpv3_config_request"; // historic name: it carries every relayed message, not only config requests
+  // ---- Message magics and the size caps their consumers enforce (menu: config request; hud: pickup snapshot; the
+  // world context: the three topbar snapshots). Each consumer keeps its own check; hud and menu keep their own copies.
+  var MAGICS = {
+    CONFIG_REQUEST: { magic: "HPV3_CONFIG_REQUEST", cap: 512 },
+    PICKUP_SNAPSHOT: { magic: "HPV3_PICKUP_SNAPSHOT", cap: 64000 },
+    PICKUP_SCAN_GATE: { magic: "HPV3_PICKUP_SCAN_GATE", cap: 4096 },
+    ULTIMATE_SNAPSHOT: { magic: "HPV3_ULTIMATE_SNAPSHOT", cap: 4096 },
+    BOUNTY_SNAPSHOT: { magic: "HPV3_BOUNTY_SNAPSHOT", cap: 4096 }
+  };
   var context = $.GetContextPanel();
   var relay = null;
-  var attribute = "hpv3_config_request";
   var sequence = 0;
   var lastRelayed = "";
   var instance = Date.now() + ":" + Math.random().toString(16).slice(2);
+  // Copy-on-write: emit reads the array once, so a subscriber that unsubscribes while it runs changes the next emit only.
+  var hooks = [];
   function valid(panel) {
     try { return !!panel && panel.IsValid(); } catch (error) { return false; }
   }
+  // Runs in the relay layout's own context (a sibling of the world dialog). The sender's hidden `seq` makes every
+  // message text unique, so the repeated-text check only drops a re-fired activation of the same message.
   function forward() {
     if (!valid(context)) return;
-    var raw = context.GetAttributeString(attribute, "");
+    var raw = context.GetAttributeString(RELAY_ATTRIBUTE, "");
     if (!raw || raw === lastRelayed) return;
-    // Runs in the sibling's layout context; the world dialog consumes its own output.
+    // The world dialog consumes its own output.
     $.DispatchEvent("ClientUI_FireOutput", raw);
     lastRelayed = raw;
   }
-  if (valid(context) && context.BHasClass("HPV3BridgeRelay")) {
+  if (valid(context) && context.BHasClass(RELAY_CLASS)) {
     context.SetPanelEvent("onactivate", forward);
     forward();
     return;
@@ -27,6 +44,8 @@
     if (valid(relay)) relay.DeleteAsync(0);
     relay = null;
   }
+  // Sends one message object (it gets the hidden seq) to the world dialog through the sibling relay; false when the
+  // relay cannot be made.
   function send(message) {
     try {
       context = $.GetContextPanel();
@@ -35,14 +54,14 @@
       if (!valid(parent) || (parent.paneltype || parent.type) !== "Panel" ||
           (context.paneltype || context.type) !== "ClientUIDialogPanel") return false;
       if (!valid(relay)) {
-        relay = $.CreatePanel("Panel", parent, "HPColorsV3EventRelay");
-        relay.AddClass("HPV3BridgeRelay");
-        if (!relay.BLoadLayout("file://{resources}/layout/hp_colors_v3_relay.xml", false, false)) {
+        relay = $.CreatePanel("Panel", parent, RELAY_ID);
+        relay.AddClass(RELAY_CLASS);
+        if (!relay.BLoadLayout(RELAY_LAYOUT, false, false)) {
           stop(); return false;
         }
       }
       message.seq = ++sequence;
-      relay.SetAttributeString(attribute, JSON.stringify(message));
+      relay.SetAttributeString(RELAY_ATTRIBUTE, JSON.stringify(message));
       $.DispatchEvent("Activated", relay, "mouse");
       return true;
     } catch (error) {
@@ -51,8 +70,18 @@
       return false;
     }
   }
-  $.HPColorsV3Bridge = { stop: stop,
-    request: function (revision, epoch) { return send({ magic: "HPV3_CONFIG_REQUEST", epoch: epoch || "", revision: revision }); },
-    pickup: function (source, record) { return send({ magic: "HPV3_PICKUP_SNAPSHOT", source: source, instance: instance, at: Date.now(), record: record }); }
-  };
+  // The world context's one ClientUI_FireOutput listener (the renderer's) hands every message that is not a config
+  // envelope to emit; subscribers get the raw text and filter by magic themselves.
+  function subscribe(fn) {
+    hooks = hooks.concat([fn]);
+    return function () {
+      var i = hooks.indexOf(fn);
+      if (i >= 0) hooks = hooks.slice(0, i).concat(hooks.slice(i + 1));
+    };
+  }
+  function emit(raw) {
+    var list = hooks;
+    for (var i = 0; i < list.length; i++) list[i](raw);
+  }
+  $.HPColorsV3Bridge = { stop: stop, send: send, subscribe: subscribe, emit: emit, MAGICS: MAGICS, instance: instance };
 })();

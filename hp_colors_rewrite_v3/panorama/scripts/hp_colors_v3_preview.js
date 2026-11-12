@@ -90,8 +90,10 @@
   // a side change restores that default. Never a setting, code, preset or Undo step.
   var SIDE_TEAMS = { enemy: "team2", ally: "team1" }, team = SIDE_TEAMS.enemy;
   var hp = 75, shown = 75, from = 75, playing = false, playIndex = 0, feedback = "", layersShown = false;
-  var generation = 0, job = null, settleGeneration = 0, settleJob = null, settleTries = 0;
-  var shakeGeneration = 0, shakeJob = null;
+  var settleTries = 0;
+  // Play, layout-settle and edit-shake each own one scheduled job. A slot's generation token makes a stale callback a no-op.
+  function slot() { return { generation: 0, job: null }; }
+  var playSlot = slot(), settleSlot = slot(), shakeSlot = slot();
   var last = null, statusText = "", tickMaxHp = 0, tickRoot = null;
   var readoutLayoutKey = "";
   var sampleLabel = "", sampleFx = "", paintedFx = "";
@@ -112,10 +114,15 @@
   function setText(panel, text) { if (valid(panel) && panel.text !== text) panel.text = text; }
   function setClass(panel, name, on) { if (valid(panel) && panel.BHasClass(name) !== on) panel.SetHasClass(name, on); }
 
+  // A (re)resolved tree starts with no write/layout caches: they describe what was written to the old panels.
+  function resetResolved() {
+    cameraZoom = ""; cameraLeft = ""; cameraTop = ""; visualKey = ""; readoutLayoutKey = ""; settleTries = 0; paintedFx = null;
+  }
+
   function resolve(root) {
     var nextPane = valid(root) ? root.FindChildTraverse("HPColorsPreview") : null;
     if (!valid(nextPane)) return false;
-    pane = nextPane; paintedFx = null;
+    pane = nextPane;
     var found = {}, controls = {}, key;
     for (key in PARTS) {
       found[key] = pane.FindChildTraverse(PARTS[key]);
@@ -128,8 +135,7 @@
     parts = found; ui = controls;
     // Ticket 51: the percent label is a direct child of the readout row, so it needs no ancestry walk.
     parts.hpPercent = parts.row.FindChild("HPColorsPreviewHpPercent") || null;
-    // A (re)resolved tree starts with no write/layout caches: they describe what was written to the old panels.
-    cameraZoom = ""; cameraLeft = ""; cameraTop = ""; visualKey = ""; readoutLayoutKey = ""; settleTries = 0;
+    resetResolved();
     // Optional: without the scene panel the preview still works; the CSS geometry is the 1:1 state.
     var nextModel = pane.FindChildTraverse("HPColorsPreviewHeroModel");
     if (nextModel !== heroModel) {
@@ -346,11 +352,11 @@
 
   // ---- Play, edit-shake and layout debounce have independent slots and stale-callback guards.
   function cancel() {
+    // Any cancel of play also ends the edit-shake (also: a settings change with shake off, close, page/side/kind change).
     cancelShake();
-    generation++;
+    cancelSlot(playSlot);
     cancelSettle();
-    if (job) { try { $.CancelScheduled(job); } catch (error) { /* Already ran. */ } }
-    job = null; playing = false; feedback = ""; shown = hp; from = hp; settleTries = 0;
+    playing = false; feedback = ""; shown = hp; from = hp; settleTries = 0;
     if (layersShown && parts) { setStyle(parts.delta, "width", "0%"); setStyle(parts.healing, "width", "0%"); }
     layersShown = false;
     if (parts) {
@@ -358,46 +364,40 @@
       span(parts.fill, 0, hp);
     }
   }
+  function cancelSlot(target) {
+    target.generation++;
+    if (target.job) { try { $.CancelScheduled(target.job); } catch (error) { /* Already ran. */ } }
+    target.job = null;
+  }
+  // A stale callback must not clear the current job slot. Play and settle callbacks (`guarded`) also stop once the
+  // preview is closed, retired or its pane is gone. Job functions keep their names: tests find the jobs by them.
+  function fires(target, token, guarded) {
+    if (token !== target.generation) return false;
+    target.job = null;
+    return !guarded || !(retired || !isOpen || !valid(pane));
+  }
   function cancelShake() {
-    shakeGeneration++;
-    if (shakeJob) { try { $.CancelScheduled(shakeJob); } catch (error) { /* Already ran. */ } }
-    shakeJob = null;
+    cancelSlot(shakeSlot);
     setClass(pane, "HPC3PreviewShakeEdit", false);
   }
   function shakeOnEdit() {
     cancelShake();
     if (!available || !isOpen || retired || playing || !settings || !settings.shared.damageShakeEnabled) return;
     setClass(pane, "HPC3PreviewShakeEdit", true);
-    var token = shakeGeneration;
-    shakeJob = $.Schedule(3, function previewShakeEnd() {
-      if (token !== shakeGeneration) return;
-      shakeJob = null;
-      setClass(pane, "HPC3PreviewShakeEdit", false);
+    var token = shakeSlot.generation;
+    shakeSlot.job = $.Schedule(3, function previewShakeEnd() {
+      if (fires(shakeSlot, token, false)) setClass(pane, "HPC3PreviewShakeEdit", false);
     });
   }
-  function cancelSettle() {
-    settleGeneration++;
-    if (settleJob) { try { $.CancelScheduled(settleJob); } catch (error) { /* Already ran. */ } }
-    settleJob = null;
-  }
+  function cancelSettle() { cancelSlot(settleSlot); }
   function settle(delay) {
     cancelSettle();
-    var token = settleGeneration;
-    settleJob = $.Schedule(delay, function previewSettle() {
-      if (token !== settleGeneration) return;
-      settleJob = null;
-      if (retired || !isOpen || !valid(pane)) return;
-      paint();
-    });
+    var token = settleSlot.generation;
+    settleSlot.job = $.Schedule(delay, function previewSettle() { if (fires(settleSlot, token, true)) paint(); });
   }
   function schedule(delay, fn) {
-    var token = generation;
-    job = $.Schedule(delay, function previewStep() {
-      if (token !== generation) return; // A stale callback must not clear the current job slot.
-      job = null;
-      if (retired || !isOpen || !valid(pane)) return;
-      fn();
-    });
+    var token = playSlot.generation;
+    playSlot.job = $.Schedule(delay, function previewStep() { if (fires(playSlot, token, true)) fn(); });
   }
   function step() {
     var value = SEQUENCE[playIndex++];
@@ -439,6 +439,20 @@
   }
   function bind(panel, eventName, handler) { panel.SetPanelEvent(eventName, handler); }
 
+  // Side, team and unit kind are driven by the preview's own buttons (team and unit kind only from there).
+  function setSide(name) {
+    if ((name !== "enemy" && name !== "ally") || name === side) return;
+    change(function () { side = name; team = SIDE_TEAMS[name]; });
+  }
+  function setTeam(name) {
+    if ((name !== "team1" && name !== "team2") || name === team) return;
+    change(function () { team = name; });
+  }
+  function setUnitKind(name) {
+    if ((name !== "objective" && name !== "neutral") || name === unitKind) return;
+    change(function () { unitKind = name; kind = kindFor(page); });
+  }
+
   $.HPColorsV3Preview = {
     attach: function (root, initial) {
       if (retired) return false;
@@ -466,12 +480,12 @@
       try { ui.slider.min = 0; ui.slider.max = 100; ui.slider.increment = 1; ui.slider.value = hp; } finally { syncing = false; }
       bind(ui.slider, "onvaluechanged", onSlider);
       bind(ui.play, "onactivate", togglePlay);
-      bind(ui.sideEnemy, "onactivate", function () { $.HPColorsV3Preview.setSide("enemy"); });
-      bind(ui.sideAlly, "onactivate", function () { $.HPColorsV3Preview.setSide("ally"); });
-      bind(ui.teamAmber, "onactivate", function () { $.HPColorsV3Preview.setTeam("team1"); });
-      bind(ui.teamSapphire, "onactivate", function () { $.HPColorsV3Preview.setTeam("team2"); });
-      bind(ui.kindObjective, "onactivate", function () { $.HPColorsV3Preview.setUnitKind("objective"); });
-      bind(ui.kindNeutral, "onactivate", function () { $.HPColorsV3Preview.setUnitKind("neutral"); });
+      bind(ui.sideEnemy, "onactivate", function () { setSide("enemy"); });
+      bind(ui.sideAlly, "onactivate", function () { setSide("ally"); });
+      bind(ui.teamAmber, "onactivate", function () { setTeam("team1"); });
+      bind(ui.teamSapphire, "onactivate", function () { setTeam("team2"); });
+      bind(ui.kindObjective, "onactivate", function () { setUnitKind("objective"); });
+      bind(ui.kindNeutral, "onactivate", function () { setUnitKind("neutral"); });
       writeChrome();
       paint();
       return true;
@@ -486,20 +500,10 @@
       isOpen = false;
     },
     setPage: function (name) { change(function () { sampleLabel = ""; sampleFx = ""; page = name; kind = kindFor(page); }); },
-    setSide: function (name) {
-      if ((name !== "enemy" && name !== "ally") || name === side) return;
-      change(function () { side = name; team = SIDE_TEAMS[name]; });
-    },
-    setTeam: function (name) {
-      if ((name !== "team1" && name !== "team2") || name === team) return;
-      change(function () { team = name; });
-    },
-    setUnitKind: function (name) {
-      if ((name !== "objective" && name !== "neutral") || name === unitKind) return;
-      change(function () { unitKind = name; kind = kindFor(page); });
-    },
+    setSide: setSide,
     // Settings edits repaint in place; a running sequence continues with the new settings.
-    // The optional view carries session-only SHOW BOUNDS, never part of the settings.
+    // The optional options carry session-only SHOW BOUNDS (never part of the settings) and `shake`: a user edit, so the
+    // sample shakes after the repaint (reads the new settings' damageShakeEnabled, hence set and paint first).
     setSettings: function (next, nextView) {
       // A status is not normally active on this plain sample. Show only the label
       // being edited; do not synthesize gameplay classes or change HP/critical flashing.
@@ -515,8 +519,8 @@
       if (!settings || !settings.shared.damageShakeEnabled) cancelShake();
       if (nextView && typeof nextView === "object") view = { showBounds: nextView.showBounds === true };
       if (available && isOpen && !retired) paint();
+      if (nextView && nextView.shake === true) shakeOnEdit();
     },
-    shakeOnEdit: shakeOnEdit,
     retire: function () {
       cancel();
       // Hand the tree back in stock state: the next instance starts a fresh ownership ledger.
@@ -527,7 +531,7 @@
     },
     inspect: function () {
       return { available: available, open: isOpen, playing: playing, page: page, kind: kind, side: side, team: team, hp: hp, shown: shown,
-        scheduled: !!job || !!settleJob || !!shakeJob, generation: generation, owned: painter ? painter.owned() : 0, status: statusText,
+        scheduled: !!playSlot.job || !!settleSlot.job || !!shakeSlot.job, generation: playSlot.generation, owned: painter ? painter.owned() : 0, status: statusText,
         painted: !!last && last.painted, facts: last && last.facts };
     }
   };

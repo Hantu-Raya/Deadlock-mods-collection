@@ -1,6 +1,7 @@
 'use strict';
 // The menu's live preview pane.
 const { esc } = require('./menu-markup');
+const { OVERLAY_PARTS } = require('./stock-layouts');
 
 // previewPane(depth) emits the preview; release is shown in its footer.
 function previewPaneEmitter({ id, out }, release) {
@@ -40,7 +41,7 @@ function previewPaneEmitter({ id, out }, release) {
     layers.push(node('BarVisualFill', 'HPC3PreviewBarLayer HPC3PreviewBarFill HPC3PreviewBarVisualFill', []));
     layers.push(node('PulseOverlay', 'HPColorsV3PulseOverlay HPC3PreviewPulseOverlay', []));
     // Same OLD grid order as the world overlay; the renderer creates its boxes on first OLD paint.
-    const pipGrid = node('PipGrid', 'HPC3PreviewPipGrid', ['Outline', 'Empty', 'Shield', 'Armor', 'Fill', 'Healing', 'Delta', 'KillMarker']
+    const pipGrid = node('PipGrid', 'HPC3PreviewPipGrid', OVERLAY_PARTS.pipLayers
       .map(name => node('Pip' + name, 'HPC3PreviewPipLayer', [])));
     // No stock .healthbar_border: the 6839 world layout has no such panel, and its slanted frame art read as a
     // dark band through unit samples (yesdaddy, 2026-11-02).
@@ -50,7 +51,9 @@ function previewPaneEmitter({ id, out }, release) {
       [node('UltReady', 'HPC3PreviewUltReady', [], 'Image')])]);
     const level = node('Level', 'HPC3PreviewLevel', [node('LevelLabel', 'HPC3PreviewLevelLabel', null, 'Label', '19')]);
     const info = node('Info', 'HPC3PreviewInfo', [level, node('Bars', 'HPC3PreviewBars', [bar]), ult, node('HpText', 'HPC3PreviewHpText', null, 'Label', '750')]);
-    const readout = node('Readout', 'HPC3PreviewReadout', [node('ReadoutAnchor', 'HPC3PreviewReadoutAnchor', [node('ReadoutLine', 'HPC3PreviewReadoutLine', [node('HpPercent', 'HPC3PreviewHpPercent', null, 'Label', '')])])]);
+    // The readout and bounty trees come from the world overlay's table (stock-layouts OVERLAY_PARTS), under preview ids.
+    const mirror = part => node(part.preview || part.key, part.previewCls || part.cls, part.children ? part.children.map(mirror) : null, part.label ? 'Label' : undefined, part.text);
+    const [readout] = OVERLAY_PARTS.readout.map(mirror);
     const stamina = node('Stamina', 'HPC3PreviewStamina StaminaRecentlyUsed', [1, 2, 3].map(i =>
       node('StaminaPip' + i, 'StaminaPip' + (i === 3 ? ' PipEmpty' : ''),
         [node('StaminaIcon' + i, 'StaminaPipIcon', [])])));
@@ -74,12 +77,11 @@ function previewPaneEmitter({ id, out }, release) {
       node('Motion', 'HPC3PreviewMotion', [readout]), node('UnitStatus', 'HPC3PreviewUnitStatus', [info]), stamina, pickups,
       node('KillStreak', 'HPC3PreviewKillStreak', [node('KillStreakImage', 'HPC3PreviewKillStreakImage', [])]),
       node('RejuvenatorAnchor', 'HPC3PreviewRejuvenatorAnchor', []), node('Rejuvenator', 'HPC3PreviewRejuvenator', []),
-      ...['Critical', 'Assassinate', 'Unkillable'].flatMap(name => [
+      ...OVERLAY_PARTS.statusLabels.flatMap(name => [
         node(name + 'Anchor', 'HPColorsV3StatusLabelAnchor', []),
         node(name + 'Indicator', 'HPC3Preview' + name + 'Indicator', [node(name + 'Label', '', null, 'Label', '#Citadel_Hud_' + name)])]),
       // Kill bounty (ticket 50): same classes as the world pill; the renderer writes the sample text.
-      node('BountyAnchor', 'HPColorsV3BountyAnchor', [node('Bounty', 'HPColorsV3Bounty', [node('BountyIcon', 'HPColorsV3BountyIcon', []),
-        node('BountyValue', 'HPColorsV3BountyValue', null, 'Label', '')])])])])];
+      ...OVERLAY_PARTS.bounty.map(mirror)])])];
     (function emit(d, nodes) {
       for (const [key, className, children, type, text] of nodes) {
         const tag = type || 'Panel';

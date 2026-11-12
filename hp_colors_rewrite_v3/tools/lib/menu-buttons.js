@@ -7,8 +7,8 @@ function buttonEmitter({ id, out }) {
     const glyph = glyphs[text];
     out(depth, `<Button id="${id('HPColors' + name + 'Button')}" class="${glyph ? 'InputButtonBorderRadius HPC3GlyphButton' + (text === 'APPLY' ? ' Fill CTA' : '') : 'SecondaryButton light HPC3ActionButton'}" tooltip="${esc(text)}">${glyph ? '<Panel class="Bottom" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Top" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Content" hittest="false">' + image(glyph, 'HPC3Glyph') + '</Panel>' : `<Label text="${esc(text)}" hittest="false" />`}</Button>`);
   }
-  function dialogAction(depth, name, text, primary = false, extra = '') {
-    const warning = name === 'PresetDeleteConfirm' || name === 'BundleReplaceConfirm';
+  // `warning` (DELETE PRESET, REPLACE BUNDLE) gives a primary button the warning style instead of CTA.
+  function dialogAction(depth, { name, text, primary = false, extra = '', warning = false }) {
     out(depth, `<Button id="${id('HPColors' + name + 'Button')}" class="${primary ? 'InputButtonBorderRadius Fill ' + (warning ? 'Warning' : 'CTA') : 'InputButton Fill'} HPC3DialogButton${extra ? ' ' + extra : ''}"><Panel class="Bottom" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Top" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Content" hittest="false"><Label text="${esc(text)}" hittest="false" /></Panel></Button>`);
   }
   function noticeStart(depth, icon) {

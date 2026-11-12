@@ -55,10 +55,16 @@
   var resetPage = null;
   var deletePreset = "";
   var bundleReplacement = null;
-  var selectedPresetId = "baked_default", presetTiles = [], librarySignature = "", selectedName = "", tileSerial = 0;
+  // Record limits and the reserved baked id: the codec owns them (it loads before this script); read when used.
+  function limits() { return $.HPColorsV3Codec.RECORD; }
+  // The reserved id is the codec's RECORD.reservedPresetId; kept literal because tests boot the menu without the codec.
+  var DEFAULT_PRESET_ID = "baked_default", DEFAULT_PRESET_NAME = "Rewrite Default";
+  var UNUSABLE_CODE = "That code holds settings this version cannot use.";
+  // Outbound addresses: the hosted supporters strip (its page, opened inside the menu) and the donation page.
+  var LINKS = { supporters: "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip-v3/", donate: "https://ko-fi.com/hantuaraya" };
+  var selectedPresetId = DEFAULT_PRESET_ID, presetTiles = [], librarySignature = "", selectedName = "", tileSerial = 0;
   var heroPicker = "", heroTiles = [];
   var revealPresetId = "";
-  var DEFAULT_PRESET_ID = "baked_default";
   var sourcePresetId = "", sourceWasMapped = false, routedKey = "";
   var routePending = false;
   var identity = { generation: 0, epoch: 0, job: null, phase: "", hero: "", candidate: "", samples: 0,
@@ -68,6 +74,8 @@
   // on the top panel, so a reloaded menu keeps it until the game restarts.
   var BOUNDS_ATTR = "hpv3_show_bounds";
   var showBounds = false;
+  // The side shown (JS mirror of the HPC3SideAlly class on the host; written beside the class in selectSide, read here).
+  var sideAlly = false;
   // COLORBLIND VIEW (2026-10-28): the game's full-screen color blindness convars, one weight per type, so
   // the types mix. The game state is kept on the top panel for this game: the convars are not archived,
   // start at 0 in every game and have no read-back. Since 2026-10-29 the choice is also saved in the
@@ -96,7 +104,7 @@
       retired = true;
       generation++;
       stopIdentityWatch();
-      preview("close");
+      previewOpen(false);
       setSupporterStripOpen(false);
       stopUpdateCheck(); resetEscapeWatch();
       endNewsFlash(); newsNav++;
@@ -123,6 +131,11 @@
   function valuesFor(settings, row) { return row.side === "shared" ? settings.shared : settings.side[row.side]; }
   function panel(id) { var found = panels[id]; return valid(found) ? found : null; }
   function store() { var value = $.HPColorsV3Store; return value && typeof value === "object" ? value : null; }
+  // The store when it is present, hydrated and (when named) has `method`; partial fake stores in tests rely on the guards.
+  function storeReady(method) {
+    var target = store();
+    return target && (!method || typeof target[method] === "function") && typeof target.isHydrated === "function" && target.isHydrated() ? target : null;
+  }
   function trigger(target, className) {
     if (!valid(target)) return;
     if (typeof target.TriggerClass === "function") { target.TriggerClass(className); return; }
@@ -160,13 +173,36 @@
     return child;
   }
   // Preview bar (ticket 09): its own script and scheduler; the menu only forwards page, side, open and settings.
-  function preview(method, value) {
-    var target = $.HPColorsV3Preview;
-    if (!target || typeof target[method] !== "function") return false;
-    try { return target[method](value, arguments[2]); } catch (error) {
-      // HPV3_DEBUG $.Msg("[HPV3] preview " + method + " failed: " + error);
-      return false;
-    }
+  // Every call is guarded and its failure swallowed as `false`: the preview is optional chrome.
+  function previewApi() { return $.HPColorsV3Preview || null; }
+  function previewAttach(root, initial) {
+    var api = previewApi();
+    try { return !!api && typeof api.attach === "function" && api.attach(root, initial); } catch (error) { return false; }
+  }
+  function previewOpen(open) {
+    var api = previewApi();
+    try { if (api) { if (open) api.open(); else api.close(); } } catch (error) { /* Optional chrome. */ }
+  }
+  function previewSetPage(name) {
+    var api = previewApi();
+    try { if (api) api.setPage(name); } catch (error) { /* Optional chrome. */ }
+  }
+  function previewSetSide(name) {
+    var api = previewApi();
+    try { if (api) api.setSide(name); } catch (error) { /* Optional chrome. */ }
+  }
+  // `shake` marks an explicit menu edit: the sample shakes after the repaint (see the preview's setSettings).
+  function previewSetSettings(shake) {
+    var api = previewApi();
+    try { if (api) api.setSettings(effectiveSettings, { showBounds: showBounds, shake: shake }); } catch (error) { /* Optional chrome. */ }
+  }
+  // After attach the preview replays the menu's session state in one go (page, side, settings, open).
+  function syncPreview() {
+    if (!previewAttach(host(), effectiveSettings)) return;
+    previewSetPage(contractRef.menu.pages[pageIndex].name);
+    previewSetSide(sideAlly ? "ally" : "enemy");
+    previewSetSettings(false);
+    if (host().BHasClass("HPC3Open")) previewOpen(true);
   }
 
   function publish(force) {
@@ -178,7 +214,7 @@
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(message));
     lastPublishedRevision = config.revision;
     lastPublishedAt = Date.now();
-    if (ready) preview("setSettings", effectiveSettings, { showBounds: showBounds });
+    if (ready) previewSetSettings(false);
     onHudSettings(effectiveSettings.shared);
   }
   function resolvePublication() {
@@ -353,9 +389,8 @@
     return COLORBLIND_TYPES.filter(function (type) { return state[type] === true; }).map(function (type) { return type.toLowerCase(); });
   }
   function saveColorblind() {
-    var target = store();
-    if (retired || !target || typeof target.replaceBundle !== "function" || typeof target.isHydrated !== "function" || !target.isHydrated() ||
-        typeof target.canEditPresets === "function" && !target.canEditPresets()) return;
+    var target = storeReady("replaceBundle");
+    if (retired || !target || typeof target.canEditPresets === "function" && !target.canEditPresets()) return;
     var bundle = presetBundle(), list = colorblindList(colorblind);
     if (JSON.stringify(bundle.colorblind) === JSON.stringify(list.length ? list : undefined)) return;
     if (list.length) bundle.colorblind = list; else delete bundle.colorblind;
@@ -494,8 +529,8 @@
     if (gesture || picker || conditionDraft) { routePending = true; return; }
     routePending = false;
     if (identity.phase !== "hideout" && (identity.phase !== "active" || !identity.hero)) return;
-    var target = store();
-    if (!target || !target.isHydrated || !target.isHydrated()) return;
+    var target = storeReady();
+    if (!target) return;
     // Audit 2026-11-02: the settled 1 s watch copied the whole preset library (6 MB per 10 s at 128
     // presets) only to find nothing to apply; the route alone decides that.
     var route = typeof target.getRoute === "function" ? target.getRoute() : presetBundle(), map = route.heroPresets || {};
@@ -1419,9 +1454,11 @@
   }
 
   function syncUndo() { if (panel("HPColorsUndoButton")) panel("HPColorsUndoButton").enabled = history.length > 0; }
+  // The bundle fields an Undo step carries besides the settings (hero routing).
+  var BUNDLE_UNDO_KEYS = ["heroPresets", "heroDefault"];
   function historySnapshot() {
     var bundle = presetBundle(), metadata = {};
-    ["heroPresets", "heroDefault"].forEach(function (key) {
+    BUNDLE_UNDO_KEYS.forEach(function (key) {
       if (Object.prototype.hasOwnProperty.call(bundle, key)) metadata[key] = clone(bundle[key]);
     });
     return JSON.stringify({ settings: config.settings, rules: config.rules, metadata: metadata, sourcePresetId: sourcePresetId, sourceWasMapped: sourceWasMapped });
@@ -1433,7 +1470,7 @@
       if (ids.indexOf(state.metadata.heroPresets[hero]) < 0) delete state.metadata.heroPresets[hero];
     });
     if (state.metadata.heroDefault && ids.indexOf(state.metadata.heroDefault) < 0) state.metadata.heroDefault = null;
-    ["heroPresets", "heroDefault"].forEach(function (key) {
+    BUNDLE_UNDO_KEYS.forEach(function (key) {
       if (JSON.stringify(bundle[key]) !== JSON.stringify(state.metadata[key])) changed = true;
       if (Object.prototype.hasOwnProperty.call(state.metadata, key)) bundle[key] = state.metadata[key]; else delete bundle[key];
     });
@@ -1503,8 +1540,7 @@
   function previewShakeEdit(previous) {
     var before = previous.shared, after = effectiveSettings.shared;
     if (before.damageShakeEnabled === after.damageShakeEnabled && before.damageShakeStrength === after.damageShakeStrength) return;
-    preview("setSettings", effectiveSettings, { showBounds: showBounds });
-    preview("shakeOnEdit");
+    previewSetSettings(true);
   }
   function editSettings(settings, rules) {
     if (!contractRef.validate(settings) || JSON.stringify(settings) === JSON.stringify(config.settings) &&
@@ -1547,7 +1583,7 @@
     // Only a key some condition reads can change which rows are greyed.
     if (requirementKeys[row.key]) syncRequirements();
     // The preview follows the column being edited.
-    if (row.side === "enemy" || row.side === "ally") preview("setSide", row.side);
+    if (row.side === "enemy" || row.side === "ally") previewSetSide(row.side);
     previewShakeEdit(previousEffective);
     if (gesture) gesturePublish();
     else { publish(); notifyStore(); }
@@ -1664,7 +1700,7 @@
   // ---- Pages, folds and search (menu-local: never touch config or the store) ----
   function host() { return panel(contractRef.menu.rootId); }
   function syncFoldCounts() {
-    var root = host(), searching = root.BHasClass("Searching"), side = root.BHasClass("HPC3SideAlly") ? "ally" : "enemy";
+    var root = host(), searching = root.BHasClass("Searching"), side = sideAlly ? "ally" : "enemy";
     contractRef.menu.folds.forEach(function (fold) {
       var count = fold.rows.filter(function (row) {
         var target = panel(row.id);
@@ -1679,13 +1715,14 @@
     if (!root || retired) return;
     closeFor(CLOSES_ON_OPEN.editor);
     root.SetHasClass("HPC3SideAlly", side === "ally");
+    sideAlly = side === "ally";
     contractRef.menu.groups.forEach(function (group) {
       (group.sides || []).forEach(function (tab) {
         var target = panel(tab.id);
         if (target) { target.SetHasClass("Selected", tab.side === side); target.SetHasClass("fill", tab.side === side); }
       });
     });
-    preview("setSide", side);
+    if (ready) previewSetSide(side);
     syncFoldCounts();
   }
   function showPage(index) {
@@ -1701,7 +1738,7 @@
     if (panel("HPColorsPageDescription")) panel("HPColorsPageDescription").text = pages[index].description;
     if (panel("HPColorsResetPageButton")) panel("HPColorsResetPageButton").enabled = contractRef.controls.some(function (row) { return row.page === pages[index].name; });
     if (pages[index].name === "Presets") refreshPresets();
-    if (ready) preview("setPage", pages[index].name);
+    if (ready) previewSetPage(pages[index].name);
   }
   function selectGroup(group) {
     contractRef.menu.groups.forEach(function (entry) {
@@ -1789,7 +1826,7 @@
     }
     try {
       if (typeof strip.SetURL !== "function") return;
-      var url = open ? "https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip-v3/?v=" +
+      var url = open ? LINKS.supporters + "?v=" +
         encodeURIComponent(publisherEpoch + ":" + ++supporterOpenCount) : "about:blank";
       if (strip.SetURL(url) !== false && open) strip.AddClass("Open");
     } catch (error) { /* Optional hosted strip: the editor works without it. */ }
@@ -1806,7 +1843,7 @@
     setSupporterStripOpen(open);
     if (open) startUpdateCheck(); else stopUpdateCheck();
     if (open) syncNews(); else { newsNav++; endNewsFlash(); }
-    preview(open ? "open" : "close");
+    previewOpen(open);
   }
 
   // ---- NEW tab (ticket 36): no setting, Undo entry or shared code. Dismissed ids live in the bundle's
@@ -1821,7 +1858,7 @@
   function readNewsSaved(bundle) {
     var saved = bundle && bundle.newsDismissed;
     // A bounded list of short ids only; anything else is ignored, not trusted.
-    newsSavedIds = !Array.isArray(saved) || saved.length > 64 || saved.some(function (id) { return typeof id !== "string" || id.length > 48; }) ? [] : saved;
+    newsSavedIds = !Array.isArray(saved) || saved.length > 64 || saved.some(function (id) { return typeof id !== "string" || id.length > limits().nameMax; }) ? [] : saved;
   }
   function newsDismissed() {
     var gone = Object.create(null);
@@ -1855,8 +1892,8 @@
   }
   function dismissNews(ids) {
     ids.forEach(function (id) { newsSession[id] = true; });
-    var target = store();
-    if (!retired && target && typeof target.replaceBundle === "function" && typeof target.isHydrated === "function" && target.isHydrated()) {
+    var target = storeReady("replaceBundle");
+    if (!retired && target) {
       var gone = newsDismissed(), bundle = presetBundle();
       // Only ids still in the list are kept, so the saved list stays as short as the list itself.
       bundle.newsDismissed = contractRef.menu.news.filter(function (item) { return gone[item.id]; }).map(function (item) { return item.id; });
@@ -1899,7 +1936,7 @@
     if (sides.length && sides.every(function (side) { return side === "ally"; })) selectSide("ally");
     else if (sides.length && sides.every(function (side) { return side === "enemy"; })) selectSide("enemy");
     // The other side's column is collapsed, so group and scroll follow a shared or current-side target.
-    var side = host() && host().BHasClass("HPC3SideAlly") ? "ally" : "enemy";
+    var side = sideAlly ? "ally" : "enemy";
     var shown = targets.filter(function (row) { return row.side === "shared" || row.side === side; })[0];
     var first = shown ? shown.rowId : item.rowIds[0];
     contractRef.menu.folds.forEach(function (fold) {
@@ -1999,20 +2036,29 @@
     if (shown && !badge.shown) askBadge(++badge.ask, 0);
     badge.shown = shown;
   }
-  function askBadge(ask, tries) {
+  // One advisory lv request for the badge and the editor notice: `current()` says whether the answer is still wanted,
+  // a pending answer is asked again through `again(tries + 1)` (up to UPDATE_PENDING_RETRIES), `found(result)` gets a version.
+  function askLatestRelease(current, tries, again, found) {
     var target = store();
-    if (retired || ask !== badge.ask || !target || typeof target.latestRelease !== "function") return;
+    if (!current() || !target || typeof target.latestRelease !== "function") return;
     try {
       target.latestRelease(function (result) {
-        if (retired || ask !== badge.ask || !result || result.ok !== true) return;
+        if (!current() || !result || result.ok !== true) return;
         if (!result.version) {
-          if (result.pending && tries < UPDATE_PENDING_RETRIES) $.Schedule(UPDATE_PENDING_RETRY_SEC, function () { askBadge(ask, tries + 1); });
+          if (result.pending && tries < UPDATE_PENDING_RETRIES) again(tries + 1);
           return;
         }
+        found(result);
+      });
+    } catch (error) { /* Advisory: the editor works without it. */ }
+  }
+  function askBadge(ask, tries) {
+    askLatestRelease(function () { return !retired && ask === badge.ask; }, tries,
+      function (next) { $.Schedule(UPDATE_PENDING_RETRY_SEC, function () { askBadge(ask, next); }); },
+      function (result) {
         var button = panel("HPColorsMenuButton");
         if (button) button.SetHasClass("HPC3UpdateAvailable", isNewerRelease(result.version, contractRef.release));
       });
-    } catch (error) { /* Advisory: the menu works without it. */ }
   }
   function stopUpdateCheck() {
     updateOpen++;
@@ -2026,20 +2072,13 @@
   }
   function updateCurrent(open) { return !retired && open === updateOpen && !!host() && host().BHasClass("HPC3Open"); }
   function askLatest(open, tries) {
-    var store = $.HPColorsV3Store;
-    if (!updateCurrent(open) || !store || typeof store.latestRelease !== "function") return;
-    try {
-      store.latestRelease(function (result) {
-        if (!updateCurrent(open) || !result || result.ok !== true) return;
-        if (!result.version) {
-          if (result.pending && tries < UPDATE_PENDING_RETRIES) updateLater(UPDATE_PENDING_RETRY_SEC, function () { askLatest(open, tries + 1); });
-          return;
-        }
+    askLatestRelease(function () { return updateCurrent(open); }, tries,
+      function (next) { updateLater(UPDATE_PENDING_RETRY_SEC, function () { askLatest(open, next); }); },
+      function (result) {
         var notified = $.HPColorsV3UpdateNotified || ($.HPColorsV3UpdateNotified = {});
         if (notified[result.version] || !isNewerRelease(result.version, contractRef.release)) return;
         showUpdateWhenIdle(open, result.version, result.downloads);
       });
-    } catch (error) { /* Advisory: the editor works without it. */ }
   }
   function dialogBusy() {
     if (gesture) return true;
@@ -2048,12 +2087,12 @@
   }
   // Each build opens its own file: the composed QOLLOCK menu keeps QOLLOCK's pinned storage bridge
   // panel and the composed ShowRank menu ShowRank's party bridge. No link for this build: no DOWNLOAD.
-  // Only the HP Colors mod's own download page (id 603113); see DOWNLOAD_URL in the storage bridge.
-  var UPDATE_DOWNLOAD_URL = /^https:\/\/gamebanana\.com\/mods\/download\/603113(#FileInfo_\d{1,12})?$/;
+  // Only the HP Colors mod's own download page (id 603113); the store owns the test (isDownloadUrl).
   function updateDownload(downloads) {
     var build = panel("QOLStorageBridge") ? "qollock" : panel("ShowRankBarebonesPartyBridge") ? "showrank" : "normal";
     var url = downloads && Object.prototype.hasOwnProperty.call(downloads, build) ? downloads[build] : null;
-    return typeof url === "string" && UPDATE_DOWNLOAD_URL.test(url) ? url : null;
+    var target = store();
+    return typeof url === "string" && target && typeof target.isDownloadUrl === "function" && target.isDownloadUrl(url) ? url : null;
   }
   function showUpdateWhenIdle(open, version, downloads) {
     if (!updateCurrent(open)) return;
@@ -2265,15 +2304,15 @@
   }
   function presetStatus(text, error) { setLabel("HPColorsPresetStatus", text, error ? "error" : "ok"); }
   function mutatePresets(change, withHistory) {
-    var target = store();
-    if (retired || !target || typeof target.replaceBundle !== "function" || typeof target.isHydrated !== "function" || !target.isHydrated()) {
+    var target = storeReady("replaceBundle");
+    if (retired || !target) {
       presetStatus("Wait for the preset library to load; saving may be unavailable.", true); return false;
     }
     try {
       var before = withHistory ? historySnapshot() : null;
       var bundle = presetBundle();
       if (change(bundle) === false) return false;
-      if (bundle.presets.length > 128) throw new Error("At most 128 presets can be saved.");
+      if (bundle.presets.length > limits().maxPresets) throw new Error("At most " + limits().maxPresets + " presets can be saved.");
       if (target.replaceBundle(bundle) !== true) throw new Error("Preset save refused; nothing changed.");
       if (withHistory) record(before);
       presetStatus("Preset library updated.", false);
@@ -2358,15 +2397,15 @@
   }
   function defaultName(bundle) {
     var name = bundle.bakedPresetNameOverrides && bundle.bakedPresetNameOverrides[DEFAULT_PRESET_ID];
-    return typeof name === "string" && name.trim() && name.trim().length <= 48 ? name.trim() : "Rewrite Default";
+    return typeof name === "string" && name.trim() && name.trim().length <= limits().nameMax ? name.trim() : DEFAULT_PRESET_NAME;
   }
   function presetName(raw) {
     var name = String(raw || "").trim();
-    if (!name || name.length > 48) throw new Error("Preset names must contain 1–48 characters.");
+    if (!name || name.length > limits().nameMax) throw new Error("Preset names must contain 1–" + limits().nameMax + " characters.");
     return name;
   }
   function createPreset(bundle, settings, name) {
-    if (bundle.presets.length >= 128) throw new Error("At most 128 presets can be saved.");
+    if (bundle.presets.length >= limits().maxPresets) throw new Error("At most " + limits().maxPresets + " presets can be saved.");
     var number = Number(bundle.nextUserPresetNumber);
     if (!Number.isSafeInteger(number) || number < 1 || number >= Number.MAX_SAFE_INTEGER - 128) number = 1;
     var names = bundle.presets.map(function (preset) { return preset.name.toUpperCase(); });
@@ -2454,7 +2493,7 @@
       var found = decodeCode(target, "Bundle", text);
       if (found.kind !== "Bundle") throw new Error("This is a settings code. Press IMPORT to apply it; REPLACE ALL needs a bundle code.");
       var next = found.decoded;
-      if (!next || !contractRef.validate(next.settings)) throw new Error("That code holds settings this version cannot use.");
+      if (!next || !contractRef.validate(next.settings)) throw new Error(UNUSABLE_CODE);
       closePicker(false); endGesture(false);
       bundleReplacement = clone(next);
       setLabel("HPColorsBundleReplaceMessage", "Restore this bundle's active settings and metadata? This overwrites ALL " + presetBundle().presets.length + " saved presets, including any that another window added, with this bundle's " + next.presets.length + " presets. This cannot be undone for the library.");
@@ -2525,7 +2564,7 @@
     var hidden = Array.isArray(bundle.hiddenBakedPresetIds) && bundle.hiddenBakedPresetIds.indexOf(DEFAULT_PRESET_ID) >= 0;
     panel("HPColorsPresetDefault").SetHasClass("HPC3Hidden", hidden);
     setLabel("HPColorsPresetDefaultNameLabel", defaultName(bundle));
-    setLabel("HPColorsPresetLibraryHeading", "LIBRARY · " + rows.length + "/128");
+    setLabel("HPColorsPresetLibraryHeading", "LIBRARY · " + rows.length + "/" + limits().maxPresets);
     panel("HPColorsPresetRestoreButton").enabled = hidden;
     if (!selectedPreset(bundle) || selectedPresetId === DEFAULT_PRESET_ID && hidden) selectedPresetId = rows.length ? rows[0].id : hidden ? "" : DEFAULT_PRESET_ID;
     var signature = JSON.stringify(rows.map(function (item) { return [item.id, item.name]; }));
@@ -2596,7 +2635,7 @@
       mutatePresets(function (next) {
         var name = presetName(entry.text);
         if (!next.bakedPresetNameOverrides || typeof next.bakedPresetNameOverrides !== "object" || Array.isArray(next.bakedPresetNameOverrides)) next.bakedPresetNameOverrides = {};
-        if (name === "Rewrite Default") delete next.bakedPresetNameOverrides[DEFAULT_PRESET_ID];
+        if (name === DEFAULT_PRESET_NAME) delete next.bakedPresetNameOverrides[DEFAULT_PRESET_ID];
         else next.bakedPresetNameOverrides[DEFAULT_PRESET_ID] = name;
       });
     } else if (action === "apply") {
@@ -2743,11 +2782,11 @@
       var found = decodeCode(target, kind, text);
       kind = found.kind; noun = kind === "Settings" ? "Settings code" : "Bundle code"; method = "import" + kind + "Code";
       var candidate = kind === "Bundle" ? found.decoded && found.decoded.settings : found.decoded;
-      if (!contractRef.validate(candidate)) throw new Error("That code holds settings this version cannot use.");
+      if (!contractRef.validate(candidate)) throw new Error(UNUSABLE_CODE);
       if (typeof target[method] !== "function") throw new Error("Share codes are unavailable.");
       var settings = target[method](text);
       if (settings) {
-        if (!contractRef.validate(settings)) { trigger(entry, "HPC3NegativeShake"); setCodeStatus("That code holds settings this version cannot use.", "error"); return; }
+        if (!contractRef.validate(settings)) { trigger(entry, "HPC3NegativeShake"); setCodeStatus(UNUSABLE_CODE, "error"); return; }
         if (kind !== "Bundle") editSettings(settings);
       }
       // Keep a warning the store wrote during import (for example a newer-version code).
@@ -2776,7 +2815,7 @@
     on("HPColorsPreviewDonateButton", "onactivate", function () {
       if (retired) return;
       try {
-        if (typeof $.DispatchEvent === "function") $.DispatchEvent("ExternalBrowserGoToURL", "https://ko-fi.com/hantuaraya");
+        if (typeof $.DispatchEvent === "function") $.DispatchEvent("ExternalBrowserGoToURL", LINKS.donate);
       } catch (error) { /* The external browser is optional. */ }
     });
     on("HPColorsPreviewFeedbackButton", "onactivate", openFeedback);
@@ -2928,6 +2967,8 @@
       var found = Object.create(null);
       collect(root, found);
       panels = found; shownActive = {};
+      // A reincluded menu inherits the side class of the old context: the mirror starts from it.
+      sideAlly = !!found[contract.menu.rootId] && found[contract.menu.rootId].BHasClass("HPC3SideAlly");
       contract.ids.forEach(function (id) { if (id !== "HPColorsNativePicker" && !found[id]) missing.push(id); });
       bindChrome();
       for (var i = 0; i < contract.controls.length; i++) {
@@ -2942,7 +2983,7 @@
       if (config) readNewsSaved(presetBundle());
       syncNews();
       syncNavDots();
-      selectSide(host() && host().BHasClass("HPC3SideAlly") ? "ally" : "enemy");
+      selectSide(sideAlly ? "ally" : "enemy");
     }
     if (!missing.length) {
       ready = true;
@@ -2951,12 +2992,7 @@
       syncUndo();
       refreshPresets();
       syncBounds(); syncColorblind();
-      if (preview("attach", host(), effectiveSettings)) {
-        preview("setPage", contractRef.menu.pages[pageIndex].name);
-        preview("setSide", host().BHasClass("HPC3SideAlly") ? "ally" : "enemy");
-        preview("setSettings", effectiveSettings, { showBounds: showBounds });
-        if (host().BHasClass("HPC3Open")) preview("open");
-      }
+      syncPreview();
       if (host().BHasClass("HPC3Open")) setSupporterStripOpen(true);
       // Releases a previous context's HUD wash while a cold load is still pending.
       paintHud();

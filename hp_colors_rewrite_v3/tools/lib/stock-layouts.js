@@ -37,6 +37,36 @@ const OWNED_STYLES = [...new Set([...MENU_OWN_STYLES, ...OVERLAY_STYLES, ...STAT
 const OWNED_SCRIPTS = [...new Set([...MENU_SCRIPT_NAMES, ...OVERLAY_SCRIPTS, ...TOPBAR_SCRIPTS])];
 const TOPBAR_CLASS = 'HPColorsV3TimersTopBar';
 
+// The world overlay's owned parts that the Escape-menu preview mirrors (`HPColorsPreview` ids in menu-preview.js render the
+// same table). World id = 'HPColorsV3' + key, preview id = 'HPColorsPreview' + (preview || key). The renderer reads these ids by string
+// (`$.HPColorsV3Renderer.parts`); tests/generator.test.js checks both generated layouts and that table against each other.
+// Tree node: `cls` is the class in both layouts, `previewCls` only the preview's; `label` is a <Label>, `plain` leaves out
+// hittestchildren and `idless` the world id (the pill icon), `text` is the world label text.
+const OVERLAY_PARTS = Object.freeze({
+  // OLD grid (v2 HPV2PipGrid order): rims under empty boxes, shield/barrier under the fill, healing/delta over it, then the grid kill marker.
+  pipLayers: ['Outline', 'Empty', 'Shield', 'Armor', 'Fill', 'Healing', 'Delta', 'KillMarker'],
+  statusLabels: ['Critical', 'Assassinate', 'Unkillable'],
+  // Ticket 51: the owned percent label follows the adopted HP number in the row (renderer `before`).
+  readout: [{ key: 'Readout', previewCls: 'HPC3PreviewReadout', children: [{ key: 'ReadoutAnchor', previewCls: 'HPC3PreviewReadoutAnchor', children: [
+    { key: 'ReadoutRow', preview: 'ReadoutLine', previewCls: 'HPC3PreviewReadoutLine', children: [
+      { key: 'HPPercent', preview: 'HpPercent', previewCls: 'HPC3PreviewHpPercent', label: true, text: '' }] }] }] }],
+  // Kill bounty (ticket 50): an owned full-canvas anchor with a stock-look soul pill.
+  bounty: [{ key: 'BountyAnchor', cls: 'HPColorsV3BountyAnchor', children: [{ key: 'Bounty', cls: 'HPColorsV3Bounty', children: [
+    { key: 'BountyIcon', cls: 'HPColorsV3BountyIcon', plain: true, idless: true },
+    { key: 'BountyValue', cls: 'HPColorsV3BountyValue', label: true, text: '' }] }] }],
+});
+// A node's world markup at `depth` tabs (the first line carries no indent: it lands at a stock anchor's own indent).
+function worldMarkup(depth, nodes, first = true) {
+  return nodes.map((node, index) => {
+    const pad = first && index === 0 ? '' : '\t'.repeat(depth);
+    const tag = node.label ? 'Label' : 'Panel';
+    const attrs = (node.idless ? '' : 'id="HPColorsV3' + node.key + '"') + (node.cls ? (node.idless ? '' : ' ') + 'class="' + node.cls + '"' : '') +
+      (node.text !== undefined ? ' text="' + node.text + '"' : '') + ' hittest="false"' + (node.label || node.plain ? '' : ' hittestchildren="false"');
+    if (!node.children) return pad + '<' + tag + ' ' + attrs + ' />\n';
+    return pad + '<' + tag + ' ' + attrs + '>\n' + worldMarkup(depth + 1, node.children, false) + '\t'.repeat(depth) + '</' + tag + '>\n';
+  }).join('');
+}
+
 // Names the stock layout a failed patch came from.
 function inLayout(file, patch) {
   try { return patch(); }
@@ -82,16 +112,9 @@ function patchOverlay(stock) {
   overlay = patchStock(overlay, '<Panel id="UnitStatus" hittest="false">',
     '<Panel id="HPColorsV3CanvasBounds" hittest="false" hittestchildren="false" />\n\t\t' +
     '<Panel id="HPColorsV3MotionFrame" hittest="false" hittestchildren="false">\n' +
-    '\t\t\t<Panel id="HPColorsV3Readout" hittest="false" hittestchildren="false">\n' +
-    '\t\t\t\t<Panel id="HPColorsV3ReadoutAnchor" hittest="false" hittestchildren="false">\n' +
-    // Ticket 51: the owned percent label follows the adopted HP number in the row (renderer `before`).
-    '\t\t\t\t\t<Panel id="HPColorsV3ReadoutRow" hittest="false" hittestchildren="false">\n' +
-    '\t\t\t\t\t\t<Label id="HPColorsV3HPPercent" text="" hittest="false" />\n' +
-    '\t\t\t\t\t</Panel>\n' +
-    '\t\t\t\t</Panel>\n\t\t\t</Panel>\n\t\t</Panel>\n\t\t<Panel id="UnitStatus" hittest="false">');
-  // OLD grid (v2 HPV2PipGrid order): rims under empty boxes, shield/barrier under the fill,
-  // healing/delta over it, then the grid kill marker. Boxes are created on first OLD use.
-  const pipLayers = ['Outline', 'Empty', 'Shield', 'Armor', 'Fill', 'Healing', 'Delta', 'KillMarker']
+    worldMarkup(3, OVERLAY_PARTS.readout, false) + '\t\t</Panel>\n\t\t<Panel id="UnitStatus" hittest="false">');
+  // OLD grid order (OVERLAY_PARTS.pipLayers). Boxes are created on first OLD use.
+  const pipLayers = OVERLAY_PARTS.pipLayers
     .map(name => '\t\t\t\t\t\t\t<Panel id="HPColorsV3Pip' + name + '" hittest="false" hittestchildren="false" />\n').join('');
   overlay = patchStock(overlay, '<Panel id="UnitHealthbarLines" />',
     '<Panel id="UnitHealthbarLines" />\n\t\t\t\t\t\t<Panel id="HPColorsV3BarOutline" hittest="false" hittestchildren="false" />\n\t\t\t\t\t\t<Panel id="HPColorsV3KillMarker" hittest="false" hittestchildren="false" />' +
@@ -100,17 +123,13 @@ function patchOverlay(stock) {
     '<Panel id="unit_healthbar_lagging" class="HealthAmount" />\n\t\t\t\t\t\t\t<Panel id="HPColorsV3PulseOverlay" class="HPColorsV3PulseOverlay" hittest="false" hittestchildren="false" />');
   overlay = patchStock(overlay, '<Panel id="RejuvenatorActive" />',
     '<Panel id="HPColorsV3RejuvenatorAnchor" hittest="false" hittestchildren="false" />\n\t\t<Panel id="RejuvenatorActive" />');
-  for (const name of ['Critical', 'Assassinate', 'Unkillable'])
+  for (const name of OVERLAY_PARTS.statusLabels)
     overlay = patchStock(overlay, `<Panel id="${name}Indicator">`,
       `<Panel id="HPColorsV3${name}Anchor" class="HPColorsV3StatusLabelAnchor" hittest="false" hittestchildren="false" />\n\t\t<Panel id="${name}Indicator">`);
   // Kill bounty (ticket 50): an owned full-canvas anchor with a stock-look soul pill, collapsed until the
   // renderer's root class shows it; drawn above the bar and name, below the CRITICAL/ASSASSINATE/UNKILLABLE tags.
   overlay = patchStock(overlay, '<Panel id="HPColorsV3CriticalAnchor"',
-    '<Panel id="HPColorsV3BountyAnchor" class="HPColorsV3BountyAnchor" hittest="false" hittestchildren="false">\n' +
-    '\t\t\t<Panel id="HPColorsV3Bounty" class="HPColorsV3Bounty" hittest="false" hittestchildren="false">\n' +
-    '\t\t\t\t<Panel class="HPColorsV3BountyIcon" hittest="false" />\n' +
-    '\t\t\t\t<Label id="HPColorsV3BountyValue" class="HPColorsV3BountyValue" text="" hittest="false" />\n' +
-    '\t\t\t</Panel>\n\t\t</Panel>\n\t\t<Panel id="HPColorsV3CriticalAnchor"');
+    worldMarkup(2, OVERLAY_PARTS.bounty) + '\t\t<Panel id="HPColorsV3CriticalAnchor"');
   return overlay;
 }
 
@@ -151,4 +170,4 @@ function stockLayouts(gameData, menu) {
   };
 }
 
-module.exports = { includeLine, stockLayouts, runSteps, menuSteps, topbarSteps, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OVERLAY_SCRIPTS, OVERLAY_STYLES, STATUS_STYLES, OWNED_STYLES, OWNED_SCRIPTS };
+module.exports = { includeLine, stockLayouts, runSteps, menuSteps, topbarSteps, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OVERLAY_SCRIPTS, OVERLAY_STYLES, STATUS_STYLES, OWNED_STYLES, OWNED_SCRIPTS, OVERLAY_PARTS };

@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  // requires: include order is settings, codec, from_v2, storage. Reads $.HPColorsV3Settings and $.HPColorsV3Codec
+  // requires: layout include order is settings, from_v2, codec, storage. Reads $.HPColorsV3Settings and $.HPColorsV3Codec
   // (RECORD, valuesOf, decodeLegacyRecord, errorMessage) at call time and never encodes: the caller fits a converted
   // bundle to RECORD.maxChars. The codec calls promotePending/promoteConditions/importSettingsCode/importBundleCode;
   // storage calls loadLegacy.
@@ -114,18 +114,19 @@
     var names = mapping[name];
     return side === "shared" ? names && names[0] || name : names && names[side === "ally" ? 1 : 0];
   }
-  // Slot of a control (first match wins) and slot by id, built once per contract table.
+  // Slot of a control (first match wins) and slot by id, built once per contract table (rebuilt if the array is replaced or resized;
+  // the baseline rescanned per lookup, once per control row of a conversion).
   var slotTables = null;
   function slots() {
     var list = $.HPColorsV3Settings.slots;
-    if (slotTables && slotTables.list === list) return slotTables;
+    if (slotTables && slotTables.list === list && slotTables.length === list.length) return slotTables;
     var ofControl = Object.create(null), byId = Object.create(null);
     list.forEach(function (slot) {
       var key = slot.side + "\u0001" + slot.setting;
       if (!(key in ofControl)) ofControl[key] = slot;
       if (!(slot.slot in byId)) byId[slot.slot] = slot;
     });
-    slotTables = { list: list, ofControl: ofControl, byId: byId };
+    slotTables = { list: list, length: list.length, ofControl: ofControl, byId: byId };
     return slotTables;
   }
   function slotOfControl(row) { return slots().ofControl[row.side + "\u0001" + row.key]; }

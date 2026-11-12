@@ -618,7 +618,7 @@ test('N-world broadcast requests are coalesced; duplicate configs and requests c
   const net = network(), bars = Array.from({length:12},() => fixture({network:net})); net.advance(600);
   const before = net.broadcasts.filter(raw => raw.includes(MAGIC)).length;
   const parses = bars.map(fx => fx.h.operationCounts.jsonParses);
-  for (const fx of bars) assert.equal(fx.h.$.HPColorsV3Bridge.request(-1,''),true);
+  for (const fx of bars) assert.equal(fx.h.$.HPColorsV3Bridge.send({magic:fx.h.$.HPColorsV3Bridge.MAGICS.CONFIG_REQUEST.magic,epoch:'',revision:-1}),true);
   net.advance(500);
   const answers = net.broadcasts.filter(raw => raw.includes(MAGIC)).length - before;
   assert.ok(answers<=1,'one coalesced answer per half second');

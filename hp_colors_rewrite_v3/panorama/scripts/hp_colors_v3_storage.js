@@ -250,15 +250,12 @@
       advance(request);
     }
 
-    // Download links are opened in the external browser, so only the HP Colors mod's own GameBanana download
-    // page passes (save-security audit 2026-11-02: a hacked manifest must not send players to another mod).
-    var DOWNLOAD_URL = /^https:\/\/gamebanana\.com\/mods\/download\/603113(#FileInfo_\d{1,12})?$/;
     function downloadLinks(value) {
       if (!value || typeof value !== "object" || Array.isArray(value)) return null;
       var links = null;
       ["normal", "qollock", "showrank"].forEach(function (build) {
         var url = Object.prototype.hasOwnProperty.call(value, build) ? value[build] : null;
-        if (typeof url === "string" && DOWNLOAD_URL.test(url)) (links = links || {})[build] = url;
+        if (isDownloadUrl(url)) (links = links || {})[build] = url;
       });
       return links;
     }
@@ -833,6 +830,13 @@
     });
   }
 
+  // Download links are opened in the external browser, so only the HP Colors mod's own GameBanana download
+  // page passes (save-security audit 2026-11-02: a hacked manifest must not send players to another mod).
+  // The menu checks the link it is about to open through the same test (store.isDownloadUrl).
+  function isDownloadUrl(url) {
+    return typeof url === "string" && /^https:\/\/gamebanana\.com\/mods\/download\/603113(#FileInfo_\d{1,12})?$/.test(url);
+  }
+
   // Menu/preset facade. Settings-only operations never discard bundle metadata.
   var menuApi = null, menuRoot = null, controller = null, menuBundle = null;
   var importMode = "";
@@ -956,6 +960,7 @@
       return { heroPresets: clone(bundle.heroPresets || {}), heroDefault: bundle.heroDefault === undefined ? null : bundle.heroDefault };
     },
     isHydrated: function () { return !!controller && controller.isHydrated(); },
+    isDownloadUrl: isDownloadUrl,
     // Advisory update check: { ok, version ("X.Y.Z" or null), pending }. Never touches settings or saves.
     latestRelease: function (callback) {
       if (!controller) return callback({ ok: false, error: "unavailable" });

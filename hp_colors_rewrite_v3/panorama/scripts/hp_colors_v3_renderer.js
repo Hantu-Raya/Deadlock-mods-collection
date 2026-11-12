@@ -103,7 +103,9 @@
   // depletion classes stay live in CSS (shapes) or are polled (arrows).
   var childKinds = new WeakMap();
   var pickupEntries = new WeakMap(), lastPickups = -Infinity, textWrites = new WeakMap();
-  var messageHooks = [], stateHooks = [], lastTimerState = "", timerFacts = { pickupAllowed: true, ultimateAngle: null, bounty: null };
+  var stateHooks = [], timerFacts = { pickupAllowed: true, ultimateAngle: null, bounty: null };
+  // What the state subscribers were last told (compared field by field on every tick; no key string is built).
+  var notified = { active: null, source: null, epoch: null, revision: null, signature: null, parts: null };
   // ====== DRIVER STATE: timer hooks, tick scheduling, config authority ======
   function timerState() {
     var carrier = null;
@@ -117,15 +119,38 @@
       parts: cache, source: carrier ? String(carrier.id) : "" };
   }
   function notifyTimers() {
-    var state = timerState(), key = [state.active, state.source, epoch, revision, carrierSignature].join("|");
-    if (key === lastTimerState && state.parts === notifyTimers.parts) return;
-    lastTimerState = key; notifyTimers.parts = state.parts;
+    var state = timerState();
+    if (state.active === notified.active && state.source === notified.source && epoch === notified.epoch && revision === notified.revision &&
+        carrierSignature === notified.signature && state.parts === notified.parts) return;
+    notified.active = state.active; notified.source = state.source; notified.epoch = epoch; notified.revision = revision;
+    notified.signature = carrierSignature; notified.parts = state.parts;
     stateHooks.slice().forEach(function (fn) { fn(state); });
   }
-  function subscribe(list, callback) {
-    list.push(callback);
-    return function () { var i = list.indexOf(callback); if (i >= 0) list.splice(i, 1); };
+  function subscribeState(callback) {
+    stateHooks.push(callback);
+    return function () { var i = stateHooks.indexOf(callback); if (i >= 0) stateHooks.splice(i, 1); };
   }
+  // The world timers' view of one bar (from the state record they were notified with): the panels they sample, behind
+  // getters so each read happens only where the sampler asks for it. One shared object, nothing allocated per read.
+  var barParts = null, NO_ENTRIES = [], barPickups = { icons: NO_ENTRIES, kinds: NO_ENTRIES, borders: NO_ENTRIES };
+  var barView = {
+    // The bar title (the player or hero name), upper-cased; "" while unreadable or still a {localization} token.
+    get barName() {
+      var panel = barParts && barParts.name, text = valid(panel) ? panel.text : "";
+      return typeof text === "string" && text.charAt(0) !== "{" ? text.trim().toUpperCase() : "";
+    },
+    // The ultimate-ready icon's visibility; null when the panel is gone.
+    get ultReadyVisible() {
+      var panel = barParts && barParts.ultReady;
+      return valid(panel) ? panel.visible : null;
+    },
+    // The pickup icons with their kind bits and border panels, as of the last reconcile (refreshPickups).
+    get pickups() {
+      barPickups.icons = barParts.pickupIcons || NO_ENTRIES; barPickups.kinds = barParts.pickupKinds; barPickups.borders = barParts.pickupBorders;
+      return barPickups;
+    }
+  };
+  function barFacts(state) { barParts = state.parts; return barView; }
   function bountyParts(parts) {
     if (valid(parts.bountyAnchor) && valid(parts.bountyPill) && valid(parts.bountyValue)) return;
     parts.bountyAnchor = valid(root) ? root.FindChild(PART.bountyAnchor.id) : null;
@@ -148,7 +173,7 @@
       // The plan just applied is the next tick's plan too (the memo key leaves timer facts out): keep it,
       // so a once-a-second bounty or ultimate step costs one plan per bar, not two.
       try { var timed = plan(current, settings, { showBounds: showBounds }); apply(timed); cachedFacts = current; status.plansComputed++;
-        memo = { key: current.signature + "|" + epoch + "|" + revision + "|" + showBounds, value: timed }; return; }
+        memo = { key: memoKey(current), value: timed }; return; }
       catch (error) { /* Pending leases retry through the normal guarded paint. */ }
     }
     invalidate("facts");
@@ -1264,8 +1289,10 @@
     return { styles: styles, classes: classes, parents: parents, texts: texts, old: oldPlan,
       settle: !!(levelShown && !g.level || ultPlaced && !g.ult) };
   }
+  // The memo key both paint paths (tick's memoisedPlan and the timer-fact fast path in setTimerFacts) use; timer facts are not in it.
+  function memoKey(input) { return input.signature + "|" + epoch + "|" + revision + "|" + showBounds; }
   function memoisedPlan(input) {
-    var key = input.signature + "|" + epoch + "|" + revision + "|" + showBounds;
+    var key = memoKey(input);
     if (!memo || memo.key !== key) { memo = { key: key, value: plan(input, settings, { showBounds: showBounds }) }; status.plansComputed++; }
     return memo.value;
   }
@@ -1717,7 +1744,8 @@
     // The config publisher owns this canonical envelope header. Other modules
     // receive opaque messages, even when a player name contains the config magic.
     if (!HEADER_RE.test(raw)) {
-      messageHooks.slice().forEach(function (fn) { fn(raw); }); return;
+      if ($.HPColorsV3Bridge) $.HPColorsV3Bridge.emit(raw);
+      return;
     }
     if (raw === lastRaw || raw.length > MAX_ENVELOPE) return;
     try {
@@ -1742,7 +1770,8 @@
       requestJob = null;
       if (!running || token !== generation || revision >= 0 || !valid(root)) return;
       requestAttempt++;
-      var sent = $.HPColorsV3Bridge && $.HPColorsV3Bridge.request(revision, epoch);
+      var bridge = $.HPColorsV3Bridge;
+      var sent = bridge && bridge.send({ magic: bridge.MAGICS.CONFIG_REQUEST.magic, epoch: epoch || "", revision: revision });
       requestFailures = sent ? 0 : requestFailures + 1; requestConfig(token);
     });
   }
@@ -1830,9 +1859,9 @@
   }
   // Inclusion exports only. The separate world_boot include starts the world loop.
   $.HPColorsV3Renderer = { facts: facts, plan: plan, apply: apply, start: start, stop: stop, status: status, createPainter: createPainter,
-    onMessage: function (fn) { return subscribe(messageHooks, fn); },
-    onState: function (fn) { var off = subscribe(stateHooks, fn); fn(timerState()); return off; },
-    refreshPickups: reconcilePickups,
+    onMessage: function (fn) { return $.HPColorsV3Bridge ? $.HPColorsV3Bridge.subscribe(fn) : function () {}; },
+    onState: function (fn) { var off = subscribeState(fn); fn(timerState()); return off; },
+    refreshPickups: reconcilePickups, barFacts: barFacts,
     setTimerFacts: setTimerFacts, defaults: DEFAULTS,
     // Built once at load, read by the menu preview at attach (see PART REGISTRY).
     parts: BAR_PARTS, statusLabels: STATUS_LABELS, statusScales: STATUS_SCALES, pickupKinds: PICKUP_KINDS, labelAtDefault: labelAtDefault };

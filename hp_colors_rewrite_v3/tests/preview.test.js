@@ -276,7 +276,7 @@ test('preview operations write nothing outside the preview tree: no menu panels,
   while (m.jobs().length) m.h.scheduler.runNext();
   m.play(); m.h.scheduler.runNext(); m.slider(80);
   m.fire('HPColorsPreviewSideOptionAlly', 'onactivate'); m.fire('HPColorsPreviewSideOptionEnemy', 'onactivate');
-  m.h.$.HPColorsV3Preview.setUnitKind('objective');
+  m.fire('HPColorsPreviewKindOptionObjective', 'onactivate');
   assert.equal(outsideSnapshot(m), before);
   assert.equal(latestPublishedConfig(m.h).revision, revision);
   assert.equal(m.h.dispatches.length, dispatches, 'no ClientUI_FireOutput or other dispatch');
