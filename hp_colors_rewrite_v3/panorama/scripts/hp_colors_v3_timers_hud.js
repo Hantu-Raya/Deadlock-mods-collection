@@ -16,6 +16,7 @@
   $.HPColorsV3TimersAuthority = authority;
   var epoch = "", retiredEpochs = authority.retired, requestAttempt = 0, lastUltimate = null, lastUltimateAt = -Infinity;
   var pausePanel = null, paused = false, pauses = [], ttl = 24000;
+  var bountyKey = "", bountyAt = -Infinity, clockLabel = null, cardParts = new WeakMap(), scoreLabels = null;
   var colors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
   var images = ["gun", "movement", "spirit", "survival"];
   function valid(panel) { try { return !!panel && panel.IsValid(); } catch (error) { return false; } }
@@ -50,6 +51,129 @@
     if (!next && paused) pauses[pauses.length - 1].end = now;
     paused = !!next;
     pauses = pauses.filter(function (p) { return p.end === null || now - p.end <= ttl; });
+  }
+  // ---- Kill bounty (ticket 50): souls YOUR solo kill on each card pays you now, from server.dll 6839
+  // (rva 9f2b50 base + first-kill bonus, a0ff20 comeback, 9e7a90/c3f770 killer payment; issues/50-kill-bounty.md).
+  // Live 6839 server log: the kill popup = base share + first-kill bonus + killer portion (0.3 of the comeback;
+  // 70% of it goes to tick gold instead when the killer is richer than the victim team's average). Float32 like
+  // the server. Mode-hash variants are not visible here; non-default maps are gated off.
+  var f = Math.fround, enemyDied = false, deathSince = -1;
+  function soloBounty(seconds, k) {
+    var base = Math.trunc(f(f(200) + f(f(Math.max(0, Math.min(1, f(f(seconds) / f(2400))))) * f(2000))));
+    var scaled = Math.ceil(f(f(base) * f(1.25)));
+    var team = 1, difficulty = 1, winning = false, victimTeam = k.victimTeam, killerTeam = k.killerTeam;
+    if (killerTeam && victimTeam > killerTeam && victimTeam - killerTeam > 1500) team = f(f(f(2.268) * f(f(f(victimTeam) / f(killerTeam)) - 1)) + 1);
+    var avg = Math.trunc(killerTeam / Math.max(1, k.killers));
+    if (avg && k.victim > avg && avg > 1250) { winning = victimTeam < killerTeam; difficulty = f(f(f(2.484) * f(f(f(k.victim) / f(avg)) - 1)) + 1); }
+    var mult = f(difficulty * team), cap = Math.floor(seconds / 60) >= 8 ? 7 : 5, capped = mult > cap;
+    if (capped) mult = cap;
+    if (!capped && !winning && mult > 1) mult = f(mult + f(0.15));
+    var comeback = mult === 1 ? 0 : Math.trunc(f(f(Math.trunc(f(scaled * mult)) - scaled) * f(0.4)));
+    var portion = Math.trunc(f(f(0.3) * f(comeback)));
+    var rich = k.self !== null && k.self > Math.trunc(victimTeam / Math.max(1, k.victims));
+    var redirected = rich ? Math.min(portion, Math.trunc(f(f(portion) * f(0.7)))) : 0;
+    return scaled + (k.firstKill ? 125 : 0) + portion - redirected;
+  }
+  // A label's value and half its last unit: "50k" 50000 +-500, "2.1k" 2100 +-50, "1,483" exact.
+  function parseRounded(text) {
+    var t = typeof text === "string" ? text.replace(/<[^>]*>/g, "").trim().toLowerCase() : "";
+    if (/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(t)) return { value: Number(t.replace(/,/g, "")), tol: 0 };
+    var m = /^(\d+)(?:\.(\d+))?([km])$/.exec(t);
+    if (!m) return null;
+    var unit = m[3] === "k" ? 1000 : 1000000;
+    return { value: Math.round(Number(m[1] + "." + (m[2] || "0")) * unit), tol: unit / Math.pow(10, m[2] ? m[2].length : 0) / 2 };
+  }
+  // Full integers, comma-grouped integers or decimal k/m abbreviations ({s:gold}); anything else is unknown.
+  function parseSouls(text) {
+    var r = parseRounded(text);
+    return r && Number.isSafeInteger(r.value) && r.value >= 0 ? r.value : null;
+  }
+  // Stock team net worth ({s:team_networth}; live 6839 "50k" with server TotalVictimTeamNW 50400) and team kills.
+  // Card souls ({s:gold}) can run above net worth (live: local card 2.1k at server NW 1515), so a side's card
+  // sum is kept inside its team label's rounding. Looked up once, revalidated before use.
+  function scores() {
+    if (!scoreLabels || ![scoreLabels.friendly, scoreLabels.enemy, scoreLabels.kills].every(valid)) {
+      var label = function (id) { var p = context.FindChildTraverse(id); return valid(p) ? p.FindChildrenWithClassTraverse("ScoreLabel")[0] || null : null; };
+      scoreLabels = { friendly: label("TeamScoreFriendly"), enemy: label("TeamScoreEnemy"), kills: context.FindChildrenWithClassTraverse("FriendlyKills")[0] || null };
+    }
+    return { friendly: valid(scoreLabels.friendly) ? parseRounded(scoreLabels.friendly.text) : null,
+      enemy: valid(scoreLabels.enemy) ? parseRounded(scoreLabels.enemy.text) : null,
+      kills: valid(scoreLabels.kills) ? parseSouls(scoreLabels.kills.text) : null };
+  }
+  function bounded(sum, label) { return label ? Math.max(label.value - label.tol, Math.min(label.value + label.tol, sum)) : sum; }
+  function clockSeconds() {
+    if (!valid(clockLabel)) clockLabel = context.FindChildTraverse("GameTime");
+    var text = valid(clockLabel) ? String(clockLabel.text || "").replace(/<[^>]+>/g, "").trim() : "";
+    var match = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(text);
+    return match && Number(match[3]) < 60 && (!match[1] || Number(match[2]) < 60) ? Number(match[1] || 0) * 3600 + Number(match[2]) * 60 + Number(match[3]) : null;
+  }
+  // Hero testing (Testing Tools, bots) pays hero kills by the same server rules, so it counts whatever its
+  // map class says (live 6839: no pill there before). Tutorial, hideout and Street Brawl stay off.
+  function normalMatch() {
+    var testing = context.BAscendantHasClass("connectedToHeroTesting");
+    return (testing || context.BAscendantHasClass("isDefaultMap")) && !["connectedToTutorial", "connectedToHideout", "gamemode_streetbrawl"].some(function (c) { return context.BAscendantHasClass(c); });
+  }
+  // A card's souls label and team panel are fixed for its lifetime; both are revalidated before use.
+  function cardOf(owner) {
+    var parts = cardParts.get(owner);
+    if (!parts || !valid(parts.souls) || !valid(parts.team)) {
+      var team = owner.GetParent();
+      for (var i = 0; i < 8 && valid(team) && (team.paneltype || team.type) !== "CitadelHudTopBarTeam"; i++) team = team.GetParent();
+      parts = { souls: owner.FindChildTraverse("SoulsValue"), team: valid(team) && (team.paneltype || team.type) === "CitadelHudTopBarTeam" ? team : null };
+      cardParts.set(owner, parts);
+    }
+    return valid(parts.souls) && parts.team ? { souls: parseSouls(parts.souls.text), team: parts.team } : null;
+  }
+  function bountyPlayers() {
+    var seconds = clockSeconds();
+    if (seconds === null || !normalMatch()) return [];
+    // Exact seconds: the popup shows exact souls, and the base moves about 2 souls a second.
+    var sides = [], self = null, cards = rows.map(function (row) { return { row: row, owner: row.owner }; })
+      .concat(localLabels.map(function (entry) { return { owner: entry.owner, local: true }; }));
+    for (var i = 0; i < cards.length; i++) {
+      var card = valid(cards[i].owner) ? cardOf(cards[i].owner) : null;
+      if (!card || card.souls === null) return []; // Unknown souls never count as zero.
+      var side = sides.filter(function (s) { return s.team === card.team; })[0];
+      if (!side) { if (sides.length === 2) return []; side = { team: card.team, total: 0, count: 0, friendly: false }; sides.push(side); }
+      side.total += card.souls; side.count++; cards[i].souls = card.souls; cards[i].side = side;
+      if (cards[i].local && localLabels.length === 1) { self = card.souls; side.friendly = true; }
+    }
+    if (sides.length !== 2) return [];
+    // Spectating (no local card): no side owns either label, and nobody's first kill or redirect applies.
+    var score = scores(), known = sides.some(function (s) { return s.friendly; });
+    sides.forEach(function (s) { s.nw = known ? bounded(s.total, s.friendly ? score.friendly : score.enemy) : s.total; });
+    // The 125 first-kill bonus is the killer's own first kill. Live 6839 the team kills label stayed 0 for 22 s
+    // after the first kill (second kill showed +125 too), so an enemy card seen Dead also ends it this match.
+    if (deathSince !== since) { deathSince = since; enemyDied = false; }
+    if (known && !enemyDied) enemyDied = cards.some(function (c) { return c.row && !c.side.friendly && valid(c.owner) && c.owner.BHasClass("Dead"); });
+    var firstKill = self !== null && score.kills === 0 && !enemyDied;
+    var scan = counts(), players = [];
+    cards.forEach(function (card) {
+      if (!card.row) return;
+      var player = name(card.row.label), hero = name(card.row.hero); player = scan.unique(player) ? player : ""; hero = scan.unique(hero) && hero !== player ? hero : "";
+      if (!player && !hero) return;
+      var killers = sides[0] === card.side ? sides[1] : sides[0], mine = known && !card.side.friendly;
+      // The clock label trails server time by about a second: live 6839 kills at labels 3:40, 3:55 and 4:11
+      // paid Base Bounty 384, 396 and 410, the bounties of 3:41, 3:56 and 4:12.
+      var value = soloBounty(seconds + 1, { victim: card.souls, victimTeam: card.side.nw, victims: card.side.count,
+        killerTeam: killers.nw, killers: killers.count, self: mine ? self : null, firstKill: mine && firstKill });
+      players.push(heroNames ? [player, value, hero] : [player, value]);
+    });
+    return players;
+  }
+  function bountyTick() {
+    if (!valid(context)) { stop(); return; }
+    if (!enabled("killBountyEnabled")) return;
+    try {
+      var now = Date.now(), players = bountyPlayers(), key = since + ":" + JSON.stringify(players);
+      if (players.length <= 12 && (key !== bountyKey || now < bountyAt || now - bountyAt >= 5000)) {
+        $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({ magic: "HPV3_BOUNTY_SNAPSHOT", since: since, at: now, players: players }));
+        // HPV3_DEBUG if (key !== bountyKey) { var ds = scores(); $.Msg("[HPV3] bounty snapshot clock=" + clockSeconds() + " teamNW=" + JSON.stringify([ds.friendly, ds.enemy]) + " kills=" + ds.kills + " players=" + JSON.stringify(players)); };
+        bountyKey = key; bountyAt = now;
+      }
+    } catch (error) { /* Topbar races retry on the next sample. */ }
+    // One-second samples: the base rises about 1.5 souls a second, and 2 s samples trailed the popup by 5 (live 6839).
+    schedule("bounty", 1, bountyTick);
   }
   // With heroNames, a world bar titled with the hero name (citadel_unit_status_hero_name_mode; Street
   // Brawl showed hero names) still finds its card. A name identifies a card only when no other card
@@ -216,8 +340,7 @@
     catch (error) { schedule("progress", 1, progressTick); }
   }
   function publishGate() {
-    var clock = context.FindChildTraverse("GameTime"), text = valid(clock) ? String(clock.text || "").replace(/<[^>]+>/g, "").trim() : "";
-    var match = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(text), seconds = match && Number(match[3]) < 60 && (!match[1] || Number(match[2]) < 60) ? Number(match[1] || 0) * 3600 + Number(match[2]) * 60 + Number(match[3]) : null;
+    var seconds = clockSeconds();
     if (seconds !== null && lastClock !== null && seconds < lastClock) { since = Date.now(); records = Object.create(null); lastUltimate = null; rows.forEach(function (r) { r.sample = null; }); }
     if (seconds !== null) lastClock = seconds;
     var normal = context.BAscendantHasClass("isDefaultMap") && !["connectedToHeroTesting", "connectedToTutorial", "connectedToHideout", "gamemode_streetbrawl"].some(function (c) { return context.BAscendantHasClass(c); });
@@ -227,11 +350,13 @@
   }
   function discoveryTick() {
     if (!valid(context)) { stop(); return; }
-    if (!enabled("pickupTimersEnabled") && !enabled("ultimateTimerEnabled")) return;
+    if (!enabled("pickupTimersEnabled") && !enabled("ultimateTimerEnabled") && !enabled("killBountyEnabled")) return;
     try {
       discoverRows();
       if (!valid(pausePanel)) pausePanel = topRoot().FindChildTraverse("PausedGameContainer");
-      updatePause(Date.now()); publishGate(); renderRows();
+      updatePause(Date.now()); publishGate();
+      // The bounty alone never writes topbar cards; it still restores artwork left by turned-off pickups.
+      if (enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || rows.some(function (r) { return r.container; })) renderRows();
     } catch (error) { /* Discovery races retry on the same cadence. */ }
     schedule("discovery", 5, discoveryTick);
   }
@@ -298,8 +423,12 @@
         authority.epoch = epoch; authority.revision = m.revision;
         if (!enabled("pickupTimersEnabled")) { records = Object.create(null); cancel("progress"); }
         if (!enabled("ultimateTimerEnabled")) { cancel("ultimate"); lastUltimate = null; rows.forEach(function (r) { r.sample = null; }); }
-        if (enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled")) { discoveryTick(); if (enabled("ultimateTimerEnabled")) ultimateTick(); }
-        else { cancel("discovery"); renderRows(); }
+        if (!enabled("killBountyEnabled")) { cancel("bounty"); bountyKey = ""; }
+        if (enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || enabled("killBountyEnabled")) {
+          discoveryTick(); if (enabled("ultimateTimerEnabled")) ultimateTick();
+          // Next frame: world bars must take this configuration before the first bounty snapshot.
+          if (enabled("killBountyEnabled")) { cancel("bounty"); bountyKey = ""; schedule("bounty", 0, bountyTick); }
+        } else { cancel("discovery"); renderRows(); }
         return;
       }
       if (m.magic !== "HPV3_PICKUP_SNAPSHOT" || !enabled("pickupTimersEnabled") || typeof m.source !== "string" || !m.source || m.source.length > 256 || typeof m.instance !== "string" || !m.instance || m.instance.length > 200 || !Number.isSafeInteger(m.seq) || m.seq < 1 || !fresh(m.at, ttl + 1, now) || m.at < since) return;

@@ -170,7 +170,12 @@ test('missing, foreign or off-site download links hide DOWNLOAD and keep the tex
 
 test('the menu refuses an off-site link even when the page sends one', () => {
   // A tampered or future page reply: Panorama is the trust boundary for what it opens.
-  for (const bad of ['https://evil.example/x', 'https://gamebanana.com.evil.example/x', 'javascript:alert(1)']) {
+  // Save-security audit 2026-11-02 (F2): a hacked manifest could send any GameBanana page, such as another mod's
+  // file; only the HP Colors mod's download page (id 603113) may open.
+  for (const bad of ['https://evil.example/x', 'https://gamebanana.com.evil.example/x', 'javascript:alert(1)',
+    'https://gamebanana.com/mods/1', 'https://gamebanana.com/mods/download/603114#FileInfo_1852662',
+    'https://gamebanana.com/mods/download/6031130#FileInfo_1', 'https://gamebanana.com/mods/download/603113/../999',
+    'https://gamebanana.com/dl/1852662', 'https://gamebanana.com/mods/download/603113#FileInfo_1&x=1']) {
     const m = open({ ...manifest({ hpv3: '99.0.0' }), mutateReply: message => { if (message.o === 'lv') message.d = { normal: bad, qollock: bad }; } });
     const opened = browser(m.h);
     m.toggle(); m.f.run(1500);
@@ -179,4 +184,46 @@ test('the menu refuses an off-site link even when the page sends one', () => {
     m.find('HPColorsUpdateDownloadButton').events.onactivate();
     assert.deepEqual(opened, [], bad);
   }
+});
+
+// ESC-menu badge (2026-11-02): a "!" beside HP COLORS while a newer release exists, asked each time the Escape
+// menu opens (#Hud carries ShowEscapeMenu) and never while it is closed. The identity watch samples it: 1 s in play.
+const { installTopBarIdentityTree } = require('../../scripts/hp-colors-panorama-test-adapter');
+function inMatch(options) {
+  const m = open(options), tree = installTopBarIdentityTree(m.h, { heroName: 'Infernus', gameTime: '05:00' });
+  m.f.run(6000);
+  return Object.assign(m, { escape: on => tree.hud.SetHasClass('ShowEscapeMenu', on), button: m.find('HPColorsMenuButton') });
+}
+test('the HP COLORS nav button shows the update badge when the Escape menu opens on an outdated build', () => {
+  const m = inMatch(manifest({ hpv3: bump(RELEASE, 2) }));
+  const badge = m.button.Children().find(child => child.BHasClass('HPC3MenuUpdateBadge'));
+  assert.ok(badge, 'the badge sits inside the HP COLORS button');
+  const visible = () => computed(badge, 'visibility') !== 'collapse';
+  assert.equal(m.lv().length, 0, 'nothing is asked while the Escape menu is closed');
+  assert.equal(visible(), false);
+  m.escape(true); m.f.run(1500);
+  assert.equal(m.lv().length, 1, 'one request when the Escape menu opens');
+  assert.equal(m.button.BHasClass('HPC3UpdateAvailable'), true); assert.equal(visible(), true);
+  m.f.run(5000);
+  assert.equal(m.lv().length, 1, 'no further requests while it stays open');
+  m.escape(false); m.f.run(1500); m.escape(true); m.f.run(1500);
+  assert.equal(m.lv().length, 2, 'asked again on the next open');
+  assert.equal(m.shown(), false, 'the badge never opens the editor notice by itself');
+});
+
+test('the update badge stays hidden for an equal or older release and for a manifest that never loads', () => {
+  for (const options of [manifest({ hpv3: RELEASE }), manifest({ hpv3: lower(RELEASE) || '0.0.0' }), manifest({}, { status: 404 })]) {
+    const m = inMatch(options);
+    m.escape(true); m.f.run(15000);
+    assert.equal(m.button.BHasClass('HPC3UpdateAvailable'), false);
+  }
+});
+
+test('a retired menu stops watching the Escape menu', () => {
+  const m = inMatch(manifest({ hpv3: bump(RELEASE, 0) }));
+  m.escape(true); m.f.run(1500);
+  assert.equal(m.button.BHasClass('HPC3UpdateAvailable'), true);
+  m.h.$.HPColorsMenuPublisher.retire();
+  m.escape(false); m.f.run(1500); m.escape(true); m.f.run(3000);
+  assert.equal(m.lv().length, 1, 'no request after retirement');
 });

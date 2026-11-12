@@ -207,6 +207,15 @@
     "text": "rat king barrier color color of the rat king barrier part of the bar while custom bar colors are on. feedback rat king armor barrier feedback enemy"
   },
   {
+    "key": "barDeferredColor",
+    "side": "enemy",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarDeferredColorEnemyRow",
+    "text": "deferred damage color color of the deferred damage part of the bar while custom bar colors are on: the health shiv's bloodletting and nurse harrow's vapors take away over time. the game uses orange. old boxes do not show this part. feedback deferred delayed bloodletting shiv nurse harrow vapors feedback enemy"
+  },
+  {
     "key": "barHealingColor",
     "side": "ally",
     "page": "Bar",
@@ -241,6 +250,15 @@
     "group": "Feedback",
     "id": "HPColorsBarArmorColorAllyRow",
     "text": "rat king barrier color color of the rat king barrier part of the bar while custom bar colors are on. feedback rat king armor barrier feedback ally"
+  },
+  {
+    "key": "barDeferredColor",
+    "side": "ally",
+    "page": "Bar",
+    "level": "advanced",
+    "group": "Feedback",
+    "id": "HPColorsBarDeferredColorAllyRow",
+    "text": "deferred damage color color of the deferred damage part of the bar while custom bar colors are on: the health shiv's bloodletting and nurse harrow's vapors take away over time. the game uses orange. old boxes do not show this part. feedback deferred delayed bloodletting shiv nurse harrow vapors feedback ally"
   },
   {
     "key": "damageShakeStrength",
@@ -468,6 +486,15 @@
     "text": "custom hp number show the hp number beside the bar with your font, size, colors and position. off puts it back where the game shows it, with the game look.  health native number readout enemy"
   },
   {
+    "key": "hpTextFormat",
+    "side": "enemy",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextFormatEnemyRow",
+    "text": "hp number format show health as the number, the number and its percent of max health (2000 max: 200 / 10%), or the percent only. the percent comes from the bar, like the bar colors, so it reads high while a barrier stretches the bar past max health.  number number / percent percent hp health percent percentage format number max readout enemy"
+  },
+  {
     "key": "hpTextFont",
     "side": "enemy",
     "page": "HP Text",
@@ -493,6 +520,15 @@
     "group": "",
     "id": "HPColorsHpTextVisibleAllyRow",
     "text": "custom hp number show the hp number beside the bar with your font, size, colors and position. off puts it back where the game shows it, with the game look.  health native number readout ally"
+  },
+  {
+    "key": "hpTextFormat",
+    "side": "ally",
+    "page": "HP Text",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsHpTextFormatAllyRow",
+    "text": "hp number format show health as the number, the number and its percent of max health (2000 max: 200 / 10%), or the percent only. the percent comes from the bar, like the bar colors, so it reads high while a barrier stretches the bar past max health.  number number / percent percent hp health percent percentage format number max readout ally"
   },
   {
     "key": "hpTextFont",
@@ -1644,7 +1680,7 @@
     "level": "advanced",
     "group": "Pickups",
     "id": "HPColorsPickupSizeRow",
-    "text": "pickup icon size set pickup icon width and height, separately from bar size. pickups pickup size pixels powerup shared"
+    "text": "top bar pickup icon size set the size of the pickup icons on the top bar. on health bars, pickups keep the game's status-effect size. pickups pickup size pixels powerup top bar topbar shared"
   },
   {
     "key": "pickupSpacing",
@@ -1653,7 +1689,7 @@
     "level": "advanced",
     "group": "Pickups",
     "id": "HPColorsPickupSpacingRow",
-    "text": "pickup spacing set the gap on each side of every pickup icon. pickups pickup spacing pixels powerup shared"
+    "text": "top bar pickup spacing set the gap on each side of every pickup icon on the top bar. on health bars, pickups keep the game's gaps with the other status effects. pickups pickup spacing pixels powerup top bar topbar shared"
   },
   {
     "key": "pickupOffsetX",
@@ -1662,7 +1698,7 @@
     "level": "advanced",
     "group": "Pickups",
     "id": "HPColorsPickupOffsetXRow",
-    "text": "pickup horizontal offset move pickup icons left or right. pickups pickup position horizontal pixels powerup shared"
+    "text": "pickup horizontal offset move the status effect icons, pickups included, left or right. they also follow the bar offset. pickups pickup position horizontal pixels powerup status effect debuff shared"
   },
   {
     "key": "pickupOffsetY",
@@ -1671,7 +1707,7 @@
     "level": "advanced",
     "group": "Pickups",
     "id": "HPColorsPickupOffsetYRow",
-    "text": "pickup vertical offset move pickup icons up or down. pickups pickup position vertical pixels powerup shared"
+    "text": "pickup vertical offset move the status effect icons, pickups included, down. they also follow the bar offset and never go above their usual place. pickups pickup position vertical pixels powerup status effect debuff shared"
   },
   {
     "key": "rejuvSize",
@@ -1710,13 +1746,121 @@
     "text": "rejuvenator tilt rotate the rejuvenator icon. the default tilt is 6 degrees. rejuvenator rejuvenator tilt rotation shared"
   },
   {
-    "key": "npcEnabled",
-    "side": "enemy",
-    "page": "Units",
+    "key": "killBountyEnabled",
+    "side": "shared",
+    "page": "Icons",
     "level": "basic",
-    "group": "",
-    "id": "HPColorsNpcEnabledEnemyRow",
-    "text": "customize npc bars use this side's bar colors, size, position and hp-number settings for npcs. off leaves them uncustomized.  npc creature minion trooper gate enemy"
+    "group": "Kill bounty",
+    "id": "HPColorsKillBountyEnabledRow",
+    "text": "show kill bounty show under each enemy hero's bar how many souls you get for killing them alone right now, the number on the kill popup: the time bounty, your first-kill bonus and your share of the comeback bonus, worked out from the topbar clock, souls and team totals. assisted kills pay less. normal matches and hero testing. kill bounty kill bounty souls value target comeback net worth shared"
+  },
+  {
+    "key": "killBountyOffsetX",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Kill bounty",
+    "id": "HPColorsKillBountyOffsetXRow",
+    "text": "kill bounty horizontal offset move the kill bounty left or right. it follows the bar. kill bounty kill bounty souls position horizontal offset x shared"
+  },
+  {
+    "key": "killBountyOffsetY",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Kill bounty",
+    "id": "HPColorsKillBountyOffsetYRow",
+    "text": "kill bounty vertical offset move the kill bounty up or down from under the bar. it follows the bar. kill bounty kill bounty souls position vertical offset y shared"
+  },
+  {
+    "key": "killBountySize",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Kill bounty",
+    "id": "HPColorsKillBountySizeRow",
+    "text": "kill bounty size set the size of the kill bounty number; the soul icon and pill grow with it. the default is 17 pixels. kill bounty kill bounty souls size scale pixels shared"
+  },
+  {
+    "key": "killBountyTilt",
+    "side": "shared",
+    "page": "Icons",
+    "level": "advanced",
+    "group": "Kill bounty",
+    "id": "HPColorsKillBountyTiltRow",
+    "text": "kill bounty tilt rotate the kill bounty pill around its centre. kill bounty kill bounty souls tilt rotation angle shared"
+  },
+  {
+    "key": "statusScaleFixation",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScaleFixationRow",
+    "text": "fixation (haze) enlarge the fixation stack icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks haze fixation shared"
+  },
+  {
+    "key": "statusScaleMalice",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScaleMaliceRow",
+    "text": "malice (lady geist) enlarge the malice stack icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks geist malice shared"
+  },
+  {
+    "key": "statusScaleScrewjab",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScaleScrewjabRow",
+    "text": "screwjab dagger (vyper) enlarge the screwjab dagger stack icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks vyper viper screwjab dagger shared"
+  },
+  {
+    "key": "statusScaleDjinnsMark",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScaleDjinnsMarkRow",
+    "text": "djinn's mark (mirage) enlarge the djinn's mark stack icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks mirage djinn mark shared"
+  },
+  {
+    "key": "statusScaleSerratedKnives",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScaleSerratedKnivesRow",
+    "text": "serrated knives (shiv) enlarge the serrated knives bleed icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks shiv serrated knives bleed shared"
+  },
+  {
+    "key": "statusScaleBarrage",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScaleBarrageRow",
+    "text": "barrage (pocket) enlarge the barrage amp icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks pocket barrage shared"
+  },
+  {
+    "key": "statusScalePulseGrenade",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScalePulseGrenadeRow",
+    "text": "pulse grenade (paradox) enlarge the pulse grenade stack icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks paradox pulse grenade shared"
+  },
+  {
+    "key": "statusScaleArcticBeam",
+    "side": "shared",
+    "page": "Icons",
+    "level": "basic",
+    "group": "Status effect sizes",
+    "id": "HPColorsStatusScaleArcticBeamRow",
+    "text": "arctic beam (kelvin) enlarge the arctic beam slow icon that the game shows above a health bar. 100% is the game's own size. status effect sizes status effect debuff icon size scale stacks kelvin arctic beam freeze shared"
   },
   {
     "key": "objectiveEnabled",
@@ -1725,16 +1869,7 @@
     "level": "basic",
     "group": "",
     "id": "HPColorsObjectiveEnabledEnemyRow",
-    "text": "customize objective bars use this side's bar colors, size, position and hp-number settings for buildings and objectives. neutral objectives stay unchanged.  objective building guardian walker barracks gate enemy"
-  },
-  {
-    "key": "npcEnabled",
-    "side": "ally",
-    "page": "Units",
-    "level": "basic",
-    "group": "",
-    "id": "HPColorsNpcEnabledAllyRow",
-    "text": "customize npc bars use this side's bar colors, size, position and hp-number settings for npcs. off leaves them uncustomized.  npc creature minion trooper gate ally"
+    "text": "customize objective bars recolor buildings and objectives with this side's bar colors. the bar keeps the game's size, position and style, and the hp number options below apply. neutral objectives stay unchanged.  objective building guardian walker barracks gate enemy"
   },
   {
     "key": "objectiveEnabled",
@@ -1743,7 +1878,52 @@
     "level": "basic",
     "group": "",
     "id": "HPColorsObjectiveEnabledAllyRow",
-    "text": "customize objective bars use this side's bar colors, size, position and hp-number settings for buildings and objectives. neutral objectives stay unchanged.  objective building guardian walker barracks gate ally"
+    "text": "customize objective bars recolor buildings and objectives with this side's bar colors. the bar keeps the game's size, position and style, and the hp number options below apply. neutral objectives stay unchanged.  objective building guardian walker barracks gate ally"
+  },
+  {
+    "key": "objectiveHpTextMode",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsObjectiveHpTextModeRow",
+    "text": "objective hp number default shows the objective hp number like the game does. always show keeps it on screen. applies to the sides with customize objective bars on.  default always show objective building hp number text always show shared"
+  },
+  {
+    "key": "objectiveHpPositionEnabled",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsObjectiveHpPositionEnabledRow",
+    "text": "custom objective hp number position move and tilt the objective hp number. off keeps the game's spot.  objective building hp number position offset tilt rotation shared"
+  },
+  {
+    "key": "objectiveHpOffsetX",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsObjectiveHpOffsetXRow",
+    "text": "objective hp number horizontal offset move the objective hp number left or right from the game's spot.  objective building hp number horizontal offset x shared"
+  },
+  {
+    "key": "objectiveHpOffsetY",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsObjectiveHpOffsetYRow",
+    "text": "objective hp number vertical offset move the objective hp number up or down from the game's spot.  objective building hp number vertical offset y shared"
+  },
+  {
+    "key": "objectiveHpTilt",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsObjectiveHpTiltRow",
+    "text": "objective hp number tilt rotate the objective hp number. the game tilts it -3 degrees.  objective building hp number tilt rotation angle shared"
   },
   {
     "key": "neutralEnabled",
@@ -1752,7 +1932,7 @@
     "level": "basic",
     "group": "",
     "id": "HPColorsNeutralEnabledRow",
-    "text": "customize neutral camps use the neutral fill color and enemy size, position and hp-number settings for neutral npcs. off leaves them uncustomized.  neutral camp jungle midboss gate shared"
+    "text": "customize neutral camps recolor neutral camp bars with the neutral fill color and the enemy damage delta color, and use the hp number options below. the bar keeps the game's own size, position and style. off leaves them uncustomized.  neutral camp jungle midboss gate shared"
   },
   {
     "key": "neutralColor",
@@ -1762,5 +1942,50 @@
     "group": "",
     "id": "HPColorsNeutralColorRow",
     "text": "neutral fill color choose a fixed healthbar color for neutral camps while their customization is on.  neutral camp fill color hex shared"
+  },
+  {
+    "key": "neutralHpTextMode",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNeutralHpTextModeRow",
+    "text": "neutral hp number default shows the neutral hp number like the game does. always show keeps it on screen.  default always show neutral camp hp number text always show shared"
+  },
+  {
+    "key": "neutralHpPositionEnabled",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNeutralHpPositionEnabledRow",
+    "text": "custom neutral hp number position move and tilt the neutral hp number. off keeps the game's spot.  neutral camp hp number position offset tilt rotation shared"
+  },
+  {
+    "key": "neutralHpOffsetX",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNeutralHpOffsetXRow",
+    "text": "neutral hp number horizontal offset move the neutral hp number left or right from the game's spot.  neutral camp hp number horizontal offset x shared"
+  },
+  {
+    "key": "neutralHpOffsetY",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNeutralHpOffsetYRow",
+    "text": "neutral hp number vertical offset move the neutral hp number up or down from the game's spot.  neutral camp hp number vertical offset y shared"
+  },
+  {
+    "key": "neutralHpTilt",
+    "side": "shared",
+    "page": "Units",
+    "level": "basic",
+    "group": "",
+    "id": "HPColorsNeutralHpTiltRow",
+    "text": "neutral hp number tilt rotate the neutral hp number. the game tilts it -3 degrees.  neutral camp hp number tilt rotation angle shared"
   }
 ]

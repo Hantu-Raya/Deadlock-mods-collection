@@ -41,7 +41,8 @@
 
 /* SHAKE STRENGTH and DAMAGE SHAKE (v2 unit_status_v2.css:1638-1686): one owned root class swaps the
    motion frame's keyframes; strength 3 keeps the native wiggle. These stay before the objective rules below
-   (equal specificity, later wins), so buildings and bosses never shake. */
+   (equal specificity, later wins), so a late building or boss class stops the shake. Only hero bars use the
+   motion frame; unit bars keep the native status and its stock damage motion. */
 .active_damage .WindowRoot.HPColorsV3Core.HPColorsV3Shake1 #HPColorsV3MotionFrame,
 .active_damage.WindowRoot.HPColorsV3Core.HPColorsV3Shake1 #HPColorsV3MotionFrame
 {
@@ -251,6 +252,8 @@
    v2 unit_status_v2.css:1832-1844 includes all nine kinds on the full motion frame. The engine can put
    the kind and damage classes on WindowRoot itself, so every root-local and mixed placement is listed too;
    all of them follow the strength rules at equal specificity, so a late kind class stops any shake at once. */
+/* Since 2026-10-29 only hero bars use the motion frame (unit bars keep the native status), so these rules guard a
+   recycled hero panel that gains a kind class before the next classification. */
 /* Live 6782: Panorama rejects one 37-selector rule ("Failed to parse selector"); keep each rule small (stock uses <= 10). */
 .boss_barracks.active_damage .WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
 .boss_barracks.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
@@ -328,12 +331,6 @@
 .midboss.active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
 .active_damage .midboss.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame,
 .midboss .active_damage.WindowRoot.HPColorsV3Core #HPColorsV3MotionFrame
-{
-	animation-name: none;
-	pre-transform-scale2d: 1;
-}
-
-.WindowRoot.HPColorsV3Core.HPColorsV3NoWiggle #HPColorsV3MotionFrame
 {
 	animation-name: none;
 	pre-transform-scale2d: 1;
@@ -419,9 +416,10 @@
 	height: fit-children;
 }
 
-/* Customized names are level like v2 (unit_status_v2.css:2423); stock precedent .neutral_vault #name
-   (vendor/unit_status_v2.css:963-967). NAME TILT writes an inline rotation; release returns the stock -4deg. */
-.WindowRoot.HPColorsV3Core #name
+/* Customized hero names are level like v2 (unit_status_v2.css:2423); stock precedent .neutral_vault #name
+   (vendor/unit_status_v2.css:963-967). NAME TILT writes an inline rotation; release returns the stock -4deg.
+   Unit bars (no HPColorsV3Layout) keep the stock name and layout. */
+.WindowRoot.HPColorsV3Core.HPColorsV3Layout #name
 {
 	transform: none;
 }
@@ -482,11 +480,6 @@
 	margin-top: 65px;
 	background-color: #00000000;
 }
-.WindowRoot.HPColorsV3Core.HPColorsV3Unit #HPColorsV3MotionFrame #UnitHealthbar
-{
-	/* Stock player-only inset (vendor/unit_status_v2.css .player .UnitHealthbarContainer). */
-	margin-left: 0px;
-}
 .WindowRoot.HPColorsV3Core.HPColorsV3BarColored #UnitHealthbar
 {
 	opacity: 1;
@@ -512,6 +505,42 @@
 /* Keep the native death-immunity HP-text treatment after readout adoption. */
 .unkillable .WindowRoot.HPColorsV3Core.HPColorsV3HPText #HPColorsV3ReadoutRow #UnitHealthbarValue,
 .unkillable.WindowRoot.HPColorsV3Core.HPColorsV3HPText #HPColorsV3ReadoutRow #UnitHealthbarValue
+{
+	visibility: collapse;
+}
+/* Ticket 51: owned HP percent label after the adopted number, in the stock number's look (vendor
+   #UnitHealthbarValue: bold, offWhite, offBlack outline); the renderer writes font, size, color and outline. */
+.WindowRoot #HPColorsV3HPPercent
+{
+	font-weight: bold;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 5.0 #10130D;
+	z-index: 10;
+	white-space: nowrap;
+	text-overflow: clip;
+	overflow: noclip;
+	vertical-align: center;
+	visibility: collapse;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3HPText.HPColorsV3HPPercent #HPColorsV3ReadoutRow #HPColorsV3HPPercent
+{
+	visibility: visible;
+}
+.WindowRoot.HPColorsV3Core.HPColorsV3HPText.HPColorsV3HPPercentOnly #HPColorsV3ReadoutRow #UnitHealthbarValue,
+.unkillable .WindowRoot.HPColorsV3Core.HPColorsV3HPText.HPColorsV3HPPercent #HPColorsV3ReadoutRow #HPColorsV3HPPercent,
+.unkillable.WindowRoot.HPColorsV3Core.HPColorsV3HPText.HPColorsV3HPPercent #HPColorsV3ReadoutRow #HPColorsV3HPPercent
+{
+	visibility: collapse;
+}
+/* Neutral camp / objective HP number Always show (user, 2026-10-29): stock shows it only after local damage
+   (vendor opacity 0, visibility from ShowHealthValue); unkillable keeps the stock hide. */
+.WindowRoot.HPColorsV3Core.HPColorsV3UnitHPAlways #UnitHealthbarValue
+{
+	visibility: visible;
+	opacity: 1;
+}
+.unkillable .WindowRoot.HPColorsV3Core.HPColorsV3UnitHPAlways #UnitHealthbarValue,
+.unkillable.WindowRoot.HPColorsV3Core.HPColorsV3UnitHPAlways #UnitHealthbarValue
 {
 	visibility: collapse;
 }
@@ -700,6 +729,52 @@
 	overflow: noclip;
 }
 
+/* Kill bounty (ticket 50): a full-canvas anchor the renderer translates; the pill copies the stock neutral
+   camp bounty (#NeutralBounty: offBlack pill, shardColor icon_soul, numericOracle) at its 70% scale. */
+.HPColorsV3BountyAnchor
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	overflow: noclip;
+	visibility: collapse;
+}
+.WindowRoot.HPColorsV3KillBounty .HPColorsV3BountyAnchor,
+#HPColorsPreviewCanvas.HPColorsV3KillBounty .HPColorsV3BountyAnchor
+{
+	visibility: visible;
+}
+.HPColorsV3Bounty
+{
+	horizontal-align: center;
+	vertical-align: top;
+	flow-children: right;
+	padding: 0px 6px;
+	border-radius: 7px;
+	background-color: #10130DCC;
+}
+.HPColorsV3BountyIcon
+{
+	width: 11px;
+	height: 14px;
+	vertical-align: middle;
+	margin-right: 2px;
+	background-image: url("s2r://panorama/images/hud/icons/icon_soul.vsvg");
+	background-size: contain;
+	background-position: center;
+	background-repeat: no-repeat;
+	wash-color: #99FFD6;
+}
+.HPColorsV3BountyValue
+{
+	vertical-align: middle;
+	font-family: Gulim, VALVEOracle, Reaver, Noto Sans, sans-serif;
+	font-weight: bold;
+	font-size: 17px;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 3 #10130DEE;
+}
+
 /* Native critical-state fill rules use IDs; customized pulse must outrank them. */
 .WindowRoot.HPColorsV3Core #UnitHealthbarInner #unit_healthbar_lagging.HPColorsV3Pulse { animation-name: HPColorsV3PulseMedium; }
 .WindowRoot.HPColorsV3Core #UnitHealthbarInner #unit_healthbar_lagging.HPColorsV3Pulse.HPColorsV3PulseSubtle { animation-name: HPColorsV3PulseSubtle; }
@@ -848,4 +923,495 @@
 #HPColorsPreviewPipKillMarker
 {
 	visibility: collapse;
+}
+/* Ticket 52: the menu preview's sample of an enlarged status effect. The world rules are in
+   hp_colors_v3_status.css, which only the shipped status layout includes; these mirror them for the menu
+   preview's own sample icon, which the menu layout builds. */
+/* A: Fixation */
+#HPColorsPreviewCanvas.HPColorsV3FxA110 .fixated
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA120 .fixated
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA130 .fixated
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA140 .fixated
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA150 .fixated
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA160 .fixated
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA170 .fixated
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA180 .fixated
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA190 .fixated
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA200 .fixated
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA210 .fixated
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA220 .fixated
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA230 .fixated
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA240 .fixated
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxA250 .fixated
+{
+	ui-scale: 250%;
+}
+/* B: Malice */
+#HPColorsPreviewCanvas.HPColorsV3FxB110 .blood_shard
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB120 .blood_shard
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB130 .blood_shard
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB140 .blood_shard
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB150 .blood_shard
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB160 .blood_shard
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB170 .blood_shard
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB180 .blood_shard
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB190 .blood_shard
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB200 .blood_shard
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB210 .blood_shard
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB220 .blood_shard
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB230 .blood_shard
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB240 .blood_shard
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxB250 .blood_shard
+{
+	ui-scale: 250%;
+}
+/* C: Screwjab Dagger */
+#HPColorsPreviewCanvas.HPColorsV3FxC110 .modifier_viper_debuffdagger
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC120 .modifier_viper_debuffdagger
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC130 .modifier_viper_debuffdagger
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC140 .modifier_viper_debuffdagger
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC150 .modifier_viper_debuffdagger
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC160 .modifier_viper_debuffdagger
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC170 .modifier_viper_debuffdagger
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC180 .modifier_viper_debuffdagger
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC190 .modifier_viper_debuffdagger
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC200 .modifier_viper_debuffdagger
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC210 .modifier_viper_debuffdagger
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC220 .modifier_viper_debuffdagger
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC230 .modifier_viper_debuffdagger
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC240 .modifier_viper_debuffdagger
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxC250 .modifier_viper_debuffdagger
+{
+	ui-scale: 250%;
+}
+/* D: Djinn's Mark */
+#HPColorsPreviewCanvas.HPColorsV3FxD110 .sand_phantom_passive_victim
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD120 .sand_phantom_passive_victim
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD130 .sand_phantom_passive_victim
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD140 .sand_phantom_passive_victim
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD150 .sand_phantom_passive_victim
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD160 .sand_phantom_passive_victim
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD170 .sand_phantom_passive_victim
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD180 .sand_phantom_passive_victim
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD190 .sand_phantom_passive_victim
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD200 .sand_phantom_passive_victim
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD210 .sand_phantom_passive_victim
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD220 .sand_phantom_passive_victim
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD230 .sand_phantom_passive_victim
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD240 .sand_phantom_passive_victim
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxD250 .sand_phantom_passive_victim
+{
+	ui-scale: 250%;
+}
+/* E: Serrated Knives */
+#HPColorsPreviewCanvas.HPColorsV3FxE110 .shiv_dagger
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE120 .shiv_dagger
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE130 .shiv_dagger
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE140 .shiv_dagger
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE150 .shiv_dagger
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE160 .shiv_dagger
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE170 .shiv_dagger
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE180 .shiv_dagger
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE190 .shiv_dagger
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE200 .shiv_dagger
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE210 .shiv_dagger
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE220 .shiv_dagger
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE230 .shiv_dagger
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE240 .shiv_dagger
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxE250 .shiv_dagger
+{
+	ui-scale: 250%;
+}
+/* F: Barrage */
+#HPColorsPreviewCanvas.HPColorsV3FxF110 .pocket_damage_amp
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF120 .pocket_damage_amp
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF130 .pocket_damage_amp
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF140 .pocket_damage_amp
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF150 .pocket_damage_amp
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF160 .pocket_damage_amp
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF170 .pocket_damage_amp
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF180 .pocket_damage_amp
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF190 .pocket_damage_amp
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF200 .pocket_damage_amp
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF210 .pocket_damage_amp
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF220 .pocket_damage_amp
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF230 .pocket_damage_amp
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF240 .pocket_damage_amp
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxF250 .pocket_damage_amp
+{
+	ui-scale: 250%;
+}
+/* G: Pulse Grenade */
+#HPColorsPreviewCanvas.HPColorsV3FxG110 .chrono_pulse_grenade
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG120 .chrono_pulse_grenade
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG130 .chrono_pulse_grenade
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG140 .chrono_pulse_grenade
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG150 .chrono_pulse_grenade
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG160 .chrono_pulse_grenade
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG170 .chrono_pulse_grenade
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG180 .chrono_pulse_grenade
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG190 .chrono_pulse_grenade
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG200 .chrono_pulse_grenade
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG210 .chrono_pulse_grenade
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG220 .chrono_pulse_grenade
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG230 .chrono_pulse_grenade
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG240 .chrono_pulse_grenade
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxG250 .chrono_pulse_grenade
+{
+	ui-scale: 250%;
+}
+/* H: Arctic Beam */
+#HPColorsPreviewCanvas.HPColorsV3FxH110 .freezing_buildup
+{
+	ui-scale: 110%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH120 .freezing_buildup
+{
+	ui-scale: 120%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH130 .freezing_buildup
+{
+	ui-scale: 130%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH140 .freezing_buildup
+{
+	ui-scale: 140%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH150 .freezing_buildup
+{
+	ui-scale: 150%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH160 .freezing_buildup
+{
+	ui-scale: 160%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH170 .freezing_buildup
+{
+	ui-scale: 170%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH180 .freezing_buildup
+{
+	ui-scale: 180%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH190 .freezing_buildup
+{
+	ui-scale: 190%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH200 .freezing_buildup
+{
+	ui-scale: 200%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH210 .freezing_buildup
+{
+	ui-scale: 210%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH220 .freezing_buildup
+{
+	ui-scale: 220%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH230 .freezing_buildup
+{
+	ui-scale: 230%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH240 .freezing_buildup
+{
+	ui-scale: 240%;
+}
+#HPColorsPreviewCanvas.HPColorsV3FxH250 .freezing_buildup
+{
+	ui-scale: 250%;
 }

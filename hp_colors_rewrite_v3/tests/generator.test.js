@@ -29,7 +29,7 @@ test('CLI deterministically generates all outputs, committed --check passes and 
   const dir = temporary(t);
   assert.equal(run('--output-root', dir).status, 0);
   const first = hashes(dir);
-  assert.equal(Object.keys(first).length, 12);
+  assert.equal(Object.keys(first).length, 13);
   assert.equal(run('--output-root', dir).status, 0);
   assert.deepEqual(hashes(dir), first);
   assert.equal(run('--check', '--output-root', dir).status, 0);
@@ -68,6 +68,17 @@ const mutations = {
   'colliding menu ids': rows => { rows.push({ ...pick(rows), key: pick(table).key[0].toUpperCase() + pick(table).key.slice(1), slot: {enemy:10000,ally:10001} }); },
   'unsafe key': rows => { pick(rows).key = '../escape'; },
   'invalid keywords': rows => { pick(rows).keywords = [false]; },
+  // Dependent rows (2026-10-28): a requirement must point at a real row, never itself or in a loop, use a real
+  // option or a number threshold, and be readable from every side the row has.
+  'requires unknown key': rows => { pick(rows).requires = [{ key: 'noSuchSetting' }]; },
+  'requires itself': rows => { pick(rows).requires = [{ key: 'barColorEnabled' }]; },
+  'requires loop': rows => { pick(rows).requires = [{ key: 'barColorMode', is: ['fixed'] }]; rows.find(r => r.key === 'barColorMode').requires = [{ key: 'barColorEnabled' }]; },
+  'requires unknown option': rows => { pick(rows).requires = [{ key: 'barStyle', is: ['neon'] }]; },
+  'requires number on a switch': rows => { pick(rows).requires = [{ key: 'nameVisible', above: 0 }]; },
+  'requires mode without values': rows => { pick(rows).requires = [{ key: 'barStyle' }]; },
+  'requires enemy-only key from both sides': rows => { pick(rows).requires = [{ key: 'killMarkerEnabled' }]; },
+  'requires unknown field': rows => { pick(rows).requires = [{ key: 'nameVisible', when: true }]; },
+  'requires empty either-of': rows => { pick(rows).requires = [{ any: [] }]; },
 };
 for (const [name, mutate] of Object.entries(mutations)) {
   test('CLI rejects malformed row: ' + name, t => {
@@ -80,6 +91,7 @@ for (const [name, mutate] of Object.entries(mutations)) {
     const result = run('--settings', input, '--output-root', output);
     assert.notEqual(result.status, 0);
     if (name === 'colliding menu ids') assert.match(result.stderr,/Duplicate key or menu id/);
+    if (name.startsWith('requires')) assert.match(result.stderr, /[Rr]equire|either-of/, name + ': ' + result.stderr);
     assert.equal(fs.existsSync(output), false, 'validation precedes all writes');
   });
 }
@@ -95,7 +107,8 @@ test('CLI rejects invalid JSON, an empty/non-array table and unknown flags', t =
 });
 
 const semanticMutations={
- 'type':rows=>Object.assign(pick(rows),{type:'color',default:{enemy:'#112233',ally:'#445566'}}),
+ // A row nothing requires (a required switch turned color fails the requirement check first).
+ 'type':rows=>Object.assign(rows.find(x=>x.key==='barColorTeamHigh'),{type:'color',default:{enemy:'#112233',ally:'#445566'}}),
  'default':rows=>{pick(rows).default.enemy=!pick(rows).default.enemy;},
  'bounds':rows=>{rows.find(x=>x.key==='barWidth').bounds[1]+=1;},
  'options':rows=>{rows.find(x=>x.key==='hpTextAlign').options.pop();},
@@ -143,7 +156,7 @@ test('an appended enum option needs a recordVersion bump but not defaultChanges'
 // their numbers never come back, the list never shrinks, and every other slot still cannot be removed.
 test('retired slots may leave the schema but are never reused or un-retired; other removals still fail',t=>{
  const dir=temporary(t),baseline=JSON.parse(fs.readFileSync(path.join(root,'settings/record.json'),'utf8'));
- assert.deepEqual(baseline.retiredSlots,[193,194]);
+ assert.deepEqual(baseline.retiredSlots,[193,194,152,153,198]);
  assert.equal(table.some(row=>row.key==='staminaLowEmpty'),false);
  const input=path.join(dir,'schema.json'),metadata=path.join(dir,'record.json'),version=baseline.recordVersion+1;
  const reuse=structuredClone(table);reuse.push({...table.find(row=>row.key==='staminaLowColor'),key:'reusedFlag',slot:{enemy:193,ally:10001}});

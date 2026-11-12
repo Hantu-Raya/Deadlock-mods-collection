@@ -5,6 +5,10 @@
   // Carrier classes are data here, never classes on menu panels. Play, edit-shake and layout-settle
   // work have separate generation tokens; unlaid geometry polls at 4 Hz only while the preview is open.
   var STATUS_LABELS = ["critical", "assassinate", "unkillable"];
+  // Ticket 52: size setting and the game's icon class (abilities.vdata m_strSmallIconCssClass) for each sample.
+  var STATUS_SCALES = [["statusScaleFixation", "fixated"], ["statusScaleMalice", "blood_shard"], ["statusScaleScrewjab", "modifier_viper_debuffdagger"],
+    ["statusScaleDjinnsMark", "sand_phantom_passive_victim"], ["statusScaleSerratedKnives", "shiv_dagger"], ["statusScaleBarrage", "pocket_damage_amp"],
+    ["statusScalePulseGrenade", "chrono_pulse_grenade"], ["statusScaleArcticBeam", "freezing_buildup"]];
   var PARTS = {
     canvas: "HPColorsPreviewCanvas", name: "HPColorsPreviewName", motion: "HPColorsPreviewMotion",
     anchor: "HPColorsPreviewReadoutAnchor", row: "HPColorsPreviewReadoutLine", status: "HPColorsPreviewUnitStatus",
@@ -15,11 +19,12 @@
     outline: "HPColorsPreviewBarOutline", value: "HPColorsPreviewHpText", killMarker: "HPColorsPreviewKillMarker",
     level: "HPColorsPreviewLevel", levelLabel: "HPColorsPreviewLevelLabel", ult: "HPColorsPreviewUltPanel",
     ultBackground: "HPColorsPreviewUltBackground", ultReady: "HPColorsPreviewUltReady", stamina: "HPColorsPreviewStamina",
-    pulseOverlay: "HPColorsPreviewPulseOverlay", pickupContainer: "HPColorsPreviewPickups",
+    pulseOverlay: "HPColorsPreviewPulseOverlay", pickupContainer: "HPColorsPreviewPickups", effects: "HPColorsPreviewPickups", fx: "HPColorsPreviewFx",
     killStreak: "HPColorsPreviewKillStreak", rejuvAnchor: "HPColorsPreviewRejuvenatorAnchor", rejuv: "HPColorsPreviewRejuvenator",
     critical: "HPColorsPreviewCriticalIndicator", criticalAnchor: "HPColorsPreviewCriticalAnchor",
     assassinate: "HPColorsPreviewAssassinateIndicator", assassinateAnchor: "HPColorsPreviewAssassinateAnchor",
     unkillable: "HPColorsPreviewUnkillableIndicator", unkillableAnchor: "HPColorsPreviewUnkillableAnchor",
+    bountyAnchor: "HPColorsPreviewBountyAnchor", bountyPill: "HPColorsPreviewBounty", bountyValue: "HPColorsPreviewBountyValue",
     pipGrid: "HPColorsPreviewPipGrid", pipOutline: "HPColorsPreviewPipOutline", pipEmpty: "HPColorsPreviewPipEmpty",
     pipShield: "HPColorsPreviewPipShield", pipArmor: "HPColorsPreviewPipArmor", pipFill: "HPColorsPreviewPipFill",
     pipHealing: "HPColorsPreviewPipHealing", pipDelta: "HPColorsPreviewPipDelta", pipKillMarker: "HPColorsPreviewPipKillMarker"
@@ -27,7 +32,7 @@
   var UI = {
     title: "HPColorsPreviewTitle", sideEnemy: "HPColorsPreviewSideOptionEnemy", sideAlly: "HPColorsPreviewSideOptionAlly",
     teamAmber: "HPColorsPreviewTeamOptionAmber", teamSapphire: "HPColorsPreviewTeamOptionSapphire",
-    kindNpc: "HPColorsPreviewKindOptionNpc", kindObjective: "HPColorsPreviewKindOptionObjective", kindNeutral: "HPColorsPreviewKindOptionNeutral",
+    kindObjective: "HPColorsPreviewKindOptionObjective", kindNeutral: "HPColorsPreviewKindOptionNeutral",
     health: "HPColorsPreviewHealthValue", slider: "HPColorsPreviewHealthSlider", play: "HPColorsPreviewPlay",
     playLabel: "HPColorsPreviewPlayLabel", status: "HPColorsPreviewStatus", scale: "HPColorsPreviewScale"
   };
@@ -35,7 +40,6 @@
   var KINDS = {
     hero: { title: "HERO", classes: ["player", "CLASS_PLAYER"], maxHp: 1000, css: "HPC3PreviewKindHero",
       names: { enemy: "Infernus", ally: "Infernus" } }, // ticket 22c: matches the Infernus scene model
-    npc: { title: "NPC", classes: ["creature"], maxHp: 600, css: "HPC3PreviewKindNpc", names: { enemy: "", ally: "" } },
     neutral: { title: "NEUTRAL CAMP", classes: ["neutral_normal", "team_neutral"], maxHp: 600, css: "HPC3PreviewKindNeutral", names: { enemy: "", ally: "" } },
     objective: { title: "OBJECTIVE", classes: ["building", "CLASS_DESTROYABLE_BUILDING", "boss_tier1"], maxHp: 4000,
       css: "HPC3PreviewKindObjective", names: { enemy: "", ally: "" } }
@@ -48,8 +52,16 @@
   // Unit-kind camera: the stage is a fixed 284x278 CSS box (menu.css .HPC3PreviewStage inside the 330px column).
   // Content around the bar (canvas px, measured live 2026-10-14): pickups/stamina/name 57 above, HP text 26 below,
   // level badge/rejuvenator 32.5 left of the bar, ult badge 10 right of it. Zoom only ever goes down from 2x.
-  var STAGE_W = 284, STAGE_H = 278, STAGE_PAD = 8, MAX_ZOOM = 2, MIN_ZOOM = 0.4;
-  var BAR_CX = 100, BAR_CY = 74, ROOM_LEFT = 32.5, ROOM_RIGHT = 10, ROOM_ABOVE = 57, ROOM_BELOW = 26;
+  // Unit bars keep the stock 79x18 bar at its stock spot (user, 2026-10-29), so the fit is computed once.
+  var UNIT_CAMERA = (function () {
+    var STAGE_W = 284, STAGE_H = 278, STAGE_PAD = 8, MAX_ZOOM = 2, MIN_ZOOM = 0.4, BAR_CX = 100, BAR_CY = 74;
+    var left = BAR_CX - 79 / 2 - 32.5, right = BAR_CX + 79 / 2 + 10, top = BAR_CY - 18 / 2 - 57, bottom = BAR_CY + 18 / 2 + 26;
+    var zoom = Math.round(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, (STAGE_W - 2 * STAGE_PAD) / (right - left), (STAGE_H - 2 * STAGE_PAD) / (bottom - top))) * 100) / 100;
+    // The scale wrapper is top-left aligned; canvas margins (canvas px, layout only: a transformed root
+    // would clip noclip children) put the box centre mid-stage.
+    return { zoom: Math.round(zoom * 100) + "%", left: Math.round((STAGE_W / (2 * zoom) - (left + right) / 2) * 10) / 10 + "px",
+      top: Math.round((STAGE_H / (2 * zoom) - (top + bottom) / 2) * 10) / 10 + "px" };
+  })();
   // Ticket 22c live 1:1 (user 2026-10-15): the HERO stage is the live SHOW BOUNDS box. Its 284x298 inner box
   // (menu.css) is the 200x210 world canvas at k = 284/200, origin to origin, so bar size and offsets paint where
   // live puts them. Ticket 27 round 2 moves clipping out to the plate's inner scene window, so the model
@@ -71,7 +83,7 @@
   // SHOW BOUNDS: session view state from the menu, painted by the same plan as world bars.
   var view = { showBounds: false };
   var available = false, isOpen = false, retired = false, syncing = false;
-  var page = "Bar", unitKind = "npc", kind = "hero", side = "enemy";
+  var page = "Bar", unitKind = "neutral", kind = "hero", side = "enemy";
   // Ticket 35: session-only sample team. Each side starts at its usual team (enemy Sapphire, ally Amber);
   // a side change restores that default. Never a setting, code, preset or Undo step.
   var SIDE_TEAMS = { enemy: "team2", ally: "team1" }, team = SIDE_TEAMS.enemy;
@@ -80,7 +92,7 @@
   var shakeGeneration = 0, shakeJob = null;
   var last = null, statusText = "", tickMaxHp = 0, tickRoot = null;
   var readoutLayoutKey = "";
-  var sampleLabel = "";
+  var sampleLabel = "", sampleFx = "", paintedFx = "";
 
   // Reinclusion: the previous instance stops scheduling before this one binds the same panels.
   var previous = $.HPColorsV3Preview;
@@ -101,7 +113,7 @@
   function resolve(root) {
     var nextPane = valid(root) ? root.FindChildTraverse("HPColorsPreview") : null;
     if (!valid(nextPane)) return false;
-    pane = nextPane;
+    pane = nextPane; paintedFx = null;
     var found = {}, controls = {}, key;
     for (key in PARTS) {
       found[key] = pane.FindChildTraverse(PARTS[key]);
@@ -112,6 +124,8 @@
       if (!valid(controls[key]) || !inside(controls[key])) return false;
     }
     parts = found; ui = controls;
+    // Ticket 51: the percent label is a direct child of the readout row, so it needs no ancestry walk.
+    parts.hpPercent = parts.row.FindChild("HPColorsPreviewHpPercent") || null;
     // A (re)resolved tree starts with no write/layout caches: they describe what was written to the old panels.
     cameraZoom = ""; cameraLeft = ""; cameraTop = ""; visualKey = ""; readoutLayoutKey = ""; settleTries = 0;
     // Optional: without the scene panel the preview still works; the CSS geometry is the 1:1 state.
@@ -121,7 +135,7 @@
       try { heroCamera(HERO_ZOOM); } catch (error) { /* Old tree gone. */ }
       heroModel = nextModel; modelZoom = HERO_ZOOM;
     }
-    parts.pickupSamples = parts.pickupContainer.Children().map(function (icon, i) {
+    parts.pickupSamples = parts.pickupContainer.Children().filter(function (icon) { return icon.BHasClass("HPC3PreviewPickup"); }).map(function (icon, i) {
       var name = ["Gun", "Movement", "Spirit", "Survival"][i];
       var inner = icon.FindChild("HPColorsPreviewPickup" + name + "Inner"), border = icon.FindChild("HPColorsPreviewPickup" + name + "Border");
       var track = icon.FindChild("HPColorsPreviewPickup" + name + "Track");
@@ -164,6 +178,12 @@
     STATUS_LABELS.forEach(function (key) {
       setClass(pane, "HPC3PreviewSample" + key, kind === "hero" && settings && settings.shared.enabled && sampleLabel === key);
     });
+    // Ticket 52: the effect whose size was edited last joins the status row; its class picks the icon and the size rule.
+    setClass(pane, "HPC3PreviewSampleFx", kind === "hero" && !!settings && settings.shared.enabled && sampleFx !== "");
+    if (parts.fx && paintedFx !== sampleFx) {
+      STATUS_SCALES.forEach(function (entry) { setClass(parts.fx, entry[1], sampleFx === entry[0]); });
+      paintedFx = sampleFx;
+    }
     // The engine's citadel_unit_status_show_critical_state defaults true on the descendant root.
     setClass(parts.canvas, "ShowCriticalState", true);
     list.push("ShowCriticalState");
@@ -227,16 +247,7 @@
       }
       heroCamera(zoomText);
     } else {
-      var s = settings && settings.shared && settings.shared.enabled && last && last.facts.eligible ? settings.side[kind === "neutral" ? "enemy" : side] : null;
-      var w = s ? s.barWidth : 79, h = s ? s.barHeight : 18, dx = s ? Math.abs(s.barOffsetX) : 0, oy = s ? s.barOffsetY : 0;
-      var left = BAR_CX - w / 2 - ROOM_LEFT - dx, right = BAR_CX + w / 2 + ROOM_RIGHT + dx;
-      var top = BAR_CY - h / 2 - ROOM_ABOVE + Math.min(0, oy), bottom = BAR_CY + h / 2 + ROOM_BELOW + Math.max(0, oy);
-      var zoom = Math.round(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, (STAGE_W - 2 * STAGE_PAD) / (right - left), (STAGE_H - 2 * STAGE_PAD) / (bottom - top))) * 100) / 100;
-      // The scale wrapper is top-left aligned; canvas margins (canvas px, layout only: a transformed root
-      // would clip noclip children) put the box centre mid-stage.
-      zoomText = Math.round(zoom * 100) + "%";
-      leftText = Math.round((STAGE_W / (2 * zoom) - (left + right) / 2) * 10) / 10 + "px";
-      topText = Math.round((STAGE_H / (2 * zoom) - (top + bottom) / 2) * 10) / 10 + "px";
+      zoomText = UNIT_CAMERA.zoom; leftText = UNIT_CAMERA.left; topText = UNIT_CAMERA.top;
     }
     // Panorama reads uiScale back as "176.0% 176.0% 176.0%", so compare against what we last wrote, not the style.
     if (zoomText !== cameraZoom) { ui.scale.style.uiScale = zoomText; cameraZoom = zoomText; }
@@ -289,7 +300,7 @@
       : !settings || !settings.shared.enabled ? "HP Colors is off: stock look"
         : !last.facts.laid ? "Waiting for layout"
           : painted ? "Your settings" : kind !== "hero" ? "Turn on Customize " +
-            (kind === "npc" ? "NPC bars" : kind === "neutral" ? "neutral camps" : "objective bars") + " to style this bar" : "Stock look";
+            (kind === "neutral" ? "neutral camps" : "objective bars") + " to style this bar" : "Stock look";
     statusText = (feedback || (playing ? "Playing" : "Ready")) + " · " + detail;
     setText(ui.status, statusText);
     setClass(ui.play, "Playing", playing);
@@ -322,10 +333,8 @@
     setClass(ui.teamSapphire, "Selected", team === "team2");
     setClass(ui.teamAmber, "fill", team === "team1");
     setClass(ui.teamSapphire, "fill", team === "team2");
-    setClass(ui.kindNpc, "Selected", unitKind === "npc");
     setClass(ui.kindObjective, "Selected", unitKind === "objective");
     setClass(ui.kindNeutral, "Selected", unitKind === "neutral");
-    setClass(ui.kindNpc, "fill", unitKind === "npc");
     setClass(ui.kindObjective, "fill", unitKind === "objective");
     setClass(ui.kindNeutral, "fill", unitKind === "neutral");
     setText(parts.name, KINDS[kind].names[side]);
@@ -457,7 +466,6 @@
       bind(ui.sideAlly, "onactivate", function () { $.HPColorsV3Preview.setSide("ally"); });
       bind(ui.teamAmber, "onactivate", function () { $.HPColorsV3Preview.setTeam("team1"); });
       bind(ui.teamSapphire, "onactivate", function () { $.HPColorsV3Preview.setTeam("team2"); });
-      bind(ui.kindNpc, "onactivate", function () { $.HPColorsV3Preview.setUnitKind("npc"); });
       bind(ui.kindObjective, "onactivate", function () { $.HPColorsV3Preview.setUnitKind("objective"); });
       bind(ui.kindNeutral, "onactivate", function () { $.HPColorsV3Preview.setUnitKind("neutral"); });
       writeChrome();
@@ -473,7 +481,7 @@
       cancel();
       isOpen = false;
     },
-    setPage: function (name) { change(function () { sampleLabel = ""; page = name; kind = kindFor(page); }); },
+    setPage: function (name) { change(function () { sampleLabel = ""; sampleFx = ""; page = name; kind = kindFor(page); }); },
     setSide: function (name) {
       if ((name !== "enemy" && name !== "ally") || name === side) return;
       change(function () { side = name; team = SIDE_TEAMS[name]; });
@@ -483,7 +491,7 @@
       change(function () { team = name; });
     },
     setUnitKind: function (name) {
-      if ((name !== "npc" && name !== "objective" && name !== "neutral") || name === unitKind) return;
+      if ((name !== "objective" && name !== "neutral") || name === unitKind) return;
       change(function () { unitKind = name; kind = kindFor(page); });
     },
     // Settings edits repaint in place; a running sequence continues with the new settings.
@@ -494,6 +502,9 @@
       if (settings && next) STATUS_LABELS.forEach(function (key) {
         if (["IndicatorVisible", "OffsetX", "OffsetY"].some(function (suffix) { return settings.shared[key + suffix] !== next.shared[key + suffix]; }))
           sampleLabel = key;
+      });
+      if (settings && next) STATUS_SCALES.forEach(function (entry) {
+        if (settings.shared[entry[0]] !== next.shared[entry[0]]) sampleFx = entry[0];
       });
       settings = next;
       if (!settings || !settings.shared.damageShakeEnabled) cancelShake();

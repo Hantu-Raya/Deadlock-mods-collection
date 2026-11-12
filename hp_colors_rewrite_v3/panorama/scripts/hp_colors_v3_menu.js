@@ -51,7 +51,7 @@
   var heroPicker = "", heroTiles = [];
   var revealPresetId = "";
   var DEFAULT_PRESET_ID = "baked_default";
-  var sourcePresetId = "", sourceWasMapped = false;
+  var sourcePresetId = "", sourceWasMapped = false, routedKey = "";
   var routePending = false;
   var identity = { generation: 0, epoch: 0, job: null, phase: "", hero: "", candidate: "", samples: 0,
     root: null, hud: null, topBar: null, clock: null, card: null, label: null, discoverAt: 0 };
@@ -60,6 +60,13 @@
   // on the top panel, so a reloaded menu keeps it until the game restarts.
   var BOUNDS_ATTR = "hpv3_show_bounds";
   var showBounds = false;
+  // COLORBLIND VIEW (2026-10-28): the game's full-screen color blindness convars, one weight per type, so
+  // the types mix. The game state is kept on the top panel for this game: the convars are not archived,
+  // start at 0 in every game and have no read-back. Since 2026-10-29 the choice is also saved in the
+  // bundle's personal colorblind list (never in codes or presets) and sent again once per game.
+  var COLORBLIND_TYPES = ["Protanopia", "Deuteranopia", "Tritanopia"];
+  var COLORBLIND_ATTR = "hpv3_colorblind_", COLORBLIND_SESSION_ATTR = "hpv3_colorblind_session";
+  var colorblind = {};
   // Own bottom-HUD health bar (v2 paintHudHealthWash, hp_colors_v2_menu.js 1968-2055).
   var HUD_TEXTURE = 'url("s2r://panorama/images/hud/healthbar/healthbar_fill_texture_png.vtex")';
   var HUD_WHITE = "#FFFFFF", HUD_TEAM = { team1: "#E7B659", team2: "#5B79E6" };
@@ -80,7 +87,7 @@
       stopIdentityWatch();
       preview("close");
       setSupporterStripOpen(false);
-      stopUpdateCheck();
+      stopUpdateCheck(); resetEscapeWatch();
       endNewsFlash(); newsNav++;
       if (pending) $.CancelScheduled(pending);
       if (answerJob) $.CancelScheduled(answerJob);
@@ -95,7 +102,7 @@
         handlerId = null;
       }
       return config ? { settings: clone(config.settings), rules: clone(config.rules), sourcePresetId: sourcePresetId, sourceWasMapped: sourceWasMapped,
-        newsSession: Object.keys(newsSession) } : null;
+        routedKey: routedKey, newsSession: Object.keys(newsSession) } : null;
     },
   };
 
@@ -305,6 +312,83 @@
     config.revision++;
     publish();
   }
+  // ---- COLORBLIND VIEW: game commands, not settings (no publication or Undo entry; saved as bundle metadata) ----
+  function syncColorblind() {
+    COLORBLIND_TYPES.forEach(function (type) {
+      var toggle = panel("HPColorsColorblind" + type + "Toggle");
+      if (toggle) toggle.SetHasClass("Checked", colorblind[type] === true);
+    });
+  }
+  function readColorblind() {
+    var top = topPanel();
+    COLORBLIND_TYPES.forEach(function (type) {
+      colorblind[type] = !!top && top.GetAttributeString(COLORBLIND_ATTR + type.toLowerCase(), "") === "1";
+    });
+  }
+  // The saved list holds known lowercase type names only; anything else is ignored, not trusted.
+  function savedColorblind(bundle) {
+    var saved = bundle && bundle.colorblind, result = {};
+    if (Array.isArray(saved) && saved.length <= 8) COLORBLIND_TYPES.forEach(function (type) {
+      if (saved.indexOf(type.toLowerCase()) >= 0) result[type] = true;
+    });
+    return result;
+  }
+  function colorblindList(state) {
+    return COLORBLIND_TYPES.filter(function (type) { return state[type] === true; }).map(function (type) { return type.toLowerCase(); });
+  }
+  function saveColorblind() {
+    var target = store();
+    if (retired || !target || typeof target.replaceBundle !== "function" || typeof target.isHydrated !== "function" || !target.isHydrated() ||
+        typeof target.canEditPresets === "function" && !target.canEditPresets()) return;
+    var bundle = presetBundle(), list = colorblindList(colorblind);
+    if (JSON.stringify(bundle.colorblind) === JSON.stringify(list.length ? list : undefined)) return;
+    if (list.length) bundle.colorblind = list; else delete bundle.colorblind;
+    try { target.replaceBundle(bundle); } catch (error) {
+      // HPV3_DEBUG $.Msg("[HPV3] colorblind save refused: " + error);
+    }
+  }
+  function sendColorblind(type, next) {
+    var command = "r_colorblindsim_fullscreen_weight_" + type.toLowerCase() + (next ? " 1" : " 0");
+    try { $.DispatchEvent("CitadelConCommand", command); } catch (error) {
+      // HPV3_DEBUG $.Msg("[HPV3] colorblind command refused: " + command + " " + error);
+      return false;
+    }
+    // HPV3_DEBUG $.Msg("[HPV3] colorblind command " + command);
+    colorblind[type] = next;
+    var top = topPanel();
+    if (top) {
+      top.SetAttributeString(COLORBLIND_ATTR + type.toLowerCase(), next ? "1" : "0");
+      top.SetAttributeString(COLORBLIND_SESSION_ATTR, "1");
+    }
+    return true;
+  }
+  function toggleColorblind(type) {
+    if (retired || !sendColorblind(type, colorblind[type] !== true)) return;
+    syncColorblind();
+    saveColorblind();
+  }
+  // Once the store loads: the first load in a game sends the saved types; a game that already has a
+  // choice (made before the store loaded, or restored earlier) keeps it and saves it if it differs.
+  function restoreColorblind() {
+    var top = topPanel();
+    if (retired || !top) return;
+    var saved = savedColorblind(presetBundle());
+    if (top.GetAttributeString(COLORBLIND_SESSION_ATTR, "") === "1") {
+      if (colorblindList(saved).join() === colorblindList(colorblind).join()) return;
+      // The load is still finishing here and refuses bundle writes; save on the next frame.
+      var token = generation;
+      $.Schedule(0, function () { if (!retired && token === generation) saveColorblind(); });
+      return;
+    }
+    top.SetAttributeString(COLORBLIND_SESSION_ATTR, "1");
+    COLORBLIND_TYPES.forEach(function (type) { if (saved[type] && colorblind[type] !== true) sendColorblind(type, true); });
+    syncColorblind();
+  }
+  function bindColorblind(type) {
+    var id = "HPColorsColorblind" + type + "Toggle", target = panel(id);
+    // A reloaded menu replaces the switches; an old panel must never send a command.
+    on(id, "onactivate", function () { if (panel(id) === target) toggleColorblind(type); });
+  }
 
   // One local-player watcher publishes one resolved settings object; world bars never route.
   function stopIdentityWatch() {
@@ -387,22 +471,33 @@
     if (identity.phase !== "hideout" && (identity.phase !== "active" || !identity.hero)) return;
     var target = store();
     if (!target || !target.isHydrated || !target.isHydrated()) return;
-    var bundle = presetBundle(), map = bundle.heroPresets || {};
+    // Audit 2026-11-02: the settled 1 s watch copied the whole preset library (6 MB per 10 s at 128
+    // presets) only to find nothing to apply; the route alone decides that.
+    var route = typeof target.getRoute === "function" ? target.getRoute() : presetBundle(), map = route.heroPresets || {};
     var mapped = identity.phase === "active" && Object.prototype.hasOwnProperty.call(map, identity.hero);
-    var id = mapped ? map[identity.hero] : bundle.heroDefault || null;
+    var id = mapped ? map[identity.hero] : route.heroDefault || null;
     if (id === null && sourceWasMapped) id = DEFAULT_PRESET_ID;
+    // A route fires once per hero, phase or route target, not on every sample: a preset applied by hand
+    // (Default included) stays until the hero, phase or route changes (user, 2026-11-02: applying Default
+    // while a hero default was set came back to the hero default a second later).
+    var key = identity.phase + "\u0001" + identity.hero + "\u0001" + (id || "");
+    if (key === routedKey) return;
+    // A store that refuses preset edits (newer or unconfirmed unreadable save) refuses every route: ask again
+    // next sample without copying the library.
+    if (typeof target.canEditPresets === "function" && !target.canEditPresets()) return;
+    routedKey = key;
     if (id === null || id === sourcePresetId) {
       // HPV3_DEBUG if (applyHeroRoute.skipped !== (id || "none")) $.Msg("[HPV3] route skipped " + (applyHeroRoute.skipped = id || "none"));
       return;
     }
     var preset = id === DEFAULT_PRESET_ID ? { id: id, settings: contractRef.defaults } :
-      bundle.presets.filter(function (item) { return item.id === id; })[0];
+      presetBundle().presets.filter(function (item) { return item.id === id; })[0];
     if (!preset) return;
     try {
       target.applyPreset(preset, true, mapped);
-      sourceWasMapped = mapped;
       // HPV3_DEBUG applyHeroRoute.skipped = null; $.Msg("[HPV3] route applied " + id);
     } catch (error) {
+      routedKey = ""; // retried on the next sample
       // HPV3_DEBUG $.Msg("[HPV3] route refused: " + error);
     }
   }
@@ -421,8 +516,12 @@
     identity.job = null;
     try {
       identityRefs();
+      watchEscape();
       var phase = identityPhase(), heroChanged = false;
       if (phase !== identity.phase) {
+        // A new phase routes again, even to the same hero and preset; the first phase after boot keeps the
+        // key a reload inherited.
+        if (identity.phase) routedKey = "";
         identity.phase = phase; identity.epoch++; identity.candidate = ""; identity.samples = 0;
         clearTiers();
         if (phase !== "active") identity.hero = "";
@@ -1078,7 +1177,8 @@
     resumeHeroRoute();
   }
   function openCondition(row) {
-    closeCredits();
+    if (!rowActive(row)) return;
+    closeInfo();
     closeCondition(); closePicker(false); endGesture(false);
     var cell = cellFor(row), rule = config.rules[cell];
     conditionDraft = { row: row, cell: cell, valid: true, rule: rule ? clone(rule) :
@@ -1213,6 +1313,60 @@
   }
   function syncAll() {
     for (var i = 0; i < contractRef.controls.length; i++) sync(contractRef.controls[i]);
+    syncRequirements();
+  }
+  // ---- Dependent rows (2026-10-28): a row whose switch or mode is off greys out and takes no input ----
+  // requirementRows (key|side -> row) and requirementKeys (every key a condition reads) are built with the
+  // contract at boot; shownActive is what each row's panels last showed and is cleared whenever the panels
+  // are collected again.
+  var requirementRows = {}, requirementKeys = {}, shownActive = {};
+  // The words of every unmet condition for one side; a met switch passes on its own row's missing words (cascade).
+  function conditionMissing(condition, side) {
+    if (condition.any) {
+      return condition.any.some(function (inner) { return !conditionMissing(inner, side).length; }) ? [] : [condition.text];
+    }
+    var holder = condition.shared ? config.settings.shared : config.settings.side[side];
+    var value = holder ? holder[condition.key] : undefined;
+    var held = condition.is ? condition.is.indexOf(value) >= 0 : condition.above !== undefined ? value > condition.above : value === true;
+    if (!held) return [condition.text];
+    var target = requirementRows[condition.key + "|" + (condition.shared ? "shared" : side)];
+    return target ? missing(target) : [];
+  }
+  // A shared row is usable when either side qualifies, so it reports the side missing the least.
+  function missing(row) {
+    if (!row.requires || !config) return [];
+    var best = null;
+    (row.side === "shared" ? ["enemy", "ally"] : [row.side]).forEach(function (side) {
+      var list = [];
+      row.requires.forEach(function (condition) {
+        conditionMissing(condition, side).forEach(function (text) { if (list.indexOf(text) < 0) list.push(text); });
+      });
+      if (!best || list.length < best.length) best = list;
+    });
+    return best;
+  }
+  function rowActive(row) { return missing(row).length === 0; }
+  function rowHelp(row) {
+    var list = missing(row);
+    if (!list.length) return row.help;
+    var text = list.join(" and ");
+    return text.charAt(0).toUpperCase() + text.slice(1) + " to change this. " + row.help;
+  }
+  // Pure settings reads per row; panels are touched only when a row's state changes (or the panels are new).
+  function syncRequirements() {
+    if (!contractRef || !config) return;
+    contractRef.controls.forEach(function (row) {
+      if (!row.requires) return;
+      var active = rowActive(row);
+      if (shownActive[row.rowId] === active) return;
+      var target = panel(row.rowId);
+      if (!target) return;
+      shownActive[row.rowId] = active;
+      target.SetHasClass("HPC3RowDisabled", !active);
+      [row.toggleId, row.hexId, row.hueId, row.swatchId, row.sliderId, row.entryId, row.resetId, row.conditionId, row.kind === "dropdown" ? row.id : ""]
+        .concat(row.kind === "segment" ? row.options.map(function (option) { return option.id; }) : [])
+        .forEach(function (id) { var control = id && panel(id); if (control) control.enabled = active; });
+    });
   }
   function syncNavDots() {
     if (!contractRef || !config) return;
@@ -1313,6 +1467,7 @@
     replace(clone(settings), bundle.rules || {});
     syncAll();
     resolvePublication();
+    restoreColorblind();
     return true;
   }
   // Only explicit menu edits request a sample; hydration, routing and Undo use applySettings directly.
@@ -1349,6 +1504,8 @@
   function commit(row, value, hueEdit) {
     if (retired) return false;
     if (!config || value === null || value === undefined) { sync(row); return false; }
+    // A greyed row keeps its value: whatever its controls received is put back.
+    if (!rowActive(row)) { sync(row, hueEdit); return false; }
     var next = clone(config.settings);
     var values = valuesFor(next, row);
     if (values[row.key] === value) { sync(row, hueEdit); return false; }
@@ -1360,6 +1517,8 @@
     replace(next);
     if (!gesture) record(before);
     sync(row, hueEdit);
+    // Only a key some condition reads can change which rows are greyed.
+    if (requirementKeys[row.key]) syncRequirements();
     // The preview follows the column being edited.
     if (row.side === "enemy" || row.side === "ally") preview("setSide", row.side);
     previewShakeEdit(previousEffective);
@@ -1402,6 +1561,7 @@
     var rowKey = row.side + ":" + row.key;
     on(id, "onvaluechanged", function () {
       if (syncing || !panel(id)) return;
+      if (!rowActive(row)) { sync(row); return; }
       closePicker(false);
       if (!gesture || gesture.key !== rowKey) beginGesture(rowKey);
       change();
@@ -1417,7 +1577,7 @@
     on(id, "onblur", function () { if (gesture && gesture.key === rowKey) endGesture(false); });
   }
   function bindControl(row) {
-    on(row.rowId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.rowId), row.help); });
+    on(row.rowId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.rowId), rowHelp(row)); });
     on(row.rowId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.rowId)); });
     on(row.resetId, "onactivate", function () {
       closePicker(false); closeCondition(); endGesture(false);
@@ -1517,7 +1677,7 @@
     cancelDelete();
     cancelBundleReplacement();
     closeHeroPicker();
-    closeCredits();
+    closeInfo();
     for (var i = 0; i < pages.length; i++) {
       if (panel(pages[i].id)) panel(pages[i].id).SetHasClass("Active", i === index);
       if (panel(pages[i].navId)) panel(pages[i].navId).SetHasClass("Selected", i === index);
@@ -1626,7 +1786,7 @@
       closeCondition();
       cancelBundleReplacement();
       closeHeroPicker();
-      closeCredits();
+      closeInfo();
       clearHistory();
       clearSearch(); root.RemoveClass("SaveResetConfirming");
     }
@@ -1744,12 +1904,18 @@
     newsFlashJob = $.Schedule(NEWS_FLASH_SEC, function newsFlashEnd() { newsFlashJob = null; if (token === generation && !retired) endNewsFlash(); });
   }
 
-  // Informational only: no setting, record, store commit or Undo entry.
-  function closeCredits() {
-    var dialog = panel("HPColorsCreditsDialog");
-    if (!dialog || !dialog.BHasClass("Open")) return;
-    dialog.RemoveClass("Open");
-    if (panel("HPColorsPreviewCreditsButton")) panel("HPColorsPreviewCreditsButton").SetFocus();
+  // Credits and Feedback are informational only: no setting, record, store commit or Undo entry.
+  // Closing either returns focus to the footer button that opened it.
+  function closeInfo() {
+    [["HPColorsCreditsDialog", "HPColorsPreviewCreditsButton"], ["HPColorsFeedbackDialog", "HPColorsPreviewFeedbackButton"]].forEach(function (pair) {
+      var dialog = panel(pair[0]);
+      if (!dialog || !dialog.BHasClass("Open")) return;
+      dialog.RemoveClass("Open");
+      if (panel(pair[1])) panel(pair[1]).SetFocus();
+    });
+  }
+  function infoOpen() {
+    return ["HPColorsCreditsDialog", "HPColorsFeedbackDialog"].some(function (id) { return !!panel(id) && panel(id).BHasClass("Open"); });
   }
 
   // ---- Update notice (ticket 33): advisory, no setting, record, store commit or Undo entry ----
@@ -1770,6 +1936,32 @@
   function updateLater(seconds, step) {
     if (updateJob) $.CancelScheduled(updateJob);
     updateJob = $.Schedule(seconds, function updateCheck() { updateJob = null; step(); });
+  }
+  // ---- ESC-menu update badge (2026-11-02): a "!" beside HP COLORS while a newer release exists. It is
+  // checked each time the Escape menu opens (stock hud.css shows #EscapeMenu under .ShowEscapeMenu on #Hud),
+  // with the same lv request as the editor's notice; nothing is asked while the menu is closed. The identity
+  // watch reads the class on each sample (1 s in play, 5 s in lobby/hideout/postgame): no job of its own. ----
+  var badge = { shown: false, ask: 0 };
+  function resetEscapeWatch() { badge.ask++; badge.shown = false; }
+  function watchEscape() {
+    var shown = valid(identity.hud) && identity.hud.BHasClass("ShowEscapeMenu");
+    if (shown && !badge.shown) askBadge(++badge.ask, 0);
+    badge.shown = shown;
+  }
+  function askBadge(ask, tries) {
+    var target = store();
+    if (retired || ask !== badge.ask || !target || typeof target.latestRelease !== "function") return;
+    try {
+      target.latestRelease(function (result) {
+        if (retired || ask !== badge.ask || !result || result.ok !== true) return;
+        if (!result.version) {
+          if (result.pending && tries < UPDATE_PENDING_RETRIES) $.Schedule(UPDATE_PENDING_RETRY_SEC, function () { askBadge(ask, tries + 1); });
+          return;
+        }
+        var button = panel("HPColorsMenuButton");
+        if (button) button.SetHasClass("HPC3UpdateAvailable", isNewerRelease(result.version, contractRef.release));
+      });
+    } catch (error) { /* Advisory: the menu works without it. */ }
   }
   function stopUpdateCheck() {
     updateOpen++;
@@ -1800,12 +1992,12 @@
   }
   function dialogBusy() {
     if (gesture || picker || conditionDraft || heroPicker || resetPage !== null || deletePreset || bundleReplacement) return true;
-    var credits = panel("HPColorsCreditsDialog");
-    return !!credits && credits.BHasClass("Open");
+    return infoOpen();
   }
   // Each build opens its own file: the composed QOLLOCK menu keeps QOLLOCK's pinned storage bridge
   // panel and the composed ShowRank menu ShowRank's party bridge. No link for this build: no DOWNLOAD.
-  var UPDATE_DOWNLOAD_URL = /^https:\/\/gamebanana\.com\/[A-Za-z0-9\/_#.?=&%-]{1,200}$/;
+  // Only the HP Colors mod's own download page (id 603113); see DOWNLOAD_URL in the storage bridge.
+  var UPDATE_DOWNLOAD_URL = /^https:\/\/gamebanana\.com\/mods\/download\/603113(#FileInfo_\d{1,12})?$/;
   function updateDownload(downloads) {
     var build = panel("QOLStorageBridge") ? "qollock" : panel("ShowRankBarebonesPartyBridge") ? "showrank" : "normal";
     var url = downloads && Object.prototype.hasOwnProperty.call(downloads, build) ? downloads[build] : null;
@@ -1836,25 +2028,49 @@
     } catch (error) { /* The external browser is optional. */ }
     closeUpdate();
   }
-  function openCredits() {
+  function closeOthersForInfo() {
     closePicker(false); closeCondition(); endGesture(false);
-    cancelReset(); cancelDelete(); cancelBundleReplacement(); closeHeroPicker();
+    cancelReset(); cancelDelete(); cancelBundleReplacement(); closeHeroPicker(); closeInfo();
+  }
+  function openCredits() {
+    closeOthersForInfo();
     [["Yesdaddy", "hero_chessmaster"], ["Razorrzr", "hero_lash"]].forEach(function (entry) {
       var hero = contractRef.heroes.filter(function (hero) { return hero.key === entry[1]; })[0];
       panel("HPColorsCredits" + entry[0] + "Portrait").SetImage(hero && hero.portrait || "s2r://panorama/images/control_icons/no_hero_png.vtex");
     });
-    if (panel("HPColorsFeedbackStatus")) panel("HPColorsFeedbackStatus").text = "";
     panel("HPColorsCreditsDialog").AddClass("Open");
     panel("HPColorsCreditsCloseButton").SetFocus();
   }
-  // Ticket 43: FEEDBACK copies the author's Discord username; the dialog text names it in case copying fails.
+  // Ticket 43: the footer FEEDBACK pops a dialog that asks for Discord feedback. Its underlined name copies
+  // the username; the status line reports the result, so the name stays readable when copying fails.
   var FEEDBACK_DISCORD = "hanturaya101";
-  function copyFeedback() {
-    if (retired) return;
+  function openFeedback() {
+    closeOthersForInfo();
+    setLabel("HPColorsFeedbackStatus", "Click the name to copy it.");
+    panel("HPColorsFeedbackDialog").AddClass("Open");
+    panel("HPColorsFeedbackCloseButton").SetFocus();
+  }
+  // Every copy action: live 6785/6821 the Escape menu throws "Invalid number of arguments" on
+  // CopyStringToClipboard, so the text goes through a TextEntry carrier (ticket 29). `refocus` takes focus
+  // back after the carrier held it.
+  function copyText(text, entry, refocus) {
     var copied = false;
-    try { copied = $.DispatchEvent("CopyStringToClipboard", FEEDBACK_DISCORD) !== false; } catch (error) { /* Shown below. */ }
-    var status = panel("HPColorsFeedbackStatus");
-    if (status) status.text = copied ? "Copied " + FEEDBACK_DISCORD + ". Paste it in Discord's Add Friend." : "Could not copy. Add " + FEEDBACK_DISCORD + " on Discord.";
+    try { copied = $.DispatchEvent("CopyStringToClipboard", text) !== false; } catch (error) { /* Live: throws here. */ }
+    if (copied || !entry) return copied;
+    try {
+      entry.text = text;
+      entry.SetFocus();
+      entry.SelectAll();
+      copied = $.DispatchEvent("TextEntryCopyToClipboard", entry) !== false;
+    } catch (error) { /* The caller reports it. */ }
+    if (refocus) refocus.SetFocus();
+    return copied;
+  }
+  function copyFeedback() {
+    var dialog = panel("HPColorsFeedbackDialog");
+    if (retired || !dialog || !dialog.BHasClass("Open")) return;
+    var copied = copyText(FEEDBACK_DISCORD, panel("HPColorsFeedbackNameEntry"), panel("HPColorsFeedbackNameButton"));
+    setLabel("HPColorsFeedbackStatus", copied ? "Copied " + FEEDBACK_DISCORD + ". Paste it in Discord's Add Friend." : "Could not copy. Add " + FEEDBACK_DISCORD + " on Discord.");
   }
 
   // ---- Schema-owned page reset: includes folded rows and both sides ----
@@ -1865,7 +2081,7 @@
     if (wasOpen && panel("HPColorsResetPageButton")) panel("HPColorsResetPageButton").SetFocus();
   }
   function requestReset() {
-    closeCredits();
+    closeInfo();
     closePicker(false); endGesture(false);
     closeCondition();
     var page = contractRef.menu.pages[pageIndex].name;
@@ -1940,7 +2156,8 @@
     resumeHeroRoute();
   }
   function openPicker(row, isCondition) {
-    closeCredits();
+    if (!isCondition && !rowActive(row)) return;
+    closeInfo();
     closePicker(false);
     if (!isCondition) { closeCondition(); beginGesture(row.side + ":" + row.key); }
     var color = isCondition ? conditionDraft.rule.value : valuesFor(config.settings, row)[row.key];
@@ -2049,7 +2266,7 @@
     if (searchChanged && search && first) scrollTo(first);
   }
   function openHeroPicker(id) {
-    closeCredits();
+    closeInfo();
     closePicker(false); endGesture(false);
     heroPicker = id;
     panel("HPColorsHeroSearchField").text = "";
@@ -2123,8 +2340,11 @@
         : { settings: clone(contractRef.defaults), presets: [{ id: "default-copy", name: defaultName(presetBundle()), settings: clone(contractRef.defaults) }] };
       var result = $.HPColorsV3Sharing.exportBundleCode(bundle);
       if (!result.ok) throw new Error(result.message);
-      if ($.DispatchEvent("CopyStringToClipboard", result.code) === false) throw new Error("Preset code could not be copied.");
-      presetStatus("Preset code copied.", false);
+      // The bundle code box is the carrier, and holds the code for a manual copy when both routes fail.
+      var entry = panel("HPColorsBundleCodeEntry");
+      if (copyText(result.code, entry, null)) presetStatus("Preset code copied.", false);
+      else if (entry) presetStatus("The preset code is in the Bundle code box; copy it manually.", false);
+      else throw new Error("Preset code could not be copied.");
     } catch (error) { presetStatus(String(error.message || error), true); }
   }
   function libraryAction(id, action, value) {
@@ -2140,7 +2360,7 @@
       }
       return;
     }
-    mutatePresets(function (bundle) {
+    var deleted = mutatePresets(function (bundle) {
       var index = bundle.presets.map(function (preset) { return preset.id; }).indexOf(id);
       if (index < 0) throw new Error("That preset no longer exists.");
       var preset = bundle.presets[index];
@@ -2157,7 +2377,8 @@
         bundle.presets[index] = bundle.presets[other]; bundle.presets[other] = preset;
         revealPresetId = id;
       }
-    });
+    }) && action === "delete";
+    if (deleted && sourcePresetId === id) { sourcePresetId = ""; sourceWasMapped = false; }
   }
   function cancelDelete() {
     var wasOpen = !!deletePreset;
@@ -2166,7 +2387,7 @@
     if (wasOpen && panel("HPColorsPresetSelectedDeleteButton")) panel("HPColorsPresetSelectedDeleteButton").SetFocus();
   }
   function requestDelete(preset) {
-    closeCredits();
+    closeInfo();
     deletePreset = preset.id;
     setLabel("HPColorsPresetDeleteMessage", 'Delete "' + preset.name + '"? This removes the saved preset, not the settings on screen.');
     panel("HPColorsPresetDeleteDialog").AddClass("Open");
@@ -2179,7 +2400,7 @@
     if (wasOpen && panel("HPColorsBundleReplaceButton")) panel("HPColorsBundleReplaceButton").SetFocus();
   }
   function requestBundleReplacement() {
-    closeCredits();
+    closeInfo();
     cancelBundleReplacement();
     var target = store(), entry = panel("HPColorsBundleCodeEntry");
     if (!target || typeof target.decodeBundleCode !== "function" || !entry) { setCodeStatus("Bundle replacement is unavailable.", "error"); return; }
@@ -2199,10 +2420,12 @@
   }
   function confirmBundleReplacement() {
     if (!bundleReplacement) return;
-    var next = bundleReplacement, before = historySnapshot(), target = store(), local = presetBundle().newsDismissed;
+    var next = bundleReplacement, before = historySnapshot(), target = store(), current = presetBundle();
     cancelBundleReplacement();
-    // NEW-tab dismissals are personal: a replaced bundle keeps this player's list.
-    if (local !== undefined) next.newsDismissed = local; else delete next.newsDismissed;
+    // NEW-tab dismissals and the colorblind choice are personal: a replaced bundle keeps this player's.
+    ["newsDismissed", "colorblind"].forEach(function (key) {
+      if (current[key] !== undefined) next[key] = current[key]; else delete next[key];
+    });
     try {
       if (!contractRef.validate(next.settings)) throw new Error("Invalid bundle settings.");
       if (!target || typeof target.replaceBundle !== "function" || !target.replaceBundle(next)) throw new Error("Bundle replacement refused; nothing changed.");
@@ -2358,7 +2581,10 @@
         // v2 hides its baked default when an All Heroes user preset is first saved.
         if (!Array.isArray(bundle.hiddenBakedPresetIds)) bundle.hiddenBakedPresetIds = [];
         if (bundle.hiddenBakedPresetIds.indexOf(DEFAULT_PRESET_ID) < 0) bundle.hiddenBakedPresetIds.push(DEFAULT_PRESET_ID);
+        // The new preset holds the current settings, so it becomes the applied one and takes later edits.
+        bundle.sourcePresetId = addedId; bundle.sourceWasMapped = false;
       })) {
+        sourcePresetId = addedId; sourceWasMapped = false;
         panel("HPColorsPresetNameEntry").text = "";
         selectPreset(addedId);
         var added = presetTiles.filter(function (item) { return item.id === addedId; })[0];
@@ -2458,17 +2684,7 @@
       if (action === "copy") {
         var code = String(target[method](clone(config.settings)));
         entry.text = code;
-        var copied = false;
-        try { copied = $.DispatchEvent("CopyStringToClipboard", code) !== false; } catch (clipboardError) {}
-        // HPV3_DEBUG if (copied) $.Msg("[HPV3] code " + kind + " copied via CopyStringToClipboard");
-        if (!copied) {
-          try {
-            entry.SetFocus();
-            entry.SelectAll();
-            copied = $.DispatchEvent("TextEntryCopyToClipboard", entry) !== false;
-            // HPV3_DEBUG if (copied) $.Msg("[HPV3] code " + kind + " copied via TextEntryCopyToClipboard");
-          } catch (textEntryError) {}
-        }
+        var copied = copyText(code, entry, null);
         setCodeStatus(copied ? noun + " copied." : "Code is in the box; copy it manually.", copied ? "ok" : "");
         return;
       }
@@ -2485,7 +2701,7 @@
       var settings = target[method](text);
       if (settings) {
         if (!contractRef.validate(settings)) { trigger(entry, "HPC3NegativeShake"); setCodeStatus("That code holds settings this version cannot use.", "error"); return; }
-        if (kind !== "Bundle" && !editSettings(settings)) notifyStore();
+        if (kind !== "Bundle") editSettings(settings);
       }
       // Keep a warning the store wrote during import (for example a newer-version code).
       if (codeStatusWrites === writes || !codeStatusText) setCodeStatus(kind === "Bundle" ? "Presets imported." : noun + " imported.", "ok");
@@ -2502,6 +2718,7 @@
     });
     on("HPColorsUndoButton", "onactivate", undo);
     on("HPColorsShowBoundsToggle", "onactivate", toggleBounds);
+    COLORBLIND_TYPES.forEach(bindColorblind);
     on("HPColorsPreviewCreditsButton", "onactivate", openCredits);
     on("HPColorsPreviewDonateButton", "onactivate", function () {
       if (retired) return;
@@ -2509,10 +2726,14 @@
         if (typeof $.DispatchEvent === "function") $.DispatchEvent("ExternalBrowserGoToURL", "https://ko-fi.com/hantuaraya");
       } catch (error) { /* The external browser is optional. */ }
     });
-    on("HPColorsFeedbackCopyButton", "onactivate", copyFeedback);
-    on("HPColorsCreditsCloseButton", "onactivate", closeCredits);
-    on("HPColorsCreditsEscClose", "onactivate", closeCredits);
-    on("HPColorsCreditsBackdrop", "onactivate", closeCredits);
+    on("HPColorsPreviewFeedbackButton", "onactivate", openFeedback);
+    on("HPColorsFeedbackNameButton", "onactivate", copyFeedback);
+    on("HPColorsFeedbackCloseButton", "onactivate", closeInfo);
+    on("HPColorsFeedbackEscClose", "onactivate", closeInfo);
+    on("HPColorsFeedbackBackdrop", "onactivate", closeInfo);
+    on("HPColorsCreditsCloseButton", "onactivate", closeInfo);
+    on("HPColorsCreditsEscClose", "onactivate", closeInfo);
+    on("HPColorsCreditsBackdrop", "onactivate", closeInfo);
     on("HPColorsUpdateCloseButton", "onactivate", closeUpdate);
     on("HPColorsUpdateDownloadButton", "onactivate", openUpdateDownload);
     on("HPColorsUpdateEscClose", "onactivate", closeUpdate);
@@ -2583,7 +2804,7 @@
     if (retired || !valid(root)) return;
     if (activeRoot !== root) {
       if (pending) $.CancelScheduled(pending);
-      stopIdentityWatch();
+      stopIdentityWatch(); resetEscapeWatch();
       setSupporterStripOpen(false);
       activeRoot = root;
       pending = null;
@@ -2612,6 +2833,7 @@
       publishedHudKey = "";
       var top = topPanel();
       showBounds = !!top && top.GetAttributeString(BOUNDS_ATTR, "") === "1";
+      readColorblind();
     }
     var contract = $.HPColorsV3Settings;
     if (contract && (contractRef !== contract || !config || config.epoch !== publisherEpoch)) {
@@ -2619,7 +2841,8 @@
       var initial = inherited && contract.validate(inherited.settings) ? inherited.settings
         : config && contractRef === contract && contract.validate(config.settings) ? config.settings : contract.defaults;
       publicationResolved = !!(inherited && contract.validate(inherited.settings) || !store());
-      if (inherited) { sourcePresetId = inherited.sourcePresetId || ""; sourceWasMapped = inherited.sourceWasMapped === true; }
+      // The route key travels too: a reload must not re-route over a preset applied by hand.
+      if (inherited) { sourcePresetId = inherited.sourcePresetId || ""; sourceWasMapped = inherited.sourceWasMapped === true; routedKey = inherited.routedKey || ""; }
       config = { magic: contract.magic, epoch: publisherEpoch, revision: 0, settings: clone(initial), rules: clone(inherited && inherited.rules || config && config.rules || {}) };
       contractRef = contract;
       heroKeys = Object.create(null);
@@ -2628,10 +2851,17 @@
           var token = name.toUpperCase(); if (!heroKeys[token]) heroKeys[token] = hero.key;
         });
       });
-      ruleRows = {}; rowCells = new Map();
+      ruleRows = {}; rowCells = new Map(); requirementRows = {};
       contract.slots.forEach(function (slot) {
         ruleRows[slot.slot] = contract.controls.filter(function (row) { return row.side === slot.side && row.key === slot.setting; })[0];
         rowCells.set(ruleRows[slot.slot], slot.slot);
+      });
+      requirementKeys = {};
+      contract.controls.forEach(function (row) {
+        requirementRows[row.key + "|" + row.side] = row;
+        (row.requires || []).forEach(function readKeys(condition) {
+          if (condition.any) condition.any.forEach(readKeys); else requirementKeys[condition.key] = true;
+        });
       });
       effectiveSettings = null; lastPublishedRevision = -1;
       replace(config.settings, config.rules);
@@ -2653,7 +2883,7 @@
     else {
       var found = Object.create(null);
       collect(root, found);
-      panels = found;
+      panels = found; shownActive = {};
       // DropDown options live in the detached dropdown menu, not in the layout tree.
       var detached = Object.create(null);
       contract.controls.forEach(function (row) {
@@ -2665,6 +2895,7 @@
         bindControl(contract.controls[i]);
         sync(contract.controls[i]);
       }
+      syncRequirements();
       if (pageIndex < 0) pageIndex = contract.menu.startPage || 0;
       showPage(pageIndex);
       // refreshPresets (which keeps the saved list) waits for a complete boot; a boot that is still retrying
@@ -2680,7 +2911,7 @@
       applySaveReset();
       syncUndo();
       refreshPresets();
-      syncBounds();
+      syncBounds(); syncColorblind();
       if (preview("attach", host(), effectiveSettings)) {
         preview("setPage", contractRef.menu.pages[pageIndex].name);
         preview("setSide", host().BHasClass("HPC3SideAlly") ? "ally" : "enemy");
@@ -2729,7 +2960,7 @@
     var root = host();
     if (!root.BHasClass("HPC3Open")) return false;
     if (panel("HPColorsUpdateDialog") && panel("HPColorsUpdateDialog").BHasClass("Open")) { closeUpdate(); return true; }
-    if (panel("HPColorsCreditsDialog") && panel("HPColorsCreditsDialog").BHasClass("Open")) { closeCredits(); return true; }
+    if (infoOpen()) { closeInfo(); return true; }
     if (picker) { closePicker(true); return true; }
     if (conditionDraft) { closeCondition(); return true; }
     if (heroPicker) { closeHeroPicker(); return true; }

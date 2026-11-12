@@ -1064,20 +1064,6 @@
     "type": "color"
   },
   {
-    "slot": 152,
-    "key": "enemyNpcEnabled",
-    "setting": "npcEnabled",
-    "side": "enemy",
-    "type": "boolean"
-  },
-  {
-    "slot": 153,
-    "key": "allyNpcEnabled",
-    "setting": "npcEnabled",
-    "side": "ally",
-    "type": "boolean"
-  },
-  {
     "slot": 154,
     "key": "enemyObjectiveEnabled",
     "setting": "objectiveEnabled",
@@ -1370,5 +1356,194 @@
     "setting": "nameColorMode",
     "side": "ally",
     "type": "enum"
+  },
+  {
+    "slot": 199,
+    "key": "neutralHpTextMode",
+    "setting": "neutralHpTextMode",
+    "side": "shared",
+    "type": "enum"
+  },
+  {
+    "slot": 200,
+    "key": "neutralHpPositionEnabled",
+    "setting": "neutralHpPositionEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 201,
+    "key": "neutralHpOffsetX",
+    "setting": "neutralHpOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 202,
+    "key": "neutralHpOffsetY",
+    "setting": "neutralHpOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 203,
+    "key": "neutralHpTilt",
+    "setting": "neutralHpTilt",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 204,
+    "key": "objectiveHpTextMode",
+    "setting": "objectiveHpTextMode",
+    "side": "shared",
+    "type": "enum"
+  },
+  {
+    "slot": 205,
+    "key": "objectiveHpPositionEnabled",
+    "setting": "objectiveHpPositionEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 206,
+    "key": "objectiveHpOffsetX",
+    "setting": "objectiveHpOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 207,
+    "key": "objectiveHpOffsetY",
+    "setting": "objectiveHpOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 208,
+    "key": "objectiveHpTilt",
+    "setting": "objectiveHpTilt",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 209,
+    "key": "killBountyEnabled",
+    "setting": "killBountyEnabled",
+    "side": "shared",
+    "type": "boolean"
+  },
+  {
+    "slot": 210,
+    "key": "killBountyOffsetX",
+    "setting": "killBountyOffsetX",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 211,
+    "key": "killBountyOffsetY",
+    "setting": "killBountyOffsetY",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 212,
+    "key": "enemyBarDeferredColor",
+    "setting": "barDeferredColor",
+    "side": "enemy",
+    "type": "color"
+  },
+  {
+    "slot": 213,
+    "key": "allyBarDeferredColor",
+    "setting": "barDeferredColor",
+    "side": "ally",
+    "type": "color"
+  },
+  {
+    "slot": 214,
+    "key": "killBountySize",
+    "setting": "killBountySize",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 215,
+    "key": "killBountyTilt",
+    "setting": "killBountyTilt",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 216,
+    "key": "enemyHpTextFormat",
+    "setting": "hpTextFormat",
+    "side": "enemy",
+    "type": "enum"
+  },
+  {
+    "slot": 217,
+    "key": "allyHpTextFormat",
+    "setting": "hpTextFormat",
+    "side": "ally",
+    "type": "enum"
+  },
+  {
+    "slot": 218,
+    "key": "statusScaleFixation",
+    "setting": "statusScaleFixation",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 219,
+    "key": "statusScaleMalice",
+    "setting": "statusScaleMalice",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 220,
+    "key": "statusScaleScrewjab",
+    "setting": "statusScaleScrewjab",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 221,
+    "key": "statusScaleDjinnsMark",
+    "setting": "statusScaleDjinnsMark",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 222,
+    "key": "statusScaleSerratedKnives",
+    "setting": "statusScaleSerratedKnives",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 223,
+    "key": "statusScaleBarrage",
+    "setting": "statusScaleBarrage",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 224,
+    "key": "statusScalePulseGrenade",
+    "setting": "statusScalePulseGrenade",
+    "side": "shared",
+    "type": "number"
+  },
+  {
+    "slot": 225,
+    "key": "statusScaleArcticBeam",
+    "setting": "statusScaleArcticBeam",
+    "side": "shared",
+    "type": "number"
   }
 ]

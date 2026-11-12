@@ -81,6 +81,15 @@
     return typeof key === "string" && KEY_PATTERN.test(key);
   }
 
+  // Any page opened in Steam's browser or overlay shares this storage and can navigate here with
+  // its own request, so every key except v2's is guarded: no delete, no direct backup write, and a
+  // write must carry m, the checksum of the stored value, which another site cannot read. The v3
+  // build never deletes, never writes .prev and always sends m; v2 clients cannot change, so their
+  // keys keep the old behaviour.
+  function guarded(key) {
+    return key.indexOf("hantu.hpcolors.v2/") !== 0;
+  }
+
   function reply(message) {
     message.q = ++sequence;
     var title = PREFIX + JSON.stringify(message);
@@ -116,6 +125,7 @@
           localStorage.removeItem(CURRENT);
         } else {
           if (!validKey(request.k)) throw new Error("invalid_key");
+          if (guarded(request.k)) throw new Error("readonly");
           localStorage.removeItem(request.k);
         }
         readId = writeId = staging = null;
@@ -153,6 +163,10 @@
           (request.m !== undefined && (typeof request.m !== "string" ||
             !/^(none|[0-9a-f]{8})$/.test(request.m))))
         throw new Error("invalid_chunk");
+      if (guarded(key)) {
+        if (key.slice(-5) === ".prev") throw new Error("readonly_backup");
+        if (request.m === undefined) throw new Error("needs_cas");
+      }
       if (writeId !== request.r) {
         if (part !== 0) throw new Error("missing_chunk");
         writeId = request.r;
@@ -191,8 +205,10 @@
       localStorage.setItem(key, value);
       reply({ i: id, o: op, ok: true, p: part, n: request.n, d: 1 });
     } catch (error) {
-      if (request && request.o === "w") writeId = staging = null;
-      if (request && request.o === "r") readId = null;
+      // A failed request clears only its own logical write or read: a malformed or refused request from
+      // another page must not abort the game's write in progress.
+      if (request && request.o === "w" && request.r === writeId) writeId = staging = null;
+      if (request && request.o === "r" && request.r === readId) readId = null;
       if (request && typeof request.i === "string")
         reply({ i: request.i.slice(0, 80), o: String(request.o).slice(0, 12),
           ok: false, e: String(error).slice(0, 160) });

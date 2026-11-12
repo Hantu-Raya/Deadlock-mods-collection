@@ -52,7 +52,7 @@ test('ticket 30: changing the release source alone updates the generated pane, n
     path.join(fs.existsSync(path.join(out, relative)) ? out : sourceRoot, relative) });
   assert.equal(m.find('HPColorsPreviewVersion').text, 'v3.1.7');
   assert.equal(m.h.$.HPColorsV3Settings.version, '3.0.0', 'wire contract is not the release');
-  assert.equal(m.h.$.HPColorsV3Settings.recordVersion, 16);
+  assert.equal(m.h.$.HPColorsV3Settings.recordVersion, 23);
   for (const file of ['defaults.json', 'slots.json']) {
     assert.equal(fs.readFileSync(path.join(out, 'generated', file), 'utf8'),
       fs.readFileSync(path.join(root, 'generated', file), 'utf8'));

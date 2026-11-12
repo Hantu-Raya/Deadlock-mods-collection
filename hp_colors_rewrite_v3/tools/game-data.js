@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { pinMismatchMessage } = require('./lib/toolchain');
 const ROOT = path.resolve(__dirname, '..');
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const SOURCES = {
@@ -13,6 +14,7 @@ const SOURCES = {
   'vendor/hud_escape_menu.xml': 'game/citadel/pak01_dir/panorama/layout/hud_escape_menu.xml',
   'vendor/unit_status_overlay_v2.xml': 'game/citadel/pak01_dir/panorama/layout/unit_status_overlay_v2.xml',
   'vendor/citadel_hud_top_bar.xml': 'game/citadel/pak01_dir/panorama/layout/citadel_hud_top_bar.xml',
+  'vendor/citadel_status_effect.xml': 'game/citadel/pak01_dir/panorama/layout/citadel_status_effect.xml',
 };
 // v2 rectangular baseline (hp_colors_rewrite_v2/FEATURES.md "Unit-status healthbars are rectangular"):
 // delete the three stock healthbar masks and the nine outer-container backers, dropping the six
@@ -63,9 +65,9 @@ function checkInstalled(root, file, allowMismatch) {
   const installed = clientVersion(fs.readFileSync(file, 'utf8'), file);
   console.log('HPV3 installed ClientVersion=' + installed + ' pinned=' + pin.clientVersion);
   if (installed === pin.clientVersion) return;
-  const message = 'Installed game ClientVersion mismatch: installed=' + installed + ' pinned=' + pin.clientVersion;
-  if (!allowMismatch) throw new Error(message + '; rebase the pin or explicitly pass -AllowPinMismatch (--allow-pin-mismatch in this CLI).');
-  console.warn('WARNING ' + message + '; explicit AllowPinMismatch override.');
+  const message = pinMismatchMessage({ installed, pinned: pin.clientVersion, steamInf: file });
+  if (!allowMismatch) throw new Error(message);
+  console.warn('WARNING ' + message + ' Building anyway: explicit --allow-pin-mismatch override.');
 }
 
 function readPinned(root = ROOT) {
@@ -199,7 +201,7 @@ function derive(root = ROOT) {
   });
   if (imports !== 2) throw new Error('Stock stylesheet import anchors changed: expected 2, found ' + imports);
   stylesheet = rectangularStock(stylesheet);
-  return { pin, catalog, stylesheet, menu: texts['vendor/hud_escape_menu.xml'], overlay: texts['vendor/unit_status_overlay_v2.xml'], topbar: texts['vendor/citadel_hud_top_bar.xml'] };
+  return { pin, catalog, stylesheet, menu: texts['vendor/hud_escape_menu.xml'], overlay: texts['vendor/unit_status_overlay_v2.xml'], topbar: texts['vendor/citadel_hud_top_bar.xml'], statusEffect: texts['vendor/citadel_status_effect.xml'] };
 }
 
 async function checkUpstream(root = ROOT, base) {

@@ -141,7 +141,7 @@
 .HPC3Root.Searching .HPC3PageSearchTitle { visibility: visible; }
 .HPC3Root.Searching .HPC3FoldToggle { visibility: collapse; }
 .HPC3Root.Searching .HPC3FoldBody { visibility: visible; }
-.HPC3Root.Searching .HPC3Placeholder, .HPC3Root.Searching .HPC3Share, .HPC3Root.Searching .HPC3ColumnEmpty { visibility: collapse; }
+.HPC3Root.Searching .HPC3Placeholder, .HPC3Root.Searching .HPC3Share { visibility: collapse; }
 .HPC3Root.Searching .SearchMiss { visibility: collapse; }
 .HPC3SearchEmpty { margin-top: 12px; font-family: sans; font-size: 18px; color: #FFEFD799; visibility: collapse; }
 .HPC3Root.Searching.NoResults .HPC3SearchEmpty { visibility: visible; }
@@ -165,11 +165,18 @@
 .HPC3ControlsNumber { max-width: 492px; }
 .HPC3ControlsColor { max-width: 452px; }
 .HPC3ControlsEnum { max-width: 454px; }
+/* Emitted as HPC3Controls${kind} by tools/menu-layout.js for enums over SEGMENT_MAX options. */
 .HPC3ControlsDropdown { max-width: 374px; }
 .HPC3RowReset { width: 20px; height: 20px; margin-left: 4px; vertical-align: center; border-radius: 50%; background-color: #FFEFD744; visibility: collapse; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
 .HPC3RowReset Image { width: 13px; height: 13px; horizontal-align: center; vertical-align: center; wash-color: #10130D; }
 .HPC3Row.Changed .HPC3RowReset { visibility: visible; }
 .HPC3Row.Changed:hover .HPC3RowReset, .HPC3RowReset:focus { opacity: 1; }
+/* Row, reset and condition tooltips open above the hovered row (stock tooltip-position, as on
+   citadel_ui_build_tag.css), not at its right end where they cover the preview. */
+.HPC3Row, .HPC3RowReset, .HPC3ConditionAction { tooltip-position: top; tooltip-body-position: 50% 0%; }
+/* Dependent rows: a greyed row keeps its paper hover (for the "turn on …" tooltip) but dims its title and controls. */
+.HPC3Row.HPC3RowDisabled .HPC3RowTitle, .HPC3Row.HPC3RowDisabled:hover .HPC3RowTitle { color: #FFEFD722; }
+.HPC3Row.HPC3RowDisabled .HPC3RowControls { opacity: 0.3; }
 /* These copy styles are still used by Presets and dialogs, never setting rows. */
 .HPC3Copy { width: fill-parent-flow(1); vertical-align: center; flow-children: down; }
 .HPC3Help { width: 100%; margin-top: 4px; font-family: sans; font-size: 16px; color: #FFEFD799; white-space: normal; }
@@ -322,6 +329,14 @@
 .HPC3CreditPortrait { width: 56px; height: 56px; margin-right: 12px; }
 .HPC3CreditName { width: fill-parent-flow(1); vertical-align: center; font-family: oracle; font-weight: bold; font-size: 22px; color: #FFEFD7; white-space: normal; }
 .HPC3CreditText { margin-top: 8px; text-align: left; }
+/* Feedback (ticket 43): the Discord name is an underlined link that copies itself. */
+.HPC3FeedbackName { horizontal-align: center; margin-top: 12px; padding: 4px 8px; flow-children: right; }
+.HPC3FeedbackIcon { width: 24px; height: 24px; margin-right: 8px; vertical-align: center; wash-color: #FFEFD7; }
+.HPC3FeedbackName Label { vertical-align: center; font-family: oracle; font-weight: bold; font-size: 24px; color: #FFEFD7; text-decoration: underline; }
+.HPC3FeedbackName:hover Label, .HPC3FeedbackName:focus Label { color: #FFFFFF; }
+.HPC3FeedbackStatus { margin-top: 8px; font-size: 16px; }
+/* Copy carrier only: laid out (so it can take focus) but never seen or clicked. */
+.HPC3FeedbackEntry { ignore-parent-flow: true; width: 160px; height: 24px; opacity: 0; }
 /* 6785 live: noclip tiles escape the unscrolled grid's scissor; a solid-white opacity-brush layers it (ENGINE.md clipping). */
 .HPC3HeroGrid { width: 100%; max-width: 440px; height: 356px; horizontal-align: center; padding: 8px; overflow: squish scroll; flow-children: right-wrap; opacity-brush: gradient(linear, 0% 0%, 0% 100%, from(#ffffff), to(#ffffff)); }
 .HPC3HeroSearch { width: 100%; height: 40px; margin-top: 12px; }
@@ -461,6 +476,10 @@
    (vendor/unit_status_v2.css 1341-1366). The preview's prefixed side/damage classes model those sample facts. */
 .HPC3PreviewSideEnemy .HPC3PreviewHpText, .HPC3PreviewSideAlly .HPC3PreviewHpText { visibility: visible; }
 .HPC3PreviewSideAlly .HPC3PreviewHpText { margin-right: 20px; }
+/* Stock number tints (vendor/unit_status_v2.css .enemy / .team_neutral #UnitHealthbarValue; friend keeps the ink).
+   Neutral comes last so it wins like the stock order; a custom HP text color is inline and wins over both. */
+.HPC3PreviewSideEnemy .HPC3PreviewHpText { wash-color: rgb(255, 160, 160); }
+.HPC3PreviewKindNeutral .HPC3PreviewHpText { wash-color: rgb(160, 255, 226); }
 .HPC3PreviewDamageA .HPC3PreviewHpText, .HPC3PreviewDamageB .HPC3PreviewHpText {
   opacity: 1; transition-duration: 0.3s; transition-delay: 1.5s;
 }
@@ -496,15 +515,7 @@
 .HPC3PreviewSideEnemy.health_critical .ShowCriticalState #HPColorsPreviewBars {
   animation-name: healthCritFlash3; animation-duration: 0.3s; animation-iteration-count: infinite; pre-transform-scale2d: 1.2;
 }
-.HPC3PreviewBarBorder {
-  background-image: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_border.vsvg");
-  background-size: 100% 150px; width: 100%; height: 100%; z-index: 10; ignore-parent-flow: true; wash-color: #10130D;
-}
 .HPC3PreviewBarBg { width: 100%; height: 100%; ignore-parent-flow: true; }
-.health_critical .ShowCriticalState #HPColorsPreviewBarBorder { wash-color: #b82323; }
-.HPC3PreviewSideAlly.health_critical .ShowCriticalState #HPColorsPreviewBarBorder {
-  wash-color: #383838; animation-name: allyHealthFlash; animation-duration: 1s; animation-iteration-count: infinite;
-}
 .health_critical .ShowCriticalState #HPColorsPreviewBarFill,
 .health_critical .ShowCriticalState #HPColorsPreviewBarVisualFill {
   animation-name: healthCritFlash2; animation-duration: 0.4s; animation-iteration-count: infinite;
@@ -555,31 +566,38 @@
 #HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarInner #HPColorsPreviewBarVisualFill.HPColorsV3Pulse.HPColorsV3PulseIntense { animation-name: HPColorsV3PulseIntense; }
 
 /* Match world owned-class presentation on the HPColorsPreview-only part map. */
-#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewUnitStatus {
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewUnitStatus {
   width: 100%; height: 100%; margin-top: 0px; animation-name: none; transition-property: none;
 }
-#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewInfo { vertical-align: top; }
-#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBars { transform-origin: 50% 50%; animation-name: none; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewInfo { vertical-align: top; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewBars { transform-origin: 50% 50%; animation-name: none; }
 /* Same 13px player inset as world bars (world.css #UnitHealthbar, stock .player .UnitHealthbarContainer):
    the bar centre sits 6.5px right of the name, as live (user comparison 2026-10-14). */
-#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBar { margin-left: 13px; margin-top: 65px; background-color: #00000000; }
-#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Unit #HPColorsPreviewBar { margin-left: 0px; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewBar { margin-left: 13px; margin-top: 65px; background-color: #00000000; }
 #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3BarColored #HPColorsPreviewBar { opacity: 1; }
 #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3BarHidden #HPColorsPreviewBar { opacity: 0.01; }
 #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Outline #HPColorsPreviewBarOutline { visibility: visible; }
 /* SHOW BOUNDS: the same full-canvas rim as world.css #HPColorsV3CanvasBounds. */
 .HPC3PreviewCanvasBounds { width: 100%; height: 100%; border: 1px solid #5fe69e; ignore-parent-flow: true; z-index: 100; visibility: collapse; }
 #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Bounds #HPColorsPreviewCanvasBounds { visibility: visible; }
-#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarBorder,
-#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewBarBg { visibility: collapse; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewBarBg { visibility: collapse; }
 #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3HPText #HPColorsPreviewHpText {
   visibility: visible; opacity: 1; margin-top: 0px; horizontal-align: left; vertical-align: center; transform: none; text-overflow: clip;
 }
+/* Neutral HP number Always show, as world.css. */
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3UnitHPAlways #HPColorsPreviewHpText { visibility: visible; opacity: 1; }
 #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3HPHidden #HPColorsPreviewHpText,
 #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3NameHidden #HPColorsPreviewName { visibility: collapse; }
+/* Ticket 51: HP percent beside the number, as world.css #HPColorsV3HPPercent. */
+.HPC3PreviewHpPercent {
+  font-family: oracle; font-weight: bold; font-size: 18px; color: #ffefd7; text-shadow: 0px 0px 0px 5.0 #10130d; z-index: 10;
+  vertical-align: center; white-space: nowrap; text-overflow: clip; visibility: collapse;
+}
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3HPText.HPColorsV3HPPercent #HPColorsPreviewHpPercent { visibility: visible; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3HPText.HPColorsV3HPPercentOnly #HPColorsPreviewHpText { visibility: collapse; }
 #HPColorsPreviewMotion > #HPColorsPreviewName { height: fit-children; overflow: noclip; }
 /* Customized names are level like world.css (.WindowRoot.HPColorsV3Core #name); master off keeps the stock -4deg. */
-#HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewName { transform: none; }
+#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewName { transform: none; }
 
 #HPColorsPreviewCanvas.HPColorsV3BarLines #HPColorsPreviewBarLines { height: 100%; margin-top: 0px; vertical-align: top; overflow: clip; }
 #HPColorsPreviewCanvas.HPColorsV3BarLines #HPColorsPreviewBarLines .line_large.line_large { height: 100%; vertical-align: top; }
@@ -612,14 +630,44 @@
 .HPC3PreviewStamina .PipEmpty .StaminaPipIcon { wash-color: #10130D; }
 
 /* Buff/pickup status effects sit above the stamina pips and name, as in game (user, 2026-10-14). */
-.HPC3PreviewPickups { horizontal-align: center; margin-top: 10px; flow-children: right; overflow: noclip; visibility: collapse; }
+/* Same box as the game's #StatusEffects: 32px tall at the canvas top, icons bottom-aligned (live 6839 probe). */
+.HPC3PreviewPickups { horizontal-align: center; height: 32px; flow-children: right; overflow: noclip; visibility: collapse; }
 .HPC3PreviewKindHero .HPC3PreviewPickups { visibility: visible; }
-.HPC3PreviewPickup { width: 22px; height: 22px; margin: 0px 1px; }
+/* Pickups are drawn at the stock status-effect size, like the debuff sample (stock .statusEffect 30px). */
+.HPC3PreviewPickup { width: 30px; height: 30px; margin: 0px 1px; vertical-align: bottom; }
+/* An ordinary debuff as the game draws it (stock unit_status_icons .statusEffect, .isDebuff, #stacks). */
+.HPC3PreviewEffect { width: 30px; height: 30px; vertical-align: bottom; background-image: url("s2r://panorama/images/hud/world_space/status_bg_psd.vtex"); background-size: contain; overflow: noclip; }
+.HPC3PreviewEffectBorder { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/world_space/status_border.vsvg"); background-texture-size: 48px; background-size: 100%; wash-color: #FF410D; }
+.HPC3PreviewEffectInner { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/world_space/status_inner_psd.vtex"); background-size: 100%; wash-color: #02210f; }
+.HPC3PreviewEffectGlyph { width: 60%; height: 60%; horizontal-align: center; vertical-align: middle; background-image: url("s2r://panorama/images/hud/modifiers/icon_toxic.vsvg"); background-size: 100% 100%; wash-color: #FFEFD7; }
+.HPC3PreviewEffectStacks { vertical-align: bottom; horizontal-align: right; font-size: 14px; padding: 2px; font-weight: semi-bold; font-family: numericOracle; color: #FFEFD7; text-shadow: 0px 0px 0px 4.0 #10130D; }
+/* Ticket 52: the status effect whose size slider moved last, at the right of the row. Pictures and colours follow stock
+   unit_status_icons.css for each icon class (6839 copy); Screwjab Dagger and Barrage have no stock rule and use the ability picture. */
+.HPC3PreviewFx { width: 30px; height: 30px; margin-left: 1px; vertical-align: bottom; background-image: url("s2r://panorama/images/hud/world_space/status_bg_psd.vtex"); background-size: contain; overflow: noclip; visibility: collapse; }
+.HPC3PreviewSampleFx .HPC3PreviewFx { visibility: visible; }
+.HPC3PreviewFxBorder { wash-color: #FFEFD7; opacity: 0.4; }
+.HPC3PreviewFxGlyph { width: 60%; height: 60%; horizontal-align: center; vertical-align: middle; background-size: 100% 100%; background-repeat: no-repeat; wash-color: #1c2029; }
+.HPC3PreviewFx.fixated .HPC3PreviewFxInner { wash-color: #cd9629; }
+.HPC3PreviewFx.fixated .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/modifiers/haze_fixation_png.vtex"); }
+.HPC3PreviewFx.blood_shard .HPC3PreviewFxInner { wash-color: #d74646; }
+.HPC3PreviewFx.blood_shard .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/modifiers/ghost_malice_png.vtex"); }
+.HPC3PreviewFx.modifier_viper_debuffdagger .HPC3PreviewFxInner { wash-color: #d74646; }
+.HPC3PreviewFx.modifier_viper_debuffdagger .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/abilities/viper/viper_debuffdagger_psd.vtex"); }
+.HPC3PreviewFx.sand_phantom_passive_victim .HPC3PreviewFxInner { wash-color: #d749b0; }
+.HPC3PreviewFx.sand_phantom_passive_victim .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/abilities/mirage/mirage_sand_phantom_psd.vtex"); }
+.HPC3PreviewFx.shiv_dagger .HPC3PreviewFxInner { wash-color: #d74646; }
+.HPC3PreviewFx.shiv_dagger .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/abilities/shiv/shiv_toss_psd.vtex"); }
+.HPC3PreviewFx.pocket_damage_amp .HPC3PreviewFxInner { wash-color: #d74646; }
+.HPC3PreviewFx.pocket_damage_amp .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/abilities/synth/synth_barrage_psd.vtex"); }
+.HPC3PreviewFx.chrono_pulse_grenade .HPC3PreviewFxInner { wash-color: #d74646; }
+.HPC3PreviewFx.chrono_pulse_grenade .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/abilities/chrono/chrono_time_bomb_psd.vtex"); }
+.HPC3PreviewFx.freezing_buildup .HPC3PreviewFxInner { wash-color: #68bee5; }
+.HPC3PreviewFx.freezing_buildup .HPC3PreviewFxGlyph { background-image: url("s2r://panorama/images/hud/modifiers/icon_freeze.vsvg"); wash-color: #10130D; }
 .HPC3PreviewPickupInner { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/world_space/status_inner_psd.vtex"); background-size: 100%; }
 .HPC3PreviewPickupTrack, .HPC3PreviewPickupBorder { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/world_space/status_border.vsvg"); background-texture-size: 48px; background-size: 100%; }
 .HPC3PreviewPickupTrack { z-index: -3; wash-color: #10130D; clip: none; }
 .HPC3PreviewPickupBorder { z-index: -2; wash-color: #FFEFD7; clip: radial(50% 50%, 0deg, 270deg); }
-.HPC3PreviewPickupGlyph { width: 64%; height: 64%; horizontal-align: center; vertical-align: middle; }
+.HPC3PreviewPickupGlyph { width: 60%; height: 60%; horizontal-align: center; vertical-align: middle; }
 .HPC3PreviewKillStreak { width: 32px; height: 45px; horizontal-align: center; margin-top: 58px; visibility: collapse; }
 .HPC3PreviewKillStreakImage { width: 100%; height: 100%; background-image: url("s2r://panorama/images/hud/healthbar/on_fire1_png.vtex"); background-size: cover; }
 .HPC3PreviewKindHero .HPC3PreviewKillStreak { visibility: visible; }
@@ -660,19 +708,16 @@
 /* Native active_damage_wiggle (vendor 59-89): world v3 moves it onto its owned motion frame.
    Buildings suppress it (vendor 67-70); NPCs/heroes retain native wiggle with master off. */
 .HPC3PreviewMotion { animation-name: none; }
-.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewMotion,
-.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewMotion,
-.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core #HPColorsPreviewMotion,
+.HPC3PreviewDamageA #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewMotion,
+.HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewMotion,
+.HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3Layout #HPColorsPreviewMotion,
 .HPC3PreviewDamageA.HPC3PreviewKindHero #HPColorsPreviewUnitStatus,
 .HPC3PreviewDamageB.HPC3PreviewKindHero #HPColorsPreviewUnitStatus,
-.HPC3PreviewDamageA.HPC3PreviewKindNpc #HPColorsPreviewUnitStatus,
-.HPC3PreviewDamageB.HPC3PreviewKindNpc #HPColorsPreviewUnitStatus,
 .HPC3PreviewDamageA.HPC3PreviewKindNeutral #HPColorsPreviewUnitStatus,
 .HPC3PreviewDamageB.HPC3PreviewKindNeutral #HPColorsPreviewUnitStatus {
   animation-name: active_damage_wiggle; animation-duration: 0.2s; animation-iteration-count: infinite; animation-timing-function: ease-out;
 }
 .HPC3PreviewShakeEdit.HPC3PreviewKindHero #HPColorsPreviewUnitStatus,
-.HPC3PreviewShakeEdit.HPC3PreviewKindNpc #HPColorsPreviewUnitStatus,
 .HPC3PreviewShakeEdit.HPC3PreviewKindNeutral #HPColorsPreviewUnitStatus {
   animation-name: active_damage_wiggle; animation-duration: 0.2s; animation-iteration-count: infinite; animation-timing-function: ease-out;
 }
@@ -708,7 +753,6 @@
 .HPC3PreviewDamageB #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3ShakeOff #HPColorsPreviewMotion,
 .HPC3PreviewShakeEdit #HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3ShakeOff #HPColorsPreviewMotion { animation-name: none; }
 /* Stock vendor/unit_status_v2.css:67-70 and v2:1832-1844; match the owned world motion frame. */
-#HPColorsPreviewCanvas.HPColorsV3Core.HPColorsV3NoWiggle #HPColorsPreviewMotion { animation-name: none; pre-transform-scale2d: 1; }
 
 /* Condition actions stay reachable after controls/reset, including search and keyboard focus. */
 .HPC3ConditionAction { width: 22px; height: 22px; margin-left: 8px; vertical-align: center; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
@@ -801,6 +845,9 @@
 
 /* Ticket 36: NEW tab, modeled on the game's Settings NEW section (popup_settings.css .NewSetting and
    #NewSettingIndicator.SettingsRowIndicator, same icons and purple), without the stock glow. */
+/* ESC-menu update badge beside the HP COLORS nav label: collapsed unless a newer release exists. */
+.HPC3MenuUpdateBadge { width: 28px; height: 28px; margin-left: 10px; vertical-align: center; wash-color: #F1C7FF; visibility: collapse; }
+#HPColorsMenuButton.HPC3UpdateAvailable .HPC3MenuUpdateBadge { visibility: visible; }
 .HPC3NavNew { width: 16px; height: 16px; margin-left: -8px; margin-right: 8px; vertical-align: center; wash-color: #F1C7FF; visibility: collapse; }
 .HPC3NavButton.HasNew .HPC3NavNew { visibility: visible; }
 .HPC3SubNavNew { width: 14px; height: 14px; margin-right: 6px; vertical-align: center; wash-color: #F1C7FF; visibility: collapse; }

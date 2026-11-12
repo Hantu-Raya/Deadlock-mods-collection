@@ -86,15 +86,17 @@ test('ticket 28: complete v2 parity preserves every setting and refuses oversize
   scopes:Array.from({length:count},(_,i)=>({id:'extra'+i,mode:'selected',heroes:['hero_synth'],values:raw,conditions:{}})),
   userPresets:Array.from({length:128},(_,i)=>({id:'user_'+String(i+1).padStart(4,'0'),name:'Preset '+i,mode:'all',heroes:[],values:{enemyLow:'#123123'}}))});
  // Ticket 35: every v2 scope keeps a full v3 settings copy, so 19 more settings lower the largest synthetic
- // all-keys-changed save that converts under the 192,000 cap from 27 to 26 scopes.
- const input=frame(4,body(26)),codec=seed.harness.$.HPColorsV3Codec;let encodes=0;
+ // all-keys-changed save that converts under the 192,000 cap from 27 to 26 scopes; the v17 neutral camp
+ // look (slot 198) lowers it to 25, the v18 objective HP number settings (204-208) to 24, and the v22 HP number
+ // format (216-217) to 23, and the v23 status effect sizes (218-225) to 22.
+ const input=frame(4,body(22)),codec=seed.harness.$.HPColorsV3Codec;let encodes=0;
  seed.harness.$.HPColorsV3Codec={...codec,encodeRecord(bundle){encodes++;return codec.encodeRecord(bundle);}};
  const converted=converter.classifyRecord(input);assert.equal(converted.kind,'valid');assert.equal(encodes,1);
  assert.ok(codec.encodeRecord(converted.bundle).length<=192000);
  const p=profile({[V2]:input}),f=launch(p);f.run(8000);assert.equal(f.status(),'Saved');
  const bundle=f.harness.$.HPColorsV3Store.getBundle();assert.equal(bundle.presets.length,128);
  assert.ok(bundle.presets.every(x=>x.settings.side.enemy.barColorLow==='#123123'));assert.equal(bundle.settings.side.enemy.barColorLow,'#445566');
- assert.equal(bundle.v2scopes.length,26);assert.ok(p.disk.get(CURRENT).length<=192000);assert.equal(p.disk.get(V2),input);
+ assert.equal(bundle.v2scopes.length,22);assert.ok(p.disk.get(CURRENT).length<=192000);assert.equal(p.disk.get(V2),input);
  const again=launch(p);again.run(8000);assert.equal(again.harness.$.HPColorsV3Store.getBundle().presets.length,128);
  const oversized=frame(4,body(30));assert.ok(oversized.length<=192000,'legal old save expands past the v3 cap');
  const refusal=converter.classifyRecord(oversized);assert.equal(refusal.kind,'conversion_error');assert.match(refusal.message,/192,000/);
@@ -289,10 +291,11 @@ for(const version of [1,2,3,4,5,6,7])for(const mode of ['load','import'])test(`v
  const input=v3frame(record),p=profile(mode==='load'?{[CURRENT]:input}:{}),f=launch(p);f.run(3000);
  if(mode==='import'){paste(f,'Bundle',v3frame(record,'HPC3'));f.run(3000);}
  const check=item=>{
-   expected(item.settings,version%3===1?{enemy:{npcEnabled:true,objectiveEnabled:false},ally:{npcEnabled:false,objectiveEnabled:true},shared:{neutralEnabled:false,neutralColor:'#123456'}}:
-     version%3===2?{enemy:{npcEnabled:true,objectiveEnabled:false},ally:{npcEnabled:true,objectiveEnabled:false},shared:{neutralEnabled:true,neutralColor:'#123456'}}:
-       {enemy:{npcEnabled:false,objectiveEnabled:true},ally:{npcEnabled:true,objectiveEnabled:false},shared:{neutralEnabled:true,neutralColor:'#123456'}});
+   expected(item.settings,version%3===1?{enemy:{objectiveEnabled:false},ally:{objectiveEnabled:true},shared:{neutralEnabled:false,neutralColor:'#123456'}}:
+     version%3===2?{enemy:{objectiveEnabled:false},ally:{objectiveEnabled:false},shared:{neutralEnabled:true,neutralColor:'#123456'}}:
+       {enemy:{objectiveEnabled:true},ally:{objectiveEnabled:false},shared:{neutralEnabled:true,neutralColor:'#123456'}});
    for(const key of Object.keys(pending))assert.ok(!Object.hasOwn(item.v2pending,key),key+' consumed at version boundary');
+   assert.equal(Object.hasOwn(item.settings.side.enemy,'npcEnabled')||Object.hasOwn(item.settings.side.ally,'npcEnabled'),false,'Customize NPC bars was removed (2026-10-29)');
  };
  const imported=f.harness.$.HPColorsV3Store.decodeBundleCode(v3frame(record,'HPC3'));
  for(const item of [imported,imported.presets[0],imported.v2scopes[0]])check(item);
@@ -308,7 +311,7 @@ test('same-version deliberate unit defaults beat conflicting pending metadata on
    b:{v2pending:{...pending},v2scopes:[{mode:'all',heroes:[],settings:s,v2pending:{...pending}}]}};
  const p=profile({[CURRENT]:v3frame(record)}),f=launch(p);f.run(3000);
  const check=item=>{
-   expected(item.settings,{enemy:{npcEnabled:false,objectiveEnabled:false},ally:{npcEnabled:false,objectiveEnabled:false},shared:{neutralEnabled:false,neutralColor:'#5BEFB5'}});
+   expected(item.settings,{enemy:{objectiveEnabled:false},ally:{objectiveEnabled:false},shared:{neutralEnabled:false,neutralColor:'#5BEFB5'}});
    assert.deepEqual(JSON.parse(JSON.stringify(item.v2pending)),pending,'same-version pending cannot overwrite deliberate v3 slots');
  };
  const imported=f.harness.$.HPColorsV3Store.decodeBundleCode(v3frame(record,'HPC3'));for(const item of [imported,imported.presets[0],imported.v2scopes[0]])check(item);
@@ -443,6 +446,9 @@ test('ticket 22: current-version own-HUD defaults beat same-version pending, sta
  f.edit('#654321');f.run(3000);
  let saved=JSON.parse(Buffer.from(p.disk.get(CURRENT).split('.')[2],'base64url').toString());
  assert.equal(saved.v,contract.recordVersion);for(let i=0;i<saved.d.length;i+=2)assert.ok(!slots.includes(saved.d[i]),'default own-HUD color is sparse');
+ // The custom color is usable only in Custom mode (dependent rows, 2026-10-28).
+ const mode=contract.controls.find(r=>r.key==='hudHealthColorMode');
+ f.harness.contextPanel.FindChildTraverse(mode.options.find(o=>o.value==='custom').id).events.onactivate();
  const hex=f.harness.contextPanel.FindChildTraverse(contract.controls.find(r=>r.key==='hudHealthColor').hexId);
  hex.text='#0A0B0C';hex.events.ontextentrysubmit();f.run(3000);
  saved=JSON.parse(Buffer.from(p.disk.get(CURRENT).split('.')[2],'base64url').toString());
@@ -479,7 +485,7 @@ test('ticket 28: v12 records without label slots load native defaults and promot
 test('ticket 28: v13 sparse label slots round-trip and beat same-version pending',()=>{
  const seed=launch(profile());seed.run(2000);
  const contract=seed.harness.$.HPColorsV3Settings,slots=contract.slots.filter(slot=>slot.slot>=167&&slot.slot<=175);
- assert.equal(contract.recordVersion,16,'v13 label slots stay in later record versions');
+ assert.equal(contract.recordVersion,23,'v13 label slots stay in later record versions');
  assert.deepEqual(Array.from(slots,slot=>[slot.slot,slot.setting]),[
   [167,'criticalIndicatorVisible'],[168,'criticalOffsetX'],[169,'criticalOffsetY'],
   [170,'assassinateIndicatorVisible'],[171,'assassinateOffsetX'],[172,'assassinateOffsetY'],

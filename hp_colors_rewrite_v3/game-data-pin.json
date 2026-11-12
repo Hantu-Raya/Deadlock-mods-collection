@@ -1,7 +1,7 @@
 {
   "repository": "SteamTracking/GameTracking-Deadlock",
-  "commit": "3207c1601bf83515155a1108b4b8def7338b1b29",
-  "clientVersion": 6807,
+  "commit": "cc1878831d359fa8ed741db947835e331bbeec59",
+  "clientVersion": 6828,
   "files": [
     {
       "path": "vendor/unit_status_v2.css",
@@ -11,12 +11,12 @@
     {
       "path": "vendor/heroes.vdata",
       "upstream": "game/citadel/pak01_dir/scripts/heroes.vdata",
-      "sha256": "1511f5c164a8b507f6dac69c312599c6e7eeab4a7b564d0b664fc5757e5b14c8"
+      "sha256": "df1952701db64e1d7581d1ce47f165b3d0a285c9463011ce9b2b473b90903b0b"
     },
     {
       "path": "vendor/abilities.vdata",
       "upstream": "game/citadel/pak01_dir/scripts/abilities.vdata",
-      "sha256": "e271b257765b3c18f78594a7c36f11333894a96813a50bade5a97c0b6daff37e"
+      "sha256": "91e78632a310b2965cdb0094ff03aa1a006cd5404f44ae364a75832bb4157fb0"
     },
     {
       "path": "vendor/citadel_gc_hero_names_english.txt",
@@ -36,7 +36,12 @@
     {
       "path": "vendor/citadel_hud_top_bar.xml",
       "upstream": "game/citadel/pak01_dir/panorama/layout/citadel_hud_top_bar.xml",
-      "sha256": "c5e3deda5bae86e08fff887fa18a933c2def480b4d6e3d54122c76266cefa134"
+      "sha256": "f619d59a36bf8a23d73910af2c22e67ac96d87ee6efeb8b895f842bdd4cc8869"
+    },
+    {
+      "path": "vendor/citadel_status_effect.xml",
+      "upstream": "game/citadel/pak01_dir/panorama/layout/citadel_status_effect.xml",
+      "sha256": "e35e9ecc801873740d04b56067edf84174e79e01199b8d11cd24bdb48b9b5e01"
     }
   ]
 }

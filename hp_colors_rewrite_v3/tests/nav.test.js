@@ -13,13 +13,13 @@ const STRUCTURE = [
     ['General', [['enabled', S], ['barStyle', S]], []],
     ['Colors', [['barColorEnabled', EA], ['barColorMode', EA], ['barColorLow', EA], ['barColorMid', EA], ['barColorHigh', EA]], [['barColorTeamHigh', EA]]],
     ['Shared colors', [['lowThreshold', S], ['highThreshold', S], ['teamAmberColor', S], ['teamSapphireColor', S]], []],
-    ['Feedback', [['damageShakeEnabled', S]], [['barHealingColor', EA], ['barDeltaColor', EA], ['barShieldColor', EA], ['barArmorColor', EA], ['damageShakeStrength', S]]],
+    ['Feedback', [['damageShakeEnabled', S]], [['barHealingColor', EA], ['barDeltaColor', EA], ['barShieldColor', EA], ['barArmorColor', EA], ['barDeferredColor', EA], ['damageShakeStrength', S]]],
     ['Size and position', [['barVisible', EA], ['barWidth', EA], ['barHeight', EA]], [['barOffsetX', EA], ['barOffsetY', EA]]],
     ['Outline', [['barOutlineEnabled', EA]], [['barOutlineCustomColor', EA], ['barOutlineColor', EA], ['barOutlineThickness', EA], ['barOutlineOpacity', EA]]],
     ['Your health bar', [['hudHealthColorMode', S], ['hudHealthColor', S], ['hudShieldStyle', S]], []],
   ]],
   ['HP Text', [
-    ['Number and font', [['hpTextVisible', EA], ['hpTextFont', EA], ['hpTextSize', EA]], []],
+    ['Number and font', [['hpTextVisible', EA], ['hpTextFormat', EA], ['hpTextFont', EA], ['hpTextSize', EA]], []],
     ['Colors', [['hpTextColorMode', EA]], [['hpTextMode', EA], ['hpTextLow', EA], ['hpTextMid', EA], ['hpTextHigh', EA], ['hpTextTeamHigh', EA]]],
     ['Position and outline', [], [['hpTextOffsetX', EA], ['hpTextOffsetY', EA], ['hpTextOutline', EA], ['hpTextAlign', EA], ['hpTextTilt', EA]]],
   ]],
@@ -44,9 +44,12 @@ const STRUCTURE = [
     ['Pickups', [['pickupTimersEnabled', S], ['pickupGunColor', S], ['pickupMovementColor', S], ['pickupSpiritColor', S], ['pickupSurvivalColor', S], ['pickupGlyphColor', S]],
       [['pickupBackgroundDarkness', S], ['pickupSize', S], ['pickupSpacing', S], ['pickupOffsetX', S], ['pickupOffsetY', S]]],
     ['Rejuvenator', [['rejuvSize', S]], [['rejuvOffsetX', S], ['rejuvOffsetY', S], ['rejuvTilt', S]]],
+    ['Kill bounty', [['killBountyEnabled', S]], [['killBountyOffsetX', S], ['killBountyOffsetY', S], ['killBountySize', S], ['killBountyTilt', S]]],
+    ['Status effect sizes', [['statusScaleFixation', S], ['statusScaleMalice', S], ['statusScaleScrewjab', S], ['statusScaleDjinnsMark', S], ['statusScaleSerratedKnives', S],
+      ['statusScaleBarrage', S], ['statusScalePulseGrenade', S], ['statusScaleArcticBeam', S]], []],
   ]],
   ['Units', [
-    ['', [['npcEnabled', EA], ['objectiveEnabled', EA], ['neutralEnabled', S], ['neutralColor', S]], []],
+    ['', [['objectiveEnabled', EA], ['objectiveHpTextMode', S], ['objectiveHpPositionEnabled', S], ['objectiveHpOffsetX', S], ['objectiveHpOffsetY', S], ['objectiveHpTilt', S], ['neutralEnabled', S], ['neutralColor', S], ['neutralHpTextMode', S], ['neutralHpPositionEnabled', S], ['neutralHpOffsetX', S], ['neutralHpOffsetY', S], ['neutralHpTilt', S]], []],
   ]],
 ];
 // Ungrouped rows form the page's lead card: its sub-nav shows the lead name and its id says General.
@@ -75,9 +78,9 @@ function booted(edit) {
   return { h, find, contract: h.$.HPColorsV3Settings, activate: id => find(id).events.onactivate() };
 }
 
-test('ticket 37: tabs run NEW, BAR, HP TEXT, NAME, INDICATORS, ICONS, UNITS, PRESETS and the menu opens on BAR', () => {
+test('ticket 37: tabs run NEW, BAR, HP TEXT, NAME, INDICATORS, ICONS, UNITS, COLORBLIND, PRESETS and the menu opens on BAR', () => {
   const m = booted();
-  assert.deepEqual(JSON.parse(JSON.stringify(m.contract.menu.pages.map(page => page.title))), ['NEW', 'BAR', 'HP TEXT', 'NAME', 'INDICATORS', 'ICONS', 'UNITS', 'PRESETS']);
+  assert.deepEqual(JSON.parse(JSON.stringify(m.contract.menu.pages.map(page => page.title))), ['NEW', 'BAR', 'HP TEXT', 'NAME', 'INDICATORS', 'ICONS', 'UNITS', 'COLORBLIND', 'PRESETS']);
   assert.equal(m.find('HPColorsPageBar').BHasClass('Active'), true);
   m.activate('HPColorsNavIconsButton');
   assert.equal(m.find('HPColorsPageIcons').BHasClass('Active'), true);

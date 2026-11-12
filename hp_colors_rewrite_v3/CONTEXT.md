@@ -48,7 +48,7 @@ _Avoid_: Per-preset scope mode.
 
 **Hero default**: The optional fallback preset selected for heroes without a map entry. It can refer to the built-in default, but is not synonymous with it.
 
-**Source preset**: The preset identity from which active settings last came, retained even when those settings have been edited.
+**Source preset**: The preset identity from which active settings last came (the applied preset). Since 2026-11-02 edits are saved into a custom source preset; the baked Default never changes.
 
 **Selected preset**: The library tile chosen on the Presets page as the target of toolbar actions. Selecting a preset never applies it; it is distinct from the source preset and from the hero default.
 
@@ -81,6 +81,13 @@ _Avoid_: Per-preset scope mode.
 **Revision**: The ordered effective-configuration change within a publisher epoch, not a record version.
 
 **Relay**: An intermediary through which configuration requests reach the editor.
+
+**Status-effect row**: The game's `#StatusEffects` row of effect icons (debuffs and pickups) at the top of a world bar's canvas. The renderer moves the whole row with the bar and pickup offsets; icons keep their native size and place in it.
+_Avoid_: Pickup row, buff row.
+
+**Kill bounty**: The souls the local player's solo kill on an enemy hero pays them now, the number on the game's kill popup. The topbar computes it from server rules; it is not a team total.
+
+**Update badge**: The "!" beside HP COLORS in the Escape menu while a newer release exists, asked each time the Escape menu opens. The **update notice** is the editor's once-per-session dialog for the same check.
 
 ## Storage and transfer
 

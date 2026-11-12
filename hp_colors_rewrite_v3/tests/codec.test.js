@@ -56,7 +56,10 @@ test('bundles preserve unicode names, ids, metadata and settings through code an
   const { codec, sharing, settings } = boot();
   const bundle = { settings, presets: [{ id: 'one', name: '雪 🦊', hidden: true, settings }], routing: { default: 'one' } };
   const code = sharing.exportBundleCode(bundle);
-  assert.equal(code.ok, true); assert.deepEqual(plain(sharing.importBundleCode(code.code).bundle), bundle);
+  // A pasted code drops bundle metadata nothing reads, such as the old routing field (save-security audit
+  // 2026-11-02); the player's own save keeps it.
+  const { routing, ...shared } = bundle;
+  assert.equal(code.ok, true); assert.deepEqual(plain(sharing.importBundleCode(code.code).bundle), shared);
   assert.deepEqual(plain(codec.classifyRecord(codec.encodeRecord(bundle)).bundle), bundle);
 });
 
@@ -235,12 +238,15 @@ test('record v1 upgrades existing settings and presets to indicator defaults wit
   assert.equal(imported.bundle.settings.side.enemy.killMarkerEnabled,false);
   assert.equal(imported.bundle.presets[0].settings.side.enemy.barColorLow,'#445566');
   assert.equal(imported.bundle.presets[0].settings.side.ally.lineOpacity,100);
-  assert.equal(imported.bundle.presets[0].hidden,true);assert.equal(imported.bundle.routing.default,'old');
+  // The old routing field is dropped from a pasted code (nothing reads it, 2026-11-02); an own save keeps it.
+  assert.equal(imported.bundle.presets[0].hidden,true);assert.equal(imported.bundle.routing,undefined);
+  const saved=codec.classifyRecord(frame(codec,record,'HPV2S1'));
+  assert.equal(saved.kind,'valid');assert.equal(saved.bundle.routing.default,'old');
 });
 
 test('record v14: a v13 enemy-stamina code keeps its enemy values, allies and team colors take defaults, and team modes round-trip',()=>{
   const {codec,sharing,contract,settings}=boot();
-  assert.equal(contract.recordVersion,16,'name color source added slots 196/197');
+  assert.equal(contract.recordVersion,23,'status effect sizes added slots 218-225');
   const imported=sharing.importSettingsCode(frame(codec,{v:13,k:'settings',d:[104,true,105,'#123456',110,'circle']}));
   assert.equal(imported.ok,true,imported.message);assert.equal(imported.newer,false);
   const {enemy,ally}=imported.settings.side;
@@ -265,11 +271,124 @@ test('record v16: a v15 code keeps its own name color, and the name color source
   assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
 });
 
+// 2026-10-29 (user): Customize NPCs (152/153) was removed and the unreleased Neutral camp look (198, saved by a local
+// 3.5.0 test build) replaced by the neutral HP number settings. Retired slots are skipped on read and never written.
+test('record v17: NPC switches and slot 198 are retired, and the neutral HP number settings round-trip',()=>{
+  const {codec,sharing,settings,contract}=boot();
+  assert.equal(contract.slots.some(slot=>[152,153,198].includes(slot.slot)),false);
+  const imported=sharing.importSettingsCode(frame(codec,{v:16,k:'settings',d:[152,true,153,true,156,true,157,'#123456']}));
+  assert.equal(imported.ok,true,imported.message);assert.equal(imported.newer,false,'a retired slot is not newer data');
+  assert.deepEqual([imported.settings.shared.neutralEnabled,imported.settings.shared.neutralColor,imported.settings.shared.neutralHpTextMode],[true,'#123456','default']);
+  assert.equal(Object.hasOwn(imported.settings.side.enemy,'npcEnabled'),false);
+  const test=sharing.importSettingsCode(frame(codec,{v:17,k:'settings',d:[198,'color']}));
+  assert.equal(test.ok,true,test.message);assert.equal(test.newer,false,'the test build value is dropped');
+  Object.assign(settings.shared,{neutralHpTextMode:'always',neutralHpPositionEnabled:true,neutralHpOffsetX:12,neutralHpOffsetY:-7,neutralHpTilt:10});
+  const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
+  assert.deepEqual(plain(body(code.code).d).map(pair=>pair[1]),['always',true,12,-7,10]);
+  assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
+});
+
+// 2026-10-29 (user): objectives get the neutral HP number options (record v18, slots 204-208). A v17 record
+// (saved by 3.5.0 test builds) takes their defaults; the new slots are written only when changed and round-trip.
+test('record v18: objective HP number settings default on v17 records and round-trip',()=>{
+  const {codec,sharing,settings,contract}=boot();
+  assert.deepEqual(plain(contract.slots.filter(slot=>slot.slot>=204&&slot.slot<=208).map(slot=>[slot.slot,slot.key])),
+    [[204,'objectiveHpTextMode'],[205,'objectiveHpPositionEnabled'],[206,'objectiveHpOffsetX'],[207,'objectiveHpOffsetY'],[208,'objectiveHpTilt']]);
+  const old=sharing.importSettingsCode(frame(codec,{v:17,k:'settings',d:[154,true,199,'always']}));
+  assert.equal(old.ok,true,old.message);assert.equal(old.newer,false);
+  const {shared}=old.settings;
+  assert.deepEqual([old.settings.side.enemy.objectiveEnabled,shared.neutralHpTextMode,shared.objectiveHpTextMode,shared.objectiveHpPositionEnabled,shared.objectiveHpOffsetX,shared.objectiveHpOffsetY,shared.objectiveHpTilt],
+    [true,'always','default',false,0,0,-3]);
+  Object.assign(settings.shared,{objectiveHpTextMode:'always',objectiveHpPositionEnabled:true,objectiveHpOffsetX:-200,objectiveHpOffsetY:210,objectiveHpTilt:-360});
+  const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
+  assert.deepEqual(plain(body(code.code).d),[[204,'always'],[205,true],[206,-200],[207,210],[208,-360]]);
+  assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
+});
+
+// Ticket 50: kill bounty (record v19, slots 209-211). A v18 record takes the defaults (off, no offsets);
+// the new slots are written only when changed and round-trip.
+test('record v19: kill bounty settings default on v18 records and round-trip',()=>{
+  const {codec,sharing,settings,contract}=boot();
+  assert.deepEqual(plain(contract.slots.filter(slot=>slot.slot>=209&&slot.slot<=211).map(slot=>[slot.slot,slot.key])),
+    [[209,'killBountyEnabled'],[210,'killBountyOffsetX'],[211,'killBountyOffsetY']]);
+  const old=sharing.importSettingsCode(frame(codec,{v:18,k:'settings',d:[204,'always']}));
+  assert.equal(old.ok,true,old.message);assert.equal(old.newer,false);
+  assert.deepEqual([old.settings.shared.objectiveHpTextMode,old.settings.shared.killBountyEnabled,old.settings.shared.killBountyOffsetX,old.settings.shared.killBountyOffsetY],['always',false,0,0]);
+  Object.assign(settings.shared,{killBountyEnabled:true,killBountyOffsetX:-200,killBountyOffsetY:210});
+  const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
+  assert.deepEqual(plain(body(code.code).d),[[209,true],[210,-200],[211,210]]);
+  assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
+});
+
+// Discord request (ccrom, 2026-11-01): deferred damage color (record v20, slots 212 enemy / 213 ally). A v19 record
+// takes the stock orange on both sides; the new slots are written only when changed, per side, and round-trip.
+test('record v20: deferred damage colors default on v19 records and round-trip per side',()=>{
+  const {codec,sharing,settings,contract}=boot();
+  assert.deepEqual(plain(contract.slots.filter(slot=>slot.slot>=212&&slot.slot<=213).map(slot=>[slot.slot,slot.key])),
+    [[212,'enemyBarDeferredColor'],[213,'allyBarDeferredColor']]);
+  const old=sharing.importSettingsCode(frame(codec,{v:19,k:'settings',d:[209,true]}));
+  assert.equal(old.ok,true,old.message);assert.equal(old.newer,false);
+  assert.deepEqual([old.settings.shared.killBountyEnabled,old.settings.side.enemy.barDeferredColor,old.settings.side.ally.barDeferredColor],[true,'#E87F3D','#E87F3D']);
+  settings.side.ally.barDeferredColor='#FFFFFF';
+  const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
+  assert.deepEqual(plain(body(code.code).d),[[213,'#FFFFFF']],'only the changed side is written');
+  assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
+});
+
+// yesdaddy, 2026-11-02: kill bounty size and tilt (record v21, slots 214-215). A v20 record keeps the stock-look
+// pill (17 px, no tilt); the new slots are written only when changed and round-trip.
+test('record v21: kill bounty size and tilt default on v20 records and round-trip',()=>{
+  const {codec,sharing,settings,contract}=boot();
+  assert.deepEqual(plain(contract.slots.filter(slot=>slot.slot>=214&&slot.slot<=215).map(slot=>[slot.slot,slot.key])),
+    [[214,'killBountySize'],[215,'killBountyTilt']]);
+  const old=sharing.importSettingsCode(frame(codec,{v:20,k:'settings',d:[209,true,213,'#FFFFFF']}));
+  assert.equal(old.ok,true,old.message);assert.equal(old.newer,false);
+  assert.deepEqual([old.settings.shared.killBountyEnabled,old.settings.side.ally.barDeferredColor,old.settings.shared.killBountySize,old.settings.shared.killBountyTilt],
+    [true,'#FFFFFF',17,0]);
+  Object.assign(settings.shared,{killBountySize:34,killBountyTilt:-360});
+  const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
+  assert.deepEqual(plain(body(code.code).d),[[214,34],[215,-360]]);
+  assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
+});
+
+// Ticket 51 (FireworkPolymer, Discord 2026-11-09): HP number format (record v22, slots 216 enemy / 217 ally).
+// A v21 record keeps the number only on both sides; the new slots are written only when changed, per side.
+test('record v22: HP number format defaults to Number on v21 records and round-trips per side',()=>{
+  const {codec,sharing,settings,contract}=boot();
+  assert.deepEqual(plain(contract.slots.filter(slot=>slot.slot===216||slot.slot===217).map(slot=>[slot.slot,slot.key])),
+    [[216,'enemyHpTextFormat'],[217,'allyHpTextFormat']]);
+  const old=sharing.importSettingsCode(frame(codec,{v:21,k:'settings',d:[214,34]}));
+  assert.equal(old.ok,true,old.message);assert.equal(old.newer,false);
+  assert.deepEqual([old.settings.shared.killBountySize,old.settings.side.enemy.hpTextFormat,old.settings.side.ally.hpTextFormat],[34,'number','number']);
+  settings.side.enemy.hpTextFormat='both';settings.side.ally.hpTextFormat='percent';
+  const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
+  assert.deepEqual(plain(body(code.code).d),[[216,'both'],[217,'percent']]);
+  assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
+});
+
+// Ticket 52 (tsunamicrazie, 2026-11-07): status effect icon sizes (record v23, shared slots 218-225).
+// A v22 record keeps every icon at the game size; a slot is written only when its slider left 100%.
+test('record v23: status effect sizes default to 100% on v22 records and round-trip one slot per changed effect',()=>{
+  const {codec,sharing,settings,contract}=boot();
+  assert.deepEqual(plain(contract.slots.filter(slot=>slot.slot>=218).map(slot=>[slot.slot,slot.key])),
+    [[218,'statusScaleFixation'],[219,'statusScaleMalice'],[220,'statusScaleScrewjab'],[221,'statusScaleDjinnsMark'],
+      [222,'statusScaleSerratedKnives'],[223,'statusScaleBarrage'],[224,'statusScalePulseGrenade'],[225,'statusScaleArcticBeam']]);
+  const old=sharing.importSettingsCode(frame(codec,{v:22,k:'settings',d:[216,'both']}));
+  assert.equal(old.ok,true,old.message);assert.equal(old.newer,false);
+  assert.deepEqual([old.settings.side.enemy.hpTextFormat,old.settings.shared.statusScaleFixation,old.settings.shared.statusScaleArcticBeam],['both',100,100]);
+  settings.shared.statusScaleFixation=150;settings.shared.statusScaleArcticBeam=250;
+  const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
+  assert.deepEqual(plain(body(code.code).d),[[218,150],[225,250]]);
+  assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
+  const outside=sharing.importSettingsCode(frame(codec,{v:23,k:'settings',d:[218,260]}));
+  assert.notEqual(outside.ok&&outside.settings.shared.statusScaleFixation,260,'a size past the slider is not accepted');
+});
+
 // Ticket 36: "Low color on empty charges" (slots 193/194) was removed after a debug build saved slot 193 in
 // the live backup record. Retired slots are skipped on read (not newer, not refused) and never written.
 test('ticket 36: retired slots 193/194 are dropped from saved v14 records, conditions included, and never written',()=>{
   const {codec,sharing,contract}=boot();
-  assert.deepEqual(Array.from(contract.retiredSlots),[193,194]);
+  assert.deepEqual(Array.from(contract.retiredSlots),[193,194,152,153,198]);
   assert.equal(contract.slots.some(slot=>slot.slot===193||slot.slot===194),false);
   const imported=sharing.importSettingsCode(frame(codec,{v:14,k:'settings',d:[189,1,191,'#D80000',193,false,194,true],c:[193,1,1,true,189,2,2,3]}));
   assert.equal(imported.ok,true,imported.message);assert.equal(imported.newer,false,'a retired slot is not newer data');
@@ -321,3 +440,61 @@ test('snapped threshold collisions fail export atomically instead of producing a
   assert.throws(()=>codec.encodeRecord({settings,presets:[]}),/Invalid settings/);
   assert.equal(settings.shared.lowThreshold,64.999999999999,'validation never mutates the caller');
 });
+
+// Save-security audit 2026-11-02 (F3, Claude + Claude Fable 5.1): a bundle code pasted from another player could carry
+// 20,000-character or empty preset names and hidden preset fields, which then lived on in the save and in the victim's
+// own later exports. Ways this can fail: a too-long, empty or blank name gets in; the 48-character limit is off by one
+// (rename and v2 both allow exactly 1-48); hidden fields survive the import or the re-export; a known field (rules)
+// is dropped; or the player's own save, which may already hold such a preset, stops loading.
+test('pasted bundle codes keep only real preset fields and names of 1-48 characters; own saves still load', () => {
+  const { codec, sharing, settings, contract } = boot();
+  const code = presets => frame(codec, { v: contract.recordVersion, k: 'bundle', d: [], p: presets });
+  for (const name of ['N'.repeat(49), 'N'.repeat(20000), '', '   ']) {
+    const result = sharing.importBundleCode(code([{ id: 'p', name, d: [] }]));
+    assert.equal(result.ok, false, JSON.stringify(name.slice(0, 8)) + ' x' + name.length);
+    assert.match(result.message, /preset names/);
+  }
+  const rules = { [contract.slots.find(slot => slot.setting === 'barColorLow' && slot.side === 'enemy').slot]: { slot: 1, minTier: 2, value: '#123456' } };
+  const junk = { id: 'p', name: 'N'.repeat(48), d: [3, '#654321'], c: [], tracker: 'x'.repeat(2000), nested: [1, [2, [3]]], constructor: { x: 1 } };
+  const withRules = sharing.exportBundleCode({ settings, presets: [{ id: 'r', name: 'Rules', settings, rules }] });
+  const ruled = sharing.importBundleCode(withRules.code).bundle.presets[0];
+  assert.deepEqual(plain(ruled.rules), rules, 'ability conditions are a real preset field');
+  const imported = sharing.importBundleCode(code([junk]));
+  assert.equal(imported.ok, true, imported.message);
+  assert.deepEqual(Object.keys(imported.bundle.presets[0]).sort(), ['id', 'name', 'settings']);
+  assert.equal(imported.bundle.presets[0].settings.side.enemy.barColorLow, '#654321');
+  const again = sharing.importBundleCode(sharing.exportBundleCode(imported.bundle).code).bundle.presets[0];
+  assert.deepEqual(Object.keys(again).sort(), ['id', 'name', 'settings'], 'nothing hidden spreads through a re-export');
+  const old = codec.classifyRecord(codec.encodeRecord({ settings, presets: [{ id: 'p', name: 'N'.repeat(20000), tracker: 1, settings }] }));
+  assert.equal(old.kind, 'valid', 'a save that already holds such a preset still loads');
+  assert.equal(old.bundle.presets[0].name.length, 20000);
+});
+
+// Round 2 (Fable red-team): the old fields kept for migration must not become a new hiding place. Ways this can fail:
+// a non-boolean hidden flag or junk bundle metadata (including REPLACE ALL's top-level fields) survives; a real
+// field (hero routing, the baked default's name and hidden state, the next preset number) is lost; a padded name
+// is stored untrimmed (rename trims).
+test('pasted bundle codes keep only real bundle metadata with checked shapes, and trimmed names', () => {
+  const { codec, sharing, settings, contract } = boot();
+  const hero = contract.heroes[0].key;
+  const b = { heroPresets: { [hero]: 'p' }, heroDefault: 'p', sourcePresetId: 'p', sourceWasMapped: true,
+    hiddenBakedPresetIds: ['baked_default', 'x'.repeat(5000)], bakedPresetNameOverrides: { baked_default: 'Mine', junk: 'x'.repeat(5000) },
+    nextUserPresetNumber: 7, routing: { default: 'p' }, tracker: 'x'.repeat(5000) };
+  const code = frame(codec, { v: contract.recordVersion, k: 'bundle', d: [], p: [{ id: 'p', name: '  Padded  ', d: [], hidden: 'x'.repeat(5000) }], b });
+  const result = sharing.importBundleCode(code);
+  assert.equal(result.ok, true, result.message);
+  const bundle = plain(result.bundle);
+  assert.deepEqual(Object.keys(bundle).sort(), ['bakedPresetNameOverrides', 'heroDefault', 'heroPresets', 'hiddenBakedPresetIds',
+    'nextUserPresetNumber', 'presets', 'settings', 'sourcePresetId', 'sourceWasMapped']);
+  assert.deepEqual([bundle.heroPresets, bundle.heroDefault, bundle.sourcePresetId, bundle.sourceWasMapped], [{ [hero]: 'p' }, 'p', 'p', true]);
+  assert.deepEqual(bundle.hiddenBakedPresetIds, ['baked_default']);
+  assert.deepEqual(bundle.bakedPresetNameOverrides, { baked_default: 'Mine' });
+  assert.equal(bundle.nextUserPresetNumber, 7);
+  assert.deepEqual(bundle.presets[0], { id: 'p', name: 'Padded', settings }, 'a non-boolean hidden is dropped and the name trimmed');
+  const bad = sharing.importBundleCode(frame(codec, { v: contract.recordVersion, k: 'bundle', d: [], p: [{ id: 'p', name: 'P', d: [], hidden: true }],
+    b: { hiddenBakedPresetIds: 'x', bakedPresetNameOverrides: { baked_default: 'N'.repeat(49) }, nextUserPresetNumber: 1.5 } }));
+  assert.equal(bad.ok, true, bad.message);
+  assert.deepEqual(Object.keys(plain(bad.bundle)).sort(), ['presets', 'settings'], 'malformed baked fields are dropped, not trusted');
+  assert.equal(bad.bundle.presets[0].hidden, true, 'a boolean hidden flag is kept');
+});
+

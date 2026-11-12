@@ -125,6 +125,12 @@ function write(store, key, value, expected = '') {
   return store.request({ o: 'w', r: `write-${key}`, p: 0, n: 1, k: key, v: value, e: expected });
 }
 
+// Audit F2: "cas" (compare-at-commit). m is the checksum of the whole raw value the writer last
+// saw at the key, or "none" when it saw no value; the page refuses to replace anything else.
+function cas(store, key, value, match, { expected = '', r = `cas-${key}` } = {}) {
+  return store.request({ o: 'w', r, p: 0, n: 1, k: key, v: value, e: expected, m: match });
+}
+
 function read(store, key, id = `read-${key}`) {
   return store.request({ o: 'r', r: id, p: 0, k: key });
 }
@@ -143,9 +149,9 @@ test('v3 key write/read round trip, v3 backup stays in its own namespace', () =>
   const store = page({ [CURRENT]: record('v2') });
   const first = record('first');
   const second = record('second');
-  assert.equal(write(store, V3, first).d, 1);
+  assert.equal(cas(store, V3, first, 'none').d, 1);
   assert.equal(read(store, V3).v, first);
-  assert.equal(write(store, V3, second, first.split('.')[1]).d, 1);
+  assert.equal(cas(store, V3, second, fnv(first), { expected: first.split('.')[1], r: 'second' }).d, 1);
   assert.equal(store.disk.get(V3), second);
   assert.equal(store.disk.get(V3_PREVIOUS), first);
   assert.equal(read(store, V3_PREVIOUS).v, first);
@@ -153,21 +159,21 @@ test('v3 key write/read round trip, v3 backup stays in its own namespace', () =>
   assert.equal(store.disk.has(PREVIOUS), false);
 });
 
-test('explicit previous-key write does not create another backup', () => {
-  const store = page({ [V3]: record('current') });
+test('explicit v2 previous-key write does not create another backup', () => {
+  const store = page({ [CURRENT]: record('current') });
   const backup = record('previous');
-  assert.equal(write(store, V3_PREVIOUS, backup).d, 1);
-  assert.equal(store.disk.get(V3_PREVIOUS), backup);
-  assert.equal(store.disk.get(V3), record('current'));
+  assert.equal(write(store, PREVIOUS, backup).d, 1);
+  assert.equal(store.disk.get(PREVIOUS), backup);
+  assert.equal(store.disk.get(CURRENT), record('current'));
   assert.equal(store.disk.size, 2);
 });
 
-test('keyed delete removes only that key, including each version and previous key', () => {
+test('keyed v2 delete removes only that key', () => {
   const seed = {
     [CURRENT]: 'v2', [PREVIOUS]: 'v2-backup',
     [V3]: 'v3', [V3_PREVIOUS]: 'v3-backup', [OTHER]: 'buff timer',
   };
-  for (const key of [CURRENT, PREVIOUS, V3, V3_PREVIOUS]) {
+  for (const key of [CURRENT, PREVIOUS]) {
     const store = page(seed);
     assert.equal(store.request({ o: 'd', k: key }).ok, true);
     const expected = new Map(Object.entries(seed));
@@ -209,21 +215,21 @@ test('non-matching keys fail for reads, writes and deletes without touching stor
   assert.equal(store.disk.get(OTHER), 'buff timer');
 });
 
-test('versioned key pattern accepts arbitrary numeric versions, not only v2/v3', () => {
+test('versioned key pattern accepts arbitrary numeric versions, not only v2/v3, each guarded like v3', () => {
   for (const version of ['0', '1', '10', '003', '999999']) {
     const current = `hantu.hpcolors.v${version}/state`;
     const previous = `${current}.prev`;
     const store = page({ [CURRENT]: record('v2'), [OTHER]: 'buff timer' });
     const first = record('first');
     const second = record('second');
-    assert.equal(write(store, current, first).d, 1);
+    assert.equal(cas(store, current, first, 'none').d, 1);
     assert.equal(read(store, current).v, first);
-    assert.equal(write(store, current, second, first.split('.')[1]).d, 1);
+    assert.equal(cas(store, current, second, fnv(first), { expected: first.split('.')[1], r: 'second' }).d, 1);
     assert.equal(read(store, current, 'updated-current').v, second);
     assert.equal(read(store, previous).v, first);
-    assert.equal(store.request({ o: 'd', k: current }).ok, true);
-    assert.equal(store.request({ o: 'd', k: previous }).ok, true);
-    assert.deepEqual(store.disk, new Map([[CURRENT, record('v2')], [OTHER, 'buff timer']]));
+    assert.match(store.request({ o: 'd', k: current }).e, /readonly/);
+    assert.match(store.request({ o: 'd', k: previous }).e, /readonly/);
+    assert.deepEqual(store.disk, new Map([[CURRENT, record('v2')], [OTHER, 'buff timer'], [current, second], [previous, first]]));
   }
 });
 
@@ -231,24 +237,18 @@ test('chunks cannot change target key mid-write', () => {
   const store = page();
   const value = record('x'.repeat(3050));
   assert.equal(store.request({ o: 'w', r: 'chunks', p: 0, n: 2, k: V3,
-    v: value.slice(0, 3000), e: '' }).ok, true);
+    v: value.slice(0, 3000), e: '', m: 'none' }).ok, true);
   assert.match(store.request({ o: 'w', r: 'chunks', p: 1, n: 2, k: CURRENT,
-    v: value.slice(3000), e: '' }).e, /changed_write/);
+    v: value.slice(3000), e: '', m: 'none' }).e, /changed_write/);
   assert.equal(store.disk.has(V3), false);
   assert.equal(store.disk.has(CURRENT), false);
   assert.equal(store.request({ o: 'w', r: 'retry', p: 0, n: 2, k: V3,
-    v: value.slice(0, 3000), e: '' }).ok, true);
+    v: value.slice(0, 3000), e: '', m: 'none' }).ok, true);
   assert.equal(store.request({ o: 'w', r: 'retry', p: 1, n: 2, k: V3,
-    v: value.slice(3000), e: '' }).d, 1);
+    v: value.slice(3000), e: '', m: 'none' }).d, 1);
   assert.equal(read(store, V3).n, 2);
   assert.equal(store.disk.get(V3), value);
 });
-
-// Audit F2: "cas" (compare-at-commit). m is the checksum of the whole raw value the writer last
-// saw at the key, or "none" when it saw no value; the page refuses to replace anything else.
-function cas(store, key, value, match, { expected = '', r = `cas-${key}` } = {}) {
-  return store.request({ o: 'w', r, p: 0, n: 1, k: key, v: value, e: expected, m: match });
-}
 
 test('cas: an absent expectation commits only while the key is still absent', () => {
   const store = page();
@@ -324,10 +324,11 @@ test('cas: malformed or mid-write-changed expectations fail without touching sto
   const value = record('z'.repeat(3050));
   assert.equal(store.request({ o: 'w', r: 'mid', p: 0, n: 2, k: V3, v: value.slice(0, 3000), e: '', m: fnv(record('seen')) }).ok, true);
   assert.match(store.request({ o: 'w', r: 'mid', p: 1, n: 2, k: V3, v: value.slice(3000), e: '', m: 'none' }).e, /changed_write/);
-  assert.equal(store.request({ o: 'w', r: 'mid2', p: 0, n: 2, k: V3, v: value.slice(0, 3000), e: '' }).ok, true);
-  assert.match(store.request({ o: 'w', r: 'mid2', p: 1, n: 2, k: V3, v: value.slice(3000), e: '', m: 'none' }).e, /changed_write/,
+  // A v2 key (no m needed) shows that adding m mid-write is a change too; a v3 key refuses the m-less chunk itself.
+  assert.equal(store.request({ o: 'w', r: 'mid2', p: 0, n: 2, k: CURRENT, v: value.slice(0, 3000), e: '' }).ok, true);
+  assert.match(store.request({ o: 'w', r: 'mid2', p: 1, n: 2, k: CURRENT, v: value.slice(3000), e: '', m: 'none' }).e, /changed_write/,
     'adding m mid-write is a change too');
-  assert.equal(store.disk.get(V3), record('seen'));
+  assert.equal(store.disk.get(V3), record('seen')); assert.equal(store.disk.has(CURRENT), false);
 });
 
 test('v2 writes without m keep the unconditional version-1 behaviour', () => {
@@ -341,6 +342,69 @@ test('v2 writes without m keep the unconditional version-1 behaviour', () => {
   assert.deepEqual(Object.keys(keyless).sort(), ['d', 'i', 'n', 'o', 'ok', 'p', 'q']);
   assert.equal(store.disk.get(CURRENT), record('keyless'));
   assert.equal(store.disk.get(PREVIOUS), mine);
+});
+
+// Save-security audit 2026-11-02 (Claude + Claude Fable 5.1, F1): the page runs any request in its URL, and Steam's
+// browser and overlay share the game's storage, so a link could delete or replace the save. Every hpcolors key except
+// v2's is guarded: no delete, no direct backup write, and every write must carry m (the checksum of the stored save,
+// which another site cannot read). The v3 build never deletes, never writes .prev and always sends m, so it is
+// unaffected; v2 clients keep their unguarded keys. Ways the guard can fail: a delete or m-less write still lands; the
+// backup can be written directly; a wrong guess at m lands; the refusal touches storage; v2 Forget or v2 m-less writes
+// break; a fresh install can no longer save.
+test('guard: a crafted link cannot delete a v3 save or its backup', () => {
+  const seed = { [V3]: record('mine'), [V3_PREVIOUS]: record('backup'), [CURRENT]: 'v2' };
+  for (const key of [V3, V3_PREVIOUS]) {
+    const store = page(seed);
+    assert.match(store.request({ o: 'd', k: key }).e, /readonly/, key);
+    assert.deepEqual(store.disk, new Map(Object.entries(seed)));
+    assert.deepEqual(store.accesses, [], 'a refused delete touches no storage');
+  }
+});
+
+test('guard: a crafted link cannot replace an existing v3 save', () => {
+  const seed = { [V3]: record('mine') };
+  const evil = record('{"v":20,"k":"bundle","d":[15,false],"p":[]}');
+  const store = page(seed);
+  assert.match(write(store, V3, evil).e, /needs_cas/, 'no m: refused (was the unconditional v2 behaviour)');
+  assert.match(write(store, V3, evil, fnv(record('mine'))).e, /needs_cas/, 'e alone is not m');
+  assert.match(cas(store, V3, evil, 'none', { r: 'none' }).e, /conflict/, 'claiming the key is empty');
+  assert.match(cas(store, V3, evil, 'deadbeef', { r: 'guess' }).e, /conflict/, 'a guessed checksum');
+  assert.equal(store.disk.get(V3), record('mine')); assert.equal(store.disk.has(V3_PREVIOUS), false);
+  // Chunked: the m-less first chunk is refused, so nothing is staged.
+  const big = record('x'.repeat(4000));
+  assert.match(store.request({ o: 'w', r: 'big', p: 0, n: 2, k: V3, v: big.slice(0, 3000), e: '' }).e, /needs_cas/);
+  assert.match(store.request({ o: 'w', r: 'big', p: 1, n: 2, k: V3, v: big.slice(3000), e: '', m: 'none' }).e, /missing_chunk/);
+  assert.equal(store.disk.get(V3), record('mine'));
+});
+
+test('guard: a refused foreign request does not abort the game\'s write in progress', () => {
+  const store = page({ [V3]: record('mine') });
+  const value = record('w'.repeat(4000)), m = fnv(record('mine'));
+  assert.equal(store.request({ o: 'w', r: 'game', p: 0, n: 2, k: V3, v: value.slice(0, 3000), e: '', m }).ok, true);
+  assert.match(write(store, V3, record('evil')).e, /needs_cas/);
+  assert.match(store.request({ o: 'w', r: 'junk', p: 1, n: 2, k: V3, v: 'x', e: '', m: 'none' }).e, /missing_chunk/);
+  assert.match(store.request({ o: 'r', r: 'bad', p: 0, k: 'nope' }).e, /invalid_key/);
+  assert.equal(store.request({ o: 'w', r: 'game', p: 1, n: 2, k: V3, v: value.slice(3000), e: '', m }).d, 1, 'the game finishes its save');
+  assert.equal(store.disk.get(V3), value);
+});
+
+test('guard: the v3 backup cannot be written directly, even with m', () => {
+  const store = page({ [V3]: record('mine'), [V3_PREVIOUS]: record('backup') });
+  assert.match(cas(store, V3_PREVIOUS, record('evil'), fnv(record('backup'))).e, /readonly_backup/);
+  assert.match(cas(store, V3_PREVIOUS, record('evil'), 'none', { r: 'b' }).e, /readonly_backup/);
+  assert.equal(store.disk.get(V3_PREVIOUS), record('backup'));
+});
+
+test('guard: the v3 build keeps saving (fresh install, update with rotation), and v2 is unchanged', () => {
+  const store = page({ [CURRENT]: record('v2') });
+  const first = record('first'), second = record('second');
+  assert.equal(cas(store, V3, first, 'none').d, 1, 'fresh install');
+  assert.equal(cas(store, V3, second, fnv(first), { expected: first.split('.')[1], r: 'update' }).d, 1);
+  assert.equal(store.disk.get(V3_PREVIOUS), first, 'the page still rotates the backup itself');
+  assert.equal(write(store, CURRENT, record('v2 again'), 'deadbeef').d, 1, 'v2 m-less write');
+  assert.equal(store.request({ o: 'd' }).ok, true, 'v2 Forget');
+  assert.equal(store.disk.has(CURRENT), false);
+  assert.equal(store.disk.get(V3), second, 'Forget never touches v3');
 });
 
 test('lv: requires a plain mod id, answers at once and touches no storage', () => {

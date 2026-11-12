@@ -28,7 +28,8 @@
   var playerClasses = ["player", "CLASS_PLAYER"];
   var objectiveClasses = ["building", "CLASS_DESTROYABLE_BUILDING", "boss_tier1", "boss_tier2", "boss_tier3", "boss_barracks", "barracks", "neutral_vault"];
   var npcClasses = ["creature", "minion", "CLASS_TROOPER", "CLASS_TROOPER_BOSS", "neutral_weak", "neutral_normal", "neutral_strong", "midboss"];
-  var wiggleExcludedClasses = objectiveClasses.concat(["midboss"]);
+  // Boss kinds: objectives plus the midboss. A player carrying one is never owned (classify).
+  var bossClasses = objectiveClasses.concat(["midboss"]);
   var neutralClasses = ["team_neutral", "neutral_weak", "neutral_normal", "neutral_strong", "neutral_vault"];
   var stockClasses = ["health_critical", "ShowCriticalState"];
   var allClasses = playerClasses.concat(objectiveClasses, npcClasses, neutralClasses, ["enemy", "friend", "LocalPlayer", "team1", "team2", "spectating"], stockClasses);
@@ -41,8 +42,8 @@
   var childKinds = new WeakMap();
   var pickupClasses = ["gunpower_pickup", "movement_pickup", "casting_pickup", "survival_pickup"];
   var pickupColors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
-  var pickupEntries = new WeakMap(), lastPickups = -Infinity;
-  var messageHooks = [], stateHooks = [], lastTimerState = "", timerFacts = { pickupAllowed: true, ultimateAngle: null };
+  var pickupEntries = new WeakMap(), lastPickups = -Infinity, textWrites = new WeakMap();
+  var messageHooks = [], stateHooks = [], lastTimerState = "", timerFacts = { pickupAllowed: true, ultimateAngle: null, bounty: null };
   function timerState() {
     var carrier = null;
     for (var i = 0; i < carriers.length; i++) {
@@ -64,17 +65,30 @@
     list.push(callback);
     return function () { var i = list.indexOf(callback); if (i >= 0) list.splice(i, 1); };
   }
+  // Ticket 50: the kill bounty pill is owned XML (no stock state); its panels are looked up on first use.
+  function bountyParts(parts, prefix) {
+    if (valid(parts.bountyAnchor) && valid(parts.bountyPill) && valid(parts.bountyValue)) return;
+    parts.bountyAnchor = valid(root) ? root.FindChild(prefix + "BountyAnchor") : null;
+    parts.bountyPill = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChild(prefix + "Bounty") : null;
+    parts.bountyValue = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChildTraverse(prefix + "BountyValue") : null;
+    parts.bountyLooked = true;
+  }
   function setTimerFacts(next) {
-    if (timerFacts.pickupAllowed === next.pickupAllowed && timerFacts.ultimateAngle === next.ultimateAngle) return;
-    var gateChanged = timerFacts.pickupAllowed !== next.pickupAllowed;
+    var bounty = Number.isSafeInteger(next.bounty) && next.bounty >= 0 ? next.bounty : null;
+    if (timerFacts.pickupAllowed === next.pickupAllowed && timerFacts.ultimateAngle === next.ultimateAngle && timerFacts.bounty === bounty) return;
+    var gateChanged = timerFacts.pickupAllowed !== next.pickupAllowed, ultimateChanged = timerFacts.ultimateAngle !== next.ultimateAngle;
     if (gateChanged) lastPickups = -Infinity;
-    timerFacts = next;
-    if (cache) cache.ultimateAngle = next.ultimateAngle;
+    timerFacts = { pickupAllowed: next.pickupAllowed, ultimateAngle: next.ultimateAngle, bounty: bounty };
+    if (cache) { cache.ultimateAngle = next.ultimateAngle; cache.bounty = bounty; }
+    if (cache && bounty !== null && settings && settings.shared.killBountyEnabled) bountyParts(cache, "HPColorsV3");
     // Timer-only prediction changes reuse the last observed health/layout facts.
     // They must not add a second fill/geometry poll or shift the 0.15s scheduler.
-    if (!gateChanged && running && cachedFacts && settings && cache && valid(cache.ultimateOverlay)) {
-      var current = Object.assign({}, cachedFacts, { ultimateAngle: next.ultimateAngle });
-      try { apply(plan(current, settings, { showBounds: showBounds })); cachedFacts = current; memo = null; return; }
+    if (!gateChanged && running && cachedFacts && settings && cache && (!ultimateChanged || valid(cache.ultimateOverlay))) {
+      var current = Object.assign({}, cachedFacts, { ultimateAngle: next.ultimateAngle, bounty: bounty });
+      // The plan just applied is the next tick's plan too (the memo key leaves timer facts out): keep it,
+      // so a once-a-second bounty or ultimate step costs one plan per bar, not two.
+      try { var timed = plan(current, settings, { showBounds: showBounds }); apply(timed); cachedFacts = current; status.plansComputed++;
+        memo = { key: current.signature + "|" + epoch + "|" + revision + "|" + showBounds, value: timed }; return; }
       catch (error) { /* Pending leases retry through the normal guarded paint. */ }
     }
     cachedFacts = null; memo = null; lastFull = -Infinity;
@@ -117,7 +131,7 @@
     parts.ultimateFill = parts.ultimateOverlay.FindChild(prefix + "UltimateFill") || $.CreatePanel("Image", parts.ultimateOverlay, prefix + "UltimateFill");
     [parts.ultimateDark, parts.ultimateFill].forEach(function (panel) {
       panel.AddClass("HPColorsV3UltimateArtwork"); panel.hittest = false;
-      panel.SetImage("s2r://panorama/images/hpv3/ultimate_progress.vtex");
+      panel.SetImage("s2r://panorama/images/hpv3/ultimate_progress.vsvg");
     });
   }
   function childrenOfKind(parent, names) {
@@ -172,7 +186,7 @@
   function openUnitClasses(config) {
     if (!config || !config.shared.enabled) return [];
     return (config.side.enemy.objectiveEnabled || config.side.ally.objectiveEnabled ? objectiveClasses : []).concat(
-      config.side.enemy.npcEnabled || config.side.ally.npcEnabled || config.shared.neutralEnabled ? npcClasses : []);
+      config.shared.neutralEnabled ? npcClasses : []);
   }
   function wakeCarriers() {
     var openKinds = openUnitClasses(settings);
@@ -211,18 +225,19 @@
     var side = neutral ? "neutral" : friend ? "ally" : enemy ? "enemy" : "unknown";
     // With no open gate for this relation, kind cannot change ownership.
     if (!player && config && (neutral ? !config.shared.neutralEnabled : !config.side[side] ||
-        !config.side[side].npcEnabled && !config.side[side].objectiveEnabled))
+        !config.side[side].objectiveEnabled))
       return { signature: ["closed", neutral, enemy, friend].join("|"), kind: "unknown", side: side, relation: side, eligible: false };
-    var noWiggle = enabled && anyOf(wiggleExcludedClasses);
-    var objective = noWiggle && anyOf(objectiveClasses);
-    var npc = !objective && (!player || noWiggle) && anyOf(npcClasses);
+    var boss = enabled && anyOf(bossClasses);
+    var objective = boss && anyOf(objectiveClasses);
+    var npc = !objective && (!player || boss) && anyOf(npcClasses);
     var unitKind = objective ? "objective" : player ? "player" : npc ? "npc" : "unknown";
     var eligible = unitKind !== "unknown" && !local && !(player && npc);
     if (neutral) eligible = eligible && unitKind === "npc" && !!(config && config.shared.neutralEnabled);
     else {
       eligible = eligible && enemy !== friend;
-      if (unitKind !== "player") eligible = eligible && !!(config && config.side[side] &&
-        config.side[side][unitKind === "npc" ? "npcEnabled" : "objectiveEnabled"]);
+      // Only objectives have a gate here; other NPC bars are never customized (Customize NPC bars removed 2026-10-29).
+      if (unitKind !== "player") eligible = eligible && unitKind === "objective" && !!(config && config.side[side] &&
+        config.side[side].objectiveEnabled);
     }
     // Closed unit gates need no team, spectator or critical-style probes. Relation
     // and kind still recheck each second so recycling into an open gate wakes.
@@ -234,10 +249,10 @@
     eligible = eligible && !(team1 && team2);
     var flags = {};
     if (enabled && eligible && criticalOutline(config, side)) stockClasses.forEach(function (name) { flags[name] = anyOf([name]); });
-    var base = [unitKind, noWiggle, neutral, enemy, friend, !!local, team1, team2, spectating, eligible].join("|");
+    var base = [unitKind, boss, neutral, enemy, friend, !!local, team1, team2, spectating, eligible].join("|");
     return { signature: base + "|" + JSON.stringify(flags), base: base, flags: flags, player: player,
       enemy: enemy, friend: friend, spectating: spectating, cssPlayer: cssPlayer, teamNeutral: teamNeutral, team1: team1, team2: team2,
-      kind: unitKind, noWiggle: noWiggle, side: side, team: team, relation: relation,
+      kind: unitKind, side: side, team: team, relation: relation,
       eligible: eligible };
   }
   function classify() {
@@ -272,13 +287,15 @@
     // Allocation and feedback belong to the PRIMARY inner; never UnitShieldbar.
     cache = { status: unit, info: info, stack: stack, primary: primary, inner: inner, fill: fill, motion: motion, anchor: anchor, row: row,
       shield: inner.FindChild("unit_healthbar_bullet_shield"), armor: inner.FindChild("unit_healthbar_ratking_armor"),
+      deferred: inner.FindChild("unit_healthbar_deferred"),
       healing: inner.FindChild("unit_healthbar_healing"), delta: inner.FindChild("unit_healthbar_delta"), lines: primary.FindChild("UnitHealthbarLines"),
       outline: primary.FindChild("HPColorsV3BarOutline"), value: info.FindChild("UnitHealthbarValue") || row.FindChild("UnitHealthbarValue"),
+      hpPercent: row.FindChild("HPColorsV3HPPercent"),
       name: root.FindChild("name") || motion.FindChild("name"), killMarker: primary.FindChild("HPColorsV3KillMarker"), lineChildren: [],
       level: info.FindChild("HPColorsV3Level"), levelLabel: info.FindChildTraverse("unit_level_label"), levelNumber: 0,
       ult: info.Children().filter(function (panel) { return panel.BHasClass("unit_info_panel"); })[0] || null,
       stamina: null, staminaIcons: [], staminaEmpty: [], staminaPips: [], staminaShown: false, staminaGate: "", staminaLowOn: false, staminaChecked: -Infinity, staminaStale: false, pulseOverlay: inner.FindChild("HPColorsV3PulseOverlay"),
-      killStreak: null, rejuv: null, rejuvAnchor: root.FindChild("HPColorsV3RejuvenatorAnchor"),
+      killStreak: null, rejuv: null, rejuvAnchor: root.FindChild("HPColorsV3RejuvenatorAnchor"), effects: root.FindChild("StatusEffects") || null,
       pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
     // BAR STYLE OLD grid of THIS primary only: a recycled primary keeps its own grid inactive.
     cache.pipGrid = primary.FindChild("HPColorsV3PipGrid");
@@ -339,6 +356,10 @@
     if (changed) { geometry = null; cachedFacts = null; memo = null; lastProbe = ""; lastFull = -Infinity; }
   }
   var STATUS_LABELS = ["critical", "assassinate", "unkillable"];
+  // Ticket 52, in class-letter order A..H (hp_colors_v3_status.css pairs each letter with the game's icon class).
+  var STATUS_SCALES = ["statusScaleFixation", "statusScaleMalice", "statusScaleScrewjab", "statusScaleDjinnsMark",
+    "statusScaleSerratedKnives", "statusScaleBarrage", "statusScalePulseGrenade", "statusScaleArcticBeam"];
+  var statusScaleSource = null, statusScaleClasses = [];
   function reconcileNativeIndicators() {
     if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player") return;
     var entries = [["killStreak", "KillStreakIndicator", cache.ult], ["rejuv", "RejuvenatorActive", cache.rejuvAnchor]];
@@ -395,6 +416,10 @@
   function reconcilePickups() {
     if (!cache) return;
     var effects = root.FindChild("StatusEffects");
+    // The whole-row move (styles.effects) targets this panel: a replaced row is adopted on this 3 s pass.
+    if ((valid(effects) ? effects : null) !== cache.effects) {
+      cache.effects = valid(effects) ? effects : null; cachedFacts = null; memo = null; lastFull = -Infinity;
+    }
     var container = valid(effects) ? effects.FindChildTraverse("StatusEffectContainer") : null;
     var next = kind && kind.kind === "player" && kind.eligible && settings && settings.shared.pickupTimersEnabled && timerFacts.pickupAllowed ? pickupParts(container)
       : { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
@@ -578,16 +603,20 @@
   }
   // Visibility can change independently of the live clip. Refresh on full paint
   // or a changed probe, not on every idle percent-clip sample.
+  // Returns whether any layer's hidden state changed, i.e. whether the input must be signed again.
   function refreshLayerVisibility(input, parts, keys) {
+    var changed = false;
     (keys || ["shield", "armor", "healing", "delta"]).forEach(function (key) {
       var signal = key === "shield" || key === "armor" ? input[key] : input.old && input.old[key];
       if (!signal) return;
       var panel = parts[key], hidden = String(panel.style.visibility || "") === "collapse" || panel.visible === false;
+      if (signal.hidden !== hidden) changed = true;
       hiddenLayers.set(panel, hidden); signal.hidden = hidden;
     });
+    return changed;
   }
   function signProbe(input) {
-    var signature = Object.assign({}, input); delete signature.ultimateAngle; delete signature.signature;
+    var signature = Object.assign({}, input); delete signature.ultimateAngle; delete signature.bounty; delete signature.signature;
     input.signature = JSON.stringify(signature); return input;
   }
   // BAR STYLE OLD only (v2 layoutOld): the engine draws floor(total/250) lines at 250k/total
@@ -606,13 +635,15 @@
     var input = { fill: signal(parts.fill), innerWidth: css(parts.inner, "actuallayoutwidth"),
       shield: layerSignal(parts.shield), armor: layerSignal(parts.armor), geometry: sampled, level: parts.levelNumber || 0, stamina: parts.staminaEmpty || [],
       pickups: parts.pickupKinds || [], ultimateAngle: parts.ultimateAngle === undefined ? null : parts.ultimateAngle,
+      bounty: Number.isSafeInteger(parts.bounty) ? parts.bounty : null,
       row: laid(parts.row) };
     if (old) input.old = oldSignal(parts);
     if (refreshVisibility !== false) refreshLayerVisibility(input, parts);
     return signProbe(input);
   }
   function oldWanted(config, carrier) {
-    return !!(config && config.shared.enabled && config.shared.barStyle === "old" && carrier && carrier.eligible);
+    // BAR STYLE is hero-only (unit bars keep the stock bar), so unit bars never sample the line total.
+    return !!(config && config.shared.enabled && config.shared.barStyle === "old" && carrier && carrier.eligible && carrier.kind === "player");
   }
   function probe() { return probeOf(cache, geometry, false); }
   function length(value, width) {
@@ -680,8 +711,9 @@
     var health = fill / Math.max(fill, 1 - excluded);
     return Object.freeze({ signature: signature, eligible: carrier.eligible, kind: carrier.kind, side: carrier.side, team: carrier.team,
       relation: carrier.relation, flags: carrier.flags, player: carrier.player, enemy: carrier.enemy, friend: carrier.friend, spectating: carrier.spectating,
-      cssPlayer: carrier.cssPlayer, teamNeutral: carrier.teamNeutral, team1: carrier.team1, team2: carrier.team2, noWiggle: carrier.noWiggle,
-      geometry: input.geometry, row: input.row, level: input.level, stamina: input.stamina, pickups: input.pickups, ultimateAngle: input.ultimateAngle,
+      cssPlayer: carrier.cssPlayer, teamNeutral: carrier.teamNeutral, team1: carrier.team1, team2: carrier.team2,
+      geometry: input.geometry, row: input.row, level: input.level, stamina: input.stamina, pickups: input.pickups,
+      ultimateAngle: input.ultimateAngle, bounty: input.bounty === undefined ? null : input.bounty,
       fraction: Number.isFinite(health) ? Math.max(0, Math.min(1, health)) : 0, fillCoverage: fill, laid: input.innerWidth > 0, old: oldFacts(input) });
   }
   function facts(input) {
@@ -741,7 +773,12 @@
     var player = input.kind === "player", neutral = input.side === "neutral";
     var side = config.side[neutral ? "enemy" : input.side], g = input.geometry, row = input.row;
     if (!side) return empty;
-    var colorsEnabled = neutral || !player || side.barColorEnabled;
+    // Unit bars (objectives and neutral camps) keep the game's layout and take only colors (user, 2026-10-29:
+    // "don't modify the layout to match the player ones"): everything that moves, sizes, styles or reparents
+    // below is hero-only. Neutral camps and objectives each have their own HP number options on UNITS
+    // (shared neutralHp*/objectiveHp* settings; eligible non-hero bars are only these two kinds).
+    var unitHp = player ? "" : neutral ? "neutral" : "objective";
+    var colorsEnabled = !player || side.barColorEnabled;
     var w = g.canvas.width || 200, h = g.canvas.height || 210;
     var sx = side.barWidth / 79, sy = side.barHeight / 18;
     var cx = g.status.x + g.info.x + g.stack.x + g.primary.x + g.primary.width / 2;
@@ -751,7 +788,7 @@
     var color = bands(input, config, side, "barColor", highColor);
     // BAR STYLE: V2 restores the stock masks through one root class; OLD draws 100-HP boxes
     // once the line total is known (count capped like v2: 128 boxes cover the 50-line maximum).
-    var style = config.shared.barStyle, old = style === "old", total = old && input.old ? input.old.total : 0;
+    var style = player ? config.shared.barStyle : "none", old = style === "old", total = old && input.old ? input.old.total : 0;
     var pipCount = total > 0 ? Math.max(0, Math.ceil(total / 100 - 0.05)) : 0;
     if (pipCount > 128 || !(g.primary.width > 0)) pipCount = 0;
     var pipRows = pipCount ? Math.min(Math.ceil(pipCount / 10), 4) : 0;
@@ -764,15 +801,17 @@
     var pulseHidden = barPulse && side.pulseHideBar;
     var duration = (60 / side.pulseBpm).toFixed(3) + "s";
     if (barPulse && side.pulseColorEnabled && side.pulseColorMode === "fixed") color = side.pulseColor;
-    var styles = {
-      stack: { preTransformScale2d: String(sx) + ", " + String(sy), transform: translation(tx, ty) },
-      motion: { transformOrigin: "50% " + String(Math.round(8500 / h * 1000000) / 1000000) + "%" },
-      outline: {}
-    };
-    var classes = { root: { HPColorsV3Core: true, HPColorsV3Unit: !player, HPColorsV3NoWiggle: !!input.noWiggle, HPColorsV3BarColored: !neutral && colorsEnabled,
-      HPColorsV3BarHidden: !neutral && colorsEnabled && (!side.barVisible || pulseHidden), HPColorsV3Outline: side.barOutlineEnabled && !old,
-      HPColorsV3HPText: side.hpTextVisible, HPColorsV3HPHidden: player && !side.hpTextVisible && input.side === "enemy",
-      HPColorsV3NameHidden: player && !side.nameVisible, HPColorsV3BarLines: true, HPColorsV3LinesHidden: !neutral && !side.linesVisible && !old } };
+    var styles = { outline: {} }, texts = {};
+    // Unit bars are never reparented into the motion frame: the native status keeps its stock layout,
+    // ui-scale and damage motion, and only inline colors are written.
+    if (player) {
+      styles.stack = { preTransformScale2d: String(sx) + ", " + String(sy), transform: translation(tx, ty) };
+      styles.motion = { transformOrigin: "50% " + String(Math.round(8500 / h * 1000000) / 1000000) + "%" };
+    }
+    var classes = { root: { HPColorsV3Core: true, HPColorsV3Layout: player, HPColorsV3BarColored: player && colorsEnabled,
+      HPColorsV3BarHidden: player && colorsEnabled && (!side.barVisible || pulseHidden), HPColorsV3Outline: player && side.barOutlineEnabled && !old,
+      HPColorsV3HPText: player && side.hpTextVisible, HPColorsV3HPHidden: player && !side.hpTextVisible && input.side === "enemy",
+      HPColorsV3NameHidden: player && !side.nameVisible, HPColorsV3BarLines: player, HPColorsV3LinesHidden: player && !side.linesVisible && !old } };
     // V2 masks: the primary container only while unoutlined (live 6782: a mask cannot be cancelled).
     if (style === "original") { classes.root.HPColorsV3BarMask = true; classes.root.HPColorsV3BarMaskPrimary = !side.barOutlineEnabled; }
     if (old) classes.root.HPColorsV3BarOld = true;
@@ -780,18 +819,36 @@
     if (view && view.showBounds === true) classes.root.HPColorsV3Bounds = true;
     if (pipCount) { classes.root.HPColorsV3BarPips = true; classes.pipGrid = { HPColorsV3PipGridActive: true }; }
     // Damage shake (v2 slots 76/77): one root class swaps the motion frame's keyframes; strength 3
-    // is the native wiggle, so the default adds no class. Excluded kinds never shake.
-    if (!input.noWiggle && !config.shared.damageShakeEnabled) classes.root.HPColorsV3ShakeOff = true;
-    else if (!input.noWiggle && config.shared.damageShakeStrength !== 3) classes.root["HPColorsV3Shake" + config.shared.damageShakeStrength] = true;
+    // is the native wiggle, so the default adds no class. Unit bars keep the native motion.
+    if (player && !config.shared.damageShakeEnabled) classes.root.HPColorsV3ShakeOff = true;
+    else if (player && config.shared.damageShakeStrength !== 3) classes.root["HPColorsV3Shake" + config.shared.damageShakeStrength] = true;
+    // Ticket 52: the stylesheet the status row's own layout includes (hp_colors_v3_status.css via citadel_status_effect.xml)
+    // scales the game's icon by its class and lets the 32 px row fit it. The script only sets these root classes, so a
+    // new icon is drawn at its size at once and no native icon is read or written.
+    if (player) {
+      if (statusScaleSource !== config.shared) {
+        statusScaleSource = config.shared; statusScaleClasses = [];
+        for (var fx = 0; fx < STATUS_SCALES.length; fx++) {
+          var fxScale = Math.round(config.shared[STATUS_SCALES[fx]] / 10) * 10;
+          if (fxScale > 100 && fxScale <= 250) statusScaleClasses.push("HPColorsV3Fx" + "ABCDEFGH".charAt(fx) + fxScale);
+        }
+      }
+      for (var fxClass = 0; fxClass < statusScaleClasses.length; fxClass++) classes.root[statusScaleClasses[fxClass]] = true;
+      if (statusScaleClasses.length > 0) classes.root.HPColorsV3FxOn = true;
+    }
     // v2 oldGridLift: anchored level/ultimate badges follow the grid's vertical centre, not the hidden bar's.
     var gridLift = pipRows && config.shared.accessoryAnchorEnabled ? (pipRows * 6 / 2 - g.primary.height / 2 + 2.5) * sy : 0;
-    var parents = { status: "motion" };
-    if (player) parents.name = "motion";
+    var parents = player ? { status: "motion", name: "motion" } : {};
     if (colorsEnabled) {
       styles.fill = { washColor: neutral ? config.shared.neutralColor : color };
+      // Neutral bars only show the bar and the damage delta: the delta follows the enemy side
+      // (GameBanana report 2026-10-27; user 2026-10-28). Healing and shields stay stock there.
+      styles.delta = { washColor: side.barDeltaColor };
       if (!neutral) {
-        styles.healing = { washColor: side.barHealingColor }; styles.delta = { washColor: side.barDeltaColor };
+        styles.healing = { washColor: side.barHealingColor };
         styles.shield = { backgroundColor: side.barShieldColor }; styles.armor = { backgroundColor: side.barArmorColor };
+        // Deferred damage (Shiv Bloodletting, Nurse Vapors): stock wash rgb(232, 127, 61) on every side.
+        styles.deferred = { washColor: side.barDeferredColor };
       }
     }
     if (barPulse) {
@@ -804,9 +861,9 @@
       }
     }
     // OLD releases line color/opacity: the fallback gaps and the boxes have their own look.
-    if ((neutral || side.linesVisible) && !input.spectating && !old) {
+    if (player && side.linesVisible && !input.spectating && !old) {
       if (side.lineOpacity !== 100) styles.lines = { opacity: String(side.lineOpacity / 100) };
-      if (!neutral && side.lineColorEnabled) styles.lineWash = { washColor: side.lineColor };
+      if (side.lineColorEnabled) styles.lineWash = { washColor: side.lineColor };
     }
     var markerGate = player && side.barColorEnabled && side.barVisible && !pulseHidden && side.killMarkerEnabled;
     var markerWanted = markerGate && !pipCount && g.inner.width > 0;
@@ -830,7 +887,7 @@
         oldPlan.layers.push({ left: span ? hpOf(span[0]) : -1, right: span ? hpOf(span[1]) : -1, color: layerColor(entry[0], entry[1]) });
       });
       if (side.barOutlineEnabled) oldPlan.outline = { thickness: side.barOutlineThickness, opacity: String(side.barOutlineOpacity / 100),
-        color: player && side.barOutlineCustomColor ? side.barOutlineColor : outlineColor(input) };
+        color: side.barOutlineCustomColor ? side.barOutlineColor : outlineColor(input) };
       if (markerGate) oldPlan.marker = { hp: total * side.killMarkerThreshold / 100, width: Math.max(1, side.killMarkerWidth), color: side.killMarkerColor };
     }
     if (player) {
@@ -878,14 +935,38 @@
         styles.ultimateFill = { washColor: progressColor, clip: "radial(50% 50%, 0deg, " + angle + "deg)" };
         styles.ultimateDark = { washColor: progressColor, brightness: String(Math.max(0, 1 - config.shared.ultimateTimerDarkness / 100)) };
       }
+      // Live 6839 (user, 2026-11-02): moving each pickup icon left the other status effects in place and a
+      // pickup moved below its own row was clipped away. The whole native status-effect row moves instead,
+      // following the bar, plus the pickup offsets. It sits at the canvas top, and a panel drawn above its
+      // parent's top edge is never shown, so it never moves up past its native place.
+      var effectsX = side.barOffsetX + (config.shared.pickupTimersEnabled ? config.shared.pickupOffsetX : 0);
+      // Relative to the default bar offset (schema barOffsetY -3.8), so the default look leaves the row in place.
+      var effectsY = side.barOffsetY + 3.8 + (config.shared.pickupTimersEnabled ? config.shared.pickupOffsetY : 0);
+      effectsY = Math.round(effectsY * 1000) / 1000;
+      if (effectsX || effectsY > 0) styles.effects = { transform: translation(clamp(effectsX, -w / 2, w / 2), Math.max(0, effectsY)) };
       parents.rejuv = "rejuvAnchor";
       styles.rejuvAnchor = { transform: translation(config.shared.rejuvOffsetX, config.shared.rejuvOffsetY) };
       styles.rejuv = { transform: "rotateZ(" + config.shared.rejuvTilt + "deg)",
         preTransformScale2d: String(Math.round(config.shared.rejuvSize / 24 * 1000000) / 1000000) };
+      // Ticket 50: kill bounty pill under enemy hero bars, kept inside the bar canvas (a panel drawn
+      // outside its parent's rect is never shown). The topbar computes the value; this only places it.
+      if (config.shared.killBountyEnabled && input.enemy && Number.isSafeInteger(input.bounty) && input.bounty >= 0) {
+        classes.root.HPColorsV3KillBounty = true;
+        // Size scales the whole pill by ui-scale (laid out again, so the number stays sharp), growing down from
+        // its top centre; the canvas clamps grow with it. Tilt turns the pill about its own centre.
+        var bountyScale = config.shared.killBountySize / 17;
+        var bountyX = clamp(side.barOffsetX + config.shared.killBountyOffsetX, 34 * bountyScale - w / 2, w / 2 - 34 * bountyScale);
+        var bountyY = clamp(cy + side.barOffsetY + g.primary.height * sy / 2 + 3 + config.shared.killBountyOffsetY, 0, h - 24 * bountyScale);
+        styles.bountyAnchor = { transform: translation(bountyX, bountyY) };
+        styles.bountyPill = {};
+        if (bountyScale !== 1) styles.bountyPill.uiScale = Math.round(bountyScale * 1000) / 10 + "%";
+        if (config.shared.killBountyTilt) styles.bountyPill.transform = "rotateZ(" + config.shared.killBountyTilt + "deg)";
+        texts.bountyValue = String(input.bounty).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      }
       if (config.shared.pickupTimersEnabled) {
-        styles.pickupIcons = { width: pixels(config.shared.pickupSize), height: pixels(config.shared.pickupSize),
-          margin: "0px " + pixels(config.shared.pickupSpacing),
-          transform: "translateX(" + pixels(config.shared.pickupOffsetX) + ") translateY(" + pixels(config.shared.pickupOffsetY) + ")" };
+        // Pickups keep the game's status-effect size (user, 2026-11-02: "same size as the status effects") and the
+        // row's own gaps (user, 2026-11-02: the status effects on the health bar should not be separated);
+        // pickupSize and pickupSpacing size only the top-bar pickup icons.
         styles.pickupBorders = { washColor: "#FFEFD7" };
         styles.pickupInners = (input.pickups || []).map(function (bit) { return { washColor: config.shared[pickupColors[bit]] }; });
         // Stock CooldownOverlay is blank for pickups. Give it the border artwork as a
@@ -924,20 +1005,23 @@
         });
       }
     }
-    if (side.barOutlineEnabled && !old) {
+    if (player && side.barOutlineEnabled && !old) {
       var thickness = side.barOutlineThickness;
-      styles.outline.backgroundColor = player && side.barOutlineCustomColor ? side.barOutlineColor : outlineColor(input);
+      styles.outline.backgroundColor = side.barOutlineCustomColor ? side.barOutlineColor : outlineColor(input);
       styles.outline.opacity = String(side.barOutlineOpacity / 100);
       styles.outline.width = pixels(g.inner.width + 2 * thickness);
       styles.outline.height = pixels(g.inner.height + 2 * thickness);
       styles.outline.transform = translation(g.inner.x - thickness, g.inner.y - thickness);
     }
-    if (side.hpTextVisible) {
-      parents.value = "row";
-      // Ticket 35: team colors are player-only; an unknown team falls back to the bar colors.
-      var hpTeam = player && side.hpTextColorMode === "team" && teamColor(config, input.team);
+    if (player && side.hpTextVisible) {
+      // Ticket 51: the percent is the bar's health fraction (the bar-color fraction), in an owned label that
+      // follows the adopted number in the row. It waits for a known fraction; until then the number shows.
+      var hpPercent = healthKnown && (side.hpTextFormat === "both" || side.hpTextFormat === "percent");
+      parents.value = hpPercent ? { parent: "row", before: "hpPercent" } : "row";
+      // Ticket 35: an unknown team falls back to the bar colors.
+      var hpTeam = side.hpTextColorMode === "team" && teamColor(config, input.team);
       var hpColor = hpTeam || (side.hpTextColorMode === "custom"
-        ? bands(input, config, side, "hpText", player && side.hpTextTeamHigh && teamColor(config, input.team)) : bandColor);
+        ? bands(input, config, side, "hpText", side.hpTextTeamHigh && teamColor(config, input.team)) : bandColor);
       var room = Math.ceil(side.hpTextOutline), align = side.hpTextAlign, q = align === "left" ? 1 : align === "center" ? 0.5 : 0;
       var hpX = pulseModifiers ? side.pulseReadoutOffsetX : side.hpTextOffsetX;
       var hpY = pulseModifiers ? side.pulseReadoutOffsetY : side.hpTextOffsetY;
@@ -947,7 +1031,8 @@
       styles.row = { horizontalAlign: align === "left" ? "right" : align === "center" ? "center" : "left" };
       // A row never laid has no extent to clamp; placement waits for its first laid sample (v2).
       if (row.width > 0 && row.height > 0) styles.row.transform = translation(x - q * w, y);
-      styles.value = { washColor: hpColor, fontFamily: fonts[side.hpTextFont], fontSize: pixels(pulseModifiers ? side.pulseReadoutSize : side.hpTextSize),
+      var hpSize = pulseModifiers ? side.pulseReadoutSize : side.hpTextSize;
+      styles.value = { washColor: hpColor, fontFamily: fonts[side.hpTextFont], fontSize: pixels(hpSize),
         padding: "0px " + pixels(room), marginLeft: pixels(-room), marginRight: pixels(-room) };
       if (side.hpTextOutline !== 5) styles.value.textShadow = "0px 0px 0px " + side.hpTextOutline + " #10130D";
       // Tilt rotates the adopted label only; the row keeps the geometry translate. 0 stays level (CSS).
@@ -956,11 +1041,38 @@
         classes.value = pulseClasses(side.pulseIntensity, false);
         styles.value.animationDuration = duration; styles.value.animationName = "";
       }
-    } else {
+      if (hpPercent) {
+        var percentOnly = side.hpTextFormat === "percent", percentValue = Math.round(input.fraction * 100);
+        percentValue = Math.max(input.fraction > 0 ? 1 : 0, Math.min(100, percentValue));
+        classes.root.HPColorsV3HPPercent = true;
+        classes.root.HPColorsV3HPPercentOnly = percentOnly;
+        texts.hpPercent = (percentOnly ? "" : "/ ") + percentValue + "%";
+        // Same look as the number; the gap after it scales with the font. Tilt turns the whole row instead
+        // of each label, so the two read as one line.
+        styles.hpPercent = { washColor: hpColor, fontFamily: styles.value.fontFamily, fontSize: styles.value.fontSize,
+          padding: styles.value.padding, marginLeft: pixels((percentOnly ? 0 : Math.round(0.3 * hpSize)) - room), marginRight: pixels(-room) };
+        if (styles.value.textShadow) styles.hpPercent.textShadow = styles.value.textShadow;
+        if (side.hpTextTilt) {
+          delete styles.value.transform;
+          if (styles.row.transform) styles.row.transform += " rotateZ(" + side.hpTextTilt + "deg)";
+        }
+        if (textPulse) {
+          classes.hpPercent = pulseClasses(side.pulseIntensity, false);
+          styles.hpPercent.animationDuration = duration; styles.hpPercent.animationName = "";
+        }
+      }
+    } else if (player) {
       // The original label stays in InfoHealthContainer, retaining native show/fade
       // rules. Compensate the original compact frame's 65px top and centered width.
       styles.value = { marginTop: "66px", marginRight: pixels((input.friend ? 20 : 10) + (w - 100) / 2) };
+    } else if (unitHp && config.shared[unitHp + "HpPositionEnabled"]) {
+      // Unit HP number (neutral camps, objectives): Always show is a root class (world.css keeps unkillable hidden);
+      // a custom spot replaces the stock rotateZ(-3deg) on the unmoved stock label, so offsets 0 and tilt -3
+      // match the stock spot.
+      styles.value = { transform: translation(config.shared[unitHp + "HpOffsetX"], config.shared[unitHp + "HpOffsetY"]) +
+        " rotateZ(" + config.shared[unitHp + "HpTilt"] + "deg)" };
     }
+    classes.root.HPColorsV3UnitHPAlways = !!unitHp && config.shared[unitHp + "HpTextMode"] === "always";
     var nameRoom = Math.max(2, Math.ceil(side.nameOutline)), nameAlign = side.nameAlign;
     var weight = nameAlign === "left" ? 1 : nameAlign === "center" ? 0.5 : 0;
     // OLD rows grow up from the bar; the first keeps the native name spot (v2 nameRiseWithPips).
@@ -985,7 +1097,7 @@
       if (side.nameColorEnabled) styles.name.color = (side.nameColorMode === "team" && teamColor(config, input.team) || side.nameColor) + (input.spectating ? "80" : "");
       if (side.nameOutline !== 5) styles.name.textShadow = "0px 0px 0px " + side.nameOutline + " #10130Dee";
     }
-    return { styles: styles, classes: classes, parents: parents, old: oldPlan,
+    return { styles: styles, classes: classes, parents: parents, texts: texts, old: oldPlan,
       settle: !!(levelShown && !g.level || ultPlaced && !g.ult) };
   }
   function memoisedPlan(input) {
@@ -1323,6 +1435,12 @@
       owner.owned = true;
     }
     if (next.old && parts) writes += paintOld(parts, next.old);
+    // Owned labels only (no stock text to restore): write on change; a hidden pill keeps its last text.
+    Object.keys(next.texts || {}).forEach(function (part) {
+      var panel = parts && parts[part], value = next.texts[part];
+      if (!panel || textWrites.get(panel) === value || !valid(panel)) return;
+      panel.text = value; textWrites.set(panel, value); writes++;
+    });
     return writes;
   }
   function worldTarget() { return { root: root, parts: cache, ledger: ledger, settle: false }; }
@@ -1382,9 +1500,10 @@
       if (kind.side !== "neutral" && lineSide.linesVisible && lineSide.lineColorEnabled && !kind.spectating && settings.shared.barStyle !== "old" &&
           valid(cache.lines) && cache.lines.GetChildCount() !== cache.nativeLineCount) reconcileLines();
       if (force || Date.now() - lastPickups >= 3000) reconcilePickups();
-      cache.ultimateAngle = timerFacts.ultimateAngle;
+      cache.ultimateAngle = timerFacts.ultimateAngle; cache.bounty = timerFacts.bounty;
       if (kind.kind === "player" && settings.shared.ultimateTimerEnabled && cache.ultimateAngle !== null &&
           (!valid(cache.ultimateOverlay) || !valid(cache.ultimateDark) || !valid(cache.ultimateFill))) ultimateArtwork(cache, "HPColorsV3");
+      if (kind.kind === "player" && settings.shared.killBountyEnabled && cache.bounty !== null && !cache.bountyLooked) bountyParts(cache, "HPColorsV3");
       // Only health/layer and bound-row extent signatures run at 0.15s. Geometry
       // refreshes at 1.5s, plus one settling sample after a layout-changing write.
       if (!geometry || settleGeometry || force || Date.now() - lastGeometry >= 1500) sampleGeometry();
@@ -1394,7 +1513,8 @@
           ++staminaIdleTicks % Math.max(2, Math.ceil((cache.staminaPips.length + 1) / 3.5)) === 0)) sampleStamina();
       var input = probe(), changed = input.signature !== lastProbe, configKey = epoch + "|" + revision, probed = input.signature;
       if (status.state !== "idle" || changed || configKey !== lastConfigKey || Date.now() - lastFull >= 1500) {
-        refreshLayerVisibility(input, cache); signProbe(input);
+        // probe() already signed the input; only a changed layer visibility needs a new signature.
+        if (refreshLayerVisibility(input, cache)) signProbe(input);
         changed = input.signature !== lastProbe; probed = input.signature;
         // Like v2's layoutOld, the OLD line total and feedback layers are read on paints only:
         // the 0.15s idle probe stays fill/shield/barrier, which every total or feedback change moves.
@@ -1518,6 +1638,8 @@
         Object.keys(pickups).forEach(function (key) { parts[key] = pickups[key]; });
         parts.ultimateAngle = carrier.eligible && carrier.kind === "player" && config.shared.ultimateTimerEnabled ? 180 : null;
         if (parts.ultimateAngle !== null) ultimateArtwork(parts, "HPColorsPreview");
+        // Ticket 50: a fixed sample (a solo kill at 16:00 without comeback); enemy samples only (plan).
+        parts.bounty = carrier.eligible && carrier.kind === "player" && config.shared.killBountyEnabled ? 1250 : null;
         var input = probeOf(parts, geometryOf(canvas, parts), true, oldWanted(config, carrier));
         var current = factsFrom(carrier, input, carrier.signature + "|" + input.signature);
         var next = plan(current, config, view);

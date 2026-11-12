@@ -182,13 +182,12 @@ function check(m, worlds, settings, code) {
     m.fire('HPColorsNav' + page + 'Button');
     for (const side of ['Enemy', 'Ally']) {
       m.fire('HPColorsPreviewSideOption' + side);
-      for (const kind of page === 'Units' ? ['Npc', 'Neutral', 'Objective'] : ['Hero']) {
+      for (const kind of page === 'Units' ? ['Neutral', 'Objective'] : ['Hero']) {
         if (page === 'Units') m.fire('HPColorsPreviewKindOption' + kind);
         const preview = m.h.$.HPColorsV3Preview.inspect();
         if (/unavailable/i.test(preview.status)) record('preview unavailable', `${page}/${side}/${kind}: ${preview.status}`);
         const config = applied.settings, active = config.shared.enabled &&
-          (kind === 'Hero' || kind === 'Npc' && config.side[side.toLowerCase()].npcEnabled ||
-            kind === 'Objective' && config.side[side.toLowerCase()].objectiveEnabled || kind === 'Neutral' && config.shared.neutralEnabled);
+          (kind === 'Hero' || kind === 'Objective' && config.side[side.toLowerCase()].objectiveEnabled || kind === 'Neutral' && config.shared.neutralEnabled);
         if (active && preview.painted === false) record('preview not painted', `${page}/${side}/${kind}: ${preview.status}`);
       }
     }

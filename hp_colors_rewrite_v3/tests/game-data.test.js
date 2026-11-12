@@ -213,6 +213,7 @@ test('CLI rejects missing or ambiguous stock-layout patch anchors before writing
       'id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()"', '<Panel class="SettingsRow">', '</CitadelHudEscapeMenu>']],
     ['vendor/unit_status_overlay_v2.xml', ['unit_status_v2.vcss', '</styles>']],
     ['vendor/citadel_hud_top_bar.xml', ['citadel_base_styles.vcss', 'hud_common.vcss', 'citadel_hud_top_bar.vcss', 'unit_status_icons.vcss', '</styles>', '<CitadelHudTopBar hittest="false">']],
+    ['vendor/citadel_status_effect.xml', ['citadel_base_styles.vcss', 'unit_status_icons.vcss', 'citadel_status_effect.vcss', '</styles>']],
   ]) {
     const original = fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
     for (const anchor of anchors) {
@@ -299,7 +300,7 @@ test('installed-version CLI accepts matching/missing installs and fails closed u
   assert.equal(mismatch.status, 1);
   assert.match(mismatch.stderr, /Installed game ClientVersion mismatch/);
   assert.ok(mismatch.stderr.includes('pinned=' + pin().clientVersion));
-  assert.match(mismatch.stderr, /AllowPinMismatch/);
+  assert.match(mismatch.stderr, /--allow-pin-mismatch/);
   const allowed = cli('--allow-pin-mismatch');
   assert.equal(allowed.status, 0);
   assert.match(allowed.stderr, /WARNING.*ClientVersion mismatch/);

@@ -503,7 +503,7 @@ test('ticket 38: a replaced HUD is corrected again and the old one released', ()
 test('ticket 38: record v15 carries Separate in codes; a v14 code without slot 195 reads Merged', () => {
   const f = launch(profile()); f.run(2000);
   const { HPColorsV3Sharing: sharing, HPColorsV3Settings: settingsContract } = f.harness.$;
-  assert.equal(settingsContract.recordVersion, 16);
+  assert.equal(settingsContract.recordVersion, 23);
   const settings = JSON.parse(JSON.stringify(f.settings())); settings.shared.hudShieldStyle = 'separate';
   const exported = sharing.exportSettingsCode(settings, {}); assert.equal(exported.ok, true, exported.message);
   const back = sharing.importSettingsCode(exported.code); assert.equal(back.ok, true, back.message);

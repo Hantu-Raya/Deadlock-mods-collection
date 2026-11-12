@@ -48,19 +48,25 @@ function menu(options = {}) {
   return { b, h, find, activate, shown, commits, reinclude, bundle: () => copy(bundle), hydrate: value => { hydrated = value; } };
 }
 
-test('ticket 36: news.json holds the 3.3.0 and 3.2.0 items, each with a target row or page', () => {
-  assert.deepEqual(news.map(item => item.id), ['team-name', 'team-colors', 'team-hp-number', 'team-stamina', 'low-stamina', 'ally-stamina', 'preview-team', 'old-shield-bar', 'icons-tab']);
+test('ticket 36: news.json holds the 3.7.0, 3.6.0, 3.5.0, 3.4.0, 3.3.0 and 3.2.0 items, each with a target row or page', () => {
+  const v370 = ['status-effect-sizes', 'hp-percent'];
+  const v360 = ['kill-bounty', 'deferred-damage-color', 'status-effects'];
+  const v350 = ['neutral-hp-number', 'colorblind-saved'];
+  const v340 = ['colorblind-view', 'greyed-settings', 'feedback-window', 'ultimate-badge', 'neutral-camp-bars'];
+  assert.deepEqual(news.map(item => item.id), [...v370, ...v360, ...v350, ...v340, 'team-name', 'team-colors', 'team-hp-number', 'team-stamina', 'low-stamina', 'ally-stamina', 'preview-team', 'old-shield-bar', 'icons-tab']);
   for (const item of news) {
-    assert.equal(item.release, item.id === 'team-name' ? '3.3.0' : '3.2.0');
+    assert.equal(item.release, v370.includes(item.id) ? '3.7.0' : v360.includes(item.id) ? '3.6.0' : v350.includes(item.id) ? '3.5.0' : v340.includes(item.id) ? '3.4.0' : item.id === 'team-name' ? '3.3.0' : '3.2.0');
     assert.ok(['New', 'Updated'].includes(item.badge), item.id);
     assert.ok(item.targets.length || item.page, item.id + ' needs a target');
   }
+  // The COLORBLIND tab has no schema rows; its item opens the page itself.
+  assert.equal(news.find(item => item.id === 'colorblind-view').page, 'Colorblind');
 });
 
 test('ticket 36: NEW is the first tab but the menu still opens on Bar', () => {
   const m = menu();
   const pages = m.h.$.HPColorsV3Settings.menu.pages;
-  assert.deepEqual(copy(pages.map(page => page.name)), ['New', 'Bar', 'HP Text', 'Name', 'Indicators', 'Icons', 'Units', 'Presets']);
+  assert.deepEqual(copy(pages.map(page => page.name)), ['New', 'Bar', 'HP Text', 'Name', 'Indicators', 'Icons', 'Units', 'Colorblind', 'Presets']);
   assert.equal(m.find('HPColorsPageBar').BHasClass('Active'), true);
   assert.equal(m.find('HPColorsPageNew').BHasClass('Active'), false);
   assert.equal(m.find('HPColorsNavBarButton').BHasClass('Selected'), true);
@@ -126,6 +132,9 @@ test('ticket 36: activating an item opens its page and flashes its rows with an 
   const preview = news.find(entry => entry.id === 'preview-team');
   m.activate('HPColorsNavNewButton'); m.activate(itemId(preview) + 'Button');
   assert.equal(m.find('HPColorsPage' + pascal(preview.page)).BHasClass('Active'), true, 'a page-only item opens its page');
+  const colorblind = news.find(entry => entry.id === 'colorblind-view');
+  m.activate('HPColorsNavNewButton'); m.activate(itemId(colorblind) + 'Button');
+  assert.equal(m.find('HPColorsPageColorblind').BHasClass('Active'), true, 'the COLORBLIND item opens the row-less COLORBLIND tab');
 });
 
 // Live 2026-10-21 (user): clicking "Team colors" did not reach the Team colors card. The target page was
@@ -347,9 +356,13 @@ test('ticket 36: the generator refuses unknown targets, badges, sides, duplicate
     // and flash rows on another.
     'wrong page': items => { items[0].page = 'Units'; },
     'mixed pages': items => { items[0].targets.push({ key: 'staminaLowColor' }); },
+    'unknown page': items => { items[0].page = 'Nowhere'; },
+    'Presets page': items => { items[0].targets = []; items[0].page = 'Presets'; },
   };
+  // Mutate a row-backed item first; 3.4.0 starts with the page-only COLORBLIND item.
+  const rowItemFirst = () => { const items = copy(news), i = items.findIndex(item => item.id === 'team-name'); return [items[i], ...items.filter((_, j) => j !== i)]; };
   for (const [name, mutate] of Object.entries(cases)) {
-    const items = copy(news); mutate(items);
+    const items = rowItemFirst(); mutate(items);
     const file = path.join(dir, name + '.json'); fs.writeFileSync(file, JSON.stringify(items));
     const result = spawnSync(process.execPath, [path.join(root, 'tools/generate.js'), '--news', file, '--output-root', path.join(dir, name)], { encoding: 'utf8' });
     assert.notEqual(result.status, 0, name);

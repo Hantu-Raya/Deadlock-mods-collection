@@ -74,7 +74,8 @@ test('isolated debug staging prints the release version exactly once in both VM 
       if (tree) {
         assert.ok(boot.harness.logs.some(line => line === '[HPV3] hero hero_inferno'));
         assert.ok(boot.harness.logs.some(line => line === '[HPV3] route applied baked_default'));
-        assert.ok(boot.harness.logs.some(line => line === '[HPV3] route skipped baked_default'));
+        // Since 2026-11-02 a route is decided once per hero, phase or target: later samples are silent.
+        assert.equal(boot.harness.logs.filter(line => line === '[HPV3] route applied baked_default').length, 1);
         const contract = boot.harness.$.HPColorsV3Settings;
         const cell = contract.slots.find(slot => slot.setting === 'barColorLow' && slot.side === 'enemy').slot;
         api.applySettings(contract.defaults, { [cell]: { slot: 1, minTier: 2, value: '#123456' } });

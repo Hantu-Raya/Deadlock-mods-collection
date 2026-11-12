@@ -6,7 +6,11 @@ const { sourceRoot } = require('./boot-layout');
 // A deliberately small test-only cascade for the flat selectors used by the pinned
 // native and owned sheets. The renderer still sees the inline-only Panorama style
 // bag. Unknown macros remain names: a test must not invent unpinned base-sheet facts.
-const sheets = ['panorama/styles/unit_status_v2.css', 'panorama/styles/hp_colors_v3_world.css', 'panorama/styles/hp_colors_v3_menu.css'];
+const sheets = ['panorama/styles/unit_status_v2.css', 'panorama/styles/hp_colors_v3_world.css', 'panorama/styles/hp_colors_v3_menu.css',
+  'panorama/styles/hp_colors_v3_status.css'];
+// Only citadel_status_effect.xml includes the status sheet, so a panel takes its rules only when a test marks
+// its layout's sheets (HPColorsV3Sheets) with it; every other panel sees the three own sheets.
+const ownSheets = sheets.filter(file => file !== 'panorama/styles/hp_colors_v3_status.css');
 const texts = sheets.map(file => fs.readFileSync(path.join(sourceRoot, file), 'utf8'));
 const macros = {};
 for (const text of texts) for (const match of text.matchAll(/@define\s+(\w+)\s*:\s*([^;]+);/g)) macros[match[1].toLowerCase()] = match[2].trim();
@@ -72,7 +76,7 @@ function computed(panel, key) {
   const own = inline(panel, key);
   if (own !== undefined && own !== null && own !== '') return own;
   let value, specificity = -1;
-  let included = sheets;
+  let included = ownSheets;
   for (let node = panel; node; node = node.parent) if (node.HPColorsV3Sheets) { included = node.HPColorsV3Sheets; break; }
   for (const rule of rules) if (included.includes(rule.sheet) && Object.hasOwn(rule.styles, key) && rule.specificity >= specificity && matches(panel, rule.selector)) {
     // Live 6782: a stylesheet `opacity-mask: none` does not cancel an earlier mask (the slanted

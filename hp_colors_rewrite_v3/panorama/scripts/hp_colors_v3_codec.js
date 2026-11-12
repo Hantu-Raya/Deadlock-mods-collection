@@ -17,6 +17,20 @@
   });
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function contract() { return $.HPColorsV3Settings; }
+  // Slot and control lookups, built once per contract table (first match wins, like the scans they replace):
+  // a sparse encode of a 128-preset library otherwise ran over two million control predicates.
+  var lookups = null;
+  function tables() {
+    var c = contract();
+    if (lookups && lookups.slotList === c.slots && lookups.controlList === c.controls) return lookups;
+    var bySlot = Object.create(null), byControl = Object.create(null);
+    c.slots.forEach(function (slot) { if (!(slot.slot in bySlot)) bySlot[slot.slot] = slot; });
+    c.controls.forEach(function (row) { var key = row.side + "\u0001" + row.key; if (!(key in byControl)) byControl[key] = row; });
+    lookups = { slotList: c.slots, controlList: c.controls, bySlot: bySlot, byControl: byControl };
+    return lookups;
+  }
+  function slotById(id) { return typeof id === "number" ? tables().bySlot[id] : undefined; }
+  function controlOf(slot) { return slot ? tables().byControl[slot.side + "\u0001" + slot.setting] : undefined; }
   function version() { return contract().recordVersion; }
   function values(settings, slot) { return slot.side === "shared" ? settings.shared : settings.side[slot.side]; }
   function checksum(text) {
@@ -93,7 +107,7 @@
     contract().slots.forEach(function (slot) {
       var value = values(settings, slot)[slot.setting];
       if (slot.type === "number") {
-        var row = contract().controls.filter(function (row) { return row.side === slot.side && row.key === slot.setting; })[0];
+        var row = controlOf(slot);
         var decimals = (String(row.step).split(".")[1] || "").length;
         value = Number((row.bounds[0] + Math.round((value - row.bounds[0]) / row.step) * row.step).toFixed(decimals));
         values(settings, slot)[slot.setting] = value;
@@ -128,7 +142,7 @@
       seen[entry[0]] = true;
       var slot = slots[entry[0]];
       if (!slot) { if (!newer && !retired(entry[0])) throw new Error("Unknown setting slot"); return; }
-      var control = contract().controls.filter(function (row) { return row.side === slot.side && row.key === slot.setting; })[0];
+      var control = controlOf(slot);
       if (!contract().validateValue(control, entry[1])) {
         if (newer) return;
         throw new Error("Invalid settings values");
@@ -166,8 +180,8 @@
   }
   // Native rules use generated setting-cell slots; only the sparse quadruples travel on the wire.
   function ruleRow(cell) {
-    var slot = contract().slots.filter(function (item) { return item.slot === Number(cell); })[0];
-    return slot && contract().controls.filter(function (row) { return row.side === slot.side && row.key === slot.setting; })[0];
+    var slot = slotById(Number(cell));
+    return slot && controlOf(slot);
   }
   function sparseRules(rules) {
     if (rules === undefined) return [];
@@ -250,8 +264,8 @@
       ids[preset.id] = true;
       var item = metadata(preset, ["settings", "d", "rules", "c"]); item.d = sparse(preset.settings); writeRules(item, preset.rules); record.p.push(item);
     });
-    // NEW-tab dismissals (ticket 36) are personal and stay out of shared bundle codes.
-    var extra = metadata(bundle, sharing ? ["settings", "presets", "rules", "newsDismissed"] : ["settings", "presets", "rules"]);
+    // NEW-tab dismissals (ticket 36) and the colorblind choice are personal and stay out of shared bundle codes.
+    var extra = metadata(bundle, sharing ? ["settings", "presets", "rules", "newsDismissed", "colorblind"] : ["settings", "presets", "rules"]);
     if (Object.keys(extra).length) record.b = extra;
     return record;
   }
@@ -264,9 +278,9 @@
         entry = [entry, diff[position + 1]];
       }
       if (!Array.isArray(entry) || entry.length !== 2 || !Number.isInteger(entry[0]) || entry[0] < 0) return false;
-      var slot = contract().slots.filter(function (item) { return item.slot === entry[0]; })[0];
+      var slot = slotById(entry[0]);
       if (!slot) return !retired(entry[0]);
-      var row = contract().controls.filter(function (item) { return item.side === slot.side && item.key === slot.setting; })[0];
+      var row = controlOf(slot);
       if (contract().validateValue(row,entry[1])) return false;
       return row.type === "number" && typeof entry[1] === "number" && isFinite(entry[1]) ||
         row.type === "enum" && typeof entry[1] === "string";
@@ -349,6 +363,41 @@
     if (/URI malformed|JSON|Unexpected|circular|TypeError/i.test(text)) return "That code or preset bundle could not be read.";
     return text;
   }
+  // A bundle code pasted from another player keeps only the fields this build reads (save-security audit
+  // 2026-11-02, Claude + Claude Fable 5.1): no other data rides along into the save (IMPORT appends its presets,
+  // REPLACE ALL also takes its bundle fields) or into the player's own later exports. Preset names are 1-48
+  // characters, trimmed, like rename, SAVE NEW and v2. The v2-migration fields an old code may carry stay
+  // (v2pending is copied into the active settings on apply; v2scopes/v2conditions feed the upgrade). The player's
+  // own save is read as-is and keeps unknown fields, so a newer build's data survives an older build's save.
+  var SHARED_PRESET_KEYS = ["id", "name", "settings", "rules", "v2pending", "v2scopes", "v2conditions"];
+  var SHARED_BUNDLE_KEYS = ["settings", "presets", "rules", "heroPresets", "heroDefault", "sourcePresetId", "sourceWasMapped", "v2pending", "v2scopes"];
+  function pick(value, keys) {
+    var result = {};
+    keys.forEach(function (key) { if (Object.prototype.hasOwnProperty.call(value, key)) result[key] = value[key]; });
+    return result;
+  }
+  function sharedBundle(result) {
+    var source = result.bundle, bundle = pick(source, SHARED_BUNDLE_KEYS);
+    bundle.presets = source.presets.map(function (preset) {
+      var name = preset.name.trim();
+      if (!name || preset.name.length > 48) throw new Error("Invalid preset name");
+      var clean = pick(preset, SHARED_PRESET_KEYS);
+      clean.name = name;
+      if (preset.hidden === true || preset.hidden === false) clean.hidden = preset.hidden;
+      return clean;
+    });
+    // Baked default fields: only its hidden state, its name override and the next user preset number are read.
+    if (Array.isArray(source.hiddenBakedPresetIds))
+      bundle.hiddenBakedPresetIds = source.hiddenBakedPresetIds.indexOf(RESERVED_PRESET_ID) >= 0 ? [RESERVED_PRESET_ID] : [];
+    var overrides = source.bakedPresetNameOverrides, bakedName = overrides && typeof overrides === "object" && !Array.isArray(overrides) &&
+      Object.prototype.hasOwnProperty.call(overrides, RESERVED_PRESET_ID) ? overrides[RESERVED_PRESET_ID] : null;
+    if (typeof bakedName === "string" && bakedName.trim() && bakedName.length <= 48) {
+      bundle.bakedPresetNameOverrides = {}; bundle.bakedPresetNameOverrides[RESERVED_PRESET_ID] = bakedName.trim();
+    }
+    if (Number.isSafeInteger(source.nextUserPresetNumber) && source.nextUserPresetNumber >= 1) bundle.nextUserPresetNumber = source.nextUserPresetNumber;
+    result.bundle = bundle;
+    return result;
+  }
   function attempt(callback) {
     try { var result = callback(); result.ok = true; return result; }
     catch (error) { return { ok: false, message: errorMessage(error) }; }
@@ -414,6 +463,6 @@
     }); },
     importSettingsCode: function (code, base) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,5) === "HPCR2" ? $.HPColorsV3FromV2.importSettingsCode(code, base) : readRecord(unframe(code, "HPC3", 4096).record, "settings"); }); },
     exportBundleCode: function (bundle) { return attempt(function () { return exportCode(bundleRecord(bundle, true), 32768, "Bundle exceeds 32,768 characters; export fewer presets"); }); },
-    importBundleCode: function (code) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,6) === "HPCRP1" ? $.HPColorsV3FromV2.importBundleCode(code) : readRecord(unframe(code, "HPC3", 32768).record, "bundle"); }); },
+    importBundleCode: function (code) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,6) === "HPCRP1" ? $.HPColorsV3FromV2.importBundleCode(code) : sharedBundle(readRecord(unframe(code, "HPC3", 32768).record, "bundle")); }); },
   });
 })();

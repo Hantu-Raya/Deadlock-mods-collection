@@ -79,6 +79,7 @@
     if (["positionX","positionY","staminaOffsetX","staminaOffsetY","ultOffsetX","ultOffsetY","levelOffsetX","levelOffsetY","staminaWidth","staminaHeight","readoutSize","allyReadoutSize","enemyPulseReadoutSize","enemyKillMarkerWidth"].indexOf(key) >= 0) return Math.round(value * 10) / 100;
     return value;
   }
+  var REMOVED = ["npcEnemyEnabled", "npcAllyEnabled"];
   var mapping = {
     barColorEnabled:["enemyEnabled","allyEnabled"],barColorMode:["enemyMode","allyMode"],barColorLow:["enemyLow","allyLow"],barColorMid:["enemyMid","allyMid"],barColorHigh:["enemyHigh","allyHigh"],barColorTeamHigh:["enemyTeamHigh","allyTeamHigh"],
     barVisible:["enemyVisible","allyVisible"],barHealingColor:["enemyHealing","allyHealing"],barDeltaColor:["enemyDelta","allyDelta"],barShieldColor:["enemyBulletShield","allyBulletShield"],barArmorColor:["enemyRatkingArmor","allyRatkingArmor"],
@@ -97,7 +98,7 @@
     pulseColor:["enemyPulseColor","allyPulseColor"],pulseReadout:["enemyPulseReadout","allyPulseReadout"],
     pulseHideBar:["enemyPulseHideBar"],pulseReadoutModifiers:["enemyPulseReadoutModifiers"],pulseReadoutSize:["enemyPulseReadoutSize"],
     pulseReadoutOffsetX:["enemyPulseReadoutOffsetX"],pulseReadoutOffsetY:["enemyPulseReadoutOffsetY"],
-    rejuvSize:["rejuvScale"],npcEnabled:["npcEnemyEnabled","npcAllyEnabled"],
+    rejuvSize:["rejuvScale"],
     objectiveEnabled:["buildingEnemyEnabled","buildingAllyEnabled"],neutralEnabled:["npcNeutralEnabled"],
     barStyle:["barMask"],nameRiseWithPips:["nameRiseWithPips"],
     damageShakeEnabled:["damageShakeEnabled"],damageShakeStrength:["damageShakeIntensity"],
@@ -148,6 +149,8 @@
       target[row.key] = typeof value === "number" ? Math.round(value * 1e8) / 1e8 : value;
       consumed[key] = true; delete pending[key];
     });
+    // v2 keys whose v3 setting was removed (Customize NPC bars, user 2026-10-29) are dropped, never kept pending.
+    REMOVED.forEach(function (key) { consumed[key] = true; delete pending[key]; });
     DATA.keys.forEach(function (key) {
       if (consumed[key] || onlyLegacy && DATA.codecKeys.indexOf(key) < 0) return;
       var value = unit(key,record.values[key]);
@@ -204,6 +207,7 @@
       var names = mapping[row.key], key = row.side === "shared" ? names && names[0] || row.key : names && names[row.side === "ally" ? 1 : 0];
       if (pending && key) delete pending[key];
     });
+    if (pending) REMOVED.forEach(function (key) { delete pending[key]; });
     item.settings = settings;
     if (Array.isArray(item.v2scopes)) item.v2scopes.forEach(function (scope) {
       promotePending(scope,fromVersion);

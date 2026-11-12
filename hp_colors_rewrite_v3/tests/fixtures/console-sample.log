@@ -1,0 +1,105 @@
+﻿11/12 13:40:01 [RenderSystem] Determined driver version for graphics adapter 0 [output 0] '': 32.0.32015.12012
+11/12 13:40:02 [Filesystem] GAME                 "C:\Games\Steam\steamapps\common\Deadlock\game\citadel\addons\pak02.vpk" (vpk) C:\Games\Steam\steamapps\common\Deadlock\game\citadel\addons\pak02.vpk
+11/12 13:40:05 GC Connection established for server version 6860
+11/12 13:40:09 [Panorama] ***** Parsing error on panorama\styles\hp_colors_v3_menu.css(1):  Error parsing style selector: .HPC3RowBg
+11/12 13:45:00 Source2Shutdown
+11/12 13:45:00 ShutdownSource2Logging
+﻿11/12 14:00:01 [RenderSystem] Determined driver version for graphics adapter 0 [output 0] '': 32.0.32015.12012
+11/12 14:00:01 [RenderSystem] Loaded video settings config from 'cfg\video.txt'
+11/12 14:00:02 [Filesystem] ---------------
+11/12 14:00:02 [Filesystem] Path ID:             File Path:
+11/12 14:00:02 [Filesystem] ADDONS               "C:\Games\Steam\steamapps\common\Deadlock\game\citadel_addons\" 
+11/12 14:00:02 [Filesystem] GAME                 "C:\Games\Steam\steamapps\common\Deadlock\game\citadel\addons\pak02.vpk" (vpk) C:\Games\Steam\steamapps\common\Deadlock\game\citadel\addons\pak02.vpk
+11/12 14:00:02 [Filesystem] GAME                 "C:\Games\Steam\steamapps\common\Deadlock\game\citadel\addons\pak89.vpk" (vpk) C:\Games\Steam\steamapps\common\Deadlock\game\citadel\addons\pak89.vpk
+11/12 14:00:02 [Filesystem] GAME                 "C:\Games\Steam\steamapps\common\Deadlock\game\citadel\pak01.vpk" (vpk) C:\Games\Steam\steamapps\common\Deadlock\game\citadel\pak01.vpk
+11/12 14:00:02 [Filesystem] MOD                  "C:\Games\Steam\steamapps\common\Deadlock\game\citadel\pak01.vpk" (vpk) C:\Games\Steam\steamapps\common\Deadlock\game\citadel\pak01.vpk
+11/12 14:00:03 [Panorama] ***** Parsing warning on panorama\styles\hud_timer.css(1):  Invalid value for property 'overflow': hidden
+11/12 14:00:03 [Panorama] ***** Parsing warning on panorama\styles\hud_timer.css(1):  Invalid value for property 'cursor': hand
+11/12 14:00:03 [Panorama] ***** Parsing warning on panorama\styles\buff_claim.css(1):  Invalid value for property 'position': absolute
+11/12 14:00:03 [Panorama] ***** Parsing warning on panorama\styles\buff_claim.css(1):  Invalid value for property 'position': absolute
+11/12 14:00:03 [Panorama] ***** Parsing warning on panorama\styles\hp_colors_v3_world.css(1):  Invalid value for property 'overflow': noclip
+11/12 14:00:05 GC Connection established for server version 6861
+11/12 14:00:07 [Client] Build: 10973 (revision 11219368)
+11/12 14:00:08 [PanoramaScript] [HPV3] menu boot 3.4.0
+11/12 14:00:08 [PanoramaScript] [HPV3] save LOADING
+11/12 14:00:08 [PanoramaScript] [HPV3] store bridge ready at https://example.invalid/hpv3-store/
+11/12 14:00:09 [PanoramaScript] [HPV3] store page event loaded
+11/12 14:00:09 [PanoramaScript] [HPV3] save Saved
+11/12 14:00:10 [PanoramaScript] [HPV3] lifecycle start epoch 1
+11/12 14:00:10 [PanoramaScript] [HPV3] hero Abrams
+11/12 14:00:10 [PanoramaScript] [HPV3] hero Abrams
+11/12 14:00:11 [PanoramaScript] [HPV3] renderer boot 3.4.0
+11/12 14:00:11 [PanoramaScript] [HPV3] renderer carrier depth=1 player/enemy
+11/12 14:00:16 [PanoramaScript] [HPV3] renderer timing ticks=150 ms=12 paints=1 state=active
+11/12 14:00:21 [PanoramaScript] [HPV3] renderer timing ticks=150 ms=18 paints=1 state=active
+11/12 14:00:21 [PanoramaScript] [HPV3] stamina cost Lady Geist ally reads/s=12.4 skipped/s=0 ticks/s=30 paints=3 ms=7 low=off
+11/12 14:00:26 [PanoramaScript] [HPV3] renderer timing ticks=60 ms=3 paints=2 state=idle
+11/12 14:00:30 [PanoramaScript] [HPV3] save SAVING
+11/12 14:00:31 [PanoramaScript] [HPV3] stamina cost Abrams enemy reads/s=10 skipped/s=2 ticks/s=29.5 paints=1 ms=5 low=off
+11/12 14:00:31 [PanoramaScript] [HPV3] store commit failed: timeout
+11/12 14:00:32 [PanoramaScript] [HPV3] save Saved
+11/12 14:00:32 [Client] 18893:unit_status_overlay_new::m_vecOrigin CNetworkOriginCellCoordQuantizedVector m_cellY cell 34 is outside of cell bounds (0->32) @(8106.665527 18670.003906 384.000000)
+11/12 14:00:33 [PanoramaScript] JS Exception! *** Skipping rest of script *** 
+
+panorama/scripts/hp_colors_v3_renderer.vjs_c
+line:153, col:28
+
+>>     var reads = classReads.get(panel);
+
+Uncaught TypeError: Cannot read properties of undefined (reading 'get')
+   at has
+(panorama/scripts/hp_colors_v3_renderer.vjs_c:153:29)
+   at (anonymous)
+(panorama/scripts/hp_colors_v3_renderer.vjs_c:1490:12)
+11/12 14:00:38 [PanoramaScript] JS Exception! *** Skipping rest of script *** 
+
+panorama/scripts/hp_colors_v3_renderer.vjs_c
+line:153, col:28
+
+>>     var reads = classReads.get(panel);
+
+Uncaught TypeError: Cannot read properties of undefined (reading 'get')
+   at has
+(panorama/scripts/hp_colors_v3_renderer.vjs_c:153:29)
+   at (anonymous)
+(panorama/scripts/hp_colors_v3_renderer.vjs_c:1490:12)
+11/12 14:00:40 [PanoramaScript] JS Exception! *** Skipping rest of script *** 
+
+file:///panorama/scripts/hp_colors_v3_menu.js
+line:114, col:42
+
+>>   function panel(id) { var found = panels[id]; return valid(found) ? found : null; }
+
+Uncaught ReferenceError: panels is not defined
+   at panel
+(file:///panorama/scripts/hp_colors_v3_menu.js:114:43)
+11/12 14:00:41 ResetBreakpadAppId: Universe is 1 (k_EUniversePublic)
+11/12 14:00:42 [PanoramaScript] JS Exception! *** Skipping rest of script *** 
+
+CitadelHudEscapeMenu_EscapeMenu_oncancel
+line:1, col:31
+
+>> if (!$.HPColorsMenuCancel()) $.DispatchEvent('CitadelResumePlaying', $.GetContextPanel())
+
+Uncaught TypeError: $.HPColorsMenuCancel is not a function
+   at (anonymous)
+(CitadelHudEscapeMenu_EscapeMenu_oncancel:1:32)
+11/12 14:00:45 [Panorama] ***** Parsing error on panorama\styles\hp_colors_v3_menu.css(1):  Error parsing style selector: .HPC3FoldChevron
+11/12 14:00:45 [Panorama] ***** Parsing error on panorama\layout\unit_status_overlay_v2.xml:  Failed to add include for file: s2r://panorama/styles/hp_colors_v3_world.vcss_c
+11/12 14:00:45 FATAL ERROR: Unable to load layout file 'file://{resources}/layout/unit_status_overlay_v2.xml'.  This may indicate a problem with your local install files and validating your install through the Steam client may resolve the issue.
+11/12 14:00:46 [Panorama] Invalid content width (flChildWidth = -nan(ind)) calculated during child panel "Panel#healthbar_progress_Left.ProgressBarLeft"; this panel "ProgressBarWithMiddle#healthbar_progress @ panorama\layout\hud_objective_health.xml" (reverting to 0.000000)
+11/12 14:00:47 **** Panel TypeDropDownDropDownMenu has fill-parent-flow for width, but isn't in a flowing right layout
+11/12 14:00:48 **** Panel HPColorsConditionNumber has fill-parent-flow for width, but isn't in a flowing right layout
+11/12 14:00:49 [Panorama] ***** Parsing warning on panorama\layout\hud_escape_menu.xml(19,5):  Trying to apply missing animation: HPC3NoSuchAnimation
+11/12 14:00:50 [Panorama] ***** Parsing error on panorama\styles\hp_colors_v3_world.css(12,1):  Failed to parse selector
+11/12 14:00:50 [Panorama] Selector exceeds temp buffer size: .HPC3SearchField
+11/12 14:00:51 [PanoramaScript] JS Exception!!
+
+(undefined:0) - TypeError: Cannot read properties of null (reading 'IsValid')
+11/12 14:00:52 [PanoramaScript] 
+JS(panorama/scripts/hp_colors_v3_renderer.vjs_c:153:28)
+TypeError: classReads is undefined
+    var reads = classReads.get(panel);
+11/12 14:00:53 [VScript] Script error: attempt to index a nil value
+11/12 14:30:00 Source2Shutdown
+11/12 14:30:00 ShutdownSource2Logging

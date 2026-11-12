@@ -14,16 +14,16 @@ test('native samples publish through sibling relay to countdown and world ultima
  f.edit('ultimateTimerColorMode','fixed');f.edit('ultimateTimerUnavailableColor','#123456');assert.equal(progress.style.washColor,'#123456');
  f.edit('ultSize',30);assert.equal(f.bg.style.preTransformScale2d,'1.5');assert.equal(f.flame.style.preTransformScale2d,'1.5');
  f.edit('ultimateTimerEnabled',false);assert.equal(f.bg.style.preTransformScale2d,'0.85');assert.equal(f.flame.style.preTransformScale2d,'0.75');assert.equal(f.r.FindChildTraverse('HPColorsV3UltimateOverlay').style.visibility,'collapse');
- f.edit('pickupTimersEnabled',false);assert.ok(f.remote.ult.GetParent()===f.remote.holder);assert.equal(f.remote.cooldown.style.horizontalAlign,'right');assert.equal(f.icon.style.width,'17px');
+ f.edit('pickupTimersEnabled',false);assert.ok(f.remote.ult.GetParent()===f.remote.holder);assert.equal(f.remote.cooldown.style.horizontalAlign,'right');assert.equal(f.border.style.washColor||'','');
 });
 test('scan gate, local exclusion, stale gates and hook-only parsing',()=>{
- const f=setup();f.top.harness.contextPanel.FindChildTraverse('GameTime').text='1:00';f.advance(5000);assert.equal(f.icon.style.width,'17px');assert.ok(!ring(f)||ring(f).style.visibility==='collapse');
+ const f=setup();f.top.harness.contextPanel.FindChildTraverse('GameTime').text='1:00';f.advance(5000);assert.equal(f.border.style.washColor||'','');assert.ok(!ring(f)||ring(f).style.visibility==='collapse');
  const g=f.traffic.filter(x=>x.magic==='HPV3_PICKUP_SCAN_GATE').at(-1);assert.equal(g.scan,false);assert.equal(g.localName,'LOCAL');
- f.broadcast(JSON.stringify({...g,at:f.h.now,since:g.since,scan:true,localName:'REMOTE'}));f.top.harness.$.HPColorsV3Timers.stop();f.advance(3000);assert.equal(f.icon.style.width,'17px');
- f.top.harness.$.HPColorsV3Timers.stop();f.advance(16000);assert.equal(f.icon.style.width,'22px','stale control fails open');
+ f.broadcast(JSON.stringify({...g,at:f.h.now,since:g.since,scan:true,localName:'REMOTE'}));f.top.harness.$.HPColorsV3Timers.stop();f.advance(3000);assert.equal(f.border.style.washColor||'','');
+ f.top.harness.$.HPColorsV3Timers.stop();f.advance(16000);assert.equal(f.border.style.washColor,'#FFEFD7','stale control fails open');
  const no=setup({noHook:true});const parses=no.world.context.JSON.parse;let count=0;no.world.context.JSON={...JSON,parse(raw){count++;return parses(raw);}};
  for(const localName of ['REMOTE','HP_COLORS_V3_CONFIG'])no.broadcast(JSON.stringify({magic:'HPV3_PICKUP_SCAN_GATE',scan:false,localName,since:0,at:0}));
- assert.equal(count,0);assert.equal(no.icon.style.width,'22px');
+ assert.equal(count,0);assert.equal(no.border.style.washColor,'#FFEFD7');
 });
 test('pause, expiry, malformed/replayed snapshots and lifecycle restore native topbar',()=>{
  const f=setup();f.advance(9000);const sent=f.traffic.filter(x=>x.magic==='HPV3_PICKUP_SNAPSHOT'&&x.record).at(-1);f.world.harness.$.HPColorsV3Timers.stop();const running={...sent,seq:sent.seq+2,at:f.h.now,record:{...sent.record,at:f.h.now,progress:[{angle:-240,rate:10,at:f.h.now},null,null,null]}};f.broadcast(JSON.stringify(running));f.advance(1000);const before=ring(f).style.clip;
@@ -32,7 +32,7 @@ test('pause, expiry, malformed/replayed snapshots and lifecycle restore native t
  f.world.harness.$.HPColorsV3Timers.stop();f.advance(30000);assert.ok(f.remote.ult.GetParent()===f.remote.holder,'expired record releases native ultimate');
  f.broadcast(JSON.stringify(running));assert.ok(f.remote.ult.GetParent()===f.remote.holder,'stale record refused');
  f.top.harness.$.HPColorsV3Timers.stop();f.top.includeScripts();assert.equal(f.top.harness.handlerEntries.filter(x=>x.channel==='ClientUI_FireOutput').length,1);
- f.edit('enabled',false);assert.equal(f.bg.style.preTransformScale2d,'0.85');assert.equal(f.icon.style.width,'17px');assert.ok(f.remote.ult.GetParent()===f.remote.holder);
+ f.edit('enabled',false);assert.equal(f.bg.style.preTransformScale2d,'0.85');assert.equal(f.border.style.washColor||'','');assert.ok(f.remote.ult.GetParent()===f.remote.holder);
  assert.notEqual(before,undefined);
 });
 
@@ -51,7 +51,7 @@ test('row identity, duplicate sources, ready/dead states, invalid traffic and mo
  f.ready.visible=false;f.name.text='DIFFERENT';f.advance(1000);assert.equal(overlay.style.visibility,'collapse','old identity cannot paint the new world name');
  for(const data of [{magic:'HPV2_PICKUP_SCAN_GATE',scan:false,localName:'RENAMED',since:0,at:f.h.now},{magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:f.h.now+1,players:[['RENAMED',90,2]]},{magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:f.h.now,players:[['RENAMED',90,2],['RENAMED',120,2]]}])f.broadcast(JSON.stringify(data));
  assert.equal(overlay.style.visibility,'collapse');
- f.world.harness.$.HPColorsV3Timers.stop();f.advance(150);assert.equal(f.icon.style.width,'17px');
+ f.world.harness.$.HPColorsV3Timers.stop();f.advance(150);assert.equal(f.border.style.washColor||'','');
  f.top.harness.$.HPColorsV3Timers.stop();assert.ok(f.remote.ult.GetParent()===f.remote.holder);assert.equal(f.top.harness.scheduler.jobs.length,0);
  f.world.harness.$.HPColorsV3Renderer.stop();assert.equal(f.world.harness.scheduler.jobs.length,0);
 });
@@ -60,7 +60,7 @@ test('renderer stop cancels the independent world module and releases its siblin
  const f=setup();f.advance(6000);f.world.harness.$.HPColorsV3Renderer.stop();
  assert.equal(f.world.harness.scheduler.jobs.length,0);
  assert.ok(!f.h.root.FindChild('HPColorsV3EventRelay'),'no release publication recreates a relay after teardown');
- assert.equal(f.icon.style.width,'17px');assert.equal(f.bg.style.preTransformScale2d,'0.85');
+ assert.equal(f.border.style.washColor||'','');assert.equal(f.bg.style.preTransformScale2d,'0.85');
 });
 
 test('topbar pickup wings retain v2 slot ordering and shared colors/size as masks change',()=>{
@@ -114,8 +114,8 @@ test('HUD script reinclusion replaces its owned artwork pool without leaking dup
 test('a native world-name race releases timer facts and retries on the existing 3s cadence',()=>{
  const f=setup();f.advance(6000);let broken=true;
  Object.defineProperty(f.name,'text',{configurable:true,get(){if(broken)throw new Error('native name race');return 'REMOTE';}});
- assert.doesNotThrow(()=>f.advance(3300));assert.equal(f.icon.style.width,'17px');
- broken=false;f.advance(6600);assert.equal(f.icon.style.width,'22px');assert.equal(f.remote.ult.GetParent().id,'HPColorsV3PickupIndicators');
+ assert.doesNotThrow(()=>f.advance(3300));assert.equal(f.border.style.washColor||'','');
+ broken=false;f.advance(6600);assert.equal(f.border.style.washColor,'#FFEFD7');assert.equal(f.remote.ult.GetParent().id,'HPColorsV3PickupIndicators');
 });
 
 // citadel_unit_status_hero_name_mode 1 ("Name shown above hero health bars. 0: player name, 1: hero name,
@@ -147,18 +147,18 @@ test('ticket 39: with HPColorsV3TimersHeroNames, hero-titled world bars match by
  assert.ok(ring(f),'the hero-titled world pickup reaches the topbar row');assert.equal(f.remote.ult.GetParent().id,'HPColorsV3PickupIndicators');
  f.name.text='Abrams';f.advance(3500);
  assert.equal(overlay.style.visibility,'collapse','a bar titled with the local hero gets no ultimate progress');
- assert.equal(f.icon.style.width,'17px','a bar titled with the local hero keeps stock pickups');
+ assert.equal(f.border.style.washColor||'','','a bar titled with the local hero keeps stock pickups');
 });
 
 test('topbar override without the v3 module fails closed for world pickups and ultimate progress',()=>{
  const f=setup({noTopBoot:true});f.advance(18000);
- assert.equal(f.icon.style.width,'17px');
+ assert.equal(f.border.style.washColor||'','');
  const health=f.r.FindChildTraverse('unit_healthbar_lagging');health.style.clip='rect(0%, 10%, 100%, 0%)';f.advance(300);
  assert.equal(health.style.washColor,'#FD4949','missing topbar never stops health-bar rendering');
  f.broadcast(JSON.stringify({magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:f.h.now,players:[['REMOTE',180,2]]}));
  assert.equal(f.r.FindChildTraverse('HPColorsV3UltimateOverlay')?.style.visibility||'collapse','collapse');
  f.top.includeScripts();f.advance(3100);
- assert.equal(f.icon.style.width,'22px','booted topbar opens the authorized world scan');
+ assert.equal(f.border.style.washColor,'#FFEFD7','booted topbar opens the authorized world scan');
 });
 
 test('world samples newly arrived pickups within one 3s interval, not two independent scans',()=>{
@@ -204,13 +204,24 @@ test('missing pause panel is searched only by the 5s discovery loop',()=>{
 
 test('world ultimate gradient blends progress colors and follow mode honors a custom badge color',()=>{
  const f=setup();f.advance(3000);
- f.edit('ultimateTimerUnavailableColor','#000000');f.edit('ultimateTimerAvailableColor','#FFFFFF');f.edit('ultimateTimerColorMode','gradient');
+ f.edit('ultimateTimerColorMode','gradient');f.edit('ultimateTimerUnavailableColor','#000000');f.edit('ultimateTimerAvailableColor','#FFFFFF');
  f.broadcast(JSON.stringify({magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:f.h.now,players:[['REMOTE',180,0]]}));
  const fill=f.r.FindChildTraverse('HPColorsV3UltimateFill'),dark=f.r.FindChildTraverse('HPColorsV3UltimateDark'),overlay=f.r.FindChildTraverse('HPColorsV3UltimateOverlay');
  assert.equal(fill.style.washColor,'#808080');assert.equal(dark.style.washColor,'#808080');
  f.edit('ultMode','custom');f.edit('ultCustom','#123456');f.edit('ultimateTimerColorMode','follow');
  f.broadcast(JSON.stringify({magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:f.h.now,players:[['REMOTE',180,0]]}));
  assert.equal(overlay.style.washColor,'#123456');assert.equal(fill.style.washColor,'#FFFFFF');
+});
+
+// 3.4.0 (user, 2026-10-29): the progress art is one vector SVG (stock icon_ultimate_off_blk eye inside the
+// v3 ring), compiled from panorama/images/hpv3/ultimate_progress.svg, so it stays sharp at every badge size.
+test('world ultimate progress draws the vector ring artwork on both layers',()=>{
+ const f=setup();f.advance(3000);
+ f.broadcast(JSON.stringify({magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:f.h.now,players:[['REMOTE',180,0]]}));
+ for(const id of ['HPColorsV3UltimateFill','HPColorsV3UltimateDark'])assert.equal(f.r.FindChildTraverse(id).src,'s2r://panorama/images/hpv3/ultimate_progress.vsvg');
+ const root=process.env.HPV3_SOURCE_ROOT||require('node:path').join(__dirname,'..');
+ const svg=require('node:fs').readFileSync(require('node:path').join(root,'panorama/images/hpv3/ultimate_progress.svg'),'utf8');
+ assert.match(svg,/^<svg [^>]*viewBox="0 0 18 18"/);
 });
 
 test('finished pickup rings stop the 1s progress loop until another moving model arrives',()=>{

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { profile, launch, installCefBridge, CURRENT, PREVIOUS, evidenceRoot, transcript } = require('./storage-fixture');
+const { loadLayout } = require('./boot-layout');
 
 test('real menu edits persist to v3 keys across disk-backed restarts and rotate previous', () => {
   const baseline = launch(profile()); baseline.run(2000);
@@ -709,10 +710,13 @@ test('transcript retention: finished launches keep only primitive evidence, no f
 // Fix audit m3: these use the actual menu/layout, storage script and pinned page.
 const copy = value => JSON.parse(JSON.stringify(value));
 const savedBundle = (f, p) => f.codec.classifyRecord(p.disk.get(CURRENT)).bundle;
-function editAlly(f, color) {
-  const row = f.harness.$.HPColorsV3Settings.controls.find(c => c.key === 'barColorLow' && c.side === 'ally');
-  const entry = f.harness.contextPanel.FindChildTraverse(row.hexId || row.id);
-  entry.text = color; entry.events.ontextentrysubmit();
+// An ally setting the player can always edit (ally bar colors grey out while Player bar colors is off).
+// An ally row that is usable with the default ally settings (ally colors are off, so the ally feedback colors
+// are greyed since 2026-11-02).
+function editAlly(f, width) {
+  const row = f.harness.$.HPColorsV3Settings.controls.find(c => c.key === 'barWidth' && c.side === 'ally');
+  const entry = f.harness.contextPanel.FindChildTraverse(row.entryId);
+  entry.text = String(width); entry.events.ontextentrysubmit();
 }
 function addPreset(bundle, id) { bundle.presets.push({ id, name: id, settings: copy(bundle.settings) }); return bundle; }
 function assertDraftConflict(f, p, remoteBytes, draft, overlaps) {
@@ -731,14 +735,14 @@ test('audit M1: hydration establishes the baseline; never-local slots do not ove
   const p = profile(), seed = launch(p); seed.run(2000); seed.edit('#123456'); seed.run(1000);
   const f = launch(p); f.run(2000);
   const remote = savedBundle(f, p); remote.settings.side.enemy.barColorLow = '#654321';
-  p.disk.set(CURRENT, f.codec.encodeRecord(remote)); editAlly(f, '#ABCDEF'); f.run(5000);
+  p.disk.set(CURRENT, f.codec.encodeRecord(remote)); editAlly(f, 90); f.run(5000);
   assert.equal(savedBundle(f, p).settings.side.enemy.barColorLow, '#654321');
-  assert.equal(savedBundle(f, p).settings.side.ally.barColorLow, '#ABCDEF');
+  assert.equal(savedBundle(f, p).settings.side.ally.barWidth, 90);
 });
 test('audit M1: acknowledged edits are not reapplied on a later conflict', () => {
   const p = profile(), a = launch(p); a.run(2000); a.edit('#112233'); a.run(1000);
   const b = launch(p); b.run(2000); b.edit('#445566'); b.run(1000);
-  editAlly(a, '#ABCDEF'); a.run(5000);
+  editAlly(a, 90); a.run(5000);
   assert.equal(savedBundle(a, p).settings.side.enemy.barColorLow, '#445566');
 });
 test('audit M1: an acknowledged preset operation does not leave bundle scope sticky', () => {
@@ -1379,4 +1383,38 @@ test('audit R5-1: a metadata/settings-only conflict export restores through the 
   assert.equal(fresh.status(), 'Saved'); assert.deepEqual(copy(savedBundle(fresh, p)), copy(draft));
   const restarted = launch(p); restarted.run(2000);
   assert.deepEqual(copy(restarted.harness.$.HPColorsV3Store.getBundle()), copy(draft));
+});
+
+test('a changed settings-code IMPORT commits once', () => {
+  // Audit 2026-11-02 (GPT-6.1 Sol repro): the store applied and committed the import, then the menu committed
+  // the identical state a second time. An equal import still commits once inside the store (audit M3 above).
+  const f = launch(profile()); f.run(4000);
+  const h = f.harness, real = h.$.HPColorsV3Store, next = copy(real.getBundle().settings);
+  next.side.enemy.barColorLow = '#123456';
+  const code = h.$.HPColorsV3Sharing.exportSettingsCode(next).code, commits = [];
+  h.$.HPColorsV3Store = { ...real, commit(config) { commits.push(JSON.stringify(config.settings)); return real.commit(config); } };
+  h.contextPanel.FindChildTraverse('HPColorsSettingsCodeEntry').text = code;
+  h.contextPanel.FindChildTraverse('HPColorsSettingsImportButton').events.onactivate();
+  assert.equal(commits.length, 1);
+  assert.equal(real.getBundle().settings.side.enemy.barColorLow, '#123456');
+});
+
+test('a settings import a retired menu refuses commits nothing, not even its conditions', () => {
+  // Audit 2026-11-02 round 3 (GPT-6.1 Sol repro): the store's equal-import commit must not persist what the menu refused.
+  let api;
+  const p = profile(), f = launch(p, { boot() {
+    const b = loadLayout('hud_escape_menu.xml'), include = b.includeScripts;
+    b.includeScripts = () => { include(); const store = b.harness.$.HPColorsV3Store; b.harness.$.HPColorsV3Store = { ...store, attach(value) { api = value; return store.attach(value); } }; };
+    return b;
+  } });
+  f.run(4000);
+  const h = f.harness, store = h.$.HPColorsV3Store, settings = api.getSettings();
+  const cell = h.$.HPColorsV3Settings.slots.find(s => s.setting === 'barColorLow' && s.side === 'enemy').slot;
+  const rules = { [cell]: { slot: 1, minTier: 1, value: '#123456' } };
+  const code = h.$.HPColorsV3Sharing.exportSettingsCode(settings, rules).code;
+  h.$.HPColorsMenuPublisher.retire();
+  store.importSettingsCode(code); f.run(2000);
+  assert.equal(store.getBundle().rules, undefined, 'the refused conditions are not committed');
+  const saved = p.disk.get(CURRENT);
+  assert.ok(!saved || !(f.codec.classifyRecord(saved).bundle || {}).rules, 'nor saved');
 });

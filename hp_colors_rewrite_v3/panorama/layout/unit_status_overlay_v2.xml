@@ -56,7 +56,9 @@
 		<Panel id="HPColorsV3MotionFrame" hittest="false" hittestchildren="false">
 			<Panel id="HPColorsV3Readout" hittest="false" hittestchildren="false">
 				<Panel id="HPColorsV3ReadoutAnchor" hittest="false" hittestchildren="false">
-					<Panel id="HPColorsV3ReadoutRow" hittest="false" hittestchildren="false" />
+					<Panel id="HPColorsV3ReadoutRow" hittest="false" hittestchildren="false">
+						<Label id="HPColorsV3HPPercent" text="" hittest="false" />
+					</Panel>
 				</Panel>
 			</Panel>
 		</Panel>
@@ -111,6 +113,12 @@
 		<Panel id="StaminaContainer" />
 		<Panel id="HPColorsV3RejuvenatorAnchor" hittest="false" hittestchildren="false" />
 		<Panel id="RejuvenatorActive" />
+		<Panel id="HPColorsV3BountyAnchor" class="HPColorsV3BountyAnchor" hittest="false" hittestchildren="false">
+			<Panel id="HPColorsV3Bounty" class="HPColorsV3Bounty" hittest="false" hittestchildren="false">
+				<Panel class="HPColorsV3BountyIcon" hittest="false" />
+				<Label id="HPColorsV3BountyValue" class="HPColorsV3BountyValue" text="" hittest="false" />
+			</Panel>
+		</Panel>
 		<Panel id="HPColorsV3CriticalAnchor" class="HPColorsV3StatusLabelAnchor" hittest="false" hittestchildren="false" />
 		<Panel id="CriticalIndicator">
 			<Label text="#Citadel_Hud_Critical" />

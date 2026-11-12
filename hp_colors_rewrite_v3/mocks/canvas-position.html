@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HP Colors v3 — Canvas position (mockup)</title>
+<!--
+  Mockup for yesdaddy's request (Discord, 2026-11-02 20:30-20:39): "take the whole canvas and move it, you don't
+  resize it ... same size, same canvas, just in a different spot" (higher, lower, left, right on the character).
+
+  What this mock assumes (not verified in game):
+  - Up/down would move the real canvas through citadel_unit_status_offset_player_z_offset_adjustment ("Z Offset for
+    all characters", default 16). CORRECTION 2026-11-02: client.dll 6839 registers it DEVELOPMENTONLY (flags 2, like
+    citadel_unit_status_height), not release, so the Escape menu cannot send it; only a gameinfo.gi ConVars line could.
+    The earlier "release" reading came from a cvar list taken with the cvar-unhide proxy loaded.
+  - Left/right has no convar. It can only move everything inside the canvas together; the canvas edges stay put.
+-->
+<style>
+  :root { --bg:#0d0f0c; --panel:#151913; --line:#2a3127; --ink:#ffefd7; --dim:#ffefd788; --faint:#ffefd744;
+          --green:#5fe69e; --green2:#a6ffb5; --warn:#e8b04d; --enemy:#fd4949; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 "Segoe UI", system-ui, sans-serif; }
+  .page { display:grid; grid-template-columns: 250px 1fr 420px; min-height:100vh; }
+  /* Left rail, as the v3 editor */
+  .rail { padding:24px 18px; border-right:1px solid var(--line); }
+  .logo { font:700 26px Georgia, serif; letter-spacing:1px; margin-bottom:22px; color:var(--dim); }
+  .nav a { display:block; padding:6px 12px; margin:2px 0; color:var(--ink); text-decoration:none; font:700 19px/1.2 Georgia, serif; letter-spacing:.5px; }
+  .nav a.on { background:var(--green); color:#0d0f0c; clip-path: polygon(0 4%, 100% 0, 97% 100%, 1% 96%); }
+  .nav small { color:var(--green); font-size:12px; margin-left:6px; }
+  /* Settings column */
+  .main { padding:24px 34px; }
+  h1 { margin:0; font:700 44px Georgia, serif; background:linear-gradient(#5fe69e,#a6ffb5); -webkit-background-clip:text; color:transparent; }
+  .sub { color:var(--dim); margin:4px 0 22px; }
+  .card { border:1px solid var(--line); background:var(--panel); border-radius:6px; padding:14px 18px 8px; margin-bottom:18px; }
+  .card h2 { margin:0 0 10px; font:700 15px "Segoe UI"; letter-spacing:1.5px; color:var(--dim); }
+  .card h2 .new { color:var(--green); font-size:11px; border:1px solid var(--green); border-radius:3px; padding:1px 5px; margin-left:8px; vertical-align:2px; }
+  .row { display:grid; grid-template-columns: 230px 1fr 90px; align-items:center; gap:14px; padding:9px 0; border-top:1px solid #ffffff08; }
+  .row:first-of-type { border-top:0; }
+  .row label { font-weight:600; }
+  .row .help { grid-column: 1 / -1; color:var(--faint); font-size:13px; margin-top:-4px; }
+  .val { text-align:right; color:var(--green); font-variant-numeric: tabular-nums; }
+  input[type=range] { width:100%; accent-color: var(--green); }
+  .seg { display:flex; gap:6px; }
+  .seg button { flex:1; background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:4px 10px; cursor:pointer; font-weight:600; }
+  .seg button.on { background:var(--ink); color:#0d0f0c; }
+  .flag { font-size:12px; color:var(--warn); }
+  .note { border-left:3px solid var(--warn); padding:8px 12px; background:#e8b04d10; color:var(--dim); font-size:13px; margin:6px 0 14px; }
+  .btns { display:flex; gap:10px; margin-top:6px; }
+  .btn { border:1px solid var(--line); background:transparent; color:var(--ink); padding:6px 14px; border-radius:16px; cursor:pointer; font-weight:700; letter-spacing:.5px; }
+  /* Preview / world view */
+  .side { border-left:1px solid var(--line); padding:24px 20px; }
+  .side h3 { margin:0 0 10px; font:700 20px Georgia, serif; }
+  .scene { position:relative; height:600px; border-radius:6px; overflow:hidden;
+           background: linear-gradient(#2c3a4f 0%, #4a5a6e 55%, #6d6f68 56%, #5a5c56 100%); }
+  .scene .label { position:absolute; left:10px; top:8px; font-size:12px; color:#ffffffaa; }
+  .hero { position:absolute; left:50%; transform:translateX(-50%); bottom:10px; }
+  .canvas { position:absolute; left:50%; border:1px solid var(--green); overflow:hidden; }
+  .canvas .tag { position:absolute; right:3px; bottom:2px; font-size:10px; color:var(--green); }
+  .ghost { position:absolute; left:50%; border:1px dashed #ffffff55; }
+  .ghost .tag { position:absolute; left:3px; bottom:2px; font-size:10px; color:#ffffff88; }
+  .content { position:absolute; inset:0; transition: transform .12s ease-out; }
+  .status { position:absolute; display:flex; gap:3px; }
+  .status i { width:15px; height:15px; border-radius:50%; border:2px solid #ffefd7; display:block; }
+  .name { position:absolute; font:800 13px "Segoe UI"; color:#ff6a6a; text-shadow:0 0 3px #000, 0 0 3px #000; white-space:nowrap; }
+  .bar { position:absolute; height:9px; background:#10130d; border:1px solid #10130d; }
+  .bar b { display:block; height:100%; width:72%; background:var(--enemy); }
+  .hp { position:absolute; font:800 12px "Segoe UI"; color:#ffa0a0; text-shadow:0 0 3px #000, 0 0 3px #000; }
+  .dead { position:absolute; background: repeating-linear-gradient(45deg, #fd494922 0 6px, transparent 6px 12px); }
+  .legend { display:flex; gap:14px; font-size:12px; color:var(--dim); margin:8px 0 14px; flex-wrap:wrap; }
+  .legend span::before { content:""; display:inline-block; width:12px; height:10px; margin-right:5px; vertical-align:-1px; }
+  .lg-now::before { border:1px solid var(--green); }
+  .lg-stock::before { border:1px dashed #ffffff88; }
+  .lg-dead::before { background: repeating-linear-gradient(45deg, #fd494955 0 3px, transparent 3px 6px); }
+  .readout { font:12px Consolas, monospace; color:var(--faint); background:#0006; padding:8px 10px; border-radius:4px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<div class="page">
+  <nav class="rail">
+    <div class="logo">HP COLORS</div>
+    <div class="nav">
+      <a href="#">NEW</a>
+      <a href="#" class="on">BAR <small>★</small></a>
+      <a href="#">HP TEXT</a>
+      <a href="#">NAME</a>
+      <a href="#">INDICATORS</a>
+      <a href="#">ICONS</a>
+      <a href="#">UNITS</a>
+      <a href="#">COLORBLIND</a>
+      <a href="#">PRESETS</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <h1>BAR</h1>
+    <div class="sub">Mockup: a new <b>Canvas position</b> card at the top of BAR. Everything else on the page is unchanged.</div>
+
+    <section class="card">
+      <h2>CANVAS POSITION <span class="new">NEW</span></h2>
+
+      <div class="row">
+        <label for="up">Canvas height</label>
+        <input id="up" type="range" min="-40" max="80" step="2" value="0">
+        <div class="val"><span id="upv">0</span> units</div>
+        <div class="help">Moves the whole health-bar canvas higher or lower on every hero: same size, same layout, everything inside moves with it. In world units, so it looks smaller on far heroes. 0 is the game's spot.</div>
+      </div>
+
+      <div class="row">
+        <label for="lr">Canvas left/right <span class="flag">limited</span></label>
+        <input id="lr" type="range" min="-60" max="60" step="1" value="0">
+        <div class="val"><span id="lrv">0</span> px</div>
+        <div class="help">Moves everything inside the canvas together. The game has no setting to slide the canvas itself sideways, so its edges stay where they are and items stop at them.</div>
+      </div>
+
+      <div class="note"><b>Not buildable from the mod.</b> Height would use the game's setting for where bars sit above heroes, but the game marks it developer-only, so the menu cannot change it (unlike COLORBLIND). It can only be set by editing gameinfo.gi. It would also move the game's own bars and other HUD mods' bars, one value for every hero.</div>
+
+      <div class="btns">
+        <button class="btn" id="reset">RESET CARD</button>
+        <button class="btn" id="bounds">SHOW BOUNDS: ON</button>
+      </div>
+    </section>
+
+    <section class="card" style="opacity:.55">
+      <h2>COLORS</h2>
+      <div class="row"><label>Player bar colors</label><div></div><div class="val">ON</div></div>
+      <div class="row"><label>Bar color (high)</label><div></div><div class="val">#FD4949</div></div>
+    </section>
+  </main>
+
+  <aside class="side">
+    <h3>HERO · ENEMY</h3>
+    <div class="seg" style="margin-bottom:10px">
+      <button id="near" class="on">NEAR</button><button id="far">FAR</button>
+    </div>
+    <div class="scene" id="scene">
+      <div class="label">World view (sketch, not to scale)</div>
+      <div class="ghost" id="ghost"><span class="tag">game's spot</span></div>
+      <div class="canvas" id="canvas">
+        <span class="tag">canvas</span>
+        <div class="dead" id="dead"></div>
+        <div class="content" id="content">
+          <div class="status" id="status"><i style="background:#ec9719"></i><i style="background:#6e65ea"></i><i style="background:#7b2a2a"></i></div>
+          <div class="name" id="name">Infernus</div>
+          <div class="bar" id="bar"><b></b></div>
+          <div class="hp" id="hp">911</div>
+        </div>
+      </div>
+      <svg class="hero" id="hero" viewBox="0 0 120 300" width="120" height="300">
+        <ellipse cx="60" cy="34" rx="22" ry="26" fill="#c9785c"/>
+        <path d="M30 20 Q60 -6 90 20 L84 30 Q60 14 36 30 Z" fill="#a3262c"/>
+        <path d="M26 66 Q60 54 94 66 L104 170 Q60 182 16 170 Z" fill="#7a2230"/>
+        <rect x="34" y="168" width="20" height="120" rx="6" fill="#3a2a2a"/>
+        <rect x="66" y="168" width="20" height="120" rx="6" fill="#3a2a2a"/>
+        <rect x="6" y="72" width="16" height="86" rx="7" fill="#7a2230"/>
+        <rect x="98" y="72" width="16" height="86" rx="7" fill="#7a2230"/>
+      </svg>
+    </div>
+    <div class="legend"><span class="lg-now">canvas now</span><span class="lg-stock">game's spot</span><span class="lg-dead">part of the canvas over the hero</span></div>
+    <div class="readout" id="readout"></div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  // Sketch geometry: the 200x210 canvas drawn at 1.0 px per canvas px (near) or 0.55 (far). The game's spot puts the
+  // canvas bottom over the hero's chest, as in yesdaddy's SHOW BOUNDS screenshots. World units -> px: 1.6 px/unit near.
+  // Anything outside the canvas is clipped, as the game never draws it.
+  const STOCK_Z = 16, W = 200, H = 210;
+  const VIEW = { near: { k: 1.0, unit: 1.6, heroScale: 1 }, far: { k: 0.55, unit: 0.9, heroScale: 0.55 } };
+  const $ = id => document.getElementById(id);
+  let view = "near", bounds = true;
+
+  function draw() {
+    const v = VIEW[view], up = +$("up").value, lr = +$("lr").value;
+    $("upv").textContent = (up > 0 ? "+" : "") + up; $("lrv").textContent = (lr > 0 ? "+" : "") + lr;
+    const sceneH = $("scene").clientHeight, w = W * v.k, h = H * v.k;
+    const heroH = 300 * v.heroScale, heroTop = sceneH - 10 - heroH;
+    const hero = $("hero"); hero.setAttribute("width", 120 * v.heroScale); hero.setAttribute("height", heroH);
+    // The game's spot: canvas bottom at the hero's chest (55% down the body sketch's torso).
+    const stockTop = heroTop + 0.30 * heroH - h;
+    const top = stockTop - up * v.unit;
+    for (const [el, t] of [[$("ghost"), stockTop], [$("canvas"), top]]) {
+      el.style.width = w + "px"; el.style.height = h + "px"; el.style.marginLeft = (-w / 2) + "px"; el.style.top = t + "px";
+    }
+    $("ghost").style.display = up ? "block" : "none";
+    $("canvas").style.borderColor = bounds ? "" : "transparent";
+    $("canvas").querySelector(".tag").style.display = bounds ? "" : "none";
+    // Canvas contents, in canvas px (bar centre y 74 of 210, status row on top, name above the bar).
+    const k = v.k, inner = (x, y) => [x * k, y * k];
+    const barW = 79 * k, barX = (W / 2 - 39.5) * k;
+    const shift = Math.max(-(W / 2 - 39.5), Math.min(W / 2 - 39.5, lr)) * k;
+    Object.assign($("bar").style, { left: barX + "px", top: 70 * k + "px", width: barW + "px", height: 9 * k + "px" });
+    Object.assign($("name").style, { left: barX + 4 * k + "px", top: 50 * k + "px", fontSize: 13 * k + "px" });
+    Object.assign($("hp").style, { left: barX + 2 * k + "px", top: 82 * k + "px", fontSize: 12 * k + "px" });
+    Object.assign($("status").style, { left: (W / 2 - 27) * k + "px", top: 8 * k + "px", gap: 3 * k + "px" });
+    $("status").querySelectorAll("i").forEach(i => { i.style.width = i.style.height = 15 * k + "px"; });
+    $("content").style.transform = "translateX(" + shift + "px)";
+    // Part of the canvas that overlaps the hero (dead space for HUD items).
+    const overlap = Math.max(0, Math.min(h, top + h - heroTop));
+    Object.assign($("dead").style, { left: 0, right: 0, top: (h - overlap) + "px", height: overlap + "px", display: bounds ? "block" : "none" });
+    $("readout").textContent =
+      "gameinfo.gi ConVars line (developer-only, the menu cannot send it):\n  citadel_unit_status_offset_player_z_offset_adjustment " + (STOCK_Z + up) +
+      "   (game default " + STOCK_Z + ")\n" +
+      "Inside the canvas: everything shifted " + (lr > 0 ? "+" : "") + Math.round(shift / k) + " px" +
+      (Math.abs(lr) > W / 2 - 39.5 ? "  (stopped at the canvas edge)" : "") + "\n" +
+      "Canvas over the hero: " + Math.round(overlap / k) + " of " + H + " px";
+  }
+  $("up").oninput = $("lr").oninput = draw;
+  $("reset").onclick = () => { $("up").value = 0; $("lr").value = 0; draw(); };
+  $("bounds").onclick = () => { bounds = !bounds; $("bounds").textContent = "SHOW BOUNDS: " + (bounds ? "ON" : "OFF"); draw(); };
+  $("near").onclick = () => { view = "near"; $("near").classList.add("on"); $("far").classList.remove("on"); draw(); };
+  $("far").onclick = () => { view = "far"; $("far").classList.add("on"); $("near").classList.remove("on"); draw(); };
+  window.addEventListener("resize", draw);
+  draw();
+})();
+</script>
+</body>
+</html>

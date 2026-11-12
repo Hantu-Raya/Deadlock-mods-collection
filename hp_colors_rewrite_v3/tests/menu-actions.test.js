@@ -91,66 +91,146 @@ test('ticket 31: credits opens exact user text and data-backed portraits; CLOSE,
   assert.equal(m.find('HPColorsCreditsYesdaddyPortrait').src, hero.portrait, 'the generated hero catalog supplies the image, not a copied path');
 });
 
-// Ticket 43: the credits dialog asks for bug reports and feedback on the author's Discord. FEEDBACK copies
-// the username (the menu's own CopyStringToClipboard, as preset COPY); a refused or throwing clipboard
-// still leaves the name readable. Nothing else changes: settings, storage, Undo and publication stay.
-test('ticket 43: credits FEEDBACK copies the Discord username, and a failed copy keeps it readable', () => {
+// Ticket 43 (moved 2026-10-29, user screenshot; dialog 2026-10-29, user: "fix the feedback not popping"):
+// FEEDBACK sits in the preview footer between CREDITS and DONATE and opens a FEEDBACK dialog that says
+// to add the author on Discord. The underlined name copies it (the menu's own CopyStringToClipboard,
+// as preset COPY); the status line reports the result, so a refused or throwing clipboard still leaves
+// the name readable. Opening, copying and closing leave settings, storage, Undo and publication alone.
+test('ticket 43: footer FEEDBACK opens the Discord dialog; the underlined name copies it, and a failed copy keeps it readable', () => {
   const m = menu(), before = m.bundle(), settings = m.settings(), commits = m.commits.length;
-  m.activate('HPColorsPreviewCreditsButton');
-  const button = m.find('HPColorsFeedbackCopyButton'), status = m.find('HPColorsFeedbackStatus');
-  assert.match(m.find('HPColorsFeedbackText').text, /hanturaya101/); assert.match(m.find('HPColorsFeedbackText').text, /Discord/);
-  for (let p = button.GetParent(); p && p.id !== 'HPColorsCreditsDialog'; p = p.GetParent())
-    assert.equal(p.BHasClass('HPC3CreditEntry'), false, 'not inside a credit entry (hittestchildren false)');
-  assert.equal(status.text, '');
+  const publication = copy(latestPublishedConfig(m.h));
+  const footer = m.find('HPColorsPreviewFooter'), button = m.find('HPColorsPreviewFeedbackButton');
+  assert.deepEqual(footer.children.filter(p => p.paneltype === 'Button').map(p => p.id),
+    ['HPColorsPreviewCreditsButton', 'HPColorsPreviewFeedbackButton', 'HPColorsPreviewDonateButton']);
+  assert.equal(button.children[0].text, 'FEEDBACK');
+  assert.equal(button.BHasClass('HPC3CreditsButton'), true, 'same look as CREDITS and DONATE');
+  assert.equal(m.find('HPColorsCreditsDialog').FindChildTraverse('HPColorsFeedbackNameButton'), null, 'no FEEDBACK inside Credits');
+  const dialog = m.find('HPColorsFeedbackDialog'), name = m.find('HPColorsFeedbackNameButton'), status = m.find('HPColorsFeedbackStatus');
   const copies = () => m.h.dispatches.filter(event => event[0] === 'CopyStringToClipboard').map(event => event[1]);
-  const n = copies().length;
-  m.activate('HPColorsFeedbackCopyButton');
-  assert.deepEqual(copies().slice(n), ['hanturaya101']);
-  assert.match(status.text, /copied/i); assert.match(status.text, /hanturaya101/);
-  assert.equal(m.find('HPColorsCreditsDialog').BHasClass('Open'), true, 'the dialog stays open');
+  assert.equal(dialog.BHasClass('Open'), false);
+  for (const close of ['HPColorsFeedbackCloseButton', 'HPColorsFeedbackEscClose', null, 'HPColorsFeedbackBackdrop']) {
+    const n = copies().length;
+    m.activate('HPColorsPreviewFeedbackButton');
+    assert.equal(dialog.BHasClass('Open'), true, 'FEEDBACK pops the dialog');
+    assert.deepEqual(copies().slice(n), [], 'opening does not copy');
+    assert.match(m.find('HPColorsFeedbackText').text, /^If you have any feedback, you can add me on Discord/);
+    assert.equal(name.children.find(p => p.paneltype === 'Label').text, 'hanturaya101');
+    assert.equal(name.BHasClass('HPC3FeedbackName'), true, 'the name is the underlined link');
+    assert.doesNotMatch(status.text, /copied/i, 'a reopened dialog forgets the last copy');
+    assert.equal(m.find('HPColorsFeedbackCloseButton').focused, true);
+    m.activate('HPColorsFeedbackNameButton');
+    assert.deepEqual(copies().slice(n), ['hanturaya101']);
+    assert.match(status.text, /copied/i); assert.match(status.text, /hanturaya101/);
+    assert.equal(dialog.BHasClass('Open'), true, 'copying keeps the dialog open');
+    if (close) m.activate(close); else m.cancel();
+    assert.equal(dialog.BHasClass('Open'), false);
+    assert.equal(button.focused, true);
+    assert.equal(m.find('HPColorsMenuHost').BHasClass('HPC3Open'), true);
+  }
   const dispatch = m.h.$.DispatchEvent;
+  m.activate('HPColorsPreviewFeedbackButton');
+  // Both routes refused: the direct event and the TextEntry fallback.
   for (const fail of [() => false, () => { throw new Error('Invalid number of arguments for event in DispatchEvent for CopyStringToClipboard'); }]) {
-    m.h.$.DispatchEvent = (...args) => args[0] === 'CopyStringToClipboard' ? fail() : dispatch(...args);
-    m.activate('HPColorsFeedbackCopyButton');
+    m.h.$.DispatchEvent = (...args) => args[0] === 'CopyStringToClipboard' || args[0] === 'TextEntryCopyToClipboard' ? fail() : dispatch(...args);
+    m.activate('HPColorsFeedbackNameButton');
+    m.h.$.DispatchEvent = dispatch;
     assert.doesNotMatch(status.text, /copied/i); assert.match(status.text, /hanturaya101/);
   }
-  m.h.$.DispatchEvent = dispatch;
-  m.activate('HPColorsCreditsCloseButton'); m.activate('HPColorsPreviewCreditsButton');
-  assert.equal(status.text, '', 'reopening starts without an old status');
   assert.deepEqual(m.settings(), settings); assert.deepEqual(m.bundle(), before); assert.equal(m.commits.length, commits);
+  assert.equal(m.find('HPColorsUndoButton').enabled, false);
+  assert.deepEqual(copy(latestPublishedConfig(m.h)), publication);
 });
 
-test('ticket 31: credits excludes every dialog/picker, cancels stale confirmations and preserves existing Undo', () => {
-  const m = menu(), initial = m.settings();
-  m.submit('HPColorsBarColorLowEnemyHex', '#123456');
-  m.activate('HPColorsPresetSaveButton');
-  m.find('HPColorsBundleCodeEntry').text = m.h.$.HPColorsV3Sharing.exportBundleCode(m.bundle()).code;
-  const condition = m.h.$.HPColorsV3Settings.controls.find(row => row.key === 'barWidth' && row.side === 'enemy');
-  const openers = [
-    ['HPColorsResetPageDialog', () => m.activate('HPColorsResetPageButton')],
-    ['HPColorsPickerDialog', () => m.activate('HPColorsBarColorLowEnemySwatch')],
-    ['HPColorsConditionDialog', () => m.activate(condition.conditionId)],
-    ['HPColorsHeroDialog', () => m.preset('baked_default', 'Heroes')],
-    ['HPColorsPresetDeleteDialog', () => m.preset(0, 'Delete')],
-    ['HPColorsBundleReplaceDialog', () => m.activate('HPColorsBundleReplaceButton')],
-  ];
-  const dialogs = m.find('HPColorsMenuHost').Children().filter(panel => panel.BHasClass('HPC3Dialog'));
-  const onlyOpen = id => assert.deepEqual(dialogs.filter(panel => panel.BHasClass('Open')).map(panel => panel.id), [id]);
-  for (const [id, open] of openers) {
-    open(); onlyOpen(id);
-    const before = m.bundle(), commits = m.commits.length;
-    m.activate('HPColorsPreviewCreditsButton'); onlyOpen('HPColorsCreditsDialog');
-    for (const confirm of ['ResetPage', 'PresetDelete', 'BundleReplace']) m.activate('HPColors' + confirm + 'ConfirmButton');
-    assert.deepEqual(m.bundle(), before); assert.equal(m.commits.length, commits);
-    assert.equal(m.find('HPColorsUndoButton').enabled, true);
-    open(); onlyOpen(id);
-    m.cancel();
+// Live 6821 (user screenshot, 2026-10-29, `98f5fc32`): the name click showed "Could not copy". In the Escape
+// menu CopyStringToClipboard throws "Invalid number of arguments" (ticket 29), so the name copies the way
+// Settings/Bundle COPY does live: focus a TextEntry holding the name, select all, TextEntryCopyToClipboard.
+for (const failure of ['throw', 'false']) {
+  test(`ticket 43: FEEDBACK name copy falls back to its TextEntry when direct clipboard returns ${failure}`, () => {
+    const harnessOptions = failure === 'throw'
+      ? { clipboardThrows: 'Invalid number of arguments for event in DispatchEvent for CopyStringToClipboard' }
+      : { clipboardResult: false };
+    const f = launch(profile(), { boot: () => loadLayout('hud_escape_menu.xml', { harnessOptions }) }); f.run(2000);
+    const h = f.harness, find = id => h.contextPanel.FindChildTraverse(id);
+    find('HPColorsPreviewFeedbackButton').events.onactivate();
+    const entry = find('HPColorsFeedbackNameEntry');
+    assert.equal(entry.paneltype, 'TextEntry');
+    find('HPColorsFeedbackNameButton').events.onactivate();
+    assert.match(find('HPColorsFeedbackStatus').text, /^Copied hanturaya101/);
+    assert.equal(h.clipboardWrites.at(-1), 'hanturaya101');
+    const fallback = h.dispatches.filter(args => args[0] === 'TextEntryCopyToClipboard');
+    assert.equal(fallback.length, 1); assert.ok(fallback[0][1] === entry);
+    assert.equal(entry.text, 'hanturaya101');
+    assert.equal(find('HPColorsFeedbackDialog').BHasClass('Open'), true);
+  });
+}
+test('ticket 43: FEEDBACK name copy reports a manual copy when both clipboard routes fail', () => {
+  const harnessOptions = { clipboardThrows: 'Invalid number of arguments for event in DispatchEvent for CopyStringToClipboard', textEntryCopyResult: false };
+  const f = launch(profile(), { boot: () => loadLayout('hud_escape_menu.xml', { harnessOptions }) }); f.run(2000);
+  const h = f.harness, find = id => h.contextPanel.FindChildTraverse(id);
+  find('HPColorsPreviewFeedbackButton').events.onactivate();
+  find('HPColorsFeedbackNameButton').events.onactivate();
+  assert.equal(find('HPColorsFeedbackStatus').text, 'Could not copy. Add hanturaya101 on Discord.');
+  assert.equal(h.clipboardWrites.length, 0);
+});
+
+test('preset COPY copies through the bundle code box when the live clipboard event throws, and falls back to a manual copy', () => {
+  // Audit 2026-11-02 (GPT-6.1 Sol): COPY on a selected preset used CopyStringToClipboard alone, which throws live.
+  for (const textEntryCopyResult of [undefined, false]) {
+    const harnessOptions = { clipboardThrows: 'Invalid number of arguments for event in DispatchEvent for CopyStringToClipboard' };
+    if (textEntryCopyResult === false) harnessOptions.textEntryCopyResult = false;
+    const f = launch(profile(), { boot: () => loadLayout('hud_escape_menu.xml', { harnessOptions }) }); f.run(2000);
+    const h = f.harness, find = id => h.contextPanel.FindChildTraverse(id);
+    h.$.HPColorsMenuToggle();
+    find('HPColorsNavPresetsButton').events.onactivate();
+    find('HPColorsPresetDefault').events.onactivate();
+    find('HPColorsPresetSelectedCopyButton').events.onactivate();
+    const entry = find('HPColorsBundleCodeEntry'), code = String(entry.text);
+    assert.ok(code.length > 20 && !/\s/.test(code), 'the preset code lands in the bundle box: ' + code);
+    if (textEntryCopyResult === false) {
+      assert.equal(h.clipboardWrites.length, 0);
+      assert.equal(find('HPColorsPresetStatus').text, 'The preset code is in the Bundle code box; copy it manually.');
+    } else {
+      assert.deepEqual(h.clipboardWrites, [code]);
+      assert.equal(find('HPColorsPresetStatus').text, 'Preset code copied.');
+    }
   }
-  m.activate('HPColorsPreviewCreditsButton'); m.activate('HPColorsNavNameButton');
-  assert.equal(m.find('HPColorsCreditsDialog').BHasClass('Open'), false);
-  m.activate('HPColorsUndoButton'); assert.deepEqual(m.settings(), initial);
-  m.activate('HPColorsPreviewCreditsButton'); m.activate('HPColorsCloseButton'); m.h.$.HPColorsMenuToggle();
-  assert.equal(m.find('HPColorsCreditsDialog').BHasClass('Open'), false, 'closing and reopening the editor leaves no modal behind');
+});
+
+test('ticket 31/43: credits and feedback exclude every dialog/picker and each other, cancel stale confirmations and preserve existing Undo', () => {
+  for (const [opener, own] of [['HPColorsPreviewCreditsButton', 'HPColorsCreditsDialog'], ['HPColorsPreviewFeedbackButton', 'HPColorsFeedbackDialog']]) {
+    const m = menu(), initial = m.settings();
+    m.submit('HPColorsBarColorLowEnemyHex', '#123456');
+    m.activate('HPColorsPresetSaveButton');
+    m.find('HPColorsBundleCodeEntry').text = m.h.$.HPColorsV3Sharing.exportBundleCode(m.bundle()).code;
+    const condition = m.h.$.HPColorsV3Settings.controls.find(row => row.key === 'barWidth' && row.side === 'enemy');
+    const other = own === 'HPColorsCreditsDialog' ? ['HPColorsFeedbackDialog', 'HPColorsPreviewFeedbackButton'] : ['HPColorsCreditsDialog', 'HPColorsPreviewCreditsButton'];
+    const openers = [
+      ['HPColorsResetPageDialog', () => m.activate('HPColorsResetPageButton')],
+      ['HPColorsPickerDialog', () => m.activate('HPColorsBarColorLowEnemySwatch')],
+      ['HPColorsConditionDialog', () => m.activate(condition.conditionId)],
+      ['HPColorsHeroDialog', () => m.preset('baked_default', 'Heroes')],
+      ['HPColorsPresetDeleteDialog', () => m.preset(0, 'Delete')],
+      ['HPColorsBundleReplaceDialog', () => m.activate('HPColorsBundleReplaceButton')],
+      [other[0], () => m.activate(other[1])],
+    ];
+    const dialogs = m.find('HPColorsMenuHost').Children().filter(panel => panel.BHasClass('HPC3Dialog'));
+    const onlyOpen = id => assert.deepEqual(dialogs.filter(panel => panel.BHasClass('Open')).map(panel => panel.id), [id]);
+    for (const [id, open] of openers) {
+      open(); onlyOpen(id);
+      const before = m.bundle(), commits = m.commits.length;
+      m.activate(opener); onlyOpen(own);
+      for (const confirm of ['ResetPage', 'PresetDelete', 'BundleReplace']) m.activate('HPColors' + confirm + 'ConfirmButton');
+      assert.deepEqual(m.bundle(), before); assert.equal(m.commits.length, commits);
+      assert.equal(m.find('HPColorsUndoButton').enabled, true);
+      open(); onlyOpen(id);
+      m.cancel();
+    }
+    m.activate(opener); m.activate('HPColorsNavNameButton');
+    assert.equal(m.find(own).BHasClass('Open'), false);
+    m.activate('HPColorsUndoButton'); assert.deepEqual(m.settings(), initial);
+    m.activate(opener); m.activate('HPColorsCloseButton'); m.h.$.HPColorsMenuToggle();
+    assert.equal(m.find(own).BHasClass('Open'), false, 'closing and reopening the editor leaves no modal behind');
+  }
 });
 
 test('Undo retains forty immutable settings records and ignores no-op/hydration/folds', () => {
@@ -291,9 +371,10 @@ test('Malformed imported library metadata does not crash hydration or trap autom
 test('Preset copy refusal is visible and a refreshed library cancels stale deletion', () => {
   const m = menu(); m.activate('HPColorsPresetSaveButton');
   const dispatch = m.h.$.DispatchEvent;
-  m.h.$.DispatchEvent = (...args) => args[0] === 'CopyStringToClipboard' ? false : dispatch(...args);
+  // Both clipboard routes refuse: the code stays in the bundle box for a manual copy, and the status says so.
+  m.h.$.DispatchEvent = (...args) => args[0] === 'CopyStringToClipboard' || args[0] === 'TextEntryCopyToClipboard' ? false : dispatch(...args);
   m.preset(0, 'Copy');
-  assert.match(m.find('HPColorsPresetStatus').text, /could not be copied/i);
+  assert.match(m.find('HPColorsPresetStatus').text, /copy it manually/i);
   m.preset(0, 'Delete');
   m.api().refreshPresets();
   m.activate('HPColorsPresetDeleteConfirmButton');
@@ -581,7 +662,8 @@ test('ticket 29: Bundle COPY round-trips the live draft, default source and hero
   const bundle = store.getBundle();
   bundle.presets = [{ id: 'user-1', name: 'My preset', settings: copy(bundle.settings) }];
   bundle.sourcePresetId = 'baked_default'; bundle.sourceWasMapped = false;
-  bundle.bakedPresetHidden = true;
+  // The real baked-default hidden field (a pasted code drops fields no script reads, 2026-11-02).
+  bundle.hiddenBakedPresetIds = ['baked_default'];
   bundle.heroPresets = { hero_inferno: 'user-1' }; bundle.heroDefault = 'baked_default';
   store.replaceBundle(bundle); f.edit('#123456'); copyBundle();
   store.applyPreset(bundle.presets[0], false, false); copyBundle();

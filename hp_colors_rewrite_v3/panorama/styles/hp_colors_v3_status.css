@@ -1,0 +1,502 @@
+/* Ticket 52: status effect icon sizes. Included by citadel_status_effect.xml (tools/lib/stock-layouts.js
+   patchStatusEffect): the status row above a health bar is a CitadelStatusEffect panel with its own layout and
+   takes rules only from that layout's sheets (live 6861), so these rules cannot live in hp_colors_v3_world.css.
+   The renderer puts HPColorsV3Fx<letter><percent> on a hero bar's root for each slider above 100%, and
+   HPColorsV3FxOn while any is. The row is 32 px tall and clips its icons, so while any size is above 100% the
+   row and its container fit their tallest icon (stock does the same for the HUD row:
+   `#HealthBarContent CitadelStatusEffect { height: fit-children }`); min-height keeps an ordinary row at 32 px.
+   100% adds no class, so every other status row (HUD, top bar, other bars) keeps the game look. */
+.WindowRoot.HPColorsV3FxOn #StatusEffects,
+.WindowRoot.HPColorsV3FxOn #StatusEffectContainer
+{
+	height: fit-children;
+	min-height: 32px;
+}
+/* A: Fixation */
+.WindowRoot.HPColorsV3FxA110 .fixated
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxA120 .fixated
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxA130 .fixated
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxA140 .fixated
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxA150 .fixated
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxA160 .fixated
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxA170 .fixated
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxA180 .fixated
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxA190 .fixated
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxA200 .fixated
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxA210 .fixated
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxA220 .fixated
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxA230 .fixated
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxA240 .fixated
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxA250 .fixated
+{
+	ui-scale: 250%;
+}
+/* B: Malice */
+.WindowRoot.HPColorsV3FxB110 .blood_shard
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxB120 .blood_shard
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxB130 .blood_shard
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxB140 .blood_shard
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxB150 .blood_shard
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxB160 .blood_shard
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxB170 .blood_shard
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxB180 .blood_shard
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxB190 .blood_shard
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxB200 .blood_shard
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxB210 .blood_shard
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxB220 .blood_shard
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxB230 .blood_shard
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxB240 .blood_shard
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxB250 .blood_shard
+{
+	ui-scale: 250%;
+}
+/* C: Screwjab Dagger */
+.WindowRoot.HPColorsV3FxC110 .modifier_viper_debuffdagger
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxC120 .modifier_viper_debuffdagger
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxC130 .modifier_viper_debuffdagger
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxC140 .modifier_viper_debuffdagger
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxC150 .modifier_viper_debuffdagger
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxC160 .modifier_viper_debuffdagger
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxC170 .modifier_viper_debuffdagger
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxC180 .modifier_viper_debuffdagger
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxC190 .modifier_viper_debuffdagger
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxC200 .modifier_viper_debuffdagger
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxC210 .modifier_viper_debuffdagger
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxC220 .modifier_viper_debuffdagger
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxC230 .modifier_viper_debuffdagger
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxC240 .modifier_viper_debuffdagger
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxC250 .modifier_viper_debuffdagger
+{
+	ui-scale: 250%;
+}
+/* D: Djinn's Mark */
+.WindowRoot.HPColorsV3FxD110 .sand_phantom_passive_victim
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxD120 .sand_phantom_passive_victim
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxD130 .sand_phantom_passive_victim
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxD140 .sand_phantom_passive_victim
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxD150 .sand_phantom_passive_victim
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxD160 .sand_phantom_passive_victim
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxD170 .sand_phantom_passive_victim
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxD180 .sand_phantom_passive_victim
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxD190 .sand_phantom_passive_victim
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxD200 .sand_phantom_passive_victim
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxD210 .sand_phantom_passive_victim
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxD220 .sand_phantom_passive_victim
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxD230 .sand_phantom_passive_victim
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxD240 .sand_phantom_passive_victim
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxD250 .sand_phantom_passive_victim
+{
+	ui-scale: 250%;
+}
+/* E: Serrated Knives */
+.WindowRoot.HPColorsV3FxE110 .shiv_dagger
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxE120 .shiv_dagger
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxE130 .shiv_dagger
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxE140 .shiv_dagger
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxE150 .shiv_dagger
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxE160 .shiv_dagger
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxE170 .shiv_dagger
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxE180 .shiv_dagger
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxE190 .shiv_dagger
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxE200 .shiv_dagger
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxE210 .shiv_dagger
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxE220 .shiv_dagger
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxE230 .shiv_dagger
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxE240 .shiv_dagger
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxE250 .shiv_dagger
+{
+	ui-scale: 250%;
+}
+/* F: Barrage */
+.WindowRoot.HPColorsV3FxF110 .pocket_damage_amp
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxF120 .pocket_damage_amp
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxF130 .pocket_damage_amp
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxF140 .pocket_damage_amp
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxF150 .pocket_damage_amp
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxF160 .pocket_damage_amp
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxF170 .pocket_damage_amp
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxF180 .pocket_damage_amp
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxF190 .pocket_damage_amp
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxF200 .pocket_damage_amp
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxF210 .pocket_damage_amp
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxF220 .pocket_damage_amp
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxF230 .pocket_damage_amp
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxF240 .pocket_damage_amp
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxF250 .pocket_damage_amp
+{
+	ui-scale: 250%;
+}
+/* G: Pulse Grenade */
+.WindowRoot.HPColorsV3FxG110 .chrono_pulse_grenade
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxG120 .chrono_pulse_grenade
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxG130 .chrono_pulse_grenade
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxG140 .chrono_pulse_grenade
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxG150 .chrono_pulse_grenade
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxG160 .chrono_pulse_grenade
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxG170 .chrono_pulse_grenade
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxG180 .chrono_pulse_grenade
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxG190 .chrono_pulse_grenade
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxG200 .chrono_pulse_grenade
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxG210 .chrono_pulse_grenade
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxG220 .chrono_pulse_grenade
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxG230 .chrono_pulse_grenade
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxG240 .chrono_pulse_grenade
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxG250 .chrono_pulse_grenade
+{
+	ui-scale: 250%;
+}
+/* H: Arctic Beam */
+.WindowRoot.HPColorsV3FxH110 .freezing_buildup
+{
+	ui-scale: 110%;
+}
+.WindowRoot.HPColorsV3FxH120 .freezing_buildup
+{
+	ui-scale: 120%;
+}
+.WindowRoot.HPColorsV3FxH130 .freezing_buildup
+{
+	ui-scale: 130%;
+}
+.WindowRoot.HPColorsV3FxH140 .freezing_buildup
+{
+	ui-scale: 140%;
+}
+.WindowRoot.HPColorsV3FxH150 .freezing_buildup
+{
+	ui-scale: 150%;
+}
+.WindowRoot.HPColorsV3FxH160 .freezing_buildup
+{
+	ui-scale: 160%;
+}
+.WindowRoot.HPColorsV3FxH170 .freezing_buildup
+{
+	ui-scale: 170%;
+}
+.WindowRoot.HPColorsV3FxH180 .freezing_buildup
+{
+	ui-scale: 180%;
+}
+.WindowRoot.HPColorsV3FxH190 .freezing_buildup
+{
+	ui-scale: 190%;
+}
+.WindowRoot.HPColorsV3FxH200 .freezing_buildup
+{
+	ui-scale: 200%;
+}
+.WindowRoot.HPColorsV3FxH210 .freezing_buildup
+{
+	ui-scale: 210%;
+}
+.WindowRoot.HPColorsV3FxH220 .freezing_buildup
+{
+	ui-scale: 220%;
+}
+.WindowRoot.HPColorsV3FxH230 .freezing_buildup
+{
+	ui-scale: 230%;
+}
+.WindowRoot.HPColorsV3FxH240 .freezing_buildup
+{
+	ui-scale: 240%;
+}
+.WindowRoot.HPColorsV3FxH250 .freezing_buildup
+{
+	ui-scale: 250%;
+}

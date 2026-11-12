@@ -237,8 +237,9 @@
       advance(request);
     }
 
-    // Download links are opened in the external browser, so only plain GameBanana HTTPS pages pass.
-    var DOWNLOAD_URL = /^https:\/\/gamebanana\.com\/[A-Za-z0-9\/_#.?=&%-]{1,200}$/;
+    // Download links are opened in the external browser, so only the HP Colors mod's own GameBanana download
+    // page passes (save-security audit 2026-11-02: a hacked manifest must not send players to another mod).
+    var DOWNLOAD_URL = /^https:\/\/gamebanana\.com\/mods\/download\/603113(#FileInfo_\d{1,12})?$/;
     function downloadLinks(value) {
       if (!value || typeof value !== "object" || Array.isArray(value)) return null;
       var links = null;
@@ -615,10 +616,10 @@
       if (mode === "settings" && !hydrated) migrationNotice = "Saved; settings import replaced all saved settings";
       var previousBundle = pending || baseline, previous = previousBundle.settings;
       var oldPresets = byId(previousBundle.presets), editedPresets = byId(bundle.presets);
-      Object.keys(oldPresets).concat(Object.keys(editedPresets)).forEach(function (id) {
+      keyUnion(oldPresets, editedPresets).forEach(function (id) {
         if (!same(oldPresets[id], editedPresets[id])) dirtyPresets[id] = serial + 1;
       });
-      Object.keys(previousBundle).concat(Object.keys(bundle)).forEach(function (key) {
+      keyUnion(previousBundle, bundle).forEach(function (key) {
         if (key !== "settings" && key !== "presets" && !same(previousBundle[key], bundle[key])) dirtyMetadata[key] = serial + 1;
       });
       if (!same(order(previousBundle.presets, editedPresets), order(bundle.presets, oldPresets))) orderTouched = serial + 1;
@@ -641,6 +642,11 @@
       return true;
     }
     function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+    // Old keys in order, then new keys the old map lacks (own keys, so imported ids like "__proto__" count):
+    // a plain concat compared every kept preset twice, four serializations each per commit.
+    function keyUnion(before, after) {
+      return Object.keys(before).concat(Object.keys(after).filter(function (key) { return !Object.prototype.hasOwnProperty.call(before, key); }));
+    }
     function byId(presets) {
       var result = Object.create(null);
       presets.forEach(function (preset) { result[preset.id] = preset; });
@@ -806,6 +812,22 @@
   var importMode = "";
   // A session handed over by a retired store incarnation, kept until a menu attaches.
   var inheritedSession = null, retiredStore = false;
+  function commitConfig(config) {
+    menuBundle = currentBundle(config.settings);
+    var hasRules = Object.keys(config.rules || {}).length > 0;
+    if (hasRules) menuBundle.rules = clone(config.rules); else delete menuBundle.rules;
+    // The applied custom preset follows every edit (user, 2026-11-02: edits were not kept in it, so applying
+    // it again, or the hero default routing back to it, restored the values it was created with). The baked
+    // Default never changes.
+    var source = menuBundle.sourcePresetId;
+    if (source && source !== "baked_default") (menuBundle.presets || []).forEach(function (preset) {
+      if (preset.id !== source) return;
+      preset.settings = clone(config.settings);
+      if (hasRules) preset.rules = clone(config.rules); else delete preset.rules;
+    });
+    if (controller) controller.change(menuBundle, importMode);
+    importMode = "";
+  }
   function currentBundle(settings) {
     var bundle = menuBundle ? clone(menuBundle) : { presets: [] };
     bundle.settings = clone(settings);
@@ -891,14 +913,14 @@
       controller = null; menuApi = null; menuRoot = null; inheritedSession = null;
       return result;
     },
-    commit: function (config) {
-      menuBundle = currentBundle(config.settings);
-      if (Object.keys(config.rules || {}).length) menuBundle.rules = clone(config.rules); else delete menuBundle.rules;
-      if (controller) controller.change(menuBundle, importMode);
-      importMode = "";
-    },
+    commit: commitConfig,
     getBundle: function (settings) {
       return currentBundle(settings || (menuApi ? menuApi.getSettings() : $.HPColorsV3Settings.defaults));
+    },
+    // Hero routing reads only the route every settled second: no copy of the whole preset library.
+    getRoute: function () {
+      var bundle = menuBundle || {};
+      return { heroPresets: clone(bundle.heroPresets || {}), heroDefault: bundle.heroDefault === undefined ? null : bundle.heroDefault };
     },
     isHydrated: function () { return !!controller && controller.isHydrated(); },
     // Advisory update check: { ok, version ("X.Y.Z" or null), pending }. Never touches settings or saves.
@@ -917,8 +939,7 @@
         if (Object.prototype.hasOwnProperty.call(preset,key)) bundle[key] = clone(preset[key]); else delete bundle[key];
       });
       commitBundle(bundle, false);
-      if (isCallable(menuApi.applyPresetSettings)) menuApi.applyPresetSettings(bundle.settings, bundle.sourcePresetId, automatic === true, bundle.sourceWasMapped, bundle.rules || {});
-      else if (isCallable(menuApi.editSettings)) menuApi.editSettings(bundle.settings); else menuApi.applySettings(bundle.settings);
+      menuApi.applyPresetSettings(bundle.settings, bundle.sourcePresetId, automatic === true, bundle.sourceWasMapped, bundle.rules || {});
       return true;
     },
     resetUnreadableSave: function (confirmed) {
@@ -935,7 +956,15 @@
         Object.keys(result.metadata).forEach(function (key) { menuBundle[key] = clone(result.metadata[key]); });
       }
       importMode = "settings";
-      if (menuApi && isCallable(menuApi.editSettings)) menuApi.editSettings(result.settings, result.rules || {});
+      // This store owns the import's one commit: a changed import commits through the menu's edit; an equal
+      // one still commits here, so mode "settings" touches every slot (audit 2026-11-02: the menu used to
+      // commit a second, identical time after a changed import).
+      // Only when the menu already holds exactly this import: a refusing (retired) menu commits nothing.
+      var rules = result.rules || {};
+      if (menuApi && isCallable(menuApi.editSettings) && !menuApi.editSettings(result.settings, rules) &&
+          isCallable(menuApi.getSettings) && isCallable(menuApi.getRules) &&
+          JSON.stringify(menuApi.getSettings()) === JSON.stringify(result.settings) && JSON.stringify(menuApi.getRules()) === JSON.stringify(rules))
+        commitConfig({ settings: result.settings, rules: rules });
       return result.settings;
     },
     exportBundleCode: function (settings) { return unwrap($.HPColorsV3Sharing.exportBundleCode(currentBundle(settings))).code; },

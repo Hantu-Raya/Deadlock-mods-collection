@@ -73,7 +73,7 @@ function fixture(options = {}) {
     value:info.FindChild('UnitHealthbarValue'),name:root.FindChild('name'),lines:primary.FindChild('UnitHealthbarLines'),
     outline:primary.FindChild('HPColorsV3BarOutline'),healing:inner.FindChild('unit_healthbar_healing'),delta:inner.FindChild('unit_healthbar_delta'),
     shield:inner.FindChild('unit_healthbar_bullet_shield'),armor:inner.FindChild('unit_healthbar_ratking_armor'),
-    level:info.FindChild('HPColorsV3Level'),levelLabel:info.FindChildTraverse('unit_level_label'),
+    deferred:inner.FindChild('unit_healthbar_deferred'),level:info.FindChild('HPColorsV3Level'),levelLabel:info.FindChildTraverse('unit_level_label'),
     ult:info.Children().find(panel=>panel.BHasClass('unit_info_panel'))};
   let canvasWidth = 200, canvasHeight = 210;
   function measure(panel,width,height,x=0,y=0,sx=2,sy=2) {
@@ -217,6 +217,31 @@ test('ally bands and all feedback colors are independent and primary-only',()=>{
   assert.equal(computed(ally.shield,'backgroundColor'),'rgb(183, 220, 255)');assert.equal(computed(ally.armor,'backgroundColor').toUpperCase(),'#C7A674');
 });
 
+// Discord request (ccrom, 2026-11-01): Shiv's Bloodletting (3) and Nurse Harrow's Vapors (2) defer damage, and the
+// engine draws that health as #unit_healthbar_deferred in stock orange rgb(232, 127, 61) on every side, so a white
+// ally read as an enemy. Ways it can fail: the layer not found in the primary inner (or taken from the shield bar),
+// one side's color leaking to the other, the default not matching the stock orange, the color applied while custom
+// bar colors are off, a neutral camp bar recolored, or the stock wash not coming back when the colors are turned off.
+test('deferred damage (Shiv Bloodletting, Nurse Vapors) takes its own color per side, stock orange by default',()=>{
+  const net=network(), enemy=fixture({network:net}), ally=fixture({network:net,classes:['player','friend']}); net.advance(600);
+  assert.equal(computed(ally.parts.deferred,'washColor'),'rgb(232, 127, 61)','custom colors off: stock orange');
+  assert.equal(ally.parts.deferred.style.washColor,undefined,'nothing written while the ally side is off');
+  assert.equal(enemy.parts.deferred.style.washColor,'#E87F3D','enemy default is the stock orange');
+  ally.edit('barColorEnabled',true,'ally');ally.edit('barDeferredColor','#FFFFFF','ally');ally.advance();
+  assert.equal(ally.parts.deferred.style.washColor,'#FFFFFF','ally takes its own color');
+  assert.equal(enemy.parts.deferred.style.washColor,'#E87F3D','the enemy side is unchanged');
+  enemy.edit('barDeferredColor','#FD4949','enemy');enemy.advance();
+  assert.equal(enemy.parts.deferred.style.washColor,'#FD4949');assert.equal(ally.parts.deferred.style.washColor,'#FFFFFF');
+  const shieldInner=ally.stack.FindChild('UnitShieldbar')?.FindChildTraverse?.('unit_healthbar_deferred');
+  if (shieldInner) assert.equal(shieldInner.style.washColor,undefined,'the shield bar keeps the stock look');
+  ally.edit('barColorEnabled',false,'ally');ally.advance();
+  assert.ok(!ally.parts.deferred.style.washColor,'turning colors off hands the layer back: '+ally.parts.deferred.style.washColor);
+  assert.equal(computed(ally.parts.deferred,'washColor'),'rgb(232, 127, 61)');
+  const camp=fixture({classes:['neutral_normal','team_neutral'],nativeStyles:{deferred:{washColor:'#AABBCC'}}});camp.advance(1800);
+  camp.edit('neutralEnabled',true);camp.edit('barDeferredColor','#123456');camp.advance(1600);
+  assert.equal(camp.parts.deferred.style.washColor,'#AABBCC','neutral camps keep the stock deferred layer');
+});
+
 test('engine-bound HP label is adopted without new labels and updates while primary stays near-transparent',()=>{
   let original, originalLabels;
   const fx=fixture({opacityUnlays:true,prepare(parts){original=parts.value;originalLabels=labels(parts.motion.GetParent());}});fx.advance(600);
@@ -316,8 +341,9 @@ test('name color, spectator alpha, size, outline, alignment and clamping retain 
 
 test('name team colors need Custom name color, keep the spectator alpha and fall back to the own color without a team',()=>{
   const fx=fixture();fx.advance(600);fx.h.root.AddClass('team1');fx.advance(1100);
-  fx.edit('nameColorMode','team');fx.advance(1100);
-  assert.equal(fx.name.style.color,undefined,'team source alone changes nothing while custom color is off');
+  // The source row is usable only with Custom name color on, so pick team there and switch the color off again.
+  fx.edit('nameColorEnabled',true);fx.edit('nameColorMode','team');fx.edit('nameColorEnabled',false);fx.advance(1100);
+  assert.equal(fx.name.style.color||undefined,undefined,'team source alone changes nothing while custom color is off');
   fx.edit('nameColorEnabled',true);fx.edit('nameColor','#112233');fx.edit('teamAmberColor','#C08020');fx.advance(1100);
   assert.equal(fx.name.style.color,'#C08020','the name takes the team color');
   fx.h.root.AddClass('spectating');fx.advance(1100);assert.equal(fx.name.style.color,'#C0802080');
@@ -682,7 +708,11 @@ for (const [scenario,ceiling] of [['active',300],['idle',200],['dormant',30],['r
     ['ultimateChurn12ShieldedPickupPulseLabelsLowStaminaSixRootIdle',200],['ultimateChurn12ShieldedPickupArrowPulseLabelsLowStaminaSixRootIdle',200],
     ['ultimateOrdinaryEffectsShieldedPickupArrowPulseLabelsLowStaminaSixRootActive',300],
     // Vyper's ten charges: idle reads stretch so the idle ceiling still holds.
-    ['ultimateChurn12ShieldedPickupArrowPulseLabelsLowStaminaTenRootIdle',200],['ultimateOrdinaryEffectsShieldedPickupArrowPulseLabelsLowStaminaTenRootActive',300]]) test(scenario+' operation ceiling includes world JSON parses',t => {
+    ['ultimateChurn12ShieldedPickupArrowPulseLabelsLowStaminaTenRootIdle',200],['ultimateOrdinaryEffectsShieldedPickupArrowPulseLabelsLowStaminaTenRootActive',300],
+    // Ticket 50: kill bounty snapshots every 2 s with a new value every 4 s (faster than the game moves it).
+    ['ultimateChurn12ShieldedPickupArrowPulseBountyIdle',200],['ultimateOrdinaryEffectsShieldedPickupArrowPulseBountyActive',300],
+    // Ticket 51: HP percent on both sides (one owned label text per percent step; tilt turns the row).
+    ['ultimateChurn12ShieldedPickupArrowPulseHpPercentIdle',200],['ultimateOrdinaryEffectsShieldedPickupArrowPulseHpPercentTiltActive',300]]) test(scenario+' operation ceiling includes world JSON parses',t => {
   const mode = scenario.startsWith('released') ? 'dormant' : /Idle$/.test(scenario)?'idle': /Active$/.test(scenario)?'active':scenario;
   const hpTotal = /Hp(\d+)/.exec(scenario), total = hpTotal ? Number(hpTotal[1]) : 2000;
   const churn = /Churn(\d+)/.exec(scenario), ordinary = /ManyEffects/.test(scenario) ? 96 : /ordinaryEffects/i.test(scenario) ? 12 : 0;
@@ -723,6 +753,7 @@ for (const [scenario,ceiling] of [['active',300],['idle',200],['dormant',30],['r
     fx.edit('nameOffsetX',side==='enemy'?14:-9,side);fx.edit('nameOffsetY',-5,side);fx.edit('hpTextOffsetX',-12,side);
   }
   if (/UnitGates/.test(scenario)) openUnitGates(fx);
+  if (/HpPercent/.test(scenario)) {fx.edit('hpTextVisible',true,'ally');fx.edit('hpTextFormat','both');fx.edit('hpTextFormat','percent','ally');}
   if (/Bounds/i.test(scenario)) {toggleBounds(fx.menu);fx.edit('hudHealthColorMode','team');fx.edit('hudHealthColor','#123456');}
   if (/Labels/.test(scenario)) for(const key of ['critical','assassinate','unkillable']){
     fx.edit(key+'IndicatorVisible',false);fx.edit(key+'OffsetX',17);fx.edit(key+'OffsetY',-11);
@@ -753,6 +784,8 @@ for (const [scenario,ceiling] of [['active',300],['idle',200],['dormant',30],['r
     fx.net.broadcast(JSON.stringify({magic:'HPV3_PICKUP_SCAN_GATE',scan:true,localName:'LOCAL',since:0,at:fx.h.now}));
     fx.net.broadcast(JSON.stringify({magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:fx.h.now,players:[['REMOTE',90,2]]}));
   }
+  const bountyAt=value=>JSON.stringify({magic:'HPV3_BOUNTY_SNAPSHOT',since:0,at:fx.h.now,players:[['REMOTE',value],['OTHER',600]]});
+  if (/Bounty/.test(scenario)) {fx.edit('killBountyEnabled',true);fx.net.broadcast(bountyAt(1460));}
   fx.advance(1000);
   for (const key of Object.keys(fx.h.operationCounts)) fx.h.operationCounts[key]=0;
   const timerStarted=fx.h.now;
@@ -770,6 +803,7 @@ for (const [scenario,ceiling] of [['active',300],['idle',200],['dormant',30],['r
     if (mode==='active') {fx.setHealth(50+(ms/100)%30);injected++;}
     if(/ultimate/i.test(scenario)&&ms%2000===0)
       fx.net.broadcast(JSON.stringify({magic:'HPV3_ULTIMATE_SNAPSHOT',since:0,at:fx.h.now,players:[['REMOTE',92+2*(fx.h.now-timerStarted)/1000,2]]}));
+    if(/Bounty/.test(scenario)&&ms%2000===0)fx.net.broadcast(bountyAt(1460+10*Math.floor((fx.h.now-timerStarted)/4000)));
     if(/ultimate/i.test(scenario)&&ms%5000===0)
       fx.net.broadcast(JSON.stringify({magic:'HPV3_PICKUP_SCAN_GATE',scan:true,localName:'LOCAL',since:0,at:fx.h.now}));
     fx.advance(100);
@@ -780,7 +814,15 @@ for (const [scenario,ceiling] of [['active',300],['idle',200],['dormant',30],['r
   const observedDigest = crypto.createHash('sha256').update(JSON.stringify(observe(fx.root))).digest('hex');
   t.diagnostic(JSON.stringify({scenario,mode,COUNTED:ops,boundaryValidityCallsPerBarSecond:(operations.boundaryValidityCalls||0)/10,validityCallsPerBarSecond:(operations.validityCalls||0)/10,uiScaleReadsPerBarSecond:(operations.uiScaleReads||0)/10,classTraversalNodesPerBarSecond:(operations.classTraversalNodes||0)/10,operations,observedDigest}));
   assert.ok(ops<=ceiling,`${ops} > ${ceiling}`); assert.ok(operations.traversal<=(/pickup/i.test(scenario)?350:180),'bounded topology reconciliation');
-  if (mode!=='dormant' && !/^old|Old|^mask|Labels|LowStamina/.test(scenario)) assert.ok(ops<=(mode==='idle'?194.3:219.3),'closed unit gates preserve the pre-Units hero polling budget: '+ops);
+  if (mode!=='dormant' && !/^old|Old|^mask|Labels|LowStamina|Bounty|HpPercent/.test(scenario)) assert.ok(ops<=(mode==='idle'?194.3:219.3),'closed unit gates preserve the pre-Units hero polling budget: '+ops);
+  // Ticket 50: on top of that budget the bounty may add only its 5 snapshot parses and, per new value, one name read and one label write (0.9/s).
+  if (/Bounty/.test(scenario)) assert.ok(ops<=(mode==='idle'?194.3:219.3)+0.9+1e-9,'the bounty adds only its JSON parses and one name read and label write per new value: '+ops);
+  // Ticket 51: idle costs nothing; the active sweep (a new health every 100 ms) adds one percent text write per shown step
+  // (25 in 10 s) and the percent's copy of the moving gradient color (21): 4.6/s measured, no reads.
+  if (/HpPercent/.test(scenario)) {
+    assert.ok(ops<=(mode==='idle'?194.3:219.3+4.6)+1e-9,'the HP percent adds only its text and color writes: '+ops);
+    assert.equal(fx.row.FindChild('HPColorsV3HPPercent').text.endsWith('%'),true,'HP percent path was exercised');
+  }
   if (/LowStaminaHidden/.test(scenario)) assert.ok(ops<=194.3,'hidden low-stamina charges cost no more than the plain idle budget: '+ops);
   if (/LowStamina/.test(scenario)) {
     const icon=fx.parts.staminaPips[0].icon;
@@ -794,10 +836,15 @@ for (const [scenario,ceiling] of [['active',300],['idle',200],['dormant',30],['r
   if (/shakeOff/.test(scenario)) assert.deepEqual(shakeClasses(fx.root),['HPColorsV3ShakeOff'],'shake off holds its class under OLD');
   if (/Bounds/i.test(scenario)) assert.equal(fx.root.BHasClass('HPColorsV3Bounds'),true,'bounds shown throughout');
   assert.ok((operations.classTraversalNodes||0)/10<=1500,'native class queries walk at most 1500 nodes/bar/s (1256 measured worst case plus 244 headroom)');
-  assert.equal(operations.jsonParses,/ultimate/i.test(scenario)?7:0,'only the registered timer hook parses the heartbeat traffic');
-  assert.equal(operations.parentWrites,0);assert.equal(operations.classWrites,0);assert.equal(operations.textWrites,0);
+  assert.equal(operations.jsonParses,(/ultimate/i.test(scenario)?7:0)+(/Bounty/.test(scenario)?5:0),'only the registered timer hook parses the heartbeat traffic');
+  assert.equal(operations.parentWrites,0);assert.equal(operations.classWrites,0);
+  // The bounty label is written once per new value (1470, 1480 in the window), never per tick; the HP percent
+  // once per shown percent step of the active sweep (25), never while health holds.
+  assert.equal(operations.textWrites,/Bounty/.test(scenario)?2:/HpPercent/.test(scenario)&&mode==='active'?25:0);
+  if (/HpPercent/.test(scenario)) assert.equal(fx.row.FindChild('HPColorsV3HPPercent').BHasClass('HPColorsV3Pulse'),true,'the percent pulses with the number');
+  if (/Bounty/.test(scenario)) {assert.equal(fx.root.BHasClass('HPColorsV3KillBounty'),true,'bounty shown throughout');assert.equal(fx.root.FindChildTraverse('HPColorsV3BountyValue').text,'1,480');}
   if(mode==='dormant')assert.equal(operations.textReads,0);
-  else assert.ok(operations.textReads>=9&&operations.textReads<=(/ultimate/i.test(scenario)?30:15),'level 1s and independent timer sampling/progress cadence stay bounded');
+  else assert.ok(operations.textReads>=9&&operations.textReads<=(/ultimate/i.test(scenario)?30:15)+(/Bounty/.test(scenario)?2:0),'level 1s and independent timer sampling/progress cadence stay bounded');
   assert.equal(fx.api.status.state,mode);
   if (mode==='active') assert.ok(operations.styleWrites>30,'moving health really paints');
   if (mode!=='dormant') assert.ok(/^#/.test(fx.fill.style.washColor));
@@ -1397,9 +1444,9 @@ test('team colors are editable, drive Team high color and the HP number, and fal
   for(const [hp,color] of [[100,'#ABCDEF'],[50,'#008800'],[20,'#110000']]) {fx.setHealth(hp);fx.advance();assert.equal(fx.value.style.washColor,color,'own colors with team high at '+hp);}
   fx.edit('hpTextTeamHigh',false);fx.setHealth(100);fx.advance();assert.equal(fx.value.style.washColor,'#FFFFFF');
   const config=structuredClone(latestPublishedConfig(fx.menu.harness).settings);
-  config.side.enemy.hpTextColorMode='team';config.side.enemy.npcEnabled=true;
-  const npc=fx.api.plan({...fx.api.facts(),kind:'npc',player:false,cssPlayer:false,team:'team1',fraction:1},config);
-  assert.equal(npc.styles.value.washColor,npc.styles.fill.washColor,'team HP number is players only');
+  config.side.enemy.hpTextColorMode='team';config.side.enemy.objectiveEnabled=true;
+  const unit=fx.api.plan({...fx.api.facts(),kind:'objective',player:false,cssPlayer:false,team:'team1',fraction:1},config);
+  assert.equal(unit.styles.value,undefined,'team HP number is players only: unit bars keep the stock HP number');
   const level=fx.api.plan({...fx.api.facts(),team:'team1',level:5},{...config,side:{...config.side,enemy:{...config.side.enemy,levelsVisible:true}}});
   assert.equal(level.styles.level.border,'2px solid #E7B659','the level rim keeps the game team color');
 });
@@ -1407,8 +1454,9 @@ test('team colors are editable, drive Team high color and the HP number, and fal
 test('stamina team colors need Custom stamina color and fall back to the own color without a team',()=>{
   const fx=fixture({prepare:engineStamina});fx.advance(1800);fx.h.root.AddClass('team2');fx.advance(1200);
   const {stamina,staminaPips:pips}=fx.parts;
-  fx.edit('staminaColorMode','team');fx.advance(1200);
-  assert.equal(pips[0].icon.style.washColor,undefined,'team source alone changes nothing while custom color is off');
+  // Dependent rows: the source is set with Custom stamina color on, then the color is switched off again.
+  fx.edit('staminaColorEnabled',true);fx.edit('staminaColorMode','team');fx.edit('staminaColorEnabled',false);fx.advance(1200);
+  assert.equal(pips[0].icon.style.washColor||undefined,undefined,'team source alone changes nothing while custom color is off');
   fx.edit('staminaColorEnabled',true);fx.edit('staminaColor','#123456');fx.edit('teamSapphireColor','#2040A0');fx.advance(1200);
   assert.equal(pips[0].icon.style.washColor,'#2040A0','filled arrows take the team color');
   assert.equal(pips[1].icon.style.washColor,'#10130D','empty arrows stay black');
@@ -1424,8 +1472,9 @@ test('low stamina recolors filled charges and the rim at or below the threshold;
   const {stamina,staminaPips:pips}=fx.parts;stamina.AddClass('StaminaRecentlyUsed');
   // Low stamina counts the stock empty marker (.StaminaPip.PipEmpty): charge 0 is filled, 1-3 are empty.
   pips[2].pip.AddClass('PipEmpty');pips[3].pip.AddClass('PipEmpty');
-  fx.edit('staminaLowThreshold',1);fx.edit('staminaLowColor','#ABCDEF');fx.advance(1200);
-  assert.equal(pips[0].icon.style.washColor,undefined,'low stamina needs Custom stamina color');
+  // Dependent rows: threshold and low color are set with Custom stamina color on, then it is switched off again.
+  fx.edit('staminaColorEnabled',true);fx.edit('staminaLowThreshold',1);fx.edit('staminaLowColor','#ABCDEF');fx.edit('staminaColorEnabled',false);fx.advance(1200);
+  assert.equal(pips[0].icon.style.washColor||undefined,undefined,'low stamina needs Custom stamina color');
   fx.edit('staminaColorEnabled',true);fx.edit('staminaColor','#123456');fx.advance(300);
   assert.equal(pips[0].icon.style.washColor,'#ABCDEF','1 charge left at threshold 1 is low');
   for(const i of [1,2,3]) assert.equal(pips[i].icon.style.washColor,'#10130D','empty charges keep the stock empty color');
@@ -1575,7 +1624,7 @@ test('pulse thresholds, colors, native label modifiers and exact animation relea
 test('ally pulse is opt-in and gradient overlay tracks fill coverage, not shield-corrected HP',()=>{
   const fx=fixture({classes:['player','friend']});fx.advance(1800);fx.setHealth(10);fx.advance();
   assert.equal(fx.fill.BHasClass('HPColorsV3Pulse'),false);
-  fx.edit('pulseEnabled',true,'ally');fx.edit('pulseReadout',true,'ally');fx.edit('hpTextVisible',true,'ally');
+  fx.edit('hpTextVisible',true,'ally');fx.edit('pulseEnabled',true,'ally');fx.edit('pulseReadout',true,'ally');
   assert.equal(computed(fx.value,'animationName'),'HPColorsV3PulseMedium');
   assert.equal(fx.fill.BHasClass('HPColorsV3Pulse'),false);
   fx.edit('barColorEnabled',true,'ally');fx.edit('pulseColorEnabled',true,'ally');fx.edit('pulseColorMode','gradient','ally');
@@ -1622,7 +1671,7 @@ test('native pickups use bright discs, off-white progress and dark empty tracks 
   fx.advance(1800);
   const colors=['#EC9719','#6E65EA','#CE90FF','#7BBA1D'];
   fx.parts.pickups.forEach(({icon,inner,border,track,glyph},i)=>{
-    assert.equal(icon.style.width,'22px');assert.equal(icon.style.height,'22px');assert.equal(icon.style.margin,'0px 1px');
+    assert.equal(icon.style.width,'19px','stock status-effect size kept');assert.equal(icon.style.height,'21px');assert.equal(icon.style.margin,'1px 2px','stock gaps kept');
     assert.equal(inner.style.washColor,colors[i]);assert.equal(border.style.washColor,'#FFEFD7');assert.equal(glyph.style.washColor,'#10130D');
     assert.equal(track.style.washColor,['#472D08','#211E46','#3E2B4D','#253809'][i]);
     assert.equal(inline(track,'backgroundImage'),'url("s2r://panorama/images/hud/world_space/status_border.vsvg")');
@@ -1639,9 +1688,15 @@ test('native pickups use bright discs, off-white progress and dark empty tracks 
   for(const key of ['pickupGunColor','pickupMovementColor','pickupSpiritColor','pickupSurvivalColor'])fx.edit(key,'#204080');
   for(const [key,value] of Object.entries({pickupGlyphColor:'#123456',pickupSize:64,pickupSpacing:16,pickupOffsetX:200,pickupOffsetY:-100}))fx.edit(key,value);
   fx.parts.pickups.forEach(({icon,inner,border,track,glyph})=>{
-    assert.equal(icon.style.width,'64px');assert.equal(icon.style.margin,'0px 16px');assert.equal(icon.style.transform,'translateX(200px) translateY(-100px)');
+    // yesdaddy, 2026-11-02: spacing only on pickups set them apart from the other status effects. The row keeps
+    // the game's gaps; Top bar pickup spacing sizes only the top-bar wings (timers.test.js).
+    assert.equal(icon.style.width,'19px','pickups keep the game status-effect size');assert.equal(icon.style.height,'21px');assert.equal(icon.style.margin,'1px 2px','pickups keep the row\'s own gaps');assert.equal(icon.style.transform,'rotateZ(3deg)','icons keep their place in the row');
     assert.equal(inner.style.washColor,'#204080');assert.equal(border.style.washColor,'#FFEFD7');assert.equal(track.style.washColor,'#102040');assert.equal(glyph.style.washColor,'#123456');
   });
+  // Live 6839: the whole native status-effect row moves (ordinary effects too), inside the canvas and never above its top.
+  const row=fx.h.contextPanel.FindChild('StatusEffects');
+  assert.equal(row.style.transform,'translate3d(100px, 0px, 0px)','x kept inside the 200px canvas, y never above the native top');
+  fx.edit('pickupOffsetY',21);assert.equal(row.style.transform,'translate3d(100px, 21px, 0px)');
   const stock=()=>{
     fx.parts.pickups.forEach(({icon,inner,border,track,glyph},i)=>{
       assert.equal(icon.style.width,'19px');assert.equal(icon.style.height,'21px');assert.equal(icon.style.margin,'1px 2px');assert.equal(icon.style.transform,'rotateZ(3deg)');
@@ -1649,7 +1704,7 @@ test('native pickups use bright discs, off-white progress and dark empty tracks 
       for(const key of ['washColor','backgroundImage','backgroundTextureSize','backgroundSize','zIndex','clip'])assert.equal(inline(track,key)||'',stockTracks[i][key]||'',`track ${i} restores ${key}`);
     });
   };
-  fx.edit('pickupTimersEnabled',false);stock();
+  fx.edit('pickupTimersEnabled',false);stock();assert.ok(!row.style.transform,'pickups off and no bar offset: the row is released');
   fx.edit('pickupTimersEnabled',true);assert.equal(fx.parts.pickups[0].track.style.washColor,'#102040');
   fx.edit('enabled',false);stock();
 });
@@ -1683,9 +1738,10 @@ test('flame follows ultimate placement/scale and rejuvenator controls preserve n
 
 test('native pickup replacement/visibility and hero-local/recycled gates release adopted indicators',()=>{
   const fx=fixture({prepare:enginePickups});fx.advance(1800);
-  const old=fx.parts.pickups[0];old.icon.visible=false;fx.advance(3300);assert.equal(old.icon.style.width,'19px');
-  old.icon.visible=true;fx.advance(3300);assert.equal(old.icon.style.width,'22px');
-  old.icon.SetParent(new MockPanel('Retired'));fx.advance(3300);assert.equal(old.icon.style.width,'19px');
+  // The off-white border wash marks a styled pickup (pickups no longer take a margin of their own).
+  const old=fx.parts.pickups[0];old.icon.visible=false;fx.advance(3300);assert.equal(old.border.style.washColor,'#ABCDEF');
+  old.icon.visible=true;fx.advance(3300);assert.equal(old.border.style.washColor,'#FFEFD7');
+  old.icon.SetParent(new MockPanel('Retired'));fx.advance(3300);assert.equal(old.border.style.washColor,'#ABCDEF');
   const oldFlame=fx.parts.flame;oldFlame.SetParent(new MockPanel('RetiredFlame'));
   const next=new MockPanel('Panel',fx.root,'KillStreakIndicator');next.style.preTransformScale2d='0.7';fx.advance(1200);
   assert.ok(next.GetParent()===fx.ult);assert.ok(oldFlame.GetParent()===fx.root,'released old flame restores captured root');
@@ -1788,14 +1844,15 @@ test('the preview visualFill hook leaves world plans and applied panels byte-ide
   assert.equal(applied(), beforeApplied, 'world applied panel bytes without the optional hook active');
 });
 
+// NPC bars lost their switch (user, 2026-10-29). Customized objectives and neutral camps keep the game's bar
+// layout and change only colors: "the bars should remain the same and don't modify the layout to match the
+// player ones" (user, 2026-10-29). Ways this can fail: the side's bar size, offset, outline, lines, BAR STYLE or
+// HP TEXT placement/font leaking into a unit bar; colors not applied; the gate not releasing exact stock.
 const UNIT_CASES = [
-  ['enemy NPC', ['creature','enemy'], 'npcEnabled', 'enemy'],
-  ['ally NPC', ['minion','friend'], 'npcEnabled', 'ally'],
-  ['neutral camp', ['neutral_normal','enemy','friend'], 'neutralEnabled', 'enemy'],
   ['enemy objective', ['boss_tier1','enemy'], 'objectiveEnabled', 'enemy'],
   ['ally objective', ['building','friend'], 'objectiveEnabled', 'ally'],
 ];
-for (const [name,classes,gate,side] of UNIT_CASES) test(`units: ${name} gate defaults off, owns colors/geometry/HP/lines when on and releases exact stock`,()=>{
+for (const [name,classes,gate,side] of UNIT_CASES) test(`units: ${name} gate defaults off, changes only colors when on (stock layout) and releases exact stock`,()=>{
   const fx=fixture({classes,nativeStyles:{fill:{washColor:'#AABBCC'},stack:{transform:'rotateZ(2deg)'},value:{fontSize:'19px'}},
     prepare(parts){parts.small=new MockPanel('Panel',parts.lines,'UnitLine');parts.small.AddClass('line_small');parts.small.style.washColor='#123123';}});
   fx.advance(1800);
@@ -1810,32 +1867,142 @@ for (const [name,classes,gate,side] of UNIT_CASES) test(`units: ${name} gate def
     assert.equal(computed(fx.primary,'backgroundColor'),undefined);
   };
   stock();
-  fx.edit('barColorEnabled',false,side);fx.edit('hpTextVisible',true,side);
+  // Dependent rows: open the gate first so the colors it uses are editable (player colors stay off).
+  fx.edit(gate,true,side);fx.edit('barColorEnabled',false,side);fx.edit('hpTextVisible',true,side);
   fx.edit('barColorMode','fixed',side);fx.edit('barColorLow','#112233',side);fx.edit('barColorMid','#223344',side);fx.edit('barColorHigh','#334455',side);
   fx.edit('barWidth',158,side);fx.edit('barHeight',36,side);fx.edit('hpTextFont','pulp',side);fx.edit('hpTextSize',20,side);
   fx.edit('lineColorEnabled',true,side);fx.edit('lineColor','#445566',side);fx.edit('lineOpacity',40,side);
-  fx.edit('neutralColor','#556677');fx.edit(gate,true,side);fx.advance(1600);
+  fx.edit('barOffsetX',30,side);fx.edit('barOutlineEnabled',true,side);fx.edit('barStyle','old');fx.edit('barDeltaColor','#C0FFEE',side);fx.advance(1600);
   assert.notEqual(fx.api.status.state,'dormant');
-  assert.equal(fx.fill.style.washColor,gate==='neutralEnabled'?'#556677':'#223344','unit gate is independent of player color toggle');
-  assert.equal(fx.stack.style.preTransformScale2d,'2, 2');assert.ok(fx.status.GetParent()===fx.motion);
-  assert.ok(fx.value.GetParent()===fx.row);assert.equal(fx.value.style.fontSize,'20px');assert.equal(fx.value.style.fontFamily,'VALVEPulp, Noto Sans, sans-serif');
+  assert.equal(fx.fill.style.washColor,'#223344','unit gate is independent of player color toggle');
+  assert.equal(fx.parts.delta.style.washColor,'#C0FFEE','the side damage delta color');
+  assert.ok(fx.status.GetParent()===fx.root,'the native status is never moved into the hero motion frame');
+  assert.equal(fx.root.BHasClass('HPColorsV3Layout'),false);
+  assert.equal(fx.stack.style.transform,'rotateZ(2deg)','stock bar position');assert.ok(!fx.stack.style.preTransformScale2d,'stock bar size');
+  assert.ok(fx.value.GetParent()===fx.info,'the HP number stays in its stock slot');
+  assert.equal(fx.value.style.fontSize,'19px','HP TEXT settings do not apply');assert.ok(!fx.value.style.fontFamily);
   assert.equal(computed(fx.primary,'marginLeft'),'0px','no hero inset on units');
-  assert.equal(fx.value.style.washColor,'#223344','neutral HP follows enemy bands, not the neutral fill');
-  assert.equal(fx.lines.style.opacity,'0.4');assert.equal(computed(fx.parts.small,'height'),'8px');
-  assert.equal(fx.parts.small.style.washColor,gate==='neutralEnabled'?'#123123':'#445566','neutral lines retain stock color');
+  assert.ok(!fx.lines.style.opacity,'stock lines');assert.equal(fx.parts.small.style.washColor,'#123123','stock line color');
+  for(const key of ['HPColorsV3Outline','HPColorsV3BarOld','HPColorsV3BarPips','HPColorsV3BarMask','HPColorsV3BarLines','HPColorsV3HPText'])
+    assert.equal(fx.root.BHasClass(key),false,key+' not on a unit bar');
+  fx.edit('barStyle','none');fx.edit('linesVisible',false,side);fx.advance(1600);
+  assert.equal(fx.root.BHasClass('HPColorsV3LinesHidden'),false,'Show health lines off never hides a unit bar\'s stock lines');
+  assert.notEqual(computed(fx.lines,'visibility'),'collapse');
+  fx.edit('linesVisible',true,side);fx.edit('barStyle','old');fx.advance(1600);
   fx.setHealth(10);fx.advance();
-  assert.equal(fx.fill.BHasClass('HPColorsV3Pulse'),gate!=='neutralEnabled'&&side==='enemy','v2 unit bar pulse follows the side toggle; neutral fill does not pulse');
+  assert.equal(fx.fill.BHasClass('HPColorsV3Pulse'),side==='enemy','v2 unit bar pulse (a color effect) follows the side toggle');
   for(const key of ['HPColorsV3KillMarker','HPColorsV3Level','HPColorsV3UltPlaced','HPColorsV3UltimateProgress','HPColorsV3NameHidden'])
     assert.equal(fx.root.BHasClass(key),false,key+' stays player-only');
   fx.edit('barOutlineCustomColor',true,side);fx.edit('barOutlineColor','#FF00FF',side);
   assert.notEqual(fx.outline.style.backgroundColor,'#FF00FF','unit outline retains stock relation color');
   fx.edit(gate,false,side);stock();assert.equal(fx.api.status.state,'dormant');
-  fx.edit(gate,true,side);fx.advance(1600);assert.ok(fx.value.GetParent()===fx.row);
+  fx.edit(gate,true,side);fx.advance(1600);assert.equal(fx.fill.style.washColor,'#112233','reopened gate paints the low band at 10%');
   fx.edit('enabled',false);stock();
 });
+// 2026-10-29 (user): customized neutral camps keep the game's bar shape and take custom bar colors only; their HP
+// number shows by default (stock show/fade) or always, at the stock spot or at a custom position and tilt.
+// Ways this can fail: the fill or damage flash left stock; the bar scaled, moved, outlined, lined, masked, OLD or
+// shaken by enemy bar settings; enemy HP TEXT settings (adoption, font, size, color) leaking into the neutral number;
+// Always show not forcing it, or Default forcing it; the custom spot not starting at the stock one, not offsetting
+// or tilting, or still applied with its switch off; the gate not releasing exact stock; NPC bars still customized.
+test('units: customized neutral camps keep the stock bar shape and change only its colors',()=>{
+  const fx=fixture({classes:['neutral_normal','team_neutral'],nativeStyles:{fill:{washColor:'#AABBCC'},delta:{washColor:'#DDEEFF'},stack:{transform:'rotateZ(2deg)'},value:{fontSize:'19px'}}});
+  fx.advance(1800);
+  assert.equal(latestPublishedConfig(fx.menu.harness).settings.shared.neutralEnabled,false);
+  fx.edit('neutralEnabled',true);fx.edit('neutralColor','#556677');fx.edit('barDeltaColor','#C0FFEE');
+  fx.edit('hpTextVisible',true);fx.edit('hpTextFont','pulp');fx.edit('hpTextSize',20);fx.edit('barColorMode','fixed');fx.edit('barColorMid','#223344');
+  fx.edit('barWidth',158);fx.edit('barOffsetX',30);fx.edit('barOutlineEnabled',true);fx.edit('lineOpacity',40);
+  fx.edit('barStyle','old');fx.edit('damageShakeStrength',7);fx.advance(1600);
+  assert.equal(fx.fill.style.washColor,'#556677','neutral fill color');
+  assert.equal(fx.parts.delta.style.washColor,'#C0FFEE','enemy damage delta color');
+  assert.equal(fx.stack.style.transform,'rotateZ(2deg)','stock bar position');
+  assert.ok(!fx.stack.style.preTransformScale2d,'stock bar size');
+  assert.ok(!fx.lines.style.opacity,'stock lines');
+  for(const key of ['HPColorsV3Outline','HPColorsV3BarOld','HPColorsV3BarMask','HPColorsV3Shake7','HPColorsV3ShakeOff','HPColorsV3BarLines','HPColorsV3HPText'])
+    assert.equal(fx.root.BHasClass(key),false,key+' not on a neutral bar');
+  assert.ok(fx.value.GetParent()===fx.info,'the HP number stays in its stock slot');
+  assert.equal(fx.value.style.fontSize,'19px','enemy HP TEXT settings do not apply');
+  assert.ok(!fx.value.style.fontFamily);assert.ok(!fx.value.style.washColor);
+  fx.edit('neutralEnabled',false);fx.advance(1600);
+  assert.equal(fx.fill.style.washColor,'#AABBCC');assert.equal(fx.parts.delta.style.washColor,'#DDEEFF');
+  assert.equal(fx.root.BHasClass('HPColorsV3Core'),false);
+});
+test('units: the neutral HP number shows by default or always, at the stock spot or a custom position and tilt',()=>{
+  const fx=fixture({classes:['neutral_normal','team_neutral'],nativeStyles:{value:{fontSize:'19px'}}});
+  fx.advance(1800);
+  const shared=()=>latestPublishedConfig(fx.menu.harness).settings.shared;
+  fx.edit('neutralEnabled',true);fx.advance(1600);
+  assert.deepEqual(['neutralHpTextMode','neutralHpPositionEnabled','neutralHpOffsetX','neutralHpOffsetY','neutralHpTilt'].map(key=>shared()[key]),['default',false,0,0,-3]);
+  assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);
+  assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false,'Default keeps the stock show/fade');
+  assert.ok(!fx.value.style.transform,'stock spot and tilt');
+  fx.edit('objectiveEnabled',true);fx.edit('objectiveHpTextMode','always');fx.edit('objectiveHpPositionEnabled',true);fx.edit('objectiveHpOffsetX',30);fx.advance(1600);
+  assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false,'objective Always show never reaches neutral camps');
+  assert.ok(!fx.value.style.transform,'objective position never reaches neutral camps');
+  fx.edit('neutralHpTextMode','always');fx.advance(1600);
+  assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),true,'Always show');
+  assert.equal(computed(fx.value,'visibility'),'visible');assert.equal(computed(fx.value,'opacity'),'1');
+  fx.edit('neutralHpPositionEnabled',true);fx.advance(1600);
+  assert.equal(fx.value.style.transform,'translate3d(0px, 0px, 0px) rotateZ(-3deg)','the custom spot starts at the stock one');
+  fx.edit('neutralHpOffsetX',12);fx.edit('neutralHpOffsetY',-7);fx.edit('neutralHpTilt',10);fx.advance(1600);
+  assert.equal(fx.value.style.transform,'translate3d(12px, -7px, 0px) rotateZ(10deg)');
+  fx.edit('neutralHpPositionEnabled',false);fx.advance(1600);
+  assert.ok(!fx.value.style.transform,'switch off returns the stock spot');
+  fx.edit('neutralHpTextMode','default');fx.advance(1600);
+  assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false);
+  fx.edit('neutralHpTextMode','always');fx.edit('neutralEnabled',false);fx.advance(1600);
+  assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false,'gate off releases Always show');
+  assert.equal(fx.root.BHasClass('HPColorsV3Core'),false);
+});
+// Objective HP number (user, 2026-10-29: "make the option for the objective to be same customizable as the neutral").
+// Shared like the neutral rows; each side's objective gate still decides which objectives take them. Ways this can
+// fail: the neutral settings leaking onto objectives (or the reverse), the gate not releasing Always show or the
+// custom spot, or one side's closed gate still moving that side's objective HP number.
+for (const [name,classes,side,other] of [['enemy',['boss_tier1','enemy'],'enemy','ally'],['ally',['building','friend'],'ally','enemy']])
+  test(`units: the ${name} objective HP number shows by default or always, at the stock spot or a custom position and tilt`,()=>{
+    const fx=fixture({classes,nativeStyles:{value:{fontSize:'19px'}}});
+    fx.advance(1800);
+    const shared=()=>latestPublishedConfig(fx.menu.harness).settings.shared;
+    assert.deepEqual(['objectiveHpTextMode','objectiveHpPositionEnabled','objectiveHpOffsetX','objectiveHpOffsetY','objectiveHpTilt'].map(key=>shared()[key]),['default',false,0,0,-3]);
+    fx.edit('objectiveEnabled',true,side);fx.advance(1600);
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);
+    assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false,'Default keeps the stock show/fade');
+    assert.ok(!fx.value.style.transform,'stock spot and tilt');
+    // The neutral options never reach objectives.
+    fx.edit('neutralEnabled',true);fx.edit('neutralHpTextMode','always');fx.edit('neutralHpPositionEnabled',true);fx.edit('neutralHpOffsetX',30);fx.advance(1600);
+    assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false,'neutral Always show');
+    assert.ok(!fx.value.style.transform,'neutral position');
+    fx.edit('objectiveHpTextMode','always');fx.advance(1600);
+    assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),true,'Always show');
+    assert.equal(computed(fx.value,'visibility'),'visible');assert.equal(computed(fx.value,'opacity'),'1');
+    fx.edit('objectiveHpPositionEnabled',true);fx.advance(1600);
+    assert.equal(fx.value.style.transform,'translate3d(0px, 0px, 0px) rotateZ(-3deg)','the custom spot starts at the stock one');
+    fx.edit('objectiveHpOffsetX',12);fx.edit('objectiveHpOffsetY',-7);fx.edit('objectiveHpTilt',10);fx.advance(1600);
+    assert.equal(fx.value.style.transform,'translate3d(12px, -7px, 0px) rotateZ(10deg)');
+    assert.equal(fx.value.style.fontSize,'19px','stock font size kept');
+    assert.ok(fx.value.GetParent()===fx.info,'the HP number stays in its stock slot');
+    fx.edit('objectiveEnabled',true,other);fx.edit('objectiveEnabled',false,side);fx.advance(1600);
+    assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false,'the other side\'s gate does not open this objective');
+    assert.ok(!fx.value.style.transform,'gate off returns the stock spot');
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),false);
+    fx.edit('objectiveEnabled',true,side);fx.edit('objectiveHpPositionEnabled',false);fx.edit('objectiveHpTextMode','default');fx.advance(1600);
+    assert.ok(!fx.value.style.transform,'switch off returns the stock spot');
+    assert.equal(fx.root.BHasClass('HPColorsV3UnitHPAlways'),false);
+  });
+for (const [name,classes] of [['enemy NPC',['creature','enemy']],['ally NPC',['minion','friend']]])
+  test(`units: ${name} bars are never customized (Customize NPCs removed)`,()=>{
+    const fx=fixture({classes,nativeStyles:{fill:{washColor:'#AABBCC'},stack:{transform:'rotateZ(2deg)'}}});
+    fx.advance(1800);
+    const config=latestPublishedConfig(fx.menu.harness).settings;
+    assert.equal(Object.hasOwn(config.side.enemy,'npcEnabled')||Object.hasOwn(config.side.ally,'npcEnabled'),false);
+    fx.edit('neutralEnabled',true);fx.edit('objectiveEnabled',true,'enemy');fx.edit('objectiveEnabled',true,'ally');
+    fx.edit('barWidth',158,'enemy');fx.edit('barWidth',158,'ally');fx.advance(1600);
+    assert.equal(fx.fill.style.washColor,'#AABBCC');assert.equal(fx.stack.style.transform,'rotateZ(2deg)');
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),false);
+  });
 
 function openUnitGates(fx) {
-  for(const side of ['enemy','ally'])for(const key of ['npcEnabled','objectiveEnabled'])fx.edit(key,true,side);
+  for(const side of ['enemy','ally'])fx.edit('objectiveEnabled',true,side);
   fx.edit('neutralEnabled',true);
 }
 test('units: unknown kinds/relations, conflicting owners and neutral objectives never gain active customization',()=>{
@@ -1852,49 +2019,71 @@ test('units: unknown kinds/relations, conflicting owners and neutral objectives 
     assert.equal(computed(fx.inner,'opacityMask'),undefined);
   }
 });
-test('units: all v2 NPC facts and building precedence route to their own gates, neutral facts win relation',()=>{
+test('units: v2 NPC facts never own a bar except neutral camps, building precedence holds, neutral facts win relation',()=>{
   const fx=fixture({classes:[]});fx.advance(1800);openUnitGates(fx);
   for(const name of ['creature','minion','CLASS_TROOPER','CLASS_TROOPER_BOSS','neutral_weak','neutral_normal','neutral_strong','midboss']) {
     fx.h.root.classes=[name,'enemy'];fx.advance(1200);
-    assert.equal(fx.api.facts().kind,'npc',name);assert.equal(fx.api.facts().eligible,true,name);
-    assert.equal(fx.fill.style.washColor,/^neutral_/.test(name)?'#5BEFB5':'#fe681b',name);
+    const neutral=/^neutral_/.test(name);
+    assert.equal(fx.api.facts().eligible,neutral,name+(neutral?': neutral gate':': NPC bars are never customized'));
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),neutral,name);
+    if(neutral)assert.equal(fx.fill.style.washColor,'#5BEFB5',name);
   }
   fx.h.root.classes=['creature','enemy','friend','team_neutral'];fx.advance(1200);
   assert.equal(fx.api.facts().side,'neutral');assert.equal(fx.fill.style.washColor,'#5BEFB5','neutral-first relation even with enemy/friend facts');
   fx.h.root.classes=['building','creature','enemy'];fx.advance(1200);
   assert.equal(fx.api.facts().kind,'objective');fx.edit('objectiveEnabled',false);
-  assert.equal(fx.api.status.state,'dormant','NPC gate cannot own a building');
+  assert.equal(fx.api.status.state,'dormant','no other gate owns a building');
 });
-test('units: all nine boss/building kinds exclude motion-frame wiggle with gates open, including split carriers',()=>{
+// GameBanana report (panicpulsenow, 2026-10-27): a customized neutral copied the enemy bar setup but not its
+// feedback color. Neutral bars only show the bar and the damage delta (user, 2026-10-28), so the delta now
+// follows the enemy damage delta color; the bar keeps the neutral fill color and nothing else is styled.
+test('units: customized neutral camps take the enemy damage delta color and release it back to stock',()=>{
+  const fx=fixture({classes:['neutral_normal','team_neutral']});fx.advance(1800);
+  const stock={delta:fx.delta.style.washColor,healing:fx.healing.style.washColor};
+  fx.edit('neutralEnabled',true);fx.advance(1200);
+  assert.equal(fx.api.facts().side,'neutral');
+  assert.equal(fx.fill.style.washColor,'#5BEFB5','the bar keeps the neutral fill color');
+  assert.equal(String(fx.delta.style.washColor).toUpperCase(),'#FFE55B','enemy damage delta default');
+  fx.edit('barDeltaColor','#123456','enemy');fx.advance(400);
+  assert.equal(String(fx.delta.style.washColor).toUpperCase(),'#123456','follows the enemy delta edit');
+  fx.edit('barDeltaColor','#654321','ally');fx.advance(400);
+  assert.equal(String(fx.delta.style.washColor).toUpperCase(),'#123456','the ally delta never applies to neutrals');
+  assert.equal(fx.healing.style.washColor||'',stock.healing||'','no other feedback layer is styled');
+  fx.edit('neutralEnabled',false);fx.advance(1200);
+  assert.equal(fx.delta.style.washColor||'',stock.delta||'','closing the gate restores the stock delta (cleared inline)');
+});
+test('units: all nine boss/building kinds keep the native status and stock damage motion with gates open, including split carriers',()=>{
   for(const [index,name] of ['boss_barracks','boss_tier1','boss_tier2','boss_tier3','building','CLASS_DESTROYABLE_BUILDING','barracks','neutral_vault','midboss'].entries()) {
     // The vault is inherently neutral; every gate remains open but none can own it.
-    const fx=fixture({classes:index%2?['enemy','active_damage']:[name,'enemy','active_damage'],
+    // The midboss is a neutral NPC in game: only the neutral gate can own it since NPC bars lost their switch.
+    const relation=name==='midboss'?'team_neutral':'enemy';
+    const fx=fixture({classes:index%2?[relation,'active_damage']:[name,relation,'active_damage'],
       prepare(parts,h){if(index%2)new MockPanel('Higher',{classes:[name],operationCounts:h.operationCounts}).add(h.root);}});
-    fx.advance(1800);openUnitGates(fx);
+    fx.advance(1800);const stockMotion=computed(fx.status,'animationName');openUnitGates(fx);fx.advance(1200);
     if(name==='neutral_vault') {
       assert.equal(fx.root.BHasClass('HPColorsV3Core'),false);
       assert.equal(computed(fx.motion,'animationName'),undefined,'neutral objective stays on the unowned motion frame');
       assert.ok(fx.status.GetParent()===fx.root);
       continue;
     }
+    // Unit bars keep the native status and its stock damage motion (user, 2026-10-29: layout stays stock).
     assert.equal(fx.root.BHasClass('HPColorsV3Core'),true,name);
-    assert.ok(fx.status.GetParent()===fx.motion,name);
-    assert.equal(computed(fx.motion,'animationName'),'none',name);
-    assert.equal(computed(fx.motion,'preTransformScale2d'),'1',name);
-    assert.equal(computed(fx.status,'animationName'),'none',name);
+    assert.ok(fx.status.GetParent()===fx.root,name);
+    assert.equal(computed(fx.status,'animationName'),stockMotion,name+': same damage motion as with the gate closed');
   }
-  const npc=fixture({classes:['creature','enemy','active_damage']});npc.advance(1800);npc.edit('npcEnabled',true);
-  assert.equal(computed(npc.motion,'animationName'),'active_damage_wiggle','ordinary NPC keeps damage motion');
+  const npc=fixture({classes:['creature','enemy','active_damage']});npc.advance(1800);openUnitGates(npc);
+  assert.equal(computed(npc.status,'animationName'),'active_damage_wiggle','ordinary NPC keeps damage motion');
 });
 test('units: dormant ancestors wake on late open-gate classes and recycled units release to stock',()=>{
   let higher;
   const fx=fixture({classes:[],prepare(parts,h){higher=new MockPanel('Higher',{classes:[],operationCounts:h.operationCounts});higher.add(h.root);}});
-  fx.advance(1800);fx.edit('npcEnabled',true);fx.edit('hpTextVisible',true);
-  higher.classes=['CLASS_TROOPER','enemy'];fx.advance(1200);assert.ok(fx.value.GetParent()===fx.row);
-  higher.classes=['building','enemy'];fx.advance(1200);assert.ok(fx.value.GetParent()===fx.info);
-  fx.edit('objectiveEnabled',true);assert.ok(fx.value.GetParent()===fx.row);
-  higher.classes=['creature','friend'];fx.advance(1200);assert.ok(fx.value.GetParent()===fx.info);
-  fx.edit('npcEnabled',true,'ally');fx.advance(1200);assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);
+  fx.advance(1800);fx.edit('objectiveEnabled',true);fx.edit('hpTextVisible',true);
+  const owned=()=>fx.root.BHasClass('HPColorsV3Core');
+  higher.classes=['building','enemy'];fx.advance(1200);assert.equal(owned(),true);
+  higher.classes=['CLASS_TROOPER','enemy'];fx.advance(1200);assert.equal(owned(),false,'a recycled NPC releases');
+  higher.classes=['boss_tier1','enemy'];fx.advance(1200);assert.equal(owned(),true);
+  higher.classes=['building','friend'];fx.advance(1200);assert.equal(owned(),false);
+  fx.edit('objectiveEnabled',true,'ally');fx.advance(1200);assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);
   higher.classes=['mystery','friend'];fx.advance(1200);assert.equal(fx.root.BHasClass('HPColorsV3Core'),false);
 });
 for(const [name,classes,gate,side] of UNIT_CASES)for(const scenario of ['dormant','released','otherGate','otherSide','active','idle','shieldedActive','shieldedIdle'])
@@ -1904,14 +2093,8 @@ for(const [name,classes,gate,side] of UNIT_CASES)for(const scenario of ['dormant
     fx.advance(1800);
     if(mode!=='dormant'){fx.edit('hpTextVisible',true,side);fx.edit('lineColorEnabled',true,side);fx.edit(gate,true,side);}
     if(mode==='released')fx.edit(gate,false,side);
-    if(mode==='otherGate'){
-      fx.edit(gate,false,side);
-      fx.edit(gate==='npcEnabled'?'objectiveEnabled':'npcEnabled',true,side);
-    }
-    if(mode==='otherSide'){
-      fx.edit(gate,false,side);
-      fx.edit(gate==='neutralEnabled'?'npcEnabled':gate,true,side==='enemy'?'ally':'enemy');
-    }
+    if(mode==='otherGate'){fx.edit(gate,false,side);fx.edit('neutralEnabled',true);}
+    if(mode==='otherSide'){fx.edit(gate,false,side);fx.edit(gate,true,side==='enemy'?'ally':'enemy');}
     if(scenario.startsWith('shielded')){
       fx.shield.AddClass('HasHealth');fx.shield.style.clip='rect(0%, 85%, 100%, 80%)';
       fx.armor.AddClass('HasHealth');fx.armor.style.clip='rect(0%, 90%, 100%, 85%)';
@@ -1927,8 +2110,8 @@ for(const [name,classes,gate,side] of UNIT_CASES)for(const scenario of ['dormant
     assert.equal(fx.api.status.state,['active','idle'].includes(mode)?mode:'dormant');
   });
 
-test('units: v2 nonneutral bar pulse and pulse-hide follow unit colors, while HP pulse/modifiers remain player-only',()=>{
-  for(const [classes,gate,side] of [[['creature','enemy'],'npcEnabled','enemy'],[['boss_tier1','enemy'],'objectiveEnabled','enemy'],[['creature','friend'],'npcEnabled','ally']]) {
+test('units: v2 objective bar pulse follows unit colors, while pulse-hide and HP pulse/modifiers remain player-only',()=>{
+  for(const [classes,gate,side] of [[['boss_tier1','enemy'],'objectiveEnabled','enemy'],[['building','friend'],'objectiveEnabled','ally']]) {
     const fx=fixture({classes});fx.advance(1800);
     fx.edit('barColorEnabled',false,side);fx.edit('hpTextVisible',true,side);fx.edit(gate,true,side);
     fx.edit('pulseEnabled',true,side);fx.edit('pulseColorEnabled',true,side);fx.edit('pulseColorMode','fixed',side);fx.edit('pulseColor','#123456',side);
@@ -1936,9 +2119,9 @@ test('units: v2 nonneutral bar pulse and pulse-hide follow unit colors, while HP
     fx.setHealth(10);fx.advance();
     assert.equal(computed(fx.fill,'animationName'),'HPColorsV3PulseMedium');
     assert.equal(fx.fill.style.washColor,'#123456');assert.equal(fx.value.BHasClass('HPColorsV3Pulse'),false);
-    assert.equal(fx.value.style.fontSize,'14.5px');assert.equal(fx.value.style.washColor,side==='enemy'?'#FD4949':'#FFEFD7','HP text follows bands rather than bar pulse color');
+    assert.ok(!fx.value.style.fontSize&&!fx.value.style.washColor,'unit bars keep the stock HP number');
     fx.edit('pulseHideBar',true);
-    assert.equal(computed(fx.primary,'opacity'),side==='enemy'?'0.01':'1');
+    assert.equal(fx.root.BHasClass('HPColorsV3BarHidden'),false,'hiding the bar is player-only: unit layout stays stock');
     fx.edit('pulseColorMode','gradient',side);assert.equal(fx.root.FindChildTraverse('HPColorsV3PulseOverlay').BHasClass('HPColorsV3ColorPulse'),true);
     fx.edit(gate,false,side);assert.equal(fx.fill.BHasClass('HPColorsV3Pulse'),false);
   }
@@ -1962,7 +2145,7 @@ test('audit18: owned objective recycled into an unknown kind releases even with 
   assert.equal(fx.root.BHasClass('HPColorsV3Core'),false,'unknown kind must not keep objective ownership');
   assert.ok(fx.value.GetParent()===fx.info);
 });
-for(const [gate,relation,tag] of [['npcEnabled','enemy','creature'],['neutralEnabled','team_neutral','creature'],['objectiveEnabled','enemy','building']])
+for(const [gate,relation,tag] of [['neutralEnabled','team_neutral','creature'],['objectiveEnabled','enemy','building']])
   test(`audit18: late ${tag} class on a relation-free ancestor wakes ${gate} within five seconds`,t=>{
     let higher;
     const fx=fixture({classes:[relation],prepare(parts,h){higher=new MockPanel('Higher',{classes:[],operationCounts:h.operationCounts});higher.add(h.root);}});
@@ -1972,17 +2155,20 @@ for(const [gate,relation,tag] of [['npcEnabled','enemy','creature'],['neutralEna
     while(!fx.root.BHasClass('HPColorsV3Core')&&elapsed<5000){fx.advance(100);elapsed+=100;}
     t.diagnostic(JSON.stringify({gate,tag,lateKindWakeMs:elapsed}));
     assert.equal(fx.root.BHasClass('HPColorsV3Core'),true,'split kind/relation carriers should own after periodic wake');
-    assert.ok(fx.value.GetParent()===fx.row);
+    // Unit bars keep their HP number in the stock slot (user, 2026-10-29).
+    assert.ok(fx.value.GetParent()===fx.info);
   });
 test('audit18: all nine native kind classes exclude motion wiggle immediately before classification polls',()=>{
   for(const name of ['boss_barracks','boss_tier1','boss_tier2','boss_tier3','building','CLASS_DESTROYABLE_BUILDING','barracks','neutral_vault','midboss']) {
-    const fx=fixture({classes:['creature','enemy','active_damage']});fx.advance(1800);fx.edit('npcEnabled',true);
+    // Only hero bars use the motion frame since 2026-10-29: a recycled hero panel that gains a kind class
+    // stops the native-strength wiggle in CSS before classification catches up.
+    const fx=fixture({classes:['player','enemy','active_damage']});fx.advance(1800);
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);assert.ok(fx.status.GetParent()===fx.motion);
     assert.equal(computed(fx.motion,'animationName'),'active_damage_wiggle');
-    assert.equal(fx.root.BHasClass('HPColorsV3NoWiggle'),false);
     const before=fx.api.status.fullPaints;
     fx.h.root.AddClass(name);
     assert.equal(fx.api.status.fullPaints,before,'no scheduler/config repaint');
-    assert.equal(fx.root.BHasClass('HPColorsV3NoWiggle'),false,'script classification has not caught up');
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),true,'script classification has not caught up');
     assert.equal(computed(fx.motion,'animationName'),'none',name+' native CSS responds immediately');
     assert.equal(computed(fx.motion,'preTransformScale2d'),'1',name);
   }
@@ -2051,11 +2237,14 @@ test('ticket 19: BAR STYLE V2 restores exactly the stock masks on customized wor
   assert.equal(fx.root.BHasClass('HPColorsV3BarMask'),false);
   fx.edit('barStyle','original');fx.edit('enabled',false);
   for(const panel of [fx.primary,...masked]) assert.equal(computed(panel,'opacityMask'),undefined,'master off '+panel.id);
-  // A closed unit gate stays on the rectangular baseline even with V2 selected.
-  const npc=fixture({classes:['creature','enemy']});npc.advance(600);npc.edit('enabled',true);npc.edit('barStyle','original');npc.advance(1100);
-  assert.equal(npc.root.BHasClass('HPColorsV3BarMask'),false);assert.equal(computed(npc.inner,'opacityMask'),undefined);
-  npc.edit('npcEnabled',true);npc.advance(1100);
-  assert.equal(npc.root.BHasClass('HPColorsV3BarMask'),true);assert.equal(computed(npc.inner,'opacityMask'),MASK,'open NPC gate follows V2');
+  // Unit bars keep the stock bar with V2 selected, gate closed or open (user, 2026-10-29: layout stays stock).
+  const unit=fixture({classes:['boss_tier1','enemy']});unit.advance(600);unit.edit('enabled',true);unit.edit('barStyle','original');unit.advance(1100);
+  assert.equal(unit.root.BHasClass('HPColorsV3BarMask'),false);assert.equal(computed(unit.inner,'opacityMask'),undefined);
+  unit.edit('objectiveEnabled',true);unit.advance(1100);
+  assert.equal(unit.root.BHasClass('HPColorsV3Core'),true);
+  assert.equal(unit.root.BHasClass('HPColorsV3BarMask'),false);assert.equal(computed(unit.inner,'opacityMask'),undefined,'open objective gate keeps the stock bar');
+  const camp=fixture({classes:['neutral_normal','team_neutral']});camp.advance(600);camp.edit('barStyle','original');camp.edit('neutralEnabled',true);camp.advance(1100);
+  assert.equal(camp.root.BHasClass('HPColorsV3Core'),true);assert.equal(camp.root.BHasClass('HPColorsV3BarMask'),false,'neutral camps keep the stock bar');
 });
 
 test('ticket 19: OLD derives max HP from engine lines and lays out the v2 pip grid at several totals',()=>{
@@ -2095,6 +2284,24 @@ test('ticket 19: OLD derives max HP from engine lines and lays out the v2 pip gr
   engineLines(fx,1000);const gap=fx.lines.children[0];assert.equal(fx.root.BHasClass('HPColorsV3BarPips'),false);
   assert.equal(computed(gap,'backgroundColor'),'#0B1012');assert.equal(computed(gap,'height'),'100%');assert.equal(computed(gap,'width'),'1px');
   fx.advance(1600);expectGrid(fx,1000,'lines return');
+});
+// GameBanana report (panicpulsenow, 2026-10-27, ticket 46): OLD boxes left customized neutral bars half empty
+// (100 HP per box; 6821 camps have 129/322/1133 HP). Since 2026-10-29 (user) customized unit bars keep the
+// stock bar, so BAR STYLE (OLD included) never applies to them.
+test('units: OLD leaves customized neutral and objective bars on the stock bar; heroes keep the boxes',()=>{
+  for(const [classes,gate,side] of [[['neutral_normal','team_neutral'],'neutralEnabled','enemy'],[['boss_tier1','enemy'],'objectiveEnabled','enemy'],[['building','friend'],'objectiveEnabled','ally']]) {
+    for(const total of [129,322,1133,4246]) {
+      const label=classes[0]+' '+total+' HP';
+      const fx=fixture({classes});engineLines(fx,total);fx.advance(600);
+      fx.edit(gate,true,side);fx.edit('barStyle','old');fx.advance(1600);
+      assert.equal(fx.root.BHasClass('HPColorsV3Core'),true,label);
+      assert.equal(fx.root.BHasClass('HPColorsV3BarOld'),false,label+': stock bar');
+      assert.equal(fx.root.BHasClass('HPColorsV3BarPips'),false,label+': no box grid');
+      assert.notEqual(computed(fx.inner,'opacity'),'0',label+': the native fill shows');
+    }
+  }
+  const hero=fixture();engineLines(hero,322);hero.advance(600);hero.edit('barStyle','old');hero.advance(1600);
+  assert.equal(hero.root.BHasClass('HPColorsV3BarPips'),true,'hero bars keep the 100-HP boxes');
 });
 
 test('ticket 19: OLD mirrors shield, barrier, healing and delta layers per box at the line total, not corrected HP',()=>{
@@ -2154,9 +2361,10 @@ test('ticket 19: OLD releases line color/opacity, keeps hidden lines as gaps and
   const line=fx.lines.children[0];line.style.washColor='#AABBCC';
   fx.advance(1600);fx.edit('lineOpacity',40);fx.edit('killMarkerEnabled',true);
   assert.equal(line.style.washColor,'#000000');assert.equal(fx.lines.style.opacity,'0.4');
+  // The line rows grey out under OLD (2026-11-02), so Show health lines is turned off first.
+  fx.edit('linesVisible',false);
   fx.edit('barStyle','old');
   assert.equal(line.style.washColor,'#AABBCC','native line wash restored');assert.equal(fx.lines.style.opacity,'0.9');
-  fx.edit('linesVisible',false);
   assert.equal(fx.root.BHasClass('HPColorsV3LinesHidden'),false,'OLD forces the line signal visible');
   const primaryMarker=fx.primary.FindChild('HPColorsV3KillMarker'),marker=pipLayer(fx,'KillMarker');
   assert.equal(computed(primaryMarker,'visibility'),'collapse');assert.equal(fx.root.BHasClass('HPColorsV3KillMarker'),false);
@@ -2327,11 +2535,13 @@ test('ticket 20: shake strength swaps the motion-frame keyframes at every level,
   }
   fx.edit('damageShakeEnabled',false);fx.advance(150);
   assert.deepEqual(shakeClasses(fx.root),['HPColorsV3ShakeOff']);assert.equal(computed(fx.motion,'animationName'),'none');
+  // Dependent rows: strength is greyed while shake is off, so this edit is refused and 10 stays.
   fx.edit('damageShakeStrength',8);fx.advance(150);
   assert.deepEqual(shakeClasses(fx.root),['HPColorsV3ShakeOff'],'strength is ignored while shake is off');
+  assert.equal(latestPublishedConfig(fx.menu.harness).settings.shared.damageShakeStrength,10,'greyed strength keeps its value');
   fx.h.root.RemoveClass('active_damage');assert.equal(computed(fx.motion,'animationName'),undefined,'no shake without damage');
   fx.h.root.AddClass('active_damage');
-  fx.edit('damageShakeEnabled',true);fx.advance(150);assert.equal(computed(fx.motion,'animationName'),'HPColorsV3Shake8');
+  fx.edit('damageShakeEnabled',true);fx.advance(150);assert.equal(computed(fx.motion,'animationName'),'HPColorsV3Shake10');
   // A late objective class on the carrier beats the shake class in CSS before the next classification.
   fx.h.root.AddClass('building');assert.equal(computed(fx.motion,'animationName'),'none','objective rules follow the shake rules');
   fx.h.root.RemoveClass('building');
@@ -2340,7 +2550,7 @@ test('ticket 20: shake strength swaps the motion-frame keyframes at every level,
   assert.ok(fx.status.GetParent()!==fx.motion);assert.equal(computed(fx.status,'animationName'),'active_damage_wiggle','native wiggle returns');
 });
 
-test('ticket 20: objectives and bosses never shake at any strength; NPCs follow the setting; closed gates stay native',()=>{
+test('ticket 20: shake strength never reaches unit bars: objectives, neutral bosses and NPCs keep the stock damage motion',()=>{
   const net=network();
   const building=fixture({network:net,classes:['building','enemy','active_damage']});
   const midboss=fixture({network:net,classes:['midboss','team_neutral','active_damage']});
@@ -2348,15 +2558,15 @@ test('ticket 20: objectives and bosses never shake at any strength; NPCs follow 
   net.advance(600);building.edit('damageShakeStrength',9);net.advance(150);
   assert.deepEqual(shakeClasses(npc.root),[],'closed NPC gate stays native');
   assert.equal(computed(npc.status,'animationName'),'active_damage_wiggle');
-  building.edit('objectiveEnabled',true);building.edit('neutralEnabled',true);building.edit('npcEnabled',true);net.advance(1200);
-  for(const fx of [building,midboss]) {
-    assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);assert.equal(fx.root.BHasClass('HPColorsV3NoWiggle'),true);
-    assert.deepEqual(shakeClasses(fx.root),[]);assert.equal(computed(fx.motion,'animationName'),'none');
+  building.edit('objectiveEnabled',true);building.edit('neutralEnabled',true);net.advance(1200);
+  for(const [fx,stock] of [[building,'none'],[midboss,'active_damage_wiggle']]) {
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);assert.ok(fx.status.GetParent()===fx.root,'native status stays in place');
+    assert.deepEqual(shakeClasses(fx.root),[]);assert.equal(computed(fx.status,'animationName'),stock,'stock damage motion');
   }
-  assert.deepEqual(shakeClasses(npc.root),['HPColorsV3Shake9']);assert.equal(computed(npc.motion,'animationName'),'HPColorsV3Shake9');
+  assert.deepEqual(shakeClasses(npc.root),[],'NPC bars are never customized');assert.equal(computed(npc.status,'animationName'),'active_damage_wiggle');
   building.edit('damageShakeEnabled',false);net.advance(150);
-  for(const fx of [building,midboss]) {assert.deepEqual(shakeClasses(fx.root),[]);assert.equal(computed(fx.motion,'animationName'),'none');}
-  assert.deepEqual(shakeClasses(npc.root),['HPColorsV3ShakeOff']);
+  for(const [fx,stock] of [[building,'none'],[midboss,'active_damage_wiggle']]) {assert.deepEqual(shakeClasses(fx.root),[]);assert.equal(computed(fx.status,'animationName'),stock);}
+  assert.deepEqual(shakeClasses(npc.root),[]);assert.equal(computed(npc.status,'animationName'),'active_damage_wiggle');
 });
 
 test('ticket 20: name tilt is level by default, rotates after offset, alignment and OLD lift, is shared by both sides, and releases exactly',()=>{
@@ -2409,6 +2619,40 @@ test('ticket 20: HP text tilt rotates only the adopted label per side and releas
   assert.equal(fx.value.style.transform,'rotateZ(-1deg)','HP text off restores the captured native value');
   fx.edit('enabled',false);net.advance(150);
   assert.equal(ally.value.style.transform,'');assert.equal(computed(ally.value,'transform'),'rotateZ(-3deg)','stock label tilt returns');
+});
+
+// Ticket 51 (Discord, FireworkPolymer, 2026-11-09): "add health percentage … the hero has 2000 hp, then 200 would be 200/10%".
+test('ticket 51: HP number format adds the bar health percent after the number, or shows it alone, and releases exactly',()=>{
+  const net=network(),fx=fixture({network:net}),ally=fixture({network:net,classes:['player','friend']});
+  net.advance(600);
+  const rows=fx.menu.harness.$.HPColorsV3Settings.controls.filter(r=>r.key==='hpTextFormat');
+  assert.deepEqual(plain(rows.map(r=>[r.side,r.default,r.page,r.level])),[['enemy','number','HP Text','basic'],['ally','number','HP Text','basic']]);
+  const pct=fx.row.FindChild('HPColorsV3HPPercent');
+  assert.ok(pct,'the overlay row carries the owned percent label');
+  assert.ok(fx.value.GetParent()===fx.row);
+  assert.equal(computed(pct,'visibility'),'collapse','Number (default) shows no percent');
+  assert.equal(fx.root.BHasClass('HPColorsV3HPPercent'),false);assert.equal(pct.text,'');
+  const row=fx.row.style.transform;
+  fx.setHealth(10);fx.edit('hpTextFormat','both');net.advance(600);
+  assert.equal(pct.text,'/ 10%');assert.equal(computed(pct,'visibility'),'visible');assert.notEqual(computed(fx.value,'visibility'),'collapse');
+  const order=fx.row.Children();assert.ok(order.indexOf(fx.value)<order.indexOf(pct),'number first, then the percent');
+  for(const key of ['washColor','fontFamily','fontSize','padding','marginRight']) assert.equal(pct.style[key],fx.value.style[key],key+' matches the number');
+  assert.equal(computed(ally.row.FindChild('HPColorsV3HPPercent'),'visibility'),'collapse','enemy format does not touch allies');
+  for(const [health,text] of [[100,'/ 100%'],[55.4,'/ 55%'],[0.3,'/ 1%']]) {fx.setHealth(health);net.advance(600);assert.equal(pct.text,text,String(health));}
+  fx.setHealth(10);fx.edit('hpTextTilt',20);net.advance(600);
+  assert.ok(!fx.value.style.transform,'with a percent the row turns, not each label');assert.match(fx.row.style.transform,/ rotateZ\(20deg\)$/);
+  fx.edit('hpTextFormat','percent');net.advance(600);
+  assert.equal(pct.text,'10%');assert.equal(computed(fx.value,'visibility'),'collapse','Percent hides the number');assert.equal(computed(pct,'visibility'),'visible');
+  fx.h.root.AddClass('unkillable');net.advance(600);assert.equal(computed(pct,'visibility'),'collapse','unkillable hides the percent like the number');
+  fx.h.root.RemoveClass('unkillable');fx.edit('hpTextFormat','number');net.advance(600);
+  assert.equal(computed(pct,'visibility'),'collapse');assert.notEqual(computed(fx.value,'visibility'),'collapse');
+  assert.equal(fx.value.style.transform,'rotateZ(20deg)','Number keeps the per-label tilt');assert.doesNotMatch(fx.row.style.transform,/rotateZ/);
+  fx.edit('hpTextTilt',0);fx.edit('hpTextFormat','both');net.advance(600);assert.equal(fx.row.style.transform,row,'no tilt: the row keeps its geometry translate');
+  fx.edit('hpTextVisible',false);net.advance(600);
+  assert.ok(fx.value.GetParent()===fx.info,'Custom HP number off returns the number');assert.equal(computed(pct,'visibility'),'collapse');assert.ok(!pct.style.fontSize);
+  fx.edit('hpTextVisible',true);net.advance(600);assert.equal(pct.text,'/ 10%');
+  fx.edit('enabled',false);net.advance(600);
+  assert.equal(fx.root.BHasClass('HPColorsV3HPPercent'),false);assert.equal(computed(pct,'visibility'),'collapse');assert.ok(!pct.style.washColor);
 });
 
 test('ticket 20: rejuvenator tilt keeps its 6 degree default and follows runtime edits',()=>{
@@ -2655,6 +2899,7 @@ function toggleBounds(menu) {
 }
 test('ticket 22: SHOW BOUNDS outlines customized world canvases outside the motion frame; off, master off and closed kinds stay stock',()=>{
   const net=network(),fx=fixture({network:net,classes:['player','enemy','active_damage']}),npc=fixture({network:net,classes:['creature','enemy']});
+  const boss=fixture({network:net,classes:['boss_tier1','enemy']});
   net.advance(600);
   const bounds=fx.root.FindChild('HPColorsV3CanvasBounds');
   assert.ok(bounds,'static rim in the shipped overlay');assert.ok(bounds.GetParent()===fx.root,'outside the shaking motion frame');
@@ -2672,8 +2917,9 @@ test('ticket 22: SHOW BOUNDS outlines customized world canvases outside the moti
   assert.equal(computed(fx.motion,'animationName'),'active_damage_wiggle','the frame shakes; the rim does not');
   assert.equal(npc.root.BHasClass('HPColorsV3Bounds'),false,'closed NPC gate keeps the stock canvas');
   assert.equal(computed(npc.root.FindChild('HPColorsV3CanvasBounds'),'visibility'),'collapse');
-  npc.edit('npcEnabled',true);net.advance(1200);
-  assert.equal(npc.root.BHasClass('HPColorsV3Bounds'),true,'an opened gate outlines that kind too');
+  npc.edit('objectiveEnabled',true);npc.edit('neutralEnabled',true);net.advance(1200);
+  assert.equal(npc.root.BHasClass('HPColorsV3Bounds'),false,'NPC bars are never customized, whatever gate is open');
+  assert.equal(boss.root.BHasClass('HPColorsV3Bounds'),true,'an opened gate outlines that kind too');
   fx.edit('enabled',false);net.advance(150);
   assert.equal(fx.root.BHasClass('HPColorsV3Bounds'),false,'master off releases');assert.equal(computed(bounds,'visibility'),'collapse');
   assert.equal(latestPublishedConfig(fx.menu.harness).showBounds,true,'the toggle survives master off');
@@ -2681,7 +2927,7 @@ test('ticket 22: SHOW BOUNDS outlines customized world canvases outside the moti
   toggleBounds(fx.menu);net.advance(150);
   assert.equal(toggle.BHasClass('Checked'),false);
   assert.deepEqual(Object.keys(latestPublishedConfig(fx.menu.harness)).sort(),['epoch','magic','revision','settings'],'off sends the plain settings envelope');
-  for(const target of [fx,npc]){assert.equal(target.root.BHasClass('HPColorsV3Bounds'),false);assert.equal(computed(target.root.FindChild('HPColorsV3CanvasBounds'),'visibility'),'collapse');}
+  for(const target of [fx,npc,boss]){assert.equal(target.root.BHasClass('HPColorsV3Bounds'),false);assert.equal(computed(target.root.FindChild('HPColorsV3CanvasBounds'),'visibility'),'collapse');}
 });
 test('ticket 22: SHOW BOUNDS resets with a restarted menu and with a stopped renderer, and is never part of world settings',()=>{
   const net=network(),fx=fixture({network:net});net.advance(600);
@@ -2700,16 +2946,15 @@ test('ticket 22: SHOW BOUNDS resets with a restarted menu and with a stopped ren
 });
 
 // Whole-codebase audit 3 (P2): world-side coverage for unit bars under the styling extras.
-for (const [name,classes,gate] of [['NPC',['creature','enemy','active_damage'],'npcEnabled'],['objective',['boss_tier1','enemy','active_damage'],'objectiveEnabled']])
-  test(`audit whole 3: a world ${name} bar draws OLD boxes and tilts its HP text, and releases both`,()=>{
+for (const [name,classes,gate] of [['boss',['boss_tier1','enemy','active_damage'],'objectiveEnabled'],['building',['building','enemy','active_damage'],'objectiveEnabled']])
+  test(`audit whole 3: a customized world ${name} bar ignores OLD and HP-text tilt (stock layout), and releases`,()=>{
     const fx=fixture({classes,nativeStyles:{value:{transform:'rotateZ(1deg)'}}});fx.advance(1800);
     engineLines(fx,2350);fx.edit(gate,true);fx.edit('hpTextVisible',true);fx.edit('hpTextTilt',23);fx.edit('barStyle','old');fx.advance(1600);
-    assert.equal(fx.root.BHasClass('HPColorsV3Unit'),true);
-    expectGrid(fx,2350,name+' OLD grid');
-    assert.equal(fx.value.style.transform,'rotateZ(23deg)','unit HP text tilts like a hero');
-    fx.edit('hpTextTilt',0);fx.advance(150);assert.equal(fx.value.style.transform,'rotateZ(1deg)','tilt 0 restores the captured value');
-    fx.edit('hpTextTilt',-40);fx.edit(gate,false);fx.advance(150);
-    assert.equal(fx.root.BHasClass('HPColorsV3BarPips'),false);assert.equal(fx.value.style.transform,'rotateZ(1deg)');
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),true);assert.equal(fx.root.BHasClass('HPColorsV3Layout'),false);
+    assert.equal(fx.root.BHasClass('HPColorsV3BarOld'),false,name+' stock bar');assert.equal(fx.root.BHasClass('HPColorsV3BarPips'),false,name+' no boxes');
+    assert.equal(fx.value.style.transform,'rotateZ(1deg)','unit HP text keeps the captured stock tilt');
+    fx.edit(gate,false);fx.advance(150);
+    assert.equal(fx.root.BHasClass('HPColorsV3Core'),false);assert.equal(fx.value.style.transform,'rotateZ(1deg)');
   });
 test('audit whole 3: damage shake off keeps its class with BAR STYLE OLD on a hero bar',()=>{
   const fx=fixture({classes:['player','enemy','active_damage']});fx.advance(600);engineLines(fx,2000);
@@ -2828,4 +3073,27 @@ test('ticket 28: toggling labels releases visibility to native state classes, in
     fx.h.root.RemoveClass(state);
     assert.equal(computed(panel,'visibility'),'collapse','show releases to CSS; it never forces a gameplay status on');
   }
+});
+
+test('a replaced StatusEffects row takes the whole-row move on the next pickup pass', () => {
+  // Audit 2026-11-02 (GPT-6.1 Sol repro): discovery cached the first row and never adopted a replacement.
+  const boot = loadLayout('unit_status_overlay_v2.xml');
+  const h = boot.harness, r = h.contextPanel;
+  r.type = r.paneltype = 'ClientUIDialogPanel'; r.classes = ['player', 'enemy'];
+  const walk = p => { p.actualuiscale_x = p.actualuiscale_y = 1; p.actuallayoutwidth = 69; p.actuallayoutheight = 12; p.actualxoffset = p.actualyoffset = 0; p.Children().forEach(walk); };
+  walk(r); r.actuallayoutwidth = 200; r.actuallayoutheight = 210;
+  r.FindChildTraverse('unit_healthbar_lagging').style.clip = 'rect(0%, 50%, 100%, 0%)';
+  boot.includeScripts();
+  const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '../generated/defaults.json'), 'utf8')); cfg.side.enemy.barOffsetX = 25;
+  const send = revision => h.handlerEntries.filter(e => e.channel === 'ClientUI_FireOutput').forEach(e => e.fn(JSON.stringify({ magic: 'HP_COLORS_V3_CONFIG', epoch: 'effects-row', revision, settings: cfg })));
+  send(1); h.scheduler.runFor(1500, 10000);
+  const before = r.FindChild('StatusEffects');
+  assert.equal(before.style.transform, 'translate3d(25px, 0px, 0px)');
+  before.DeleteAsync(0);
+  const replacement = new MockPanel('Panel', r, 'StatusEffects');
+  new MockPanel('Panel', replacement, 'StatusEffectContainer');
+  h.scheduler.runFor(3500, 10000);
+  assert.equal(replacement.style.transform, 'translate3d(25px, 0px, 0px)');
+  cfg.side.enemy.barOffsetX = 40; send(2); h.scheduler.runFor(500, 10000);
+  assert.equal(replacement.style.transform, 'translate3d(40px, 0px, 0px)');
 });

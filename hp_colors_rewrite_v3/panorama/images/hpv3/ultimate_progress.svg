@@ -1,0 +1,10 @@
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- HP Colors v3 ultimate progress: the stock icon_ultimate_off_blk eye (pak01 panorama/images/hud/icons, client 6821) inside the v3 ring.
+     White and grey so the renderer's wash-color tints it; the eye is scaled 0.84 to sit inside the ring. -->
+<circle cx="9" cy="9" r="9" fill="black"/>
+<circle cx="9" cy="9" r="8.105" stroke="white" stroke-width="1.09"/>
+<g transform="translate(9 9) scale(0.84) translate(-9 -9)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M2 8.4688C2 8.4688 4.58172 3.875 9 3.875C13.4183 3.875 16 8.4688 16 8.4688C16 8.4688 15.2636 9.7791 13.9042 11.0001L14.4442 14.689L11.6211 12.5023C11.2068 12.6835 10.7658 12.8301 10.2992 12.9278L9 16.125L7.7008 12.9278C7.23406 12.83 6.79292 12.6834 6.37854 12.5021L3.55527 14.689L4.09525 10.9997C2.73624 9.7788 2 8.4688 2 8.4688ZM8.9999 10C10.2403 10 11.3107 9.2546 12.0878 8.4764H14.1488L13.7288 8.9664C12.7255 10.1378 11.0921 11.5312 8.9921 11.5312C6.89212 11.5312 5.25878 10.1302 4.25545 8.9587L3.83545 8.4688H5.90434C6.68989 9.2497 7.75545 10 8.9999 10Z" fill="white"/>
+<path d="M9.00039 9.99995C10.2408 9.99995 11.3112 9.25455 12.0883 8.47635H14.1493L13.7293 8.96635C12.726 10.1378 11.0926 11.5312 8.99259 11.5312C6.89261 11.5312 5.25927 10.1302 4.25594 8.95865L3.83594 8.46875H5.90483C6.69038 9.24965 7.75594 9.99995 9.00039 9.99995Z" fill="#666666"/>
+</g>
+</svg>

@@ -140,6 +140,7 @@
 					</Panel>
 					<Button id="HPColorsMenuButton" class="nav_menu_item minor" onactivate="$.HPColorsMenuToggle()">
 						<Label text="HP COLORS" class="menuButtonLabel" />
+						<Image class="HPC3MenuUpdateBadge" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="28px" textureheight="28px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 					</Button>
 					<Panel class="SettingsRow">
 						<Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
@@ -225,6 +226,7 @@
 						<Button id="HPColorsSubNavBarFeedbackButton" class="HPC3SubNavButton">
 							<Panel class="HPC3SubBrush" hittest="false" />
 							<Label class="HPC3SubNavLabel" text="Feedback" hittest="false" />
+							<Image class="HPC3SubNavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 							<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 						</Button>
 						<Button id="HPColorsSubNavBarSizeAndPositionButton" class="HPC3SubNavButton">
@@ -255,6 +257,7 @@
 						<Button id="HPColorsSubNavHPTextGeneralButton" class="HPC3SubNavButton">
 							<Panel class="HPC3SubBrush" hittest="false" />
 							<Label class="HPC3SubNavLabel" text="Number and font" hittest="false" />
+							<Image class="HPC3SubNavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 							<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 						</Button>
 						<Button id="HPColorsSubNavHPTextColorsButton" class="HPC3SubNavButton">
@@ -340,11 +343,13 @@
 						<Button id="HPColorsSubNavIconsUltimateButton" class="HPC3SubNavButton">
 							<Panel class="HPC3SubBrush" hittest="false" />
 							<Label class="HPC3SubNavLabel" text="Ultimate" hittest="false" />
+							<Image class="HPC3SubNavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 							<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 						</Button>
 						<Button id="HPColorsSubNavIconsPickupsButton" class="HPC3SubNavButton">
 							<Panel class="HPC3SubBrush" hittest="false" />
 							<Label class="HPC3SubNavLabel" text="Pickups" hittest="false" />
+							<Image class="HPC3SubNavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 							<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 						</Button>
 						<Button id="HPColorsSubNavIconsRejuvenatorButton" class="HPC3SubNavButton">
@@ -352,14 +357,36 @@
 							<Label class="HPC3SubNavLabel" text="Rejuvenator" hittest="false" />
 							<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 						</Button>
+						<Button id="HPColorsSubNavIconsKillBountyButton" class="HPC3SubNavButton">
+							<Panel class="HPC3SubBrush" hittest="false" />
+							<Label class="HPC3SubNavLabel" text="Kill bounty" hittest="false" />
+							<Image class="HPC3SubNavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+							<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+						</Button>
+						<Button id="HPColorsSubNavIconsStatusEffectSizesButton" class="HPC3SubNavButton">
+							<Panel class="HPC3SubBrush" hittest="false" />
+							<Label class="HPC3SubNavLabel" text="Status effect sizes" hittest="false" />
+							<Image class="HPC3SubNavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+							<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+						</Button>
 					</Panel>
 					<Button id="HPColorsNavUnitsButton" class="HPC3NavButton">
 						<Panel class="HPC3NavBrush" hittest="false" />
 						<Panel class="HPC3NavDot" hittest="false" />
 						<Label class="HPC3NavLabel" text="UNITS" hittest="false" />
+						<Image class="HPC3NavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="16px" textureheight="16px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 						<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 					</Button>
 					<Panel id="HPColorsSubNavUnits" class="HPC3SubNav">
+					</Panel>
+					<Button id="HPColorsNavColorblindButton" class="HPC3NavButton">
+						<Panel class="HPC3NavBrush" hittest="false" />
+						<Panel class="HPC3NavDot" hittest="false" />
+						<Label class="HPC3NavLabel" text="COLORBLIND" hittest="false" />
+						<Image class="HPC3NavNew" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="16px" textureheight="16px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+						<Image class="HPC3ChangedStar" src="s2r://panorama/images/icons/icon_star_white.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+					</Button>
+					<Panel id="HPColorsSubNavColorblind" class="HPC3SubNav">
 					</Panel>
 					<Button id="HPColorsNavPresetsButton" class="HPC3NavButton">
 						<Panel class="HPC3NavBrush" hittest="false" />
@@ -390,6 +417,186 @@
 								<Button id="HPColorsNewClearAllButton" class="SecondaryButton light HPC3ActionButton"><Label text="CLEAR ALL" hittest="false" /></Button>
 							</Panel>
 							<Panel id="HPColorsNewList" class="HPC3NewList">
+								<Panel id="HPColorsNewItemStatusEffectSizes" class="HPC3NewItem">
+									<Button id="HPColorsNewItemStatusEffectSizesButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Bigger status effect icons" hittest="false" />
+											<Label class="HPC3NewDescription" text="Enlarge single status effects above health bars, such as Haze's Fixation stacks. Find the sliders under Icons, Status effect sizes." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="NEW" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.7.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemStatusEffectSizesDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemHpPercent" class="HPC3NewItem">
+									<Button id="HPColorsNewItemHpPercentButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="HP percent" hittest="false" />
+											<Label class="HPC3NewDescription" text="Show each hero's health as a percent of max health beside the HP number (200 / 10%), or the percent alone. Set it per side under HP Text; it needs Custom HP number on." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="NEW" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.7.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemHpPercentDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemKillBounty" class="HPC3NewItem">
+									<Button id="HPColorsNewItemKillBountyButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Kill bounty" hittest="false" />
+											<Label class="HPC3NewDescription" text="See under each enemy hero's bar how many souls you get for killing them alone now, the number on the kill popup. Enemies with more souls than your team's average are worth more, and more again when your team is behind." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="NEW" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.6.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemKillBountyDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemDeferredDamageColor" class="HPC3NewItem">
+									<Button id="HPColorsNewItemDeferredDamageColorButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Deferred damage color" hittest="false" />
+											<Label class="HPC3NewDescription" text="Shiv's Bloodletting and Nurse Harrow's Vapors turn part of the bar orange on every hero. Pick your own color for it on each side, so a white ally no longer looks like an enemy." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="NEW" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.6.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemDeferredDamageColorDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemStatusEffects" class="HPC3NewItem Updated">
+									<Button id="HPColorsNewItemStatusEffectsButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/icon_refresh.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Status effects move with the bar" hittest="false" />
+											<Label class="HPC3NewDescription" text="The pickup offsets now move every status effect icon, debuffs included, and the icons follow your bar position. Pickups on health bars keep the game's size and gaps; the size and spacing settings now set only the top bar's pickups." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="UPDATED" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.6.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemStatusEffectsDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemNeutralHpNumber" class="HPC3NewItem Updated">
+									<Button id="HPColorsNewItemNeutralHpNumberButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/icon_refresh.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Unit bars keep their layout" hittest="false" />
+											<Label class="HPC3NewDescription" text="Customized neutral camps and objective bars now keep the game's bar layout and change only colors. The neutral camp and objective HP numbers can always show and each has its own position and tilt. Customize NPC bars was removed." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="UPDATED" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.5.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemNeutralHpNumberDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemColorblindSaved" class="HPC3NewItem Updated">
+									<Button id="HPColorsNewItemColorblindSavedButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/icon_refresh.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Colorblind view remembered" hittest="false" />
+											<Label class="HPC3NewDescription" text="Your COLORBLIND choice is now saved and turns back on by itself after a game restart." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="UPDATED" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.5.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemColorblindSavedDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemColorblindView" class="HPC3NewItem">
+									<Button id="HPColorsNewItemColorblindViewButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Colorblind view" hittest="false" />
+											<Label class="HPC3NewDescription" text="See the whole screen as Protanopia, Deuteranopia or Tritanopia color blindness does. Turn on more than one to mix them." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="NEW" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.4.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemColorblindViewDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemGreyedSettings" class="HPC3NewItem Updated">
+									<Button id="HPColorsNewItemGreyedSettingsButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/icon_refresh.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Greyed-out settings" hittest="false" />
+											<Label class="HPC3NewDescription" text="Settings that need another switch grey out while it is off. Hover one to see what to turn on. Tooltips now open above the row, not over the preview." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="UPDATED" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.4.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemGreyedSettingsDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemFeedbackWindow" class="HPC3NewItem Updated">
+									<Button id="HPColorsNewItemFeedbackWindowButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/icon_refresh.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Feedback" hittest="false" />
+											<Label class="HPC3NewDescription" text="FEEDBACK now sits under the preview between CREDITS and DONATE. It opens a window with my Discord name; click the name to copy it." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="UPDATED" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.4.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemFeedbackWindowDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemUltimateBadge" class="HPC3NewItem Updated">
+									<Button id="HPColorsNewItemUltimateBadgeButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/icon_refresh.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Sharper ultimate badge" hittest="false" />
+											<Label class="HPC3NewDescription" text="The ultimate progress badge is now a vector icon: the game's ultimate eye inside the ring, sharp at any size." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="UPDATED" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.4.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemUltimateBadgeDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsNewItemNeutralCampBars" class="HPC3NewItem Updated">
+									<Button id="HPColorsNewItemNeutralCampBarsButton" class="HPC3NewOpen">
+										<Panel class="HPC3NewItemBg" hittest="false" />
+										<Image class="HPC3NewIcon" src="s2r://panorama/images/icons/icon_refresh.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+										<Panel class="HPC3NewInfo" hittest="false">
+											<Label class="HPC3NewTitle" text="Neutral camp bars" hittest="false" />
+											<Label class="HPC3NewDescription" text="Customized neutral camps now flash your enemy Damage delta color, and with BAR STYLE OLD they use the full-width bar instead of half-empty boxes." hittest="false" />
+										</Panel>
+										<Panel class="HPC3NewMeta" hittest="false">
+											<Label class="HPC3NewBadge" text="UPDATED" hittest="false" />
+											<Label class="HPC3NewVersion" text="v3.4.0" hittest="false" />
+										</Panel>
+									</Button>
+									<Button id="HPColorsNewItemNeutralCampBarsDismissButton" class="HPC3NewDismiss" tooltip="DISMISS"><Image src="s2r://panorama/images/control_icons/24px/x_close.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
 								<Panel id="HPColorsNewItemTeamName" class="HPC3NewItem">
 									<Button id="HPColorsNewItemTeamNameButton" class="HPC3NewOpen">
 										<Panel class="HPC3NewItemBg" hittest="false" />
@@ -904,14 +1111,14 @@
 								<Panel id="HPColorsPageBarFeedbackAdvancedFold" class="HPC3Fold">
 									<Button id="HPColorsPageBarFeedbackAdvancedFoldToggle" class="HPC3FoldToggle">
 										<Panel class="HPC3FoldChevron" hittest="false" />
-										<Label id="HPColorsPageBarFeedbackAdvancedFoldLabel" class="HPC3FoldLabel" text="ADVANCED · 5" hittest="false" />
+										<Label id="HPColorsPageBarFeedbackAdvancedFoldLabel" class="HPC3FoldLabel" text="ADVANCED · 6" hittest="false" />
 									</Button>
 									<Panel id="HPColorsPageBarFeedbackAdvancedFoldBody" class="HPC3FoldBody">
 										<Panel class="HPC3SideColumns">
 											<Panel id="HPColorsPageBarFeedbackAdvancedEnemyColumn" class="HPC3Column HPC3Enemy">
 												<Panel class="HPC3ColumnHeading">
 													<Label class="HPC3ColumnTitle" text="ENEMY" hittest="false" />
-													<Label class="HPC3ColumnCount" text="4" hittest="false" />
+													<Label class="HPC3ColumnCount" text="5" hittest="false" />
 												</Panel>
 												<Panel id="HPColorsBarHealingColorEnemyRow" class="HPC3Row HPC3TypeColor">
 													<Panel class="HPC3RowBg" hittest="false" />
@@ -969,11 +1176,27 @@
 														<Button id="HPColorsConditionBarArmorColorEnemy" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
 													</Panel>
 												</Panel>
+												<Panel id="HPColorsBarDeferredColorEnemyRow" class="HPC3Row HPC3TypeColor">
+													<Panel class="HPC3RowBg" hittest="false" />
+													<Panel class="HPC3RowRule" hittest="false" />
+													<Panel class="HPC3RowNewFlash" hittest="false" />
+													<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+													<Label class="HPC3RowTitle" text="Deferred damage color" hittest="false" />
+													<Panel class="HPC3RowControls HPC3ControlsColor">
+														<Panel class="HPC3ColorGroup">
+															<Slider id="HPColorsBarDeferredColorEnemyHueSlider" class="HPC3HueSlider HorizontalSlider" direction="horizontal" />
+															<Button id="HPColorsBarDeferredColorEnemySwatch" class="HPC3Swatch" style="background-color: #E87F3D;" />
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsBarDeferredColorEnemyHex" class="HPC3Hex" text="#E87F3D" maxchars="7" /></Panel>
+														</Panel>
+														<Button id="HPColorsBarDeferredColorEnemyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+														<Button id="HPColorsConditionBarDeferredColorEnemy" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+													</Panel>
+												</Panel>
 											</Panel>
 											<Panel id="HPColorsPageBarFeedbackAdvancedAllyColumn" class="HPC3Column HPC3Ally">
 												<Panel class="HPC3ColumnHeading">
 													<Label class="HPC3ColumnTitle" text="ALLY" hittest="false" />
-													<Label class="HPC3ColumnCount" text="4" hittest="false" />
+													<Label class="HPC3ColumnCount" text="5" hittest="false" />
 												</Panel>
 												<Panel id="HPColorsBarHealingColorAllyRow" class="HPC3Row HPC3TypeColor">
 													<Panel class="HPC3RowBg" hittest="false" />
@@ -1029,6 +1252,22 @@
 														</Panel>
 														<Button id="HPColorsBarArmorColorAllyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
 														<Button id="HPColorsConditionBarArmorColorAlly" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+													</Panel>
+												</Panel>
+												<Panel id="HPColorsBarDeferredColorAllyRow" class="HPC3Row HPC3TypeColor">
+													<Panel class="HPC3RowBg" hittest="false" />
+													<Panel class="HPC3RowRule" hittest="false" />
+													<Panel class="HPC3RowNewFlash" hittest="false" />
+													<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+													<Label class="HPC3RowTitle" text="Deferred damage color" hittest="false" />
+													<Panel class="HPC3RowControls HPC3ControlsColor">
+														<Panel class="HPC3ColorGroup">
+															<Slider id="HPColorsBarDeferredColorAllyHueSlider" class="HPC3HueSlider HorizontalSlider" direction="horizontal" />
+															<Button id="HPColorsBarDeferredColorAllySwatch" class="HPC3Swatch" style="background-color: #E87F3D;" />
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsBarDeferredColorAllyHex" class="HPC3Hex" text="#E87F3D" maxchars="7" /></Panel>
+														</Panel>
+														<Button id="HPColorsBarDeferredColorAllyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+														<Button id="HPColorsConditionBarDeferredColorAlly" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
 													</Panel>
 												</Panel>
 											</Panel>
@@ -1531,14 +1770,14 @@
 								<Panel id="HPColorsPageHPTextGeneralBasicFold" class="HPC3Fold Open">
 									<Button id="HPColorsPageHPTextGeneralBasicFoldToggle" class="HPC3FoldToggle">
 										<Panel class="HPC3FoldChevron" hittest="false" />
-										<Label id="HPColorsPageHPTextGeneralBasicFoldLabel" class="HPC3FoldLabel" text="BASIC · 3" hittest="false" />
+										<Label id="HPColorsPageHPTextGeneralBasicFoldLabel" class="HPC3FoldLabel" text="BASIC · 4" hittest="false" />
 									</Button>
 									<Panel id="HPColorsPageHPTextGeneralBasicFoldBody" class="HPC3FoldBody">
 										<Panel class="HPC3SideColumns">
 											<Panel id="HPColorsPageHPTextGeneralBasicEnemyColumn" class="HPC3Column HPC3Enemy">
 												<Panel class="HPC3ColumnHeading">
 													<Label class="HPC3ColumnTitle" text="ENEMY" hittest="false" />
-													<Label class="HPC3ColumnCount" text="3" hittest="false" />
+													<Label class="HPC3ColumnCount" text="4" hittest="false" />
 												</Panel>
 												<Panel id="HPColorsHpTextVisibleEnemyRow" class="HPC3Row HPC3TypeBoolean">
 													<Panel class="HPC3RowBg" hittest="false" />
@@ -1548,6 +1787,22 @@
 														<Button id="HPColorsHpTextVisibleEnemyToggle" class="HPC3Toggle Checked"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
 														<Button id="HPColorsHpTextVisibleEnemyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
 														<Button id="HPColorsConditionHpTextVisibleEnemy" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+													</Panel>
+												</Panel>
+												<Panel id="HPColorsHpTextFormatEnemyRow" class="HPC3Row HPC3TypeEnum">
+													<Panel class="HPC3RowBg" hittest="false" />
+													<Panel class="HPC3RowRule" hittest="false" />
+													<Panel class="HPC3RowNewFlash" hittest="false" />
+													<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+													<Label class="HPC3RowTitle" text="HP number format" hittest="false" />
+													<Panel class="HPC3RowControls HPC3ControlsEnum">
+														<Panel id="HPColorsHpTextFormatEnemySegment" class="HPC3Segment">
+															<Button id="HPColorsHpTextFormatEnemyOptionNumber" class="HPC3SegmentButton Selected"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Number" hittest="false" /></Button>
+															<Button id="HPColorsHpTextFormatEnemyOptionBoth" class="HPC3SegmentButton"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Number / percent" hittest="false" /></Button>
+															<Button id="HPColorsHpTextFormatEnemyOptionPercent" class="HPC3SegmentButton"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Percent" hittest="false" /></Button>
+														</Panel>
+														<Button id="HPColorsHpTextFormatEnemyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+														<Button id="HPColorsConditionHpTextFormatEnemy" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
 													</Panel>
 												</Panel>
 												<Panel id="HPColorsHpTextFontEnemyRow" class="HPC3Row HPC3TypeEnum">
@@ -1584,7 +1839,7 @@
 											<Panel id="HPColorsPageHPTextGeneralBasicAllyColumn" class="HPC3Column HPC3Ally">
 												<Panel class="HPC3ColumnHeading">
 													<Label class="HPC3ColumnTitle" text="ALLY" hittest="false" />
-													<Label class="HPC3ColumnCount" text="3" hittest="false" />
+													<Label class="HPC3ColumnCount" text="4" hittest="false" />
 												</Panel>
 												<Panel id="HPColorsHpTextVisibleAllyRow" class="HPC3Row HPC3TypeBoolean">
 													<Panel class="HPC3RowBg" hittest="false" />
@@ -1594,6 +1849,22 @@
 														<Button id="HPColorsHpTextVisibleAllyToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
 														<Button id="HPColorsHpTextVisibleAllyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
 														<Button id="HPColorsConditionHpTextVisibleAlly" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+													</Panel>
+												</Panel>
+												<Panel id="HPColorsHpTextFormatAllyRow" class="HPC3Row HPC3TypeEnum">
+													<Panel class="HPC3RowBg" hittest="false" />
+													<Panel class="HPC3RowRule" hittest="false" />
+													<Panel class="HPC3RowNewFlash" hittest="false" />
+													<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+													<Label class="HPC3RowTitle" text="HP number format" hittest="false" />
+													<Panel class="HPC3RowControls HPC3ControlsEnum">
+														<Panel id="HPColorsHpTextFormatAllySegment" class="HPC3Segment">
+															<Button id="HPColorsHpTextFormatAllyOptionNumber" class="HPC3SegmentButton Selected"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Number" hittest="false" /></Button>
+															<Button id="HPColorsHpTextFormatAllyOptionBoth" class="HPC3SegmentButton"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Number / percent" hittest="false" /></Button>
+															<Button id="HPColorsHpTextFormatAllyOptionPercent" class="HPC3SegmentButton"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Percent" hittest="false" /></Button>
+														</Panel>
+														<Button id="HPColorsHpTextFormatAllyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+														<Button id="HPColorsConditionHpTextFormatAlly" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
 													</Panel>
 												</Panel>
 												<Panel id="HPColorsHpTextFontAllyRow" class="HPC3Row HPC3TypeEnum">
@@ -2107,6 +2378,8 @@
 												<Panel id="HPColorsNameColorEnemyRow" class="HPC3Row HPC3TypeColor">
 													<Panel class="HPC3RowBg" hittest="false" />
 													<Panel class="HPC3RowRule" hittest="false" />
+													<Panel class="HPC3RowNewFlash" hittest="false" />
+													<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 													<Label class="HPC3RowTitle" text="Name color" hittest="false" />
 													<Panel class="HPC3RowControls HPC3ControlsColor">
 														<Panel class="HPC3ColorGroup">
@@ -2178,6 +2451,8 @@
 												<Panel id="HPColorsNameColorAllyRow" class="HPC3Row HPC3TypeColor">
 													<Panel class="HPC3RowBg" hittest="false" />
 													<Panel class="HPC3RowRule" hittest="false" />
+													<Panel class="HPC3RowNewFlash" hittest="false" />
+													<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 													<Label class="HPC3RowTitle" text="Name color" hittest="false" />
 													<Panel class="HPC3RowControls HPC3ControlsColor">
 														<Panel class="HPC3ColorGroup">
@@ -3641,6 +3916,8 @@
 											<Panel id="HPColorsUltimateTimerEnabledRow" class="HPC3Row HPC3TypeBoolean">
 												<Panel class="HPC3RowBg" hittest="false" />
 												<Panel class="HPC3RowRule" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 												<Label class="HPC3RowTitle" text="Show ultimate progress" hittest="false" />
 												<Panel class="HPC3RowControls HPC3ControlsBoolean">
 													<Button id="HPColorsUltimateTimerEnabledToggle" class="HPC3Toggle Checked"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
@@ -3929,7 +4206,9 @@
 											<Panel id="HPColorsPickupSizeRow" class="HPC3Row HPC3TypeNumber">
 												<Panel class="HPC3RowBg" hittest="false" />
 												<Panel class="HPC3RowRule" hittest="false" />
-												<Label class="HPC3RowTitle" text="Pickup icon size" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+												<Label class="HPC3RowTitle" text="Top bar pickup icon size" hittest="false" />
 												<Panel class="HPC3RowControls HPC3ControlsNumber">
 													<Panel class="HPC3SliderGroup">
 														<Slider id="HPColorsPickupSizeSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 19.2308%;" hittest="false" /></Slider>
@@ -3945,7 +4224,9 @@
 											<Panel id="HPColorsPickupSpacingRow" class="HPC3Row HPC3TypeNumber">
 												<Panel class="HPC3RowBg" hittest="false" />
 												<Panel class="HPC3RowRule" hittest="false" />
-												<Label class="HPC3RowTitle" text="Pickup spacing" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+												<Label class="HPC3RowTitle" text="Top bar pickup spacing" hittest="false" />
 												<Panel class="HPC3RowControls HPC3ControlsNumber">
 													<Panel class="HPC3SliderGroup">
 														<Slider id="HPColorsPickupSpacingSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 6.2500%;" hittest="false" /></Slider>
@@ -3961,6 +4242,8 @@
 											<Panel id="HPColorsPickupOffsetXRow" class="HPC3Row HPC3TypeNumber">
 												<Panel class="HPC3RowBg" hittest="false" />
 												<Panel class="HPC3RowRule" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 												<Label class="HPC3RowTitle" text="Pickup horizontal offset" hittest="false" />
 												<Panel class="HPC3RowControls HPC3ControlsNumber">
 													<Panel class="HPC3SliderGroup">
@@ -3977,6 +4260,8 @@
 											<Panel id="HPColorsPickupOffsetYRow" class="HPC3Row HPC3TypeNumber">
 												<Panel class="HPC3RowBg" hittest="false" />
 												<Panel class="HPC3RowRule" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 												<Label class="HPC3RowTitle" text="Pickup vertical offset" hittest="false" />
 												<Panel class="HPC3RowControls HPC3ControlsNumber">
 													<Panel class="HPC3SliderGroup">
@@ -4093,6 +4378,268 @@
 									</Panel>
 								</Panel>
 							</Panel>
+							<Panel id="HPColorsCardIconsKillBounty" class="HPC3Card">
+								<Panel class="HPC3CardBg" hittest="false" />
+								<Panel class="HPC3CardHead">
+									<Label class="HPC3CardTitle" text="KILL BOUNTY" hittest="false" />
+									<Button id="HPColorsCardIconsKillBountyResetButton" class="HPC3GroupReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsPageIconsKillBountyBasicFold" class="HPC3Fold Open">
+									<Button id="HPColorsPageIconsKillBountyBasicFoldToggle" class="HPC3FoldToggle">
+										<Panel class="HPC3FoldChevron" hittest="false" />
+										<Label id="HPColorsPageIconsKillBountyBasicFoldLabel" class="HPC3FoldLabel" text="BASIC · 1" hittest="false" />
+									</Button>
+									<Panel id="HPColorsPageIconsKillBountyBasicFoldBody" class="HPC3FoldBody">
+										<Panel id="HPColorsPageIconsKillBountyBasicSharedColumn" class="HPC3Column HPC3Shared">
+											<Panel class="HPC3ColumnHeading">
+												<Label class="HPC3ColumnTitle" text="SHARED · BOTH SIDES" hittest="false" />
+												<Label class="HPC3ColumnCount" text="1" hittest="false" />
+											</Panel>
+											<Panel id="HPColorsKillBountyEnabledRow" class="HPC3Row HPC3TypeBoolean">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+												<Label class="HPC3RowTitle" text="Show kill bounty" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsBoolean">
+													<Button id="HPColorsKillBountyEnabledToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
+													<Button id="HPColorsKillBountyEnabledResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionKillBountyEnabledShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+										</Panel>
+									</Panel>
+								</Panel>
+								<Panel id="HPColorsPageIconsKillBountyAdvancedFold" class="HPC3Fold">
+									<Button id="HPColorsPageIconsKillBountyAdvancedFoldToggle" class="HPC3FoldToggle">
+										<Panel class="HPC3FoldChevron" hittest="false" />
+										<Label id="HPColorsPageIconsKillBountyAdvancedFoldLabel" class="HPC3FoldLabel" text="ADVANCED · 4" hittest="false" />
+									</Button>
+									<Panel id="HPColorsPageIconsKillBountyAdvancedFoldBody" class="HPC3FoldBody">
+										<Panel id="HPColorsPageIconsKillBountyAdvancedSharedColumn" class="HPC3Column HPC3Shared">
+											<Panel class="HPC3ColumnHeading">
+												<Label class="HPC3ColumnTitle" text="SHARED · BOTH SIDES" hittest="false" />
+												<Label class="HPC3ColumnCount" text="4" hittest="false" />
+											</Panel>
+											<Panel id="HPColorsKillBountyOffsetXRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Kill bounty horizontal offset" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsKillBountyOffsetXSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 50.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsKillBountyOffsetXEntry" class="HPC3NumberEntry" text="0" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="PX" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsKillBountyOffsetXResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionKillBountyOffsetXShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsKillBountyOffsetYRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Kill bounty vertical offset" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsKillBountyOffsetYSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 50.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsKillBountyOffsetYEntry" class="HPC3NumberEntry" text="0" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="PX" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsKillBountyOffsetYResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionKillBountyOffsetYShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsKillBountySizeRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Kill bounty size" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsKillBountySizeSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 32.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsKillBountySizeEntry" class="HPC3NumberEntry" text="17" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="PX" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsKillBountySizeResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionKillBountySizeShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsKillBountyTiltRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Kill bounty tilt" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsKillBountyTiltSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 50.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsKillBountyTiltEntry" class="HPC3NumberEntry" text="0" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="DEG" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsKillBountyTiltResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionKillBountyTiltShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+										</Panel>
+									</Panel>
+								</Panel>
+							</Panel>
+							<Panel id="HPColorsCardIconsStatusEffectSizes" class="HPC3Card">
+								<Panel class="HPC3CardBg" hittest="false" />
+								<Panel class="HPC3CardHead">
+									<Label class="HPC3CardTitle" text="STATUS EFFECT SIZES" hittest="false" />
+									<Button id="HPColorsCardIconsStatusEffectSizesResetButton" class="HPC3GroupReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+								</Panel>
+								<Panel id="HPColorsPageIconsStatusEffectSizesBasicFold" class="HPC3Fold Open">
+									<Button id="HPColorsPageIconsStatusEffectSizesBasicFoldToggle" class="HPC3FoldToggle">
+										<Panel class="HPC3FoldChevron" hittest="false" />
+										<Label id="HPColorsPageIconsStatusEffectSizesBasicFoldLabel" class="HPC3FoldLabel" text="BASIC · 8" hittest="false" />
+									</Button>
+									<Panel id="HPColorsPageIconsStatusEffectSizesBasicFoldBody" class="HPC3FoldBody">
+										<Panel id="HPColorsPageIconsStatusEffectSizesBasicSharedColumn" class="HPC3Column HPC3Shared">
+											<Panel class="HPC3ColumnHeading">
+												<Label class="HPC3ColumnTitle" text="SHARED · BOTH SIDES" hittest="false" />
+												<Label class="HPC3ColumnCount" text="8" hittest="false" />
+											</Panel>
+											<Panel id="HPColorsStatusScaleFixationRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+												<Label class="HPC3RowTitle" text="Fixation (Haze)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScaleFixationSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScaleFixationEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScaleFixationResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScaleFixationShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsStatusScaleMaliceRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Malice (Lady Geist)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScaleMaliceSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScaleMaliceEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScaleMaliceResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScaleMaliceShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsStatusScaleScrewjabRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Screwjab Dagger (Vyper)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScaleScrewjabSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScaleScrewjabEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScaleScrewjabResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScaleScrewjabShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsStatusScaleDjinnsMarkRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Djinn's Mark (Mirage)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScaleDjinnsMarkSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScaleDjinnsMarkEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScaleDjinnsMarkResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScaleDjinnsMarkShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsStatusScaleSerratedKnivesRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Serrated Knives (Shiv)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScaleSerratedKnivesSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScaleSerratedKnivesEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScaleSerratedKnivesResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScaleSerratedKnivesShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsStatusScaleBarrageRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Barrage (Pocket)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScaleBarrageSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScaleBarrageEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScaleBarrageResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScaleBarrageShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsStatusScalePulseGrenadeRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Pulse Grenade (Paradox)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScalePulseGrenadeSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScalePulseGrenadeEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScalePulseGrenadeResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScalePulseGrenadeShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsStatusScaleArcticBeamRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Arctic Beam (Kelvin)" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsStatusScaleArcticBeamSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 0.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsStatusScaleArcticBeamEntry" class="HPC3NumberEntry" text="100" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="%" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsStatusScaleArcticBeamResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionStatusScaleArcticBeamShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+										</Panel>
+									</Panel>
+								</Panel>
+							</Panel>
 						</Panel>
 						<Panel id="HPColorsPageUnits" class="HPC3Page">
 							<Label class="HPC3PageSearchTitle" text="UNITS" />
@@ -4109,24 +4656,14 @@
 								<Panel id="HPColorsPageUnitsGeneralBasicFold" class="HPC3Fold Open">
 									<Button id="HPColorsPageUnitsGeneralBasicFoldToggle" class="HPC3FoldToggle">
 										<Panel class="HPC3FoldChevron" hittest="false" />
-										<Label id="HPColorsPageUnitsGeneralBasicFoldLabel" class="HPC3FoldLabel" text="BASIC · 4" hittest="false" />
+										<Label id="HPColorsPageUnitsGeneralBasicFoldLabel" class="HPC3FoldLabel" text="BASIC · 13" hittest="false" />
 									</Button>
 									<Panel id="HPColorsPageUnitsGeneralBasicFoldBody" class="HPC3FoldBody">
 										<Panel class="HPC3SideColumns">
 											<Panel id="HPColorsPageUnitsGeneralBasicEnemyColumn" class="HPC3Column HPC3Enemy">
 												<Panel class="HPC3ColumnHeading">
 													<Label class="HPC3ColumnTitle" text="ENEMY" hittest="false" />
-													<Label class="HPC3ColumnCount" text="2" hittest="false" />
-												</Panel>
-												<Panel id="HPColorsNpcEnabledEnemyRow" class="HPC3Row HPC3TypeBoolean">
-													<Panel class="HPC3RowBg" hittest="false" />
-													<Panel class="HPC3RowRule" hittest="false" />
-													<Label class="HPC3RowTitle" text="Customize NPC bars" hittest="false" />
-													<Panel class="HPC3RowControls HPC3ControlsBoolean">
-														<Button id="HPColorsNpcEnabledEnemyToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
-														<Button id="HPColorsNpcEnabledEnemyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
-														<Button id="HPColorsConditionNpcEnabledEnemy" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
-													</Panel>
+													<Label class="HPC3ColumnCount" text="1" hittest="false" />
 												</Panel>
 												<Panel id="HPColorsObjectiveEnabledEnemyRow" class="HPC3Row HPC3TypeBoolean">
 													<Panel class="HPC3RowBg" hittest="false" />
@@ -4142,17 +4679,7 @@
 											<Panel id="HPColorsPageUnitsGeneralBasicAllyColumn" class="HPC3Column HPC3Ally">
 												<Panel class="HPC3ColumnHeading">
 													<Label class="HPC3ColumnTitle" text="ALLY" hittest="false" />
-													<Label class="HPC3ColumnCount" text="2" hittest="false" />
-												</Panel>
-												<Panel id="HPColorsNpcEnabledAllyRow" class="HPC3Row HPC3TypeBoolean">
-													<Panel class="HPC3RowBg" hittest="false" />
-													<Panel class="HPC3RowRule" hittest="false" />
-													<Label class="HPC3RowTitle" text="Customize NPC bars" hittest="false" />
-													<Panel class="HPC3RowControls HPC3ControlsBoolean">
-														<Button id="HPColorsNpcEnabledAllyToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
-														<Button id="HPColorsNpcEnabledAllyResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
-														<Button id="HPColorsConditionNpcEnabledAlly" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
-													</Panel>
+													<Label class="HPC3ColumnCount" text="1" hittest="false" />
 												</Panel>
 												<Panel id="HPColorsObjectiveEnabledAllyRow" class="HPC3Row HPC3TypeBoolean">
 													<Panel class="HPC3RowBg" hittest="false" />
@@ -4169,11 +4696,84 @@
 										<Panel id="HPColorsPageUnitsGeneralBasicSharedColumn" class="HPC3Column HPC3Shared">
 											<Panel class="HPC3ColumnHeading">
 												<Label class="HPC3ColumnTitle" text="SHARED · BOTH SIDES" hittest="false" />
-												<Label class="HPC3ColumnCount" text="2" hittest="false" />
+												<Label class="HPC3ColumnCount" text="12" hittest="false" />
+											</Panel>
+											<Panel id="HPColorsObjectiveHpTextModeRow" class="HPC3Row HPC3TypeEnum">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Objective HP number" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsEnum">
+													<Panel id="HPColorsObjectiveHpTextModeSegment" class="HPC3Segment">
+														<Button id="HPColorsObjectiveHpTextModeOptionDefault" class="HPC3SegmentButton Selected"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Default" hittest="false" /></Button>
+														<Button id="HPColorsObjectiveHpTextModeOptionAlways" class="HPC3SegmentButton"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Always show" hittest="false" /></Button>
+													</Panel>
+													<Button id="HPColorsObjectiveHpTextModeResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionObjectiveHpTextModeShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsObjectiveHpPositionEnabledRow" class="HPC3Row HPC3TypeBoolean">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Custom objective HP number position" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsBoolean">
+													<Button id="HPColorsObjectiveHpPositionEnabledToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
+													<Button id="HPColorsObjectiveHpPositionEnabledResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionObjectiveHpPositionEnabledShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsObjectiveHpOffsetXRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Objective HP number horizontal offset" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsObjectiveHpOffsetXSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 50.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsObjectiveHpOffsetXEntry" class="HPC3NumberEntry" text="0" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="PX" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsObjectiveHpOffsetXResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionObjectiveHpOffsetXShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsObjectiveHpOffsetYRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Objective HP number vertical offset" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsObjectiveHpOffsetYSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 50.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsObjectiveHpOffsetYEntry" class="HPC3NumberEntry" text="0" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="PX" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsObjectiveHpOffsetYResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionObjectiveHpOffsetYShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsObjectiveHpTiltRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Objective HP number tilt" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsObjectiveHpTiltSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 49.5833%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsObjectiveHpTiltEntry" class="HPC3NumberEntry" text="-3" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="DEG" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsObjectiveHpTiltResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionObjectiveHpTiltShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
 											</Panel>
 											<Panel id="HPColorsNeutralEnabledRow" class="HPC3Row HPC3TypeBoolean">
 												<Panel class="HPC3RowBg" hittest="false" />
 												<Panel class="HPC3RowRule" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
 												<Label class="HPC3RowTitle" text="Customize neutral camps" hittest="false" />
 												<Panel class="HPC3RowControls HPC3ControlsBoolean">
 													<Button id="HPColorsNeutralEnabledToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
@@ -4195,7 +4795,111 @@
 													<Button id="HPColorsConditionNeutralColorShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
 												</Panel>
 											</Panel>
+											<Panel id="HPColorsNeutralHpTextModeRow" class="HPC3Row HPC3TypeEnum">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Panel class="HPC3RowNewFlash" hittest="false" />
+												<Image class="HPC3NewMark" src="s2r://panorama/images/icons/notification_alert.vsvg" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+												<Label class="HPC3RowTitle" text="Neutral HP number" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsEnum">
+													<Panel id="HPColorsNeutralHpTextModeSegment" class="HPC3Segment">
+														<Button id="HPColorsNeutralHpTextModeOptionDefault" class="HPC3SegmentButton Selected"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Default" hittest="false" /></Button>
+														<Button id="HPColorsNeutralHpTextModeOptionAlways" class="HPC3SegmentButton"><Panel class="HPC3RadioBox" hittest="false" /><Label text="Always show" hittest="false" /></Button>
+													</Panel>
+													<Button id="HPColorsNeutralHpTextModeResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionNeutralHpTextModeShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsNeutralHpPositionEnabledRow" class="HPC3Row HPC3TypeBoolean">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Custom neutral HP number position" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsBoolean">
+													<Button id="HPColorsNeutralHpPositionEnabledToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
+													<Button id="HPColorsNeutralHpPositionEnabledResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionNeutralHpPositionEnabledShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsNeutralHpOffsetXRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Neutral HP number horizontal offset" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsNeutralHpOffsetXSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 50.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsNeutralHpOffsetXEntry" class="HPC3NumberEntry" text="0" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="PX" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsNeutralHpOffsetXResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionNeutralHpOffsetXShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsNeutralHpOffsetYRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Neutral HP number vertical offset" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsNeutralHpOffsetYSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 50.0000%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsNeutralHpOffsetYEntry" class="HPC3NumberEntry" text="0" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="PX" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsNeutralHpOffsetYResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionNeutralHpOffsetYShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
+											<Panel id="HPColorsNeutralHpTiltRow" class="HPC3Row HPC3TypeNumber">
+												<Panel class="HPC3RowBg" hittest="false" />
+												<Panel class="HPC3RowRule" hittest="false" />
+												<Label class="HPC3RowTitle" text="Neutral HP number tilt" hittest="false" />
+												<Panel class="HPC3RowControls HPC3ControlsNumber">
+													<Panel class="HPC3SliderGroup">
+														<Slider id="HPColorsNeutralHpTiltSlider" class="HPC3Slider HorizontalSlider" direction="horizontal"><Panel class="HPC3DefaultNotch" style="margin-left: 49.5833%;" hittest="false" /></Slider>
+														<Panel class="HPC3NumberValue">
+															<Panel class="HPC3EntryBox"><TextEntry id="HPColorsNeutralHpTiltEntry" class="HPC3NumberEntry" text="-3" maxchars="8" /></Panel>
+															<Label class="HPC3Unit" text="DEG" hittest="false" />
+														</Panel>
+													</Panel>
+													<Button id="HPColorsNeutralHpTiltResetButton" class="HPC3RowReset"><Image src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>
+													<Button id="HPColorsConditionNeutralHpTiltShared" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>
+												</Panel>
+											</Panel>
 										</Panel>
+									</Panel>
+								</Panel>
+							</Panel>
+						</Panel>
+						<Panel id="HPColorsPageColorblind" class="HPC3Page">
+							<Label class="HPC3PageSearchTitle" text="COLORBLIND" />
+							<Panel id="HPColorsColorblindCard" class="HPC3Card">
+								<Panel class="HPC3CardBg" hittest="false" />
+								<Panel class="HPC3CardHead" />
+								<Panel id="HPColorsColorblindProtanopiaRow" class="HPC3Row HPC3TypeBoolean">
+									<Panel class="HPC3RowBg" hittest="false" />
+									<Panel class="HPC3RowRule" hittest="false" />
+									<Label class="HPC3RowTitle" text="Protanopia (red-weak)" hittest="false" />
+									<Panel class="HPC3RowControls HPC3ControlsBoolean">
+										<Button id="HPColorsColorblindProtanopiaToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
+									</Panel>
+								</Panel>
+								<Panel id="HPColorsColorblindDeuteranopiaRow" class="HPC3Row HPC3TypeBoolean">
+									<Panel class="HPC3RowBg" hittest="false" />
+									<Panel class="HPC3RowRule" hittest="false" />
+									<Label class="HPC3RowTitle" text="Deuteranopia (green-weak)" hittest="false" />
+									<Panel class="HPC3RowControls HPC3ControlsBoolean">
+										<Button id="HPColorsColorblindDeuteranopiaToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
+									</Panel>
+								</Panel>
+								<Panel id="HPColorsColorblindTritanopiaRow" class="HPC3Row HPC3TypeBoolean">
+									<Panel class="HPC3RowBg" hittest="false" />
+									<Panel class="HPC3RowRule" hittest="false" />
+									<Label class="HPC3RowTitle" text="Tritanopia (blue-weak)" hittest="false" />
+									<Panel class="HPC3RowControls HPC3ControlsBoolean">
+										<Button id="HPColorsColorblindTritanopiaToggle" class="HPC3Toggle"><Panel class="HPC3ToggleOff" hittest="false" /><Panel class="HPC3ToggleOn" hittest="false" /></Button>
 									</Panel>
 								</Panel>
 							</Panel>
@@ -4274,8 +4978,7 @@
 						</Panel>
 					</Panel>
 					<Panel id="HPColorsPreviewKindSegment" class="HPC3PreviewSegment HPC3PreviewKindSegment">
-						<Button id="HPColorsPreviewKindOptionNpc" class="SecondaryButton light HPC3PreviewPill fill Selected"><Label text="NPC" hittest="false" /></Button>
-						<Button id="HPColorsPreviewKindOptionNeutral" class="SecondaryButton light HPC3PreviewPill"><Label text="NEUTRAL" hittest="false" /></Button>
+						<Button id="HPColorsPreviewKindOptionNeutral" class="SecondaryButton light HPC3PreviewPill fill Selected"><Label text="NEUTRAL" hittest="false" /></Button>
 						<Button id="HPColorsPreviewKindOptionObjective" class="SecondaryButton light HPC3PreviewPill"><Label text="OBJECTIVE" hittest="false" /></Button>
 					</Panel>
 					<Panel id="HPColorsPreviewPlate" class="HPC3PreviewPlate" hittest="false" hittestchildren="false">
@@ -4292,7 +4995,9 @@
 										<Panel id="HPColorsPreviewMotion" class="HPC3PreviewMotion" hittest="false">
 											<Panel id="HPColorsPreviewReadout" class="HPC3PreviewReadout" hittest="false">
 												<Panel id="HPColorsPreviewReadoutAnchor" class="HPC3PreviewReadoutAnchor" hittest="false">
-													<Panel id="HPColorsPreviewReadoutLine" class="HPC3PreviewReadoutLine" hittest="false" />
+													<Panel id="HPColorsPreviewReadoutLine" class="HPC3PreviewReadoutLine" hittest="false">
+														<Label id="HPColorsPreviewHpPercent" class="HPC3PreviewHpPercent" hittest="false" />
+													</Panel>
 												</Panel>
 											</Panel>
 										</Panel>
@@ -4304,7 +5009,6 @@
 												<Panel id="HPColorsPreviewBars" class="HPC3PreviewBars" hittest="false">
 													<Panel id="HPColorsPreviewBar" class="HPC3PreviewBar" hittest="false">
 														<Panel id="HPColorsPreviewBarBg" class="HPC3PreviewBarBg" hittest="false" />
-														<Panel id="HPColorsPreviewBarBorder" class="HPC3PreviewBarBorder" hittest="false" />
 														<Panel id="HPColorsPreviewBarInner" class="HPC3PreviewBarInner" hittest="false">
 															<Panel id="HPColorsPreviewBarFill" class="HPC3PreviewBarLayer HPC3PreviewBarFill" hittest="false" />
 															<Panel id="HPColorsPreviewBarHealing" class="HPC3PreviewBarLayer HPC3PreviewBarHealing" hittest="false" />
@@ -4349,6 +5053,12 @@
 											</Panel>
 										</Panel>
 										<Panel id="HPColorsPreviewPickups" class="HPC3PreviewPickups" hittest="false">
+											<Panel id="HPColorsPreviewEffect" class="HPC3PreviewEffect" hittest="false">
+												<Panel id="HPColorsPreviewEffectBorder" class="HPC3PreviewEffectBorder" hittest="false" />
+												<Panel id="HPColorsPreviewEffectInner" class="HPC3PreviewEffectInner" hittest="false" />
+												<Panel id="HPColorsPreviewEffectGlyph" class="HPC3PreviewEffectGlyph" hittest="false" />
+												<Label id="HPColorsPreviewEffectStacks" class="HPC3PreviewEffectStacks" text="3" hittest="false" />
+											</Panel>
 											<Panel id="HPColorsPreviewPickupGun" class="HPC3PreviewPickup gunpower_pickup" hittest="false">
 												<Panel id="HPColorsPreviewPickupGunInner" class="HPC3PreviewPickupInner" hittest="false" />
 												<Panel id="HPColorsPreviewPickupGunTrack" class="HPC3PreviewPickupTrack" hittest="false" />
@@ -4373,6 +5083,12 @@
 												<Panel id="HPColorsPreviewPickupSurvivalBorder" class="HPC3PreviewPickupBorder" hittest="false" />
 												<Image id="HPColorsPreviewPickupSurvivalGlyph" class="HPC3PreviewPickupGlyph statusEffectImage" hittest="false" />
 											</Panel>
+											<Panel id="HPColorsPreviewFx" class="HPC3PreviewFx" hittest="false">
+												<Panel id="HPColorsPreviewFxBorder" class="HPC3PreviewEffectBorder HPC3PreviewFxBorder" hittest="false" />
+												<Panel id="HPColorsPreviewFxInner" class="HPC3PreviewEffectInner HPC3PreviewFxInner" hittest="false" />
+												<Panel id="HPColorsPreviewFxGlyph" class="HPC3PreviewFxGlyph" hittest="false" />
+												<Label id="HPColorsPreviewFxStacks" class="HPC3PreviewEffectStacks" text="3" hittest="false" />
+											</Panel>
 										</Panel>
 										<Panel id="HPColorsPreviewKillStreak" class="HPC3PreviewKillStreak" hittest="false">
 											<Panel id="HPColorsPreviewKillStreakImage" class="HPC3PreviewKillStreakImage" hittest="false" />
@@ -4391,6 +5107,12 @@
 										<Panel id="HPColorsPreviewUnkillableIndicator" class="HPC3PreviewUnkillableIndicator" hittest="false">
 											<Label id="HPColorsPreviewUnkillableLabel" class="" text="#Citadel_Hud_Unkillable" hittest="false" />
 										</Panel>
+										<Panel id="HPColorsPreviewBountyAnchor" class="HPColorsV3BountyAnchor" hittest="false">
+											<Panel id="HPColorsPreviewBounty" class="HPColorsV3Bounty" hittest="false">
+												<Panel id="HPColorsPreviewBountyIcon" class="HPColorsV3BountyIcon" hittest="false" />
+												<Label id="HPColorsPreviewBountyValue" class="HPColorsV3BountyValue" hittest="false" />
+											</Panel>
+										</Panel>
 									</Panel>
 								</Panel>
 							</Panel>
@@ -4407,8 +5129,9 @@
 					<Panel id="HPColorsPreviewBottom" class="HPC3PreviewBottom">
 						<Panel id="HPColorsPreviewFooter" class="HPC3PreviewFooter">
 							<Button id="HPColorsPreviewCreditsButton" class="SecondaryButton light HPC3CreditsButton"><Label text="CREDITS" hittest="false" /></Button>
+							<Button id="HPColorsPreviewFeedbackButton" class="SecondaryButton light HPC3CreditsButton"><Label text="FEEDBACK" hittest="false" /></Button>
 							<Button id="HPColorsPreviewDonateButton" class="SecondaryButton light HPC3CreditsButton"><Label text="DONATE" hittest="false" /></Button>
-							<Label id="HPColorsPreviewVersion" class="HPC3PreviewVersion" text="v3.3.2" hittest="false" />
+							<Label id="HPColorsPreviewVersion" class="HPC3PreviewVersion" text="v3.7.0" hittest="false" />
 						</Panel>
 						<CitadelHTMLPanel id="HPColorsSupporterStrip" class="HPC3SupporterStrip" hittest="false" hittestchildren="false" acceptsfocus="false" />
 					</Panel>
@@ -4452,13 +5175,31 @@
 					</Panel>
 					<Label id="HPColorsCreditsRazorrzrText" class="HPC3DialogDescription HPC3CreditText" text="Critizing my ui and giving a solid gold" hittest="false" />
 				</Panel>
-				<Label id="HPColorsFeedbackText" class="HPC3DialogDescription HPC3CreditText" text="Found a bug or have feedback? Message hanturaya101 on Discord. FEEDBACK copies the name." hittest="false" />
 				<Panel class="HPC3PresetActions">
-					<Button id="HPColorsFeedbackCopyButton" class="InputButtonBorderRadius Fill CTA HPC3DialogButton"><Panel class="Bottom" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Top" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Content" hittest="false"><Label text="FEEDBACK" hittest="false" /></Panel></Button>
 					<Button id="HPColorsCreditsCloseButton" class="InputButton Fill HPC3DialogButton"><Panel class="Bottom" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Top" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Content" hittest="false"><Label text="CLOSE" hittest="false" /></Panel></Button>
 				</Panel>
-				<Label id="HPColorsFeedbackStatus" class="HPC3DialogDescription" text="" hittest="false" />
 				<Button id="HPColorsCreditsEscClose" class="HPC3EscClose"><Label class="HPC3EscKey" text="ESC" hittest="false" /><Label class="HPC3EscCloseLabel" text="CLOSE" hittest="false" /></Button>
+				</Panel>
+			</Panel>
+		</Panel>
+		<Panel id="HPColorsFeedbackDialog" class="HPC3Dialog">
+			<Button id="HPColorsFeedbackBackdrop" class="HPC3DialogBackdrop" hittest="true" />
+			<Panel class="HPC3DialogCard">
+				<Panel class="HPC3NoticeShadow" hittest="false" />
+				<Panel class="HPC3NoticeBg" hittest="false" />
+				<Panel class="HPC3NoticeContent">
+					<Panel class="HPC3NoticeHeader">
+						<Image class="HPC3NoticeIcon" src="s2r://panorama/images/icons/icon_feedback.vsvg" scaling="stretch-to-fit-preserve-aspect" hittest="false" />
+						<Label class="HPC3DialogTitle" text="FEEDBACK" hittest="false" />
+					</Panel>
+				<Label id="HPColorsFeedbackText" class="HPC3DialogDescription" text="If you have any feedback, you can add me on Discord:" hittest="false" />
+				<Button id="HPColorsFeedbackNameButton" class="HPC3FeedbackName"><Image class="HPC3FeedbackIcon" src="s2r://panorama/images/icons/icon_discord.vsvg" scaling="stretch-to-fit-preserve-aspect" hittest="false" /><Label text="hanturaya101" hittest="false" /></Button>
+				<TextEntry id="HPColorsFeedbackNameEntry" class="HPC3FeedbackEntry" text="hanturaya101" maxchars="32" hittest="false" />
+				<Label id="HPColorsFeedbackStatus" class="HPC3DialogDescription HPC3FeedbackStatus" text="" hittest="false" />
+				<Panel class="HPC3PresetActions">
+					<Button id="HPColorsFeedbackCloseButton" class="InputButton Fill HPC3DialogButton"><Panel class="Bottom" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Top" hittest="false"><Panel class="Background" hittest="false" /></Panel><Panel class="Content" hittest="false"><Label text="CLOSE" hittest="false" /></Panel></Button>
+				</Panel>
+				<Button id="HPColorsFeedbackEscClose" class="HPC3EscClose"><Label class="HPC3EscKey" text="ESC" hittest="false" /><Label class="HPC3EscCloseLabel" text="CLOSE" hittest="false" /></Button>
 				</Panel>
 			</Panel>
 		</Panel>

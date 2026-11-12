@@ -99,7 +99,8 @@ test('every table row and side is generated once in its page, fold and column wi
       for (const role of ['ResetButton', ...roles]) assert.ok(seen.includes(prefix + role), prefix + role);
     }
   }
-  assert.equal(seen.filter(id => /Row$/.test(id) && !/Code(Row)$/.test(id)).length, rows);
+  // Code rows (Presets) and the COLORBLIND switch rows are not settings.
+  assert.equal(seen.filter(id => /Row$/.test(id) && !/Code(Row)$/.test(id) && !/^HPColorsColorblind[A-Z][a-z]+Row$/.test(id)).length, rows);
 });
 
 // Style resolver over the shipped menu CSS for compound class/id/tag selectors with descendant
@@ -402,7 +403,7 @@ test('permanent search relinquishes focus on clear; a closed editor ignores stra
 
 test('page tabs switch exactly one page, update the heading and close search; empty pages show a placeholder', () => {
   const m = booted();
-  const pages = ['New', 'Bar', 'HPText', 'Name', 'Indicators', 'Icons', 'Units', 'Presets'];
+  const pages = ['New', 'Bar', 'HPText', 'Name', 'Indicators', 'Icons', 'Units', 'Colorblind', 'Presets'];
   const active = () => pages.filter(page => m.find('HPColorsPage' + page).BHasClass('Active'));
   assert.deepEqual(active(), ['Bar']);
   m.h.$.HPColorsMenuToggle(); m.search('red');
@@ -411,7 +412,7 @@ test('page tabs switch exactly one page, update the heading and close search; em
   assert.equal(m.find('HPColorsMenuHost').BHasClass('Searching'), false);
   assert.deepEqual(pages.filter(page => m.find('HPColorsNav' + page + 'Button').BHasClass('Selected')), ['HPText']);
   assert.equal(m.find('HPColorsPageTitle').text, 'HP TEXT');
-  for (const page of m.h.$.HPColorsV3Settings.menu.pages.filter(page => page.name !== 'Presets' && page.name !== 'New' &&
+  for (const page of m.h.$.HPColorsV3Settings.menu.pages.filter(page => page.name !== 'Presets' && page.name !== 'New' && page.name !== 'Colorblind' &&
     !m.h.$.HPColorsV3Settings.controls.some(row => row.page === page.name)).map(page => page.id)) {
     assert.ok(m.find(page).Children().some(panel => panel.BHasClass('HPC3Placeholder') && panel.text), page + ' placeholder');
   }

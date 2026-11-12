@@ -115,6 +115,12 @@ test('one card per page/schema group in first-appearance order; all levels and s
     const groups = Array.from(m.contract.menu.groups).filter(group => group.page === page.name);
     assert.deepEqual(groups.map(group => group.name), expected);
     const cards = m.find(page.id).children.filter(panel => panel.BHasClass('HPC3Card'));
+    // COLORBLIND holds one untitled card of game-command switches, not a schema group.
+    if (page.name === 'Colorblind') {
+      assert.deepEqual(cards.map(panel => panel.id), ['HPColorsColorblindCard']);
+      assert.equal(m.child(cards[0], 'HPC3CardHead').children.length, 0, 'single card: no sub-header');
+      continue;
+    }
     assert.deepEqual(cards.map(panel => panel.id), groups.map(group => group.id));
     for (const group of groups) {
       const card = m.find(group.id), title = m.child(card, 'HPC3CardHead').children.find(panel => panel.BHasClass('HPC3CardTitle'));
@@ -184,8 +190,9 @@ test('generated decorative panels are passive and owned reveal transitions only 
     for (const child of panel.children) walk(child);
   })(m.find('HPColorsMenuHost'));
   assert.equal(counts.HPC3NavBrush, m.contract.menu.pages.length); assert.equal(counts.HPC3NavDot, m.contract.menu.pages.length);
-  assert.equal(counts.HPC3SubBrush, m.contract.menu.groups.filter(group => group.subNavId).length); assert.equal(counts.HPC3CardBg, m.contract.menu.groups.length);
-  assert.equal(counts.HPC3RowBg, m.contract.controls.length); assert.equal(counts.HPC3RowRule, m.contract.controls.length);
+  // The COLORBLIND tab adds one card and three switch rows that are not settings.
+  assert.equal(counts.HPC3SubBrush, m.contract.menu.groups.filter(group => group.subNavId).length); assert.equal(counts.HPC3CardBg, m.contract.menu.groups.length + 1);
+  assert.equal(counts.HPC3RowBg, m.contract.controls.length + 3); assert.equal(counts.HPC3RowRule, m.contract.controls.length + 3);
   assert.equal(counts.HPC3DefaultNotch, m.contract.controls.filter(row => row.type === 'number').length);
   assert.equal(counts.HPC3ToggleOn, counts.HPC3ToggleOff);
 });
@@ -237,9 +244,31 @@ test('search exposes and labels both matching sides regardless of pill; clear re
   assert.equal(computed(m.child(ancestor(m.find('HPColorsBarColorEnabledAllyRow'), 'HPC3Column'), 'HPC3ColumnHeading'), 'visibility'), 'collapse');
 });
 
+// Dependent rows: make a greyed row usable through the real controls of what it requires, returning the rows
+// that were changed so the test can reset them afterwards.
+function satisfy(m, row, side = row.side === 'shared' ? 'enemy' : row.side, changedRows = []) {
+  for (const condition of row.requires || []) {
+    const options = condition.any || [condition];
+    const held = c => { const holder = c.shared ? m.config().settings.shared : m.config().settings.side[side]; const v = holder[c.key];
+      return c.is ? c.is.includes(v) : c.above !== undefined ? v > c.above : v === true; };
+    const target = c => m.contract.controls.find(r => r.key === c.key && r.side === (c.shared ? 'shared' : side));
+    if (options.some(c => held(c) && !m.find(target(c).rowId).BHasClass('HPC3RowDisabled'))) continue;
+    const c = options[0], parent = target(c);
+    satisfy(m, parent, side, changedRows);
+    if (!held(c)) {
+      if (parent.type === 'boolean') m.fire(parent.toggleId);
+      else if (parent.type === 'enum') m.fire(parent.options.find(option => option.value === c.is[0]).id);
+      else { const entry = m.find(parent.entryId); entry.text = String(Math.min(parent.bounds[1], c.above + parent.step)); m.fire(entry.id, 'ontextentrysubmit'); }
+      changedRows.push(parent);
+    }
+  }
+  return changedRows;
+}
 test('every setting remains reachable from its page, fold and side tab and publishes through its real control', () => {
   const m = theme();
   for (const row of m.contract.controls) {
+    const parents = satisfy(m, row);
+    assert.equal(m.find(row.rowId).BHasClass('HPC3RowDisabled'), false, row.rowId + ' usable once its requirements hold');
     const page = m.contract.menu.pages.find(page => page.name === row.page), group = m.contract.menu.groups.find(group => group.page === row.page && group.name === row.group);
     m.fire(page.navId);
     if (row.side !== 'shared' && group.sides) m.fire(group.sides.find(tab => tab.side === row.side).id);
@@ -257,6 +286,7 @@ test('every setting remains reachable from its page, fold and side tab and publi
     assert.notEqual(values(m.config().settings, row)[row.key], row.default, row.rowId);
     for (const id of [page.navId, group.subNavId].filter(Boolean)) assert.equal(m.find(id).BHasClass('Changed'), true, row.rowId + ': ' + id);
     m.fire(row.resetId); assert.equal(values(m.config().settings, row)[row.key], row.default);
+    for (const parent of parents.reverse()) m.fire(parent.resetId);
     for (const id of [page.navId, group.subNavId].filter(Boolean)) assert.equal(m.find(id).BHasClass('Changed'), false, row.rowId + ': reset ' + id);
   }
 });
@@ -279,7 +309,10 @@ test('stock row is a single label/control/reset/condition line with passive pape
     const line = m.child(p, 'HPC3RowControls');
     assert.deepEqual(line.children.slice(-2).map(child => child.id), [control.resetId, control.conditionId]);
     m.fire(control.rowId, 'onmouseover'); const shown = m.h.dispatches.at(-1);
-    assert.equal(shown[0], 'UIShowTextTooltip'); assert.ok(shown[1] === p); assert.equal(shown[2], control.help);
+    assert.equal(shown[0], 'UIShowTextTooltip'); assert.ok(shown[1] === p);
+    // A greyed row first says what to turn on or set, then gives the same help.
+    if (p.BHasClass('HPC3RowDisabled')) { assert.match(shown[2], /^(Turn on|Set) .+ to change this\. /); assert.ok(shown[2].endsWith(control.help)); }
+    else assert.equal(shown[2], control.help);
     m.fire(control.rowId, 'onmouseout'); assert.equal(m.h.dispatches.at(-1)[0], 'UIHideTextTooltip');
   }
 });
@@ -379,6 +412,16 @@ test('control caps include reset and condition actions, so no capped fill child 
   }
 });
 
+// 3.4.0 (user, 2026-10-29): a row's help, reset and condition tooltips open above the hovered row; the
+// default placement at the row's right end covered the preview.
+test('setting-row tooltips open above the row, not over the preview', () => {
+  const m = theme();
+  for (const row of m.contract.controls) for (const id of [row.rowId, row.resetId, row.conditionId]) {
+    assert.equal(computed(m.find(id), 'tooltipPosition'), 'top', id);
+    assert.equal(computed(m.find(id), 'tooltipBodyPosition'), '50% 0%', id);
+  }
+});
+
 test('number text ends next to its unit in both setting rows and the condition editor', () => {
   const m = theme(), entries = m.contract.controls.filter(row => row.type === 'number').map(row => m.find(row.entryId));
   entries.push(m.find('HPColorsConditionNumberEntry'));
@@ -397,10 +440,10 @@ test('number text ends next to its unit in both setting rows and the condition e
   }
 });
 
-test('all eight dialogs use notice paper/shadow siblings, Oracle headers and exact stock layered buttons', () => {
+test('all nine dialogs use notice paper/shadow siblings, Oracle headers and exact stock layered buttons', () => {
   const m = theme(), dialogs = m.find('HPColorsMenuHost').children.filter(panel => panel.BHasClass('HPC3Dialog'));
-  assert.equal(dialogs.length, 8); assert.equal(m.find('HPColorsMenuHost').GetAttributeString('hpv3_boot', ''), 'ready');
-  const primaries = ['ResetPageConfirm', 'PresetDeleteConfirm', 'BundleReplaceConfirm', 'HeroClose', 'ConditionApply', 'PickerDone', 'UpdateDownload', 'FeedbackCopy'].map(key => 'HPColors' + key + 'Button');
+  assert.equal(dialogs.length, 9); assert.equal(m.find('HPColorsMenuHost').GetAttributeString('hpv3_boot', ''), 'ready');
+  const primaries = ['ResetPageConfirm', 'PresetDeleteConfirm', 'BundleReplaceConfirm', 'HeroClose', 'ConditionApply', 'PickerDone', 'UpdateDownload'].map(key => 'HPColors' + key + 'Button');
   for (const dialog of dialogs) {
     const backdrop = dialog.children[0], card = m.child(dialog, 'HPC3DialogCard'), content = m.child(card, 'HPC3NoticeContent');
     const shadow = m.child(card, 'HPC3NoticeShadow'), bg = m.child(card, 'HPC3NoticeBg'), header = m.child(content, 'HPC3NoticeHeader');
@@ -607,7 +650,7 @@ test('search icon and text share vertical centring without the browser-only top-
   entry.text = 'name'; m.fire(entry.id, 'ontextentrychange'); assert.equal(m.find('HPColorsMenuHost').BHasClass('Searching'), true);
 });
 
-test('all eight dialogs bound and scroll their contents, centre pill labels and keep picker/condition fields aligned', () => {
+test('all nine dialogs bound and scroll their contents, centre pill labels and keep picker/condition fields aligned', () => {
   const m = theme(), dialogs = m.find('HPColorsMenuHost').children.filter(panel => panel.BHasClass('HPC3Dialog'));
   for (const dialog of dialogs) {
     const card = m.child(dialog, 'HPC3DialogCard');
@@ -660,7 +703,7 @@ test('fold counts track displayed sides plus shared rows, including single-side 
   };
   check();
   const units = m.contract.menu.folds.find(fold => fold.page === 'Units' && fold.level === 'basic');
-  assert.equal(m.find(units.labelId).text, 'BASIC · 4', 'live six-count defect: four Enemy/shared rows, not both side columns');
+  assert.equal(m.find(units.labelId).text, 'BASIC · 13', 'live six-count defect: 13 Enemy/shared rows (objective gate plus five objective HP number rows and seven neutral rows since 2026-10-29), not both side columns');
   for (const tab of tabs.sides) { m.fire(tab.id); check(); }
   const search = m.find('HPColorsSearchField');
   for (const query of ['bar color', 'enemy', 'no such setting', '']) {
@@ -699,7 +742,7 @@ test('generic preview help remains valid when switching from HERO to every Units
   const m = theme(), note = m.find('HPColorsPreviewNote'), generic = note.text;
   assert.doesNotMatch(generic, /HERO shows|team1|team2/, 'no HERO-only bounds claim or fixed ownership claim for neutral units');
   m.fire('HPColorsNavUnitsButton');
-  for (const kind of ['Npc', 'Neutral', 'Objective']) {
+  for (const kind of ['Neutral', 'Objective']) {
     m.fire('HPColorsPreviewKindOption' + kind);
     assert.equal(note.text, generic); assert.equal(note.GetAttributeString('hittest', ''), 'false');
   }

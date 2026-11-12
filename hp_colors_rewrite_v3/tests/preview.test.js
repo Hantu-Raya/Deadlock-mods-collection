@@ -111,7 +111,9 @@ test('the real renderer plan is applied onto the preview parts and follows edits
     anchor: 'ReadoutAnchor', row: 'ReadoutLine', value: 'HpText', name: 'Name', killMarker:'KillMarker',
     level:'Level',ult:'UltPanel',ultBackground:'UltBackground',ultReady:'UltReady',killStreak:'KillStreak',rejuv:'Rejuvenator',rejuvAnchor:'RejuvenatorAnchor',
     ultimateOverlay:'UltimateOverlay',ultimateDark:'UltimateDark',ultimateFill:'UltimateFill' };
+  // The preview never shows deferred damage, so it has no deferred layer; the renderer skips the absent part.
   for (const [part, styles] of Object.entries(plan.styles)) {
+    if (part === 'deferred') { assert.equal(m.h.contextPanel.FindChildTraverse('HPColorsPreviewBarDeferred'), null); continue; }
     const suffix={pickupIcons:'',pickupInners:'Inner',pickupBorders:'Border',pickupTracks:'Track',pickupGlyphs:'Glyph'}[part];
     const panels=part==='lineWash'?m.find('HPColorsPreviewBarLines').Children():suffix!==undefined
       ? ['Gun','Movement','Spirit','Survival'].map(name=>m.find('HPColorsPreviewPickup'+name+suffix)):[m.find('HPColorsPreview'+map[part])];
@@ -123,7 +125,8 @@ test('the real renderer plan is applied onto the preview parts and follows edits
   assert.equal(m.fill().washColor.toLowerCase(), '#fd4949');
   m.submit('HPColorsBarColorLowEnemyHex', '#123456');
   assert.equal(m.fill().washColor, '#123456', 'menu edit repaints the preview');
-  m.submit('HPColorsBarHealingColorAllyHex', '#00AA00');
+  // An ally row usable with ally bar colors off (the ally feedback colors grey out with them since 2026-11-02).
+  m.submit('HPColorsBarWidthAllyEntry', 90);
   assert.equal(m.preview().side, 'ally', 'editing an ally row moves the preview to the ally column');
   assert.equal(m.fill().washColor, '', 'ally colors off: inline lease cleared');
   assert.equal(computed(m.find('HPColorsPreviewBarFill'),'washColor').toUpperCase(), '#FFEFD7', 'ally stock comes from CSS');
@@ -140,21 +143,46 @@ test('kind follows the page; unit kinds stay stock and release the hero look to 
   m.submit('HPColorsBarColorLowEnemyHex', '#123456');
   assert.ok(m.preview().owned > 0);
   m.fire('HPColorsNavUnitsButton', 'onactivate');
-  assert.equal(m.preview().kind, 'npc');
+  assert.equal(m.preview().kind, 'neutral', 'Units opens on the neutral camp sample');
   assert.equal(m.preview().painted, false);
   assert.equal(m.preview().owned, 0, 'every hero-owned style released');
   assert.equal(m.fill().washColor, '', 'released inline color');
+  m.fire('HPColorsPreviewKindOptionObjective', 'onactivate');
   assert.equal(computed(m.find('HPColorsPreviewBarFill'),'washColor').toUpperCase(), '#FD4949', 'released to enemy CSS, not custom hero color');
   assert.equal(m.find('HPColorsPreviewHpText').GetParent().id, 'HPColorsPreviewInfo');
   assert.equal(m.pane().BHasClass('HPC3PreviewUnitsPage'), true);
   m.fire('HPColorsPreviewSideOptionAlly', 'onactivate');
   assert.equal(computed(m.find('HPColorsPreviewBarFill'),'washColor').toUpperCase(), '#FFEFD7', 'unowned CSS follows the new relation');
-  m.fire('HPColorsPreviewKindOptionObjective', 'onactivate');
   assert.equal(m.preview().kind, 'objective');
   assert.match(m.preview().status, /Turn on Customize objective bars to style this bar/);
   m.fire('HPColorsNavNameButton', 'onactivate');
   assert.equal(m.preview().kind, 'hero');
   assert.equal(m.pane().BHasClass('HPC3PreviewKindHero'), true);
+});
+
+// yesdaddy, 2026-11-02 (3.6.0 RC screenshots 20261102043357/043404 vs 043401/043417): the unit preview drew a
+// dark band through the bar and a plain HP number, while the game draws a flat bar and tints the number.
+test('unit preview matches the stock world bar: no border band, stock HP number tints', () => {
+  const m = booted();
+  m.open();
+  // The 6839 overlay layout has no .healthbar_border panel and client.dll never creates one.
+  assert.ok(m.pane().FindChildTraverse('HPColorsPreviewBarBorder') === null, 'no border band over the fill');
+  const value = m.find('HPColorsPreviewHpText');
+  const own = inline(value, 'washColor');
+  assert.ok(own, 'customized hero HP text writes its own color');
+  assert.equal(computed(value, 'washColor'), own, 'the custom color wins over the stock tint');
+  m.fire('HPColorsNavUnitsButton', 'onactivate');
+  assert.equal(m.preview().kind, 'neutral');
+  assert.equal(computed(value, 'washColor'), 'rgb(160, 255, 226)', 'stock .team_neutral #UnitHealthbarValue');
+  m.fire('HPColorsPreviewKindOptionObjective', 'onactivate');
+  assert.equal(computed(value, 'washColor'), 'rgb(255, 160, 160)', 'stock .enemy #UnitHealthbarValue');
+  m.fire('HPColorsPreviewSideOptionAlly', 'onactivate');
+  assert.equal(computed(value, 'washColor'), undefined, 'friend numbers keep the plain ink');
+  m.fire('HPColorsPreviewSideOptionEnemy', 'onactivate');
+  m.fire('HPColorsNavHPTextButton', 'onactivate');
+  m.fire('HPColorsEnabledToggle', 'onactivate');
+  assert.equal(m.preview().kind, 'hero');
+  assert.equal(computed(value, 'washColor'), 'rgb(255, 160, 160)', 'master off: the stock enemy hero label is tinted too');
 });
 
 test('play runs nine damage/heal steps 0.45 s apart, then restores the slider HP and leaves no work', () => {
@@ -798,9 +826,13 @@ test('pickup, rejuvenator and flame samples run the same renderer plan and relea
   assert.ok(flame.GetParent()===ult);assert.equal(computed(flame,'visibility'),'visible');
   assert.equal(computed(flame,'marginTop'),'-20px','flame sits 7.5px above centre');assert.equal(computed(flame,'verticalAlign'),'top');assert.equal(computed(flame,'marginLeft'),'0px');assert.equal(computed(flame,'zIndex'),'2');
   m.submit('HPColorsUltSizeEntry',40);assert.equal(flame.style.preTransformScale2d,'2');
-  for(const [id,value] of Object.entries({HPColorsPickupSizeEntry:32,HPColorsPickupSpacingEntry:4,HPColorsPickupOffsetXEntry:15,HPColorsPickupOffsetYEntry:-20,HPColorsPickupGunColorHex:'#204080',HPColorsPickupBackgroundDarknessEntry:50,HPColorsPickupGlyphColorHex:'#123456',HPColorsRejuvOffsetXEntry:25,HPColorsRejuvOffsetYEntry:-30,HPColorsRejuvTiltEntry:45,HPColorsRejuvSizeEntry:36}))m.submit(id,value);
+  for(const [id,value] of Object.entries({HPColorsPickupSizeEntry:32,HPColorsPickupSpacingEntry:4,HPColorsPickupOffsetXEntry:15,HPColorsPickupOffsetYEntry:20,HPColorsPickupGunColorHex:'#204080',HPColorsPickupBackgroundDarknessEntry:50,HPColorsPickupGlyphColorHex:'#123456',HPColorsRejuvOffsetXEntry:25,HPColorsRejuvOffsetYEntry:-30,HPColorsRejuvTiltEntry:45,HPColorsRejuvSizeEntry:36}))m.submit(id,value);
   const icon=m.find('HPColorsPreviewPickupGun');
-  assert.equal(icon.style.width,'32px');assert.equal(icon.style.margin,'0px 4px');assert.equal(icon.style.transform,'translateX(15px) translateY(-20px)');
+  assert.ok(!icon.style.width&&!icon.style.height,'pickups keep the status-effect size; pickup size is the top bar\'s');assert.ok(!icon.style.margin,'and the row\'s gaps; pickup spacing is the top bar\'s');assert.ok(!icon.style.transform,'icons stay in their row');
+  assert.equal(m.find('HPColorsPreviewPickups').style.transform,'translate3d(15px, 20px, 0px)','the whole status-effect row moves');
+  // The ordinary debuff sample (stock 30px, as the game draws one) rides in the same row and takes no pickup styling.
+  const effect=m.find('HPColorsPreviewEffect');assert.ok(effect.GetParent()===m.find('HPColorsPreviewPickups'));
+  assert.ok(!effect.style.width&&!effect.style.margin,'pickup size and spacing leave the debuff sample alone');assert.equal(m.find('HPColorsPreviewEffectStacks').text,'3');
   assert.equal(m.find('HPColorsPreviewPickupGunInner').style.washColor,'#204080');
   assert.equal(m.find('HPColorsPreviewPickupGunBorder').style.washColor,'#FFEFD7');
   assert.equal(m.find('HPColorsPreviewPickupGunTrack').style.washColor,'#102040');
@@ -885,32 +917,33 @@ test('live 6779: preview survives a shaped-stamina release on Units -> Bar (bord
   assert.equal(icon.style.borderColor, undefined);
 });
 
-test('unit-kind preview camera zooms out as the bar grows so the bar and its accessories stay inside the stage', () => {
+// 2026-10-29 (user): customized unit bars keep the stock 79x18 bar at its stock spot, so the unit camera is fixed:
+// player bar size and offset never move it, and the stock bar plus its accessories fit the stage.
+test('unit-kind preview camera stays fixed on the stock bar and fits it with its accessories inside the stage', () => {
   const m = booted({ previewLayout: true }); m.open();
-  // Ticket 22c live 1:1: HERO is a fixed canvas mapping; the fitted camera is for NPC/neutral/objective only.
   m.fire('HPColorsNavUnitsButton', 'onactivate');
-  const row = m.h.$.HPColorsV3Settings.controls.find(r => r.key === 'npcEnabled' && r.side === 'enemy');
-  m.fire(row.toggleId, 'onactivate'); m.h.scheduler.runFor(1000);
-  assert.equal(m.preview().kind, 'npc'); assert.equal(m.preview().facts.eligible, true);
+  const gate = key => m.h.$.HPColorsV3Settings.controls.find(r => r.key === key && (r.side === 'enemy' || r.side === 'shared'));
   const scale = m.find('HPColorsPreviewScale'), canvas = m.find('HPColorsPreviewCanvas');
   const zoom = () => parseFloat(computed(scale, 'uiScale')) / 100;
   const fits = label => {
-    const z = zoom(), s = m.settings().side.enemy, dy = parseFloat(computed(canvas, 'marginTop')), dx = parseFloat(computed(canvas, 'marginLeft'));
-    // Bar box plus the measured accessory room, mapped into stage px (wrapper top-left); NPC bars have no player inset.
-    const left = (100 - s.barWidth / 2 - 32.5 - Math.abs(s.barOffsetX) + dx) * z, right = (100 + s.barWidth / 2 + 10 + Math.abs(s.barOffsetX) + dx) * z;
+    const z = zoom(), dy = parseFloat(computed(canvas, 'marginTop')), dx = parseFloat(computed(canvas, 'marginLeft'));
+    // Stock bar box plus the measured accessory room, mapped into stage px (wrapper top-left).
+    const left = (100 - 79 / 2 - 32.5 + dx) * z, right = (100 + 79 / 2 + 10 + dx) * z;
     assert.ok(left >= 0 && right <= 284, label + ': width fits ' + left + '..' + right + ' (' + z + ')');
     assert.ok(Math.abs((left + right) / 2 - 142) < 0.5, label + ': centred');
-    const top = (74 - s.barHeight / 2 - 57 + Math.min(0, s.barOffsetY) + dy) * z, bottom = (74 + s.barHeight / 2 + 26 + Math.max(0, s.barOffsetY) + dy) * z;
+    const top = (74 - 18 / 2 - 57 + dy) * z, bottom = (74 + 18 / 2 + 26 + dy) * z;
     assert.ok(top >= 0 && bottom <= 278, label + ': height fits ' + top + '..' + bottom);
   };
-  const base = zoom(); fits('default');
-  assert.ok(base <= 2);
-  m.submit('HPColorsBarWidthEnemyEntry', 250); assert.ok(zoom() < base, 'wider bar zooms out'); fits('wide');
-  const wide = zoom();
-  m.submit('HPColorsBarWidthEnemyEntry', 316); assert.ok(zoom() < wide); fits('widest');
-  m.submit('HPColorsBarWidthEnemyEntry', 116.92); m.submit('HPColorsBarHeightEnemyEntry', 72); assert.ok(zoom() < base, 'taller bar zooms out'); fits('tall');
-  m.submit('HPColorsBarHeightEnemyEntry', 14.4); assert.equal(zoom(), base, 'back to default restores the default zoom');
-  m.submit('HPColorsBarWidthEnemyEntry', 47.4); assert.ok(zoom() <= 2, 'never zooms in past 2x');
+  const base = zoom(); fits('closed gates'); assert.ok(base <= 2);
+  for (const [kind, key] of [['Neutral', 'neutralEnabled'], ['Objective', 'objectiveEnabled']]) {
+    m.fire('HPColorsPreviewKindOption' + kind, 'onactivate');
+    if (!m.preview().facts.eligible) m.fire(gate(key).toggleId, 'onactivate');
+    m.h.scheduler.runFor(1000); assert.equal(m.preview().facts.eligible, true, kind);
+    assert.equal(zoom(), base, kind + ': open gate keeps the stock camera'); fits(kind);
+    m.submit('HPColorsBarWidthEnemyEntry', 316); m.submit('HPColorsBarHeightEnemyEntry', 72); m.submit('HPColorsBarOffsetXEnemyEntry', 80);
+    assert.equal(zoom(), base, kind + ': player bar size and offset never move the unit camera'); fits(kind + ' after edits');
+    m.submit('HPColorsBarWidthEnemyEntry', 116.92); m.submit('HPColorsBarHeightEnemyEntry', 14.4); m.submit('HPColorsBarOffsetXEnemyEntry', 0);
+  }
 });
 
 test('regression: slider increases paint HP color, pulse and overlay before native fill layout catches up', () => {
@@ -1133,15 +1166,12 @@ test('critical preview releases to native enemy and ally selectors with master o
   assert.equal(computed(bars, 'animationName'), 'healthCritFlash3');
   assert.equal(computed(bars, 'preTransformScale2d'), '1.2');
   assert.equal(computed(fill, 'animationName'), 'healthCritFlash2');
-  assert.equal(computed(m.find('HPColorsPreviewBarBorder'), 'washColor'), '#b82323');
   assert.equal(computed(m.find('HPColorsPreviewBarBg'), 'animationName'), 'healthCritFlash');
   assert.equal(computed(m.find('HPColorsPreviewCriticalIndicator'), 'visibility'), 'visible');
   m.fire('HPColorsPreviewSideOptionAlly', 'onactivate');
   assert.notEqual(computed(bars, 'animationName'), 'healthCritFlash3', 'ally never gets the enemy-only container flash');
   assert.notEqual(computed(inner, 'animationName'), 'HPColorsV3CriticalFlash');
   assert.equal(computed(fill, 'animationName'), 'healthCritFlash2', 'native critical fill applies to either relation');
-  assert.equal(computed(m.find('HPColorsPreviewBarBorder'), 'washColor'), '#383838');
-  assert.equal(computed(m.find('HPColorsPreviewBarBorder'), 'animationName'), 'allyHealthFlash');
   m.slider(25);
   assert.equal(computed(m.find('HPColorsPreviewCriticalIndicator'), 'visibility'), 'collapse');
   assert.notEqual(computed(fill, 'animationName'), 'healthCritFlash2');
@@ -1220,35 +1250,43 @@ test('the visual replica releases pulse aliases through the renderer ledger and 
   assert.equal(visual.styleWrites.length, count, 'settle paints do not animate in JS');
 });
 
-test('Units preview follows NPC, neutral camp and objective gates, restores stock, and returns to heroes on other pages',()=>{
+test('Units preview follows neutral camp and objective gates, restores stock, and returns to heroes on other pages',()=>{
   const m=booted({previewLayout:true});m.open();m.fire('HPColorsNavUnitsButton','onactivate');
-  assert.equal(m.preview().kind,'npc');assert.equal(m.preview().painted,false);
-  assert.match(m.preview().status,/Turn on Customize NPC bars to style this bar/);
+  assert.equal(m.h.contextPanel.FindChildTraverse('HPColorsPreviewKindOptionNpc'),null,'no NPC sample: NPC bars are never customized (2026-10-29)');
+  assert.equal(m.preview().kind,'neutral');assert.equal(m.preview().painted,false);
+  assert.match(m.preview().status,/Turn on Customize neutral camps to style this bar/);
   const toggle=(key,side='enemy')=>{
     const row=m.h.$.HPColorsV3Settings.controls.find(r=>r.key===key&&(r.side===side||r.side==='shared'));
     assert.ok(row,key);m.fire(row.toggleId,'onactivate');
   };
-  toggle('npcEnabled');m.h.scheduler.runFor(1000);
-  assert.equal(m.preview().facts.kind,'npc');assert.equal(m.preview().facts.eligible,true);
-  assert.equal(m.preview().painted,true);assert.match(m.preview().status,/Your settings/);
-  assert.equal(computed(m.find('HPColorsPreviewBar'),'marginLeft'),'0px');
-  assert.ok(m.find('HPColorsPreviewHpText').GetParent()===m.find('HPColorsPreviewReadoutLine'));
-  const config=m.settings(),plan=m.h.$.HPColorsV3Renderer.plan(m.preview().facts,config);
-  assert.equal(m.find('HPColorsPreviewBarFill').style.washColor,plan.styles.fill.washColor);
-  toggle('npcEnabled');assert.equal(m.preview().painted,false);
-  assert.ok(m.find('HPColorsPreviewHpText').GetParent()===m.find('HPColorsPreviewInfo'));
-  m.fire('HPColorsPreviewKindOptionNeutral','onactivate');
-  assert.equal(m.preview().kind,'neutral');assert.equal(m.preview().painted,false);
-  assert.match(m.preview().status,/Turn on Customize neutral camps to style this bar/);
   toggle('neutralEnabled');m.h.scheduler.runFor(1000);
-  assert.equal(m.preview().facts.kind,'npc');assert.equal(m.preview().facts.side,'neutral');
+  assert.equal(m.preview().facts.kind,'npc');assert.equal(m.preview().facts.side,'neutral');assert.equal(m.preview().facts.eligible,true);
+  assert.equal(m.preview().painted,true);assert.match(m.preview().status,/Your settings/);
   assert.equal(m.find('HPColorsPreviewBarFill').style.washColor,'#5BEFB5');
+  assert.ok(m.find('HPColorsPreviewHpText').GetParent()===m.find('HPColorsPreviewInfo'),'the neutral HP number stays in its stock slot');
   assert.match(m.find('HPColorsPreviewTitle').text,/NEUTRAL CAMP/);
   assert.equal(computed(m.find('HPColorsPreviewSideSegment'),'visibility'),'collapse','neutral sample has no enemy/ally ownership selector');
+  // Neutral HP number options paint the preview like world bars.
+  m.fire(m.h.$.HPColorsV3Settings.controls.find(r=>r.key==='neutralHpPositionEnabled').toggleId,'onactivate');
+  m.submit('HPColorsNeutralHpOffsetXEntry',12);m.h.scheduler.runFor(1000);
+  assert.equal(m.find('HPColorsPreviewHpText').style.transform,'translate3d(12px, 0px, 0px) rotateZ(-3deg)');
+  toggle('neutralEnabled');assert.equal(m.preview().painted,false);
+  assert.ok(!m.find('HPColorsPreviewHpText').style.transform,'closing the gate releases the HP number');
   m.fire('HPColorsPreviewKindOptionObjective','onactivate');
   assert.equal(m.preview().kind,'objective');assert.equal(m.preview().painted,false);
   toggle('objectiveEnabled');m.h.scheduler.runFor(1000);
   assert.equal(m.preview().facts.kind,'objective');assert.equal(m.preview().painted,true);
+  assert.ok(m.find('HPColorsPreviewHpText').GetParent()===m.find('HPColorsPreviewInfo'),'objective HP number stays in its stock slot');
+  assert.equal(m.find('HPColorsPreviewHpText').style.fontFamily||'','','HP TEXT settings do not apply');
+  // Objective HP number options paint the preview like world bars (user, 2026-10-29).
+  m.fire(m.h.$.HPColorsV3Settings.controls.find(r=>r.key==='objectiveHpPositionEnabled').toggleId,'onactivate');
+  m.submit('HPColorsObjectiveHpOffsetXEntry',12);m.h.scheduler.runFor(1000);
+  assert.equal(m.find('HPColorsPreviewHpText').style.transform,'translate3d(12px, 0px, 0px) rotateZ(-3deg)');
+  m.fire('HPColorsObjectiveHpTextModeOptionAlways','onactivate');m.h.scheduler.runFor(1000);
+  assert.equal(computed(m.find('HPColorsPreviewHpText'),'visibility'),'visible','Always show');
+  assert.equal(computed(m.find('HPColorsPreviewHpText'),'opacity'),'1');
+  const config=m.settings(),plan=m.h.$.HPColorsV3Renderer.plan(m.preview().facts,config);
+  assert.equal(m.find('HPColorsPreviewBarFill').style.washColor,plan.styles.fill.washColor);
   m.slider(100);m.play();m.h.scheduler.runFor(450);
   assert.equal(computed(m.find('HPColorsPreviewMotion'),'animationName'),'none','owned objective never shakes');
   m.fire('HPColorsNavBarButton','onactivate');
@@ -1277,7 +1315,7 @@ test('ticket 19: preview V1 is rectangular, V2 masks the same parts as world bar
   for (const panel of [primary, ...masked]) assert.equal(computed(panel, 'opacityMask'), undefined, 'back to V1 ' + panel.id);
 });
 
-test('ticket 19: preview OLD draws the pip grid for hero, NPC and objective samples and plays feedback into boxes', () => {
+test('ticket 19: preview OLD draws the pip grid for the hero sample, keeps unit samples on the stock bar and plays feedback into boxes', () => {
   const m = booted({ previewLayout: true }); m.open(); m.slider(75);
   m.fire('HPColorsBarStyleOptionOld', 'onactivate');
   const canvas = m.find('HPColorsPreviewCanvas'), grid = m.find('HPColorsPreviewPipGrid');
@@ -1308,12 +1346,15 @@ test('ticket 19: preview OLD draws the pip grid for hero, NPC and objective samp
   assert.deepEqual(spans('Healing').map(span => span[0]), [6.8, 10, 20]);
   assert.equal(spans('Delta').length, 0);
   m.play();
-  // Units page: NPC 600 HP (six boxes) and objective 4000 HP (40 boxes in four rows) once their gates open.
+  // Units page: customized unit samples keep the stock bar under OLD (user, 2026-10-29: layout stays stock).
   m.fire('HPColorsNavUnitsButton', 'onactivate');
-  m.fire('HPColorsNpcEnabledEnemyToggle', 'onactivate');
-  oldGrid.expectEmpty(empty, 600, 'NPC');
+  m.fire(m.h.$.HPColorsV3Settings.controls.find(r => r.key === 'neutralEnabled').toggleId, 'onactivate');
+  assert.equal(canvas.BHasClass('HPColorsV3Core'), true);
+  assert.equal(canvas.BHasClass('HPColorsV3BarOld'), false); assert.equal(canvas.BHasClass('HPColorsV3BarPips'), false, 'neutral: stock bar');
+  assert.equal(computed(grid, 'visibility'), 'collapse');
   m.fire('HPColorsPreviewKindOptionObjective', 'onactivate'); m.fire('HPColorsObjectiveEnabledEnemyToggle', 'onactivate');
-  oldGrid.expectEmpty(empty, 4000, 'objective'); assert.equal(grid.style.height, '24px');
+  assert.equal(canvas.BHasClass('HPColorsV3Core'), true);
+  assert.equal(canvas.BHasClass('HPColorsV3BarOld'), false); assert.equal(canvas.BHasClass('HPColorsV3BarPips'), false, 'objective: stock bar');
   m.fire('HPColorsObjectiveEnabledEnemyToggle', 'onactivate');
   assert.equal(canvas.BHasClass('HPColorsV3BarPips'), false, 'closed gate: stock sample');
   assert.equal(computed(grid, 'visibility'), 'collapse');
@@ -1542,7 +1583,7 @@ test('preview shake on edit: objectives never wiggle even during the edit window
   m.submit(control(m, 'damageShakeStrength').entryId, 7);
   assert.equal(m.pane().BHasClass('HPC3PreviewShakeEdit'), true);
   assert.equal(computed(m.find('HPColorsPreviewMotion'), 'animationName'), 'none');
-  assert.equal(computed(m.find('HPColorsPreviewUnitStatus'), 'animationName'), 'none');
+  assert.equal(computed(m.find('HPColorsPreviewUnitStatus'), 'animationName') || 'none', 'none');
 });
 
 test('preview shake on edit: PLAY takes over an idle window and edits leave its steps and cancellation untouched', () => {
@@ -1669,6 +1710,22 @@ test('ticket 21: preview names and HP text follow every outline width and alignm
   assert.ok(!name.style.transform); assert.ok(!row.style.transform);
 });
 
+// Ticket 51: the preview sample shows the HP number format like world bars.
+test('ticket 51: preview shows the HP percent after the sample number or alone, follows the slider, and releases', () => {
+  const m = booted({ previewLayout: true }); m.open(); m.slider(10);
+  const hp = m.find('HPColorsPreviewHpText'), pct = m.find('HPColorsPreviewHpPercent'), row = m.find('HPColorsPreviewReadoutLine');
+  assert.ok(pct.GetParent() === row); assert.equal(computed(pct, 'visibility'), 'collapse', 'Number shows no percent');
+  choose(m, 'hpTextFormat', 'both'); m.h.scheduler.runFor(1000);
+  assert.equal(hp.text, '100'); assert.equal(pct.text, '/ 10%'); assert.equal(computed(pct, 'visibility'), 'visible');
+  const children = row.Children(); assert.ok(children.indexOf(hp) < children.indexOf(pct), 'number first, then the percent');
+  assert.equal(pct.style.fontSize, hp.style.fontSize); assert.equal(pct.style.washColor, hp.style.washColor);
+  m.slider(55); m.h.scheduler.runFor(1000); assert.equal(pct.text, '/ 55%');
+  choose(m, 'hpTextFormat', 'percent'); m.h.scheduler.runFor(1000);
+  assert.equal(pct.text, '55%'); assert.equal(computed(hp, 'visibility'), 'collapse', 'Percent hides the number');
+  choose(m, 'hpTextFormat', 'number'); m.h.scheduler.runFor(1000);
+  assert.equal(computed(pct, 'visibility'), 'collapse'); assert.notEqual(computed(hp, 'visibility'), 'collapse'); assert.ok(!pct.style.fontSize);
+});
+
 test('ticket 22: SHOW BOUNDS outlines the preview canvas like a world bar, follows the toggle, page kind and master off, and is never a setting', () => {
   const m = booted({ previewLayout: true }); m.open();
   const canvas = m.find('HPColorsPreviewCanvas'), rim = m.find('HPColorsPreviewCanvasBounds');
@@ -1738,7 +1795,7 @@ test('ticket 22c: the model is collapsed when the menu is closed or the kind is 
   assert.equal(shown(), 'collapse', 'menu closed at boot');
   m.open(); assert.equal(shown(), 'visible', 'HERO preview, menu open');
   m.fire('HPColorsNavUnitsButton', 'onactivate');
-  for (const kind of ['Npc', 'Neutral', 'Objective']) {
+  for (const kind of ['Neutral', 'Objective']) {
     m.fire('HPColorsPreviewKindOption' + kind, 'onactivate');
     assert.equal(m.preview().kind, kind.toLowerCase());
     assert.equal(shown(), 'collapse', kind + ' preview has no scene');
@@ -1867,7 +1924,7 @@ test('ticket 22c live 8 guard: the scene-window ancestor stays layered and clipp
   const layered = (!!brush && brush !== 'none') || (opacity !== undefined && parseFloat(opacity) < 1);
   assert.ok(layered, 'scene window needs an opacity-brush or opacity < 1; overflow: clip alone spills');
   assert.equal(computed(scene, 'overflow'), 'clip');
-  for (const kind of ['Npc', 'Objective']) { m.fire('HPColorsNavUnitsButton', 'onactivate'); m.fire('HPColorsPreviewKindOption' + kind, 'onactivate'); }
+  for (const kind of ['Neutral', 'Objective']) { m.fire('HPColorsNavUnitsButton', 'onactivate'); m.fire('HPColorsPreviewKindOption' + kind, 'onactivate'); }
   m.fire('HPColorsNavBarButton', 'onactivate');
   assert.equal(computed(scene, 'opacityBrush'), brush, 'stays layered across kind switches');
   m.pane().AddClass('HPC3PreviewUnavailable');
@@ -2090,9 +2147,9 @@ test('ticket 27: preview side and kind controls are stock pills whose fill track
     }
   }
   selected('Side', 'Enemy', ['Enemy', 'Ally']); m.fire('HPColorsPreviewSideOptionAlly', 'onactivate'); selected('Side', 'Ally', ['Enemy', 'Ally']);
-  m.fire('HPColorsNavUnitsButton', 'onactivate'); selected('Kind', 'Npc', ['Npc', 'Neutral', 'Objective']);
-  for (const kind of ['Objective', 'Neutral', 'Npc']) {
-    m.fire('HPColorsPreviewKindOption' + kind, 'onactivate'); selected('Kind', kind, ['Npc', 'Neutral', 'Objective']);
+  m.fire('HPColorsNavUnitsButton', 'onactivate'); selected('Kind', 'Neutral', ['Neutral', 'Objective']);
+  for (const kind of ['Objective', 'Neutral']) {
+    m.fire('HPColorsPreviewKindOption' + kind, 'onactivate'); selected('Kind', kind, ['Neutral', 'Objective']);
     assert.equal(computed(m.find('HPColorsPreviewSideSegment'), 'visibility'), kind === 'Neutral' ? 'collapse' : undefined);
   }
   m.fire('HPColorsNavBarButton', 'onactivate'); selected('Side', 'Ally', ['Enemy', 'Ally']);

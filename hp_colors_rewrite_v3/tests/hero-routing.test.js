@@ -55,7 +55,7 @@ test('Two local TopBar samples route presets while the menu is closed; changes, 
   m.tree.setHeroName('unknown newcomer'); m.run(2000); assert.equal(m.color(), '#445566', 'unknown does not fall to the default');
   m.tree.setHeroName('Vindicta'); m.run(2000); assert.equal(m.color(), '#778899', 'unmapped known hero uses default');
   m.store().replaceBundle({ ...m.bundle(), heroDefault: null });
-  m.tree.setHeroName('Infernus'); m.run(2000); assert.equal(m.color(), '#112233');
+  m.tree.setHeroName('Infernus'); m.run(2000); assert.equal(m.color(), '#ABCDEF', 'A kept the edit made while it was applied (2026-11-02)');
   m.tree.setHeroName('Vindicta'); m.run(2000); assert.equal(m.color(), m.defaults.side.enemy.barColorLow, 'leaving mapped route without default restores baked default');
 });
 
@@ -213,7 +213,7 @@ test('V2 save conversion resolves first selected, then except, then all against 
   assert.equal(bundle.heroDefault, 'all'); assert.equal(bundle.heroPresets.hero_inferno, 'selected');
 });
 
-test('Explicit Apply is the same routing source, and a saved routed edit stays unsaved-to-preset after restart', () => {
+test('Explicit Apply is the same routing source, and an edit is saved into the applied preset across restart', () => {
   const m = setup({ heroPresets: { hero_inferno: 'A' } });
   m.preset(0, 'Apply'); m.edit('#ABCDEF');
   m.tree.setHeroName('Infernus'); m.run(2000); assert.equal(m.color(), '#ABCDEF', 'Apply sets the source even before detection');
@@ -222,7 +222,8 @@ test('Explicit Apply is the same routing source, and a saved routed edit stays u
   installTopBarIdentityTree(restarted.harness, { heroName: 'Infernus' }); restarted.run(5000);
   assert.equal(latestPublishedConfig(restarted.harness).settings.side.enemy.barColorLow, '#ABCDEF');
   const bundle = restarted.harness.$.HPColorsV3Store.getBundle();
-  assert.equal(bundle.presets[0].settings.side.enemy.barColorLow, '#112233', 'editing never overwrites the saved preset');
+  // User, 2026-11-02: edits made while a custom preset is applied are kept in that preset.
+  assert.equal(bundle.presets[0].settings.side.enemy.barColorLow, '#ABCDEF', 'the applied preset keeps the edit');
   assert.equal(bundle.sourcePresetId, 'A'); assert.equal(bundle.sourceWasMapped, true);
   const settingsWire = JSON.parse(Buffer.from(m.h.$.HPColorsV3Sharing.exportSettingsCode(m.settings()).code.split('.')[2], 'base64url').toString());
   for (const key of ['heroPresets','heroDefault','sourcePresetId','sourceWasMapped']) {
@@ -398,3 +399,81 @@ test('round 3: selected-for-actions, applied-source and default-for-unassigned a
   m.fire('HPColorsUndoButton');
   assert.equal(a.BHasClass('Applied'), true); assert.equal(b.BHasClass('Selected'), true);
 });
+
+test('a preset applied by hand stays until the hero, phase or route changes, even with a hero default', () => {
+  // User, 2026-11-02: applying Default while a hero default (C) was set came back to C a second later.
+  const m = setup({ heroPresets: { hero_inferno: 'A' }, heroDefault: 'C' });
+  m.h.$.HPColorsMenuToggle(); m.fire('HPColorsNavPresetsButton');
+  m.tree.setHeroName('Vindicta'); m.run(2000); assert.equal(m.color(), '#778899', 'the hero default applies to an unmapped hero');
+  m.fire('HPColorsPresetDefault'); m.fire('HPColorsPresetSelectedApplyButton'); m.run(6000);
+  assert.equal(m.color(), m.defaults.side.enemy.barColorLow, 'Default applied by hand stays');
+  assert.deepEqual(copy(latestPublishedConfig(m.h).settings), m.defaults, 'every setting is back to default');
+  m.tree.setHeroName('Seven'); m.run(2000); assert.equal(m.color(), '#778899', 'a new hero routes again');
+  m.tree.setHeroName('Infernus'); m.run(2000); assert.equal(m.color(), '#112233', 'a mapped hero routes to its preset');
+});
+
+test('edits follow the applied custom preset only; the baked Default and other presets keep their values', () => {
+  const m = setup();
+  m.preset(1, 'Apply'); m.edit('#ABCDEF'); m.run(1000);
+  let bundle = m.bundle();
+  assert.equal(bundle.presets[1].settings.side.enemy.barColorLow, '#ABCDEF', 'B follows the edit');
+  assert.equal(bundle.presets[0].settings.side.enemy.barColorLow, '#112233', 'A is untouched');
+  m.fire('HPColorsPresetDefault'); m.fire('HPColorsPresetSelectedApplyButton'); m.edit('#FEDCBA'); m.run(1000);
+  bundle = m.bundle();
+  assert.deepEqual(bundle.presets.map(p => p.settings.side.enemy.barColorLow), ['#112233', '#ABCDEF', '#778899'], 'editing on Default changes no preset');
+  m.preset(1, 'Apply'); m.run(1000); assert.equal(m.color(), '#ABCDEF', 'applying B again restores its edited values');
+});
+
+// Re-audit 2026-11-02 (PresetsReview R1, R1b, R2, R5, R6). Ways the once-per-route rule can fail: the route key
+// survives a phase round trip, so the same hero and target never route again after a lobby or a hero-testing
+// restart; a script reload forgets the key and re-routes over a preset applied by hand; a store that refuses
+// every route is retried with a full library copy each second; SAVE NEW leaves the old preset applied, so
+// later edits keep going into it.
+function applyDefaultByHand(m) {
+  m.h.$.HPColorsMenuToggle(); m.fire('HPColorsNavPresetsButton'); m.fire('HPColorsPresetDefault'); m.fire('HPColorsPresetSelectedApplyButton');
+}
+test('a phase round trip routes the same hero again: lobby and hero-testing restart', () => {
+  for (const roundTrip of [
+    m => { m.tree.hud.AddClass('GameStatePreGame'); m.run(6000); m.tree.hud.RemoveClass('GameStatePreGame'); m.run(6000); },
+    m => { m.tree.setGameTime('-0:30'); m.run(3000); m.tree.setGameTime('0:05'); m.run(6000); }]) {
+    const m = setup({ heroPresets: { hero_inferno: 'A' }, heroDefault: 'C' });
+    m.tree.setHeroName('Infernus'); m.run(2000); assert.equal(m.color(), '#112233');
+    applyDefaultByHand(m); m.run(3000); assert.equal(m.color(), m.defaults.side.enemy.barColorLow, 'Default by hand stays');
+    roundTrip(m);
+    assert.equal(m.color(), '#112233', 'the route fires again once the phase changed');
+  }
+});
+test('a script reload keeps a preset applied by hand', () => {
+  const m = setup({ heroPresets: { hero_inferno: 'A' }, heroDefault: 'C' });
+  m.tree.setHeroName('Infernus'); m.run(2000);
+  applyDefaultByHand(m); m.run(3000); assert.equal(m.color(), m.defaults.side.enemy.barColorLow);
+  m.includeScripts(); m.onload(); m.run(3000);
+  assert.equal(m.color(), m.defaults.side.enemy.barColorLow, 'the route already fired for this hero before the reload');
+  m.tree.setHeroName('Seven'); m.run(2000); assert.equal(m.color(), '#778899', 'a new hero still routes after the reload');
+});
+test('a store that refuses every route is not asked with a library copy each second', () => {
+  const seed = setup({ heroPresets: { hero_inferno: 'A' } }); seed.run(8000);
+  const parts = seed.disk.disk.get(CURRENT).split('.');
+  const body = JSON.parse(Buffer.from(parts[2], 'base64url').toString()); body.v = seed.h.$.HPColorsV3Settings.recordVersion + 1;
+  const payload = Buffer.from(JSON.stringify(body)).toString('base64url');
+  seed.disk.disk.set(CURRENT, 'HPV2S1.' + seed.codec.checksum(payload) + '.' + payload);
+  const m = launch(seed.disk); installTopBarIdentityTree(m.harness, { heroName: 'Infernus' }); m.run(3000);
+  assert.equal(m.status(), 'Save from a newer version');
+  const real = m.harness.$.HPColorsV3Store; let copies = 0;
+  m.harness.$.HPColorsV3Store = Object.assign({}, real, { getBundle: (...args) => { copies++; return real.getBundle(...args); } });
+  m.run(10000);
+  assert.ok(copies <= 1, 'library copied ' + copies + ' times in 10 s');
+});
+test('SAVE NEW makes the new preset the applied one, so later edits go into it', () => {
+  const m = setup();
+  m.h.$.HPColorsMenuToggle(); m.fire('HPColorsNavPresetsButton');
+  m.preset(1, 'Apply'); m.edit('#ABCDEF'); m.run(1000);
+  m.find('HPColorsPresetNameEntry').text = 'Variant'; m.fire('HPColorsPresetSaveButton'); m.run(1000);
+  let bundle = m.bundle();
+  assert.equal(bundle.presets.length, 4); assert.equal(bundle.sourcePresetId, bundle.presets[3].id, 'the new preset is applied');
+  assert.equal(bundle.sourceWasMapped, false);
+  m.edit('#FEDCBA'); m.run(1000); bundle = m.bundle();
+  assert.equal(bundle.presets[3].settings.side.enemy.barColorLow, '#FEDCBA', 'the edit goes into the new preset');
+  assert.equal(bundle.presets[1].settings.side.enemy.barColorLow, '#ABCDEF', 'B keeps what it had when SAVE NEW was pressed');
+});
+

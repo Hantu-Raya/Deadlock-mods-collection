@@ -1,14 +1,17 @@
 'use strict';
-// Pass cache for the staged v3 VM suite. The three build wrappers (canonical, QOLLOCK, ShowRank) each
+// Pass cache for the staged v3 VM suite. The three lane builds of tools/build.js (canonical, QOLLOCK, ShowRank) each
 // run the same v3 suite against the same staged v3 scripts; the suite is deterministic, so a pass for
 // identical inputs is not rerun.
 //   node tools/suite-cache.js --key <stageSource> <release|debug>   prints the input hash
-// Inputs hashed (paths and bytes): the staged v3 tree, every v3 source file except .build/, the shared
-// test adapter and pipeline scripts, the v3 build wrappers the tooling tests read, the repo ignore rules
-// (audit-tooling runs git check-ignore), the local hpv2-store checkout's index.html and HEAD
-// (store-page.test.js), every HPV3_* variable the suite's sources read, the Node version and the mode.
+// Inputs hashed (paths and bytes): the staged v3 tree, every v3 source file except .build/ (this includes
+// tools/build.js and tools/lib, which the tooling tests read), the shared test adapter, the repo ignore rules
+// (audit-tooling runs git check-ignore), the local hpv2-store checkout's index.html and HEAD, the blobs that
+// `main:index.html` and `$HPV3_STORE_REF:index.html` resolve to (store-page.test.js reads them through git, and
+// a branch can move without the worktree changing), every HPV3_* variable the suite's sources read, the Node
+// version and the mode.
 // Any change to any of them gives a new key. Not keyed: git's global excludes file, and the objects of
 // the pinned hpv2-store commits (immutable by SHA). HPV3_SUITE_CACHE=0 disables the cache.
+const { execFileSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -40,25 +43,34 @@ function envNames() {
   return [...names].sort();
 }
 
+// Blob id of each git expression store-page.test.js reads, or a marker; no git spawn without a checkout.
+function storeRefs() {
+  if (!fs.existsSync(STORE)) return 'checkout-absent';
+  const expressions = ['main:index.html'];
+  if (process.env.HPV3_STORE_REF) expressions.push(process.env.HPV3_STORE_REF + ':index.html');
+  return expressions.map(expression => {
+    try { return expression + '=' + execFileSync('git', ['-C', STORE, 'rev-parse', '--verify', '--end-of-options', expression], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); }
+    catch (error) { return expression + '=unresolved'; }
+  }).join('\n');
+}
+
 function key(stageSource, mode) {
   if (!['release', 'debug'].includes(mode)) throw new Error('mode must be release or debug');
   if (!fs.existsSync(stageSource)) throw new Error('stage source missing: ' + stageSource);
   const hash = crypto.createHash('sha256');
-  // Staged files are keyed relative to the stage root, so every wrapper's stage of the same mode matches.
+  // Staged files are keyed relative to the stage root, so every lane's stage of the same mode matches.
   const add = (label, file, base = repo) => { hash.update(label + '\0' + path.relative(base, file).replace(/\\/g, '/') + '\0'); hash.update(fs.readFileSync(file)); hash.update('\0'); };
   hash.update('node ' + process.version + '\0mode ' + mode + '\0');
   for (const file of files(path.resolve(stageSource))) add('stage', file, path.resolve(stageSource));
   for (const file of files(v3, (full, entry) => entry.isDirectory() && full === path.join(v3, '.build'))) add('v3', file);
-  for (const name of ['hp-colors-panorama-test-adapter.js', 'hp-colors-v3-pipeline.ps1', 'source2_package_pipeline.ps1'])
-    add('scripts', path.join(repo, 'scripts', name));
-  for (const name of fs.readdirSync(repo).filter(name => /^build_hp_colors_rewrite_v3.*\.ps1$/.test(name)).sort())
-    add('wrapper', path.join(repo, name));
+  add('scripts', path.join(repo, 'scripts', 'hp-colors-panorama-test-adapter.js'));
   const external = [path.join(repo, '.gitignore'), path.join(repo, '.git', 'info', 'exclude'),
     path.join(STORE, 'index.html'), path.join(STORE, '.git', 'HEAD')];
   for (const file of external) {
     hash.update('external\0' + file.replace(/\\/g, '/') + '\0');
     hash.update(fs.existsSync(file) ? fs.readFileSync(file) : 'absent'); hash.update('\0');
   }
+  hash.update('store-refs\0' + storeRefs() + '\0');
   for (const name of envNames()) hash.update('env\0' + name + '=' + (process.env[name] === undefined ? '\u0001unset' : process.env[name]) + '\0');
   return hash.digest('hex');
 }
@@ -70,4 +82,4 @@ if (require.main === module) {
   catch (error) { console.error(error.message); process.exit(2); }
 }
 
-module.exports = { key, envNames, STORE };
+module.exports = { key, envNames, storeRefs, STORE };

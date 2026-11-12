@@ -136,9 +136,12 @@ test('audit review F2: generation replacement restarts the HUD watch before inco
 });
 test('audit: measured boundary budgets remain bounded',()=>{
   const ops=name=>results[name].operations;
-  assert.ok(ops('preview').boundaryValidityCalls<=11000);assert.ok(ops('preview').parentReads<=2000);
+  // Ticket 52: the preview's status effect sample is one more looked-up part; its inside-the-pane walk at each
+  // attach adds 40 parent reads (1974 -> 2014 measured). Painting adds none.
+  assert.ok(ops('preview').boundaryValidityCalls<=11000);assert.ok(ops('preview').parentReads<=2020);
   assert.ok(ops('ownHud').parentReads<=10,'unrelated gestures retain only the full topology watch');
-  assert.ok(ops('heroRoutingRootHud').classReads<=70);assert.ok(ops('heroRoutingRootHud').boundaryValidityCalls<=170);
+  // +1 class read per identity sample since 2026-11-02: the ESC update badge reads #Hud.ShowEscapeMenu (70 -> 80, 80 measured).
+  assert.ok(ops('heroRoutingRootHud').classReads<=80);assert.ok(ops('heroRoutingRootHud').boundaryValidityCalls<=170);
   // bindChrome attribution reads the function name from stacks. Release staging runs Closure ADVANCED,
   // which renames it, so the attribution is checked on unminified (source/debug) scripts only.
   const menuScript=path.resolve(process.env.HPV3_SOURCE_ROOT||path.join(__dirname,'..'),'panorama/scripts/hp_colors_v3_menu.js');
@@ -146,12 +149,23 @@ test('audit: measured boundary budgets remain bounded',()=>{
     assert.equal(ops('bootChrome').classReads||0,0);
     // Tickets 31 and 33 add four and four boot-only event bindings; each validates its target once.
     // Ticket 35 adds the two preview team buttons (resolved and bound once each at boot).
-    // Ticket 36 adds the NEW tab: open and dismiss per item (6 items) plus CLEAR ALL, bound once at boot (246 measured).
-    assert.ok(ops('bootChrome').boundaryValidityCalls<=246);
+    // Ticket 36 adds the NEW tab: open and dismiss per item plus CLEAR ALL, bound once at boot (246 measured
+    // with 9 items); the five 3.4.0 items add one validity call each (251 measured with 14); the two 3.5.0
+    // items add two each (255 measured with 16; 251 with them removed). Ticket 50 (3.6.0) adds the Kill bounty
+    // card and preview pill (260 measured without its NEW item) and that item (262 measured with 17). The 3.6.0
+    // status-effects item adds two (264 measured with 18), and the deferred damage color item two more (266 with 19).
+    // Ticket 51 (3.7.0): the HP percent item adds two (268 measured with 20). Ticket 52: the Status effect sizes
+    // card, the preview sample and its NEW item add six (274 measured with 21).
+    assert.ok(ops('bootChrome').boundaryValidityCalls<=274);
     assert.ok(ops('bootChrome').boundaryQueries>=1,'bindChrome attribution must observe its native query');
   }
   // About 4.5 validity calls per control row; ticket 35 grows the table from 176 to 195 controls (884 measured).
-  assert.ok(ops('syncAll').boundaryValidityCalls<=900);assert.ok(ops('syncAll').boundaryQueries<=1);
+  // 3.5.0 (user, 2026-10-29): five neutral HP number rows replace Customize NPC bars (two) for 199 controls (903 measured);
+  // five objective HP number rows make 204 controls (922 measured); three kill bounty rows make 207 (934 measured);
+  // the two deferred damage color rows (enemy, ally) make 209 (946 measured); kill bounty size and tilt make 211 (954 measured);
+  // ticket 51's HP number format rows (enemy, ally) make 213 (964 measured); ticket 52's eight status effect size
+  // rows make 221 (997 measured).
+  assert.ok(ops('syncAll').boundaryValidityCalls<=1000);assert.ok(ops('syncAll').boundaryQueries<=1);
   assert.equal(ops('syncAll').jsCellVisits||0,0);assert.ok(ops('heroRouting').jsHeroNameReads<=10);
   assert.ok(ops('heroSearch').classWrites<=55);
   const panelCalls=['boundaryQueries','boundaryValidityCalls','parentReads','parentWrites','classReads','classWrites','styleReads','styleWrites','textReads','textWrites','layoutWidthReads','moveChildCalls'];
