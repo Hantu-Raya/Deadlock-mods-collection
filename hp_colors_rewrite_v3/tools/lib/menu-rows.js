@@ -2,7 +2,18 @@
 // Setting rows: one row per schema row and side (toggle, segment/dropdown, color or number controls),
 // grouped into side columns, BASIC/ADVANCED folds and group cards per page; plus the COLORBLIND card.
 // Every emitted control, search entry, container, fold and card is recorded in `state`.
-const { NEW_ICON, LEVELS, COLUMNS, SEGMENT_MAX, toggleHandles, resetIcon, pascal, esc } = require('./menu-markup');
+const { NEW_ICON, SEGMENT_MAX, toggleHandles, resetIcon, idWord, esc } = require('./menu-markup');
+const { SIDES, LEVELS } = require('./schema');
+
+// Fold and side-column tables come from the schema vocabulary; only the display words live here.
+const FOLDS = LEVELS.map(level => ({ level, title: level.toUpperCase(), open: level === 'basic' }));
+const SIDE_COLUMNS = SIDES.map(side => ({ side, title: side.toUpperCase(), className: 'HPC3' + idWord(side) }));
+
+// Every id a row, card or sub-nav button emits is built here, so the menu and the NEW tab agree on it.
+const rowPrefix = (key, side) => 'HPColors' + idWord(key) + (side === 'shared' ? '' : idWord(side));
+const rowId = (key, side) => rowPrefix(key, side) + 'Row';
+const cardId = (pageKey, group) => 'HPColorsCard' + pageKey + idWord(group || 'General');
+const subNavId = (pageKey, group) => 'HPColorsSubNav' + pageKey + idWord(group || 'General') + 'Button';
 
 // state: { rows, newRows, controls, search, containers, folds, groups }; the arrays are filled in place.
 function settingRowsEmitter({ id, out }, state) {
@@ -28,51 +39,42 @@ function settingRowsEmitter({ id, out }, state) {
 
   function settingRow(depth, item) {
     const { row, side, value } = item;
-    const prefix = 'HPColors' + pascal(row.key) + (side === 'shared' ? '' : pascal(side));
-    const rowId = id(prefix + 'Row');
-    out(depth, `<Panel id="${rowId}" class="HPC3Row HPC3Type${pascal(row.type)}">`);
+    const prefix = rowPrefix(row.key, side);
+    const panelId = id(rowId(row.key, side));
+    out(depth, `<Panel id="${panelId}" class="HPC3Row HPC3Type${idWord(row.type)}">`);
     out(depth + 1, '<Panel class="HPC3RowBg" hittest="false" />');
     out(depth + 1, '<Panel class="HPC3RowRule" hittest="false" />');
     // Only rows a NEW item targets carry its mark and an opacity-only flash layer.
-    if (newRows.has(rowId)) {
+    if (newRows.has(panelId)) {
       out(depth + 1, '<Panel class="HPC3RowNewFlash" hittest="false" />');
       out(depth + 1, `<Image class="HPC3NewMark" src="${NEW_ICON}" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />`);
     }
     out(depth + 1, `<Label class="HPC3RowTitle" text="${esc(row.name)}" hittest="false" />`);
     const control = { id: '', key: row.key, name: row.name, help: row.help, side, type: row.type, bounds: row.bounds, step: row.step, unit: row.unit,
-      default: value, rowId, page: row.page, level: row.level, group: row.group || '' };
+      default: value, rowId: panelId, page: row.page, level: row.level, group: row.group || '' };
     if (row.requires) control.requires = row.requires.map(requirement);
-    const kind = row.type === 'enum' && row.options.length > SEGMENT_MAX ? 'dropdown' : row.type;
-    out(depth + 1, `<Panel class="HPC3RowControls HPC3Controls${pascal(kind)}">`);
+    // The menu script only drives segment buttons; an enum too long for one row needs a new control first.
+    if (row.type === 'enum' && row.options.length > SEGMENT_MAX) throw new Error(row.key + ': an enum can have at most ' + SEGMENT_MAX + ' options (segment buttons)');
+    const kind = row.type;
+    out(depth + 1, `<Panel class="HPC3RowControls HPC3Controls${idWord(kind)}">`);
     if (row.type === 'boolean') {
       control.id = control.toggleId = id(prefix + 'Toggle');
       out(depth + 2, `<Button id="${control.toggleId}" class="HPC3Toggle${value ? ' Checked' : ''}">${toggleHandles}</Button>`);
     } else if (row.type === 'enum') {
-      control.kind = row.options.length <= SEGMENT_MAX ? 'segment' : 'dropdown';
-      control.id = id(prefix + (control.kind === 'segment' ? 'Segment' : 'Select'));
-      control.options = row.options.map(option => ({ value: option.value, label: option.label, id: id(prefix + 'Option' + pascal(option.value)) }));
-      if (control.kind === 'segment') {
-        out(depth + 2, `<Panel id="${control.id}" class="HPC3Segment">`);
-        for (const option of control.options) out(depth + 3, `<Button id="${option.id}" class="HPC3SegmentButton${option.value === value ? ' Selected' : ''}"><Panel class="HPC3RadioBox" hittest="false" /><Label text="${esc(option.label)}" hittest="false" /></Button>`);
-        out(depth + 2, '</Panel>');
-      } else {
-        out(depth + 2, '<Panel class="DropDownNew HPC3DropDown">');
-        out(depth + 3, '<Panel class="Border" hittest="false" />');
-        out(depth + 3, '<Panel class="Background" hittest="false" />');
-        out(depth + 3, `<DropDown id="${control.id}" class="DropDownContent HPC3Select">`);
-        for (const option of control.options) out(depth + 4, `<Label id="${option.id}" text="${esc(option.label)}" />`);
-        out(depth + 3, '</DropDown>');
-        out(depth + 3, '<Panel class="Arrow" hittest="false" />');
-        out(depth + 2, '</Panel>');
-      }
+      control.kind = 'segment';
+      control.id = id(prefix + 'Segment');
+      control.options = row.options.map(option => ({ value: option.value, label: option.label, id: id(prefix + 'Option' + idWord(option.value)) }));
+      out(depth + 2, `<Panel id="${control.id}" class="HPC3Segment">`);
+      for (const option of control.options) out(depth + 3, `<Button id="${option.id}" class="HPC3SegmentButton${option.value === value ? ' Selected' : ''}"><Panel class="HPC3RadioBox" hittest="false" /><Label text="${esc(option.label)}" hittest="false" /></Button>`);
+      out(depth + 2, '</Panel>');
     } else if (row.type === 'color') {
       control.hueId = id(prefix + 'HueSlider');
-      control.swatchId = prefix + 'Swatch';
-      control.id = control.hexId = prefix + 'Hex';
+      control.swatchId = id(prefix + 'Swatch');
+      control.id = control.hexId = id(prefix + 'Hex');
       out(depth + 2, '<Panel class="HPC3ColorGroup">');
       out(depth + 3, `<Slider id="${control.hueId}" class="HPC3HueSlider HorizontalSlider" direction="horizontal" />`);
-      out(depth + 3, `<Button id="${id(control.swatchId)}" class="HPC3Swatch" style="background-color: ${value};" />`);
-      out(depth + 3, `<Panel class="HPC3EntryBox"><TextEntry id="${id(control.hexId)}" class="HPC3Hex" text="${esc(value)}" maxchars="7" /></Panel>`);
+      out(depth + 3, `<Button id="${control.swatchId}" class="HPC3Swatch" style="background-color: ${value};" />`);
+      out(depth + 3, `<Panel class="HPC3EntryBox"><TextEntry id="${control.hexId}" class="HPC3Hex" text="${esc(value)}" maxchars="7" /></Panel>`);
       out(depth + 2, '</Panel>');
     } else {
       control.sliderId = id(prefix + 'Slider');
@@ -88,14 +90,14 @@ function settingRowsEmitter({ id, out }, state) {
     }
     control.resetId = id(prefix + 'ResetButton');
     out(depth + 2, `<Button id="${control.resetId}" class="HPC3RowReset">${resetIcon}</Button>`);
-    control.conditionId = id('HPColorsCondition' + pascal(row.key) + pascal(side));
+    control.conditionId = id('HPColorsCondition' + idWord(row.key) + idWord(side));
     out(depth + 2, `<Button id="${control.conditionId}" class="HPC3ConditionAction"><Label text="◆" hittest="false" /></Button>`);
     out(depth + 1, '</Panel>');
     out(depth, '</Panel>');
     controls.push(control);
-    search.push({ key: row.key, side, page: row.page, level: row.level, group: row.group || '', id: rowId,
+    search.push({ key: row.key, side, page: row.page, level: row.level, group: row.group || '', id: panelId,
       text: [row.name, row.help, row.group || '', ...(row.options || []).map(option => option.label), ...row.keywords, side].join(' ').toLowerCase() });
-    return rowId;
+    return panelId;
   }
 
   // One side of a group card; the card head owns its group title.
@@ -115,10 +117,10 @@ function settingRowsEmitter({ id, out }, state) {
   function groupBody(depth, page, pageKey, group, items) {
     const rowIds = [];
     const singleSide = new Set(items.filter(item => item.side !== 'shared').map(item => item.side)).size === 1;
-    for (const { level, title, open } of LEVELS) {
+    for (const { level, title, open } of FOLDS) {
       const levelItems = items.filter(item => item.row.level === level);
       if (!levelItems.length) continue;
-      const prefix = 'HPColorsPage' + pageKey + pascal(group || 'General') + pascal(level);
+      const prefix = 'HPColorsPage' + pageKey + idWord(group || 'General') + idWord(level);
       const foldId = id(prefix + 'Fold');
       const toggleId = id(prefix + 'FoldToggle');
       const labelId = id(prefix + 'FoldLabel');
@@ -135,10 +137,10 @@ function settingRowsEmitter({ id, out }, state) {
       const sided = levelItems.filter(item => item.side !== 'shared');
       if (sided.length) {
         out(depth + 2, '<Panel class="HPC3SideColumns">');
-        for (const spec of COLUMNS) {
+        for (const spec of SIDE_COLUMNS) {
           const columnItems = sided.filter(item => item.side === spec.side);
           if (!columnItems.length) continue;
-          foldRows.push(...column(depth + 3, prefix + pascal(spec.side) + 'Column', spec.title, spec.className, columnItems));
+          foldRows.push(...column(depth + 3, prefix + idWord(spec.side) + 'Column', spec.title, spec.className, columnItems));
         }
         out(depth + 2, '</Panel>');
       }
@@ -156,12 +158,12 @@ function settingRowsEmitter({ id, out }, state) {
 
   function pageBody(depth, page, items) {
     const rowIds = [];
-    const solo = page.groups.length === 1;
+    const solo = !page.hasSubNav;
     for (const name of page.groups) {
-      const prefix = 'HPColorsCard' + page.key + pascal(name || 'General');
-      const card = { name, page: page.name, id: id(prefix), resetId: '', subNavId: solo ? '' : 'HPColorsSubNav' + page.key + pascal(name || 'General') + 'Button' };
+      const prefix = cardId(page.key, name);
+      const card = { name, page: page.name, id: id(prefix), resetId: '', subNavId: page.hasSubNav ? page.subNavIds.get(name) : '' };
       const groupItems = items.filter(item => (item.row.group || '') === name);
-      const availableSides = COLUMNS.filter(spec => groupItems.some(item => item.side === spec.side));
+      const availableSides = SIDE_COLUMNS.filter(spec => groupItems.some(item => item.side === spec.side));
       out(depth, `<Panel id="${card.id}" class="HPC3Card${availableSides.length === 1 ? ' HPC3SingleSide' : ''}">`);
       out(depth + 1, '<Panel class="HPC3CardBg" hittest="false" />');
       out(depth + 1, '<Panel class="HPC3CardHead">');
@@ -173,7 +175,7 @@ function settingRowsEmitter({ id, out }, state) {
         out(depth + 2, '<Panel class="HPC3Grow" hittest="false" />');
         out(depth + 2, '<Panel class="HPC3SideTabs">');
         for (const spec of availableSides) {
-          const side = { side: spec.side, id: id(prefix + 'Side' + pascal(spec.side) + 'Button') };
+          const side = { side: spec.side, id: id(prefix + 'Side' + idWord(spec.side) + 'Button') };
           card.sides.push(side);
           out(depth + 3, `<Button id="${side.id}" class="SecondaryButton light HPC3SidePill${spec.side === 'enemy' ? ' fill Selected' : ''}"><Label text="${spec.title}" hittest="false" /></Button>`);
         }
@@ -211,4 +213,4 @@ function settingRowsEmitter({ id, out }, state) {
   return { requirement, settingRow, column, groupBody, pageBody, colorblindPage };
 }
 
-module.exports = { settingRowsEmitter };
+module.exports = { settingRowsEmitter, rowId, cardId, subNavId };

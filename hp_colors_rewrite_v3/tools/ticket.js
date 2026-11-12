@@ -12,37 +12,29 @@
 //     [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>]
 const fs = require('node:fs');
 const path = require('node:path');
+const cli = require('./lib/cli');
+const { LANES } = require('./lib/projects');
 
 const V3_ROOT = path.resolve(__dirname, '..');
-const PROJECTS = {
-  v3: { label: 'normal v3', dir: 'hp_colors_rewrite_v3', build: 'node hp_colors_rewrite_v3/tools/build.js --project v3 --skip-deploy' },
-  qollock: { label: 'QOLLOCK variant', dir: 'hp_colors_rewrite_v3_qollock', build: 'node hp_colors_rewrite_v3/tools/build.js --project qollock --skip-deploy' },
-  showrank: { label: 'ShowRank variant', dir: 'hp_colors_rewrite_v3_showrank', build: 'node hp_colors_rewrite_v3/tools/build.js --project showrank --skip-deploy' },
-};
-const VALUE_FLAGS = ['title', 'slug', 'request', 'project', 'spec-after', 'date', 'root'];
-const BOOL_FLAGS = ['map', 'dry-run', 'help'];
+// Lane labels, folders and build commands come from the shared lane table.
+const PROJECTS = Object.fromEntries(Object.values(LANES).map(lane => [lane.key, { label: lane.ticketLabel, dir: lane.dir, build: lane.build }]));
 const USAGE = `Usage: node tools/ticket.js new --title "..." [--slug <kebab>] [--request "quote|who|date"]
   [--project v3|qollock|showrank] [--map] [--spec-after <story number>] [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>]`;
+const ARGS = {
+  options: {
+    '--title': { key: 'title', value: true }, '--slug': { key: 'slug', value: true }, '--request': { key: 'request', value: true },
+    '--project': { key: 'project', value: true }, '--spec-after': { key: 'spec-after', value: true }, '--date': { key: 'date', value: true },
+    '--root': { key: 'root', value: true },
+    '--map': { key: 'map' }, '--dry-run': { key: 'dry-run' }, '--help': { key: 'help' },
+  },
+  command: true,
+  once: true,
+  flagValues: true,
+  messages: { bare: arg => 'Unexpected argument: ' + arg, unknown: (arg, name) => 'Unknown option ' + name },
+};
 
 function parseArgs(argv) {
-  const [command, ...rest] = argv;
-  const opts = { command };
-  for (let i = 0; i < rest.length; i++) {
-    let arg = rest[i], value;
-    if (!arg.startsWith('--')) throw new Error('Unexpected argument: ' + arg);
-    arg = arg.slice(2);
-    const eq = arg.indexOf('=');
-    if (eq >= 0) { value = arg.slice(eq + 1); arg = arg.slice(0, eq); }
-    if (BOOL_FLAGS.includes(arg)) {
-      if (value !== undefined) throw new Error('--' + arg + ' takes no value');
-      opts[arg] = true;
-    } else if (VALUE_FLAGS.includes(arg)) {
-      if (value === undefined) { if (i + 1 >= rest.length) throw new Error('--' + arg + ' needs a value'); value = rest[++i]; }
-      if (Object.hasOwn(opts, arg)) throw new Error('--' + arg + ' given twice');
-      opts[arg] = value;
-    } else throw new Error('Unknown option --' + arg);
-  }
-  return opts;
+  return cli.parse(argv, ARGS);
 }
 
 // Highest numeric prefix + 1 over `NN-…md` / `NNx-…md`; audit-* and other names are ignored.
@@ -176,7 +168,7 @@ function create(opts, root = V3_ROOT) {
   const title = String(opts.title || '').trim();
   if (!title) throw new Error('--title is required');
   const project = opts.project || 'v3';
-  if (!Object.hasOwn(PROJECTS, project)) throw new Error('--project must be v3, qollock or showrank');
+  if (!cli.project(project, { all: false })) throw new Error('--project must be ' + cli.projectWords({ all: false }));
   const slug = opts.slug !== undefined ? String(opts.slug).trim() : slugify(title);
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) throw new Error('--slug must be kebab-case, got ' + slug);
   const date = opts.date || localDate();

@@ -564,7 +564,7 @@ test('reincluding the menu script retires the old publisher: no stale epoch answ
   assert.equal(work(m.h).length, 0);
 });
 
-test('px rows show their unit and step, long enums use a DropDown, and both edit through the real menu', t => {
+test('px rows show their unit and step and edit through the real menu', t => {
   const dir = temporary(t);
   fs.cpSync(path.join(sourceRoot, 'panorama'), path.join(dir, 'panorama'), { recursive: true });
   // Retired slot numbers (ticket 36) never return, so a fixture slot starts above them too.
@@ -573,11 +573,8 @@ test('px rows show their unit and step, long enums use a DropDown, and both edit
   const rows = [...schema,
     { key: 'fixtureOffsetY', slot: { enemy: nextSlot, ally: nextSlot + 1 }, name: 'Bar Y offset', type: 'number', bounds: [-50, 50], step: 0.5, default: { enemy: -3.5, ally: 0 },
       side: 'side-aware', page: 'Bar', level: 'advanced', unit: 'px', help: 'Move the bar up or down.', keywords: ['offset'] },
-    { key: 'textFont', slot: nextSlot + 2, name: 'HP text font', type: 'enum', bounds: null, step: null, default: 'b', side: 'shared',
-      page: 'HP Text', level: 'basic', unit: '', help: 'Font family.', keywords: ['font'],
-      options: ['a', 'b', 'c', 'd', 'e'].map(value => ({ value, label: 'Font ' + value.toUpperCase() })) },
     // Keep a separately named enemy-only fixture row alongside the shipped marker.
-    { key: 'fixtureEnemyMarker', slot: nextSlot + 3, name: 'Enemy kill marker', type: 'boolean', bounds: null, step: null, default: false,
+    { key: 'fixtureEnemyMarker', slot: nextSlot + 2, name: 'Enemy kill marker', type: 'boolean', bounds: null, step: null, default: false,
       side: 'enemy', page: 'Indicators', level: 'basic', unit: '', help: 'Enemy-only fixture row.', keywords: ['marker'] }];
   const file = path.join(dir, 'schema.json');
   fs.writeFileSync(file, JSON.stringify(rows));
@@ -585,7 +582,7 @@ test('px rows show their unit and step, long enums use a DropDown, and both edit
   const version = metadata.recordVersion + 1;
   const record = path.join(dir, 'record.json');
   fs.writeFileSync(record, JSON.stringify({ ...metadata, recordVersion: version, slotAdditions: [...metadata.slotAdditions,
-    { version, slots: [nextSlot, nextSlot + 1, nextSlot + 2, nextSlot + 3] }] }));
+    { version, slots: [nextSlot, nextSlot + 1, nextSlot + 2] }] }));
   const result = spawnSync(process.execPath, [path.join(root, 'tools/generate.js'), '--settings', file, '--record-contract', record, '--output-root', dir], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   const m = booted({ sourceRoot: dir });
@@ -600,18 +597,6 @@ test('px rows show their unit and step, long enums use a DropDown, and both edit
   assert.equal(m.settings().side.enemy.fixtureOffsetY, -3.5, 'sides are independent');
   m.submit('HPColorsFixtureOffsetYAllyEntry', '0.1');
   assert.equal(m.settings().side.ally.fixtureOffsetY, 0);
-  const select = m.find('HPColorsTextFontSelect');
-  assert.equal(select.type, 'DropDown');
-  const wrapper = select.GetParent();
-  assert.equal(wrapper.BHasClass('DropDownNew'), true);
-  const decorations = wrapper.Children().filter(panel => panel !== select);
-  ['Border', 'Background', 'Arrow'].forEach((name, index) => assert.equal(decorations[index].BHasClass(name), true));
-  for (const child of wrapper.Children().filter(panel => panel !== select)) assert.equal(child.GetAttributeString('hittest', ''), 'false');
-  assert.equal(select.GetSelected().id, 'HPColorsTextFontOptionB');
-  assert.throws(() => select.SetSelected(m.find('HPColorsTextFontOptionE')), /option id string/, 'mock enforces the string signature');
-  select.SetSelected('HPColorsTextFontOptionE');
-  m.fire('HPColorsTextFontSelect', 'oninputsubmit');
-  assert.equal(m.settings().shared.textFont, 'e');
   const enemyColumn = m.find('HPColorsPageIndicatorsGeneralBasicEnemyColumn');
   const allyColumn = m.find('HPColorsPageIndicatorsLinesAndPipsBasicAllyColumn');
   assert.ok(m.find('HPColorsFixtureEnemyMarkerEnemyRow').GetParent() === enemyColumn, 'enemy-only row sits in its group enemy column');

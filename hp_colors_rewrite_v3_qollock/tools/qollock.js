@@ -10,9 +10,11 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const ROOT = path.resolve(__dirname, '..');
 const V3_ROOT = path.resolve(ROOT, '../hp_colors_rewrite_v3');
+const { lf, patchOnce, refs, repeatedIds, signature: nodeSignature, matchStructure } = require(path.join(V3_ROOT, 'tools/lib/layout-compose'));
+const { writeOrCheck: writeLaneOutputs, runLaneCli } = require(path.join(V3_ROOT, 'tools/lib/output'));
+const { includeLine } = require(path.join(V3_ROOT, 'tools/lib/stock-layouts'));
 const PIN = 'vendor/pin.json';
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-const lf = text => text.replace(/\r\n/g, '\n');
 // Vendored path -> pak03 entry. Exactly these two layouts are composed; nothing else is copied.
 const FILES = {
   'vendor/hud_escape_menu.xml': 'panorama/layout/hud_escape_menu.vxml_c',
@@ -48,52 +50,22 @@ function readPin(root = ROOT) {
 }
 
 function patch(text, anchor, replacement, label) {
-  if (text.split(anchor).length !== 2) throw new Error('QOLLOCK ' + label + ' anchor missing or ambiguous: ' + anchor);
-  return text.replace(anchor, () => replacement);
+  return patchOnce(text, anchor, replacement, () => 'QOLLOCK ' + label + ' anchor missing or ambiguous: ' + anchor);
 }
-const ids = text => [...text.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
-const refs = text => new Set([...text.matchAll(/\s(?:src|id)="[^"]+"/g)].map(match => match[0].trim()));
 
-// Preorder node list: depth, parent index (-1 at the top), tag and attributes (entities decoded,
-// comments dropped).
-function nodes(text) {
-  const list = [], open = [];
-  for (const match of text.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<([^>]+)>/g)) {
-    const token = match[1];
-    if (token.startsWith('?')) continue;
-    if (token.startsWith('/')) { open.pop(); continue; }
-    const attrs = {};
-    for (const attr of token.matchAll(/([\w-]+)="([^"]*)"/g))
-      attrs[attr[1]] = attr[2].replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    list.push({ depth: open.length, parent: open.length ? open[open.length - 1] : -1, tag: token.match(/^\S+/)[0].replace(/\/$/, ''), attrs });
-    if (!token.endsWith('/')) open.push(list.length - 1);
-  }
-  return list;
-}
 // The only pinned attributes the composition rewrites (v3 hooks). They are exempt only when comparing
 // pinned to composed; composed to packed compares every attribute.
 const HOOKS = { CitadelHudEscapeMenu: ['onload', 'oncancel'], CitadelHudTopBar: ['class'], '#EscapeBackground': ['onactivate'], '#EscapeButton': ['onactivate'] };
 function signature(node, pinnedSide, hooks) {
-  const skip = hooks ? (HOOKS[node.tag] || []).concat(HOOKS['#' + node.attrs.id] || []) : [];
-  const attrs = Object.keys(node.attrs).filter(key => !skip.includes(key)).sort()
-    .map(key => key + '=' + (pinnedSide && key === 'src' ? node.attrs[key].replace(/\.vcss$/, '.vcss_c') : node.attrs[key]));
-  return node.depth + ' <' + node.tag + ' ' + attrs.join(' ') + '>';
+  return nodeSignature(node, HOOKS, hooks, pinnedSide && ((key, value) => key === 'src' ? value.replace(/\.vcss$/, '.vcss_c') : value));
 }
 // Every pinned node (anonymous panels, classes, attributes, includes) appears in the composed layout
 // in the same order, at the same depth and under the counterpart of its pinned parent; v3 nodes may
 // only be inserted between them. exact: same node count and every attribute compared (post-pack).
 function structure(label, pinned, composed, exact) {
-  const wantNodes = nodes(pinned), haveNodes = nodes(composed);
-  const want = wantNodes.map(node => signature(node, !exact, !exact)), have = haveNodes.map(node => signature(node, false, !exact));
-  const matched = [];
-  let at = 0;
-  for (let i = 0; i < want.length; i++) {
-    const parent = wantNodes[i].parent === -1 ? -1 : matched[wantNodes[i].parent];
-    while (at < have.length && (have[at] !== want[i] || haveNodes[at].parent !== parent)) at++;
-    if (at === have.length) throw new Error('QOLLOCK ' + label + ' structure lost, reordered or reparented a pinned node: ' + want[i]);
-    matched.push(at++);
-  }
-  if (exact && want.length !== have.length) throw new Error('QOLLOCK ' + label + ' structure has ' + have.length + ' nodes, expected ' + want.length);
+  const counts = matchStructure(pinned, composed, node => signature(node, !exact, !exact), node => signature(node, false, !exact),
+    want => 'QOLLOCK ' + label + ' structure lost, reordered or reparented a pinned node: ' + want);
+  if (exact && counts.want !== counts.have) throw new Error('QOLLOCK ' + label + ' structure has ' + counts.have + ' nodes, expected ' + counts.want);
 }
 
 // Every pinned QOLLOCK include and panel id survives in order with its structure, every v3 id is
@@ -104,19 +76,17 @@ function guard(label, pinned, composed, required) {
   if (lost.length) throw new Error('QOLLOCK ' + label + ' lost pinned includes/ids: ' + lost.join(', '));
   const missing = required.filter(ref => !have.has(ref));
   if (missing.length) throw new Error('QOLLOCK ' + label + ' is missing v3 entries: ' + missing.join(', '));
-  const seen = new Set(), repeated = new Set();
-  for (const id of ids(composed)) (seen.has(id) ? repeated : seen).add(id);
-  if (repeated.size) throw new Error('QOLLOCK ' + label + ' repeats ids: ' + [...repeated].join(', '));
+  const repeated = repeatedIds(composed);
+  if (repeated.length) throw new Error('QOLLOCK ' + label + ' repeats ids: ' + repeated.join(', '));
   structure(label, pinned, composed, false);
 }
 
 // parts: { resume, styles, scripts (menu include lines), button, fragment, ids, topbarScripts, topbarClass }
 function compose(pinned, parts) {
-  const include = name => '\t\t<include src="s2r://panorama/scripts/' + name + '.vjs_c" />\n';
   let menu = pinned.menu;
   menu = patch(menu, '\t</styles>', parts.styles + '\t</styles>', 'menu styles');
   // v3 scripts run after ql_settings; the window bridge wraps both toggles, so it loads last.
-  menu = patch(menu, '\t</scripts>', parts.scripts + include(BRIDGE) + '\t</scripts>', 'menu scripts');
+  menu = patch(menu, '\t</scripts>', parts.scripts + includeLine(BRIDGE) + '\t</scripts>', 'menu scripts');
   menu = patch(menu, '<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">',
     '<CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="' + parts.resume + '">', 'menu root');
   // QOLLOCK closes its own window first; otherwise the background runs v3's close-then-resume.
@@ -134,7 +104,7 @@ function compose(pinned, parts) {
   let topbar = pinned.topbar;
   for (const sheet of ['citadel_base_styles', 'hud_common', 'citadel_hud_top_bar', 'unit_status_icons'])
     topbar = patch(topbar, sheet + '.vcss"', sheet + '.vcss_c"', 'topbar styles');
-  topbar = patch(topbar, '\t<scripts />', '\t<scripts>\n' + parts.topbarScripts.map(include).join('') + '\t</scripts>', 'topbar scripts');
+  topbar = patch(topbar, '\t<scripts />', '\t<scripts>\n' + parts.topbarScripts.map(includeLine).join('') + '\t</scripts>', 'topbar scripts');
   // QOLLOCK-only: v3's timers also match cards by hero name (Street Brawl hero-titled world bars, ticket 39).
   topbar = patch(topbar, '<CitadelHudTopBar hittest="false">', '<CitadelHudTopBar class="' + parts.topbarClass + ' ' + HERO_NAMES_CLASS + '" hittest="false">', 'topbar root');
   guard('topbar', pinned.topbar, topbar, parts.topbarScripts.map(name => 'src="s2r://panorama/scripts/' + name + '.vjs_c"'));
@@ -199,32 +169,20 @@ function layouts(root = ROOT, v3Root = V3_ROOT) {
   return compose(readPin(root), parts);
 }
 function writeOrCheck(check, root = ROOT, v3Root = V3_ROOT) {
-  const files = layouts(root, v3Root), stale = [];
-  for (const [relative, text] of Object.entries(files)) {
-    const target = path.join(root, relative);
-    if (check) { if (!fs.existsSync(target) || lf(fs.readFileSync(target, 'utf8')) !== lf(text)) stale.push(relative); }
-    else { fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, text, 'utf8'); }
-  }
-  if (stale.length) throw new Error('Stale QOLLOCK layouts: ' + stale.join(', ') + '; run hp_colors_rewrite_v3_qollock/tools/qollock.js after reviewing the v3 menu change.');
+  const files = layouts(root, v3Root);
+  writeLaneOutputs(files, root, check, { label: 'QOLLOCK layouts', hint: 'run hp_colors_rewrite_v3_qollock/tools/qollock.js after reviewing the v3 menu change.' });
   return Object.keys(files).length;
 }
 
 module.exports = { readPin, compose, guard, structure, layouts, writeOrCheck, verify, verifyInputs, checkPacked, FILES, OUTPUTS, BRIDGE, HERO_NAMES_CLASS, PIN, ROOT, V3_ROOT };
 if (require.main === module) {
-  try {
-    const args = process.argv.slice(2);
-    if (args.length === 0 || (args[0] === '--check' && args.length === 1)) {
-      const count = writeOrCheck(args[0] === '--check');
-      console.log('HPV3 QOLLOCK layouts: ' + count + ' outputs ' + (args[0] === '--check' ? 'current' : 'written'));
-    } else if (args[0] === '--verify' && args[1] && args.length === 2) {
-      const result = verify(path.resolve(args[1]));
-      console.log('HPV3 QOLLOCK pin: ' + result.entries + ' decompiled entries match (' + result.release + ')');
-    } else if (args[0] === '--verify-inputs' && args[1] && args.length === 2) {
-      const result = verifyInputs(path.resolve(args[1]));
-      console.log('HPV3 QOLLOCK input: pak03 verified, zip ' + result.zip + ' (' + result.release + ')');
-      console.log(result.pak);
-    } else if (args[0] === '--check-packed' && args[1] && args.length === 2) {
-      console.log('HPV3 QOLLOCK packed: ' + checkPacked(path.resolve(args[1])) + ' compiled layouts keep every composed include and id');
-    } else throw new Error('Usage: qollock.js [--check] | --verify-inputs <repo-root> | --verify <decompiled-pak03-root> | --check-packed <decompiled-pak02-root>');
-  } catch (error) { console.error(error.message); process.exitCode = 1; }
+  runLaneCli(process.argv.slice(2), {
+    run: check => 'HPV3 QOLLOCK layouts: ' + writeOrCheck(check) + ' outputs ' + (check ? 'current' : 'written'),
+    verbs: {
+      '--verify': dir => { const result = verify(dir); return ['HPV3 QOLLOCK pin: ' + result.entries + ' decompiled entries match (' + result.release + ')']; },
+      '--verify-inputs': dir => { const result = verifyInputs(dir); return ['HPV3 QOLLOCK input: pak03 verified, zip ' + result.zip + ' (' + result.release + ')', result.pak]; },
+      '--check-packed': dir => ['HPV3 QOLLOCK packed: ' + checkPacked(dir) + ' compiled layouts keep every composed include and id'],
+    },
+    usage: 'Usage: qollock.js [--check] | --verify-inputs <repo-root> | --verify <decompiled-pak03-root> | --check-packed <decompiled-pak02-root>',
+  });
 }

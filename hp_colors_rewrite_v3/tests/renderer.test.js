@@ -1445,7 +1445,7 @@ test('team colors are editable, drive Team high color and the HP number, and fal
   fx.edit('hpTextTeamHigh',false);fx.setHealth(100);fx.advance();assert.equal(fx.value.style.washColor,'#FFFFFF');
   const config=structuredClone(latestPublishedConfig(fx.menu.harness).settings);
   config.side.enemy.hpTextColorMode='team';config.side.enemy.objectiveEnabled=true;
-  const unit=fx.api.plan({...fx.api.facts(),kind:'objective',player:false,cssPlayer:false,team:'team1',fraction:1},config);
+  const unit=fx.api.plan({...fx.api.facts(),kind:'objective',player:false,team:'team1',fraction:1},config);
   assert.equal(unit.styles.value,undefined,'team HP number is players only: unit bars keep the stock HP number');
   const level=fx.api.plan({...fx.api.facts(),team:'team1',level:5},{...config,side:{...config.side,enemy:{...config.side.enemy,levelsVisible:true}}});
   assert.equal(level.styles.level.border,'2px solid #E7B659','the level rim keeps the game team color');

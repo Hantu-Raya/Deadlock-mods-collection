@@ -1,7 +1,13 @@
 (function () {
   "use strict";
   var ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-  var RESERVED_PRESET_ID = "baked_default", importSerial = 0;
+  // Record limits: the one owner. storage, from_v2 and the menu read $.HPColorsV3Codec.RECORD at call time.
+  var RECORD = Object.freeze({
+    maxChars: 192000, settingsCodeChars: 4096, bundleCodeChars: 32768, maxPresets: 128, nameMax: 48,
+    slotRange: Object.freeze([1, 4]), tierRange: Object.freeze([1, 3]),
+    reservedPresetId: "baked_default", compactFromVersion: 6
+  });
+  var RESERVED_PRESET_ID = RECORD.reservedPresetId, importSerial = 0;
   // A default change increments the generated recordVersion and adds an
   // ordered step here: preserve the old value for each absent changed slot.
   // Changed-default slots are explicitly emitted by every subsequent version,
@@ -33,6 +39,7 @@
   function controlOf(slot) { return slot ? tables().byControl[slot.side + "\u0001" + slot.setting] : undefined; }
   function version() { return contract().recordVersion; }
   function values(settings, slot) { return slot.side === "shared" ? settings.shared : settings.side[slot.side]; }
+  var COMPACT_FROM = RECORD.compactFromVersion;
   function checksum(text) {
     var hash = 0x811c9dc5;
     for (var i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619) >>> 0;
@@ -78,7 +85,7 @@
   function frame(record, tag) {
     // v6 removes pair brackets on the wire; runtime diffs and v1–5 stay pairs.
     var wire = clone(record);
-    if (wire.v >= 6) {
+    if (wire.v >= COMPACT_FROM) {
       wire.d = [].concat.apply([], wire.d);
       if (Array.isArray(wire.p)) wire.p.forEach(function (preset) { preset.d = [].concat.apply([], preset.d); });
     }
@@ -190,8 +197,8 @@
     Object.keys(rules).sort(function (a, b) { return Number(a) - Number(b); }).forEach(function (cell) {
       var row = /^(0|[1-9]\d*)$/.test(cell) && ruleRow(cell), rule = rules[cell];
       if (!row || !rule || Object.keys(rule).some(function (key) { return ["slot", "minTier", "value"].indexOf(key) < 0; }) ||
-          !Number.isInteger(rule.slot) || rule.slot < 1 || rule.slot > 4 ||
-          !Number.isInteger(rule.minTier) || rule.minTier < 1 || rule.minTier > 3 || !contract().validateValue(row, rule.value))
+          !Number.isInteger(rule.slot) || rule.slot < RECORD.slotRange[0] || rule.slot > RECORD.slotRange[1] ||
+          !Number.isInteger(rule.minTier) || rule.minTier < RECORD.tierRange[0] || rule.minTier > RECORD.tierRange[1] || !contract().validateValue(row, rule.value))
         throw new Error("Invalid ability conditions");
       result.push(Number(cell), rule.slot, rule.minTier, row.type === "color" ? rule.value.toUpperCase() : rule.value);
     });
@@ -253,7 +260,7 @@
   }
   function bundleRecord(bundle, sharing) {
     if (!bundle || !Array.isArray(bundle.presets)) throw new Error("Invalid preset bundle");
-    if (bundle.presets.length > 128) throw new Error("A bundle can contain at most 128 presets");
+    if (bundle.presets.length > RECORD.maxPresets) throw new Error("A bundle can contain at most " + RECORD.maxPresets + " presets");
     validateHeroRoutes(bundle);
     var record = { v: version(), k: "bundle", d: sparse(bundle.settings), p: [] };
     writeRules(record, bundle.rules);
@@ -298,10 +305,10 @@
       Array.isArray(record.p) && record.p.some(function (item) { return item && (futureDiff(item.d) || futureRules(item.c)); });
     var fromVersion = record.v, upgraded = fromVersion < version();
     if (upgraded) record = upgrade(record, version(), UPGRADE_STEPS);
-    var settings = expand(record.d, newer, fromVersion >= 6), rules = expandRules(record.c, newer);
+    var settings = expand(record.d, newer, fromVersion >= COMPACT_FROM), rules = expandRules(record.c, newer);
     var result = { settings: settings, rules: rules, newer: newer };
     if (kind === "bundle") {
-      if (!Array.isArray(record.p) || record.p.length > 128) throw new Error("A bundle can contain at most 128 presets");
+      if (!Array.isArray(record.p) || record.p.length > RECORD.maxPresets) throw new Error("A bundle can contain at most " + RECORD.maxPresets + " presets");
       if (record.b !== undefined && (!record.b || typeof record.b !== "object" || Array.isArray(record.b))) throw new Error("Invalid bundle metadata");
       if (record.b && Object.prototype.hasOwnProperty.call(record.b, "rules")) throw new Error("Invalid ability conditions");
       var bundle = metadata(record.b || {}, ["settings", "presets"]), ids = Object.create(null);
@@ -311,7 +318,7 @@
         if (!item || typeof item.id !== "string" || !item.id || ids[item.id] || typeof item.name !== "string") throw new Error("Invalid preset identity");
         if (Object.prototype.hasOwnProperty.call(item, "rules")) throw new Error("Invalid ability conditions");
         ids[item.id] = true;
-        var preset = metadata(item, ["d", "settings", "rules", "c"]); preset.settings = expand(item.d, newer, fromVersion >= 6);
+        var preset = metadata(item, ["d", "settings", "rules", "c"]); preset.settings = expand(item.d, newer, fromVersion >= COMPACT_FROM);
         var presetRules = expandRules(item.c, newer); if (Object.keys(presetRules).length) preset.rules = presetRules;
         return preset;
       });
@@ -380,7 +387,7 @@
     var source = result.bundle, bundle = pick(source, SHARED_BUNDLE_KEYS);
     bundle.presets = source.presets.map(function (preset) {
       var name = preset.name.trim();
-      if (!name || preset.name.length > 48) throw new Error("Invalid preset name");
+      if (!name || preset.name.length > RECORD.nameMax) throw new Error("Invalid preset name");
       var clean = pick(preset, SHARED_PRESET_KEYS);
       clean.name = name;
       if (preset.hidden === true || preset.hidden === false) clean.hidden = preset.hidden;
@@ -391,7 +398,7 @@
       bundle.hiddenBakedPresetIds = source.hiddenBakedPresetIds.indexOf(RESERVED_PRESET_ID) >= 0 ? [RESERVED_PRESET_ID] : [];
     var overrides = source.bakedPresetNameOverrides, bakedName = overrides && typeof overrides === "object" && !Array.isArray(overrides) &&
       Object.prototype.hasOwnProperty.call(overrides, RESERVED_PRESET_ID) ? overrides[RESERVED_PRESET_ID] : null;
-    if (typeof bakedName === "string" && bakedName.trim() && bakedName.length <= 48) {
+    if (typeof bakedName === "string" && bakedName.trim() && bakedName.length <= RECORD.nameMax) {
       bundle.bakedPresetNameOverrides = {}; bundle.bakedPresetNameOverrides[RESERVED_PRESET_ID] = bakedName.trim();
     }
     if (Number.isSafeInteger(source.nextUserPresetNumber) && source.nextUserPresetNumber >= 1) bundle.nextUserPresetNumber = source.nextUserPresetNumber;
@@ -437,15 +444,16 @@
     return text.trim();
   }
   $.HPColorsV3Codec = Object.freeze({
+    RECORD: RECORD, valuesOf: values,
     checksum: checksum, upgrade: upgrade,
     errorMessage: errorMessage,
     encodeRecord: function (bundle) { return frame(bundleRecord(bundle), "HPV2S1"); },
-    decodeLegacyRecord: function (code) { return unframe(code, "HPV2S1", 192000, true).record; },
+    decodeLegacyRecord: function (code) { return unframe(code, "HPV2S1", RECORD.maxChars, true).record; },
     classifyRecord: function (code) {
       if (code === null || code === undefined) return { kind: "absent" };
       var parsed;
       try {
-        parsed = unframe(code, "HPV2S1", 192000);
+        parsed = unframe(code, "HPV2S1", RECORD.maxChars);
         var result = readRecord(parsed.record, "bundle");
         result.kind = result.newer ? "newer" : "valid"; result.sum = parsed.sum; return result;
       } catch (error) {
@@ -459,10 +467,10 @@
   $.HPColorsV3Sharing = Object.freeze({
     exportSettingsCode: function (settings, rules) { return attempt(function () {
       var record = { v: version(), k: "settings", d: sparse(settings) }; writeRules(record, rules);
-      return exportCode(record, 4096, "Settings code exceeds 4,096 characters");
+      return exportCode(record, RECORD.settingsCodeChars, "Settings code exceeds 4,096 characters");
     }); },
-    importSettingsCode: function (code, base) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,5) === "HPCR2" ? $.HPColorsV3FromV2.importSettingsCode(code, base) : readRecord(unframe(code, "HPC3", 4096).record, "settings"); }); },
-    exportBundleCode: function (bundle) { return attempt(function () { return exportCode(bundleRecord(bundle, true), 32768, "Bundle exceeds 32,768 characters; export fewer presets"); }); },
-    importBundleCode: function (code) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,6) === "HPCRP1" ? $.HPColorsV3FromV2.importBundleCode(code) : sharedBundle(readRecord(unframe(code, "HPC3", 32768).record, "bundle")); }); },
+    importSettingsCode: function (code, base) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,5) === "HPCR2" ? $.HPColorsV3FromV2.importSettingsCode(code, base) : readRecord(unframe(code, "HPC3", RECORD.settingsCodeChars).record, "settings"); }); },
+    exportBundleCode: function (bundle) { return attempt(function () { return exportCode(bundleRecord(bundle, true), RECORD.bundleCodeChars, "Bundle exceeds 32,768 characters; export fewer presets"); }); },
+    importBundleCode: function (code) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,6) === "HPCRP1" ? $.HPColorsV3FromV2.importBundleCode(code) : sharedBundle(readRecord(unframe(code, "HPC3", RECORD.bundleCodeChars).record, "bundle")); }); },
   });
 })();

@@ -13,33 +13,37 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { engineFindings } = require('./lib/stylesheets');
+const cli = require('./lib/cli');
+const { REPO, LANES } = require('./lib/projects');
+const { listFiles } = require('./lib/run');
 
-const REPO = path.resolve(__dirname, '..', '..');
 const FACTS_FILE = path.join(__dirname, 'lib', 'engine-facts.json');
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/engine-facts.js --check [--project v3|qollock|showrank|all] | --refresh --from <Deadlock folder>';
-const PROJECTS = {
-  v3: ['hp_colors_rewrite_v3'],
-  qollock: ['hp_colors_rewrite_v3', 'hp_colors_rewrite_v3_qollock'],
-  showrank: ['hp_colors_rewrite_v3', 'hp_colors_rewrite_v3_showrank'],
-};
+// Per project, the lane folders it scans: the canonical v3 sources plus the variant's own.
+const PROJECTS = Object.fromEntries(Object.values(LANES).map(lane => [lane.key, lane.sourceDirs]));
 // Names published on $ by mods, never engine functions: this mod's shared globals, and the QOLLOCK host's
 // window API that the QOLLOCK bridge feature-detects (IsModSettingsOpen, ForceCloseModSettings).
 const MOD_GLOBAL = /^(?:HPColors|HPC3|HPV3|IsModSettingsOpen$|ForceCloseModSettings$)/;
 
+const ARGS = {
+  defaults: { check: false, refresh: false, from: null, project: 'all', help: false },
+  options: {
+    '--check': { key: 'check' },
+    '--refresh': { key: 'refresh' },
+    '--from': { key: 'from', value: true },
+    '--project': { key: 'project', value: true },
+    ...cli.HELP,
+  },
+  equals: false,
+  undefinedValue: true,
+  messages: { unknown: arg => 'Unknown argument ' + arg + '. ' + USAGE },
+};
+
 function parseArgs(argv) {
-  const opts = { check: false, refresh: false, from: null, project: 'all', help: false };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === '--check') opts.check = true;
-    else if (arg === '--refresh') opts.refresh = true;
-    else if (arg === '--from') opts.from = argv[++i];
-    else if (arg === '--project') opts.project = argv[++i];
-    else if (arg === '--help' || arg === '-h') opts.help = true;
-    else throw new Error('Unknown argument ' + arg + '. ' + USAGE);
-  }
+  const opts = cli.parse(argv, ARGS);
   if (!opts.help && opts.check === opts.refresh) throw new Error('Pass exactly one of --check or --refresh. ' + USAGE);
   if (opts.refresh && !opts.from) throw new Error('--refresh needs --from <Deadlock folder>. ' + USAGE);
-  if (opts.project !== 'all' && !PROJECTS[opts.project]) throw new Error('Unknown project ' + opts.project + '. ' + USAGE);
+  if (!cli.project(opts.project)) throw new Error('Unknown project ' + opts.project + '. ' + USAGE);
   return opts;
 }
 
@@ -54,7 +58,7 @@ function loadFacts(file = FACTS_FILE) {
   };
 }
 
-const kebab = name => name.replace(/[A-Z]/g, upper => '-' + upper.toLowerCase());
+const { kebab } = cli;
 const stripComments = source => source.replace(/\/\*[\s\S]*?\*\//g, c => c.replace(/[^\n]/g, ' ')).replace(/\/\/[^\n]*/g, c => ' '.repeat(c.length));
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -89,24 +93,21 @@ function scanScript(source, known) {
   return findings;
 }
 
-function listFiles(dir, extension) {
-  try { return fs.readdirSync(dir).filter(name => name.endsWith(extension)).sort().map(name => path.join(dir, name)); }
-  catch { return []; }
-}
+const listPaths = (dir, extension) => listFiles(dir, extension).map(name => path.join(dir, name));
 
 function check({ project = 'all', root = REPO, factsFile = FACTS_FILE, log = console.log } = {}) {
   const known = loadFacts(factsFile);
-  const lanes = project === 'all' ? Object.keys(PROJECTS) : [project];
+  const lanes = cli.project(project);
   const dirs = [...new Set(lanes.flatMap(lane => PROJECTS[lane]))];
   const errors = [], warnings = [];
   let scripts = 0, sheets = 0;
   for (const dir of dirs) {
-    for (const file of listFiles(path.join(root, dir, 'panorama', 'scripts'), '.js')) {
+    for (const file of listPaths(path.join(root, dir, 'panorama', 'scripts'), '.js')) {
       scripts++;
       const rel = path.relative(root, file).replace(/\\/g, '/');
       for (const f of scanScript(fs.readFileSync(file, 'utf8'), known)) errors.push(rel + ':' + f.line + ': ' + f.kind + ' ' + f.name + ' is not in engine-facts.json');
     }
-    for (const file of listFiles(path.join(root, dir, 'panorama', 'styles'), '.css')) {
+    for (const file of listPaths(path.join(root, dir, 'panorama', 'styles'), '.css')) {
       sheets++;
       const rel = path.relative(root, file).replace(/\\/g, '/');
       const found = engineFindings(rel, fs.readFileSync(file, 'utf8'));

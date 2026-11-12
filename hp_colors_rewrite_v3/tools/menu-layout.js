@@ -4,17 +4,18 @@
 // The parts live in tools/lib/: menu-markup.js (page table, snippets, id/line writer), menu-rows.js (setting
 // rows, folds and cards), menu-news.js (NEW tab), menu-preview.js (preview pane), menu-presets.js (PRESETS
 // page), menu-buttons.js and menu-dialogs.js. This file lays out the shell and returns the menu contract.
-const { PAGES, START, NEW_ICON, SEARCH_ICON, toggleHandles, changedStar, pascal, esc, menuWriter } = require('./lib/menu-markup');
-const { settingRowsEmitter } = require('./lib/menu-rows');
-const { newsEntries, newsPageEmitter } = require('./lib/menu-news');
+const { PAGES, START, NEW_ICON, SEARCH_ICON, toggleHandles, changedStar, idWord, esc, menuWriter } = require('./lib/menu-markup');
+const { sidesOf } = require('./lib/schema');
+const { settingRowsEmitter, subNavId } = require('./lib/menu-rows');
+const { newsEntries, linkNewsSubNavs, newsContract, newsPageEmitter } = require('./lib/menu-news');
 const { previewPaneEmitter } = require('./lib/menu-preview');
 const { presetsEmitter } = require('./lib/menu-presets');
 const { emitDialogs } = require('./lib/menu-dialogs');
 
-// rows: validated schema rows; sidesOf(row) -> ['enemy','ally'] | ['enemy'] | ['shared'];
+// rows: validated schema rows; the 2nd argument is the schema's sidesOf, kept only for tools/generate.js's call shape;
 // reserved: stock layout ids the generated ids must not collide with.
 // news: validated settings/news.json items; each targets setting rows (key, optional side) or a page.
-function buildMenu(rows, sidesOf, reserved, release, news = []) {
+function buildMenu(rows, _sidesOf, reserved, release, news = []) {
   const writer = menuWriter(reserved);
   const { ids, id, lines, out } = writer;
   const controls = [];
@@ -27,11 +28,14 @@ function buildMenu(rows, sidesOf, reserved, release, news = []) {
   const menuButton = id('HPColorsMenuButton');
   const instances = [];
   for (const row of rows) for (const side of sidesOf(row)) instances.push({ row, side, value: side === 'shared' || row.side !== 'side-aware' ? row.default : row.default[side] });
-  const { newsItems, newRows } = newsEntries(rows, sidesOf, news);
+  const { newsItems, newRows } = newsEntries(rows, news);
   const { pageBody, colorblindPage } = settingRowsEmitter(writer, { rows, newRows, controls, search, containers, folds, groups });
   const previewPane = previewPaneEmitter(writer, release);
   const { library, sharePanel } = presetsEmitter(writer);
   const newsPage = newsPageEmitter(writer, newsItems);
+
+  // Pages that carry more than setting rows; each emits its own content after the (empty) row cards.
+  const pageExtras = { Presets: depth => { library(depth); sharePanel(depth); }, Colorblind: colorblindPage, New: newsPage };
 
   const root = id('HPColorsMenuHost');
   out(1, `<Panel id="${root}" class="HPC3Root" hittest="true">`);
@@ -49,15 +53,12 @@ function buildMenu(rows, sidesOf, reserved, release, news = []) {
   out(6, `<Button id="${id('HPColorsResetPageButton')}" class="HPC3NavSquare"><Image class="HPC3NavSquareIcon" src="s2r://panorama/images/icons/reset.vsvg" texturewidth="20px" textureheight="20px" scaling="stretch-to-fit-preserve-aspect" hittest="false" /></Button>`);
   out(5, '</Panel>');
   out(5, '<Panel class="HPC3NavList">');
-  const pageDefs = PAGES.map(page => ({ ...page, key: pascal(page.name),
+  const pageDefs = PAGES.map(page => ({ ...page, key: idWord(page.name),
     groups: [...new Set(rows.filter(row => row.page === page.name).map(row => row.group || ''))] }));
-  // NEW marks exist only where an item can show them: its page tab and the sub-nav entry of each target group.
-  const subNavIdOf = (page, group) => 'HPColorsSubNav' + page.key + pascal(group || 'General') + 'Button';
-  for (const item of newsItems) {
-    const page = pageDefs.find(entry => entry.name === item.page);
-    item.subNavIds = page.groups.length > 1 ? [...new Set(item.targets.map(key => subNavIdOf(page, rows.find(row => row.key === key).group)))] : [];
-  }
-  const newsPages = new Set(['New', ...newsItems.map(item => item.page)]), newsSubNavs = new Set(newsItems.flatMap(item => item.subNavIds));
+  // Published once: a page has a sub-nav (and its cards a sub-nav button) only when it has more than one group.
+  for (const page of pageDefs) { page.hasSubNav = page.groups.length > 1; page.subNavIds = new Map(); }
+  const newsSubNavs = linkNewsSubNavs(newsItems, pageDefs, rows);
+  const newsPages = new Set(['New', ...newsItems.map(item => item.page)]);
   const startIndex = PAGES.findIndex(page => page.name === START);
   pageDefs.forEach((page, index) => {
     page.navId = id('HPColorsNav' + page.key + 'Button');
@@ -70,12 +71,13 @@ function buildMenu(rows, sidesOf, reserved, release, news = []) {
     out(5, '</Button>');
     page.subNavId = id('HPColorsSubNav' + page.key);
     out(5, `<Panel id="${page.subNavId}" class="HPC3SubNav${index === startIndex ? ' Selected' : ''}">`);
-    if (page.groups.length > 1) page.groups.forEach(group => {
-      const subNavId = id(subNavIdOf(page, group));
-      out(6, `<Button id="${subNavId}" class="HPC3SubNavButton">`);
+    if (page.hasSubNav) page.groups.forEach(group => {
+      const buttonId = id(subNavId(page.key, group));
+      page.subNavIds.set(group, buttonId);
+      out(6, `<Button id="${buttonId}" class="HPC3SubNavButton">`);
       out(7, '<Panel class="HPC3SubBrush" hittest="false" />');
       out(7, `<Label class="HPC3SubNavLabel" text="${esc(group || page.lead || page.title)}" hittest="false" />`);
-      if (newsSubNavs.has(subNavId)) out(7, `<Image class="HPC3SubNavNew" src="${NEW_ICON}" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />`);
+      if (newsSubNavs.has(buttonId)) out(7, `<Image class="HPC3SubNavNew" src="${NEW_ICON}" texturewidth="14px" textureheight="14px" scaling="stretch-to-fit-preserve-aspect" hittest="false" />`);
       out(7, changedStar);
       out(6, '</Button>');
     });
@@ -103,10 +105,8 @@ function buildMenu(rows, sidesOf, reserved, release, news = []) {
     out(7, `<Label class="HPC3PageSearchTitle" text="${esc(page.title)}" />`);
     const items = instances.filter(item => item.row.page === page.name);
     const rowIds = pageBody(7, page, items);
-    if (!items.length && !['Presets', 'New', 'Colorblind'].includes(page.name)) out(7, `<Label class="HPC3Placeholder" text="${esc(page.placeholder || 'No settings on this page yet. They arrive in a later v3 update.')}" />`);
-    if (page.name === 'Presets') { library(7); sharePanel(7); }
-    if (page.name === 'Colorblind') colorblindPage(7);
-    if (page.name === 'New') newsPage(7);
+    if (!items.length && page.placeholder) out(7, `<Label class="HPC3Placeholder" text="${esc(page.placeholder)}" />`);
+    if (pageExtras[page.name]) pageExtras[page.name](7);
     out(6, '</Panel>');
     containers.push({ id: pageId, rows: rowIds });
     pages.push({ name: page.name, id: pageId, navId: page.navId, subNavId: page.subNavId, title: page.title, description: page.description });
@@ -146,7 +146,7 @@ function buildMenu(rows, sidesOf, reserved, release, news = []) {
     '\t\t\t\t\t</Button>\n\t\t\t\t\t';
   return { ids, controls, search, fragment, button,
     menu: { rootId: root, pages, groups, folds, containers, startPage: startIndex,
-      news: newsItems.map(({ id: newsId, badge, date, page, rowIds, subNavIds, itemId, buttonId, dismissId }) => ({ id: newsId, badge, date, page, rowIds, subNavIds, itemId, buttonId, dismissId })) } };
+      news: newsContract(newsItems) } };
 }
 
 module.exports = { buildMenu, PAGES };

@@ -2,18 +2,20 @@
 // The three stock layouts the v3 lane overrides, patched at exact anchors: the Escape menu (menu entry,
 // styles, scripts, generated menu fragment), the world unit-status overlay (owned anchors and frames)
 // and the HUD topbar (timer scripts and root class). Each anchor must match exactly once.
+const { patchOnce } = require('./layout-compose');
 
 function patchStock(text, anchor, replacement) {
-  const matches = text.split(anchor).length - 1;
-  if (matches !== 1) throw new Error('Stock layout patch anchor missing or ambiguous (' + matches + ' matches): ' + anchor);
-  return text.replace(anchor, replacement);
+  return patchOnce(text, anchor, replacement, matches => 'Stock layout patch anchor missing or ambiguous (' + matches + ' matches): ' + anchor);
 }
+
+// One script include line of a layout's <scripts> block (also used by the QOLLOCK lane).
+const includeLine = name => '\t\t<include src="s2r://panorama/scripts/' + name + '.vjs_c" />\n';
 
 // Shared v3 Escape-menu and topbar pieces, also published to variant lanes through menuParts().
 const MENU_RESUME = 'if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())';
 const MENU_STYLES = '\t<include src="s2r://panorama/styles/citadel_ui_color_picker.vcss_c" />\n\t<include src="s2r://panorama/styles/hp_colors_v3_world.vcss_c" />\n\t<include src="s2r://panorama/styles/hp_colors_v3_menu.vcss_c" />\n';
 const MENU_SCRIPTS = ['hp_colors_v3_settings', 'hp_colors_v3_from_v2', 'hp_colors_v3_codec', 'hp_colors_v3_storage', 'hp_colors_v3_renderer', 'hp_colors_v3_preview', 'hp_colors_v3_menu']
-  .map(name => '\t\t<include src="s2r://panorama/scripts/' + name + '.vjs_c" />\n').join('');
+  .map(includeLine).join('');
 const TOPBAR_SCRIPTS = ['hp_colors_v3_world_settings', 'hp_colors_v3_timers_hud'];
 const TOPBAR_CLASS = 'HPColorsV3TimersTopBar';
 
@@ -47,7 +49,7 @@ function patchOverlay(stock) {
   let overlay = patchStock(stock, 'unit_status_v2.vcss', 'unit_status_v2.vcss_c');
   overlay = patchStock(overlay, '</styles>', '\t\t<include src="s2r://panorama/styles/hp_colors_v3_world.vcss_c" />\n\t</styles>\n\t<scripts>\n' +
     ['hp_colors_v3_world_settings', 'hp_colors_v3_bridge', 'hp_colors_v3_renderer', 'hp_colors_v3_timers_world', 'hp_colors_v3_world_boot']
-      .map(name => '\t\t<include src="s2r://panorama/scripts/' + name + '.vjs_c" />\n').join('') + '\t</scripts>');
+      .map(includeLine).join('') + '\t</scripts>');
   overlay = patchStock(overlay, '<Panel id="InfoHealthContainer">',
     '<Panel id="InfoHealthContainer">\n\t\t\t\t<Panel id="HPColorsV3Level" hittest="false" hittestchildren="false">\n' +
     '\t\t\t\t\t<Label id="unit_level_label" text="{i:player_level}" hittest="false" />\n\t\t\t\t</Panel>');
@@ -94,7 +96,7 @@ function patchTopbar(stock) {
     topbar = patchStock(topbar, sheet + '.vcss', sheet + '.vcss_c');
   topbar = patchStock(topbar, '</styles>', '</styles>\n\t<scripts>\n' +
     TOPBAR_SCRIPTS
-      .map(name => '\t\t<include src="s2r://panorama/scripts/' + name + '.vjs_c" />\n').join('') + '\t</scripts>');
+      .map(includeLine).join('') + '\t</scripts>');
   topbar = patchStock(topbar, '<CitadelHudTopBar hittest="false">', '<CitadelHudTopBar class="' + TOPBAR_CLASS + '" hittest="false">');
   return topbar;
 }
@@ -118,4 +120,4 @@ function stockLayouts(gameData, menu) {
   };
 }
 
-module.exports = { patchStock, stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS };
+module.exports = { patchStock, includeLine, stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS };

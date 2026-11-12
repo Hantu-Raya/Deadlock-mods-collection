@@ -7,6 +7,9 @@
   var KEY_PREVIOUS = KEY_CURRENT + ".prev";
   var TITLE_PREFIX = "HPV2S1:";
   var CHUNK_CHARS = 3000, MAX_CHUNKS = 64, TITLE_MAX_CHARS = 4096;
+  // MAX_CHUNKS * CHUNK_CHARS must equal $.HPColorsV3Codec.RECORD.maxChars (tests/store-page.test.js pins both and the page copy).
+  var UNAVAILABLE_RETRY_MS = 8000, UNAVAILABLE_POLL_SEC = 60;
+  var TOO_LARGE_TEXT = "Save exceeds 192,000 characters; remove some presets";
   var READY_TIMEOUT_SEC = 30, RENAVIGATE_SEC = 8, EXCHANGE_TIMEOUT_SEC = 5;
   // Request ids must never repeat across storage incarnations: a reincluded script hands its
   // generation on (see retire below) and every inclusion adds a fresh nonce, so a stale page read
@@ -490,7 +493,7 @@
       catch (error) { if (isCallable(callback)) callback({ ok: false, error: "invalid", message: $.HPColorsV3Codec.errorMessage(error) }); return; }
       var total = Math.max(1, Math.ceil(record.length / CHUNK_CHARS));
       if (total > MAX_CHUNKS) {
-        if (isCallable(callback)) callback({ ok: false, error: "too_large", message: "Save exceeds 192,000 characters; remove some presets" });
+        if (isCallable(callback)) callback({ ok: false, error: "too_large", message: TOO_LARGE_TEXT });
         return;
       }
       dropQueuedWrites();
@@ -551,9 +554,9 @@
       if (!stopped && pending && !gate && !loading && !readonly && !corrupt) beginLoad(true);
     }
     function unavailable() {
-      gate = false; retryAt = Date.now() + 8000;
+      gate = false; retryAt = Date.now() + UNAVAILABLE_RETRY_MS;
       status("UNAVAILABLE", "error");
-      if (pending) { cancel(); timer = $.Schedule(60, function () { timer = null; retryUnavailable(); }); }
+      if (pending) { cancel(); timer = $.Schedule(UNAVAILABLE_POLL_SEC, function () { timer = null; retryUnavailable(); }); }
     }
     function clearBundleEdits(token) {
       [dirtyPresets, dirtyMetadata].forEach(function (edits) {
@@ -600,8 +603,8 @@
     }
     function validBundle(bundle) {
       try {
-        if ($.HPColorsV3Codec.encodeRecord(bundle).length > 192000) {
-          status("Save exceeds 192,000 characters; remove some presets", "error"); return false;
+        if ($.HPColorsV3Codec.encodeRecord(bundle).length > $.HPColorsV3Codec.RECORD.maxChars) {
+          status(TOO_LARGE_TEXT, "error"); return false;
         }
         return true;
       } catch (error) { status($.HPColorsV3Codec.errorMessage(error), "error"); return false; }
@@ -609,7 +612,7 @@
     function change(bundle, mode, validated) {
       if (stopped) return false;
       if (readonly) { status("Save from a newer version", "error"); return false; }
-      if (!bundle || !$.HPColorsV3Settings.validate(bundle.settings) || !Array.isArray(bundle.presets) || bundle.presets.length > 128) {
+      if (!bundle || !$.HPColorsV3Settings.validate(bundle.settings) || !Array.isArray(bundle.presets) || bundle.presets.length > $.HPColorsV3Codec.RECORD.maxPresets) {
         status("Some settings cannot be used by this build.", "error"); return false;
       }
       if (mode === "bundle" && !validated && !validBundle(bundle)) return false;
@@ -623,9 +626,10 @@
         if (key !== "settings" && key !== "presets" && !same(previousBundle[key], bundle[key])) dirtyMetadata[key] = serial + 1;
       });
       if (!same(order(previousBundle.presets, editedPresets), order(bundle.presets, oldPresets))) orderTouched = serial + 1;
+      var valuesOf = $.HPColorsV3Codec.valuesOf;
       $.HPColorsV3Settings.slots.forEach(function (slot) {
-        var edited = slot.side === "shared" ? bundle.settings.shared : bundle.settings.side[slot.side];
-        var old = slot.side === "shared" ? previous.shared : previous.side[slot.side];
+        var edited = valuesOf(bundle.settings, slot);
+        var old = valuesOf(previous, slot);
         // Before hydration, a settings import explicitly supplies every setting, including defaults.
         if (edited[slot.setting] !== old[slot.setting] || (mode === "settings" && !hydrated))
           touched[slot.slot] = serial + 1;
@@ -669,9 +673,10 @@
         return null;
       }
       var merged = clone(restored);
+      var valuesOf = $.HPColorsV3Codec.valuesOf;
       $.HPColorsV3Settings.slots.forEach(function (slot) {
-        var edited = slot.side === "shared" ? pending.settings.shared : pending.settings.side[slot.side];
-        var target = slot.side === "shared" ? merged.settings.shared : merged.settings.side[slot.side];
+        var edited = valuesOf(pending.settings, slot);
+        var target = valuesOf(merged.settings, slot);
         if (touched[slot.slot]) target[slot.setting] = edited[slot.setting];
       });
       Object.keys(dirtyPresets).forEach(function (id) {
@@ -820,7 +825,7 @@
     // it again, or the hero default routing back to it, restored the values it was created with). The baked
     // Default never changes.
     var source = menuBundle.sourcePresetId;
-    if (source && source !== "baked_default") (menuBundle.presets || []).forEach(function (preset) {
+    if (source && source !== $.HPColorsV3Codec.RECORD.reservedPresetId) (menuBundle.presets || []).forEach(function (preset) {
       if (preset.id !== source) return;
       preset.settings = clone(config.settings);
       if (hasRules) preset.rules = clone(config.rules); else delete preset.rules;
@@ -849,7 +854,7 @@
     var record;
     try { record = $.HPColorsV3Codec.encodeRecord(bundle); }
     catch (error) { throw new Error($.HPColorsV3Codec.errorMessage(error)); }
-    if (record.length > 192000) throw new Error("Save exceeds 192,000 characters; remove some presets");
+    if (record.length > $.HPColorsV3Codec.RECORD.maxChars) throw new Error(TOO_LARGE_TEXT);
     if (!controller.change(bundle, "bundle", true)) throw new Error("That preset change could not be saved.");
     menuBundle = clone(bundle);
     if (apply !== false) menuApi.applySettings(bundle.settings, bundle.rules || {});
@@ -932,7 +937,7 @@
     replaceBundle: function (bundle) { return commitBundle(bundle); },
     applyPreset: function (preset, automatic, mappedRoute) {
       var bundle = currentBundle(preset.settings);
-      bundle.sourcePresetId = preset.id || "baked_default";
+      bundle.sourcePresetId = preset.id || $.HPColorsV3Codec.RECORD.reservedPresetId;
       bundle.sourceWasMapped = automatic === true ? mappedRoute === true :
         Object.keys(bundle.heroPresets || {}).some(function (hero) { return bundle.heroPresets[hero] === bundle.sourcePresetId; });
       ["v2pending","rules"].forEach(function (key) {

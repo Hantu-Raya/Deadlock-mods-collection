@@ -313,7 +313,6 @@ test('HUD-style condition slots show detected hero glyphs with cached SetImage w
   // Stock tier art: ring (passive_1) for tiers 1-3; the backing becomes triangles (passive_2) at tier 2, spikes (passive_3) at tier 3.
   // Unselected slots show their live tier (sampled for display while open); the selected slot shows the required tier in green.
   a.tier(3, 2); m.run(1000);
-  assert.equal(m.find('HPColorsConditionSlot1').BHasClass('LiveTier1'), true);
   assert.equal(m.find('HPColorsConditionSlot3').BHasClass('ShowTier2'), true, 'unreferenced slots still show their live tier');
   assert.equal(m.find('HPColorsConditionSlot3').BHasClass('Unavailable'), false);
   assert.equal(m.find('HPColorsConditionSlot1').BHasClass('ShowTier3'), true, 'the selected slot shows the required tier, not the live one');

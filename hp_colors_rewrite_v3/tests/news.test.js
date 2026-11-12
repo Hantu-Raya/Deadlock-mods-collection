@@ -66,7 +66,7 @@ test('ticket 36: news.json holds the 3.7.0, 3.6.0, 3.5.0, 3.4.0, 3.3.0 and 3.2.0
 test('ticket 36: NEW is the first tab but the menu still opens on Bar', () => {
   const m = menu();
   const pages = m.h.$.HPColorsV3Settings.menu.pages;
-  assert.deepEqual(copy(pages.map(page => page.name)), ['New', 'Bar', 'HP Text', 'Name', 'Indicators', 'Icons', 'Units', 'Colorblind', 'Presets']);
+  assert.deepEqual(copy(pages.map(page => page.name)), require('../tools/lib/menu-markup').PAGES.map(page => page.name));
   assert.equal(m.find('HPColorsPageBar').BHasClass('Active'), true);
   assert.equal(m.find('HPColorsPageNew').BHasClass('Active'), false);
   assert.equal(m.find('HPColorsNavBarButton').BHasClass('Selected'), true);

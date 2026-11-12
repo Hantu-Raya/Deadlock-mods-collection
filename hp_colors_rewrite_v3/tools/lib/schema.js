@@ -1,10 +1,18 @@
 'use strict';
-// Settings table (settings/schema.json) shape and validation: columns, pages, sides, explicit codec
+// Settings table (settings/schema.json) shape and validation: columns, types, sides, levels, units, explicit codec
 // slots, defaults and the `requires` graph. Errors name the file and the row key.
-const columns = ['key', 'slot', 'name', 'type', 'bounds', 'step', 'default', 'side', 'page', 'level', 'unit', 'help', 'keywords'];
-const pages = ['Bar', 'HP Text', 'Name', 'Indicators', 'Icons', 'Units', 'Presets'];
+const { PAGES } = require('./menu-markup');
+// The generator's vocabulary: every list a row's fields are checked against, and that the menu, news and
+// stylesheet checks read instead of keeping their own copies.
+const COLUMNS = ['key', 'slot', 'name', 'type', 'bounds', 'step', 'default', 'side', 'page', 'level', 'unit', 'help', 'keywords'];
+const TYPES = ['boolean', 'number', 'color', 'enum'];
+const SIDES = ['enemy', 'ally'];
+const ROW_SIDES = ['side-aware', 'shared', 'enemy'];
+const LEVELS = ['basic', 'advanced'];
+const UNITS = ['', 'px', '%', 'deg', 's'];
+const PAGES_WITH_ROWS = PAGES.filter(page => page.hasRows).map(page => page.name);
 const pascal = key => key[0].toUpperCase() + key.slice(1);
-const sidesOf = row => row.side === 'side-aware' ? ['enemy', 'ally'] : [row.side];
+const sidesOf = row => row.side === 'side-aware' ? SIDES.slice() : [row.side];
 const flatKey = (row, side) => side === 'shared' ? row.key : side + pascal(row.key);
 const slotOf = (row, side) => row.side === 'side-aware' ? row.slot[side] : row.slot;
 
@@ -17,16 +25,16 @@ function validate(rows) {
   for (const [index, row] of rows.entries()) {
     const fail = message => { throw new Error('schema.json ' + (row && row.key || '<row ' + index + '>') + ': ' + message); };
     if (!row || typeof row !== 'object' || Array.isArray(row)) fail('Expected row object');
-    if (columns.some(key => !Object.hasOwn(row, key))) fail('Missing required column');
-    if (Object.keys(row).some(key => !columns.includes(key) && !['options', 'group', 'requires'].includes(key))) fail('Unknown column');
+    if (COLUMNS.some(key => !Object.hasOwn(row, key))) fail('Missing required column');
+    if (Object.keys(row).some(key => !COLUMNS.includes(key) && !['options', 'group', 'requires'].includes(key))) fail('Unknown column');
     if (typeof row.key !== 'string' || !/^[A-Za-z][A-Za-z0-9]*$/.test(row.key)) fail('Invalid key');
     if (keys.has(row.key) || menuKeys.has(pascal(row.key))) fail('Duplicate key or menu id');
     keys.add(row.key); menuKeys.add(pascal(row.key));
-    if (!['boolean', 'number', 'color', 'enum'].includes(row.type)) fail('Unknown type');
-    if (!['side-aware', 'shared', 'enemy'].includes(row.side)) fail('Unknown side');
-    if (!pages.includes(row.page)) fail('Unknown page');
-    if (!['basic', 'advanced'].includes(row.level)) fail('Unknown basic/advanced level');
-    if (!['', 'px', '%', 'deg', 's'].includes(row.unit)) fail('Invalid unit');
+    if (!TYPES.includes(row.type)) fail('Unknown type');
+    if (!ROW_SIDES.includes(row.side)) fail('Unknown side');
+    if (!PAGES_WITH_ROWS.includes(row.page)) fail('Unknown page');
+    if (!LEVELS.includes(row.level)) fail('Unknown basic/advanced level');
+    if (!UNITS.includes(row.unit)) fail('Invalid unit');
     if (Object.hasOwn(row, 'group') && (typeof row.group !== 'string' || !row.group.trim())) fail('Invalid group');
     if (['name', 'help'].some(key => typeof row[key] !== 'string' || !row[key].trim())) fail('Invalid name/help');
     if (!Array.isArray(row.keywords) || row.keywords.some(word => typeof word !== 'string' || !word.trim())) fail('Invalid keywords');
@@ -119,4 +127,4 @@ function validateRequires(rows) {
   for (const key of edges.keys()) visit(key);
 }
 
-module.exports = { columns, pages, pascal, sidesOf, flatKey, slotOf, validate, validateRequires };
+module.exports = { COLUMNS, TYPES, SIDES, ROW_SIDES, LEVELS, UNITS, pascal, sidesOf, flatKey, slotOf, validate };

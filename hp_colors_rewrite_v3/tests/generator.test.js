@@ -259,3 +259,56 @@ test('compact settings contract parses identically to the former pretty-printed 
  assert.deepEqual(parse(compact),parse(pretty));
  assert.ok(Buffer.byteLength(compact)<Buffer.byteLength(pretty),'compact emitter removes only insignificant JSON whitespace');
 });
+
+// A6: the ES5 `validationSource` shipped in both settings scripts and schema.js's default checks are two
+// copies of one rule; every candidate value must get the same verdict from both.
+test('validationSource accepts and refuses exactly the values schema.js accepts as defaults', () => {
+  const { validate } = require('../tools/lib/schema');
+  const { validationSource } = require('../tools/lib/settings-scripts');
+  const validateValue = new Function('fields', validationSource + '\nreturn validateValue;')([]);
+  const schemaAccepts = (row, value) => {
+    const clone = { ...row, default: row.side === 'side-aware' ? { enemy: value, ally: value } : value };
+    delete clone.requires;
+    try { validate([clone]); return true; } catch (error) { return false; }
+  };
+  let checked = 0;
+  for (const row of table) {
+    const side = row.side === 'side-aware' ? 'enemy' : row.side;
+    const field = { key: row.key, side, type: row.type, bounds: row.bounds, step: row.step, ...(row.options ? { options: row.options.map(({ value }) => ({ value })) } : {}) };
+    const first = row.side === 'side-aware' ? row.default.enemy : row.default;
+    const candidates = [first, null, undefined, 5, '5', 'nope', true, NaN];
+    if (row.type === 'color') candidates.push('#12345', '#GGGGGG', '#abcdef', '#ABCDEF', 'abc');
+    if (row.type === 'enum') candidates.push(...row.options.map(option => option.value));
+    if (row.type === 'number') {
+      const [low, high] = row.bounds;
+      candidates.push(low, high, low - row.step, high + row.step, low + row.step / 2, low + row.step, Infinity);
+    }
+    for (const value of candidates) {
+      assert.equal(validateValue(field, value), schemaAccepts(row, value), row.key + ' ' + JSON.stringify(value));
+      checked++;
+    }
+  }
+  assert.ok(checked > table.length * 8);
+});
+
+// A6: values the generator prints into the menu that the menu script also owns.
+test('generated menu text agrees with the menu script (news days, credits, Discord name, colorblind types)', () => {
+  const script = fs.readFileSync(path.join(root, 'panorama/scripts/hp_colors_v3_menu.js'), 'utf8');
+  const xml = fs.readFileSync(path.join(root, 'generated/menu-rows.xml'), 'utf8');
+  const { PAGES } = require('../tools/lib/menu-markup');
+  const days = /NEWS_DAYS = (\d+)/.exec(script)[1];
+  assert.match(PAGES.find(page => page.name === 'New').description, new RegExp('after ' + days + ' days'));
+  const discord = /FEEDBACK_DISCORD = "([^"]+)"/.exec(script)[1];
+  assert.ok(xml.includes('<Label text="' + discord + '" hittest="false" />'), 'feedback dialog shows the Discord name the menu copies');
+  const credited = [...script.matchAll(/\["(\w+)", "hero_\w+"\]/g)].map(match => match[1]);
+  assert.deepEqual([...xml.matchAll(/id="HPColorsCredits(\w+)Portrait"/g)].map(match => match[1]), credited);
+  const types = /COLORBLIND_TYPES = \[([^\]]+)\]/.exec(script)[1].match(/\w+/g);
+  assert.deepEqual([...xml.matchAll(/id="HPColorsColorblind(\w+)Toggle"/g)].map(match => match[1]), types);
+});
+
+test('PAGES is the one page table: schema rows, NEW targets and the empty-page label read it', () => {
+  const { PAGES } = require('../tools/lib/menu-markup');
+  assert.deepEqual([...new Set(table.map(row => row.page))].filter(name => !PAGES.some(page => page.name === name && page.hasRows)), []);
+  assert.deepEqual(PAGES.filter(page => page.newsTarget).map(page => page.name), ['Bar', 'HP Text', 'Name', 'Indicators', 'Icons', 'Units', 'Colorblind']);
+  assert.ok(PAGES.every(page => !page.placeholder || page.hasRows));
+});

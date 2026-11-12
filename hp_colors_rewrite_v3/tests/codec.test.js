@@ -498,3 +498,11 @@ test('pasted bundle codes keep only real bundle metadata with checked shapes, an
   assert.equal(bad.bundle.presets[0].hidden, true, 'a boolean hidden flag is kept');
 });
 
+
+test('RECORD publishes the frozen record limits and valuesOf picks the slot store', () => {
+  const { codec, settings, contract } = boot();
+  assert.ok(Object.isFrozen(codec.RECORD) && Object.isFrozen(codec.RECORD.slotRange) && Object.isFrozen(codec.RECORD.tierRange));
+  assert.deepEqual(plain(codec.RECORD), { maxChars: 192000, settingsCodeChars: 4096, bundleCodeChars: 32768, maxPresets: 128, nameMax: 48,
+    slotRange: [1, 4], tierRange: [1, 3], reservedPresetId: 'baked_default', compactFromVersion: 6 });
+  for (const slot of contract.slots) assert.equal(codec.valuesOf(settings, slot), slot.side === 'shared' ? settings.shared : settings.side[slot.side]);
+});

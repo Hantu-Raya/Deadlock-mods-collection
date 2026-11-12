@@ -26,16 +26,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const childProcess = require('node:child_process');
-const { REPO, PROJECT_NAMES, projectConfig } = require('./lib/projects');
+const cli = require('./lib/cli');
+const { REPO, LANES: PROJECT_LANES, PROJECT_NAMES, projectConfig, stagePaths, repoPaths } = require('./lib/projects');
 const { discoverDeadlock } = require('./lib/toolchain');
 
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/logscan.js [--file <console.log> | --installed-steam-inf <steam.inf>] [--since-boot] [--only errors|hpv3|timing] [--all-warnings] [--json] [--follow]';
 const ONLY = ['errors', 'hpv3', 'timing'];
 // Mapping roots in preference order; a pak02 identified as a variant build moves its lane first.
 const LANES = [
-  { key: 'v3', dir: 'hp_colors_rewrite_v3' },
-  { key: 'qollock', dir: 'hp_colors_rewrite_v3_qollock' },
-  { key: 'showrank', dir: 'hp_colors_rewrite_v3_showrank' },
+  ...PROJECT_NAMES.map(key => ({ key, dir: PROJECT_LANES[key].dir })),
   { key: 'showrank-barebones', dir: 'showrank_barebones' },
 ];
 const ERROR_KINDS = ['fatal', 'parse-error', 'js-exception', 'uncaught', 'panorama-error'];
@@ -48,29 +47,28 @@ const LABEL = {
 // ---------------------------------------------------------------------------------------------------
 // Arguments.
 // ---------------------------------------------------------------------------------------------------
+const ARGS = {
+  defaults: { file: null, steamInf: null, sinceBoot: false, follow: false, json: false, only: null, allWarnings: false, help: false },
+  options: {
+    '--file': { key: 'file', value: true },
+    '--installed-steam-inf': { key: 'steamInf', value: true },
+    '--since-boot': { key: 'sinceBoot' },
+    '--follow': { key: 'follow' },
+    '--json': { key: 'json' },
+    '--all-warnings': { key: 'allWarnings' },
+    '--only': { key: 'only', value: true, convert: raw => {
+      const only = raw.toLowerCase();
+      if (!ONLY.includes(only)) throw new Error('--only must be ' + ONLY.join('|') + '. ' + USAGE);
+      return only;
+    } },
+    ...cli.HELP,
+  },
+  dashGuard: true,
+  messages: { missing: name => name + ' needs a value. ' + USAGE, unknown: arg => 'Unknown argument \'' + arg + '\'. ' + USAGE },
+};
+
 function parseArgs(argv) {
-  const opts = { file: null, steamInf: null, sinceBoot: false, follow: false, json: false, only: null, allWarnings: false, help: false };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i], eq = arg.indexOf('='), name = eq > 0 && arg.startsWith('--') ? arg.slice(0, eq) : arg;
-    const value = () => {
-      if (name !== arg) return arg.slice(eq + 1);
-      const next = argv[i + 1];
-      if (next === undefined || next.startsWith('--')) throw new Error(name + ' needs a value. ' + USAGE);
-      i++;
-      return next;
-    };
-    if (name === '--file') opts.file = value();
-    else if (name === '--installed-steam-inf') opts.steamInf = value();
-    else if (name === '--since-boot') opts.sinceBoot = true;
-    else if (name === '--follow') opts.follow = true;
-    else if (name === '--json') opts.json = true;
-    else if (name === '--all-warnings') opts.allWarnings = true;
-    else if (name === '--only') {
-      opts.only = value().toLowerCase();
-      if (!ONLY.includes(opts.only)) throw new Error('--only must be ' + ONLY.join('|') + '. ' + USAGE);
-    } else if (name === '--help' || name === '-h') opts.help = true;
-    else throw new Error('Unknown argument \'' + arg + '\'. ' + USAGE);
-  }
+  const opts = cli.parse(argv, ARGS);
   if (opts.follow && opts.json) throw new Error('--follow and --json cannot be combined. ' + USAGE);
   return opts;
 }
@@ -500,7 +498,7 @@ function identifyPak02(addonsDir, { root = REPO, fsx = fs } = {}) {
   const candidates = [];
   for (const project of PROJECT_NAMES) {
     for (const mode of ['release', 'debug']) {
-      const built = path.join(projectConfig(project, root).buildRoot, mode, 'pak02_dir.vpk');
+      const built = stagePaths(projectConfig(project, root), mode).vpk;
       let builtStat = null;
       try { builtStat = fsx.statSync(built); } catch { continue; }
       const entry = { project, mode, file: path.relative(root, built).replace(/\\/g, '/'), mtimeMs: builtStat.mtimeMs };
@@ -518,7 +516,7 @@ function describePak02(pak) {
 }
 
 function readPin(root = REPO, fsx = fs) {
-  try { return JSON.parse(fsx.readFileSync(path.join(root, 'hp_colors_rewrite_v3', 'game-data-pin.json'), 'utf8')).clientVersion; } catch { return null; }
+  try { return JSON.parse(fsx.readFileSync(repoPaths(root).pin, 'utf8')).clientVersion; } catch { return null; }
 }
 
 // `addons`: the installed game's citadel/addons folder for the pak02 check (null: no install found).
@@ -753,7 +751,7 @@ function follow(file, opts, deps, startOffset) {
 async function main(argv = process.argv.slice(2), deps = defaultDeps()) {
   let opts;
   try { opts = parseArgs(argv); } catch (error) { deps.error('logscan.js: ' + error.message); return 2; }
-  if (opts.help) { deps.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 24).map(line => line.replace(/^\/\/ ?/, '')).join('\n')); return 0; }
+  if (opts.help) { deps.log(cli.helpText(__filename, 3, 24)); return 0; }
   const install = discoverInstall(opts, deps);
   const found = findConsoleLog(opts, deps, install);
   if (!found.file) {

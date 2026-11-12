@@ -13,8 +13,9 @@ const { profile, launch } = require(path.join(v3Tests, 'storage-fixture'));
 const qollock = require('../tools/qollock');
 
 const root = laneRoot, v3Root = qollock.V3_ROOT;
-const read = relative => fs.readFileSync(path.join(root, relative), 'utf8').replace(/\r\n/g, '\n');
-const readV3 = relative => fs.readFileSync(path.join(v3Root, relative), 'utf8').replace(/\r\n/g, '\n');
+const { lf } = require(path.join(v3Root, 'tools/lib/layout-compose'));
+const read = relative => lf(fs.readFileSync(path.join(root, relative), 'utf8'));
+const readV3 = relative => lf(fs.readFileSync(path.join(v3Root, relative), 'utf8'));
 const refs = text => [...text.matchAll(/\s(?:src|id)="([^"]+)"/g)].map(match => match[1]);
 const composedMenu = () => read(qollock.OUTPUTS.menu);
 const composedTopbar = () => read(qollock.OUTPUTS.topbar);

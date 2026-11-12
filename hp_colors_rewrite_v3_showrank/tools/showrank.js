@@ -12,7 +12,8 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const V3_ROOT = path.resolve(ROOT, '../hp_colors_rewrite_v3');
 const SHOWRANK_ROOT = path.resolve(ROOT, '../showrank_barebones');
-const lf = text => text.replace(/\r\n/g, '\n');
+const { lf, countOf, patchOnce, refs, repeatedIds, signature: nodeSignature, matchStructure } = require(path.join(V3_ROOT, 'tools/lib/layout-compose'));
+const { writeOrCheck: writeLaneOutputs, runLaneCli } = require(path.join(V3_ROOT, 'tools/lib/output'));
 const MENU = 'panorama/layout/hud_escape_menu.xml', TOPBAR = 'panorama/layout/citadel_hud_top_bar.xml';
 const OUTPUTS = { menu: MENU, topbar: TOPBAR };
 const SCRIPT = 's2r://panorama/scripts/showrank_barebones.vjs_c';
@@ -26,14 +27,10 @@ const PIECES = {
   notificationAnchor: '\t\t<Panel id="GradientBacker" />\n',
   averageAnchor: '\t\t<Panel id="StretBrawlContainer">\n',
 };
-const ids = text => [...text.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
-const refs = text => new Set([...text.matchAll(/\s(?:src|id)="[^"]+"/g)].map(match => match[0].trim()));
-const countOf = (text, part) => text.split(part).length - 1;
 
 // Exactly one occurrence, or a named failure (missing anchor, ambiguous anchor, drifted layout).
 function patch(text, anchor, replacement, label) {
-  if (countOf(text, anchor) !== 1) throw new Error('ShowRank ' + label + ' anchor missing or ambiguous: ' + anchor.trim());
-  return text.replace(anchor, () => replacement);
+  return patchOnce(text, anchor, replacement, () => 'ShowRank ' + label + ' anchor missing or ambiguous: ' + anchor.trim());
 }
 function once(text, pattern, label) {
   const found = text.match(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g')) || [];
@@ -99,41 +96,14 @@ function setAttr(tag, name, value) {
   return new RegExp('\\s' + name + '="[^"]*"').test(tag) ? tag.replace(new RegExp('\\s' + name + '="[^"]*"'), () => attr) : tag.replace(/>$/, () => attr + '>');
 }
 
-// Preorder node list: depth, parent index, tag and attributes (entities decoded, comments dropped).
-function nodes(text) {
-  const list = [], open = [];
-  for (const match of text.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<([^>]+)>/g)) {
-    const token = match[1];
-    if (token.startsWith('?')) continue;
-    if (token.startsWith('/')) { open.pop(); continue; }
-    const attrs = {};
-    for (const attr of token.matchAll(/([\w-]+)="([^"]*)"/g))
-      attrs[attr[1]] = attr[2].replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    list.push({ depth: open.length, parent: open.length ? open[open.length - 1] : -1, tag: token.match(/^\S+/)[0].replace(/\/$/, ''), attrs });
-    if (!token.endsWith('/')) open.push(list.length - 1);
-  }
-  return list;
-}
 // Attributes v3 owns and the composition rewrites: exempt only when comparing the ShowRank source to the result.
 const HOOKS = { CitadelHudEscapeMenu: ['onload', 'oncancel', 'onmouseover', 'onmouseout'], CitadelHudTopBar: ['class'], '#EscapeBackground': ['onactivate'], '#EscapeButton': ['onactivate'] };
-function signature(node, exempt) {
-  const skip = exempt ? (HOOKS[node.tag] || []).concat(HOOKS['#' + node.attrs.id] || []) : [];
-  const attrs = Object.keys(node.attrs).filter(key => !skip.includes(key)).sort().map(key => key + '=' + node.attrs[key]);
-  return node.depth + ' <' + node.tag + ' ' + attrs.join(' ') + '>';
-}
+function signature(node) { return nodeSignature(node, HOOKS, true); }
 // Every ShowRank node appears in the composed layout in order, at the same depth and under the
 // counterpart of its parent; v3 nodes may only sit between them.
 function structure(label, showrank, composed) {
-  const wantNodes = nodes(showrank), haveNodes = nodes(composed);
-  const want = wantNodes.map(node => signature(node, true)), have = haveNodes.map(node => signature(node, true));
-  const matched = [];
-  let at = 0;
-  for (let i = 0; i < want.length; i++) {
-    const parent = wantNodes[i].parent === -1 ? -1 : matched[wantNodes[i].parent];
-    while (at < have.length && (have[at] !== want[i] || haveNodes[at].parent !== parent)) at++;
-    if (at === have.length) throw new Error('ShowRank ' + label + ' structure lost, reordered or reparented a ShowRank node: ' + want[i]);
-    matched.push(at++);
-  }
+  matchStructure(showrank, composed, signature, signature,
+    want => 'ShowRank ' + label + ' structure lost, reordered or reparented a ShowRank node: ' + want);
 }
 
 // Every v3 include/id survives, every ShowRank piece appears exactly once, and no id repeats.
@@ -141,9 +111,8 @@ function guard(label, v3, composed, pieces) {
   const have = refs(composed);
   const lost = [...refs(v3)].filter(ref => !have.has(ref));
   if (lost.length) throw new Error('ShowRank ' + label + ' lost v3 includes/ids: ' + lost.join(', '));
-  const seen = new Set(), repeated = new Set();
-  for (const id of ids(composed)) (seen.has(id) ? repeated : seen).add(id);
-  if (repeated.size) throw new Error('ShowRank ' + label + ' repeats ids: ' + [...repeated].join(', '));
+  const repeated = repeatedIds(composed);
+  if (repeated.length) throw new Error('ShowRank ' + label + ' repeats ids: ' + repeated.join(', '));
   for (const piece of pieces) {
     const found = countOf(composed, piece);
     if (found !== 1) throw new Error('ShowRank ' + label + ' has ' + found + ' copies of ' + piece.trim().split('\n')[0] + ', expected 1');
@@ -182,23 +151,15 @@ function layouts(v3Root = V3_ROOT, showrankRoot = SHOWRANK_ROOT) {
     { menu: read(path.join(showrankRoot, 'panorama/layout/hud_escape_menu.xml')), topbar: read(path.join(showrankRoot, 'panorama/layout/citadel_hud_top_bar.xml')) });
 }
 function writeOrCheck(check, root = ROOT, v3Root = V3_ROOT, showrankRoot = SHOWRANK_ROOT) {
-  const files = layouts(v3Root, showrankRoot), stale = [];
-  for (const [relative, text] of Object.entries(files)) {
-    const target = path.join(root, relative);
-    if (check) { if (!fs.existsSync(target) || lf(fs.readFileSync(target, 'utf8')) !== text) stale.push(relative); }
-    else { fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, text, 'utf8'); }
-  }
-  if (stale.length) throw new Error('Stale ShowRank layouts: ' + stale.join(', ') + '; run hp_colors_rewrite_v3_showrank/tools/showrank.js after reviewing the v3 menu or ShowRank layout change.');
+  const files = layouts(v3Root, showrankRoot);
+  writeLaneOutputs(files, root, check, { label: 'ShowRank layouts', hint: 'run hp_colors_rewrite_v3_showrank/tools/showrank.js after reviewing the v3 menu or ShowRank layout change.' });
   return Object.keys(files).length;
 }
 
 module.exports = { readPieces, compose, guard, structure, layouts, writeOrCheck, chain, OUTPUTS, SCRIPT, PIECES, ROOT, V3_ROOT, SHOWRANK_ROOT };
 if (require.main === module) {
-  try {
-    const args = process.argv.slice(2);
-    if (args.length === 0 || (args[0] === '--check' && args.length === 1)) {
-      const count = writeOrCheck(args[0] === '--check');
-      console.log('HPV3 ShowRank layouts: ' + count + ' outputs ' + (args[0] === '--check' ? 'current' : 'written'));
-    } else throw new Error('Usage: showrank.js [--check]');
-  } catch (error) { console.error(error.message); process.exitCode = 1; }
+  runLaneCli(process.argv.slice(2), {
+    run: check => 'HPV3 ShowRank layouts: ' + writeOrCheck(check) + ' outputs ' + (check ? 'current' : 'written'),
+    usage: 'Usage: showrank.js [--check]',
+  });
 }

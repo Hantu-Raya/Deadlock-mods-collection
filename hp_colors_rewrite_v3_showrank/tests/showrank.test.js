@@ -16,7 +16,7 @@ const { setup } = require(path.join(v3Tests, 'timers-fixture'));
 const { OUTPUTS, SCRIPT, PIECES, ROOT, V3_ROOT, SHOWRANK_ROOT } = showrank;
 // HPV3_SHOWRANK_SOURCE_ROOT selects the staged lane tree (the composed layouts) in builds.
 const laneRoot = path.resolve(process.env.HPV3_SHOWRANK_SOURCE_ROOT || ROOT);
-const lf = text => text.replace(/\r\n/g, '\n');
+const { lf } = require(path.join(V3_ROOT, 'tools/lib/layout-compose'));
 const readFrom = (root, relative) => lf(fs.readFileSync(path.join(root, relative), 'utf8'));
 const v3 = () => ({ menu: readFrom(V3_ROOT, OUTPUTS.menu), topbar: readFrom(V3_ROOT, OUTPUTS.topbar) });
 const sr = () => ({ menu: readFrom(SHOWRANK_ROOT, 'panorama/layout/hud_escape_menu.xml'), topbar: readFrom(SHOWRANK_ROOT, 'panorama/layout/citadel_hud_top_bar.xml') });
@@ -45,6 +45,8 @@ function scratch(t) {
   const copy = (from, to, files) => { for (const file of files) { fs.mkdirSync(path.join(dir, to, layout), { recursive: true }); fs.copyFileSync(path.join(from, layout, file), path.join(dir, to, layout, file)); } };
   const files = ['hud_escape_menu.xml', 'citadel_hud_top_bar.xml'];
   copy(V3_ROOT, 'hp_colors_rewrite_v3', files); copy(SHOWRANK_ROOT, 'showrank_barebones', files);
+  // The composer requires the v3 tool kit (layout-compose, output, stock-layouts) from its sibling v3 checkout.
+  fs.cpSync(path.join(V3_ROOT, 'tools/lib'), path.join(dir, 'hp_colors_rewrite_v3/tools/lib'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'hp_colors_rewrite_v3_showrank/tools'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'tools/showrank.js'), path.join(dir, 'hp_colors_rewrite_v3_showrank/tools/showrank.js'));
   const cli = path.join(dir, 'hp_colors_rewrite_v3_showrank/tools/showrank.js');

@@ -3,19 +3,21 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const ENGINE = require('./engine-facts.json').css;
+const { UNITS } = require('./schema');
 
 // PROJECT ceiling (not an engine limit; the engine has no selector-count limit): live 6782 a rule with a
 // 37-selector / 2.9 KB selector list compiled cleanly but failed to parse at runtime ("Failed to parse selector")
 // and aborted the Escape-menu load. Every packed stylesheet keeps each rule at <= 10 comma-separated selectors
 // and <= 1,024 characters.
-const MAX_SELECTORS = 10, MAX_SELECTOR_CHARS = 1024;
 // ENGINE limits (engine-facts.json, Deadlock DLL disassembly): the text before `{` is read into a 2,048-byte
 // buffer (<= 2,047 bytes, else "Failed to parse selector"), and each comma-separated selector into a 256-byte
 // buffer ("Selector exceeds temp buffer size"). Measured conservatively: UTF-8 bytes of the raw text, comments
 // and inner whitespace included (only leading whitespace is skipped, as the engine does).
-const ENGINE_SELECTOR_LIST_BYTES = ENGINE.limits.selectorListBytes, ENGINE_SELECTOR_CHARS = ENGINE.limits.selectorChars;
 const PROPERTIES = new Set(ENGINE.properties.values);
-const LIMITS = ENGINE.limits;
+// Engine limits plus the two stricter project ceilings (max selectors per rule, max characters per selector list).
+// A number with an optional schema unit (px, %, deg, s), stripped before the colour-macro scan.
+const NUMBER_WITH_UNIT = new RegExp('[+-]?[\\d.]+(?:' + UNITS.filter(Boolean).join('|') + ')?', 'g');
+const LIMITS = { ...ENGINE.limits, maxSelectors: 10, maxSelectorChars: 1024 };
 const AT_RULES = new Set(ENGINE.atRules.values);
 const PSEUDO = new Set([...ENGINE.pseudoClasses.flags, ...ENGINE.pseudoClasses.structural]);
 const bytes = text => Buffer.byteLength(text, 'utf8');
@@ -50,10 +52,10 @@ function engineFindings(file, raw) {
       if (atRule && /^@keyframes\b/i.test(prelude)) { keyframes = true; keyframesDepth = depth; }
       if (depth === 0 && !atRule && prelude) {
         const rule = 'rule `' + head(prelude) + '`';
-        if (bytes(rawPrelude) > ENGINE_SELECTOR_LIST_BYTES) errors.push(file + ':' + line + ': ' + rule + ' selector list is ' + bytes(rawPrelude) + ' bytes (engine max ' + ENGINE_SELECTOR_LIST_BYTES + '; "Failed to parse selector")');
+        if (bytes(rawPrelude) > LIMITS.selectorListBytes) errors.push(file + ':' + line + ': ' + rule + ' selector list is ' + bytes(rawPrelude) + ' bytes (engine max ' + LIMITS.selectorListBytes + '; "Failed to parse selector")');
         for (const part of rawPrelude.split(',')) {
           const size = bytes(part.replace(/^\s+/, ''));
-          if (size > ENGINE_SELECTOR_CHARS) errors.push(file + ':' + line + ': ' + rule + ' has a selector of ' + size + ' characters (engine max ' + ENGINE_SELECTOR_CHARS + ' per selector; "Selector exceeds temp buffer size")');
+          if (size > LIMITS.selectorChars) errors.push(file + ':' + line + ': ' + rule + ' has a selector of ' + size + ' characters (engine max ' + LIMITS.selectorChars + ' per selector; "Selector exceeds temp buffer size")');
         }
         const bare = prelude.replace(/\([^()]*\)/g, '()').replace(/"[^"]*"|'[^']*'/g, '""');
         const combinator = /[+~]/.exec(bare);
@@ -107,8 +109,8 @@ function checkStylesheets(dir) {
             rules++; widest = Math.max(widest, count);
             if (!selector) throw new Error(file + ':' + start + ': empty selector');
             const rule = 'rule `' + head(selector) + '`';
-            if (count > MAX_SELECTORS) throw new Error(file + ':' + start + ': PROJECT ceiling (stricter than the engine, which has no selector-count limit): ' + rule + ': rule has ' + count + ' selectors (max ' + MAX_SELECTORS + '; live 6782 fails to parse long selector lists)');
-            if (selector.length > MAX_SELECTOR_CHARS) throw new Error(file + ':' + start + ': PROJECT ceiling (engine max is ' + ENGINE_SELECTOR_LIST_BYTES + ' bytes): ' + rule + ': selector list has ' + selector.length + ' characters (max ' + MAX_SELECTOR_CHARS + ')');
+            if (count > LIMITS.maxSelectors) throw new Error(file + ':' + start + ': PROJECT ceiling (stricter than the engine, which has no selector-count limit): ' + rule + ': rule has ' + count + ' selectors (max ' + LIMITS.maxSelectors + '; live 6782 fails to parse long selector lists)');
+            if (selector.length > LIMITS.maxSelectorChars) throw new Error(file + ':' + start + ': PROJECT ceiling (engine max is ' + LIMITS.selectorListBytes + ' bytes): ' + rule + ': selector list has ' + selector.length + ' characters (max ' + LIMITS.maxSelectorChars + ')');
           }
         }
         depth++; prelude = '';
@@ -135,7 +137,7 @@ function checkStylesheets(dir) {
       const keywords = new Set(['white', 'black', 'transparent', 'none', 'solid', 'fill', 'inset', 'rgb', 'rgba',
         'gradient', 'linear', 'radial', 'from', 'to', 'color-stop']);
       for (const declaration of text.matchAll(/(?:^|[;{}])\s*((?:background-|wash-|border(?:-(?:top|bottom|left|right))?-)?color|border(?:-(?:top|bottom|left|right))?|(?:text|box|img)-shadow)\s*:\s*([^;{}]+)(?=;)/g)) {
-        const value = declaration[2].replace(/#[a-f\d]+/gi, '').replace(/[+-]?[\d.]+(?:px|deg|s|%)?/g, '');
+        const value = declaration[2].replace(/#[a-f\d]+/gi, '').replace(NUMBER_WITH_UNIT, '');
         for (const token of value.matchAll(/[a-z][\w-]*/gi)) {
           if (!keywords.has(token[0].toLowerCase())) throw new Error(file + ':' + lineOf(declaration.index) + ': unresolved colour macro ' + token[0] + ' in owned CSS; use a hex literal');
         }
@@ -146,4 +148,4 @@ function checkStylesheets(dir) {
   return { files: files.length, rules, widest, warnings };
 }
 
-module.exports = { checkStylesheets, engineFindings, MAX_SELECTORS, MAX_SELECTOR_CHARS, ENGINE_SELECTOR_LIST_BYTES, ENGINE_SELECTOR_CHARS };
+module.exports = { checkStylesheets, engineFindings };

@@ -2,6 +2,12 @@
   "use strict";
   if ($.HPColorsV3Renderer) $.HPColorsV3Renderer.stop();
   var MAGIC = "HP_COLORS_V3_CONFIG";
+  var HEADER_RE = new RegExp('^\\s*\\{\\s*"magic"\\s*:\\s*"' + MAGIC + '"\\s*[,}]');
+  // One shared empty plan; callers only read it (apply never writes, the preview alias writes only when styles.fill/classes.fill exist).
+  var EMPTY_PLAN = Object.freeze({ styles: Object.freeze({}), classes: Object.freeze({}), parents: Object.freeze({}) });
+  function emptyPickups() { return { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] }; }
+  // A neutral camp uses the enemy side's config.
+  function sideConfig(config, carrier) { return config.side[carrier.side === "neutral" ? "enemy" : carrier.side]; }
   var root = null, carriers = [], ancestry = [], cache = null, cachedFacts = null, memo = null;
   var settings = null, revision = -1, epoch = "", lastRaw = "", ledger = [], carrierSignature = "", kind = null;
   // SHOW BOUNDS: session-only view state that travels beside the settings, never inside them.
@@ -216,10 +222,10 @@
   }
   // Pure over a class predicate so the menu preview classifies exactly like world bars.
   function classifyWith(anyOf, enabled, owned, config) {
-    var cssPlayer = anyOf(["player"]), player = cssPlayer || anyOf(["CLASS_PLAYER"]);
+    var player = anyOf(["player"]) || anyOf(["CLASS_PLAYER"]);
     // Closed gates with no inline restoration need only a cheap player wake-up probe.
     if (!player && !owned && !anyOf(openUnitClasses(config))) return { signature: "nonplayer", kind: "unknown", relation: "unknown", eligible: false };
-    var teamNeutral = anyOf(["team_neutral"]), neutral = teamNeutral || (enabled && anyOf(neutralClasses.slice(1)));
+    var neutral = anyOf(["team_neutral"]) || (enabled && anyOf(neutralClasses.slice(1)));
     var enemy = anyOf(["enemy"]), friend = anyOf(["friend"]);
     var local = player && enabled && anyOf(["LocalPlayer"]);
     var side = neutral ? "neutral" : friend ? "ally" : enemy ? "enemy" : "unknown";
@@ -250,8 +256,8 @@
     var flags = {};
     if (enabled && eligible && criticalOutline(config, side)) stockClasses.forEach(function (name) { flags[name] = anyOf([name]); });
     var base = [unitKind, boss, neutral, enemy, friend, !!local, team1, team2, spectating, eligible].join("|");
-    return { signature: base + "|" + JSON.stringify(flags), base: base, flags: flags, player: player,
-      enemy: enemy, friend: friend, spectating: spectating, cssPlayer: cssPlayer, teamNeutral: teamNeutral, team1: team1, team2: team2,
+    return { signature: base + "|" + JSON.stringify(flags), base: base, flags: flags,
+      enemy: enemy, friend: friend, spectating: spectating, team1: team1, team2: team2,
       kind: unitKind, side: side, team: team, relation: relation,
       eligible: eligible };
   }
@@ -321,7 +327,7 @@
         cache.lines = container; cache.lineChildren = []; lastProbe = ""; lastFull = -Infinity;
       }
     }
-    var side = settings.side[kind.side === "neutral" ? "enemy" : kind.side];
+    var side = sideConfig(settings, kind);
     var next = side && side.linesVisible && side.lineColorEnabled && kind.side !== "neutral" && !kind.spectating ? lineChildren(cache) : [];
     if (childKinds.has(cache.lines)) cache.nativeLineCount = childKinds.get(cache.lines).children.length;
     if (next.length !== cache.lineChildren.length || next.some(function (panel, i) { return panel !== cache.lineChildren[i]; })) {
@@ -387,7 +393,7 @@
   // World pickups are native StatusEffect panels, not timer snapshots. Sample on
   // v2's existing 3s cadence; native progress clips/images/visibility remain engine-owned.
   function pickupParts(container, samples) {
-    var result = { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+    var result = emptyPickups();
     if (!valid(container)) return result;
     pickupClasses.forEach(function (name, bit) {
       container.FindChildrenWithClassTraverse(name).forEach(function (panel) {
@@ -422,7 +428,7 @@
     }
     var container = valid(effects) ? effects.FindChildTraverse("StatusEffectContainer") : null;
     var next = kind && kind.kind === "player" && kind.eligible && settings && settings.shared.pickupTimersEnabled && timerFacts.pickupAllowed ? pickupParts(container)
-      : { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+      : emptyPickups();
     var changed = Object.keys(next).some(function (key) {
       return next[key].length !== cache[key].length || next[key].some(function (value, i) { return value !== cache[key][i]; });
     });
@@ -710,8 +716,8 @@
     var excluded = Math.max(0, Math.min(1, Math.max(layerRight(input.shield, input.innerWidth), layerRight(input.armor, input.innerWidth))) - fill);
     var health = fill / Math.max(fill, 1 - excluded);
     return Object.freeze({ signature: signature, eligible: carrier.eligible, kind: carrier.kind, side: carrier.side, team: carrier.team,
-      relation: carrier.relation, flags: carrier.flags, player: carrier.player, enemy: carrier.enemy, friend: carrier.friend, spectating: carrier.spectating,
-      cssPlayer: carrier.cssPlayer, teamNeutral: carrier.teamNeutral, team1: carrier.team1, team2: carrier.team2,
+      relation: carrier.relation, flags: carrier.flags, enemy: carrier.enemy, friend: carrier.friend, spectating: carrier.spectating,
+      team1: carrier.team1, team2: carrier.team2,
       geometry: input.geometry, row: input.row, level: input.level, stamina: input.stamina, pickups: input.pickups,
       ultimateAngle: input.ultimateAngle, bounty: input.bounty === undefined ? null : input.bounty,
       fraction: Number.isFinite(health) ? Math.max(0, Math.min(1, health)) : 0, fillCoverage: fill, laid: input.innerWidth > 0, old: oldFacts(input) });
@@ -768,11 +774,10 @@
       HPColorsV3PulseSubtle: intensity === 0, HPColorsV3PulseIntense: intensity === 2 };
   }
   function plan(input, config, view) {
-    var empty = { styles: {}, classes: {}, parents: {} };
-    if (!config || !config.shared.enabled || !input.eligible || !input.geometry) return empty;
+    if (!config || !config.shared.enabled || !input.eligible || !input.geometry) return EMPTY_PLAN;
     var player = input.kind === "player", neutral = input.side === "neutral";
-    var side = config.side[neutral ? "enemy" : input.side], g = input.geometry, row = input.row;
-    if (!side) return empty;
+    var side = sideConfig(config, input), g = input.geometry, row = input.row;
+    if (!side) return EMPTY_PLAN;
     // Unit bars (objectives and neutral camps) keep the game's layout and take only colors (user, 2026-10-29:
     // "don't modify the layout to match the player ones"): everything that moves, sizes, styles or reparents
     // below is hero-only. Neutral camps and objectives each have their own HP number options on UNITS
@@ -1453,7 +1458,7 @@
     }
   }
   function resetCache() {
-    apply({ styles: {}, classes: {} }); cache = null; cachedFacts = null; memo = null; geometry = null; settleGeometry = false;
+    apply(EMPTY_PLAN); cache = null; cachedFacts = null; memo = null; geometry = null; settleGeometry = false;
     lastProbe = ""; lastConfigKey = ""; lastGeometry = -Infinity;
   }
   function checkCarriers() {
@@ -1472,7 +1477,7 @@
     if (next.signature !== carrierSignature || changedLineage) {
       var release = changedLineage || !kind || next.base !== kind.base || next.eligible !== kind.eligible;
       kind = next; carrierSignature = next.signature; cachedFacts = null; memo = null; lastProbe = "";
-      if (release) { apply({ styles: {}, classes: {} }); geometry = null; lastGeometry = -Infinity; }
+      if (release) { apply(EMPTY_PLAN); geometry = null; lastGeometry = -Infinity; }
       // HPV3_DEBUG $.Msg("[HPV3] renderer carrier changed: " + kind.kind + "/" + kind.side);
     } else kind = next;
     // HPV3_DEBUG if (kind.kind === "player" && kind.eligible) { var debugTeamLine = kind.side + " " + kind.team; var debugKnown = debugLastName && debugLastName !== "?"; if (debugTeamLine !== debugTeam || (debugKnown && debugTeamLogged.indexOf("? ") === 0)) { var debugTeamFull = (debugKnown ? debugLastName : debugName()) + " " + debugTeamLine; debugTeam = debugTeamLine; if (debugTeamFull !== debugTeamLogged) { debugTeamLogged = debugTeamFull; $.Msg("[HPV3] team " + debugTeamFull); } } };
@@ -1491,11 +1496,11 @@
     try {
       if (force || rediscover || Date.now() - lastCarrierCheck >= 1000 || !ancestry.length) checkCarriers();
       if (!settings || !settings.shared.enabled || !kind || !kind.eligible) {
-        apply({ styles: {}, classes: {} }); status.state = "dormant"; return;
+        apply(EMPTY_PLAN); status.state = "dormant"; return;
       }
       if (!cache && !discover()) { status.state = "dormant"; return; }
       if (!valid(cache.fill)) { status.state = "dormant"; return; }
-      var lineSide = settings.side[kind.side === "neutral" ? "enemy" : kind.side];
+      var lineSide = sideConfig(settings, kind);
       // OLD plans no line washes, so it skips this per-tick recount (the 1s carrier check remains).
       if (kind.side !== "neutral" && lineSide.linesVisible && lineSide.lineColorEnabled && !kind.spectating && settings.shared.barStyle !== "old" &&
           valid(cache.lines) && cache.lines.GetChildCount() !== cache.nativeLineCount) reconcileLines();
@@ -1532,7 +1537,7 @@
     } catch (error) {
       status.state = "dormant";
       cachedFacts = null; memo = null; geometry = null; lastProbe = "";
-      try { apply({ styles: {}, classes: {} }); } catch (restoreError) {
+      try { apply(EMPTY_PLAN); } catch (restoreError) {
         // The pending stock lease survives; the next cold tick retries it.
         settleGeometry = true;
         // HPV3_DEBUG $.Msg("[HPV3] renderer rollback pending: " + String(restoreError));
@@ -1551,7 +1556,7 @@
     if (!running || !valid(root) || typeof raw !== "string") return;
     // The config publisher owns this canonical envelope header. Other modules
     // receive opaque messages, even when a player name contains the config magic.
-    if (!/^\s*\{\s*"magic"\s*:\s*"HP_COLORS_V3_CONFIG"\s*[,}]/.test(raw)) {
+    if (!HEADER_RE.test(raw)) {
       messageHooks.slice().forEach(function (fn) { fn(raw); }); return;
     }
     if (raw === lastRaw || raw.length > 64000) return;
@@ -1634,7 +1639,7 @@
         if (staminaLowOn) stamina.empty = pipEmpties(stamina.pips);
         parts.staminaIcons = stamina.icons; parts.staminaEmpty = stamina.empty;
         var pickups = config && config.shared.enabled && carrier.eligible && carrier.kind === "player" && config.shared.pickupTimersEnabled
-          ? pickupParts(parts.pickupContainer, parts.pickupSamples) : { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+          ? pickupParts(parts.pickupContainer, parts.pickupSamples) : emptyPickups();
         Object.keys(pickups).forEach(function (key) { parts[key] = pickups[key]; });
         parts.ultimateAngle = carrier.eligible && carrier.kind === "player" && config.shared.ultimateTimerEnabled ? 180 : null;
         if (parts.ultimateAngle !== null) ultimateArtwork(parts, "HPColorsPreview");
@@ -1651,7 +1656,7 @@
         var writes = applyTo(target, next);
         return { facts: current, plan: next, writes: writes, settle: target.settle };
       },
-      release: function () { target.settle = false; return applyTo(target, { styles: {}, classes: {} }); },
+      release: function () { target.settle = false; return applyTo(target, EMPTY_PLAN); },
       owned: function () { return target.ledger.filter(function (owner) { return owner.owned; }).length; }
     };
   }

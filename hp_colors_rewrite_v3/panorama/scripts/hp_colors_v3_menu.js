@@ -11,8 +11,16 @@
   var heroKeys = Object.create(null);
   var rowCells = new Map();
   var effectiveSettings = null, lastPublishedRevision = -1;
-  var tiers = [-1, -1, -1, -1], requiredSlots = [false, false, false, false], ruleRows = {};
-  var signature = null, abilityOwner = null, abilityPanels = [null, null, null, null], matchedRules = "";
+  var ABILITY_SLOTS = 4, MAX_TIER = 3, SHARED_SIDES = ["enemy", "ally"], UNDO_LIMIT = 40, THRESHOLD_GAP = 1;
+  var GESTURE_PUBLISH_MS = 50, ANSWER_THROTTLE_MS = 500;
+  // One value per ability slot (a fresh array each call, as the literals were).
+  function slotsOf(value) {
+    var list = [];
+    for (var i = 0; i < ABILITY_SLOTS; i++) list.push(value);
+    return list;
+  }
+  var tiers = slotsOf(-1), requiredSlots = slotsOf(false), ruleRows = {};
+  var signature = null, abilityOwner = null, abilityPanels = slotsOf(null), matchedRules = "";
   var panels = Object.create(null);
   var hueThumbs = Object.create(null);
   var bound = Object.create(null);
@@ -185,7 +193,7 @@
   }
   function gesturePublish() {
     if (!publicationResolved || publishJob) return;
-    var remaining = 50 - (Date.now() - lastPublishedAt);
+    var remaining = GESTURE_PUBLISH_MS - (Date.now() - lastPublishedAt);
     if (remaining <= 0) { publish(); return; }
     var token = generation;
     publishJob = $.Schedule(remaining / 1000, function () {
@@ -200,7 +208,7 @@
       if (request.magic !== "HPV3_CONFIG_REQUEST" || typeof request.epoch !== "string" || request.epoch.length > 128 ||
           !Number.isSafeInteger(request.revision) || request.revision < -1 ||
           (request.epoch === config.epoch && request.revision >= config.revision)) return;
-      var remaining = 500 - (Date.now() - lastPublishedAt);
+      var remaining = ANSWER_THROTTLE_MS - (Date.now() - lastPublishedAt);
       if (remaining <= 0) {
         if (answerJob) $.CancelScheduled(answerJob);
         answerJob = null;
@@ -223,7 +231,7 @@
       else unmatched.push(cell);
     });
     // Independently valid threshold rules may cross; preserve the same low < high invariant.
-    next.shared.lowThreshold = Math.min(next.shared.lowThreshold, next.shared.highThreshold - 1);
+    next.shared.lowThreshold = Math.min(next.shared.lowThreshold, next.shared.highThreshold - THRESHOLD_GAP);
     var observation = matched.join(",") + "|" + unmatched.join(",");
     if (observation !== matchedRules) {
       matchedRules = observation;
@@ -238,7 +246,7 @@
     config.settings = settings;
     if (rules !== undefined) config.rules = clone(rules);
     syncNavDots();
-    var required = [false, false, false, false];
+    var required = slotsOf(false);
     Object.keys(config.rules).forEach(function (cell) { required[config.rules[cell].slot - 1] = true; });
     required.forEach(function (needed, index) { if (!needed || !requiredSlots[index]) tiers[index] = -1; });
     requiredSlots = required;
@@ -246,27 +254,27 @@
   }
   function clearTiers() {
     var changed = tiers.some(function (tier) { return tier !== -1; });
-    tiers = [-1, -1, -1, -1];
+    tiers = slotsOf(-1);
     if (changed) {
       // HPV3_DEBUG $.Msg("[HPV3] tiers " + tiers.join(","));
     }
-    signature = null; abilityOwner = null; abilityPanels = [null, null, null, null];
+    signature = null; abilityOwner = null; abilityPanels = slotsOf(null);
     if (config && resolveEffective()) publish();
     syncAbilitySlots();
   }
   function sampleTiers() {
     // While the condition dialog is open, every slot is read so the HUD-style outlines show live tiers.
-    var wanted = conditionDraft ? [true, true, true, true] : requiredSlots;
+    var wanted = conditionDraft ? slotsOf(true) : requiredSlots;
     if (!wanted.some(Boolean)) return;
-    var next = [-1, -1, -1, -1];
+    var next = slotsOf(-1);
     if (identity.phase === "active" && !identityClasses()("spec_mode")) {
       if (!valid(signature)) {
         signature = (valid(identity.hud) ? identity.hud : identity.root).FindChildTraverse("hud_signature");
-        abilityOwner = null; abilityPanels = [null, null, null, null];
+        abilityOwner = null; abilityPanels = slotsOf(null);
       }
       if (!valid(abilityOwner) || !valid(signature) || abilityOwner.GetParent() !== signature) {
         abilityOwner = valid(signature) ? signature.FindChildTraverse("abilities") : null;
-        abilityPanels = [null, null, null, null];
+        abilityPanels = slotsOf(null);
       }
       wanted.forEach(function (needed, index) {
         if (!needed) return;
@@ -275,7 +283,7 @@
           slot = valid(abilityOwner) ? abilityOwner.FindChild("slot_signature_" + (index + 1)) : null;
           abilityPanels[index] = slot;
         }
-        if (valid(slot)) for (var tier = 3; tier >= 0; tier--) if (slot.BHasClass("Tier" + tier)) { next[index] = tier; break; }
+        if (valid(slot)) for (var tier = MAX_TIER; tier >= 0; tier--) if (slot.BHasClass("Tier" + tier)) { next[index] = tier; break; }
       });
     }
     if (JSON.stringify(next) === JSON.stringify(tiers)) return;
@@ -293,11 +301,16 @@
   }
 
   // ---- SHOW BOUNDS: a view toggle, not a setting (no Undo entry, no store commit) ----
-  function topPanel() {
+  // Walks up from the menu root (at most 32 parents): the first panel whose id is stopId, else the top one.
+  function topChain(stopId) {
     var top = null;
-    for (var node = activeRoot, depth = 0; valid(node) && depth < 32; depth++) { top = node; node = node.GetParent(); }
+    for (var node = activeRoot, depth = 0; valid(node) && depth < 32; depth++) {
+      if (stopId && node.id === stopId) return node;
+      top = node; node = node.GetParent();
+    }
     return top;
   }
+  function topPanel() { return topChain(null); }
   function syncBounds() {
     if (panel("HPColorsShowBoundsToggle")) panel("HPColorsShowBoundsToggle").SetHasClass("Checked", showBounds);
   }
@@ -399,7 +412,7 @@
   function clearIdentityRefs() {
     identity.hud = null; identity.topBar = null; identity.clock = null; identity.card = null; identity.label = null;
     identity.discoverAt = 0;
-    signature = null; abilityOwner = null; abilityPanels = [null, null, null, null];
+    signature = null; abilityOwner = null; abilityPanels = slotsOf(null);
   }
   function identityRefs() {
     var root = topPanel();
@@ -571,6 +584,7 @@
   // A refused release keeps ownership (hud.stale for a replaced bar) and is retried every second,
   // even while HP Colors is off, until it lands.
   function hudRoot() {
+    // Not topChain: that would need an extra valid() call on the result, which the audit counts.
     var top = null;
     for (var node = activeRoot, depth = 0; valid(node) && depth < 32; depth++) {
       if (node.id === "Hud") return node;
@@ -1057,15 +1071,16 @@
 
   // ---- Value normalisation (schema bounds/step; thresholds keep low < high) ----
   function decimals(step) { var text = String(step); return text.indexOf(".") < 0 ? 0 : text.length - text.indexOf(".") - 1; }
-  function normalizeNumber(row, raw, settings) {
+  // thresholds: the settings whose low/high pair clamps the value, or null for a condition value (no pair).
+  function normalizeNumber(row, raw, thresholds) {
     if (raw === null || raw === undefined || !String(raw).trim()) return null;
     var value = Number(raw);
     if (!Number.isFinite(value)) return null;
     var min = row.bounds[0], max = row.bounds[1];
     value = min + Math.round((Math.max(min, Math.min(max, value)) - min) / row.step) * row.step;
     value = Number(Math.min(max, value).toFixed(decimals(row.step)));
-    if (row.key === "lowThreshold" && settings.shared.highThreshold !== undefined) value = Math.min(value, settings.shared.highThreshold - 1);
-    if (row.key === "highThreshold" && settings.shared.lowThreshold !== undefined) value = Math.max(value, settings.shared.lowThreshold + 1);
+    if (row.key === "lowThreshold" && thresholds && thresholds.shared.highThreshold !== undefined) value = Math.min(value, thresholds.shared.highThreshold - THRESHOLD_GAP);
+    if (row.key === "highThreshold" && thresholds && thresholds.shared.lowThreshold !== undefined) value = Math.max(value, thresholds.shared.lowThreshold + THRESHOLD_GAP);
     return value;
   }
   function normalizeColor(raw) {
@@ -1113,7 +1128,7 @@
   function syncAbilitySlots() {
     if (!conditionDraft) return;
     var hero = contractRef.heroes.filter(function (entry) { return entry.key === identity.hero; })[0];
-    for (var slot = 1; slot <= 4; slot++) {
+    for (var slot = 1; slot <= ABILITY_SLOTS; slot++) {
       var prefix = "HPColorsConditionSlot" + slot, image = panel(prefix + "Image");
       var path = hero && hero.abilities && hero.abilities[slot - 1] || null;
       var cached = conditionImages[slot - 1];
@@ -1126,8 +1141,7 @@
         panel(prefix).SetHasClass("Unavailable", tiers[slot - 1] === -1);
         // Stock tier art shows the required tier on the selected slot and the live tier elsewhere.
         var shown = slot === conditionDraft.rule.slot ? conditionDraft.rule.minTier : tiers[slot - 1];
-        for (var tier = 1; tier <= 3; tier++) {
-          panel(prefix).SetHasClass("LiveTier" + tier, tiers[slot - 1] === tier);
+        for (var tier = 1; tier <= MAX_TIER; tier++) {
           panel(prefix).SetHasClass("ShowTier" + tier, shown === tier);
         }
       }
@@ -1137,7 +1151,7 @@
     if (!conditionDraft) return;
     var draft = conditionDraft, row = draft.row, rule = draft.rule;
     syncAbilitySlots();
-    for (var slot = 1; slot <= 4; slot++) {
+    for (var slot = 1; slot <= ABILITY_SLOTS; slot++) {
       panel("HPColorsConditionSlot" + slot).SetHasClass("Checked", slot === rule.slot);
       setLabel("HPColorsConditionSlot" + slot + "Label", slot === rule.slot ? "TIER " + rule.minTier + "+" : "");
     }
@@ -1164,7 +1178,7 @@
     if (!conditionDraft) return;
     var row = conditionDraft.row;
     if (row.type === "color") changeCondition(normalizeColor(panel("HPColorsConditionHex").text));
-    if (row.type === "number") changeCondition(normalizeNumber(row, panel("HPColorsConditionNumberEntry").text, { shared: {} }));
+    if (row.type === "number") changeCondition(normalizeNumber(row, panel("HPColorsConditionNumberEntry").text, null));
     if (rejectedCommit === true && !conditionDraft.valid) trigger(panel(row.type === "color" ? "HPColorsConditionHex" : "HPColorsConditionNumberEntry"), "HPC3NegativeShake");
   }
   function closeCondition() {
@@ -1225,10 +1239,10 @@
     editSettings(config.settings, rules);
   }
   function bindConditions() {
-    for (var slot = 1; slot <= 4; slot++) (function (number) {
+    for (var slot = 1; slot <= ABILITY_SLOTS; slot++) (function (number) {
       on("HPColorsConditionSlot" + number, "onactivate", function () {
         if (!conditionDraft) return;
-        if (conditionDraft.rule.slot === number) conditionDraft.rule.minTier = conditionDraft.rule.minTier % 3 + 1;
+        if (conditionDraft.rule.slot === number) conditionDraft.rule.minTier = conditionDraft.rule.minTier % MAX_TIER + 1;
         else conditionDraft.rule.slot = number;
         syncCondition();
       });
@@ -1252,7 +1266,7 @@
     });
     on("HPColorsConditionNumberSlider", "onvaluechanged", function () {
       if (!conditionDraft || syncing) return;
-      changeCondition(normalizeNumber(conditionDraft.row, panel("HPColorsConditionNumberSlider").value, { shared: {} }));
+      changeCondition(normalizeNumber(conditionDraft.row, panel("HPColorsConditionNumberSlider").value, null));
       panel("HPColorsConditionNumberEntry").text = String(conditionDraft.rule.value);
     });
     on("HPColorsConditionSwatch", "onactivate", function () {
@@ -1273,18 +1287,8 @@
       if (row.type === "boolean") {
         target = panel(row.toggleId); if (target) target.SetHasClass("Checked", value === true);
       } else if (row.type === "enum") {
-        if (row.kind === "segment") {
-          for (var i = 0; i < row.options.length; i++) {
-            target = panel(row.options[i].id); if (target) target.SetHasClass("Selected", row.options[i].value === value);
-          }
-        } else {
-          target = panel(row.id);
-          for (var j = 0; target && j < row.options.length; j++) {
-            if (row.options[j].value !== value) continue;
-            var option = target.FindDropDownMenuChild(row.options[j].id);
-            // DropDown.SetSelected takes the option id string (stock/v2 usage).
-            if (valid(option)) target.SetSelected(row.options[j].id);
-          }
+        for (var i = 0; i < row.options.length; i++) {
+          target = panel(row.options[i].id); if (target) target.SetHasClass("Selected", row.options[i].value === value);
         }
       } else if (row.type === "color") {
         target = panel(row.hexId); if (target) target.text = value;
@@ -1336,7 +1340,7 @@
   function missing(row) {
     if (!row.requires || !config) return [];
     var best = null;
-    (row.side === "shared" ? ["enemy", "ally"] : [row.side]).forEach(function (side) {
+    (row.side === "shared" ? SHARED_SIDES : [row.side]).forEach(function (side) {
       var list = [];
       row.requires.forEach(function (condition) {
         conditionMissing(condition, side).forEach(function (text) { if (list.indexOf(text) < 0) list.push(text); });
@@ -1363,7 +1367,7 @@
       if (!target) return;
       shownActive[row.rowId] = active;
       target.SetHasClass("HPC3RowDisabled", !active);
-      [row.toggleId, row.hexId, row.hueId, row.swatchId, row.sliderId, row.entryId, row.resetId, row.conditionId, row.kind === "dropdown" ? row.id : ""]
+      [row.toggleId, row.hexId, row.hueId, row.swatchId, row.sliderId, row.entryId, row.resetId, row.conditionId]
         .concat(row.kind === "segment" ? row.options.map(function (option) { return option.id; }) : [])
         .forEach(function (id) { var control = id && panel(id); if (control) control.enabled = active; });
     });
@@ -1425,7 +1429,7 @@
   function record(before) {
     if (before === historySnapshot()) return;
     history.push(before);
-    if (history.length > 40) history.shift();
+    if (history.length > UNDO_LIMIT) history.shift();
     syncUndo();
   }
   function beginGesture(key) {
@@ -1590,15 +1594,9 @@
     on(row.conditionId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.conditionId)); });
     if (row.type === "boolean") {
       on(row.toggleId, "onactivate", function () { commit(row, valuesFor(config.settings, row)[row.key] !== true); });
-    } else if (row.type === "enum" && row.kind === "segment") {
+    } else if (row.type === "enum") {
       row.options.forEach(function (option) {
         on(option.id, "onactivate", function () { commit(row, option.value); });
-      });
-    } else if (row.type === "enum") {
-      on(row.id, "oninputsubmit", function () {
-        var selected = panel(row.id) && panel(row.id).GetSelected();
-        for (var i = 0; i < row.options.length; i++) if (valid(selected) && selected.id === row.options[i].id) return commit(row, row.options[i].value);
-        sync(row);
       });
     } else if (row.type === "color") {
       var hex = function () {
@@ -2884,12 +2882,7 @@
       var found = Object.create(null);
       collect(root, found);
       panels = found; shownActive = {};
-      // DropDown options live in the detached dropdown menu, not in the layout tree.
-      var detached = Object.create(null);
-      contract.controls.forEach(function (row) {
-        if (row.kind === "dropdown") row.options.forEach(function (option) { detached[option.id] = true; });
-      });
-      contract.ids.forEach(function (id) { if (id !== "HPColorsNativePicker" && !detached[id] && !found[id]) missing.push(id); });
+      contract.ids.forEach(function (id) { if (id !== "HPColorsNativePicker" && !found[id]) missing.push(id); });
       bindChrome();
       for (var i = 0; i < contract.controls.length; i++) {
         bindControl(contract.controls[i]);

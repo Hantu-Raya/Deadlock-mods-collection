@@ -17,9 +17,12 @@
 // instead of inventing a number.
 const fs = require('node:fs');
 const path = require('node:path');
-const { REPO, PROJECTS, parseTap, runNodeTest, formatSummary } = require('./test.js');
+const cli = require('./lib/cli');
+const { REPO, LANES, V3_DIR, VARIANT_NAMES } = require('./lib/projects');
+const { runNodeTest, listTests } = require('./lib/run');
+const { parseTap, formatSummary } = require('./lib/tap');
 
-const V3 = path.join(REPO, PROJECTS.v3.dir);
+const V3 = path.join(REPO, V3_DIR);
 const RENDERER = path.join(V3, 'tests/renderer.test.js');
 const AUDIT = path.join(V3, 'tests/audit-performance.test.js');
 const CEILING_PATTERN = 'operation ceiling';
@@ -291,9 +294,9 @@ function compareReports(current, old) {
 // Variant lanes: budget-bearing = emits t.diagnostic or counts panel operations.
 // ---------------------------------------------------------------------------------------------------
 function variantBudgetFiles(projectKey, repo = REPO) {
-  const project = PROJECTS[projectKey], dir = path.join(repo, project.dir, 'tests');
+  const project = LANES[projectKey], dir = path.join(repo, project.dir, 'tests');
   if (!fs.existsSync(dir)) return { project: projectKey, label: project.label, files: [], scanned: 0, note: project.dir + '/tests is absent' };
-  const tests = fs.readdirSync(dir).filter(name => name.endsWith('.test.js')).sort();
+  const tests = listTests(dir);
   const files = tests.filter(name => /\.diagnostic\(|operationCounts|operation ceiling/.test(fs.readFileSync(path.join(dir, name), 'utf8')))
     .map(name => project.dir + '/tests/' + name);
   return { project: projectKey, label: project.label, files, scanned: tests.length,
@@ -348,30 +351,31 @@ function printReport(report, compare) {
 // ---------------------------------------------------------------------------------------------------
 // CLI.
 // ---------------------------------------------------------------------------------------------------
+const ARGS = {
+  defaults: { from: null, project: 'v3', save: null, compare: null, json: false, help: false },
+  options: {
+    '--from': { key: 'from', value: true },
+    '--project': { key: 'project', value: true, lower: true },
+    '--save': { key: 'save', value: true },
+    '--compare': { key: 'compare', value: true },
+    '--json': { key: 'json' },
+    ...cli.HELP,
+  },
+};
+
 function parseArgs(argv) {
-  const options = { from: null, project: 'v3', save: null, compare: null, json: false, help: false };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i], eq = arg.indexOf('='), name = eq > 0 && arg.startsWith('--') ? arg.slice(0, eq) : arg;
-    const value = () => { if (name !== arg) return arg.slice(eq + 1); if (i + 1 >= argv.length) throw new Error(name + ' needs a value'); return argv[++i]; };
-    if (name === '--from') options.from = value();
-    else if (name === '--project') options.project = value().toLowerCase();
-    else if (name === '--save') options.save = value();
-    else if (name === '--compare') options.compare = value();
-    else if (name === '--json') options.json = true;
-    else if (name === '--help' || name === '-h') options.help = true;
-    else throw new Error('unknown argument ' + arg);
-  }
-  if (options.project !== 'all' && !PROJECTS[options.project]) throw new Error('--project must be v3, qollock, showrank or all');
+  const options = cli.parse(argv, ARGS);
+  if (!cli.project(options.project)) throw new Error('--project must be ' + cli.projectWords());
   return options;
 }
 
 async function main(argv = process.argv.slice(2)) {
   let options;
   try { options = parseArgs(argv); } catch (error) { console.error('budgets.js: ' + error.message); return 2; }
-  if (options.help) { console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 11).map(line => line.replace(/^\/\/ ?/, '')).join('\n')); return 0; }
+  if (options.help) { console.log(cli.helpText(__filename, 3, 11)); return 0; }
   const renderer = parseRendererLimits(fs.readFileSync(RENDERER, 'utf8'));
   const audit = parseAuditLimits(fs.readFileSync(AUDIT, 'utf8'));
-  const variantKeys = options.project === 'all' ? ['qollock', 'showrank'] : options.project === 'v3' ? [] : [options.project];
+  const variantKeys = options.project === 'all' ? VARIANT_NAMES : options.project === 'v3' ? [] : [options.project];
   const variants = variantKeys.map(key => variantBudgetFiles(key));
   // Variant files that do carry budgets: their own audit-style limits join the table.
   for (const variant of variants) for (const file of variant.files) {

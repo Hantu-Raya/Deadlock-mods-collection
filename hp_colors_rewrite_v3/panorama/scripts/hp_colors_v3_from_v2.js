@@ -53,7 +53,7 @@
       if (own.call(DATA.retiredConditionKeys,key)) return;
       if (!own.call(DATA.settingMeta,key)) fail();
       var rule = source[key];
-      if (!object(rule) || Math.floor(rule.slot) !== rule.slot || rule.slot < 1 || rule.slot > 4 || Math.floor(rule.minTier) !== rule.minTier || rule.minTier < 1 || rule.minTier > 3) fail();
+      if (!object(rule) || Math.floor(rule.slot) !== rule.slot || rule.slot < $.HPColorsV3Codec.RECORD.slotRange[0] || rule.slot > $.HPColorsV3Codec.RECORD.slotRange[1] || Math.floor(rule.minTier) !== rule.minTier || rule.minTier < $.HPColorsV3Codec.RECORD.tierRange[0] || rule.minTier > $.HPColorsV3Codec.RECORD.tierRange[1]) fail();
       var value = scalar(key,rule.value);
       if (DATA.settingMeta[key].type === "number" && value !== rule.value) fail();
       result[key] = {slot:rule.slot,minTier:rule.minTier,value:value};
@@ -114,8 +114,8 @@
       if (own.call(DATA.retiredConditionKeys, key)) return;
       if (!own.call(DATA.settingMeta, key)) fail();
       var rule = item.v2conditions[key];
-      if (!object(rule) || !Number.isInteger(rule.slot) || rule.slot < 1 || rule.slot > 4 ||
-          !Number.isInteger(rule.minTier) || rule.minTier < 1 || rule.minTier > 3) fail();
+      if (!object(rule) || !Number.isInteger(rule.slot) || rule.slot < $.HPColorsV3Codec.RECORD.slotRange[0] || rule.slot > $.HPColorsV3Codec.RECORD.slotRange[1] ||
+          !Number.isInteger(rule.minTier) || rule.minTier < $.HPColorsV3Codec.RECORD.tierRange[0] || rule.minTier > $.HPColorsV3Codec.RECORD.tierRange[1]) fail();
       contract.controls.forEach(function (row) {
         var names = mapping[row.key], legacy = row.side === "shared" ? names && names[0] || row.key : names && names[row.side === "ally" ? 1 : 0];
         if (legacy !== key) return;
@@ -145,7 +145,7 @@
       else if (row.key === "barHeight") value = value * 0.18;
       else value = unit(key,value);
       if (row.type === "number") value = Math.max(row.bounds[0],Math.min(row.bounds[1],Math.round(value / row.step) * row.step));
-      var target = row.side === "shared" ? settings.shared : settings.side[row.side];
+      var target = $.HPColorsV3Codec.valuesOf(settings,row);
       target[row.key] = typeof value === "number" ? Math.round(value * 1e8) / 1e8 : value;
       consumed[key] = true; delete pending[key];
     });
@@ -177,9 +177,9 @@
     var contract = $.HPColorsV3Settings, source = item.settings, settings = copy(contract.defaults);
     if (!object(source) || !object(source.side) || !object(source.shared)) fail();
     contract.slots.forEach(function (slot) {
-      var from = slot.side === "shared" ? source.shared : source.side[slot.side];
+      var from = $.HPColorsV3Codec.valuesOf(source,slot);
       if (object(from) && own.call(from,slot.setting))
-        (slot.side === "shared" ? settings.shared : settings.side[slot.side])[slot.setting] = from[slot.setting];
+        $.HPColorsV3Codec.valuesOf(settings,slot)[slot.setting] = from[slot.setting];
     });
     var pending = item.v2pending, boundary = fromVersion <= 2 ? 1 : fromVersion, additions = {};
     (contract.slotAdditions || []).forEach(function (change) {
@@ -190,7 +190,7 @@
       var names = mapping[row.key], key = row.side === "shared" ? names && names[0] || row.key : names && names[row.side === "ally" ? 1 : 0];
       if (!pending || !key || !own.call(pending,key)) return;
       var slot = contract.slots.filter(function (slot) { return slot.side === row.side && slot.setting === row.key; })[0];
-      var target = row.side === "shared" ? settings.shared : settings.side[row.side];
+      var target = $.HPColorsV3Codec.valuesOf(settings,row);
       // An existing slot can hold a deliberate default: version, not value or
       // sparse presence, decides whether legacy pending may supply that slot.
       var value = key === "ultimateTimerSize" ? pending[key] / 5 : key === "rejuvScale" ? Math.round(pending[key] * 24) / 100 :
@@ -228,7 +228,7 @@
     return {mode:mode,heroes:heroes.slice()};
   }
   function preset(source, baseline, relative, wire) {
-    if (!object(source) || typeof source.id !== "string" || !source.id || typeof source.name !== "string" || !source.name.trim() || source.name.length > 48) fail();
+    if (!object(source) || typeof source.id !== "string" || !source.id || typeof source.name !== "string" || !source.name.trim() || source.name.length > $.HPColorsV3Codec.RECORD.nameMax) fail();
     if (wire && ["baked","user"].indexOf(source.kind) < 0) fail();
     var ext = wire ? extension(source.hpv2) : null;
     var changed = wire ? pairs(source.values,DATA.codecKeys) : source.values;
@@ -239,7 +239,7 @@
     if (record.mode === "off" && (!wire || source.kind === "user")) record.mode = "all";
     offsets(record,record.relative);
     if (wire && source.kind === "baked") {
-      if (source.id !== "baked_default" || record.mode !== "off" || record.heroes.length || Object.keys(record.conditions).length) fail();
+      if (source.id !== $.HPColorsV3Codec.RECORD.reservedPresetId || record.mode !== "off" || record.heroes.length || Object.keys(record.conditions).length) fail();
       var bakedBase = source.hpv2 && source.hpv2.v >= 2 ? DATA.defaults : DATA.sparseDefaults;
       var historical = {readoutOffsetX:[27,-30],readoutOffsetY:[500,434],enemyPulseReadoutOffsetX:[27],enemyPulseReadoutOffsetY:[500],allyReadoutOffsetX:[-30],allyReadoutOffsetY:[434]};
       if (bakedBase === DATA.defaults) { historical.ultOffsetY = [48]; historical.levelOffsetY = [48]; }
@@ -273,7 +273,7 @@
     });
     return records.map(function (record) {
       var item = mapped(record); item.id = record.id;
-      if (item.id === "baked_default") {
+      if (item.id === $.HPColorsV3Codec.RECORD.reservedPresetId) {
         do { item.id = "user-v2-" + Date.now().toString(36) + "-" + (++serial); } while (seen[item.id]);
         seen[item.id] = true;
       }
@@ -303,7 +303,7 @@
   function session(body, relative) {
     if (!object(body) || body.version !== 1 || !object(body.values)) fail();
     var rows = body.userPresets || [];
-    if (!Array.isArray(rows) || rows.length > 128) fail();
+    if (!Array.isArray(rows) || rows.length > $.HPColorsV3Codec.RECORD.maxPresets) fail();
     var records = rows.map(function (row) { return preset(row,DATA.sparseDefaults,relative,false); });
     var active = {values:values(body.values,DATA.sparseDefaults),conditions:conditions(body.conditions)};
     if (body.scopes !== undefined && !Array.isArray(body.scopes)) fail();
@@ -329,9 +329,9 @@
   }
   function fitForSave(bundle) {
     // Every supported v2 setting now has a v3 slot. Nothing may be dropped to fit.
-    if ($.HPColorsV3Codec.encodeRecord(bundle).length > 192000)
+    if ($.HPColorsV3Codec.encodeRecord(bundle).length > $.HPColorsV3Codec.RECORD.maxChars)
       throw new Error("Save exceeds 192,000 characters; remove some presets");
-    return { bundle: bundle, message: "" };
+    return bundle;
   }
   function textPayload(code,prefix,cap) {
     if (typeof code !== "string") fail();
@@ -340,7 +340,7 @@
     try { return JSON.parse(text.slice(prefix.length)); } catch (_) { fail(); }
   }
   function settingsCode(code,base) {
-    var payload = textPayload(code,"HPCR2",4096), bare = Array.isArray(payload);
+    var payload = textPayload(code,"HPCR2",$.HPColorsV3Codec.RECORD.settingsCodeChars), bare = Array.isArray(payload);
     if (!bare && (!object(payload) || !own.call(payload,"v") || !own.call(payload,"c") || Object.keys(payload).some(function (key) { return ["v","c","hpv2"].indexOf(key) < 0; }))) fail();
     var ext = extension(bare ? undefined : payload.hpv2), changed = pairs(bare ? payload : payload.v,DATA.codecKeys);
     Object.keys(ext.changed).forEach(function (key) { changed[key] = ext.changed[key]; });
@@ -351,8 +351,8 @@
     return {settings:converted.settings,rules:converted.rules || {},metadata:{v2pending:converted.v2pending},message:""};
   }
   function bundleCode(code) {
-    var payload = textPayload(code,"HPCRP1",32768);
-    if (!object(payload) || !Array.isArray(payload.records) || !payload.records.length || payload.records.length > 128) fail();
+    var payload = textPayload(code,"HPCRP1",$.HPColorsV3Codec.RECORD.bundleCodeChars);
+    if (!object(payload) || !Array.isArray(payload.records) || !payload.records.length || payload.records.length > $.HPColorsV3Codec.RECORD.maxPresets) fail();
     var records = payload.records.map(function (row) { return preset(row,DATA.codecDefaults,false,true); });
     var presets = materialize(records), selected = 0;
     if (payload.selectedPresetId) {
@@ -366,8 +366,8 @@
       bundle.sourceWasMapped = records[selected].mode === "selected" || records[selected].mode === "except";
     }
     if (payload.hiddenBakedPresetIds !== undefined) bundle.hiddenBakedPresetIds = copy(payload.hiddenBakedPresetIds);
-    var fitted = fitForSave(bundle);
-    return {settings:bundle.settings,bundle:bundle,message:fitted.message};
+    fitForSave(bundle);
+    return {settings:bundle.settings,bundle:bundle,message:""};
   }
   function classify(record) {
     if (record === null || record === undefined) return {kind:"absent"};
@@ -380,7 +380,7 @@
     } catch (_) { return {kind:"corrupt"}; }
     try {
       var fitted = fitForSave(session(body,envelope.s >= 4));
-      return {kind:"valid",bundle:fitted.bundle,migrated:true,message:fitted.message};
+      return {kind:"valid",bundle:fitted,migrated:true,message:""};
     } catch (error) {
       return {kind:"conversion_error",message:"V2 save could not be converted: " + $.HPColorsV3Codec.errorMessage(error)};
     }

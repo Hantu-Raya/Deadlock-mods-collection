@@ -459,3 +459,19 @@ test('audit M5: publish checklist step 6 runs the complete page suite green in i
   assert.match(output, /# todo 0\b/);
   assert.match(output, /# skipped 0\b/);
 });
+
+// A3: the codec's RECORD.maxChars is the one owner of the save size cap; the storage script's chunk
+// constants multiply to it and the pinned page (which cannot import anything) must agree.
+const chunkConstants = source => {
+  const chunk = /var (?:CHUNK_CHARS|CHUNK) = (\d+)/.exec(source), max = /MAX_CHUNKS = (\d+)/.exec(source);
+  return { chunk: Number(chunk && chunk[1]), max: Number(max && max[1]) };
+};
+const scriptsDir = path.join(__dirname, '../panorama/scripts');
+test('storage chunk constants multiply to the codec record cap and equal the pinned page\'s', () => {
+  const codecSource = fs.readFileSync(path.join(scriptsDir, 'hp_colors_v3_codec.js'), 'utf8');
+  const storage = chunkConstants(fs.readFileSync(path.join(scriptsDir, 'hp_colors_v3_storage.js'), 'utf8'));
+  assert.equal(storage.chunk * storage.max, Number(/maxChars: (\d+)/.exec(codecSource)[1]));
+  assert.match(fs.readFileSync(path.join(scriptsDir, 'hp_colors_v3_storage.js'), 'utf8'), /Save exceeds 192,000 characters/);
+  // The pinned page cannot import the script, so its constants are compared here.
+  assert.deepEqual(chunkConstants(pageSource), storage);
+});

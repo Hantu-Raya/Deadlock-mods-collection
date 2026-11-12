@@ -58,8 +58,11 @@ test('variant, helper, script and tool files map to the suites that use them', (
   assert.deepEqual(map(V3 + '/tools/test.js').tests, [suite('quick-test'), suite('budgets')], 'budgets.js builds on the runner');
   assert.deepEqual(names(map(V3 + '/tools/suite-cache.js').tests), ['audit-tooling']);
   const generator = map(V3 + '/tools/generate.js').tests;
-  for (const file of fs.readdirSync(path.join(__dirname, '../tools/lib')).filter(name => name.endsWith('.js') && !['projects.js', 'toolchain.js', 'stylesheets.js'].includes(name)))
+  for (const file of fs.readdirSync(path.join(__dirname, '../tools/lib')).filter(name => name.endsWith('.js') && !['projects.js', 'toolchain.js', 'stylesheets.js', 'cli.js', 'tap.js', 'run.js'].includes(name)))
     assert.deepEqual(map(V3 + '/tools/lib/' + file).tests, generator, 'tools/lib/' + file + ' maps like generate.js');
+  // The shared tool modules (cli, tap, run) map to the suites of the tools that read them.
+  for (const file of ['cli.js', 'tap.js', 'run.js'])
+    for (const name of ['quick-test', 'budgets', 'timing', 'logscan', 'ticket', 'engine-facts']) assert.ok(map(V3 + '/tools/lib/' + file).tests.includes(suite(name)), 'tools/lib/' + file + ' -> ' + name);
   // stylesheets.js also backs the engine-facts gate, so it adds that suite to the generator's.
   assert.deepEqual(map(V3 + '/tools/lib/stylesheets.js').tests.filter(test => test !== suite('engine-facts')), generator, 'tools/lib/stylesheets.js maps like generate.js');
   assert.ok(map(V3 + '/tools/lib/stylesheets.js').tests.includes(suite('engine-facts')), 'tools/lib/stylesheets.js -> engine-facts');

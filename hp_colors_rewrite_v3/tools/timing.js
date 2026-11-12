@@ -19,32 +19,32 @@
 // names mapped to their files by scanning the current test sources.
 const fs = require('node:fs');
 const path = require('node:path');
-const { REPO, PROJECT_NAMES, projectConfig, expandProjects } = require('./lib/projects');
-const { parseTap } = require('./test');
+const cli = require('./lib/cli');
+const { REPO, V3_DIR, LANES, PROJECT_NAMES, VARIANT_NAMES, projectConfig, stagePaths, expandProjects } = require('./lib/projects');
+const { listTests } = require('./lib/run');
+const { parseTap } = require('./lib/tap');
 
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/timing.js [--project v3|qollock|showrank|all] [--mode debug|release|all] [--top <n>] [--tap <file.tap>] [--json]';
 const MODES = ['release', 'debug'];
-const LANE_DIRS = { v3: 'hp_colors_rewrite_v3', qollock: 'hp_colors_rewrite_v3_qollock', showrank: 'hp_colors_rewrite_v3_showrank' };
+// A variant's staged tree sits under <lane folder>\.build (suite-pass markers store the staged path).
+const VARIANT_BUILDS = VARIANT_NAMES.map(name => [name, new RegExp(LANES[name].dir + '\\\\\\.build', 'i')]);
+
+const ARGS = {
+  defaults: { project: 'all', mode: 'all', top: 10, tap: null, json: false, help: false },
+  options: {
+    '--project': { key: 'project', value: true, lower: true },
+    '--mode': { key: 'mode', value: true, lower: true },
+    '--top': { key: 'top', value: true, convert: Number },
+    '--tap': { key: 'tap', value: true },
+    '--json': { key: 'json' },
+    ...cli.HELP,
+  },
+  dashGuard: true,
+  messages: { missing: name => name + ' needs a value. ' + USAGE, unknown: arg => 'Unknown argument \'' + arg + '\'. ' + USAGE },
+};
 
 function parseArgs(argv) {
-  const opts = { project: 'all', mode: 'all', top: 10, tap: null, json: false, help: false };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i], eq = arg.indexOf('='), name = eq > 0 && arg.startsWith('--') ? arg.slice(0, eq) : arg;
-    const value = () => {
-      if (name !== arg) return arg.slice(eq + 1);
-      const next = argv[i + 1];
-      if (next === undefined || next.startsWith('--')) throw new Error(name + ' needs a value. ' + USAGE);
-      i++;
-      return next;
-    };
-    if (name === '--project') opts.project = value().toLowerCase();
-    else if (name === '--mode') opts.mode = value().toLowerCase();
-    else if (name === '--top') opts.top = Number(value());
-    else if (name === '--tap') opts.tap = value();
-    else if (name === '--json') opts.json = true;
-    else if (name === '--help' || name === '-h') opts.help = true;
-    else throw new Error('Unknown argument \'' + arg + '\'. ' + USAGE);
-  }
+  const opts = cli.parse(argv, ARGS);
   if (!['all', ...MODES].includes(opts.mode)) throw new Error('--mode must be debug, release or all. ' + USAGE);
   if (!Number.isInteger(opts.top) || opts.top < 1) throw new Error('--top needs a positive integer. ' + USAGE);
   opts.projects = expandProjects(opts.project);
@@ -88,7 +88,7 @@ function parseIso(text) {
 
 // .build/suite-pass/<key>: "<iso> <mode> <staged source path>".
 function readSuitePasses(fsx, root = REPO) {
-  const dir = path.join(root, LANE_DIRS.v3, '.build', 'suite-pass');
+  const dir = path.join(root, V3_DIR, '.build', 'suite-pass');
   let names = [];
   try { names = fsx.readdirSync(dir); } catch { return []; }
   const out = [];
@@ -98,7 +98,7 @@ function readSuitePasses(fsx, root = REPO) {
     const match = /^(\S+)\s+(debug|release)\s+(.+)$/.exec(text);
     if (!match) continue;
     const stage = match[3].replace(/\//g, '\\');
-    const project = /hp_colors_rewrite_v3_qollock\\\.build/i.test(stage) ? 'qollock' : /hp_colors_rewrite_v3_showrank\\\.build/i.test(stage) ? 'showrank' : 'v3';
+    const project = VARIANT_BUILDS.find(([, pattern]) => pattern.test(stage))?.[0] || 'v3';
     out.push({ key, at: parseIso(match[1]), mode: match[2], stage: match[3], project });
   }
   return out.sort((a, b) => a.at - b.at);
@@ -117,25 +117,24 @@ function compilerSummary(text) {
 // ---------------------------------------------------------------------------------------------------
 function stageTimeline(project, mode, passes, { fsx = fs, root = REPO } = {}) {
   const config = projectConfig(project, root);
-  const stage = path.join(config.buildRoot, mode);
-  const stageSource = path.join(stage, 'hp_colors_rewrite_v3');
+  const { stage, stageSource, stageLane, pinned, packedCheck: packedDir, vpk: vpkFile } = stagePaths(config, mode);
   const sourceStat = stat(fsx, stageSource), stageStat = stat(fsx, stage);
   if (!stageStat) return { project, mode, stage, present: false };
   const recorded = readTimingJson(fsx, stage, root);
   if (recorded) return { project, mode, ...recorded, tap: findStageTap(fsx, stage) };
   const t = {};
   t.start = birth(sourceStat) || birth(stageStat);
-  const pin = stat(fsx, path.join(stage, 'pin')) ? walkTimes(fsx, path.join(stage, 'pin')) : null;
-  const scripts = [path.join(stageSource, 'panorama', 'scripts'), config.laneLeaf ? path.join(stage, config.laneLeaf, 'panorama', 'scripts') : null]
+  const pin = stat(fsx, pinned) ? walkTimes(fsx, pinned) : null;
+  const scripts = [path.join(stageSource, 'panorama', 'scripts'), stageLane ? path.join(stageLane, 'panorama', 'scripts') : null]
     .filter(Boolean).map(dir => walkTimes(fsx, dir)).filter(times => times.count);
   t.staged = scripts.length ? Math.max(...scripts.map(times => times.latest)) : null;
   const stdout = stat(fsx, path.join(stage, 'compile.stdout.log')), stderr = stat(fsx, path.join(stage, 'compile.stderr.log'));
   t.compileStart = birth(stdout);
   t.compileEnd = stdout ? Math.max(stdout.mtimeMs, stderr ? stderr.mtimeMs : 0) : null;
-  const vpk = stat(fsx, path.join(stage, 'pak02_dir.vpk')), listing = stat(fsx, path.join(stage, 'vpk-listing.txt'));
+  const vpk = stat(fsx, vpkFile), listing = stat(fsx, path.join(stage, 'vpk-listing.txt'));
   t.packed = vpk ? vpk.mtimeMs : null;
   t.listed = listing ? listing.mtimeMs : null;
-  const packedCheck = stat(fsx, path.join(stage, 'packed-check')) ? walkTimes(fsx, path.join(stage, 'packed-check')) : null;
+  const packedCheck = stat(fsx, packedDir) ? walkTimes(fsx, packedDir) : null;
 
   // The pass marker written by this build: same mode and staged path (the repo may have moved, so compare
   // from the lane folder on), stamped between the transform and the compile start.
@@ -203,10 +202,8 @@ function readTimingJson(fsx, stage, root = REPO) {
 // test('name', ...) / it / describe / suite names in every lane's tests -> files.
 function testNameIndex({ fsx = fs, root = REPO } = {}) {
   const index = new Map();
-  for (const dir of Object.values(LANE_DIRS)) {
-    let names = [];
-    try { names = fsx.readdirSync(path.join(root, dir, 'tests')).filter(name => name.endsWith('.test.js')); } catch { continue; }
-    for (const name of names) {
+  for (const { dir } of Object.values(LANES)) {
+    for (const name of listTests(path.join(root, dir, 'tests'), fsx)) {
       const rel = dir + '/tests/' + name;
       const text = fsx.readFileSync(path.join(root, rel), 'utf8');
       for (const match of text.matchAll(/\b(?:test|it|describe|suite)(?:\.(?:only|skip|todo))?\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
@@ -225,7 +222,7 @@ function chooseTap(opts, timelines, { fsx = fs, root = REPO } = {}) {
   if (opts.tap) return { file: path.resolve(opts.tap), why: '--tap' };
   const staged = timelines.filter(item => item.tap).map(item => ({ file: item.tap, mtime: (stat(fsx, item.tap) || {}).mtimeMs || 0 })).sort((a, b) => b.mtime - a.mtime);
   if (staged.length) return { file: staged[0].file, why: 'written by the build' };
-  const evidence = path.join(root, LANE_DIRS.v3, '.build', 'evidence');
+  const evidence = path.join(root, V3_DIR, '.build', 'evidence');
   const candidates = [];
   const visit = dir => {
     let entries;
@@ -346,7 +343,7 @@ function collect(opts, { fsx = fs, root = REPO } = {}) {
 function main(argv = process.argv.slice(2), log = line => console.log(line)) {
   let opts;
   try { opts = parseArgs(argv); } catch (error) { console.error('timing.js: ' + error.message); return 2; }
-  if (opts.help) { log(fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 19).map(line => line.replace(/^\/\/ ?/, '')).join('\n')); return 0; }
+  if (opts.help) { log(cli.helpText(__filename, 3, 19)); return 0; }
   const report = collect(opts);
   log(opts.json ? JSON.stringify(report, null, 2) : formatReport(report));
   return 0;
