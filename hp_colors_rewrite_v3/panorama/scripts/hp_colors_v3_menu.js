@@ -81,6 +81,9 @@
   var HUD_PROPS = ["backgroundImage", "backgroundColor", "washColor"];
   var hud = { root: null, chain: null, container: null, owner: null, stale: [], job: null };
   var publishedHudKey = "";
+  // The settings the HUD work reads: paintHud (enabled, mode, colour) and legacyWanted (enabled, shield style).
+  // A publish that changes none of them leaves the HUD alone (onHudSettings).
+  var HUD_KEYS = ["enabled", "hudHealthColorMode", "hudHealthColor", "hudShieldStyle"];
 
   // Reinclusion on the same context: the previous instance must stop publishing, answering and
   // retrying, or its queued answer would rebroadcast a retired epoch. Its settings carry over.
@@ -101,9 +104,8 @@
       if (answerJob) $.CancelScheduled(answerJob);
       if (publishJob) $.CancelScheduled(publishJob);
       if (loadFallback) $.CancelScheduled(loadFallback);
-      if (hud.job) $.CancelScheduled(hud.job);
-      if (legacy.job) $.CancelScheduled(legacy.job);
-      publishJob = null; loadFallback = null; hud.job = null; legacy.job = null;
+      retireHud();
+      publishJob = null; loadFallback = null;
       pending = null; answerJob = null;
       if (handlerId !== null) {
         try { $.UnregisterForUnhandledEvent("ClientUI_FireOutput", handlerId); } catch (error) { /* Context already gone. */ }
@@ -177,8 +179,7 @@
     lastPublishedRevision = config.revision;
     lastPublishedAt = Date.now();
     if (ready) preview("setSettings", effectiveSettings, { showBounds: showBounds });
-    var shared = effectiveSettings.shared, hudKey = [shared.enabled, shared.hudHealthColorMode, shared.hudHealthColor, shared.hudShieldStyle].join(":");
-    if (hudKey !== publishedHudKey) { publishedHudKey = hudKey; paintHud(); }
+    onHudSettings(effectiveSettings.shared);
   }
   function resolvePublication() {
     if (retired || !config) return;
@@ -252,13 +253,15 @@
     requiredSlots = required;
     resolveEffective();
   }
+  // The ability signature panels are gone or stale: forget them so the next sample looks them up again.
+  function deadSignature() { signature = null; abilityOwner = null; abilityPanels = slotsOf(null); }
   function clearTiers() {
     var changed = tiers.some(function (tier) { return tier !== -1; });
     tiers = slotsOf(-1);
     if (changed) {
       // HPV3_DEBUG $.Msg("[HPV3] tiers " + tiers.join(","));
     }
-    signature = null; abilityOwner = null; abilityPanels = slotsOf(null);
+    deadSignature();
     if (config && resolveEffective()) publish();
     syncAbilitySlots();
   }
@@ -403,6 +406,15 @@
     on(id, "onactivate", function () { if (panel(id) === target) toggleColorblind(type); });
   }
 
+  // ==== Identity: the game-HUD scraper (phase, local hero, ability tiers) ====
+  // The three HUD sections (Identity, HudPainter, ShieldLane) touch no menu panel. The rest of the file sees them
+  // through identity.phase / identity.hero, onHudSettings(shared) on each publish, and retireHud() on retire/boot.
+  // Cross-context ownership, recovery unchanged: the legacy shield lane marks its container with the
+  // hpc3_legacy_shield attribute ("1" owned, "2" released) so a reloaded menu can take over or clean up an earlier
+  // context's inline styles; hud.stale lists replaced health bars whose release was refused (retried each second);
+  // retire() cancels timers but does not release inline styles, the next context's paint does.
+  // The poll runs three named steps in order: identity refs (pollIdentity), watchEscape, then phase/hero/tiers.
+  // The shield lane has its own timer and re-checks its theme on the 1 s hud.job.
   // One local-player watcher publishes one resolved settings object; world bars never route.
   function stopIdentityWatch() {
     identity.generation++;
@@ -412,7 +424,7 @@
   function clearIdentityRefs() {
     identity.hud = null; identity.topBar = null; identity.clock = null; identity.card = null; identity.label = null;
     identity.discoverAt = 0;
-    signature = null; abilityOwner = null; abilityPanels = slotsOf(null);
+    deadSignature();
   }
   function identityRefs() {
     var root = topPanel();
@@ -573,6 +585,7 @@
     scheduleIdentity(identity.generation, identity.epoch, 0);
   }
 
+  // ==== HudPainter ====
   // ---- Own bottom-HUD health bar. Only this menu owns inline backgroundImage, backgroundColor and
   // washColor on the local #health_and_abilities_container … #health_bar_Left (never unit bars).
   // While HP Colors is on, OFF paints v2's plain white bar (neutral fill texture, white background,
@@ -583,6 +596,17 @@
   // including leftovers from an earlier menu context, whose cache this one does not have.
   // A refused release keeps ownership (hud.stale for a replaced bar) and is retried every second,
   // even while HP Colors is off, until it lands.
+  function onHudSettings(shared) {
+    var key = "";
+    for (var i = 0; i < HUD_KEYS.length; i++) { var value = shared[HUD_KEYS[i]]; key += (i ? ":" : "") + (value == null ? "" : value); }
+    if (key !== publishedHudKey) { publishedHudKey = key; paintHud(); }
+  }
+  // Timers only: inline styles stay (recovered by the next context, see the Identity block).
+  function retireHud() {
+    if (hud.job) $.CancelScheduled(hud.job);
+    if (legacy.job) $.CancelScheduled(legacy.job);
+    hud.job = null; legacy.job = null;
+  }
   function hudRoot() {
     // Not topChain: that would need an extra valid() call on the result, which the audit counts.
     var top = null;
@@ -667,6 +691,7 @@
     });
   }
 
+  // ==== ShieldLane ====
   // ---- Ticket 38: Your shield bar, Separate (old): the own HUD from before 6711 (issues/38) ----
   // client.dll 6796-6805 (IDA; mechanism debated with m1):
   // - The game still feeds the old #shield_bar (fill, shieldActive = shield max > 0); 6711 only removed
@@ -728,13 +753,15 @@
   // Watch cadence: a due callback runs once per frame, so this is every frame up to 120 fps (user choice,
   // 2026-10-21: above 120 fps a correction can land a frame later, for fewer calls per second).
   var LEGACY_FRAME = 1 / 120;
+  // Full class/text samples: every 50 ms while a shield max, barrier or corrected scale can change unseen, else 100 ms.
+  var LEGACY_SAMPLE_FAST_MS = 50, LEGACY_SAMPLE_SLOW_MS = 100, LEGACY_IDLE_S = 0.1;
   var LEGACY_SCALED = ["health", "damage", "heal"]; // bars drawn on the D scale whose max is corrected
   var legacy = { job: null, container: null, p: null, styles: {}, scale: 1, scaled: {}, read: null, fullAt: NaN, qolFor: null, qol: false, themed: false,
     label: null, zero: null, lines: null, linesMax: NaN, text: "", colorKey: "", colorTicks: 0,
     barrierBar: null, barrierParts: false, barrierNumber: null, barrierPeak: 0, barrierFill: NaN, barrierText: "", revalidate: false };
   function legacyWanted() {
     var shared = effectiveSettings && effectiveSettings.shared;
-    return !!shared && shared.enabled === true && publicationResolved && shared.hudShieldStyle === "separate";
+    return !!shared && shared.enabled === true && publicationResolved && shared.hudShieldStyle === "separate"; // HUD_KEYS: enabled, hudShieldStyle
   }
   // scale NaN: the first tick writes max even over an earlier context's leftover, whose owned panels are reused.
   function legacyReset(container, p) {
@@ -889,7 +916,7 @@
     legacy.job = null;
     if (retired || !legacyWanted() || !legacy.p) return;
     var p = legacy.p, r = legacy.read, now = Date.now(), lower = NaN, upper = NaN, top = NaN, points = NaN;
-    var full = !r || !(now - legacy.fullAt < (r.capacity || r.barrier || legacy.scale !== 1 ? 50 : 100));
+    var full = !r || !(now - legacy.fullAt < (r.capacity || r.barrier || legacy.scale !== 1 ? LEGACY_SAMPLE_FAST_MS : LEGACY_SAMPLE_SLOW_MS));
     try {
       if (r && !r.barrier && !(r.shieldValue > 0)) {
         // Watch: with no shield points and no barrier the ratking top (h+S+B)/D equals h/D. Shield points or
@@ -1064,7 +1091,7 @@
   function legacySchedule() {
     var r = legacy.read, token = generation;
     var watch = !r || r.capacity || r.barrier || legacy.scale !== 1 || identity.hero === "" || identity.hero === LEGACY_RAT_KING_HERO;
-    legacy.job = $.Schedule(watch ? LEGACY_FRAME : 0.1, function legacyShieldTick() {
+    legacy.job = $.Schedule(watch ? LEGACY_FRAME : LEGACY_IDLE_S, function legacyShieldTick() {
       if (token === generation) legacyTick(); else legacy.job = null;
     });
   }
@@ -2846,9 +2873,7 @@
       clearHistory();
       publisherEpoch = Date.now().toString(36) + ":" + Math.random().toString(36).slice(2);
       lastPublishedAt = -Infinity;
-      if (hud.job) $.CancelScheduled(hud.job);
-      if (legacy.job) $.CancelScheduled(legacy.job);
-      hud.job = null; legacy.job = null;
+      retireHud();
       publishedHudKey = "";
       var top = topPanel();
       showBounds = !!top && top.GetAttributeString(BOUNDS_ATTR, "") === "1";

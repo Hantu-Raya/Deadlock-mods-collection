@@ -102,8 +102,6 @@
   // Native line/stamina-icon identity classes are fixed for a panel's lifetime. Mutable
   // depletion classes stay live in CSS (shapes) or are polled (arrows).
   var childKinds = new WeakMap();
-  var pickupClasses = ["gunpower_pickup", "movement_pickup", "casting_pickup", "survival_pickup"];
-  var pickupColors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
   var pickupEntries = new WeakMap(), lastPickups = -Infinity, textWrites = new WeakMap();
   var messageHooks = [], stateHooks = [], lastTimerState = "", timerFacts = { pickupAllowed: true, ultimateAngle: null, bounty: null };
   // ====== DRIVER STATE: timer hooks, tick scheduling, config authority ======
@@ -128,12 +126,11 @@
     list.push(callback);
     return function () { var i = list.indexOf(callback); if (i >= 0) list.splice(i, 1); };
   }
-  // Ticket 50: the kill bounty pill is owned XML (no stock state); its panels are looked up on first use.
-  function bountyParts(parts, prefix) {
+  function bountyParts(parts) {
     if (valid(parts.bountyAnchor) && valid(parts.bountyPill) && valid(parts.bountyValue)) return;
-    parts.bountyAnchor = valid(root) ? root.FindChild(prefix + "BountyAnchor") : null;
-    parts.bountyPill = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChild(prefix + "Bounty") : null;
-    parts.bountyValue = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChildTraverse(prefix + "BountyValue") : null;
+    parts.bountyAnchor = valid(root) ? root.FindChild(PART.bountyAnchor.id) : null;
+    parts.bountyPill = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChild(PART.bountyPill.id) : null;
+    parts.bountyValue = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChildTraverse(PART.bountyValue.id) : null;
     parts.bountyLooked = true;
   }
   function setTimerFacts(next) {
@@ -143,7 +140,7 @@
     if (gateChanged) lastPickups = -Infinity;
     timerFacts = { pickupAllowed: next.pickupAllowed, ultimateAngle: next.ultimateAngle, bounty: bounty };
     if (cache) { cache.ultimateAngle = next.ultimateAngle; cache.bounty = bounty; }
-    if (cache && bounty !== null && settings && settings.shared.killBountyEnabled) bountyParts(cache, "HPColorsV3");
+    if (cache && bounty !== null && settings && settings.shared.killBountyEnabled) bountyParts(cache);
     // Timer-only prediction changes reuse the last observed health/layout facts.
     // They must not add a second fill/geometry poll or shift the 0.15s scheduler.
     if (!gateChanged && running && cachedFacts && settings && cache && (!ultimateChanged || valid(cache.ultimateOverlay))) {
@@ -194,13 +191,14 @@
   function ultimateArtwork(parts, prefix) {
     if (!valid(parts.ultBackground)) return;
     if (valid(parts.ultimateOverlay) && valid(parts.ultimateDark) && valid(parts.ultimateFill) && parts.ultimateOverlay.GetParent() === parts.ultBackground) return;
-    parts.ultimateOverlay = parts.ultBackground.FindChild(prefix + "UltimateOverlay") ||
-      $.CreatePanel("Panel", parts.ultBackground, prefix + "UltimateOverlay");
+    var overlayId = prefix + PART.ultimateOverlay.suffix, darkId = prefix + PART.ultimateDark.suffix, fillId = prefix + PART.ultimateFill.suffix;
+    parts.ultimateOverlay = parts.ultBackground.FindChild(overlayId) ||
+      $.CreatePanel("Panel", parts.ultBackground, overlayId);
     parts.ultimateOverlay.AddClass("HPColorsV3UltimateOverlay");
     parts.ultimateOverlay.hittest = parts.ultimateOverlay.hittestchildren = false;
     parts.ultimateOverlay.style.visibility = "collapse";
-    parts.ultimateDark = parts.ultimateOverlay.FindChild(prefix + "UltimateDark") || $.CreatePanel("Image", parts.ultimateOverlay, prefix + "UltimateDark");
-    parts.ultimateFill = parts.ultimateOverlay.FindChild(prefix + "UltimateFill") || $.CreatePanel("Image", parts.ultimateOverlay, prefix + "UltimateFill");
+    parts.ultimateDark = parts.ultimateOverlay.FindChild(darkId) || $.CreatePanel("Image", parts.ultimateOverlay, darkId);
+    parts.ultimateFill = parts.ultimateOverlay.FindChild(fillId) || $.CreatePanel("Image", parts.ultimateOverlay, fillId);
     [parts.ultimateDark, parts.ultimateFill].forEach(function (panel) {
       panel.AddClass("HPColorsV3UltimateArtwork"); panel.hittest = false;
       panel.SetImage("s2r://panorama/images/hpv3/ultimate_progress.vsvg");
@@ -239,6 +237,116 @@
     delete classSources[key];
     return false;
   }
+  // ====== PART REGISTRY: one table of every panel the renderer touches (read at load/attach/discover, never per paint) ======
+  // key      name in `cache` / the painter's parts, and the part name plan.styles / classes / parents address
+  // id       panel id (stock id, or our XML / runtime id); `suffix` is the id without the world prefix (ids built with a prefix)
+  // parents  keys of the panels it hangs under, tried in this order ("root" = the unit-status root; discover and reconcile both read it)
+  // find     child | traverse | class (first child carrying `cls`) | runtime (created by us) | native (adopted by reconcile) | derived (not a panel)
+  // at       discovery step: 1 chain (valid-guarded), 2 stock parts read raw, 3 pip grid, 4 ultimate art; 0 = reconcile / runtime only
+  // owned    our own XML or runtime panel, never stock; preview:false = the menu sample tree does not supply it
+  // lineage  chain | optional | valid: how lineageValid() checks it, in `lin` order; `ready` = order of the discover() validity check
+  // accessory = reconcileAccessories() order (`held`: only once the panel exists, `reparent`: its parent there is not parents[0])
+  var WORLD_PREFIX = "HPColorsV3";
+  var PIP_PARTS = ["Outline", "Empty", "Shield", "Armor", "Fill", "Healing", "Delta", "KillMarker"];
+  var BAR_PARTS = [], PART = {};
+  function addPart(key, id, parents, flags) {
+    var def = Object.assign({ key: key, id: id, suffix: "", parents: parents, find: "child", at: 0, guarded: false, owned: false, preview: true,
+      lineage: "", lin: 0, ready: 0, accessory: 0, held: false, reparent: "", cls: "", parentClass: "", orNull: false, local: false }, flags);
+    if (def.suffix) def.id = WORLD_PREFIX + def.suffix;
+    PART[key] = def; BAR_PARTS.push(Object.freeze(def));
+  }
+  addPart("root", "", [], { find: "derived", preview: false });
+  addPart("motion", "HPColorsV3MotionFrame", ["root"], { at: 1, guarded: true, owned: true, lineage: "valid", lin: 11, ready: 7 });
+  addPart("readout", "HPColorsV3Readout", ["motion"], { at: 1, guarded: true, owned: true, local: true, preview: false });
+  addPart("anchor", "HPColorsV3ReadoutAnchor", ["readout"], { at: 1, guarded: true, owned: true, lineage: "valid", lin: 12, ready: 8 });
+  addPart("row", "HPColorsV3ReadoutRow", ["anchor"], { at: 1, guarded: true, owned: true, lineage: "valid", lin: 13, ready: 9 });
+  addPart("status", "UnitStatus", ["root", "motion"], { at: 1, guarded: true, lineage: "chain", lin: 1, ready: 1 });
+  addPart("info", "InfoHealthContainer", ["status"], { at: 1, guarded: true, lineage: "chain", lin: 2, ready: 2 });
+  addPart("stack", "UnitHealthbarsContainer", ["info"], { at: 1, guarded: true, lineage: "chain", lin: 3, ready: 3 });
+  addPart("primary", "UnitHealthbar", ["stack"], { at: 1, guarded: true, lineage: "chain", lin: 4, ready: 4 });
+  addPart("inner", "UnitHealthbarInner", ["primary"], { at: 1, guarded: true, parentClass: "UnitHealthbarContainer", lineage: "chain", lin: 5, ready: 5 });
+  addPart("fill", "unit_healthbar_lagging", ["inner"], { at: 1, guarded: true, lineage: "chain", lin: 6, ready: 6 });
+  addPart("shield", "unit_healthbar_bullet_shield", ["inner"], { at: 2, lineage: "valid", lin: 9 });
+  addPart("armor", "unit_healthbar_ratking_armor", ["inner"], { at: 2, lineage: "valid", lin: 10 });
+  addPart("deferred", "unit_healthbar_deferred", ["inner"], { at: 2, preview: false });
+  addPart("healing", "unit_healthbar_healing", ["inner"], { at: 2 });
+  addPart("delta", "unit_healthbar_delta", ["inner"], { at: 2 });
+  addPart("lines", "UnitHealthbarLines", ["primary"], { at: 2 });
+  addPart("outline", "HPColorsV3BarOutline", ["primary"], { at: 2, owned: true, lineage: "valid", lin: 14 });
+  addPart("value", "UnitHealthbarValue", ["info", "row"], { at: 2, lineage: "optional", lin: 7 });
+  addPart("hpPercent", "HPColorsV3HPPercent", ["row"], { at: 2, owned: true, preview: false });
+  addPart("name", "name", ["root", "motion"], { at: 2, lineage: "optional", lin: 8 });
+  addPart("killMarker", "HPColorsV3KillMarker", ["primary"], { at: 2, owned: true });
+  addPart("level", "HPColorsV3Level", ["info"], { at: 2, owned: true, accessory: 1 });
+  addPart("levelLabel", "unit_level_label", ["info"], { at: 2, find: "traverse", accessory: 2, reparent: "level" });
+  addPart("ult", "", ["info"], { at: 2, find: "class", cls: "unit_info_panel", orNull: true, accessory: 3 });
+  addPart("pulseOverlay", "HPColorsV3PulseOverlay", ["inner"], { at: 2, owned: true });
+  addPart("rejuvAnchor", "HPColorsV3RejuvenatorAnchor", ["root"], { at: 2, owned: true, accessory: 7 });
+  addPart("effects", "StatusEffects", ["root"], { at: 2, orNull: true });
+  addPart("pipGrid", "HPColorsV3PipGrid", ["primary"], { at: 3, owned: true });
+  PIP_PARTS.forEach(function (name) { addPart("pip" + name, "HPColorsV3Pip" + name, ["pipGrid"], { at: 3, guarded: true, owned: true }); });
+  addPart("ultBackground", "unit_info_bg", ["ult"], { at: 4, guarded: true, accessory: 4 });
+  addPart("ultReady", "unit_ult_ready_icon", ["ultBackground"], { at: 4, guarded: true, accessory: 5 });
+  addPart("stamina", "StaminaContainer", ["root"], { find: "native" });
+  addPart("pickupContainer", "StatusEffectContainer", ["effects"], { find: "traverse" });
+  addPart("killStreak", "KillStreakIndicator", ["ult"], { find: "native" });
+  addPart("rejuv", "RejuvenatorActive", ["rejuvAnchor"], { find: "native" });
+  ["critical", "assassinate", "unkillable"].forEach(function (key) {
+    var name = key.charAt(0).toUpperCase() + key.slice(1);
+    addPart(key, name + "Indicator", [key + "Anchor"], { find: "native" });
+    addPart(key + "Anchor", "", ["root"], { find: "runtime", owned: true, suffix: name + "Anchor" });
+  });
+  // Ticket 50: the kill bounty pill is owned XML (no stock state); its panels are looked up on first use.
+  addPart("bountyAnchor", "", ["root"], { find: "runtime", owned: true, suffix: "BountyAnchor" });
+  addPart("bountyPill", "", ["bountyAnchor"], { find: "runtime", owned: true, suffix: "Bounty" });
+  addPart("bountyValue", "", ["bountyAnchor"], { find: "runtime", owned: true, suffix: "BountyValue" });
+  // Created at runtime on the ult background; the painter names them with its own id prefix.
+  addPart("ultimateOverlay", "", ["ultBackground"], { find: "runtime", owned: true, preview: false, suffix: "UltimateOverlay", accessory: 6, held: true });
+  addPart("ultimateDark", "", ["ultimateOverlay"], { find: "runtime", owned: true, preview: false, suffix: "UltimateDark" });
+  addPart("ultimateFill", "", ["ultimateOverlay"], { find: "runtime", owned: true, preview: false, suffix: "UltimateFill" });
+  // Plan keys that name a derived list of panels rather than one panel (applyTo spreads them).
+  ["lineWash", "pickupIcons", "pickupInners", "pickupBorders", "pickupTracks", "pickupGlyphs", "pickupKinds", "staminaIcons", "staminaEmpty", "staminaPips"]
+    .forEach(function (key) { addPart(key, "", ["root"], { find: "derived", preview: false }); });
+  // Discover / lineage / reconcile read these ordered views of the table (built once).
+  function partsAt(step) { return BAR_PARTS.filter(function (def) { return def.at === step; }); }
+  function byOrder(list, field) { return list.sort(function (a, b) { return a[field] - b[field]; }); }
+  var DISCOVER_CHAIN = partsAt(1), DISCOVER_STOCK = partsAt(2), DISCOVER_GRID = partsAt(3), DISCOVER_ULT = partsAt(4);
+  var DISCOVER_READY = byOrder(BAR_PARTS.filter(function (def) { return def.ready; }), "ready");
+  var LINEAGE_ORDER = byOrder(BAR_PARTS.filter(function (def) { return def.lineage; }), "lin");
+  var LINEAGE_CHAIN = LINEAGE_ORDER.filter(function (def) { return def.lineage === "chain"; });
+  var LINEAGE_OPTIONAL = LINEAGE_ORDER.filter(function (def) { return def.lineage === "optional"; });
+  var LINEAGE_VALID = LINEAGE_ORDER.filter(function (def) { return def.lineage === "valid"; });
+  var ACCESSORIES = byOrder(BAR_PARTS.filter(function (def) { return def.accessory; }), "accessory");
+  // Shared vocabulary, published once on $.HPColorsV3Renderer for the menu preview.
+  var STATUS_LABELS = Object.freeze(["critical", "assassinate", "unkillable"]);
+  // Ticket 52, in class-letter order A..H: the size setting, the game's icon class (abilities.vdata m_strSmallIconCssClass) and the
+  // letter hp_colors_v3_status.css pairs with it (tests/status-effect-sizes.test.js pins the stylesheet to this table).
+  var STATUS_SCALES = [["statusScaleFixation", "fixated"], ["statusScaleMalice", "blood_shard"], ["statusScaleScrewjab", "modifier_viper_debuffdagger"],
+    ["statusScaleDjinnsMark", "sand_phantom_passive_victim"], ["statusScaleSerratedKnives", "shiv_dagger"], ["statusScaleBarrage", "pocket_damage_amp"],
+    ["statusScalePulseGrenade", "chrono_pulse_grenade"], ["statusScaleArcticBeam", "freezing_buildup"]].map(function (entry, i) {
+    return Object.freeze({ key: entry[0], icon: entry[1], letter: "ABCDEFGH".charAt(i) });
+  });
+  // World pickups in bit order: the native class that marks the icon and the sample name the preview builds its ids and glyph from.
+  var PICKUP_KINDS = [["gunpower_pickup", "Gun"], ["movement_pickup", "Movement"], ["casting_pickup", "Spirit"], ["survival_pickup", "Survival"]].map(function (entry) {
+    return Object.freeze({ cls: entry[0], name: entry[1], icon: entry[1].toLowerCase() });
+  });
+  // A status label sits at its stock place while it is shown and not offset (no anchor panel is needed).
+  function labelAtDefault(shared, key) { return shared[key + "IndicatorVisible"] && !shared[key + "OffsetX"] && !shared[key + "OffsetY"]; }
+  // One panel lookup shared by discover (raw or valid-guarded per table row); `held` supplies the parents found so far.
+  function findPart(def, held) {
+    var panel = null;
+    for (var i = 0; i < def.parents.length && !panel; i++) {
+      var holder = def.parents[i] === "root" ? root : held[def.parents[i]];
+      if (def.guarded && def.parents[i] !== "root" && !valid(holder)) { panel = null; continue; }
+      if (def.parentClass && !holder.BHasClass(def.parentClass)) { panel = null; continue; }
+      panel = def.find === "class" ? holder.Children().filter(function (child) { return child.BHasClass(def.cls); })[0]
+        : def.find === "traverse" ? holder.FindChildTraverse(def.id) : holder.FindChild(def.id);
+    }
+    return def.orNull ? panel || null : panel;
+  }
+  var pickupClasses = PICKUP_KINDS.map(function (entry) { return entry.cls; });
+  var pickupColors = PICKUP_KINDS.map(function (entry) { return "pickup" + entry.name + "Color"; });
+  Object.freeze(BAR_PARTS); Object.freeze(STATUS_SCALES); Object.freeze(PICKUP_KINDS);
   // ====== DISCOVERY: carrier lineage and class classification ======
   function discoverCarriers() {
     carriers = []; ancestry = []; classSources = {};
@@ -331,53 +439,44 @@
   function classify() {
     return classifyWith(any, settings && settings.shared.enabled, ledger.some(function (owner) { return owner.owned; }), settings);
   }
+  function lineageParent(def) {
+    var parent = cache[def.key].GetParent();
+    for (var i = 0; i < def.parents.length; i++) if (parent === (def.parents[i] === "root" ? root : cache[def.parents[i]])) return true;
+    return false;
+  }
   function lineageValid() {
-    if (!cache || ![cache.status, cache.info, cache.stack, cache.primary, cache.inner, cache.fill].every(valid)) return false;
-    var parent = cache.status.GetParent();
-    if ((parent !== root && parent !== cache.motion) || cache.info.GetParent() !== cache.status || cache.stack.GetParent() !== cache.info ||
-        cache.primary.GetParent() !== cache.stack || cache.inner.GetParent() !== cache.primary || cache.fill.GetParent() !== cache.inner) return false;
-    if (cache.value) {
-      if (!valid(cache.value)) return false;
-      parent = cache.value.GetParent();
-      if (parent !== cache.info && parent !== cache.row) return false;
+    if (!cache) return false;
+    var i, panel;
+    for (i = 0; i < LINEAGE_CHAIN.length; i++) if (!valid(cache[LINEAGE_CHAIN[i].key])) return false;
+    for (i = 0; i < LINEAGE_CHAIN.length; i++) if (!lineageParent(LINEAGE_CHAIN[i])) return false;
+    for (i = 0; i < LINEAGE_OPTIONAL.length; i++) {
+      if (!cache[LINEAGE_OPTIONAL[i].key]) continue;
+      if (!valid(cache[LINEAGE_OPTIONAL[i].key]) || !lineageParent(LINEAGE_OPTIONAL[i])) return false;
     }
-    if (cache.name) {
-      if (!valid(cache.name)) return false;
-      parent = cache.name.GetParent();
-      if (parent !== root && parent !== cache.motion) return false;
+    for (i = 0; i < LINEAGE_VALID.length; i++) {
+      panel = cache[LINEAGE_VALID[i].key];
+      if (panel && !valid(panel)) return false;
     }
-    return [cache.shield, cache.armor, cache.motion, cache.anchor, cache.row, cache.outline].every(function (panel) { return !panel || valid(panel); });
+    return true;
   }
   function discover() {
-    var motion = root.FindChild("HPColorsV3MotionFrame"), readout = valid(motion) && motion.FindChild("HPColorsV3Readout");
-    var anchor = valid(readout) && readout.FindChild("HPColorsV3ReadoutAnchor"), row = valid(anchor) && anchor.FindChild("HPColorsV3ReadoutRow");
-    var unit = root.FindChild("UnitStatus") || (valid(motion) && motion.FindChild("UnitStatus"));
-    var info = valid(unit) && unit.FindChild("InfoHealthContainer"), stack = valid(info) && info.FindChild("UnitHealthbarsContainer");
-    var primary = valid(stack) && stack.FindChild("UnitHealthbar");
-    var inner = valid(primary) && primary.BHasClass("UnitHealthbarContainer") && primary.FindChild("UnitHealthbarInner");
-    var fill = valid(inner) && inner.FindChild("unit_healthbar_lagging");
-    if (![unit, info, stack, primary, inner, fill, motion, anchor, row].every(valid)) return false;
+    var found = {}, i;
+    for (i = 0; i < DISCOVER_CHAIN.length; i++) found[DISCOVER_CHAIN[i].key] = findPart(DISCOVER_CHAIN[i], found);
+    for (i = 0; i < DISCOVER_READY.length; i++) if (!valid(found[DISCOVER_READY[i].key])) return false;
     // Allocation and feedback belong to the PRIMARY inner; never UnitShieldbar.
-    cache = { status: unit, info: info, stack: stack, primary: primary, inner: inner, fill: fill, motion: motion, anchor: anchor, row: row,
-      shield: inner.FindChild("unit_healthbar_bullet_shield"), armor: inner.FindChild("unit_healthbar_ratking_armor"),
-      deferred: inner.FindChild("unit_healthbar_deferred"),
-      healing: inner.FindChild("unit_healthbar_healing"), delta: inner.FindChild("unit_healthbar_delta"), lines: primary.FindChild("UnitHealthbarLines"),
-      outline: primary.FindChild("HPColorsV3BarOutline"), value: info.FindChild("UnitHealthbarValue") || row.FindChild("UnitHealthbarValue"),
-      hpPercent: row.FindChild("HPColorsV3HPPercent"),
-      name: root.FindChild("name") || motion.FindChild("name"), killMarker: primary.FindChild("HPColorsV3KillMarker"), lineChildren: [],
-      level: info.FindChild("HPColorsV3Level"), levelLabel: info.FindChildTraverse("unit_level_label"), levelNumber: 0,
-      ult: info.Children().filter(function (panel) { return panel.BHasClass("unit_info_panel"); })[0] || null,
-      stamina: null, staminaIcons: [], staminaEmpty: [], staminaPips: [], staminaShown: false, staminaGate: "", staminaLowOn: false, staminaChecked: -Infinity, staminaStale: false, pulseOverlay: inner.FindChild("HPColorsV3PulseOverlay"),
-      killStreak: null, rejuv: null, rejuvAnchor: root.FindChild("HPColorsV3RejuvenatorAnchor"), effects: root.FindChild("StatusEffects") || null,
+    var next = { lineChildren: [], levelNumber: 0,
+      stamina: null, staminaIcons: [], staminaEmpty: [], staminaPips: [], staminaShown: false, staminaGate: "", staminaLowOn: false, staminaChecked: -Infinity, staminaStale: false,
+      killStreak: null, rejuv: null,
       pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
+    for (i = 0; i < DISCOVER_CHAIN.length; i++) if (!DISCOVER_CHAIN[i].local) next[DISCOVER_CHAIN[i].key] = found[DISCOVER_CHAIN[i].key];
+    for (i = 0; i < DISCOVER_STOCK.length; i++) next[DISCOVER_STOCK[i].key] = findPart(DISCOVER_STOCK[i], next);
+    cache = next;
     // BAR STYLE OLD grid of THIS primary only: a recycled primary keeps its own grid inactive.
-    cache.pipGrid = primary.FindChild("HPColorsV3PipGrid");
-    PIP_PARTS.forEach(function (name) { cache["pip" + name] = valid(cache.pipGrid) ? cache.pipGrid.FindChild("HPColorsV3Pip" + name) : null; });
+    for (i = 0; i < DISCOVER_GRID.length; i++) cache[DISCOVER_GRID[i].key] = findPart(DISCOVER_GRID[i], cache);
     invalidate("geometry");
     reconcileLines();
     reconcileLevel();
-    cache.ultBackground = valid(cache.ult) ? cache.ult.FindChild("unit_info_bg") : null;
-    cache.ultReady = valid(cache.ultBackground) ? cache.ultBackground.FindChild("unit_ult_ready_icon") : null;
+    for (i = 0; i < DISCOVER_ULT.length; i++) cache[DISCOVER_ULT[i].key] = findPart(DISCOVER_ULT[i], cache);
     reconcileStamina();
     reconcileNativeIndicators();
     reconcilePickups();
@@ -414,39 +513,29 @@
   function reconcileAccessories() {
     if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player") return;
     var changed = false;
-    function part(key, parent, id) {
+    function part(def) {
+      var key = def.key, parent = def.parents[0] === "root" ? root : cache[def.reparent || def.parents[0]];
       if (valid(cache[key]) && cache[key].GetParent() === parent) return;
-      var panel = !valid(parent) ? null : id ? parent.FindChild(id)
-        : parent.Children().filter(function (panel) { return panel.BHasClass("unit_info_panel"); })[0] || null;
+      var panel = !valid(parent) ? null : def.find !== "class" ? parent.FindChild(def.id)
+        : parent.Children().filter(function (panel) { return panel.BHasClass(def.cls); })[0] || null;
       if (panel !== cache[key]) { cache[key] = panel; changed = true; }
     }
-    part("level", cache.info, "HPColorsV3Level");
-    part("levelLabel", cache.level, "unit_level_label");
-    part("ult", cache.info, "");
-    part("ultBackground", cache.ult, "unit_info_bg");
-    part("ultReady", cache.ultBackground, "unit_ult_ready_icon");
-    if (cache.ultimateOverlay) part("ultimateOverlay", cache.ultBackground, "HPColorsV3UltimateOverlay");
-    part("rejuvAnchor", root, "HPColorsV3RejuvenatorAnchor");
+    for (var i = 0; i < ACCESSORIES.length; i++) if (!ACCESSORIES[i].held || cache[ACCESSORIES[i].key]) part(ACCESSORIES[i]);
     if (changed) { geometry = null; invalidate("probe"); }
   }
-  var STATUS_LABELS = ["critical", "assassinate", "unkillable"];
-  // Ticket 52, in class-letter order A..H (hp_colors_v3_status.css pairs each letter with the game's icon class).
-  var STATUS_SCALES = ["statusScaleFixation", "statusScaleMalice", "statusScaleScrewjab", "statusScaleDjinnsMark",
-    "statusScaleSerratedKnives", "statusScaleBarrage", "statusScalePulseGrenade", "statusScaleArcticBeam"];
   var statusScaleSource = null, statusScaleClasses = [];
   function reconcileNativeIndicators() {
     if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player") return;
-    var entries = [["killStreak", "KillStreakIndicator", cache.ult], ["rejuv", "RejuvenatorActive", cache.rejuvAnchor]];
+    var entries = [["killStreak", PART.killStreak.id, cache[PART.killStreak.parents[0]]], ["rejuv", PART.rejuv.id, cache[PART.rejuv.parents[0]]]];
     var labelChildren = null;
     STATUS_LABELS.forEach(function (key) {
-      if (!cache[key] && settings.shared[key + "IndicatorVisible"] && !settings.shared[key + "OffsetX"] && !settings.shared[key + "OffsetY"]) return;
-      var name = key.charAt(0).toUpperCase() + key.slice(1);
+      if (!cache[key] && labelAtDefault(settings.shared, key)) return;
       // One native child snapshot resolves all three label/anchor pairs, including
       // newly created replacements; default settings do not take the snapshot.
       if (!labelChildren) labelChildren = root.Children();
-      cache[key + "Anchor"] = labelChildren.filter(function (panel) { return panel.id === "HPColorsV3" + name + "Anchor"; })[0] || null;
-      var native = labelChildren.filter(function (panel) { return panel.id === name + "Indicator"; })[0] || null;
-      entries.push([key, name + "Indicator", cache[key + "Anchor"], native]);
+      cache[key + "Anchor"] = labelChildren.filter(function (panel) { return panel.id === PART[key + "Anchor"].id; })[0] || null;
+      var native = labelChildren.filter(function (panel) { return panel.id === PART[key].id; })[0] || null;
+      entries.push([key, PART[key].id, cache[key + "Anchor"], native]);
     });
     entries.forEach(function (entry) {
       var current = cache[entry[0]], native = entry.length > 3 ? entry[3] : root.FindChild(entry[1]);
@@ -904,8 +993,8 @@
       if (statusScaleSource !== config.shared) {
         statusScaleSource = config.shared; statusScaleClasses = [];
         for (var fx = 0; fx < STATUS_SCALES.length; fx++) {
-          var fxScale = Math.round(config.shared[STATUS_SCALES[fx]] / 10) * 10;
-          if (fxScale > 100 && fxScale <= 250) statusScaleClasses.push("HPColorsV3Fx" + "ABCDEFGH".charAt(fx) + fxScale);
+          var fxScale = Math.round(config.shared[STATUS_SCALES[fx].key] / 10) * 10;
+          if (fxScale > 100 && fxScale <= 250) statusScaleClasses.push("HPColorsV3Fx" + STATUS_SCALES[fx].letter + fxScale);
         }
       }
       for (var fxClass = 0; fxClass < statusScaleClasses.length; fxClass++) classes.root[statusScaleClasses[fxClass]] = true;
@@ -1233,7 +1322,6 @@
   // change rewrites only rows whose clip moved. Boxes are renderer-created children of the owned
   // grid: write-only caches replace the ledger, and the ledger-owned active class shows the grid.
   var PIP_HP = 100, PIPS_PER_ROW = 10, ROW_HP = 1000, PIP_ROW_PX = 6, PIP_TALL_ROWS = 4, PIP_WIDTH_PERCENT = 8.5;
-  var PIP_PARTS = ["Outline", "Empty", "Shield", "Armor", "Fill", "Healing", "Delta", "KillMarker"];
   var PIP_LAYERS = ["Shield", "Armor", "Healing", "Delta"];
   var EMPTY_CLIP = "rect(0%, 0%, 100%, 0%)";
   function oldBoxPosition(index, rows, hp) {
@@ -1579,8 +1667,8 @@
       if (force || Date.now() - lastPickups >= PICKUPS_MS) reconcilePickups();
       cache.ultimateAngle = timerFacts.ultimateAngle; cache.bounty = timerFacts.bounty;
       if (kind.kind === "player" && settings.shared.ultimateTimerEnabled && cache.ultimateAngle !== null &&
-          (!valid(cache.ultimateOverlay) || !valid(cache.ultimateDark) || !valid(cache.ultimateFill))) ultimateArtwork(cache, "HPColorsV3");
-      if (kind.kind === "player" && settings.shared.killBountyEnabled && cache.bounty !== null && !cache.bountyLooked) bountyParts(cache, "HPColorsV3");
+          (!valid(cache.ultimateOverlay) || !valid(cache.ultimateDark) || !valid(cache.ultimateFill))) ultimateArtwork(cache, WORLD_PREFIX);
+      if (kind.kind === "player" && settings.shared.killBountyEnabled && cache.bounty !== null && !cache.bountyLooked) bountyParts(cache);
       // Only health/layer and bound-row extent signatures run at 0.15s. Geometry
       // refreshes at 1.5s, plus one settling sample after a layout-changing write.
       if (!geometry || settleGeometry || force || Date.now() - lastGeometry >= GEOMETRY_MS) sampleGeometry();
@@ -1692,8 +1780,14 @@
   // Menu preview: the world's classify -> facts -> plan -> apply chain over a caller-owned part map
   // ====== PREVIEW: the menu painter over the same chain ======
   // and ledger. It reads no world state, schedules nothing and registers no listener.
-  function createPainter(canvas, parts) {
+  // parts: the BAR_PARTS keys the caller's own tree supplies (plus pickupContainer / pickupSamples). sample: what a fixed sample
+  // pretends, so the world rules carry no preview numbers: { idPrefix: id prefix of the runtime panels it creates, ultimateAngle:
+  // angle of the ultimate timer, bounty: kill bounty shown, mirror: part key that copies the fill's plan }.
+  // paint() returns { facts, plan, writes, settle, painted, reason }: painted = the plan styled something; reason = off (master off
+  // or no config) | unlaid (no layout yet) | painted | unstyled (laid, nothing to write).
+  function createPainter(canvas, parts, sample) {
     var target = { root: canvas, parts: parts, ledger: [], settle: false };
+    sample = sample || { idPrefix: "", ultimateAngle: null, bounty: null, mirror: "" };
     return {
       paint: function (classes, config, view) {
         for (var i = target.ledger.length - 1; i >= 0; i--) if (!valid(target.ledger[i].panel)) target.ledger.splice(i, 1);
@@ -1713,20 +1807,22 @@
         var pickups = config && config.shared.enabled && carrier.eligible && carrier.kind === "player" && config.shared.pickupTimersEnabled
           ? pickupParts(parts.pickupContainer, parts.pickupSamples) : emptyPickups();
         Object.keys(pickups).forEach(function (key) { parts[key] = pickups[key]; });
-        parts.ultimateAngle = carrier.eligible && carrier.kind === "player" && config.shared.ultimateTimerEnabled ? 180 : null;
-        if (parts.ultimateAngle !== null) ultimateArtwork(parts, "HPColorsPreview");
-        // Ticket 50: a fixed sample (a solo kill at 16:00 without comeback); enemy samples only (plan).
-        parts.bounty = carrier.eligible && carrier.kind === "player" && config.shared.killBountyEnabled ? 1250 : null;
+        parts.ultimateAngle = carrier.eligible && carrier.kind === "player" && config.shared.ultimateTimerEnabled ? sample.ultimateAngle : null;
+        if (parts.ultimateAngle !== null) ultimateArtwork(parts, sample.idPrefix);
+        // Ticket 50: the sample's fixed bounty (a solo kill at 16:00 without comeback); enemy samples only (plan).
+        parts.bounty = carrier.eligible && carrier.kind === "player" && config.shared.killBountyEnabled ? sample.bounty : null;
         var input = probeOf(parts, geometryOf(canvas, parts), true, oldWanted(config, carrier));
         var current = factsFrom(carrier, input, carrier.signature + "|" + input.signature);
         var next = plan(current, config, view);
         // Preview-only visual replica: clip remains the signal; the same ledger owns color/pulse and alias release.
-        if (parts.visualFill) {
-          if (next.styles.fill) next.styles.visualFill = next.styles.fill;
-          if (next.classes.fill) next.classes.visualFill = next.classes.fill;
+        if (sample.mirror && parts[sample.mirror]) {
+          if (next.styles.fill) next.styles[sample.mirror] = next.styles.fill;
+          if (next.classes.fill) next.classes[sample.mirror] = next.classes.fill;
         }
         var writes = applyTo(target, next);
-        return { facts: current, plan: next, writes: writes, settle: target.settle };
+        var painted = Object.keys(next.styles).length > 0;
+        return { facts: current, plan: next, writes: writes, settle: target.settle, painted: painted,
+          reason: !config || !config.shared.enabled ? "off" : !current.laid ? "unlaid" : painted ? "painted" : "unstyled" };
       },
       release: function () { target.settle = false; return applyTo(target, EMPTY_PLAN); },
       owned: function () { return target.ledger.filter(function (owner) { return owner.owned; }).length; }
@@ -1737,5 +1833,7 @@
     onMessage: function (fn) { return subscribe(messageHooks, fn); },
     onState: function (fn) { var off = subscribe(stateHooks, fn); fn(timerState()); return off; },
     refreshPickups: reconcilePickups,
-    setTimerFacts: setTimerFacts, defaults: DEFAULTS };
+    setTimerFacts: setTimerFacts, defaults: DEFAULTS,
+    // Built once at load, read by the menu preview at attach (see PART REGISTRY).
+    parts: BAR_PARTS, statusLabels: STATUS_LABELS, statusScales: STATUS_SCALES, pickupKinds: PICKUP_KINDS, labelAtDefault: labelAtDefault };
 })();

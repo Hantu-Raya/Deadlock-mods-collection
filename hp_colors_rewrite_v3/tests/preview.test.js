@@ -2236,3 +2236,34 @@ for(const label of ['Critical','Assassinate','Unkillable']) test(`ticket 28: pre
   assert.ok(panel.GetParent()===canvas);assert.equal(anchor.style.transform,'');
   assert.equal(computed(m.find('HPColorsPreviewCriticalIndicator'),'visibility'),'visible','master off retains native critical state');
 });
+
+test('the sample tree supplies exactly the renderer part table plus its own three parts', () => {
+  // Behaviour, not source text: the parts the preview hands the shared painter are the renderer's preview rows
+  // plus canvas/fx/visualFill (and the row's percent label), each a live panel of the sample pane.
+  const boot = loadLayout('hud_escape_menu.xml');
+  boot.includeScripts();
+  const h = boot.harness, renderer = h.$.HPColorsV3Renderer, createPainter = renderer.createPainter;
+  let handed = null;
+  renderer.createPainter = function (canvas, parts) { handed = parts; return createPainter.apply(this, arguments); };
+  boot.onload();
+  assert.ok(handed, 'the preview attached and created its painter');
+  const pane = h.contextPanel.FindChildTraverse('HPColorsPreview');
+  const published = renderer.parts.filter(def => def.preview && def.find !== 'derived').map(def => def.key);
+  // hpPercent and pickupSamples are derived by the preview from the row and the pickup container, not looked up by id.
+  const derived = ['hpPercent', 'pickupSamples'];
+  assert.deepEqual(Object.keys(handed).sort(), [...published, 'canvas', 'fx', 'visualFill', ...derived].sort());
+  for (const key of Object.keys(handed).filter(key => !derived.includes(key))) {
+    const panel = handed[key];
+    assert.ok(panel && panel.IsValid(), key + ' is a live panel');
+    assert.ok(pane.FindChildTraverse(panel.id) === panel, key + ' is inside the sample pane');
+  }
+});
+
+test('the shared painter reports painted and reason; the status line and inspect read them', () => {
+  const m = booted();
+  m.open();
+  const text = m.find('HPColorsPreviewStatus').text, state = m.preview();
+  assert.match(text, /Your settings|Stock look|Waiting for layout|HP Colors is off|Turn on Customize/);
+  assert.equal(state.status, text);
+  assert.equal(state.painted, /Your settings/.test(text));
+});

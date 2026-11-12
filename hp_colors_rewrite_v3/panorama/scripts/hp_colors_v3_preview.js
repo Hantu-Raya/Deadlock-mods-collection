@@ -4,11 +4,12 @@
   // world renderer's own classify -> facts -> plan -> apply chain ($.HPColorsV3Renderer.createPainter).
   // Carrier classes are data here, never classes on menu panels. Play, edit-shake and layout-settle
   // work have separate generation tokens; unlaid geometry polls at 4 Hz only while the preview is open.
-  var STATUS_LABELS = ["critical", "assassinate", "unkillable"];
-  // Ticket 52: size setting and the game's icon class (abilities.vdata m_strSmallIconCssClass) for each sample.
-  var STATUS_SCALES = [["statusScaleFixation", "fixated"], ["statusScaleMalice", "blood_shard"], ["statusScaleScrewjab", "modifier_viper_debuffdagger"],
-    ["statusScaleDjinnsMark", "sand_phantom_passive_victim"], ["statusScaleSerratedKnives", "shiv_dagger"], ["statusScaleBarrage", "pocket_damage_amp"],
-    ["statusScalePulseGrenade", "chrono_pulse_grenade"], ["statusScaleArcticBeam", "freezing_buildup"]];
+  // The renderer publishes the shared vocabulary (status labels, status scales, pickup kinds) and its part table once at load
+  // ($.HPColorsV3Renderer.statusLabels / statusScales / pickupKinds / parts); only this sample tree's ids live here.
+  // Sample numbers handed to the shared painter: the ultimate timer angle, the fixed kill bounty and the part that mirrors the fill.
+  var SAMPLE = { idPrefix: "HPColorsPreview", ultimateAngle: 180, bounty: 1250, mirror: "visualFill" };
+  // Parts only the sample tree has (the painter's canvas, the effect-size sample, the fill mirror); every other key is a renderer part.
+  var PREVIEW_ONLY = ["canvas", "fx", "visualFill"];
   var PARTS = {
     canvas: "HPColorsPreviewCanvas", name: "HPColorsPreviewName", motion: "HPColorsPreviewMotion",
     anchor: "HPColorsPreviewReadoutAnchor", row: "HPColorsPreviewReadoutLine", status: "HPColorsPreviewUnitStatus",
@@ -80,6 +81,7 @@
   var cameraZoom = "", cameraLeft = "", cameraTop = "", heroModel = null, modelZoom = HERO_ZOOM;
 
   var pane = null, parts = null, ui = null, painter = null, settings = null;
+  var touch = []; // parts a paint proves valid: { key, label }, built at attach from the renderer's part table
   // SHOW BOUNDS: session view state from the menu, painted by the same plan as world bars.
   var view = { showBounds: false };
   var available = false, isOpen = false, retired = false, syncing = false;
@@ -135,12 +137,13 @@
       try { heroCamera(HERO_ZOOM); } catch (error) { /* Old tree gone. */ }
       heroModel = nextModel; modelZoom = HERO_ZOOM;
     }
-    parts.pickupSamples = parts.pickupContainer.Children().filter(function (icon) { return icon.BHasClass("HPC3PreviewPickup"); }).map(function (icon, i) {
-      var name = ["Gun", "Movement", "Spirit", "Survival"][i];
+    var pickupKinds = $.HPColorsV3Renderer && $.HPColorsV3Renderer.pickupKinds;
+    parts.pickupSamples = !pickupKinds ? [] : parts.pickupContainer.Children().filter(function (icon) { return icon.BHasClass("HPC3PreviewPickup"); }).map(function (icon, i) {
+      var name = pickupKinds[i].name;
       var inner = icon.FindChild("HPColorsPreviewPickup" + name + "Inner"), border = icon.FindChild("HPColorsPreviewPickup" + name + "Border");
       var track = icon.FindChild("HPColorsPreviewPickup" + name + "Track");
       var glyph = icon.FindChild("HPColorsPreviewPickup" + name + "Glyph");
-      glyph.SetImage("s2r://panorama/images/hud/icons/powerup_" + ["gun", "movement", "spirit", "survival"][i] + ".vsvg");
+      glyph.SetImage("s2r://panorama/images/hud/icons/powerup_" + pickupKinds[i].icon + ".vsvg");
       return { icon: icon, bit: i, inner: inner, border: border, track: track, glyphs: [glyph] };
     });
     return true;
@@ -156,10 +159,9 @@
       value = value < 0 ? -1 : node === pane ? 0 : value + 1;
       nodes.push(node); distances.push(value); return value;
     }
-    for (var key in PARTS) {
-      var labelKey = key.replace(/Anchor$/, "");
-      if (STATUS_LABELS.indexOf(labelKey) >= 0 && settings && settings.shared[labelKey + "IndicatorVisible"] &&
-          !settings.shared[labelKey + "OffsetX"] && !settings.shared[labelKey + "OffsetY"]) continue;
+    for (var i = 0; i < touch.length; i++) {
+      var key = touch[i].key, labelKey = touch[i].label;
+      if (labelKey && settings && $.HPColorsV3Renderer.labelAtDefault(settings.shared, labelKey)) continue;
       var steps = distance(parts[key], 0);
       if (steps < 0 || steps >= 40) return false;
     }
@@ -175,13 +177,14 @@
     var maxHp = KINDS[kind].maxHp, threshold = 0.20 - Math.max(0, Math.min(1, (maxHp - 1000) / 1750)) * 0.10;
     var critical = shown / 100 <= threshold;
     setClass(pane, "health_critical", critical);
-    STATUS_LABELS.forEach(function (key) {
+    var statusLabels = $.HPColorsV3Renderer.statusLabels;
+    statusLabels.forEach(function (key) {
       setClass(pane, "HPC3PreviewSample" + key, kind === "hero" && settings && settings.shared.enabled && sampleLabel === key);
     });
     // Ticket 52: the effect whose size was edited last joins the status row; its class picks the icon and the size rule.
     setClass(pane, "HPC3PreviewSampleFx", kind === "hero" && !!settings && settings.shared.enabled && sampleFx !== "");
     if (parts.fx && paintedFx !== sampleFx) {
-      STATUS_SCALES.forEach(function (entry) { setClass(parts.fx, entry[1], sampleFx === entry[0]); });
+      $.HPColorsV3Renderer.statusScales.forEach(function (entry) { setClass(parts.fx, entry.icon, sampleFx === entry.key); });
       paintedFx = sampleFx;
     }
     // The engine's citadel_unit_status_show_critical_state defaults true on the descendant root.
@@ -295,11 +298,10 @@
     }
   }
   function updateStatus() {
-    var painted = !!last && Object.keys(last.plan.styles).length > 0;
     var detail = !last ? "Preview unavailable"
-      : !settings || !settings.shared.enabled ? "HP Colors is off: stock look"
-        : !last.facts.laid ? "Waiting for layout"
-          : painted ? "Your settings" : kind !== "hero" ? "Turn on Customize " +
+      : last.reason === "off" ? "HP Colors is off: stock look"
+        : last.reason === "unlaid" ? "Waiting for layout"
+          : last.reason === "painted" ? "Your settings" : kind !== "hero" ? "Turn on Customize " +
             (kind === "neutral" ? "neutral camps" : "objective bars") + " to style this bar" : "Stock look";
     statusText = (feedback || (playing ? "Playing" : "Ready")) + " · " + detail;
     setText(ui.status, statusText);
@@ -453,8 +455,10 @@
       cancel();
       if (painter) { try { painter.release(); } catch (error) { /* Old tree gone. */ } }
       painter = null;
-      try { painter = renderer && typeof renderer.createPainter === "function" ? renderer.createPainter(parts.canvas, parts) : null; } catch (error) { painter = null; }
+      try { painter = renderer && typeof renderer.createPainter === "function" ? renderer.createPainter(parts.canvas, parts, SAMPLE) : null; } catch (error) { painter = null; }
       if (!painter) { disable("Preview unavailable: renderer not loaded"); return false; }
+      touch = PREVIEW_ONLY.concat((renderer.parts || []).filter(function (def) { return def.preview && def.find !== "derived"; }).map(function (def) { return def.key; }))
+        .map(function (key) { return { key: key, label: renderer.statusLabels.indexOf(key.replace(/Anchor$/, "")) >= 0 ? key.replace(/Anchor$/, "") : "" }; });
       setClass(pane, "HPC3PreviewUnavailable", false);
       if (initial) settings = initial;
       available = true;
@@ -499,12 +503,13 @@
     setSettings: function (next, nextView) {
       // A status is not normally active on this plain sample. Show only the label
       // being edited; do not synthesize gameplay classes or change HP/critical flashing.
-      if (settings && next) STATUS_LABELS.forEach(function (key) {
+      var shared = $.HPColorsV3Renderer;
+      if (settings && next && shared && shared.statusLabels) shared.statusLabels.forEach(function (key) {
         if (["IndicatorVisible", "OffsetX", "OffsetY"].some(function (suffix) { return settings.shared[key + suffix] !== next.shared[key + suffix]; }))
           sampleLabel = key;
       });
-      if (settings && next) STATUS_SCALES.forEach(function (entry) {
-        if (settings.shared[entry[0]] !== next.shared[entry[0]]) sampleFx = entry[0];
+      if (settings && next && shared && shared.statusScales) shared.statusScales.forEach(function (entry) {
+        if (settings.shared[entry.key] !== next.shared[entry.key]) sampleFx = entry.key;
       });
       settings = next;
       if (!settings || !settings.shared.damageShakeEnabled) cancelShake();
@@ -523,7 +528,7 @@
     inspect: function () {
       return { available: available, open: isOpen, playing: playing, page: page, kind: kind, side: side, team: team, hp: hp, shown: shown,
         scheduled: !!job || !!settleJob || !!shakeJob, generation: generation, owned: painter ? painter.owned() : 0, status: statusText,
-        painted: !!last && Object.keys(last.plan.styles).length > 0, facts: last && last.facts };
+        painted: !!last && last.painted, facts: last && last.facts };
     }
   };
   function disable(reason) {

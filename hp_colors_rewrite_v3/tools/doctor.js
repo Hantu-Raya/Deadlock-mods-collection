@@ -5,17 +5,15 @@
 //   node hp_colors_rewrite_v3/tools/doctor.js [--project v3|qollock|showrank|all] [--only id,...]
 //        [--json] [--fix-hints]
 //
-// Check ids: node, compiler, pref, steam, vpk, viewer, showrank-dep, generators, release, git.
+// Check ids: the keys of `checks` below, in that order.
 // Every probe goes through injected fs/spawnSync/env (runDoctor's deps) so tests need no real machine.
 const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
 const { REPO, repoPaths, projectConfig, expandProjects } = require('./lib/projects');
-const { probeCompilerRuntime, discoverDeadlock, readClientVersion, pinMismatchMessage } = require('./lib/toolchain');
+const { probeCompilerRuntime, findInstall, spawnNode, showrankCandidates, findShowrankCarrier, readClientVersion, pinMismatchMessage } = require('./lib/toolchain');
 
-const CHECK_IDS = ['node', 'compiler', 'pref', 'steam', 'vpk', 'viewer', 'showrank-dep', 'generators', 'release', 'git'];
 const MIN_NODE_MAJOR = 18;
-const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/doctor.js [--project v3|qollock|showrank|all] [--only <check,...>] [--json] [--fix-hints]\nChecks: ' + CHECK_IDS.join(', ');
 
 function parseArgs(argv) {
   const opts = { project: 'all', only: null, json: false, fixHints: false, steamInf: null, help: false };
@@ -46,7 +44,7 @@ function parseArgs(argv) {
 const result = (id, name, status, detail, hint) => ({ id, name, status, detail, ...(hint ? { hint } : {}) });
 
 function runNodeScript(ctx, script, args) {
-  const r = ctx.spawnSync(ctx.execPath, [script, ...args], { encoding: 'utf8', env: ctx.env, cwd: ctx.root, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnNode(ctx, script, args, { env: ctx.env, cwd: ctx.root, windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
   const text = `${r.stdout || ''}${r.stderr || ''}`.trim();
   return { status: r.error ? null : r.status, error: r.error, text, last: text.split(/\r?\n/).filter(Boolean).pop() || '' };
 }
@@ -117,19 +115,18 @@ const checks = {
   'showrank-dep'(ctx) {
     if (!ctx.projects.includes('showrank')) return [];
     const name = 'ShowRank dependency';
-    const script = 'panorama/scripts/showrank_barebones.vjs_c';
-    const addons = ctx.install.steamInf ? path.join(path.dirname(ctx.install.steamInf), 'addons') : '(no Deadlock install found)';
-    const candidates = [...(ctx.install.steamInf ? [path.join(addons, 'pak89_dir.vpk')] : []), ctx.paths.showrankRepoVpk].filter(f => ctx.fs.existsSync(f));
+    const script = projectConfig('showrank', ctx.root).showrankScript;
+    const { addons, candidates } = showrankCandidates(ctx, ctx.install.steamInf, ctx.paths.showrankRepoVpk);
     const hint = 'Build ShowRank barebones (showrank_barebones_dir.vpk) or install it as pak89.';
     if (!candidates.length) return result('showrank-dep', name, 'FAIL', `neither ${path.join(addons, 'pak89_dir.vpk')} nor ${ctx.paths.showrankRepoVpk} exists`, hint);
     const viewer = ctx.paths.viewerCandidates.find(f => ctx.fs.existsSync(f));
     if (!viewer) return result('showrank-dep', name, 'WARN', `${candidates[0]} present; contents not verified (no Source2Viewer-CLI)`, hint);
-    for (const vpk of candidates) {
+    // A candidate the viewer cannot read is skipped without a warning (unlike the build, which stops on it).
+    const carrier = findShowrankCarrier(candidates, script, vpk => {
       const r = ctx.spawnSync(viewer, ['-i', vpk, '--vpk_list'], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-      if (r.error || r.status !== 0) continue;
-      const lines = String(r.stdout || '').split(/\r?\n/).map(l => l.trim().replace(/ CRC:[0-9a-fA-F]+ size:\d+$/, '').toLowerCase());
-      if (lines.includes(script)) return result('showrank-dep', name, 'PASS', `${vpk} contains ${script}`);
-    }
+      return r.error || r.status !== 0 ? null : String(r.stdout || '').split(/\r?\n/);
+    });
+    if (carrier) return result('showrank-dep', name, 'PASS', `${carrier} contains ${script}`);
     return result('showrank-dep', name, 'FAIL', `no candidate contains ${script}: ${candidates.join(', ')}`, hint);
   },
 
@@ -175,6 +172,10 @@ const checks = {
   }
 };
 
+// The ids (and their run order) are the keys of `checks`.
+const CHECK_IDS = Object.keys(checks);
+const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/doctor.js [--project v3|qollock|showrank|all] [--only <check,...>] [--json] [--fix-hints]\nChecks: ' + CHECK_IDS.join(', ');
+
 function toolCheck(ctx, id, toolName, candidates) {
   const found = candidates.find(f => ctx.fs.existsSync(f));
   if (found) return result(id, toolName, 'PASS', path.relative(ctx.root, found) || found);
@@ -198,7 +199,7 @@ function defaultDeps() {
 function runDoctor(opts, deps = defaultDeps()) {
   const root = deps.root || REPO;
   const paths = repoPaths(root);
-  const ctx = { ...deps, root, paths, projects: opts.projects || expandProjects(opts.project || 'all'), install: discoverDeadlock({ flag: opts.steamInf, fs: deps.fs, env: deps.env || {}, spawnSync: deps.spawnSync, platform: deps.platform || process.platform }) };
+  const ctx = { ...deps, root, paths, projects: opts.projects || expandProjects(opts.project || 'all'), install: findInstall(deps, opts.steamInf) };
   const ids = opts.only || CHECK_IDS;
   const results = [];
   for (const id of CHECK_IDS.filter(c => ids.includes(c))) {

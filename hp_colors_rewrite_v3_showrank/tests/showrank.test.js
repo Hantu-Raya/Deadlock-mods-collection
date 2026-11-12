@@ -16,12 +16,11 @@ const { setup } = require(path.join(v3Tests, 'timers-fixture'));
 const { OUTPUTS, SCRIPT, PIECES, ROOT, V3_ROOT, SHOWRANK_ROOT } = showrank;
 // HPV3_SHOWRANK_SOURCE_ROOT selects the staged lane tree (the composed layouts) in builds.
 const laneRoot = path.resolve(process.env.HPV3_SHOWRANK_SOURCE_ROOT || ROOT);
-const { lf } = require(path.join(V3_ROOT, 'tools/lib/layout-compose'));
+const { lf, countOf: count } = require(path.join(V3_ROOT, 'tools/lib/layout-compose'));
 const readFrom = (root, relative) => lf(fs.readFileSync(path.join(root, relative), 'utf8'));
 const v3 = () => ({ menu: readFrom(V3_ROOT, OUTPUTS.menu), topbar: readFrom(V3_ROOT, OUTPUTS.topbar) });
 const sr = () => ({ menu: readFrom(SHOWRANK_ROOT, 'panorama/layout/hud_escape_menu.xml'), topbar: readFrom(SHOWRANK_ROOT, 'panorama/layout/citadel_hud_top_bar.xml') });
 const composed = () => ({ menu: readFrom(ROOT, OUTPUTS.menu), topbar: readFrom(ROOT, OUTPUTS.topbar) });
-const count = (text, part) => text.split(part).length - 1;
 const refs = text => [...text.matchAll(/\s(?:src|id)="([^"]+)"/g)].map(match => match[1]);
 const rootAttrs = (text, tag) => { const node = parseLayout('<root>' + text.match(new RegExp('<' + tag + '\\b[^>]*>'))[0] + '</' + tag + '></root>'); return node.children[0].attrs; };
 const once = (text, from, to) => { assert.equal(count(text, from), 1, from); return text.replace(from, () => to); };
@@ -42,11 +41,12 @@ function scratch(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hpv3-showrank-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const layout = 'panorama/layout';
-  const copy = (from, to, files) => { for (const file of files) { fs.mkdirSync(path.join(dir, to, layout), { recursive: true }); fs.copyFileSync(path.join(from, layout, file), path.join(dir, to, layout, file)); } };
+const copy = (from, to, files) => { for (const file of files) { fs.mkdirSync(path.join(dir, to, layout), { recursive: true }); fs.copyFileSync(path.join(from, layout, file), path.join(dir, to, layout, file)); } };
   const files = ['hud_escape_menu.xml', 'citadel_hud_top_bar.xml'];
-  copy(V3_ROOT, 'hp_colors_rewrite_v3', files); copy(SHOWRANK_ROOT, 'showrank_barebones', files);
-  // The composer requires the v3 tool kit (layout-compose, output, stock-layouts) from its sibling v3 checkout.
-  fs.cpSync(path.join(V3_ROOT, 'tools/lib'), path.join(dir, 'hp_colors_rewrite_v3/tools/lib'), { recursive: true });
+  copy(SHOWRANK_ROOT, 'showrank_barebones', files);
+  // The composer requires the v3 tool kit and, to check v3's committed outputs for freshness, everything v3's generator reads.
+  for (const input of ['tools', 'settings', 'generated', 'vendor', 'panorama', 'game-data-pin.json'])
+    fs.cpSync(path.join(V3_ROOT, input), path.join(dir, 'hp_colors_rewrite_v3', input), { recursive: true });
   fs.mkdirSync(path.join(dir, 'hp_colors_rewrite_v3_showrank/tools'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'tools/showrank.js'), path.join(dir, 'hp_colors_rewrite_v3_showrank/tools/showrank.js'));
   const cli = path.join(dir, 'hp_colors_rewrite_v3_showrank/tools/showrank.js');
@@ -72,7 +72,9 @@ test('--check exits 1 naming the stale file when the outputs, v3 or ShowRank sou
   const v3Topbar = path.join(s.v3, OUTPUTS.topbar);
   fs.writeFileSync(v3Topbar, once(fs.readFileSync(v3Topbar, 'utf8'), 'class="HPColorsV3TimersTopBar"', 'class="HPColorsV3TimersTopBar Changed"'));
   run = s.run('--check');
-  assert.equal(run.status, 1); assert.match(run.stderr, /citadel_hud_top_bar\.xml/);
+  assert.equal(run.status, 1); assert.match(run.stderr, /generated outputs are stale \(panorama\/layout\/citadel_hud_top_bar\.xml\)/);
+  assert.equal(s.run().status, 0);
+  fs.copyFileSync(path.join(V3_ROOT, OUTPUTS.topbar), v3Topbar);
   assert.equal(s.run().status, 0);
   // A ShowRank layout change (bridge size) likewise.
   const bridge = path.join(s.showrank, 'panorama/layout/hud_escape_menu.xml');

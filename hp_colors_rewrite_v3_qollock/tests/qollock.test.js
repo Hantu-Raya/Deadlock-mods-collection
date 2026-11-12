@@ -13,7 +13,8 @@ const { profile, launch } = require(path.join(v3Tests, 'storage-fixture'));
 const qollock = require('../tools/qollock');
 
 const root = laneRoot, v3Root = qollock.V3_ROOT;
-const { lf } = require(path.join(v3Root, 'tools/lib/layout-compose'));
+const { lf, countOf } = require(path.join(v3Root, 'tools/lib/layout-compose'));
+const { menuSteps, topbarSteps } = require(path.join(v3Root, 'tools/lib/stock-layouts'));
 const read = relative => lf(fs.readFileSync(path.join(root, relative), 'utf8'));
 const readV3 = relative => lf(fs.readFileSync(path.join(v3Root, relative), 'utf8'));
 const refs = text => [...text.matchAll(/\s(?:src|id)="([^"]+)"/g)].map(match => match[1]);
@@ -64,21 +65,23 @@ test('22b composition fails closed: lost QOLLOCK refs, missing v3 ids, id collis
   const parts = { resume: 'R()', styles: '', scripts: '\t\t<include src="s2r://panorama/scripts/hp_colors_v3_menu.vjs_c" />\n',
     button: '<Button id="HPColorsMenuButton" />\n\t\t\t\t\t', fragment: '\t\t<Panel id="HPColorsMenuHost" />\n', ids: ['HPColorsMenuButton', 'HPColorsMenuHost'],
     topbarScripts: ['hp_colors_v3_timers_hud'], topbarClass: 'HPColorsV3TimersTopBar' };
-  assert.doesNotThrow(() => qollock.compose(pinned, parts));
-  assert.throws(() => qollock.compose(pinned, { ...parts, ids: [...parts.ids, 'HPColorsMissing'] }), /missing v3 entries: id="HPColorsMissing"/);
-  assert.throws(() => qollock.compose(pinned, { ...parts, fragment: '\t\t<Panel id="QOLStorageBridge" />\n' }), /repeats ids: QOLStorageBridge|missing v3 entries/);
+  // The patch steps are the main lane's data (menuParts() publishes them); a fixture rebuilds them from its own pieces.
+  const withSteps = p => ({ ...p, menuPatches: menuSteps('qollock', p), topbarPatches: topbarSteps('qollock', p.topbarClass) });
+  assert.doesNotThrow(() => qollock.compose(pinned, withSteps(parts)));
+  assert.throws(() => qollock.compose(pinned, withSteps({ ...parts, ids: [...parts.ids, 'HPColorsMissing'] })), /missing v3 entries: id="HPColorsMissing"/);
+  assert.throws(() => qollock.compose(pinned, withSteps({ ...parts, fragment: '\t\t<Panel id="QOLStorageBridge" />\n' })), /repeats ids: QOLStorageBridge|missing v3 entries/);
   const dropped = pinned.menu.replace(/\n\t\t<CitadelHTMLPanel id="QOLStorageBridge"[^\n]*/, '').replace(/\n\t\t<include src="s2r:\/\/panorama\/scripts\/core\/ql_storage_bridge\.vjs_c" \/>/, '');
   assert.throws(() => qollock.guard('Escape menu', pinned.menu, dropped, []), /lost pinned includes\/ids: (src="s2r:\/\/panorama\/scripts\/core\/ql_storage_bridge\.vjs_c", id="QOLStorageBridge"|id="QOLStorageBridge", src=)/);
-  assert.throws(() => qollock.compose({ ...pinned, menu: pinned.menu.replace('</CitadelHudEscapeMenu>', '') }, parts), /menu fragment anchor/);
-  assert.throws(() => qollock.compose({ ...pinned, menu: pinned.menu.replace('<Button id="settings"', '<Button id="settings2"') }, parts), /menu button anchor/);
-  assert.throws(() => qollock.compose({ ...pinned, topbar: pinned.topbar.replace('\t<scripts />', '') }, parts), /topbar scripts anchor/);
+  assert.throws(() => qollock.compose({ ...pinned, menu: pinned.menu.replace('</CitadelHudEscapeMenu>', '') }, withSteps(parts)), /menu fragment anchor/);
+  assert.throws(() => qollock.compose({ ...pinned, menu: pinned.menu.replace('<Button id="settings"', '<Button id="settings2"') }, withSteps(parts)), /menu button anchor/);
+  assert.throws(() => qollock.compose({ ...pinned, topbar: pinned.topbar.replace('\t<scripts />', '') }, withSteps(parts)), /topbar scripts anchor/);
 });
 
 test('22b guards (audit P3): ordered includes, anonymous panels and classes are structural, not only src/id sets', () => {
   const pinned = qollock.readPin(root), menu = composedMenu(), topbar = composedTopbar();
   assert.doesNotThrow(() => qollock.guard('Escape menu', pinned.menu, menu, []));
   assert.doesNotThrow(() => qollock.guard('topbar', pinned.topbar, topbar, []));
-  const once = (text, from, to) => { assert.equal(text.split(from).length, 2, from); return text.replace(from, to); };
+  const once = (text, from, to) => { assert.equal(countOf(text, from), 1, from); return text.replace(from, to); };
   const mutations = {
     'QOL LOCK row loses its SettingsRow class': once(menu, '<Panel class="SettingsRow">\n\t\t\t\t\t\t<Button id="ModSettingsBtn"', '<Panel>\n\t\t\t\t\t\t<Button id="ModSettingsBtn"'),
     'anonymous MenuIcon panel deleted': once(menu, '\t\t\t\t\t\t\t<Panel class="MenuIcon" />\n', ''),

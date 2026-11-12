@@ -4,8 +4,17 @@
 // and the HUD topbar (timer scripts and root class). Each anchor must match exactly once.
 const { patchOnce } = require('./layout-compose');
 
+// A stock patch is data: one exact `anchor` replaced by `replacement`, `label` naming it for a lane that words its own
+// failure. The main lane and the QOLLOCK lane run the same steps; `profile` selects the few base differences:
+// 'stock' (the game's layouts) or 'qollock' (the pinned QOLLOCK layouts already carry `.vcss_c` menu sheets, their
+// own background handler, an empty `<scripts />` in the topbar and their own settings button).
+const step = (label, anchor, replacement) => ({ label, anchor, replacement });
+const stockFailure = (matches, { anchor }) => 'Stock layout patch anchor missing or ambiguous (' + matches + ' matches): ' + anchor;
+function runSteps(text, steps, failure = stockFailure) {
+  return steps.reduce((current, item) => patchOnce(current, item.anchor, item.replacement, matches => failure(matches, item)), text);
+}
 function patchStock(text, anchor, replacement) {
-  return patchOnce(text, anchor, replacement, matches => 'Stock layout patch anchor missing or ambiguous (' + matches + ' matches): ' + anchor);
+  return runSteps(text, [step('stock', anchor, replacement)]);
 }
 
 // One script include line of a layout's <scripts> block (also used by the QOLLOCK lane) and one stylesheet include line.
@@ -34,24 +43,31 @@ function inLayout(file, patch) {
   catch (error) { error.message = file + ': ' + error.message; throw error; }
 }
 
-function patchMenu(stock, menu) {
+// The Escape-menu steps. The bridge script of a lane is its own step after these (v3 scripts run first).
+function menuSteps(profile, menu) {
+  const qollock = profile === 'qollock';
   const resume = MENU_RESUME;
-  let text = stock;
-  for (const name of ['citadel_base_styles', 'hud_escape_menu']) {
-    text = patchStock(text, name + '.vcss', name + '.vcss_c');
-  }
-  const scripts = MENU_SCRIPTS;
-  text = patchStock(text, '</styles>', MENU_STYLES + '\t</styles>\n\t<scripts>\n' + scripts + '\t</scripts>');
-  text = patchStock(text, '<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">',
-    '<CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="' + resume + '">');
-  text = patchStock(text, '<Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />',
-    '<Panel id="EscapeBackground" onactivate="' + resume + '" />');
-  text = patchStock(text, 'id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()"',
-    'id="EscapeButton" action="MenuBack" onactivate="' + resume + '"');
-  // The entry point sits in the stock nav like v2's, between feedback and settings.
-  text = patchStock(text, '<Panel class="SettingsRow">', menu.button + '<Panel class="SettingsRow">');
-  text = patchStock(text, '</CitadelHudEscapeMenu>', menu.fragment + '\t</CitadelHudEscapeMenu>');
-  return text;
+  const steps = [];
+  if (!qollock) for (const name of ['citadel_base_styles', 'hud_escape_menu']) steps.push(step('menu styles', name + '.vcss', name + '.vcss_c'));
+  if (qollock) steps.push(step('menu styles', '\t</styles>', MENU_STYLES + '\t</styles>'), step('menu scripts', '\t</scripts>', MENU_SCRIPTS + '\t</scripts>'));
+  else steps.push(step('menu styles', '</styles>', MENU_STYLES + '\t</styles>\n\t<scripts>\n' + MENU_SCRIPTS + '\t</scripts>'));
+  steps.push(step('menu root', '<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">',
+    '<CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="' + resume + '">'));
+  // QOLLOCK closes its own window first; otherwise the background runs v3's close-then-resume.
+  if (qollock) steps.push(step('menu background', '{ $.ForceCloseModSettings(true); } else { CitadelResumePlaying(); }" />',
+    '{ $.ForceCloseModSettings(true); } else { ' + resume + '; }" />'));
+  else steps.push(step('menu background', '<Panel id="EscapeBackground" onactivate="CitadelResumePlaying()" />',
+    '<Panel id="EscapeBackground" onactivate="' + resume + '" />'));
+  steps.push(step('menu resume button', 'id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()"',
+    'id="EscapeButton" action="MenuBack" onactivate="' + resume + '"'));
+  // The entry point sits in the stock nav like v2's, between feedback and settings (QOLLOCK: QOL LOCK, HP COLORS, stock settings).
+  const nav = qollock ? '<Panel class="SettingsRow">\n\t\t\t\t\t\t<Button id="settings"' : '<Panel class="SettingsRow">';
+  steps.push(step('menu button', nav, menu.button + nav), step('menu fragment', '</CitadelHudEscapeMenu>', menu.fragment + '\t</CitadelHudEscapeMenu>'));
+  return steps;
+}
+
+function patchMenu(stock, menu) {
+  return runSteps(stock, menuSteps('stock', menu));
 }
 
 function patchOverlay(stock) {
@@ -98,14 +114,22 @@ function patchOverlay(stock) {
   return overlay;
 }
 
+// The ShowRank lane (hp_colors_rewrite_v3_showrank PIECES.notificationAnchor/averageAnchor) anchors inside this stock
+// topbar's panels, so a topbar anchor change here is also a ShowRank anchor review.
+// `rootClass` is the full class list of the topbar root (a lane may add its own to TOPBAR_CLASS).
+function topbarSteps(profile, rootClass = TOPBAR_CLASS) {
+  const qollock = profile === 'qollock';
+  const steps = ['citadel_base_styles', 'hud_common', 'citadel_hud_top_bar', 'unit_status_icons']
+    .map(sheet => step('topbar styles', sheet + '.vcss' + (qollock ? '"' : ''), sheet + '.vcss_c' + (qollock ? '"' : '')));
+  const scripts = '<scripts>\n' + TOPBAR_SCRIPTS.map(includeLine).join('') + '\t</scripts>';
+  if (qollock) steps.push(step('topbar scripts', '\t<scripts />', '\t' + scripts));
+  else steps.push(step('topbar scripts', '</styles>', '</styles>\n\t' + scripts));
+  steps.push(step('topbar root', '<CitadelHudTopBar hittest="false">', '<CitadelHudTopBar class="' + rootClass + '" hittest="false">'));
+  return steps;
+}
+
 function patchTopbar(stock) {
-  let topbar = stock;
-  for (const sheet of ['citadel_base_styles', 'hud_common', 'citadel_hud_top_bar', 'unit_status_icons'])
-    topbar = patchStock(topbar, sheet + '.vcss', sheet + '.vcss_c');
-  topbar = patchStock(topbar, '</styles>', '</styles>\n\t<scripts>\n' +
-    TOPBAR_SCRIPTS.map(includeLine).join('') + '\t</scripts>');
-  topbar = patchStock(topbar, '<CitadelHudTopBar hittest="false">', '<CitadelHudTopBar class="' + TOPBAR_CLASS + '" hittest="false">');
-  return topbar;
+  return runSteps(stock, topbarSteps('stock'));
 }
 
 // The status row has its own layout and takes rules only from that layout's sheets (live 6861), so the
@@ -127,4 +151,4 @@ function stockLayouts(gameData, menu) {
   };
 }
 
-module.exports = { includeLine, stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OVERLAY_SCRIPTS, OVERLAY_STYLES, STATUS_STYLES, OWNED_STYLES, OWNED_SCRIPTS };
+module.exports = { includeLine, stockLayouts, runSteps, menuSteps, topbarSteps, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OVERLAY_SCRIPTS, OVERLAY_STYLES, STATUS_STYLES, OWNED_STYLES, OWNED_SCRIPTS };

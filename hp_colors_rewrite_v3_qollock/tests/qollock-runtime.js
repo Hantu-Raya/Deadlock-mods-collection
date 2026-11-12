@@ -11,20 +11,22 @@ const { spawnSync } = require('node:child_process');
 // The canonical v3 test seams (HPV3_SOURCE_ROOT selects the staged v3 tree); this lane only consumes them.
 const v3Tests = path.resolve(__dirname, '../../hp_colors_rewrite_v3/tests');
 const { loadLayout, sourceRoot } = require(path.join(v3Tests, 'boot-layout'));
+// The env names tools/build.js sets for a QOLLOCK build (one definition shared with the build).
+const { LANE_ENV: { qollock: ENV } } = require(path.join(v3Tests, '../tools/build'));
 const qollock = require('../tools/qollock');
 const laneRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(laneRoot, '..');
 const MODEL = path.join(__dirname, 'fixtures/qollock-window-model.js');
 const VIEWERS = ['.tmp/vrf-cli-19.2/Source2Viewer-CLI.exe', '.tmp/source2viewer-cli/Source2Viewer-CLI.exe'].map(file => path.join(repoRoot, file));
 // HPV3_QOLLOCK_SOURCE_ROOT selects the staged lane tree (transformed bridge) in builds.
-const qollockRoot = path.resolve(process.env.HPV3_QOLLOCK_SOURCE_ROOT || laneRoot);
+const qollockRoot = path.resolve(process.env[ENV.sourceRoot] || laneRoot);
 
 // Skip only when the pinned pak03 is absent. With the pak03 present the pinned runtime is required:
 // a verified cache or a working Source2Viewer-CLI, otherwise an actionable error (audit 22b P2).
 function resolvePinned(deps = {}) {
   const env = deps.env || process.env;
-  if (env.HPV3_QOLLOCK_ROOT) {
-    const root = path.resolve(env.HPV3_QOLLOCK_ROOT);
+  if (env[ENV.pinnedRoot]) {
+    const root = path.resolve(env[ENV.pinnedRoot]);
     qollock.verify(root, laneRoot);
     return { name: 'pinned', root };
   }
@@ -33,7 +35,7 @@ function resolvePinned(deps = {}) {
   const cacheRoot = deps.cacheRoot || path.join(laneRoot, '.build/pin');
   if (!fs.existsSync(pak)) {
     const reason = 'pinned QOLLOCK pak03 absent (' + pin.pak03.path + ')';
-    if (env.HPV3_QOLLOCK_REQUIRED === '1') throw new Error('QOLLOCK build requires the pinned runtime: ' + reason);
+    if (env[ENV.required] === '1') throw new Error('QOLLOCK build requires the pinned runtime: ' + reason);
     return { name: 'pinned', root: null, reason };
   }
   const hash = crypto.createHash('sha256').update(fs.readFileSync(pak)).digest('hex');

@@ -7,14 +7,13 @@
 // v3 generated outputs they consume) are stale. The build re-decompiles the pinned pak03 (--verify).
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const ROOT = path.resolve(__dirname, '..');
 const V3_ROOT = path.resolve(ROOT, '../hp_colors_rewrite_v3');
-const { lf, patchOnce, refs, repeatedIds, signature: nodeSignature, matchStructure } = require(path.join(V3_ROOT, 'tools/lib/layout-compose'));
+const { lf, refs, repeatedIds, signature: nodeSignature, matchStructure } = require(path.join(V3_ROOT, 'tools/lib/layout-compose'));
 const { writeOrCheck: writeLaneOutputs, runLaneCli } = require(path.join(V3_ROOT, 'tools/lib/output'));
-const { includeLine } = require(path.join(V3_ROOT, 'tools/lib/stock-layouts'));
+const { includeLine, runSteps } = require(path.join(V3_ROOT, 'tools/lib/stock-layouts'));
+const { sha256, isHex64, readPinnedTexts } = require(path.join(V3_ROOT, 'tools/lib/pin'));
 const PIN = 'vendor/pin.json';
-const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 // Vendored path -> pak03 entry. Exactly these two layouts are composed; nothing else is copied.
 const FILES = {
   'vendor/hud_escape_menu.xml': 'panorama/layout/hud_escape_menu.vxml_c',
@@ -26,32 +25,24 @@ const OUTPUTS = { menu: 'panorama/layout/hud_escape_menu.xml', topbar: 'panorama
 
 function readPin(root = ROOT) {
   const pin = JSON.parse(fs.readFileSync(path.join(root, PIN), 'utf8'));
-  const hex = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+  const hex = isHex64;
   if (!pin.release || !pin.zip || !hex(pin.zip.sha256) || !pin.pak03 || !hex(pin.pak03.sha256) || typeof pin.pak03.path !== 'string' ||
       !Array.isArray(pin.files) || pin.files.length !== Object.keys(FILES).length) throw new Error('Invalid QOLLOCK pin manifest: ' + PIN);
   // observed: reviewed QOLLOCK entries (ticket 22b findings); drift fails the build for a re-review.
   if (!Array.isArray(pin.observed) || !pin.observed.length || !Array.isArray(pin.absent) ||
       pin.observed.some(item => typeof item.entry !== 'string' || !/^panorama\/.+\.v(?:xml|css|js)_c$/.test(item.entry) || !hex(item.sha256) || !item.why))
     throw new Error('Invalid QOLLOCK pin observed/absent lists: ' + PIN);
-  const texts = Object.create(null);
-  for (const file of pin.files) {
-    if (!Object.hasOwn(FILES, file.path) || file.entry !== FILES[file.path] || Object.hasOwn(texts, file.path) || !hex(file.sha256))
-      throw new Error('Invalid QOLLOCK pin entry: ' + file.path);
-    let bytes;
-    try { bytes = fs.readFileSync(path.join(root, file.path)); }
-    catch (error) { throw new Error('Missing vendored QOLLOCK file: ' + file.path + ' (' + error.code + ')'); }
-    // LF text hashes: checkout CRLF conversion and Source2Viewer's CRLF output are equivalent.
-    const text = lf(bytes.toString('utf8'));
-    const actual = sha256(Buffer.from(text, 'utf8'));
-    if (actual !== file.sha256) throw new Error('QOLLOCK pin mismatch: ' + file.path + ' expected=' + file.sha256 + ' actual=' + actual + '; re-vendor from the pinned pak03, do not edit by hand.');
-    texts[file.path] = text;
-  }
+  // LF text hashes: checkout CRLF conversion and Source2Viewer's CRLF output are equivalent.
+  const texts = readPinnedTexts(root, pin.files, { sources: FILES, key: 'entry', messages: {
+    invalid: file => 'Invalid QOLLOCK pin entry: ' + file.path,
+    missing: (file, error) => 'Missing vendored QOLLOCK file: ' + file.path + ' (' + error.code + ')',
+    mismatch: (file, actual) => 'QOLLOCK pin mismatch: ' + file.path + ' expected=' + file.sha256 + ' actual=' + actual + '; re-vendor from the pinned pak03, do not edit by hand.',
+  } });
   return { pin, menu: texts['vendor/hud_escape_menu.xml'], topbar: texts['vendor/citadel_hud_top_bar.xml'] };
 }
 
-function patch(text, anchor, replacement, label) {
-  return patchOnce(text, anchor, replacement, () => 'QOLLOCK ' + label + ' anchor missing or ambiguous: ' + anchor);
-}
+// The v3 steps (parts.menuPatches/topbarPatches) fail with the lane's wording: 'QOLLOCK <label> anchor missing or ambiguous'.
+const failure = (matches, step) => 'QOLLOCK ' + step.label + ' anchor missing or ambiguous: ' + step.anchor;
 
 // The only pinned attributes the composition rewrites (v3 hooks). They are exempt only when comparing
 // pinned to composed; composed to packed compares every attribute.
@@ -81,32 +72,15 @@ function guard(label, pinned, composed, required) {
   structure(label, pinned, composed, false);
 }
 
-// parts: { resume, styles, scripts (menu include lines), button, fragment, ids, topbarScripts, topbarClass }
+// parts: menuParts(v3Root, { profile: 'qollock', ... }): the v3 patch steps (menuPatches, topbarPatches) plus the
+// include lines and ids the guards require (scripts, ids, topbarScripts).
 function compose(pinned, parts) {
-  let menu = pinned.menu;
-  menu = patch(menu, '\t</styles>', parts.styles + '\t</styles>', 'menu styles');
   // v3 scripts run after ql_settings; the window bridge wraps both toggles, so it loads last.
-  menu = patch(menu, '\t</scripts>', parts.scripts + includeLine(BRIDGE) + '\t</scripts>', 'menu scripts');
-  menu = patch(menu, '<CitadelHudEscapeMenu oncancel="CitadelResumePlaying()">',
-    '<CitadelHudEscapeMenu onload="$.HPColorsMenuBoot()" oncancel="' + parts.resume + '">', 'menu root');
-  // QOLLOCK closes its own window first; otherwise the background runs v3's close-then-resume.
-  menu = patch(menu, '{ $.ForceCloseModSettings(true); } else { CitadelResumePlaying(); }" />',
-    '{ $.ForceCloseModSettings(true); } else { ' + parts.resume + '; }" />', 'menu background');
-  menu = patch(menu, 'id="EscapeButton" action="MenuBack" onactivate="CitadelResumePlaying()"',
-    'id="EscapeButton" action="MenuBack" onactivate="' + parts.resume + '"', 'menu resume button');
-  // Nav order: QOL LOCK, HP COLORS, stock settings.
-  menu = patch(menu, '<Panel class="SettingsRow">\n\t\t\t\t\t\t<Button id="settings"',
-    parts.button + '<Panel class="SettingsRow">\n\t\t\t\t\t\t<Button id="settings"', 'menu button');
-  menu = patch(menu, '</CitadelHudEscapeMenu>', parts.fragment + '\t</CitadelHudEscapeMenu>', 'menu fragment');
+  const menu = runSteps(pinned.menu, [...parts.menuPatches, { label: 'menu scripts', anchor: '\t</scripts>', replacement: includeLine(BRIDGE) + '\t</scripts>' }], failure);
   const menuScripts = [...parts.scripts.matchAll(/src="[^"]+"/g)].map(match => match[0]);
   guard('Escape menu', pinned.menu, menu, parts.ids.map(id => 'id="' + id + '"').concat(menuScripts, 'src="s2r://panorama/scripts/' + BRIDGE + '.vjs_c"'));
 
-  let topbar = pinned.topbar;
-  for (const sheet of ['citadel_base_styles', 'hud_common', 'citadel_hud_top_bar', 'unit_status_icons'])
-    topbar = patch(topbar, sheet + '.vcss"', sheet + '.vcss_c"', 'topbar styles');
-  topbar = patch(topbar, '\t<scripts />', '\t<scripts>\n' + parts.topbarScripts.map(includeLine).join('') + '\t</scripts>', 'topbar scripts');
-  // QOLLOCK-only: v3's timers also match cards by hero name (Street Brawl hero-titled world bars, ticket 39).
-  topbar = patch(topbar, '<CitadelHudTopBar hittest="false">', '<CitadelHudTopBar class="' + parts.topbarClass + ' ' + HERO_NAMES_CLASS + '" hittest="false">', 'topbar root');
+  const topbar = runSteps(pinned.topbar, parts.topbarPatches, failure);
   guard('topbar', pinned.topbar, topbar, parts.topbarScripts.map(name => 'src="s2r://panorama/scripts/' + name + '.vjs_c"'));
   return { [OUTPUTS.menu]: menu, [OUTPUTS.topbar]: topbar };
 }
@@ -162,10 +136,9 @@ function checkPacked(decompiled, root = ROOT) {
 // Composes the lane outputs from the pinned layouts and the v3 lane's own generated pieces. A v3
 // checkout whose generated menu is stale is refused: the lane consumes v3's committed outputs.
 function layouts(root = ROOT, v3Root = V3_ROOT) {
-  const parts = require(path.join(v3Root, 'tools/generate.js')).menuParts(v3Root);
-  const stale = Object.keys(parts.files)
-    .filter(relative => { const file = path.join(v3Root, relative); return !fs.existsSync(file) || lf(fs.readFileSync(file, 'utf8')) !== lf(parts.files[relative]); });
-  if (stale.length) throw new Error('hp_colors_rewrite_v3 generated outputs are stale (' + stale.join(', ') + '); run hp_colors_rewrite_v3/tools/generate.js first.');
+  // QOLLOCK-only: v3's timers also match cards by hero name (Street Brawl hero-titled world bars, ticket 39).
+  const parts = require(path.join(v3Root, 'tools/generate.js')).menuParts(v3Root, { profile: 'qollock', topbarClasses: [HERO_NAMES_CLASS] });
+  parts.assertFresh();
   return compose(readPin(root), parts);
 }
 function writeOrCheck(check, root = ROOT, v3Root = V3_ROOT) {

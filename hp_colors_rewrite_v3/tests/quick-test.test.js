@@ -58,7 +58,7 @@ test('variant, helper, script and tool files map to the suites that use them', (
   assert.deepEqual(map(V3 + '/tools/test.js').tests, [suite('quick-test'), suite('budgets')], 'budgets.js builds on the runner');
   assert.deepEqual(names(map(V3 + '/tools/suite-cache.js').tests), ['audit-tooling']);
   const generator = map(V3 + '/tools/generate.js').tests;
-  for (const file of fs.readdirSync(path.join(__dirname, '../tools/lib')).filter(name => name.endsWith('.js') && !['projects.js', 'toolchain.js', 'stylesheets.js', 'cli.js', 'tap.js', 'run.js'].includes(name)))
+  for (const file of fs.readdirSync(path.join(__dirname, '../tools/lib')).filter(name => name.endsWith('.js') && name !== 'stylesheets.js' && !quick.BUILD_TOOL_LIBS.includes(name.replace(/\.js$/, ''))))
     assert.deepEqual(map(V3 + '/tools/lib/' + file).tests, generator, 'tools/lib/' + file + ' maps like generate.js');
   // The shared tool modules (cli, tap, run) map to the suites of the tools that read them.
   for (const file of ['cli.js', 'tap.js', 'run.js'])
@@ -254,7 +254,7 @@ test('compact summary: totals, then each failure with message, truncated actual/
 
 test('argument parsing', () => {
   assert.deepEqual(quick.parseArgs(['--files', 'a.js,b.css', '--files=c.json', '--grep=ceiling', '--list', '--project', 'QOLLOCK']),
-    { files: ['a.js', 'b.css', 'c.json'], list: true, all: false, project: 'qollock', grep: 'ceiling', help: false });
+    { files: ['a.js', 'b.css', 'c.json'], list: true, listUnmapped: false, all: false, project: 'qollock', grep: 'ceiling', help: false });
   assert.throws(() => quick.parseArgs(['--project', 'v4']), /--project/);
   assert.throws(() => quick.parseArgs(['--grep']), /needs a value/);
   assert.throws(() => quick.parseArgs(['--bogus']), /unknown argument/);
@@ -293,4 +293,17 @@ test('each tool maps to its own suite, never the full suites', () => {
   assert.deepEqual(names(map(V3 + '/tools/lib/toolchain.js').tests).filter(n => n === 'build-tool' || n === 'doctor').sort(), ['build-tool', 'doctor']);
   assert.deepEqual(quick.RULES.find(rule => rule.match.test(V3 + '/tools/engine-facts.js')).tests, ['engine-facts']);
   assert.deepEqual(quick.RULES.find(rule => rule.match.test(V3 + '/tools/lib/engine-facts.json')).tests, ['engine-facts', 'generator']);
+});
+
+test('generator modules: any tools/lib file but the build tools, whatever its name; menu.js also reaches legacy-shield', () => {
+  const generatorModule = new RegExp('^' + V3 + '/' + quick.GENERATOR_MODULE);
+  for (const rel of ['generate', 'menu-layout', 'lib/menu-a-b', 'lib/layout-compose', 'lib/stock-layouts']) assert.ok(generatorModule.test(V3 + '/tools/' + rel + '.js'), rel);
+  for (const rel of ['lib/projects', 'lib/toolchain', 'lib/cli', 'lib/tap', 'lib/run', 'test', 'dev', 'lib/x/y']) assert.ok(!generatorModule.test(V3 + '/tools/' + rel + '.js'), rel);
+  assert.ok(quick.mapFile(V3 + '/panorama/scripts/hp_colors_v3_menu.js', ctx).tests.includes(suite('legacy-shield')));
+});
+
+test('--list-unmapped reports only scripts no RULES entry names', () => {
+  const unmapped = quick.unmappedScripts();
+  for (const file of unmapped) assert.ok(!quick.RULES.some(rule => rule.match.test(file)), file);
+  assert.ok(!unmapped.includes(V3 + '/panorama/scripts/hp_colors_v3_menu.js'));
 });

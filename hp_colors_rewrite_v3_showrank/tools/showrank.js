@@ -24,6 +24,8 @@ const PIECES = {
   topbarStyles: ['citadel_hud_game_announcements', 'showrank_barebones_topbar'],
   notificationId: 'ShowRankBarebonesNotificationRoot',
   averageId: 'ShowRankBarebonesTeamAverageLayer',
+  // Anchors in the stock topbar (the same stock layout tools/lib/stock-layouts.js patches); ShowRank is an unpinned live
+  // dependency guarded by these anchors, so drift fails closed in readPieces/compose.
   notificationAnchor: '\t\t<Panel id="GradientBacker" />\n',
   averageAnchor: '\t\t<Panel id="StretBrawlContainer">\n',
 };
@@ -151,6 +153,8 @@ function layouts(v3Root = V3_ROOT, showrankRoot = SHOWRANK_ROOT) {
     { menu: read(path.join(showrankRoot, 'panorama/layout/hud_escape_menu.xml')), topbar: read(path.join(showrankRoot, 'panorama/layout/citadel_hud_top_bar.xml')) });
 }
 function writeOrCheck(check, root = ROOT, v3Root = V3_ROOT, showrankRoot = SHOWRANK_ROOT) {
+  // The composed layouts are only current against v3's committed outputs when those are current too.
+  if (check) require(path.join(v3Root, 'tools/generate.js')).menuParts(v3Root).assertFresh();
   const files = layouts(v3Root, showrankRoot);
   writeLaneOutputs(files, root, check, { label: 'ShowRank layouts', hint: 'run hp_colors_rewrite_v3_showrank/tools/showrank.js after reviewing the v3 menu or ShowRank layout change.' });
   return Object.keys(files).length;

@@ -206,3 +206,10 @@ test('CLI: --help, argument errors and a --once cycle with nothing to check', ()
   assert.equal(once.status, 0, once.stderr);
   assert.match(once.stdout, /^\[\d\d:\d\d:\d\d\] #1 PASS \d+\.\d s \| changed 0 \+1 ignored \(docs or outside the lanes\) \| tests none mapped\s*$/);
 });
+
+test('hand-written layouts are not outputs; build-tool libs do not start the generator', () => {
+  assert.ok(!dev.isOutput(V3 + '/panorama/layout/hp_colors_v3_relay.xml'));
+  assert.ok(!dev.isWatchIgnored(V3 + '/panorama/layout/hp_colors_v3_relay.xml'));
+  assert.ok(dev.isGeneratorInput(V3 + '/tools/lib/menu-a-b.js'));
+  for (const name of ['cli', 'tap', 'run']) assert.ok(!dev.isGeneratorInput(V3 + '/tools/lib/' + name + '.js'), name);
+});

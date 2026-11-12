@@ -23,6 +23,7 @@ const cli = require('./lib/cli');
 const { REPO, V3_DIR, LANES, PROJECT_NAMES, VARIANT_NAMES, projectConfig, stagePaths, expandProjects } = require('./lib/projects');
 const { listTests } = require('./lib/run');
 const { parseTap } = require('./lib/tap');
+const { BUILD_DIR, parseIso, parsePass, passDir } = require('./suite-cache');
 
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/timing.js [--project v3|qollock|showrank|all] [--mode debug|release|all] [--top <n>] [--tap <file.tap>] [--json]';
 const MODES = ['release', 'debug'];
@@ -78,28 +79,22 @@ function walkTimes(fsx, dir, { files = true } = {}) {
   return { latest, earliest, count };
 }
 
-// Get-Date -Format o (7 fractional digits, offset) -> ms.
-function parseIso(text) {
-  const match = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(Z|[+-]\d\d:\d\d)?/.exec(String(text).trim());
-  if (!match) return null;
-  const ms = Date.parse(match[1] + '.' + (match[2] || '0').padEnd(3, '0').slice(0, 3) + (match[3] || ''));
-  return Number.isFinite(ms) ? ms : null;
-}
+// parseIso reads tools/build.js's Get-Date -Format o timestamps (suite-cache.js owns both directions).
 
 // .build/suite-pass/<key>: "<iso> <mode> <staged source path>".
 function readSuitePasses(fsx, root = REPO) {
-  const dir = path.join(root, V3_DIR, '.build', 'suite-pass');
+  const dir = passDir(path.join(root, V3_DIR));
   let names = [];
   try { names = fsx.readdirSync(dir); } catch { return []; }
   const out = [];
   for (const key of names) {
     let text;
-    try { text = fsx.readFileSync(path.join(dir, key), 'utf8').replace(/^\ufeff/, '').trim(); } catch { continue; }
-    const match = /^(\S+)\s+(debug|release)\s+(.+)$/.exec(text);
-    if (!match) continue;
-    const stage = match[3].replace(/\//g, '\\');
+    try { text = fsx.readFileSync(path.join(dir, key), 'utf8'); } catch { continue; }
+    const pass = parsePass(text);
+    if (!pass) continue;
+    const stage = pass.stage.replace(/\//g, '\\');
     const project = VARIANT_BUILDS.find(([, pattern]) => pattern.test(stage))?.[0] || 'v3';
-    out.push({ key, at: parseIso(match[1]), mode: match[2], stage: match[3], project });
+    out.push({ key, at: pass.at, mode: pass.mode, stage: pass.stage, project });
   }
   return out.sort((a, b) => a.at - b.at);
 }
@@ -222,7 +217,7 @@ function chooseTap(opts, timelines, { fsx = fs, root = REPO } = {}) {
   if (opts.tap) return { file: path.resolve(opts.tap), why: '--tap' };
   const staged = timelines.filter(item => item.tap).map(item => ({ file: item.tap, mtime: (stat(fsx, item.tap) || {}).mtimeMs || 0 })).sort((a, b) => b.mtime - a.mtime);
   if (staged.length) return { file: staged[0].file, why: 'written by the build' };
-  const evidence = path.join(root, V3_DIR, '.build', 'evidence');
+  const evidence = path.join(root, V3_DIR, BUILD_DIR, 'evidence');
   const candidates = [];
   const visit = dir => {
     let entries;

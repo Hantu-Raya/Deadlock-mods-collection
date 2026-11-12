@@ -2,10 +2,9 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { pinMismatchMessage } = require('./lib/toolchain');
 const ROOT = path.resolve(__dirname, '..');
-const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+const { sha256, readPinnedTexts } = require('./lib/pin');
 const SOURCES = {
   'vendor/unit_status_v2.css': 'game/citadel/pak01_dir/panorama/styles/unit_status_v2.css',
   'vendor/heroes.vdata': 'game/citadel/pak01_dir/scripts/heroes.vdata',
@@ -75,19 +74,11 @@ function readPinned(root = ROOT) {
   if (pin.repository !== 'SteamTracking/GameTracking-Deadlock' || !/^[0-9a-f]{40}$/.test(pin.commit) ||
       !Number.isSafeInteger(pin.clientVersion) || pin.clientVersion <= 0 ||
       !Array.isArray(pin.files) || pin.files.length !== Object.keys(SOURCES).length) throw new Error('Invalid game-data pin manifest');
-  const texts = Object.create(null);
-  for (const file of pin.files) {
-    if (!Object.hasOwn(SOURCES, file.path) || file.upstream !== SOURCES[file.path] ||
-        Object.hasOwn(texts, file.path) || !/^[0-9a-f]{64}$/.test(file.sha256)) throw new Error('Invalid game-data pin entry: ' + file.path);
-    let bytes;
-    try { bytes = fs.readFileSync(path.join(root, file.path)); }
-    catch (error) { throw new Error('Missing vendored game-data file: ' + file.path + ' (' + error.code + ')'); }
-    // Pin hashes are the pristine upstream LF bytes; checkout CRLF conversion is equivalent, nothing else is.
-    const text = bytes.toString('utf8').replace(/\r\n/g, '\n');
-    const actual = sha256(Buffer.from(text, 'utf8'));
-    if (actual !== file.sha256) throw new Error('Game-data pin mismatch: ' + file.path + ' at ' + pin.commit + ' expected=' + file.sha256 + ' actual=' + actual + '; review/re-vendor the pinned source, do not refresh silently.');
-    texts[file.path] = text;
-  }
+  const texts = readPinnedTexts(root, pin.files, { sources: SOURCES, key: 'upstream', messages: {
+    invalid: file => 'Invalid game-data pin entry: ' + file.path,
+    missing: (file, error) => 'Missing vendored game-data file: ' + file.path + ' (' + error.code + ')',
+    mismatch: (file, actual) => 'Game-data pin mismatch: ' + file.path + ' at ' + pin.commit + ' expected=' + file.sha256 + ' actual=' + actual + '; review/re-vendor the pinned source, do not refresh silently.',
+  } });
   return { pin, texts };
 }
 

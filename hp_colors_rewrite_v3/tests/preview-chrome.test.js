@@ -58,4 +58,3 @@ test('ticket 30: changing the release source alone updates the generated pane, n
       fs.readFileSync(path.join(root, 'generated', file), 'utf8'));
   }
 });
-

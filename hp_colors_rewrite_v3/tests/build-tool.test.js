@@ -80,33 +80,33 @@ test('runtime detection: present, roll-forward (once, child env only), missing',
 });
 
 test('packed-listing helpers follow Test-PackedAsset / Assert-PackedVpkAssets', () => {
-  const tree = build.stripListing(['  panorama/scripts/hp_colors_v3_menu.vjs_c CRC:0a1B size:12 ', '', 'panorama/layout/HUD_escape_menu.vxml_c CRC:ff size:1']);
+  const tree = toolchain.stripListing(['  panorama/scripts/hp_colors_v3_menu.vjs_c CRC:0a1B size:12 ', '', 'panorama/layout/HUD_escape_menu.vxml_c CRC:ff size:1']);
   assert.deepEqual(tree, ['panorama/scripts/hp_colors_v3_menu.vjs_c', 'panorama/layout/HUD_escape_menu.vxml_c']);
-  assert.ok(build.packedAssetPresent(tree, 'panorama/layout/hud_escape_menu.vxml_c'));
-  assert.ok(build.packedAssetPresent(tree, 'elsewhere/hp_colors_v3_menu.vjs_c'), 'leaf match counts');
-  assert.ok(!build.packedAssetPresent(tree, '.js'));
-  assert.throws(() => build.assertPackedAssets(tree, ['panorama/x.vjs_c'], [], 'HPV3 pak02'), /^Error: HPV3 pak02 missing required asset: panorama\/x\.vjs_c$/);
-  assert.throws(() => build.assertPackedAssets(tree, [], ['hud_escape'], 'L'), /L contains forbidden asset: hud_escape/);
-  assert.ok(build.sameSet(['b', 'A'], ['a', 'B']));
-  assert.ok(!build.sameSet(['a'], ['a', 'b']));
+  assert.ok(toolchain.packedAssetPresent(tree, 'panorama/layout/hud_escape_menu.vxml_c'));
+  assert.ok(toolchain.packedAssetPresent(tree, 'elsewhere/hp_colors_v3_menu.vjs_c'), 'leaf match counts');
+  assert.ok(!toolchain.packedAssetPresent(tree, '.js'));
+  assert.throws(() => toolchain.assertPackedAssets(tree, ['panorama/x.vjs_c'], [], 'HPV3 pak02'), /^Error: HPV3 pak02 missing required asset: panorama\/x\.vjs_c$/);
+  assert.throws(() => toolchain.assertPackedAssets(tree, [], ['hud_escape'], 'L'), /L contains forbidden asset: hud_escape/);
+  assert.ok(toolchain.sameSet(['b', 'A'], ['a', 'B']));
+  assert.ok(!toolchain.sameSet(['a'], ['a', 'b']));
 });
 
 test('judgeCompile: outputs, summary, prompt and ReadKey exits', () => {
   const ok = { exitCode: 0, summaryLine: '20 compiled, 0 failed', missing: [], stoppedAtPrompt: false, stdoutText: '', stderrText: '' };
-  assert.equal(build.judgeCompile(ok), null);
-  assert.match(build.judgeCompile({ ...ok, stoppedAtPrompt: true, exitCode: null }), /Stopped compiler left at its exit prompt/);
+  assert.equal(toolchain.judgeCompile(ok), null);
+  assert.match(toolchain.judgeCompile({ ...ok, stoppedAtPrompt: true, exitCode: null }), /Stopped compiler left at its exit prompt/);
   for (const code of [-532462766, 3762504530]) {
-    assert.match(build.judgeCompile({ ...ok, exitCode: code, stderrText: READKEY_STDERR }), /Accepted known redirected Console\.ReadKey exit/);
+    assert.match(toolchain.judgeCompile({ ...ok, exitCode: code, stderrText: READKEY_STDERR }), /Accepted known redirected Console\.ReadKey exit/);
   }
-  assert.throws(() => build.judgeCompile({ ...ok, exitCode: 3 }), /Unexpected compiler exit 3/);
-  assert.throws(() => build.judgeCompile({ ...ok, summaryLine: '19 compiled, 1 failed' }), /Missing success summary or compiler failures/);
-  assert.throws(() => build.judgeCompile({ ...ok, summaryLine: null }), /Missing success summary/);
-  assert.equal(build.lastSummary('a\r\n1 compiled, 1 failed\r\n20 compiled, 0 failed\r\nPress any key to exit...'), '20 compiled, 0 failed');
+  assert.throws(() => toolchain.judgeCompile({ ...ok, exitCode: 3 }), /Unexpected compiler exit 3/);
+  assert.throws(() => toolchain.judgeCompile({ ...ok, summaryLine: '19 compiled, 1 failed' }), /Missing success summary or compiler failures/);
+  assert.throws(() => toolchain.judgeCompile({ ...ok, summaryLine: null }), /Missing success summary/);
+  assert.equal(toolchain.lastSummary('a\r\n1 compiled, 1 failed\r\n20 compiled, 0 failed\r\nPress any key to exit...'), '20 compiled, 0 failed');
 });
 
 test('missing outputs carry log tails and a one-line .NET cause', () => {
   let message;
-  try { build.judgeCompile({ exitCode: -2147450730, summaryLine: null, missing: ['panorama/a.vjs_c', 'panorama/b.vjs_c'], stoppedAtPrompt: false, stdoutText: 'line1\nline2\n', stderrText: DOTNET_MISSING }); }
+  try { toolchain.judgeCompile({ exitCode: -2147450730, summaryLine: null, missing: ['panorama/a.vjs_c', 'panorama/b.vjs_c'], stoppedAtPrompt: false, stdoutText: 'line1\nline2\n', stderrText: DOTNET_MISSING }); }
   catch (err) { message = err.message; }
   const lines = message.split('\n');
   assert.equal(lines[0], 'Missing compiled outputs: panorama/a.vjs_c, panorama/b.vjs_c');

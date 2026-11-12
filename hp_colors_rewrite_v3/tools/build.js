@@ -12,8 +12,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
 const { REPO, repoPaths, projectConfig, stagePaths, expandProjects } = require('./lib/projects');
-const { findTool, discoverDeadlock, READKEY_EXIT, checkSpawn, outputLines, vpkPack, packedVpkTree, stripListing, packedAssetPresent,
-  assertPackedAssets, sameSet, listFilesRelative, judgeCompile, lastSummary, runSource2Compiler } = require('./lib/toolchain');
+const { findTool, findInstall, spawnNode, showrankCandidates, findShowrankCarrier, checkSpawn, outputLines, vpkPack, packedVpkTree, stripListing,
+  assertPackedAssets, sameSet, listFilesRelative, runSource2Compiler } = require('./lib/toolchain');
+const { cacheEnabled, passDir: suitePassDir, isoLocal, passLine } = require('./suite-cache');
+
+// The one spelling of the stage mode folders (stagePaths names the folder after the mode).
+const modeOf = debug => (debug ? 'debug' : 'release');
 
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/build.js --project v3|qollock|showrank|all --skip-deploy [--debug] [--allow-pin-mismatch] [--installed-steam-inf <steam.inf>] [--check-upstream]';
 
@@ -64,7 +68,7 @@ function defaultDeps() {
 
 // `& node <script> <args>`; returns the exit status. capture: stdout captured as lines (stderr shown).
 function runNode(deps, script, args, { env = deps.env, capture = false } = {}) {
-  const result = deps.spawnSync(deps.execPath, [script, ...args], { env, encoding: 'utf8', stdio: capture ? ['inherit', 'pipe', 'inherit'] : 'inherit', maxBuffer: 256 * 1024 * 1024 });
+  const result = spawnNode(deps, script, args, { env, stdio: capture ? ['inherit', 'pipe', 'inherit'] : 'inherit', maxBuffer: 256 * 1024 * 1024 });
   const status = checkSpawn(result, `node ${path.basename(script)}`);
   return { status, lines: capture ? outputLines(result.stdout) : [] };
 }
@@ -72,15 +76,6 @@ function runNode(deps, script, args, { env = deps.env, capture = false } = {}) {
 // Set-Content (Windows PowerShell 5.1): CRLF after every line; -Encoding UTF8 adds a BOM.
 function setContent(fsx, file, lines, { bom = false } = {}) {
   fsx.writeFileSync(file, (bom ? '\ufeff' : '') + lines.map(l => l + '\r\n').join(''), 'utf8');
-}
-
-// Get-Date -Format o in local time.
-function isoLocal(ms) {
-  const d = new Date(ms);
-  const pad = (n, w = 2) => String(n).padStart(w, '0');
-  const off = -d.getTimezoneOffset();
-  const sign = off >= 0 ? '+' : '-';
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}0000${sign}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
 }
 
 function sortByName(files) {
@@ -125,9 +120,9 @@ function runV3Suite(deps, paths, stageSource, mode, env) {
   const key = runNode(deps, paths.tools.suiteCache, ['--key', stageSource, mode], { env, capture: true });
   const last = key.lines.length ? key.lines[key.lines.length - 1] : '';
   if (key.status !== 0 || !/^[0-9a-f]{64}$/.test(last)) throw new Error('V3 suite cache key failed');
-  const passDir = path.join(paths.v3, '.build', 'suite-pass');
+  const passDir = suitePassDir(paths.v3);
   const marker = path.join(passDir, last);
-  if (env.HPV3_SUITE_CACHE !== '0' && deps.fs.existsSync(marker)) {
+  if (cacheEnabled(env) && deps.fs.existsSync(marker)) {
     deps.log(`HPV3 staged suite (${mode}): passed before for identical inputs ${last.slice(0, 12)}; not rerun (HPV3_SUITE_CACHE=0 forces it)`);
     return 'cached';
   }
@@ -135,7 +130,7 @@ function runV3Suite(deps, paths, stageSource, mode, env) {
   const result = deps.spawnSync(deps.execPath, ['--test', ...tapReporters(path.join(path.dirname(stageSource), 'suite.tap')), ...testFiles(deps.fs, path.join(paths.v3, 'tests'))], { env, stdio: 'inherit' });
   if (checkSpawn(result, 'node --test') !== 0) throw new Error('Staged v3 VM tests failed');
   deps.fs.mkdirSync(passDir, { recursive: true });
-  setContent(deps.fs, marker, [`${isoLocal(deps.now())} ${mode} ${stageSource}`], { bom: true });
+  setContent(deps.fs, marker, [passLine(deps.now(), mode, stageSource)], { bom: true });
   return 'ran';
 }
 
@@ -210,12 +205,66 @@ function writeTiming(fsx, file, { project, mode, timer, now, status, error = nul
   fsx.writeFileSync(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
 }
 
+// ---- lane hooks -------------------------------------------------------------------------------
+// Everything a lane does beyond the canonical v3 build, in the order buildProjectSteps calls it (lane names, folders,
+// composers, assets and forbidden lists come from LANES/projectConfig). v3 is the canonical build, so it has no hooks.
+
+// The test-run environment variables a lane build sets for the suites (tests/qollock-runtime.js and
+// hp_colors_rewrite_v3_showrank/tests/showrank.test.js read the same names).
+const LANE_ENV = Object.freeze({
+  qollock: Object.freeze({ sourceRoot: 'HPV3_QOLLOCK_SOURCE_ROOT', pinnedRoot: 'HPV3_QOLLOCK_ROOT', required: 'HPV3_QOLLOCK_REQUIRED' }),
+  showrank: Object.freeze({ sourceRoot: 'HPV3_SHOWRANK_SOURCE_ROOT' })
+});
+
+const V3_SCRIPTS_ERROR = 'V3 staged-script transform failed; see recursive logging/debug-marker error above.';
+const v3ScriptDirs = s => [[path.join(s.stageSource, 'panorama', 'scripts'), V3_SCRIPTS_ERROR]];
+
+const LANE_HOOKS = Object.freeze({
+  v3: Object.freeze({
+    checkUpstream: true,
+    scriptDirs: v3ScriptDirs,
+    env: () => ({})
+  }),
+  qollock: Object.freeze({
+    // The pinned pak03 (and the release zip when present) must match vendor/pin.json, and a fresh
+    // decompile must still match the vendored layouts and the reviewed QOLLOCK entries.
+    verifyPin({ deps, config, root, viewer, s }) {
+      const inputs = runNode(deps, config.composer, ['--verify-inputs', root], { capture: true });
+      if (inputs.status !== 0) throw new Error('QOLLOCK pin check failed; see the pak03/zip hash details above.');
+      for (const line of inputs.lines.slice(0, -1)) deps.log(line);
+      viewerDecompile(deps, viewer, inputs.lines[inputs.lines.length - 1], s.pinned, 'Pinned QOLLOCK pak03 decompilation failed with exit code');
+      if (runNode(deps, config.composer, ['--verify', s.pinned]).status !== 0) throw new Error('Pinned QOLLOCK pak03 no longer matches the lane vendor files; re-review ticket 22b before re-pinning.');
+    },
+    // The lane's own staged scripts (the transformed window bridge) go through the same transform as v3's.
+    scriptDirs: s => [s.stageSource, s.stageLane].map(dir => path.join(dir, 'panorama', 'scripts'))
+      .map(scripts => [scripts, `Staged-script transform failed for ${scripts}; see recursive logging/debug-marker error above.`]),
+    env: s => ({ [LANE_ENV.qollock.sourceRoot]: s.stageLane, [LANE_ENV.qollock.pinnedRoot]: s.pinned, [LANE_ENV.qollock.required]: '1' }),
+    checkPacked({ deps, config, viewer, s }) {
+      viewerDecompile(deps, viewer, s.vpk, s.packedCheck, 'Packed QOLLOCK pak02 decompilation failed with exit code');
+      if (runNode(deps, config.composer, ['--check-packed', s.packedCheck]).status !== 0) throw new Error('Packed QOLLOCK layouts lost composed includes, ids or structure.');
+    }
+  }),
+  showrank: Object.freeze({
+    // The ShowRank dependency must carry the runtime these layouts call: the installed pak89 or the repo build.
+    verifyDependency({ deps, config, install, vpkTool, viewer, paths }) {
+      const { addons, candidates } = showrankCandidates(deps, install.steamInf, paths.showrankRepoVpk);
+      const carrier = findShowrankCarrier(candidates, config.showrankScript, candidate => packedVpkTree(deps, vpkTool, candidate, viewer),
+        candidate => deps.warn(`ShowRank dependency ${candidate} does not contain ${config.showrankScript}`));
+      if (!carrier) throw new Error(`ShowRank dependency missing: neither installed pak89_dir.vpk (${addons}) nor showrank_barebones_dir.vpk contains ${config.showrankScript}. Build/install ShowRank barebones first.`);
+      deps.log(`ShowRank dependency verified: ${carrier}`);
+    },
+    // Only the canonical v3 scripts are transformed: ShowRank's own staged scripts are copied as they are.
+    scriptDirs: v3ScriptDirs,
+    env: s => ({ [LANE_ENV.showrank.sourceRoot]: s.stageLane })
+  })
+});
+
 async function buildProject(name, opts, deps = defaultDeps(), root = REPO) {
   const config = projectConfig(name, root);
   if (!opts.skipDeploy) throw new Error(config.skipDeployError);
   const now = deps.now || Date.now;
   const timer = createStepTimer(now);
-  const mode = opts.debug ? 'debug' : 'release';
+  const mode = modeOf(opts.debug);
   const state = { staged: false, suite: null };
   try {
     const vpk = await buildProjectSteps(name, opts, deps, root, config, timer.mark, state);
@@ -235,7 +284,7 @@ async function buildProjectSteps(name, opts, deps, root, config, mark, state) {
   const paths = repoPaths(root);
   mark('preflight');
   // Local installed-version guard is offline and runs before tool resolution or stage cleanup.
-  const install = discoverDeadlock({ flag: opts.installedSteamInf, fs: fsx, env: deps.env, spawnSync: deps.spawnSync, platform: deps.platform });
+  const install = findInstall(deps, opts.installedSteamInf);
   if (install.steamInf) {
     deps.log(`Deadlock install: ${install.steamInf} (${install.source})`);
     const pinArgs = ['--check-installed', install.steamInf];
@@ -244,32 +293,21 @@ async function buildProjectSteps(name, opts, deps, root, config, mark, state) {
   } else {
     deps.log(`Deadlock install not found (checked ${install.tried.length} path(s)); installed-version check skipped, the offline pin is used. Pass --installed-steam-inf or set HPV3_STEAM_INF.`);
   }
-  const mode = opts.debug ? 'debug' : 'release';
+  const mode = modeOf(opts.debug);
   const s = stagePaths(config, mode);
+  const hooks = LANE_HOOKS[name];
   const vpkTool = findTool(paths.vpkToolCandidates, 'vpkeditcli.exe', fsx);
   const viewer = findTool(paths.viewerCandidates, 'Source2Viewer-CLI.exe', fsx);
 
   // Network is opt-in: resolve upstream HEAD once and fail before staging if any pin has drifted.
-  if (name === 'v3' && opts.checkUpstream) {
+  if (hooks.checkUpstream && opts.checkUpstream) {
     if (runNode(deps, paths.tools.gameData, ['--check-upstream']).status !== 0) throw new Error('Upstream v3 game data changed or could not be checked; review the drift report and rebase explicitly.');
   }
   // Both lanes must be current: v3's generated outputs, then the lane's composed layouts.
   mark('generators');
   for (const gen of config.generators) if (runNode(deps, gen.script, gen.args).status !== 0) throw new Error(gen.error);
 
-  if (name === 'showrank') {
-    // The ShowRank dependency must carry the runtime these layouts call: the installed pak89 or the repo build.
-    const addons = install.steamInf ? path.join(path.dirname(install.steamInf), 'addons') : '(no Deadlock install found)';
-    const dependencies = [...(install.steamInf ? [path.join(addons, 'pak89_dir.vpk')] : []), paths.showrankRepoVpk].filter(f => fsx.existsSync(f));
-    let carrier = null;
-    for (const candidate of dependencies) {
-      const listing = stripListing(packedVpkTree(deps, vpkTool, candidate, viewer));
-      if (listing.some(line => line.toLowerCase() === config.showrankScript.toLowerCase())) { carrier = candidate; break; }
-      deps.warn(`ShowRank dependency ${candidate} does not contain ${config.showrankScript}`);
-    }
-    if (!carrier) throw new Error(`ShowRank dependency missing: neither installed pak89_dir.vpk (${addons}) nor showrank_barebones_dir.vpk contains ${config.showrankScript}. Build/install ShowRank barebones first.`);
-    deps.log(`ShowRank dependency verified: ${carrier}`);
-  }
+  if (hooks.verifyDependency) hooks.verifyDependency({ deps, config, install, vpkTool, viewer, paths });
 
   // Clean only this mode before compilation: stale outputs cannot count as success.
   mark('staging');
@@ -278,31 +316,16 @@ async function buildProjectSteps(name, opts, deps, root, config, mark, state) {
   state.staged = true;
   if (s.stageLane) fsx.mkdirSync(s.stageLane, { recursive: true });
 
-  if (name === 'qollock') {
-    // The pinned pak03 (and the release zip when present) must match vendor/pin.json, and a fresh
-    // decompile must still match the vendored layouts and the reviewed QOLLOCK entries.
-    const inputs = runNode(deps, config.composer, ['--verify-inputs', root], { capture: true });
-    if (inputs.status !== 0) throw new Error('QOLLOCK pin check failed; see the pak03/zip hash details above.');
-    for (const line of inputs.lines.slice(0, -1)) deps.log(line);
-    viewerDecompile(deps, viewer, inputs.lines[inputs.lines.length - 1], s.pinned, 'Pinned QOLLOCK pak03 decompilation failed with exit code');
-    if (runNode(deps, config.composer, ['--verify', s.pinned]).status !== 0) throw new Error('Pinned QOLLOCK pak03 no longer matches the lane vendor files; re-review ticket 22b before re-pinning.');
-  }
+  if (hooks.verifyPin) hooks.verifyPin({ deps, config, root, viewer, s });
 
   fsx.cpSync(path.join(paths.v3, 'panorama'), path.join(s.stageSource, 'panorama'), { recursive: true });
   if (s.stageLane) fsx.cpSync(path.join(config.lane, 'panorama'), path.join(s.stageLane, 'panorama'), { recursive: true });
-  if (name === 'qollock') {
-    for (const scripts of [path.join(s.stageSource, 'panorama', 'scripts'), path.join(s.stageLane, 'panorama', 'scripts')]) {
-      stageScripts(deps, paths, scripts, opts.debug, `Staged-script transform failed for ${scripts}; see recursive logging/debug-marker error above.`);
-    }
-  } else {
-    stageScripts(deps, paths, path.join(s.stageSource, 'panorama', 'scripts'), opts.debug, 'V3 staged-script transform failed; see recursive logging/debug-marker error above.');
-  }
+  for (const [scripts, error] of hooks.scriptDirs(s)) stageScripts(deps, paths, scripts, opts.debug, error);
 
   // The suites boot the exact transformed scripts that will be compiled (child env only; this
   // process's env is untouched).
   const env = { ...deps.env, HPV3_SOURCE_ROOT: s.stageSource, HPV3_DEBUG: opts.debug ? '1' : '0' };
-  if (name === 'qollock') Object.assign(env, { HPV3_QOLLOCK_SOURCE_ROOT: s.stageLane, HPV3_QOLLOCK_ROOT: s.pinned, HPV3_QOLLOCK_REQUIRED: '1' });
-  if (name === 'showrank') env.HPV3_SHOWRANK_SOURCE_ROOT = s.stageLane;
+  Object.assign(env, hooks.env(s));
   mark('suite');
   state.suite = runV3Suite(deps, paths, s.stageSource, mode, env) || null;
   if (state.suite) mark.note(state.suite === 'cached' ? 'cache hit: identical inputs passed before' : 'ran; per-test times in suite.tap');
@@ -315,10 +338,7 @@ async function buildProjectSteps(name, opts, deps, root, config, mark, state) {
   if (s.stageLane) fsx.cpSync(path.join(s.stageLane, 'panorama'), path.join(s.stageSource, 'panorama'), { recursive: true, force: true });
   await compileAndPack(deps, paths, { ...s, assets: config.assets, forbidden: config.forbidden, vpkTool, viewer, label: config.label, mark });
 
-  if (name === 'qollock') {
-    viewerDecompile(deps, viewer, s.vpk, s.packedCheck, 'Packed QOLLOCK pak02 decompilation failed with exit code');
-    if (runNode(deps, config.composer, ['--check-packed', s.packedCheck]).status !== 0) throw new Error('Packed QOLLOCK layouts lost composed includes, ids or structure.');
-  }
+  if (hooks.checkPacked) hooks.checkPacked({ deps, config, viewer, s });
   deps.log(config.complete(mode, s.vpk));
   deps.log(config.deployMessage);
   return s.vpk;
@@ -336,7 +356,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  parseArgs, outputLines, isoLocal, assertPathUnderRoot, removeTreeUnderRoot, vpkPack, packedVpkTree, stripListing,
-  packedAssetPresent, assertPackedAssets, sameSet, listFilesRelative, runV3Suite, judgeCompile, lastSummary, runCompiler,
-  compileAndPack, buildProject, main, testFiles, tapReporters, createStepTimer, READKEY_EXIT, USAGE
+  parseArgs, assertPathUnderRoot, removeTreeUnderRoot, runV3Suite, runCompiler, compileAndPack, buildProject, main, testFiles,
+  tapReporters, createStepTimer, LANE_ENV, LANE_HOOKS, USAGE
 };

@@ -204,7 +204,8 @@ function pinMismatchMessage({ installed, pinned, steamInf }) {
 }
 
 // ---- Source 2 packaging (ported from scripts/source2_package_pipeline.ps1) --------------------------
-// Shared by hp_colors_rewrite_v3/tools/build.js and scripts/build-abilities.js. deps carries fs, spawn,
+// Shared by hp_colors_rewrite_v3/tools/build.js and scripts/build-abilities.js: a frozen shared surface, so
+// a change to a signature here must update both callers. deps carries fs, spawn,
 // spawnSync, env, log, now and sleep so tests stub every process.
 
 // Redirected Console.ReadKey crash: CLR unhandled-exception code 0xE0434352 (-532462766 signed).
@@ -258,10 +259,43 @@ function packedAssetPresent(tree, asset) {
   return has(asset) || Boolean(leaf && has(leaf));
 }
 
-// Assert-PackedVpkAssets.
-function assertPackedAssets(tree, required, forbidden, label = 'VPK') {
+// Assert-PackedVpkAssets. `required` are asset paths (matched as case-insensitive substrings of a listing line, or of
+// their leaf name); `forbiddenSubstrings` are NOT paths: each is the same substring test, so '.js' or 'ql_' rejects
+// any listing line containing it (the lanes' BASE_FORBIDDEN and extras in projects.js).
+function assertPackedAssets(tree, required, forbiddenSubstrings, label = 'VPK') {
   for (const asset of required) if (!packedAssetPresent(tree, asset)) throw new Error(`${label} missing required asset: ${asset}`);
-  for (const asset of forbidden) if (packedAssetPresent(tree, asset)) throw new Error(`${label} contains forbidden asset: ${asset}`);
+  for (const asset of forbiddenSubstrings) if (packedAssetPresent(tree, asset)) throw new Error(`${label} contains forbidden asset: ${asset}`);
+}
+
+// ---- helpers shared by tools/build.js and tools/doctor.js ------------------------------------------
+
+// `node <script> <args>` through deps.spawnSync/execPath; the caller passes its own spawn options (stdio, env, cwd ...).
+function spawnNode(deps, script, args, options) {
+  return deps.spawnSync(deps.execPath, [script, ...args], { encoding: 'utf8', ...options });
+}
+
+// The Deadlock install lookup of build.js and doctor.js (flag > env > registry/library discovery).
+function findInstall(deps, flag) {
+  return discoverDeadlock({ flag, fs: deps.fs, env: deps.env || {}, spawnSync: deps.spawnSync, platform: deps.platform || process.platform });
+}
+
+// The ShowRank dependency candidates in order: the installed addons/pak89_dir.vpk (when a Deadlock install was found),
+// then the repo's showrank_barebones_dir.vpk; only existing files.
+function showrankCandidates(deps, steamInf, repoVpk) {
+  const addons = steamInf ? path.join(path.dirname(steamInf), 'addons') : '(no Deadlock install found)';
+  return { addons, candidates: [...(steamInf ? [path.join(addons, 'pak89_dir.vpk')] : []), repoVpk].filter(f => deps.fs.existsSync(f)) };
+}
+
+// First candidate VPK whose listing contains `script` (case-insensitive). `list(candidate)` returns the listing lines or
+// null to skip a candidate it could not read; `onMiss(candidate)` runs for each candidate that lacks the script.
+function findShowrankCarrier(candidates, script, list, onMiss = () => {}) {
+  for (const candidate of candidates) {
+    const lines = list(candidate);
+    if (!lines) continue;
+    if (stripListing(lines).some(line => line.toLowerCase() === script.toLowerCase())) return candidate;
+    onMiss(candidate);
+  }
+  return null;
 }
 
 // Compare-Object on sorted lists (case-insensitive, like PowerShell): true when both hold the same items.
@@ -390,5 +424,6 @@ module.exports = {
   compilerFailureCause, formatMissingOutputs,
   DEADLOCK_APP_ID, regValue, parseLibraryFolders, manifestInstallDir, discoverDeadlock, readClientVersion, pinMismatchMessage,
   READKEY_EXIT, COMPILE_TIMEOUT_MS, checkSpawn, outputLines, vpkPack, packedVpkTree, stripListing, packedAssetPresent,
-  assertPackedAssets, sameSet, listFilesRelative, compress7z, judgeCompile, lastSummary, readText, runSource2Compiler
+  assertPackedAssets, sameSet, listFilesRelative, compress7z, judgeCompile, lastSummary, readText, runSource2Compiler,
+  spawnNode, findInstall, showrankCandidates, findShowrankCarrier
 };

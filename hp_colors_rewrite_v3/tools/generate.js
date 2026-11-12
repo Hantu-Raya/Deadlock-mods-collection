@@ -10,16 +10,18 @@
 //   stylesheets.js      the packed stylesheet contract (run by build() on the generated stock sheet and the folder)
 //   output.js           JSON inputs, writing and --check
 // and tools/menu-layout.js builds the menu itself.
+const fs = require('node:fs');
 const path = require('node:path');
 const { derive } = require('./game-data');
 const { buildMenu } = require('./menu-layout');
 const { sidesOf, validate } = require('./lib/schema');
 const { validateNews } = require('./lib/news');
 const { validateRelease, buildSlots, checkSlotContract } = require('./lib/slot-contract');
-const { stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OWNED_STYLES } = require('./lib/stock-layouts');
+const { stockLayouts, menuSteps, topbarSteps, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OWNED_STYLES } = require('./lib/stock-layouts');
 const { WIRE_VERSION, worldSettingsScript, settingsScript } = require('./lib/settings-scripts');
 const { checkStylesheets } = require('./lib/stylesheets');
 const { json, readJson, writeOrCheck } = require('./lib/output');
+const { lf } = require('./lib/layout-compose');
 const ROOT = path.resolve(__dirname, '..');
 
 // The one list of generated outputs (relative to the lane), in write order: tools/dev.js, the variant lanes and the
@@ -68,14 +70,31 @@ function build(rows, gameData, metadata, news, { root = ROOT, stylesRoot } = {})
   return { files, menu, css };
 }
 
-// Published for variant lanes (hp_colors_rewrite_v3_qollock): the exact v3 Escape-menu and topbar
-// pieces this generator injects, computed from the v3 sources, plus the v3 files they come with so a
-// lane can refuse a stale v3 checkout. The v3 lane itself knows nothing about variants.
-function menuParts(root = ROOT) {
+// The generated outputs of `root` whose committed file is missing or differs from `files` (LF-normalised): the one
+// freshness answer for the lanes that consume v3's committed outputs (QOLLOCK, ShowRank).
+function staleOutputs(root, files) {
+  return Object.keys(files).filter(relative => {
+    const file = path.join(root, relative);
+    return !fs.existsSync(file) || lf(fs.readFileSync(file, 'utf8')) !== lf(files[relative]);
+  });
+}
+
+// Published for variant lanes (hp_colors_rewrite_v3_qollock, _showrank): the exact v3 Escape-menu and topbar
+// pieces and patch steps this generator injects, computed from the v3 sources, plus `stale` (the v3 outputs of
+// `root` that are out of date) with `assertFresh()` (a lane refuses a stale v3 checkout) and `generatedKeys`. `lane.profile`
+// ('stock' by default, or 'qollock') picks the base differences of the patch steps and `lane.topbarClasses`
+// adds the lane's own classes to the topbar root. The v3 lane itself knows nothing about variants.
+function menuParts(root = ROOT, lane = {}) {
+  const { profile = 'stock', topbarClasses = [] } = lane;
   const { files, menu } = build(readJson(path.join(root, 'settings/schema.json')), derive(root),
     readJson(path.join(root, 'settings/record.json')), readNews(root), { root });
+  const stale = staleOutputs(root, files);
+  const topbarClass = [TOPBAR_CLASS, ...topbarClasses].join(' ');
   return { resume: MENU_RESUME, styles: MENU_STYLES, scripts: MENU_SCRIPTS, button: menu.button, fragment: menu.fragment,
-    ids: menu.ids, topbarScripts: TOPBAR_SCRIPTS, topbarClass: TOPBAR_CLASS, files };
+    ids: menu.ids, topbarScripts: TOPBAR_SCRIPTS, topbarClass, files, generatedKeys: Object.keys(OUTPUTS),
+    menuPatches: menuSteps(profile, menu), topbarPatches: topbarSteps(profile, topbarClass), stale, assertFresh: () => {
+      if (stale.length) throw new Error('hp_colors_rewrite_v3 generated outputs are stale (' + stale.join(', ') + '); run hp_colors_rewrite_v3/tools/generate.js first.');
+    } };
 }
 
 function main(args) {
@@ -102,7 +121,7 @@ function main(args) {
   console.log('HPV3 stylesheets: ' + css.files + ' files, ' + css.rules + ' rules, max ' + css.widest + ' selectors per rule');
   console.log('HPV3 generator: ' + Object.keys(files).length + ' outputs ' + (check ? 'current' : 'written'));
 }
-module.exports = { OUTPUTS, generate, menuParts };
+module.exports = { OUTPUTS, generate, menuParts, staleOutputs };
 if (require.main === module) {
   try { main(process.argv.slice(2)); }
   catch (error) { console.error(error.message); process.exitCode = 1; }

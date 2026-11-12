@@ -24,29 +24,38 @@ const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
 const childProcess = require('node:child_process');
-const { REPO, expandProjects } = require('./lib/projects');
+const { REPO, V3_DIR, LANES, VARIANT_NAMES, expandProjects } = require('./lib/projects');
 const { OUTPUTS } = require('./generate');
 const quick = require('./test');
 
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/dev.js [--project v3|qollock|showrank|all] [--once] [--files a,b] [--build] [--no-write] [--no-tests] [--debounce <ms>]';
-const V3 = 'hp_colors_rewrite_v3';
-const QOL = 'hp_colors_rewrite_v3_qollock';
-const SR = 'hp_colors_rewrite_v3_showrank';
+const V3 = V3_DIR;
+const QOL = LANES.qollock.dir;
+const SR = LANES.showrank.dir;
+const LANE_DIRS = Object.values(LANES).map(lane => lane.dir);
 const SR_SOURCE = 'showrank_barebones';
 const TOOLS = {
   generate: V3 + '/tools/generate.js',
   stageScripts: V3 + '/tools/stage-scripts.js',
   build: V3 + '/tools/build.js',
-  qollock: QOL + '/tools/qollock.js',
-  showrank: SR + '/tools/showrank.js',
+  qollock: QOL + '/' + LANES.qollock.composer,
+  showrank: SR + '/' + LANES.showrank.composer,
 };
 // tools/generate.js outputs, and the layouts each variant composer writes (their OUTPUTS tables).
 const GENERATED = Object.keys(OUTPUTS).map(file => V3 + '/' + file);
-const COMPOSED = {
-  qollock: Object.values(require('../../' + QOL + '/tools/qollock').OUTPUTS).map(file => QOL + '/' + file),
-  showrank: Object.values(require('../../' + SR + '/tools/showrank').OUTPUTS).map(file => SR + '/' + file),
-};
-const VARIANTS = ['qollock', 'showrank'];
+const VARIANTS = VARIANT_NAMES;
+const COMPOSED = Object.fromEntries(VARIANTS.map(name => [name,
+  Object.values(require('../../' + LANES[name].dir + '/' + LANES[name].composer.replace(/\.js$/, '')).OUTPUTS).map(file => LANES[name].dir + '/' + file)]));
+const OUTPUT_FILES = new Set([...GENERATED, ...Object.values(COMPOSED).flat()]);
+// Folders a cycle ignores (the shared list of tools/test.js) and the extra ones the watcher skips.
+const IGNORED_DIRS = [...quick.NON_SOURCE_DIRS, '.git', 'node_modules', 'evidence'];
+const dirsPattern = dirs => dirs.map(dir => dir.replace('.', '\\.')).join('|');
+const NON_SOURCE = new RegExp('(?:^|/)(?:' + dirsPattern(quick.NON_SOURCE_DIRS) + ')/');
+const WATCH_SKIP = new RegExp('(?:^|/)(?:' + dirsPattern(IGNORED_DIRS) + ')(?:/|$)');
+const LANE_PREFIX = new RegExp('^(?:' + LANE_DIRS.join('|') + ')/');
+const LANE_SCRIPT = new RegExp('^(?:' + LANE_DIRS.join('|') + ')/panorama/scripts/[^/]+\\.js$');
+const LANE_TEST = new RegExp('^(?:' + LANE_DIRS.join('|') + ')/tests/');
+const GENERATOR_INPUT = new RegExp(quick.GENERATOR_MODULE);
 
 // ---------------------------------------------------------------------------------------------------
 // Classifying changed files.
@@ -56,16 +65,14 @@ const posix = file => String(file).replace(/\\/g, '/').replace(/^\.\//, '');
 // Generated or composed outputs and build/scratch trees: never a cycle trigger in watch mode.
 function isOutput(rel) {
   rel = posix(rel);
-  if (GENERATED.includes(rel) || rel.startsWith(V3 + '/generated/')) return true;
-  if (/^hp_colors_rewrite_v3(?:_qollock|_showrank)?\/panorama\/layout\//.test(rel)) return true;
-  return false;
+  return OUTPUT_FILES.has(rel) || rel.startsWith(V3 + '/generated/');
 }
 
 function isWatchIgnored(rel) {
   rel = posix(rel);
   if (!rel || rel.startsWith('..')) return true;
   if (isOutput(rel)) return true;
-  if (/(?:^|\/)(?:\.build|\.tmp|\.git|node_modules|docs|issues|tickets|research|prototypes|mocks|evidence)(?:\/|$)/.test(rel)) return true;
+  if (WATCH_SKIP.test(rel)) return true;
   if (/(?:~|\.swp|\.swx|\.tmp|\.bak|\.orig|\.crdownload|#)$/i.test(rel) || /(?:^|\/)(?:\.#|#)/.test(rel)) return true;
   if (/\.md$/i.test(rel)) return true;
   return !relevant(rel);
@@ -74,7 +81,7 @@ function isWatchIgnored(rel) {
 // Files a cycle cares about at all (the lanes, the ShowRank layouts ShowRank's composer reads, the shared
 // test adapter scripts).
 function relevant(rel) {
-  return new RegExp('^(?:' + [V3, QOL, SR].join('|') + ')/').test(rel) || new RegExp('^' + SR_SOURCE + '/panorama/layout/').test(rel) || /^scripts\/hp-colors-[^/]+\.js$/.test(rel);
+  return LANE_PREFIX.test(rel) || new RegExp('^' + SR_SOURCE + '/panorama/layout/').test(rel) || /^scripts\/hp-colors-[^/]+\.js$/.test(rel);
 }
 
 function isGeneratorInput(rel) {
@@ -82,8 +89,7 @@ function isGeneratorInput(rel) {
   if (!rel.startsWith(V3 + '/')) return false;
   const inner = rel.slice(V3.length + 1);
   return /^settings\/[^/]+\.json$/.test(inner) || inner === 'game-data-pin.json' || inner.startsWith('vendor/') ||
-    /^tools\/(?:generate|menu-layout|game-data)\.js$/.test(inner) ||
-    (/^tools\/lib\/[^/]+\.js$/.test(inner) && !/\/(?:projects|toolchain)\.js$/.test(inner));
+    inner === 'tools/game-data.js' || GENERATOR_INPUT.test(inner);
 }
 
 function composerInput(rel) {
@@ -94,15 +100,15 @@ function composerInput(rel) {
   return out;
 }
 
-const isTestFile = rel => /^hp_colors_rewrite_v3(?:_qollock|_showrank)?\/tests\//.test(posix(rel));
-const isLaneScript = rel => /^hp_colors_rewrite_v3(?:_qollock)?\/panorama\/scripts\/[^/]+\.js$/.test(posix(rel));
+const isTestFile = rel => LANE_TEST.test(posix(rel));
+const isLaneScript = rel => LANE_SCRIPT.test(posix(rel));
 const isV3Style = rel => /^hp_colors_rewrite_v3\/panorama\/styles\/[^/]+\.css$/.test(posix(rel));
 const isJs = rel => /\.(?:c?js)$/.test(posix(rel)) && !/\/tests\/fixtures\//.test(posix(rel));
 
 // What one cycle does for these files and projects. `exists(rel)` drops deleted files from the checks.
 function planCycle(files, projects, { exists = rel => fs.existsSync(path.join(REPO, rel)), write = true } = {}) {
   const all = [...new Set(files.map(posix))].filter(Boolean);
-  const lane = all.filter(rel => relevant(rel) && !/\.md$/i.test(rel) && !/(?:^|\/)(?:\.build|\.tmp|docs|issues|tickets|research|prototypes|mocks)\//.test(rel));
+  const lane = all.filter(rel => relevant(rel) && !/\.md$/i.test(rel) && !NON_SOURCE.test(rel));
   const present = lane.filter(exists);
   const variants = VARIANTS.filter(name => projects.includes(name));
   const generate = lane.some(isGeneratorInput);
@@ -208,20 +214,18 @@ async function markerStep(files, deps, root = REPO) {
   const failures = [];
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'hpv3-dev-'));
   try {
-    const names = new Map();
     for (const mode of ['debug', 'release']) {
       const dir = path.join(temp, mode);
       fs.mkdirSync(dir, { recursive: true });
       for (const rel of files) {
-        const base = path.basename(rel);
-        names.set(base, rel);
-        fs.copyFileSync(path.join(root, rel), path.join(dir, base));
+        fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+        fs.copyFileSync(path.join(root, rel), path.join(dir, rel));
       }
       const result = await deps.runNode(TOOLS.stageScripts, mode === 'debug' ? [dir, '--debug'] : [dir]);
       if (result.code !== 0) {
         const message = firstLine(result.stderr || result.stdout);
-        const site = /([\w.-]+\.js):(\d+)/.exec(message) || /in ([\w.-]+\.js)\b/.exec(message);
-        const rel = site ? names.get(site[1]) : null;
+        const site = /([\w./-]+\.js):(\d+)/.exec(message) || /in ([\w./-]+\.js)\b/.exec(message);
+        const rel = site && files.includes(site[1]) ? site[1] : null;
         failures.push({ what: 'markers (' + mode + ')', where: rel ? rel + (site[2] ? ':' + site[2] : '') : null, message: message.replace(/^Debug marker must contain a complete single-line statement: \S+ /, 'debug marker not a complete statement ') });
       }
     }

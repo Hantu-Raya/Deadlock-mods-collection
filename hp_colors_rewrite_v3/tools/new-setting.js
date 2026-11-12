@@ -18,23 +18,29 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const cli = require('./lib/cli');
+const { LANES } = require('./lib/projects');
+const { PAGES } = require('./lib/menu-markup');
+const { COLUMNS, UNITS, sidesOf, slotOf, validate } = require('./lib/schema');
+const { nextSlot } = require('./lib/slot-contract');
 
 const V3_ROOT = path.resolve(__dirname, '..');
-const LANES = { qollock: 'hp_colors_rewrite_v3_qollock', showrank: 'hp_colors_rewrite_v3_showrank' };
-const LANE_TOOLS = { qollock: 'tools/qollock.js', showrank: 'tools/showrank.js' };
-const TYPES = ['boolean', 'number', 'enum', 'color'];
-const SIDES = ['shared', 'side-aware'];
-const PAGES = ['Bar', 'HP Text', 'Name', 'Indicators', 'Icons', 'Units'];
-const LEVELS = ['basic', 'advanced'];
-const UNITS = ['', 'px', '%', 'deg', 's'];
+const PAGE_NAMES = PAGES.filter(page => page.hasRows).map(page => page.name);
+// Every flag the tool reads: value flags, then switches. The same table drives the argument parser.
 const VALUE_FLAGS = ['key', 'name', 'type', 'side', 'page', 'group', 'after', 'default', 'bounds', 'step', 'options', 'level', 'unit',
   'help-text', 'keywords', 'requires', 'news', 'news-id', 'date', 'root', 'qollock-root', 'showrank-root'];
 const BOOL_FLAGS = ['dry-run', 'no-generate', 'same-version', 'help'];
-// Column order of every existing row; optional columns sit where the existing rows put them.
-const ORDER = ['key', 'slot', 'name', 'type', 'options', 'bounds', 'step', 'default', 'side', 'page', 'group', 'level', 'unit', 'help', 'keywords', 'requires'];
+const ARG_SPEC = {
+  options: Object.fromEntries([...VALUE_FLAGS.map(name => ['--' + name, { key: name, value: true }]), ...BOOL_FLAGS.map(name => ['--' + name, { key: name }])]),
+  once: true,
+  flagValues: true,
+  messages: { unknown: (arg, name) => 'Unknown option ' + name, bare: arg => 'Unexpected argument: ' + arg },
+};
+// Column order of every existing row: the schema's columns, with the optional ones where the existing rows put them.
+const ORDER = [...COLUMNS.flatMap(column => column === 'type' ? [column, 'options'] : column === 'page' ? [column, 'group'] : [column]), 'requires'];
 
 const USAGE = `Usage: node tools/new-setting.js --key <camelKey> --name <label> --type boolean|number|enum|color
-  --side shared|side-aware --page <${PAGES.join('|')}> --level basic|advanced --help-text <text>
+  --side shared|side-aware --page <${PAGE_NAMES.join('|')}> --level basic|advanced --help-text <text>
   [--group <card>|none] [--after <key>] [--default <value>|enemy=<v>,ally=<v>] [--bounds min,max] [--step n]
   [--options value:Label,...] [--unit ${UNITS.filter(Boolean).join('|')}] [--keywords a,b,c]
   [--requires key|key=opt/opt|key>n, conditions joined by "," (all), alternatives by "|" (either), or raw JSON]
@@ -59,29 +65,10 @@ function orderRow(row) {
   return out;
 }
 
-function parseArgs(argv) {
-  const opts = {};
-  for (let i = 0; i < argv.length; i++) {
-    let arg = argv[i], value;
-    if (!arg.startsWith('--')) throw new Error('Unexpected argument: ' + arg);
-    arg = arg.slice(2);
-    const eq = arg.indexOf('=');
-    if (eq >= 0) { value = arg.slice(eq + 1); arg = arg.slice(0, eq); }
-    if (BOOL_FLAGS.includes(arg)) {
-      if (value !== undefined) throw new Error('--' + arg + ' takes no value');
-      opts[arg] = true;
-    } else if (VALUE_FLAGS.includes(arg)) {
-      // Values may start with "-" (--bounds -200,200), so the next argument is always the value.
-      if (value === undefined) { if (i + 1 >= argv.length) throw new Error('--' + arg + ' needs a value'); value = argv[++i]; }
-      if (Object.hasOwn(opts, arg)) throw new Error('--' + arg + ' given twice');
-      opts[arg] = value;
-    } else throw new Error('Unknown option --' + arg);
-  }
-  return opts;
-}
+const parseArgs = argv => cli.parse(argv, ARG_SPEC);
 
 const list = text => String(text).split(',').map(item => item.trim()).filter(Boolean);
-function parseScalar(type, text, options, label) {
+function parseScalar(type, text, label) {
   const raw = String(text).trim();
   if (type === 'boolean') {
     if (raw !== 'true' && raw !== 'false') throw new Error(label + ': boolean default must be true or false');
@@ -92,14 +79,10 @@ function parseScalar(type, text, options, label) {
     if (!raw || !Number.isFinite(number)) throw new Error(label + ': number default must be finite, got ' + raw);
     return number;
   }
-  if (type === 'color') {
-    if (!/^#[0-9A-Fa-f]{6}$/.test(raw)) throw new Error(label + ': color default must be #RRGGBB, got ' + raw);
-    return raw.toUpperCase();
-  }
-  if (!options.some(option => option.value === raw)) throw new Error(label + ': enum default ' + raw + ' is not one of ' + options.map(o => o.value).join(', '));
-  return raw;
+  // Color and enum defaults are checked by schema.validate on the finished table.
+  return type === 'color' ? raw.toUpperCase() : raw;
 }
-function parseDefault(opts, type, side, options) {
+function parseDefault(opts, type, side) {
   if (opts.default === undefined) {
     if (type === 'boolean') return side === 'side-aware' ? { enemy: false, ally: false } : false;
     throw new Error('--default is required for ' + type + ' settings');
@@ -107,7 +90,7 @@ function parseDefault(opts, type, side, options) {
   const text = String(opts.default);
   const perSide = /^\s*(enemy|ally)\s*=/.test(text);
   if (!perSide) {
-    const value = parseScalar(type, text, options, '--default');
+    const value = parseScalar(type, text, '--default');
     return side === 'side-aware' ? { enemy: value, ally: value } : value;
   }
   if (side !== 'side-aware') throw new Error('--default enemy=/ally= values need --side side-aware');
@@ -115,7 +98,7 @@ function parseDefault(opts, type, side, options) {
   for (const part of text.split(',')) {
     const match = /^\s*(enemy|ally)\s*=(.*)$/.exec(part);
     if (!match || Object.hasOwn(sides, match[1])) throw new Error('--default expects enemy=<value>,ally=<value>, got ' + text);
-    sides[match[1]] = parseScalar(type, match[2], options, '--default ' + match[1]);
+    sides[match[1]] = parseScalar(type, match[2], '--default ' + match[1]);
   }
   if (!Object.hasOwn(sides, 'enemy') || !Object.hasOwn(sides, 'ally')) throw new Error('--default needs both enemy= and ally=');
   return { enemy: sides.enemy, ally: sides.ally };
@@ -156,65 +139,57 @@ function parseNumbers(text, label) {
   if (!values.length || values.some(value => !Number.isFinite(value))) throw new Error(label + ': expected numbers, got ' + text);
   return values;
 }
-const kebab = key => key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z])([A-Z][a-z])/g, '$1-$2').toLowerCase();
-const pascal = key => key[0].toUpperCase() + key.slice(1);
-const flatKeys = row => row.side === 'side-aware' ? ['enemy' + pascal(row.key), 'ally' + pascal(row.key)] : [row.key];
-const slotsOf = row => row.slot !== null && typeof row.slot === 'object' ? [row.slot.enemy, row.slot.ally] : [row.slot];
+const { kebab } = cli;
 function localDate() {
   const now = new Date();
   return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 }
 
-// Builds the new row from the options, without slots; throws on anything the generator would refuse
-// plus the tool's own sanity rules (unique key, sane bounds/default/step, --after on the same page).
-function buildRow(opts, rows) {
-  for (const flag of ['key', 'name', 'type', 'side', 'page', 'level', 'help-text'])
-    if (opts[flag] === undefined || !String(opts[flag]).trim()) throw new Error('--' + flag + ' is required');
-  const key = opts.key.trim();
-  if (!/^[a-z][A-Za-z0-9]*$/.test(key)) throw new Error('--key must be camelCase letters/digits, got ' + key);
-  if (!TYPES.includes(opts.type)) throw new Error('--type must be one of ' + TYPES.join(', '));
-  if (!SIDES.includes(opts.side)) throw new Error('--side must be shared or side-aware');
-  if (!PAGES.includes(opts.page)) throw new Error('--page must be one of ' + PAGES.join(', '));
-  if (!LEVELS.includes(opts.level)) throw new Error('--level must be basic or advanced');
-  const unit = opts.unit === undefined ? '' : opts.unit;
-  if (!UNITS.includes(unit)) throw new Error('--unit must be one of "", ' + UNITS.filter(Boolean).join(', '));
-  const taken = new Map();
-  for (const row of rows) {
-    taken.set(row.key.toLowerCase(), 'setting ' + row.key);
-    for (const flat of flatKeys(row)) taken.set(flat.toLowerCase(), 'codec key ' + flat + ' of ' + row.key);
-  }
-  const candidate = { key, side: opts.side };
-  for (const name of [key, ...flatKeys(candidate)]) {
-    // Menu ids are Pascal(key) and codec keys are side + Pascal(key), so a case-insensitive clash is a clash.
-    if (taken.has(name.toLowerCase())) throw new Error('--key ' + key + ' is not unique: clashes with ' + taken.get(name.toLowerCase()));
-  }
-  const type = opts.type;
-  let options, bounds = null, step = null;
-  if (type === 'enum') {
-    if (opts.options === undefined) throw new Error('--options is required for enum settings');
-    options = parseOptions(opts.options);
-  } else if (opts.options !== undefined) throw new Error('--options only applies to enum settings');
-  if (type === 'number') {
-    if (opts.bounds === undefined || opts.step === undefined) throw new Error('--bounds and --step are required for number settings');
-    bounds = parseNumbers(opts.bounds, '--bounds');
-    if (bounds.length !== 2 || bounds[0] >= bounds[1]) throw new Error('--bounds needs min,max with min < max, got ' + opts.bounds);
-    [step] = parseNumbers(opts.step, '--step');
-    if (!(step > 0) || step > bounds[1] - bounds[0]) throw new Error('--step must be > 0 and fit inside the bounds, got ' + opts.step);
-  } else if (opts.bounds !== undefined || opts.step !== undefined) throw new Error('--bounds/--step only apply to number settings');
-  const defaults = parseDefault(opts, type, opts.side, options);
-  if (type === 'number') {
-    for (const value of opts.side === 'side-aware' ? [defaults.enemy, defaults.ally] : [defaults]) {
-      if (value < bounds[0] || value > bounds[1]) throw new Error('--default ' + value + ' is outside --bounds ' + bounds.join(','));
-      const steps = (value - bounds[0]) / step;
-      if (Math.abs(steps - Math.round(steps)) > 1e-8) throw new Error('--default ' + value + ' is off the --step ' + step + ' grid from ' + bounds[0]);
-    }
-  }
-  let after = null;
-  if (opts.after !== undefined) {
-    after = rows.find(row => row.key === opts.after);
+// The tool's own refusals. Everything else about a row (types, sides, pages, levels, units, bounds, steps,
+// defaults, unique keys and slots, requirements) is the schema's: plan() runs schema.validate on the finished
+// table and its messages are the ones the tool prints. Each policy takes (opts, rows) and throws.
+const POLICY = [
+  // Flags the row cannot be built without.
+  opts => {
+    for (const flag of ['key', 'name', 'type', 'side', 'page', 'level', 'help-text'])
+      if (opts[flag] === undefined || !String(opts[flag]).trim()) throw new Error('--' + flag + ' is required');
+  },
+  // New keys are camelCase (the schema also accepts a leading capital).
+  opts => {
+    if (!/^[a-z][A-Za-z0-9]*$/.test(opts.key.trim())) throw new Error('--key must be camelCase letters/digits, got ' + opts.key.trim());
+  },
+  // --options belongs to enums, --bounds/--step to numbers, and each is required there.
+  opts => {
+    if (opts.type === 'enum') {
+      if (opts.options === undefined) throw new Error('--options is required for enum settings');
+    } else if (opts.options !== undefined) throw new Error('--options only applies to enum settings');
+    if (opts.type === 'number') {
+      if (opts.bounds === undefined || opts.step === undefined) throw new Error('--bounds and --step are required for number settings');
+    } else if (opts.bounds !== undefined || opts.step !== undefined) throw new Error('--bounds/--step only apply to number settings');
+  },
+  // --after names an existing row on the same page.
+  (opts, rows) => {
+    if (opts.after === undefined) return;
+    const after = rows.find(row => row.key === opts.after);
     if (!after) throw new Error('--after ' + opts.after + ' does not exist in settings/schema.json');
     if (after.page !== opts.page) throw new Error('--after ' + after.key + ' is on page ' + after.page + ', not ' + opts.page);
+  },
+];
+
+// Builds the new row from the options, without slots. It converts the flags; schema.validate judges the row.
+function buildRow(opts, rows) {
+  for (const policy of POLICY) policy(opts, rows);
+  const key = opts.key.trim();
+  const type = opts.type;
+  const unit = opts.unit === undefined ? '' : opts.unit;
+  const options = type === 'enum' ? parseOptions(opts.options) : undefined;
+  let bounds = null, step = null;
+  if (type === 'number') {
+    bounds = parseNumbers(opts.bounds, '--bounds');
+    [step] = parseNumbers(opts.step, '--step');
   }
+  const defaults = parseDefault(opts, type, opts.side);
+  let after = opts.after === undefined ? null : rows.find(row => row.key === opts.after);
   let group;
   if (opts.group === undefined) group = after && Object.hasOwn(after, 'group') ? after.group : undefined;
   else if (opts.group.trim().toLowerCase() === 'none') group = undefined;
@@ -235,16 +210,6 @@ function buildRow(opts, rows) {
   Object.assign(row, { level: opts.level, unit, help, keywords });
   if (opts.requires !== undefined) row.requires = parseRequires(opts.requires);
   return { row, after };
-}
-
-// Next free slot: above every slot in the schema, the retired list and the record history (and the
-// committed generated/slots.json when the tree has one), so a retired or once-introduced number never returns.
-function nextSlot(rows, record, root) {
-  const used = [...rows.flatMap(slotsOf), ...(record.retiredSlots || []), ...(record.slotAdditions || []).flatMap(change => change.slots),
-    ...(record.defaultChanges || []).flatMap(change => change.slots)];
-  const committed = path.join(root, 'generated/slots.json');
-  if (fs.existsSync(committed)) used.push(...JSON.parse(fs.readFileSync(committed, 'utf8')).map(slot => slot.slot));
-  return Math.max(-1, ...used.filter(Number.isSafeInteger)) + 1;
 }
 
 function readTree(root) {
@@ -275,10 +240,11 @@ function plan(opts, root) {
   const { row, after } = buildRow(opts, rows);
   const first = nextSlot(rows, record, root);
   row.slot = row.side === 'side-aware' ? { enemy: first, ally: first + 1 } : first;
-  const slots = slotsOf(row);
+  const slots = sidesOf(row).map(side => slotOf(row, side));
   const ordered = orderRow(row);
   const index = rows.indexOf(after);
   const nextRows = [...rows.slice(0, index + 1), ordered, ...rows.slice(index + 1)];
+  validate(nextRows);
   const schemaLines = lines.slice();
   const isLast = index === rows.length - 1;
   if (isLast) schemaLines[index + 1] += ',';
@@ -375,8 +341,8 @@ function diff(before, after, name) {
 
 function laneRoots(opts, root) {
   return {
-    qollock: path.resolve(opts['qollock-root'] || path.join(path.dirname(root), LANES.qollock)),
-    showrank: path.resolve(opts['showrank-root'] || path.join(path.dirname(root), LANES.showrank)),
+    qollock: path.resolve(opts['qollock-root'] || path.join(path.dirname(root), LANES.qollock.dir)),
+    showrank: path.resolve(opts['showrank-root'] || path.join(path.dirname(root), LANES.showrank.dir)),
   };
 }
 
@@ -393,7 +359,7 @@ function checklist(result, root, lanes) {
   };
   const items = [];
   const add = (file, line, text) => items.push({ where: file ? rel(file) + (line ? ':' + line : '') : '', text });
-  const laneTests = lane => [lanes[lane], path.join(path.dirname(V3_ROOT), LANES[lane])].map(dir => path.join(dir, 'tests')).find(dir => fs.existsSync(dir));
+  const laneTests = lane => [lanes[lane], path.join(path.dirname(V3_ROOT), LANES[lane].dir)].map(dir => path.join(dir, 'tests')).find(dir => fs.existsSync(dir));
   const folders = [path.join(testsRoot, 'tests'), laneTests('qollock'), laneTests('showrank')].filter(dir => dir && fs.existsSync(dir));
   const files = folders.flatMap(dir => fs.readdirSync(dir).filter(name => name.endsWith('.js')).sort().map(name => path.join(dir, name)));
   const read = file => fs.readFileSync(file, 'utf8').split(/\r?\n/);
@@ -471,7 +437,7 @@ function checklist(result, root, lanes) {
   add(doc('MAP.md'), 0, 'changelog: **Added:** under the in-development section (slots ' + slots.join('/') + ', record v' + version + '); `node tools/ticket.js new --map`');
   add(doc('issues'), 0, 'ticket: `node tools/ticket.js new --title ...`; SPEC story via `--spec-after <story>`');
   add(doc('LIVE-VERIFIED.md'), 0, 'record the in-game check once done');
-  add(null, 0, 'run all suites: node --test hp_colors_rewrite_v3/tests/*.test.js, ' + LANES.qollock + '/tests, ' + LANES.showrank + '/tests');
+  add(null, 0, 'run all suites: node --test hp_colors_rewrite_v3/tests/*.test.js, ' + LANES.qollock.dir + '/tests, ' + LANES.showrank.dir + '/tests');
   add(null, 0, 'release builds of all three lanes (node hp_colors_rewrite_v3/tools/build.js --project all --skip-deploy)');
   return items;
 }
@@ -502,9 +468,9 @@ function regenerate(root, lanes) {
   if (!checked.ok) return steps;
   const realV3 = path.resolve(root) === V3_ROOT;
   for (const lane of ['qollock', 'showrank']) {
-    const tool = path.join(lanes[lane], LANE_TOOLS[lane]);
+    const tool = path.join(lanes[lane], LANES[lane].composer);
     if (!fs.existsSync(tool)) { steps.push({ name: path.basename(tool), ok: true, skipped: true, output: 'skipped: ' + tool + ' not found' }); continue; }
-    const realLane = realV3 && path.resolve(lanes[lane]) === path.join(path.dirname(V3_ROOT), LANES[lane]);
+    const realLane = realV3 && path.resolve(lanes[lane]) === path.join(path.dirname(V3_ROOT), LANES[lane].dir);
     const result = realLane ? run(process.execPath, [tool], lanes[lane])
       : run(process.execPath, ['-e', 'const m=require(process.argv[1]);console.log("' + lane + ' layouts: "+m.writeOrCheck(false,process.argv[2],process.argv[3],process.argv[4])+" outputs written")',
         tool, lanes[lane], path.resolve(root), showrankSource(lanes[lane])], lanes[lane]);

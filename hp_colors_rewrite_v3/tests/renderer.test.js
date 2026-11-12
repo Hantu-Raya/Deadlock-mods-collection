@@ -3111,3 +3111,70 @@ test('renderer DEFAULTS table equals the schema defaults it stands for', () => {
     else assert.equal(defaults[key], want, key);
   }
 });
+
+// B5: one part table (BAR_PARTS) the renderer reads and the menu preview consumes.
+test('part table: unique keys, resolvable parents, ordered views, published frozen', () => {
+  const f = fixture(), table = f.api.parts, keys = table.map(def => def.key);
+  assert.equal(new Set(keys).size, keys.length, 'one row per key');
+  assert.equal(Object.isFrozen(table), true);
+  assert.ok(table.every(def => Object.isFrozen(def)));
+  table.forEach(def => def.parents.forEach(parent => assert.ok(keys.includes(parent), def.key + ' parent ' + parent)));
+  // Ids are what the world panels carry: owned rows with a runtime prefix are built from it.
+  table.filter(def => def.suffix).forEach(def => assert.equal(def.id, 'HPColorsV3' + def.suffix, def.key));
+  // The discover steps run chain -> stock -> grid -> ult art; a row looks only under parents found before it.
+  const order = table.filter(def => def.at).sort((a, b) => a.at - b.at || keys.indexOf(a.key) - keys.indexOf(b.key)).map(def => def.key);
+  table.filter(def => def.at).forEach(def => def.parents.filter(parent => parent !== 'root').forEach(parent =>
+    assert.ok(order.indexOf(parent) < order.indexOf(def.key), def.key + ' is looked up after ' + parent)));
+});
+
+test('part table: every row discovery looks for names a panel the overlay layout carries', () => {
+  const f = fixture();
+  for (const def of f.api.parts.filter(def => def.at && def.find !== 'class')) assert.ok(f.root.FindChildTraverse(def.id), def.key + ' (' + def.id + ') is in the layout');
+  const ult = f.api.parts.find(def => def.key === 'ult');
+  assert.equal(ult.find, 'class'); assert.equal(ult.cls, 'unit_info_panel');
+});
+
+test('part table: every part key the plan addresses is a table row', () => {
+  const f = fixture(), keys = new Set(f.api.parts.map(def => def.key));
+  // Behaviour, not source text (the staged release script is minified): every key of the plans' styles/classes/parents maps,
+  // over a spread of facts and settings, and every parent a plan names, is a row of the published table.
+  f.advance(600); f.advance(1000);
+  const base = structuredClone(latestPublishedConfig(f.menu.harness).settings), facts = f.api.facts(), used = new Set();
+  const withEnemy = patch => ({ ...base, side: { ...base.side, enemy: { ...base.side.enemy, ...patch } } });
+  const flags = { health_critical: true, ShowCriticalState: true };
+  const variants = [
+    [facts, base], [{ ...facts, flags }, base], [{ ...facts, team: 'team1', fraction: 1 }, withEnemy({ barColorTeamHigh: true })],
+    [{ ...facts, team: 'team1', level: 5 }, withEnemy({ levelsVisible: true, hpTextColorMode: 'team' })],
+    [{ ...facts, kind: 'objective', player: false, team: 'team1' }, withEnemy({ objectiveEnabled: true })],
+    [{ ...facts, side: 'ally', enemy: false, friend: true }, base],
+  ];
+  const note = value => { if (typeof value === 'string') used.add(value); else if (value && typeof value === 'object' && typeof value.parent === 'string') used.add(value.parent); };
+  for (const [fact, config] of variants) {
+    const plan = f.api.plan(fact, config);
+    for (const map of [plan.styles, plan.classes, plan.parents]) for (const key of Object.keys(map || {})) used.add(key);
+    for (const value of Object.values(plan.parents || {})) note(value);
+  }
+  used.delete('root');
+  assert.ok(used.size > 10, 'the plans address a spread of part keys: ' + used.size);
+  for (const key of used) assert.ok(keys.has(key), key + ' is a row of the part table');
+  // Status labels address `key` and `key + "Anchor"`; native indicators and anchors have ids the reconcile reads from the table.
+  for (const label of f.api.statusLabels) {
+    assert.ok(keys.has(label) && keys.has(label + 'Anchor'), label);
+    const row = f.api.parts.find(def => def.key === label), anchor = f.api.parts.find(def => def.key === label + 'Anchor');
+    assert.equal(row.id, label.charAt(0).toUpperCase() + label.slice(1) + 'Indicator');
+    assert.equal(anchor.id, 'HPColorsV3' + label.charAt(0).toUpperCase() + label.slice(1) + 'Anchor');
+  }
+  for (const key of ['pipOutline', 'pipEmpty', 'pipShield', 'pipArmor', 'pipFill', 'pipHealing', 'pipDelta', 'pipKillMarker', 'bountyAnchor', 'bountyPill', 'bountyValue']) assert.ok(keys.has(key), key);
+});
+
+test('published vocabulary: labels, status scales with icon class and CSS letter, pickup kinds, label-at-default rule', () => {
+  const f = fixture(), api = f.api;
+  assert.deepEqual(Array.from(api.statusLabels), ['critical', 'assassinate', 'unkillable']);
+  assert.deepEqual(Array.from(api.statusScales, entry => entry.letter).join(''), 'ABCDEFGH');
+  assert.deepEqual(Array.from(api.pickupKinds, entry => [entry.cls, entry.name, entry.icon]),
+    [['gunpower_pickup', 'Gun', 'gun'], ['movement_pickup', 'Movement', 'movement'], ['casting_pickup', 'Spirit', 'spirit'], ['survival_pickup', 'Survival', 'survival']]);
+  const shared = { criticalIndicatorVisible: true, criticalOffsetX: 0, criticalOffsetY: 0 };
+  assert.equal(!!api.labelAtDefault(shared, 'critical'), true);
+  assert.equal(!!api.labelAtDefault({ ...shared, criticalOffsetY: 3 }, 'critical'), false, 'offset');
+  assert.equal(!!api.labelAtDefault({ ...shared, criticalIndicatorVisible: false }, 'critical'), false, 'hidden');
+});

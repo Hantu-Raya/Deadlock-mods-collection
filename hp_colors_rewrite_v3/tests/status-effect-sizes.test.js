@@ -191,3 +191,10 @@ test('the menu preview adds the edited effect at the right of the status row, at
   h.$.HPColorsV3Preview.setPage('Bar');
   assert.equal(computed(sample, 'visibility'), 'collapse', 'leaving the page removes the sample');
 });
+
+test('the renderer publishes the status scale table the stylesheet and the menu preview share', () => {
+  const boot = loadLayout('hud_escape_menu.xml');
+  boot.includeScripts(); boot.onload();
+  const published = Array.from(boot.harness.$.HPColorsV3Renderer.statusScales, entry => [entry.key, entry.letter, entry.icon]);
+  assert.deepEqual(published, EFFECTS.map(([key, letter, cssClass]) => [key, letter, cssClass]));
+});

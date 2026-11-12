@@ -19,7 +19,40 @@ const path = require('node:path');
 const v3 = path.resolve(__dirname, '..');
 const repo = path.resolve(v3, '..');
 const STORE = 'D:/hpv2-store'; // must match tests/store-page.test.js (audit-tooling checks it)
-const UNKEYED_ENV = new Set(['HPV3_SOURCE_ROOT', 'HPV3_SUITE_CACHE']); // stage content is hashed instead
+// The one place that names the cache switch, the .build folder and the pass-marker folder/format (tools/build.js writes
+// markers, tools/timing.js reads them). Never read these through `process.env.HPV3_*` here: envNames() keys such reads.
+const SUITE_CACHE_ENV = 'HPV3_SUITE_CACHE';
+const BUILD_DIR = '.build';
+const PASS_DIR = 'suite-pass';
+const UNKEYED_ENV = new Set(['HPV3_SOURCE_ROOT', SUITE_CACHE_ENV]); // stage content is hashed instead
+
+// HPV3_SUITE_CACHE=0 always runs the suite.
+const cacheEnabled = env => env[SUITE_CACHE_ENV] !== '0';
+const passDir = v3Dir => path.join(v3Dir, BUILD_DIR, PASS_DIR);
+
+// Get-Date -Format o in local time (build.js writes it, timing.js parses it back).
+function isoLocal(ms) {
+  const d = new Date(ms);
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? '+' : '-';
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}0000${sign}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
+}
+
+// Get-Date -Format o (7 fractional digits, offset) -> ms.
+function parseIso(text) {
+  const match = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(Z|[+-]\d\d:\d\d)?/.exec(String(text).trim());
+  if (!match) return null;
+  const ms = Date.parse(match[1] + '.' + (match[2] || '0').padEnd(3, '0').slice(0, 3) + (match[3] || ''));
+  return Number.isFinite(ms) ? ms : null;
+}
+
+// A pass marker's text: "<iso> <mode> <staged source path>"; parsePass is its reader.
+const passLine = (ms, mode, stageSource) => `${isoLocal(ms)} ${mode} ${stageSource}`;
+function parsePass(text) {
+  const match = /^(\S+)\s+(debug|release)\s+(.+)$/.exec(String(text).replace(/^\ufeff/, '').trim());
+  return match ? { at: parseIso(match[1]), mode: match[2], stage: match[3] } : null;
+}
 
 function files(dir, skip) {
   const out = [];
@@ -62,7 +95,7 @@ function key(stageSource, mode) {
   const add = (label, file, base = repo) => { hash.update(label + '\0' + path.relative(base, file).replace(/\\/g, '/') + '\0'); hash.update(fs.readFileSync(file)); hash.update('\0'); };
   hash.update('node ' + process.version + '\0mode ' + mode + '\0');
   for (const file of files(path.resolve(stageSource))) add('stage', file, path.resolve(stageSource));
-  for (const file of files(v3, (full, entry) => entry.isDirectory() && full === path.join(v3, '.build'))) add('v3', file);
+  for (const file of files(v3, (full, entry) => entry.isDirectory() && full === path.join(v3, BUILD_DIR))) add('v3', file);
   add('scripts', path.join(repo, 'scripts', 'hp-colors-panorama-test-adapter.js'));
   const external = [path.join(repo, '.gitignore'), path.join(repo, '.git', 'info', 'exclude'),
     path.join(STORE, 'index.html'), path.join(STORE, '.git', 'HEAD')];
@@ -82,4 +115,4 @@ if (require.main === module) {
   catch (error) { console.error(error.message); process.exit(2); }
 }
 
-module.exports = { key, envNames, storeRefs, STORE };
+module.exports = { key, envNames, storeRefs, STORE, SUITE_CACHE_ENV, BUILD_DIR, PASS_DIR, cacheEnabled, passDir, isoLocal, parseIso, passLine, parsePass };

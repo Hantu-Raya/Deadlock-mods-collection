@@ -5,6 +5,7 @@
 //   node hp_colors_rewrite_v3/tools/test.js                    changed files (git diff HEAD + untracked) -> tests
 //   node hp_colors_rewrite_v3/tools/test.js --files a.js,b.css  explicit changed files instead of git
 //   node hp_colors_rewrite_v3/tools/test.js --list              show the chosen test files without running them
+//   node hp_colors_rewrite_v3/tools/test.js --list-unmapped     v3 panorama scripts no RULES entry names (report only)
 //   node hp_colors_rewrite_v3/tools/test.js --all               full suites of --project (default all)
 //   --project v3|qollock|showrank|all   restrict the selection to these lanes
 //   --grep <pattern>                    forwarded to node --test as --test-name-pattern
@@ -23,6 +24,12 @@ const { parseTap, parseYamlBlock, tapUnescape, failureSite, formatSummary } = re
 const PROJECTS = Object.fromEntries(PROJECT_NAMES.map(key => [key, { key, dir: LANES[key].dir, label: LANES[key].label }]));
 const V3 = V3_DIR;
 const VARIANTS = VARIANT_NAMES;
+// Folders no cycle or test selection cares about (docs, scratch, build output): tools/dev.js reads the same list.
+const NON_SOURCE_DIRS = Object.freeze(['docs', 'issues', 'tickets', 'research', 'prototypes', 'mocks', '.build', '.tmp']);
+// tools/lib files generate.js does not read (build and test tooling): every other tools/lib/*.js feeds the generator.
+const BUILD_TOOL_LIBS = Object.freeze(['projects', 'toolchain', 'cli', 'tap', 'run']);
+// tools/-relative generator inputs as a regex source (anchor it yourself): generate.js, menu-layout.js, tools/lib/*.js less the build tools.
+const GENERATOR_MODULE = 'tools\\/(?:generate|menu-layout|lib\\/(?!(?:' + BUILD_TOOL_LIBS.join('|') + ')\\.js$)[^/]+)\\.js$';
 // The lane folders as one regex alternative: a repo-relative path starts with one of them.
 const LANE_DIR = '(?:' + Object.values(PROJECTS).map(project => project.dir).join('|') + ')';
 
@@ -41,10 +48,10 @@ const TIMERS = ['timers', 'kill-bounty', 'hero-routing', 'audit-performance'];
 const LOADS_CSS = 'css'; // computed: suites that read the stylesheets (see cssTests)
 const at = rel => new RegExp('^' + V3 + '/' + rel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
 const RULES = [
-  { match: new RegExp('^' + LANE_DIR + '\\/(?:[^/]+\\.md$|(?:docs|issues|tickets|research|prototypes|mocks|\\.build|\\.tmp)\\/)'), tests: [], why: 'documentation/build output' },
+  { match: new RegExp('^' + LANE_DIR + '\\/(?:[^/]+\\.md$|(?:' + NON_SOURCE_DIRS.map(dir => dir.replace('.', '\\.')).join('|') + ')\\/)'), tests: [], why: 'documentation/build output' },
   { match: at('panorama/scripts/hp_colors_v3_renderer.js'), tests: ['renderer', 'preview', 'status-effect-sizes', 'audit-performance'], shared: true },
   { match: at('panorama/scripts/hp_colors_v3_preview.js'), tests: ['preview', 'preview-chrome', 'status-effect-sizes', 'audit-performance'], shared: true },
-  { match: at('panorama/scripts/hp_colors_v3_menu.js'), tests: MENU, shared: true },
+  { match: at('panorama/scripts/hp_colors_v3_menu.js'), tests: [...MENU, 'legacy-shield'], shared: true },
   { match: at('panorama/scripts/hp_colors_v3_codec.js'), tests: ['codec', 'migration', 'audit-storage', 'storage', 'menu-audit', ...FUZZ], shared: true },
   { match: at('panorama/scripts/hp_colors_v3_from_v2.js'), tests: ['migration', 'codec', 'audit-storage', 'legacy-shield', 'own-hud', ...FUZZ], shared: true },
   { match: at('panorama/scripts/hp_colors_v3_storage.js'), tests: ['storage', 'audit-storage', 'migration', 'store-page', 'update-notice', 'profile-hygiene', 'gameui-regression', 'audit-performance'], shared: true },
@@ -63,7 +70,7 @@ const RULES = [
   { match: /^hp_colors_rewrite_v3\/generated\//, tests: ['generator', 'review-fixes'], shared: true, mentions: true },
   { match: /^hp_colors_rewrite_v3\/vendor\//, tests: ['generator', 'game-data', 'review-fixes'], shared: true, mentions: true },
   // The generator and menu builder plus their tools/lib/ modules.
-  { match: /^hp_colors_rewrite_v3\/tools\/(?:generate|menu-layout|lib\/(?:schema|news|slot-contract|stock-layouts|settings-scripts|stylesheets|output|layout-compose|menu-[a-z]+))\.js$/, tests: ['generator', 'review-fixes', 'news', 'preview-chrome', 'menu', 'game-data'], shared: true },
+  { match: new RegExp('^' + V3 + '/' + GENERATOR_MODULE), tests: ['generator', 'review-fixes', 'news', 'preview-chrome', 'menu', 'game-data'], shared: true },
   { match: /^hp_colors_rewrite_v3\/(?:tools\/game-data\.js|game-data-pin\.json)$/, tests: ['game-data', 'generator', 'review-fixes'], shared: true },
   { match: at('tools/stage-scripts.js'), tests: ['stage-scripts', 'logging', 'audit-tooling'] },
   { match: at('tools/suite-cache.js'), tests: ['audit-tooling'] },
@@ -210,10 +217,11 @@ function selectTests(files, ctx, projects = Object.keys(PROJECTS)) {
 }
 
 const ARGS = {
-  defaults: { files: null, list: false, all: false, project: 'all', grep: null, help: false },
+  defaults: { files: null, list: false, listUnmapped: false, all: false, project: 'all', grep: null, help: false },
   options: {
     '--files': { value: true, apply: (options, raw) => { options.files = [...(options.files || []), ...raw.split(',').map(file => file.trim()).filter(Boolean)]; } },
     '--list': { key: 'list' },
+    '--list-unmapped': { key: 'listUnmapped' },
     '--all': { key: 'all' },
     '--project': { key: 'project', value: true, lower: true },
     '--grep': { key: 'grep', value: true },
@@ -229,6 +237,12 @@ function parseArgs(argv) {
 
 const projectKeys = project => cli.project(project);
 
+// v3 panorama scripts no RULES entry names: those fall back to the suites that mention them, else the full suites.
+function unmappedScripts(repo = REPO) {
+  const dir = V3 + '/panorama/scripts';
+  return listFiles(path.join(repo, dir), '.js').map(name => dir + '/' + name).filter(file => !RULES.some(rule => rule.match.test(file)));
+}
+
 function describeSelection(ctx, tests) {
   const counts = Object.values(ctx.projects).map(project => [project.label, tests.filter(test => project.tests.includes(test)).length]).filter(([, n]) => n);
   return counts.map(([label, n]) => label + ' ' + n).join(', ');
@@ -237,7 +251,12 @@ function describeSelection(ctx, tests) {
 async function main(argv = process.argv.slice(2)) {
   let options;
   try { options = parseArgs(argv); } catch (error) { console.error('test.js: ' + error.message); return 2; }
-  if (options.help) { console.log(cli.helpText(__filename, 3, 11)); return 0; }
+  if (options.help) { console.log(cli.helpText(__filename, 3, 12)); return 0; }
+  if (options.listUnmapped) {
+    const unmapped = unmappedScripts();
+    console.log(unmapped.length ? unmapped.join('\n') : 'every v3 panorama script is named by a RULES entry.');
+    return 0;
+  }
   const ctx = scanTests();
   const keys = projectKeys(options.project);
   for (const key of keys) if (!ctx.projects[key].exists) console.log('note: ' + ctx.projects[key].dir + ' is absent; skipped.');
@@ -275,7 +294,7 @@ async function main(argv = process.argv.slice(2)) {
 }
 
 module.exports = {
-  REPO, PROJECTS, RULES, scanTests, localRequires, closure, dependents, mentions, cssTests, mapFile, selectTests, missingRuleTests,
+  REPO, PROJECTS, RULES, NON_SOURCE_DIRS, BUILD_TOOL_LIBS, GENERATOR_MODULE, unmappedScripts, scanTests, localRequires, closure, dependents, mentions, cssTests, mapFile, selectTests, missingRuleTests,
   parseTap, parseYamlBlock, tapUnescape, failureSite, formatSummary, runNodeTest, gitChanged, normalizeFile, parseArgs, main,
 };
 
