@@ -1,5 +1,8 @@
 (function () {
   "use strict";
+  // requires: include order is settings, codec, from_v2, storage. The codec reads $.HPColorsV3Settings at load
+  // (contract below) and $.HPColorsV3FromV2 at call time (fromV2(): v2 codes and pre-v6 migration); from_v2 and
+  // storage read $.HPColorsV3Codec at call time, so a missing script is an error, never a silent skip.
   var ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   // Record limits: the one owner. storage, from_v2 and the menu read $.HPColorsV3Codec.RECORD at call time.
   var RECORD = Object.freeze({
@@ -23,6 +26,11 @@
   });
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function contract() { return $.HPColorsV3Settings; }
+  function fromV2() {
+    var converter = $.HPColorsV3FromV2;
+    if (!converter) throw new Error("HPColorsV3FromV2 is not loaded: hp_colors_v3_from_v2.js must be included after the codec");
+    return converter;
+  }
   // Slot and control lookups, built once per contract table (first match wins, like the scans they replace):
   // a sparse encode of a 128-preset library otherwise ran over two million control predicates.
   var lookups = null;
@@ -142,18 +150,15 @@
       for (var d = 0; d < diff.length; d += 2) pairs.push([diff[d], diff[d + 1]]);
       diff = pairs;
     }
-    var settings = clone(contract().defaults), seen = Object.create(null), slots = Object.create(null), accepted = [];
-    contract().slots.forEach(function (slot) { slots[slot.slot] = slot; });
+    var settings = clone(contract().defaults), seen = Object.create(null), accepted = [];
     diff.forEach(function (entry) {
       if (!Array.isArray(entry) || entry.length !== 2 || !Number.isInteger(entry[0]) || entry[0] < 0 || seen[entry[0]]) throw new Error("Invalid or duplicate setting slot");
       seen[entry[0]] = true;
-      var slot = slots[entry[0]];
-      if (!slot) { if (!newer && !retired(entry[0])) throw new Error("Unknown setting slot"); return; }
-      var control = controlOf(slot);
-      if (!contract().validateValue(control, entry[1])) {
-        if (newer) return;
-        throw new Error("Invalid settings values");
-      }
+      var kind = classify(entry[0], entry[1]);
+      // Unknown slot: an error unless the record is from a newer build; retired slot: always skipped; bad value: skipped only when newer.
+      if (kind === "unknown" || kind === "retired") { if (kind === "unknown" && !newer) throw new Error("Unknown setting slot"); return; }
+      if (kind === "invalid") { if (newer) return; throw new Error("Invalid settings values"); }
+      var slot = slotById(entry[0]);
       accepted.push({ slot: slot, value: entry[1] });
       values(settings, slot)[slot.setting] = entry[1];
     });
@@ -178,6 +183,21 @@
   }
   // A removed setting's slots (record.json retiredSlots) are skipped in older records, never written.
   function retired(slot) { return (contract().retiredSlots || []).indexOf(Number(slot)) >= 0; }
+  // The one verdict on a setting entry (slot id, value), shared by expand, expandRules and the newer-build check:
+  // "ok", "unknown" (no such slot), "retired" (removed slot) or "invalid" (known slot, rejected value).
+  function classify(id, value) {
+    var slot = slotById(id);
+    if (!slot) return retired(id) ? "retired" : "unknown";
+    return contract().validateValue(controlOf(slot), value) ? "ok" : "invalid";
+  }
+  // A newer build wrote this entry: its slot is unknown here, or its value is rejected but of a plausible type.
+  function futureEntry(id, value) {
+    var kind = classify(id, value);
+    if (kind === "unknown") return true;
+    if (kind !== "invalid") return false;
+    var row = controlOf(slotById(id));
+    return row.type === "number" && typeof value === "number" && isFinite(value) || row.type === "enum" && typeof value === "string";
+  }
   function metadata(value, excluded) {
     var result = {};
     Object.keys(value).forEach(function (key) {
@@ -212,7 +232,8 @@
       var cell = wire[i], rule = { slot: wire[i + 1], minTier: wire[i + 2], value: wire[i + 3] };
       if (!Number.isInteger(cell) || cell < 0 || seen[cell]) throw new Error("Invalid ability conditions");
       seen[cell] = true;
-      if (!ruleRow(cell) && (newer || retired(cell))) continue;
+      var kind = classify(cell, rule.value);
+      if (kind === "retired" || kind === "unknown" && newer) continue;
       var single = {}; single[cell] = rule;
       try { sparseRules(single); } catch (error) { if (newer) continue; throw error; }
       rules[cell] = rule;
@@ -285,19 +306,14 @@
         entry = [entry, diff[position + 1]];
       }
       if (!Array.isArray(entry) || entry.length !== 2 || !Number.isInteger(entry[0]) || entry[0] < 0) return false;
-      var slot = slotById(entry[0]);
-      if (!slot) return !retired(entry[0]);
-      var row = controlOf(slot);
-      if (contract().validateValue(row,entry[1])) return false;
-      return row.type === "number" && typeof entry[1] === "number" && isFinite(entry[1]) ||
-        row.type === "enum" && typeof entry[1] === "string";
+      return futureEntry(entry[0], entry[1]);
     });
   }
   function futureRules(wire) {
     if (!Array.isArray(wire) || wire.length % 4) return false;
-    var diff = [];
-    for (var i = 0; i < wire.length; i += 4) diff.push([wire[i], wire[i + 3]]);
-    return futureDiff(diff);
+    for (var i = 0; i < wire.length; i += 4)
+      if (Number.isInteger(wire[i]) && wire[i] >= 0 && futureEntry(wire[i], wire[i + 3])) return true;
+    return false;
   }
   function readRecord(record, kind) {
     if (record.k !== kind) throw new Error("Wrong code kind");
@@ -337,19 +353,18 @@
       if (upgraded) {
         // Only slots introduced after the record's version can lack deliberate edits.
         // v2 dev records were default-emitting before promotion existed; treat them as v1.
-        var promote = $.HPColorsV3FromV2 && $.HPColorsV3FromV2.promotePending;
         if (bundle.v2pending || bundle.v2scopes || bundle.presets.some(function (preset) { return preset.v2pending || preset.v2scopes; })) {
-          if (typeof promote !== "function") throw new Error("V2 pending upgrade unavailable");
+          var promote = fromV2().promotePending;
           promote(bundle,fromVersion);
           bundle.presets.forEach(function (preset) { promote(preset,fromVersion); });
           result.settings = bundle.settings;
           result.migrated = true;
         }
       }
-      if (upgraded && $.HPColorsV3FromV2) {
+      if (upgraded) {
         [bundle].concat(bundle.presets, bundle.v2scopes || []).forEach(function (item) {
           if (item.v2conditions !== undefined) {
-            $.HPColorsV3FromV2.promoteConditions(item, fromVersion); result.migrated = true;
+            fromV2().promoteConditions(item, fromVersion); result.migrated = true;
           }
         });
         result.rules = bundle.rules || {};
@@ -408,6 +423,11 @@
   function attempt(callback) {
     try { var result = callback(); result.ok = true; return result; }
     catch (error) { return { ok: false, message: errorMessage(error) }; }
+  }
+  // A converted v2 bundle must still fit one save; every supported v2 setting has a v3 slot, so nothing is dropped to fit.
+  function fitForSave(result) {
+    if (frame(bundleRecord(result.bundle), "HPV2S1").length > RECORD.maxChars) throw new Error("Save exceeds 192,000 characters; remove some presets");
+    return result;
   }
   function exportCode(record, cap, message) {
     var code = frame(record, "HPC3");
@@ -469,8 +489,8 @@
       var record = { v: version(), k: "settings", d: sparse(settings) }; writeRules(record, rules);
       return exportCode(record, RECORD.settingsCodeChars, "Settings code exceeds 4,096 characters");
     }); },
-    importSettingsCode: function (code, base) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,5) === "HPCR2" ? $.HPColorsV3FromV2.importSettingsCode(code, base) : readRecord(unframe(code, "HPC3", RECORD.settingsCodeChars).record, "settings"); }); },
+    importSettingsCode: function (code, base) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,5) === "HPCR2" ? fromV2().importSettingsCode(code, base) : readRecord(unframe(code, "HPC3", RECORD.settingsCodeChars).record, "settings"); }); },
     exportBundleCode: function (bundle) { return attempt(function () { return exportCode(bundleRecord(bundle, true), RECORD.bundleCodeChars, "Bundle exceeds 32,768 characters; export fewer presets"); }); },
-    importBundleCode: function (code) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,6) === "HPCRP1" ? $.HPColorsV3FromV2.importBundleCode(code) : sharedBundle(readRecord(unframe(code, "HPC3", RECORD.bundleCodeChars).record, "bundle")); }); },
+    importBundleCode: function (code) { return attempt(function () { code = pastedCode(code); return typeof code === "string" && code.slice(0,6) === "HPCRP1" ? fitForSave(fromV2().importBundleCode(code)) : sharedBundle(readRecord(unframe(code, "HPC3", RECORD.bundleCodeChars).record, "bundle")); }); },
   });
 })();

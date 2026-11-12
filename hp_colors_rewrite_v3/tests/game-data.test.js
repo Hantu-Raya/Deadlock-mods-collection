@@ -7,7 +7,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
+const vm = require('node:vm');
 const { loadLayout } = require('./boot-layout');
+const { derive } = require('../tools/game-data');
 const root = path.resolve(__dirname, '..');
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const pin = () => JSON.parse(fs.readFileSync(path.join(root, 'game-data-pin.json'), 'utf8'));
@@ -38,7 +40,7 @@ test('catalog generated from pinned data reaches the real ESC runtime, including
   assert.equal(contract.gameDataClientVersion, pin().clientVersion);
   const catalog = JSON.parse(JSON.stringify(contract.heroes));
   assert.equal(catalog.length, 67);
-  assert.deepEqual(catalog, JSON.parse(fs.readFileSync(path.join(root, 'generated/heroes.json'))));
+  assert.deepEqual(catalog, JSON.parse(JSON.stringify(derive(root).catalog)));
   assert.equal(new Set(catalog.map(hero => hero.id)).size, catalog.length);
   assert.equal(new Set(catalog.map(hero => hero.name.toLowerCase())).size, catalog.length);
   assert.equal(catalog.some(hero => hero.key === 'hero_base'), false);
@@ -190,7 +192,9 @@ test('CLI parses top-level KV3 identities only and rejects malformed data, dupli
   replacePinned(dir, 'vendor/heroes.vdata', header + body);
   let result = generate('--game-data-root', dir, '--output-root', output);
   assert.equal(result.status, 0, result.stderr);
-  const catalog = JSON.parse(fs.readFileSync(path.join(output, 'generated/heroes.json')));
+  const scope = { $: {} };
+  vm.runInNewContext(fs.readFileSync(path.join(output, 'panorama/scripts/hp_colors_v3_settings.js'), 'utf8'), scope);
+  const catalog = JSON.parse(JSON.stringify(scope.$.HPColorsV3Settings.heroes));
   assert.deepEqual(catalog.map(hero => hero.key), ['hero_baba']);
   assert.equal(catalog[0].inDevelopment, true);
   for (const [text, message] of [[header + body.slice(0, -1), /KV3/],

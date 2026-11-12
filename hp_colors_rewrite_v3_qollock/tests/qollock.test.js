@@ -39,7 +39,7 @@ test('22b composition: every pinned QOLLOCK include and id survives, every gener
   const menu = composedMenu(), topbar = composedTopbar();
   const have = new Set(refs(menu));
   for (const ref of refs(pinnedMenu)) assert.ok(have.has(ref), 'pinned menu ' + ref);
-  for (const id of JSON.parse(readV3('generated/ids.json'))) assert.ok(have.has(id), 'generated ' + id);
+  for (const id of require(path.join(v3Root, 'tools/generate.js')).menuParts(v3Root).ids) assert.ok(have.has(id), 'generated ' + id);
   assert.equal(refs(menu).filter(ref => !ref.startsWith('s2r:')).length, new Set(refs(menu).filter(ref => !ref.startsWith('s2r:'))).size, 'ids unique');
   const scripts = [...menu.matchAll(/src="s2r:\/\/panorama\/scripts\/([^"]+)\.vjs_c"/g)].map(match => match[1]);
   const pinnedScripts = [...pinnedMenu.matchAll(/src="s2r:\/\/panorama\/scripts\/([^"]+)\.vjs_c"/g)].map(match => match[1]);

@@ -7,7 +7,7 @@
 //   slot-contract.js    defaults, slots, release and the codec slot contract
 //   stock-layouts.js    the Escape menu, unit-status overlay and topbar patches
 //   settings-scripts.js the generated settings scripts
-//   stylesheets.js      the packed stylesheet contract
+//   stylesheets.js      the packed stylesheet contract (run by build() on the generated stock sheet and the folder)
 //   output.js           JSON inputs, writing and --check
 // and tools/menu-layout.js builds the menu itself.
 const path = require('node:path');
@@ -16,46 +16,56 @@ const { buildMenu } = require('./menu-layout');
 const { sidesOf, validate } = require('./lib/schema');
 const { validateNews } = require('./lib/news');
 const { validateRelease, buildSlots, checkSlotContract } = require('./lib/slot-contract');
-const { stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS } = require('./lib/stock-layouts');
-const { worldSettingsScript, settingsScript } = require('./lib/settings-scripts');
+const { stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OWNED_STYLES } = require('./lib/stock-layouts');
+const { WIRE_VERSION, worldSettingsScript, settingsScript } = require('./lib/settings-scripts');
 const { checkStylesheets } = require('./lib/stylesheets');
 const { json, readJson, writeOrCheck } = require('./lib/output');
 const ROOT = path.resolve(__dirname, '..');
 
+// The one list of generated outputs (relative to the lane), in write order: tools/dev.js, the variant lanes and the
+// tests read it. `make` builds the text from build()'s pieces; `stockSheet` marks the generated stock stylesheet, which
+// lib/stylesheets.js checks as the game's sheet (colour macros allowed, no mask).
+const OUTPUTS = Object.freeze({
+  'generated/defaults.json': { make: b => json(b.defaults) },
+  'generated/slots.json': { make: b => json(b.slots) },
+  'generated/search-index.json': { make: b => json(b.menu.search) },
+  'panorama/styles/unit_status_v2.css': { make: b => b.gameData.stylesheet, stockSheet: true },
+  'generated/menu-rows.xml': { make: b => b.menu.fragment },
+  'panorama/layout/hud_escape_menu.xml': { make: b => b.layouts.menu },
+  'panorama/layout/unit_status_overlay_v2.xml': { make: b => b.layouts.overlay },
+  'panorama/layout/citadel_hud_top_bar.xml': { make: b => b.layouts.topbar },
+  'panorama/layout/citadel_status_effect.xml': { make: b => b.layouts.statusEffect },
+  'panorama/scripts/hp_colors_v3_world_settings.js': { make: b => worldSettingsScript(b.menu.controls) },
+  'panorama/scripts/hp_colors_v3_settings.js': { make: b => settingsScript(b.contract) },
+});
+
 const readNews = root => readJson(path.join(root, 'settings/news.json'));
-function generate(rows, gameData, metadata, news = readNews(ROOT)) { return build(rows, gameData, metadata, news).files; }
-function build(rows, gameData, metadata, news) {
+// `root` is the tree whose committed slot history, settings script and stylesheets the contracts are checked against
+// (the real tree, or the copy a tool validates in); `stylesRoot` overrides only the stylesheet folder.
+function generate(rows, gameData, metadata, news = readNews(ROOT), options) { return build(rows, gameData, metadata, news, options).files; }
+function build(rows, gameData, metadata, news, { root = ROOT, stylesRoot } = {}) {
   validate(rows);
   validateRelease(metadata);
   const { defaults, slots } = buildSlots(rows);
   const stockIds = new Set([...gameData.menu.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]));
   // Slot identity is checked first: a removed setting reports the slot contract, not a stale news target.
-  checkSlotContract(slots,defaults,rows.flatMap(row => sidesOf(row).map(side => ({ ...row, side }))),metadata);
+  checkSlotContract(slots, defaults, rows.flatMap(row => sidesOf(row).map(side => ({ ...row, side }))), metadata, root);
   validateNews(news, rows);
-  const menu = buildMenu(rows, sidesOf, stockIds, metadata.release, news);
-  const { ids, controls } = menu;
-  const search = menu.search;
-  const menuRows = menu.fragment;
+  const menu = buildMenu(rows, null, stockIds, metadata.release, news);
   const layouts = stockLayouts(gameData, menu);
   // version is the wire/contract version; release is the shipped version (settings/record.json) the update check compares.
-  const contract = { magic: 'HP_COLORS_V3_CONFIG', version: '3.0.0', release: metadata.release, recordVersion: metadata.recordVersion, defaultChanges: metadata.defaultChanges, slotAdditions: metadata.slotAdditions, retiredSlots: metadata.retiredSlots || [], defaults, slots, ids, controls, searchIndex: search, menu: menu.menu,
+  const contract = { magic: 'HP_COLORS_V3_CONFIG', version: WIRE_VERSION, release: metadata.release, recordVersion: metadata.recordVersion, defaultChanges: metadata.defaultChanges, slotAdditions: metadata.slotAdditions, retiredSlots: metadata.retiredSlots || [], defaults, slots, ids: menu.ids, controls: menu.controls, searchIndex: menu.search, menu: menu.menu,
     heroes: gameData.catalog, gameDataCommit: gameData.pin.commit, gameDataClientVersion: gameData.pin.clientVersion };
-  const files = {
-    'generated/defaults.json': json(defaults),
-    'generated/slots.json': json(slots),
-    'generated/ids.json': json(ids),
-    'generated/search-index.json': json(search),
-    'generated/heroes.json': json(gameData.catalog),
-    'panorama/styles/unit_status_v2.css': gameData.stylesheet,
-    'generated/menu-rows.xml': menuRows,
-    'panorama/layout/hud_escape_menu.xml': layouts.menu,
-    'panorama/layout/unit_status_overlay_v2.xml': layouts.overlay,
-    'panorama/layout/citadel_hud_top_bar.xml': layouts.topbar,
-    'panorama/layout/citadel_status_effect.xml': layouts.statusEffect,
-    'panorama/scripts/hp_colors_v3_world_settings.js': worldSettingsScript(controls),
-    'panorama/scripts/hp_colors_v3_settings.js': settingsScript(contract),
-  };
-  return { files, menu };
+  const pieces = { defaults, slots, gameData, menu, layouts, contract };
+  const files = {}, stock = {};
+  for (const [file, output] of Object.entries(OUTPUTS)) {
+    files[file] = output.make(pieces);
+    if (output.stockSheet) stock[path.basename(file)] = files[file];
+  }
+  // The sheet contract covers the generated stock sheet plus the shipped folder; a custom --styles-root is a fixture
+  // folder, so only the shipped one is held to the layouts' include lists.
+  const css = checkStylesheets(stylesRoot || path.join(root, 'panorama/styles'), { stock, shipped: stylesRoot ? null : [...OWNED_STYLES, ...Object.keys(stock).map(name => name.slice(0, -4))] });
+  return { files, menu, css };
 }
 
 // Published for variant lanes (hp_colors_rewrite_v3_qollock): the exact v3 Escape-menu and topbar
@@ -63,7 +73,7 @@ function build(rows, gameData, metadata, news) {
 // lane can refuse a stale v3 checkout. The v3 lane itself knows nothing about variants.
 function menuParts(root = ROOT) {
   const { files, menu } = build(readJson(path.join(root, 'settings/schema.json')), derive(root),
-    readJson(path.join(root, 'settings/record.json')), readNews(root));
+    readJson(path.join(root, 'settings/record.json')), readNews(root), { root });
   return { resume: MENU_RESUME, styles: MENU_STYLES, scripts: MENU_SCRIPTS, button: menu.button, fragment: menu.fragment,
     ids: menu.ids, topbarScripts: TOPBAR_SCRIPTS, topbarClass: TOPBAR_CLASS, files };
 }
@@ -74,7 +84,7 @@ function main(args) {
   let check = false;
   let gameDataRoot = ROOT;
   let recordContract = path.join(ROOT,'settings/record.json');
-  let stylesRoot = path.join(ROOT, 'panorama/styles');
+  let stylesRoot;
   let newsFile = path.join(ROOT, 'settings/news.json');
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--check') check = true;
@@ -87,13 +97,12 @@ function main(args) {
       else output = path.resolve(args[++i]);
     } else throw new Error('Unknown or incomplete argument: ' + args[i]);
   }
-  const files = generate(readJson(settings), derive(gameDataRoot), readJson(recordContract), readJson(newsFile));
+  const { files, css } = build(readJson(settings), derive(gameDataRoot), readJson(recordContract), readJson(newsFile), { stylesRoot });
   writeOrCheck(files, output, check);
-  const css = checkStylesheets(stylesRoot);
   console.log('HPV3 stylesheets: ' + css.files + ' files, ' + css.rules + ' rules, max ' + css.widest + ' selectors per rule');
   console.log('HPV3 generator: ' + Object.keys(files).length + ' outputs ' + (check ? 'current' : 'written'));
 }
-module.exports = { generate, menuParts };
+module.exports = { OUTPUTS, generate, menuParts };
 if (require.main === module) {
   try { main(process.argv.slice(2)); }
   catch (error) { console.error(error.message); process.exitCode = 1; }

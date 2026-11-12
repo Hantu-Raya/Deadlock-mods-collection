@@ -21,6 +21,7 @@ const SOURCES = {
 // relation rules that become empty. Live 6782: an appended `opacity-mask: none` does not cancel an
 // earlier mask, so the declarations must be removed. Every rule and declaration is an exact anchor;
 // any drift fails closed. BAR STYLE V2 restores the masks through owned root classes (world.css).
+// lib/stylesheets.js enforces the result: the generated stock sheet declares no mask and no sheet uses `none`.
 const MASK = 'opacity-mask: url("s2r://panorama/images/hud/healthbar/healthbar_backer_horiz_mask_flipped.vsvg");';
 const STOCK_DELETIONS = [
   ['.UnitHealthbarContainer', [MASK, 'background-color: rgb(67, 12, 12);']],
@@ -47,7 +48,6 @@ function rectangularStock(text) {
     const replacement = body.trim() ? '\n\n' + selector + '\n{\n' + body + '}\n' : '\n';
     text = text.slice(0, found[0].index) + replacement + text.slice(found[0].index + found[0][0].length);
   }
-  if (/opacity-mask/.test(text)) throw new Error('Stock stylesheet has an unexpected opacity-mask after the rectangular baseline');
   return text;
 }
 
@@ -249,4 +249,4 @@ async function main(args) {
   await checkUpstream(root, base);
 }
 if (require.main === module) main(process.argv.slice(2)).catch(error => { console.error(error.message); process.exitCode = 1; });
-module.exports = { derive, STOCK_DELETIONS };
+module.exports = { derive };

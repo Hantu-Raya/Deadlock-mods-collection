@@ -1186,14 +1186,12 @@
     if (picker && picker.condition) closePicker(true);
     var row = conditionDraft.row;
     conditionDraft = null;
-    if (panel("HPColorsConditionDialog")) panel("HPColorsConditionDialog").RemoveClass("Open");
-    if (panel(row.conditionId)) panel(row.conditionId).SetFocus();
+    leaveDialog("HPColorsConditionDialog", row.conditionId, true);
     resumeHeroRoute();
   }
   function openCondition(row) {
     if (!rowActive(row)) return;
-    closeInfo();
-    closeCondition(); closePicker(false); endGesture(false);
+    closeFor(CLOSES_ON_OPEN.condition);
     var cell = cellFor(row), rule = config.rules[cell];
     conditionDraft = { row: row, cell: cell, valid: true, rule: rule ? clone(rule) :
       { slot: 1, minTier: 1, value: valuesFor(config.settings, row)[row.key] } };
@@ -1495,9 +1493,7 @@
     return true;
   }
   function undo() {
-    closePicker(false);
-    closeCondition();
-    endGesture(false);
+    closeFor(CLOSES_ON_OPEN.editor);
     if (!history.length) return;
     if (!restoreHistory(history[history.length - 1])) return;
     history.pop();
@@ -1584,7 +1580,7 @@
     on(row.rowId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.rowId), rowHelp(row)); });
     on(row.rowId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.rowId)); });
     on(row.resetId, "onactivate", function () {
-      closePicker(false); closeCondition(); endGesture(false);
+      closeFor(CLOSES_ON_OPEN.editor);
       commit(row, row.type === "number" ? normalizeNumber(row, row.default, config.settings) : row.default);
     });
     on(row.resetId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.resetId), "Reset " + row.name + " to default"); });
@@ -1654,7 +1650,7 @@
   function selectSide(side) {
     var root = host();
     if (!root || retired) return;
-    closePicker(false); closeCondition(); endGesture(false);
+    closeFor(CLOSES_ON_OPEN.editor);
     root.SetHasClass("HPC3SideAlly", side === "ally");
     contractRef.menu.groups.forEach(function (group) {
       (group.sides || []).forEach(function (tab) {
@@ -1668,14 +1664,7 @@
   function showPage(index) {
     var pages = contractRef.menu.pages;
     pageIndex = index;
-    closePicker(false);
-    closeCondition();
-    endGesture(false);
-    cancelReset();
-    cancelDelete();
-    cancelBundleReplacement();
-    closeHeroPicker();
-    closeInfo();
+    closeFor(CLOSES_ON_OPEN.page);
     for (var i = 0; i < pages.length; i++) {
       if (panel(pages[i].id)) panel(pages[i].id).SetHasClass("Active", i === index);
       if (panel(pages[i].navId)) panel(pages[i].navId).SetHasClass("Selected", i === index);
@@ -1693,6 +1682,8 @@
       if (panel(entry.subNavId)) panel(entry.subNavId).SetHasClass("Selected", entry === group);
     });
   }
+  // Nav tab and SHARE: a plain page change that clears search and the highlighted group first.
+  function goToPage(index) { clearSearch(); selectGroup(null); showPage(index); }
   function activateGroup(group) {
     clearSearch();
     showPage(contractRef.menu.pages.map(function (page) { return page.name; }).indexOf(group.page));
@@ -1703,7 +1694,7 @@
     trigger(title, "HPC3SearchLanding");
   }
   function resetGroup(group) {
-    closePicker(false); closeCondition(); endGesture(false);
+    closeFor(CLOSES_ON_OPEN.editor);
     var next = clone(config.settings), rules = clone(config.rules);
     contractRef.controls.forEach(function (row) {
       if (row.page === group.page && row.group === group.name) {
@@ -1780,11 +1771,7 @@
     var root = host();
     if (!root) return;
     if (!open) {
-      closePicker(false); endGesture(false); cancelReset(); cancelDelete();
-      closeCondition();
-      cancelBundleReplacement();
-      closeHeroPicker();
-      closeInfo();
+      closeFor(CLOSES_ON_OPEN.menuClose);
       clearHistory();
       clearSearch(); root.RemoveClass("SaveResetConfirming");
     }
@@ -1904,17 +1891,56 @@
 
   // Credits and Feedback are informational only: no setting, record, store commit or Undo entry.
   // Closing either returns focus to the footer button that opened it.
+  var INFO_DIALOGS = [["HPColorsCreditsDialog", "HPColorsPreviewCreditsButton"], ["HPColorsFeedbackDialog", "HPColorsPreviewFeedbackButton"]];
   function closeInfo() {
-    [["HPColorsCreditsDialog", "HPColorsPreviewCreditsButton"], ["HPColorsFeedbackDialog", "HPColorsPreviewFeedbackButton"]].forEach(function (pair) {
-      var dialog = panel(pair[0]);
-      if (!dialog || !dialog.BHasClass("Open")) return;
-      dialog.RemoveClass("Open");
-      if (panel(pair[1])) panel(pair[1]).SetFocus();
-    });
+    for (var i = 0; i < INFO_DIALOGS.length; i++) {
+      var dialog = panel(INFO_DIALOGS[i][0]);
+      if (dialog && dialog.BHasClass("Open")) leaveDialog(INFO_DIALOGS[i][0], INFO_DIALOGS[i][1], true);
+    }
   }
   function infoOpen() {
-    return ["HPColorsCreditsDialog", "HPColorsFeedbackDialog"].some(function (id) { return !!panel(id) && panel(id).BHasClass("Open"); });
+    for (var i = 0; i < INFO_DIALOGS.length; i++) {
+      var dialog = panel(INFO_DIALOGS[i][0]);
+      if (dialog && dialog.BHasClass("Open")) return true;
+    }
+    return false;
   }
+
+  // ---- Dialogs: one leave helper, one registry in ESC priority order, one close-on-open table ----
+  // Every dialog closes the same way: drop "Open", and only if it really was open give focus back to the
+  // control that opened it.
+  function leaveDialog(dialogId, focusId, wasOpen) {
+    var dialog = panel(dialogId);
+    if (dialog) dialog.RemoveClass("Open");
+    if (wasOpen && panel(focusId)) panel(focusId).SetFocus();
+  }
+  // Escape closes the first open entry (fixed priority). `quiet` entries (the advisory update notice) do not
+  // count as busy: they wait for no one and never block another dialog.
+  var DIALOGS = [
+    { id: "update", quiet: true, close: closeUpdate,
+      isOpen: function () { var dialog = panel("HPColorsUpdateDialog"); return !!dialog && dialog.BHasClass("Open"); } },
+    { id: "info", isOpen: infoOpen, close: closeInfo },
+    { id: "picker", isOpen: function () { return !!picker; }, close: function () { closePicker(true); } },
+    { id: "condition", isOpen: function () { return !!conditionDraft; }, close: closeCondition },
+    { id: "hero", isOpen: function () { return !!heroPicker; }, close: closeHeroPicker },
+    { id: "reset", isOpen: function () { return resetPage !== null; }, close: cancelReset },
+    { id: "delete", isOpen: function () { return !!deletePreset; }, close: cancelDelete },
+    { id: "bundle", isOpen: function () { return !!bundleReplacement; }, close: cancelBundleReplacement },
+  ];
+  // What each opener (or page/menu change) closes first, in the order it always has: the order is observable
+  // (the last close that has a focus target wins focus), so it is kept per entry, not normalised.
+  function closePickerKeep() { closePicker(false); }
+  function endGestureKeep() { endGesture(false); }
+  var CLOSES_ON_OPEN = {
+    editor: [closePickerKeep, closeCondition, endGestureKeep],
+    page: [closePickerKeep, closeCondition, endGestureKeep, cancelReset, cancelDelete, cancelBundleReplacement, closeHeroPicker, closeInfo],
+    menuClose: [closePickerKeep, endGestureKeep, cancelReset, cancelDelete, closeCondition, cancelBundleReplacement, closeHeroPicker, closeInfo],
+    condition: [closeInfo, closeCondition, closePickerKeep, endGestureKeep],
+    reset: [closeInfo, closePickerKeep, endGestureKeep, closeCondition],
+    hero: [closeInfo, closePickerKeep, endGestureKeep],
+    picker: [closeInfo, closePickerKeep],
+  };
+  function closeFor(steps) { for (var i = 0; i < steps.length; i++) steps[i](); }
 
   // ---- Update notice (ticket 33): advisory, no setting, record, store commit or Undo entry ----
   // The hosted store page reads latest.json; a newer release warns once per game session, after
@@ -1989,8 +2015,9 @@
     } catch (error) { /* Advisory: the editor works without it. */ }
   }
   function dialogBusy() {
-    if (gesture || picker || conditionDraft || heroPicker || resetPage !== null || deletePreset || bundleReplacement) return true;
-    return infoOpen();
+    if (gesture) return true;
+    for (var i = 0; i < DIALOGS.length; i++) if (!DIALOGS[i].quiet && DIALOGS[i].isOpen()) return true;
+    return false;
   }
   // Each build opens its own file: the composed QOLLOCK menu keeps QOLLOCK's pinned storage bridge
   // panel and the composed ShowRank menu ShowRank's party bridge. No link for this build: no DOWNLOAD.
@@ -2016,7 +2043,7 @@
   }
   function closeUpdate() {
     var dialog = panel("HPColorsUpdateDialog");
-    if (dialog && dialog.BHasClass("Open")) dialog.RemoveClass("Open");
+    if (dialog && dialog.BHasClass("Open")) leaveDialog("HPColorsUpdateDialog", "", false);
   }
   function openUpdateDownload() {
     var dialog = panel("HPColorsUpdateDialog"), url = updateUrl;
@@ -2027,8 +2054,7 @@
     closeUpdate();
   }
   function closeOthersForInfo() {
-    closePicker(false); closeCondition(); endGesture(false);
-    cancelReset(); cancelDelete(); cancelBundleReplacement(); closeHeroPicker(); closeInfo();
+    closeFor(CLOSES_ON_OPEN.page);
   }
   function openCredits() {
     closeOthersForInfo();
@@ -2075,13 +2101,10 @@
   function cancelReset() {
     var wasOpen = resetPage !== null;
     resetPage = null;
-    if (panel("HPColorsResetPageDialog")) panel("HPColorsResetPageDialog").RemoveClass("Open");
-    if (wasOpen && panel("HPColorsResetPageButton")) panel("HPColorsResetPageButton").SetFocus();
+    leaveDialog("HPColorsResetPageDialog", "HPColorsResetPageButton", wasOpen);
   }
   function requestReset() {
-    closeInfo();
-    closePicker(false); endGesture(false);
-    closeCondition();
+    closeFor(CLOSES_ON_OPEN.reset);
     var page = contractRef.menu.pages[pageIndex].name;
     var rows = contractRef.controls.filter(function (row) { return row.page === page; });
     if (!rows.length) return;
@@ -2148,15 +2171,12 @@
         applySettings(next); notifyStore();
       }
     } else endGesture(false);
-    if (panel("HPColorsPickerDialog")) panel("HPColorsPickerDialog").RemoveClass("Open");
-    var opener = panel(isCondition ? "HPColorsConditionSwatch" : row.swatchId);
-    if (opener) opener.SetFocus();
+    leaveDialog("HPColorsPickerDialog", isCondition ? "HPColorsConditionSwatch" : row.swatchId, true);
     resumeHeroRoute();
   }
   function openPicker(row, isCondition) {
     if (!isCondition && !rowActive(row)) return;
-    closeInfo();
-    closePicker(false);
+    closeFor(CLOSES_ON_OPEN.picker);
     if (!isCondition) { closeCondition(); beginGesture(row.side + ":" + row.key); }
     var color = isCondition ? conditionDraft.rule.value : valuesFor(config.settings, row)[row.key];
     picker = { row: row, condition: isCondition === true, color: color, openingColor: color };
@@ -2167,11 +2187,14 @@
     seedPicker();
     (valid(nativeHex) ? nativeHex : panel("HPColorsPickerHex")).SetFocus();
   }
+  function rejectPickerHex(entry) {
+    trigger(entry, "HPC3NegativeShake"); setLabel("HPColorsPickerStatus", "Enter a valid hex color.", "error");
+  }
   function bindPicker() {
     on("HPColorsPickerDoneButton", "onactivate", function () {
       var entry = panel("HPColorsPickerHex");
       if (picker && entry && normalizeColor(entry.text) === null) {
-        trigger(entry, "HPC3NegativeShake"); setLabel("HPColorsPickerStatus", "Enter a valid hex color.", "error"); return;
+        rejectPickerHex(entry); return;
       }
       closePicker(false);
     });
@@ -2180,7 +2203,7 @@
       if (!picker || !panel("HPColorsPickerHex")) return;
       var color = normalizeColor(panel("HPColorsPickerHex").text);
       if (color !== null) { changePicker(color); seedPicker(); }
-      else { trigger(panel("HPColorsPickerHex"), "HPC3NegativeShake"); setLabel("HPColorsPickerStatus", "Enter a valid hex color.", "error"); }
+      else rejectPickerHex(panel("HPColorsPickerHex"));
     };
     on("HPColorsPickerHex", "ontextentrysubmit", hex);
     on("HPColorsPickerHex", "onblur", hex);
@@ -2234,8 +2257,7 @@
   function closeHeroPicker() {
     var wasOpen = !!heroPicker;
     heroPicker = "";
-    if (panel("HPColorsHeroDialog")) panel("HPColorsHeroDialog").RemoveClass("Open");
-    if (wasOpen && panel("HPColorsPresetSelectedHeroesButton")) panel("HPColorsPresetSelectedHeroesButton").SetFocus();
+    leaveDialog("HPColorsHeroDialog", "HPColorsPresetSelectedHeroesButton", wasOpen);
   }
   function renderHeroPicker(searchChanged) {
     if (!heroPicker || !panel("HPColorsHeroList")) return;
@@ -2264,8 +2286,7 @@
     if (searchChanged && search && first) scrollTo(first);
   }
   function openHeroPicker(id) {
-    closeInfo();
-    closePicker(false); endGesture(false);
+    closeFor(CLOSES_ON_OPEN.hero);
     heroPicker = id;
     panel("HPColorsHeroSearchField").text = "";
     var list = panel("HPColorsHeroList"); list.RemoveAndDeleteChildren(); heroTiles = [];
@@ -2381,8 +2402,7 @@
   function cancelDelete() {
     var wasOpen = !!deletePreset;
     deletePreset = "";
-    if (panel("HPColorsPresetDeleteDialog")) panel("HPColorsPresetDeleteDialog").RemoveClass("Open");
-    if (wasOpen && panel("HPColorsPresetSelectedDeleteButton")) panel("HPColorsPresetSelectedDeleteButton").SetFocus();
+    leaveDialog("HPColorsPresetDeleteDialog", "HPColorsPresetSelectedDeleteButton", wasOpen);
   }
   function requestDelete(preset) {
     closeInfo();
@@ -2394,8 +2414,7 @@
   function cancelBundleReplacement() {
     var wasOpen = !!bundleReplacement;
     bundleReplacement = null;
-    if (panel("HPColorsBundleReplaceDialog")) panel("HPColorsBundleReplaceDialog").RemoveClass("Open");
-    if (wasOpen && panel("HPColorsBundleReplaceButton")) panel("HPColorsBundleReplaceButton").SetFocus();
+    leaveDialog("HPColorsBundleReplaceDialog", "HPColorsBundleReplaceButton", wasOpen);
   }
   function requestBundleReplacement() {
     closeInfo();
@@ -2561,6 +2580,9 @@
       } catch (error) { presetStatus(String(error.message || error), true); }
     }
   }
+  // Pressing Enter in the preset-name entry does nothing by design: only the SAVE NEW button commits the
+  // draft (a stray Enter must not save). The handler stays explicit so the entry's submit is a deliberate no-op.
+  function noopSubmit() {}
   function bindPresets() {
     on("HPColorsPresetDefault", "onactivate", function () { selectPreset(DEFAULT_PRESET_ID); });
     tooltip(panel("HPColorsPresetDefault"), function () { return defaultName(presetBundle()); });
@@ -2589,7 +2611,7 @@
         if (added) scrollTo(added.tile);
       }
     });
-    on("HPColorsPresetNameEntry", "ontextentrysubmit", function () { /* SAVE NEW commits the draft. */ });
+    on("HPColorsPresetNameEntry", "ontextentrysubmit", noopSubmit);
     on("HPColorsPresetDeleteConfirmButton", "onactivate", function () {
       var id = deletePreset;
       cancelDelete();
@@ -2710,6 +2732,12 @@
     }
   }
 
+  // CLOSE button, ESC button and backdrop of an informational dialog all just close it.
+  function bindDismiss(prefix, close) {
+    on(prefix + "CloseButton", "onactivate", close);
+    on(prefix + "EscClose", "onactivate", close);
+    on(prefix + "Backdrop", "onactivate", close);
+  }
   function bindChrome() {
     activeRoot.FindChildrenWithClassTraverse("HPC3GlyphButton").forEach(function (target) {
       tooltip(target, function () { return target.GetAttributeString("tooltip", ""); });
@@ -2726,16 +2754,10 @@
     });
     on("HPColorsPreviewFeedbackButton", "onactivate", openFeedback);
     on("HPColorsFeedbackNameButton", "onactivate", copyFeedback);
-    on("HPColorsFeedbackCloseButton", "onactivate", closeInfo);
-    on("HPColorsFeedbackEscClose", "onactivate", closeInfo);
-    on("HPColorsFeedbackBackdrop", "onactivate", closeInfo);
-    on("HPColorsCreditsCloseButton", "onactivate", closeInfo);
-    on("HPColorsCreditsEscClose", "onactivate", closeInfo);
-    on("HPColorsCreditsBackdrop", "onactivate", closeInfo);
-    on("HPColorsUpdateCloseButton", "onactivate", closeUpdate);
+    bindDismiss("HPColorsFeedback", closeInfo);
+    bindDismiss("HPColorsCredits", closeInfo);
+    bindDismiss("HPColorsUpdate", closeUpdate);
     on("HPColorsUpdateDownloadButton", "onactivate", openUpdateDownload);
-    on("HPColorsUpdateEscClose", "onactivate", closeUpdate);
-    on("HPColorsUpdateBackdrop", "onactivate", closeUpdate);
     on("HPColorsResetPageButton", "onactivate", requestReset);
     on("HPColorsResetPageConfirmButton", "onactivate", confirmReset);
     on("HPColorsResetPageCancelButton", "onactivate", cancelReset);
@@ -2753,7 +2775,7 @@
     on("HPColorsPickerEscClose", "onactivate", function () { closePicker(true); });
     var menu = contractRef.menu;
     menu.pages.forEach(function (page, index) {
-      on(page.navId, "onactivate", function () { clearSearch(); selectGroup(null); showPage(index); });
+      on(page.navId, "onactivate", function () { goToPage(index); });
     });
     (menu.news || []).forEach(function (item) {
       on(item.buttonId, "onactivate", function () { openNews(item); });
@@ -2761,8 +2783,7 @@
     });
     on("HPColorsNewClearAllButton", "onactivate", function () { dismissNews(newsShowing().map(function (item) { return item.id; })); });
     on("HPColorsShareButton", "onactivate", function () {
-      clearSearch(); selectGroup(null);
-      showPage(menu.pages.map(function (page) { return page.name; }).indexOf("Presets"));
+      goToPage(menu.pages.map(function (page) { return page.name; }).indexOf("Presets"));
     });
     menu.groups.forEach(function (group) {
       on(group.subNavId, "onactivate", function () { activateGroup(group); });
@@ -2952,14 +2973,7 @@
     if (!valid(activeRoot) || !contractRef || !host()) return false;
     var root = host();
     if (!root.BHasClass("HPC3Open")) return false;
-    if (panel("HPColorsUpdateDialog") && panel("HPColorsUpdateDialog").BHasClass("Open")) { closeUpdate(); return true; }
-    if (infoOpen()) { closeInfo(); return true; }
-    if (picker) { closePicker(true); return true; }
-    if (conditionDraft) { closeCondition(); return true; }
-    if (heroPicker) { closeHeroPicker(); return true; }
-    if (resetPage !== null) { cancelReset(); return true; }
-    if (deletePreset) { cancelDelete(); return true; }
-    if (bundleReplacement) { cancelBundleReplacement(); return true; }
+    for (var i = 0; i < DIALOGS.length; i++) if (DIALOGS[i].isOpen()) { DIALOGS[i].close(); return true; }
     if (root.BHasClass("Searching")) clearSearch();
     else setMenuOpen(false);
     return true;

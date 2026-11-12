@@ -79,8 +79,10 @@ test('sparse pending omits shipped defaults and saves all128 legacy presets with
 });
 test('ticket 28: complete v2 parity preserves every setting and refuses oversize conversion without dropping data',()=>{
  const seed=launch(profile());seed.run(2000);const converter=seed.harness.$.HPColorsV3FromV2;const raw={};
+ // loadLegacy reads the v2 current key (then its backup) through readKey; the converter never encodes or size-checks.
+ const legacyOf=record=>{let out;converter.loadLegacy((key,done)=>done({ok:true,record:key.endsWith('.prev')?null:record}),result=>{out=result;});return out;};
  for(const key of legacy.keys){const meta=legacy.settingMeta[key],value=legacy.defaults[key];raw[key]=meta.type==='boolean'?!value:meta.type==='color'?'#123123':meta.type==='enum'?meta.options.find(x=>x!==value):meta.min===value?meta.max:meta.min;}
- const sample=converter.classifyRecord(frame(4,{version:1,values:raw,userPresets:[]}));
+ const sample=legacyOf(frame(4,{version:1,values:raw,userPresets:[]}));
  assert.equal(sample.kind,'valid');assert.deepEqual(JSON.parse(JSON.stringify(sample.bundle.v2pending)),{},'every supported v2 key now maps to a slot');
  const body=count=>({version:1,values:{enemyLow:'#445566'},
   scopes:Array.from({length:count},(_,i)=>({id:'extra'+i,mode:'selected',heroes:['hero_synth'],values:raw,conditions:{}})),
@@ -91,7 +93,7 @@ test('ticket 28: complete v2 parity preserves every setting and refuses oversize
  // format (216-217) to 23, and the v23 status effect sizes (218-225) to 22.
  const input=frame(4,body(22)),codec=seed.harness.$.HPColorsV3Codec;let encodes=0;
  seed.harness.$.HPColorsV3Codec={...codec,encodeRecord(bundle){encodes++;return codec.encodeRecord(bundle);}};
- const converted=converter.classifyRecord(input);assert.equal(converted.kind,'valid');assert.equal(encodes,1);
+ const converted=legacyOf(input);assert.equal(converted.kind,'valid');assert.equal(converted.source,'v2current');assert.equal(encodes,0,'the converter never encodes');
  assert.ok(codec.encodeRecord(converted.bundle).length<=192000);
  const p=profile({[V2]:input}),f=launch(p);f.run(8000);assert.equal(f.status(),'Saved');
  const bundle=f.harness.$.HPColorsV3Store.getBundle();assert.equal(bundle.presets.length,128);
@@ -99,9 +101,9 @@ test('ticket 28: complete v2 parity preserves every setting and refuses oversize
  assert.equal(bundle.v2scopes.length,22);assert.ok(p.disk.get(CURRENT).length<=192000);assert.equal(p.disk.get(V2),input);
  const again=launch(p);again.run(8000);assert.equal(again.harness.$.HPColorsV3Store.getBundle().presets.length,128);
  const oversized=frame(4,body(30));assert.ok(oversized.length<=192000,'legal old save expands past the v3 cap');
- const refusal=converter.classifyRecord(oversized);assert.equal(refusal.kind,'conversion_error');assert.match(refusal.message,/192,000/);
+ const refused=legacyOf(oversized);assert.equal(refused.kind,'valid');assert.ok(codec.encodeRecord(refused.bundle).length>192000,'the caller fits the converted bundle: storage refuses it below');
  const blocked=profile({[V2]:oversized}),boot=launch(blocked);boot.run(8000);
- assert.equal(boot.page.writes,0);assert.equal(blocked.disk.get(V2),oversized);assert.equal(blocked.disk.get(CURRENT),undefined);
+ assert.match(boot.status(),/V2 save could not be converted.*192,000/);assert.equal(boot.page.writes,0);assert.equal(blocked.disk.get(V2),oversized);assert.equal(blocked.disk.get(CURRENT),undefined);
 });
 
 test('lost legacy read fails closed, then an edit-triggered probe migrates without losing edits',()=>{

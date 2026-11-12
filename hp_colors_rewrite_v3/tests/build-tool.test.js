@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const build = require('../tools/build');
-const { repoPaths, projectConfig, stagePaths, HPV3_ASSETS } = require('../tools/lib/projects');
+const { repoPaths, projectConfig, stagePaths, HPV3_ASSETS, sourceName } = require('../tools/lib/projects');
 const toolchain = require('../tools/lib/toolchain');
 
 const DOTNET_MISSING = [
@@ -35,6 +35,21 @@ test('parseArgs mirrors the wrapper switches', () => {
   assert.throws(() => build.parseArgs(['--project', 'v3', '--skip-suite']), /Unknown argument/);
   assert.throws(() => build.parseArgs(['--project']), /needs a value/);
   assert.equal(build.parseArgs(['--help']).help, true);
+});
+
+// HPV3_ASSETS is panorama/** of the v3 lane compiled; the layouts' include lists must name exactly its owned sheets and scripts.
+// The include lists are read in a child process: a require() here would map tools/lib/stock-layouts.js to this suite
+// (tests/quick-test.test.js keeps the generator's lib files mapped exactly like generate.js).
+test('shipped asset list agrees with the include lists of the stock layouts', () => {
+  const script = 'const l = require(process.argv[1]); process.stdout.write(JSON.stringify({ OWNED_STYLES: l.OWNED_STYLES, OWNED_SCRIPTS: l.OWNED_SCRIPTS }))';
+  const child = require('node:child_process').spawnSync(process.execPath, ['-e', script, path.join(__dirname, '..', 'tools', 'lib', 'stock-layouts.js')], { encoding: 'utf8' });
+  assert.equal(child.status, 0, child.stderr);
+  const { OWNED_STYLES, OWNED_SCRIPTS } = JSON.parse(child.stdout);
+  const styles = HPV3_ASSETS.filter(asset => asset.startsWith('panorama/styles/')).map(asset => path.basename(sourceName(asset), '.css'));
+  assert.deepEqual([...styles].sort(), [...OWNED_STYLES, 'unit_status_v2'].sort());
+  const scripts = HPV3_ASSETS.filter(asset => asset.startsWith('panorama/scripts/')).map(asset => path.basename(sourceName(asset), '.js'));
+  assert.deepEqual([...scripts].sort(), [...OWNED_SCRIPTS].sort());
+  assert.equal(sourceName('panorama/layout/hud_escape_menu.vxml_c'), 'panorama/layout/hud_escape_menu.xml');
 });
 
 test('project contracts match the wrappers', () => {

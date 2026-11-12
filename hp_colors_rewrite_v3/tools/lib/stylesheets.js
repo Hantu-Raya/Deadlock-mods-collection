@@ -88,14 +88,26 @@ function engineFindings(file, raw) {
   return { errors, warnings };
 }
 
-function checkStylesheets(dir) {
-  const files = fs.readdirSync(dir).filter(name => name.endsWith('.css')).sort();
+// Checks every packed .css in `dir`. `stock` maps the generated stock sheets (the output-table entries flagged
+// stockSheet in tools/generate.js) to their generated text: that text is checked instead of any file in `dir`,
+// and such a sheet may use the game's @define colour macros but never a mask. `shipped` (names without
+// `.css`, from the include lists in lib/stock-layouts.js) makes the folder and the layouts agree: a sheet in
+// the folder that no layout includes, or one a layout includes that is missing, fails.
+function checkStylesheets(dir, { stock = {}, shipped = null } = {}) {
+  const files = [...new Set([...fs.readdirSync(dir).filter(name => name.endsWith('.css')), ...Object.keys(stock)])].sort();
   if (!files.length) throw new Error('No stylesheets found in ' + dir);
+  if (shipped) {
+    const orphan = files.filter(name => !shipped.includes(name.slice(0, -4)));
+    if (orphan.length) throw new Error('Stylesheet in ' + dir + ' that no layout includes: ' + orphan.join(', ') + ' (tools/lib/stock-layouts.js lists the includes)');
+    const missing = shipped.filter(name => !files.includes(name + '.css'));
+    if (missing.length) throw new Error('Stylesheet included by a layout but missing from ' + dir + ': ' + missing.map(name => name + '.css').join(', '));
+  }
   let rules = 0, widest = 0;
   const warnings = [];
   for (const name of files) {
     const file = path.join(dir, name);
-    const raw = fs.readFileSync(file, 'utf8');
+    const isStock = Object.hasOwn(stock, name);
+    const raw = isStock ? stock[name] : fs.readFileSync(file, 'utf8');
     const text = raw.replace(/\/\*[\s\S]*?\*\//g, comment => comment.replace(/[^\n]/g, ''));
     let depth = 0, prelude = '', skip = false, line = 1, start = 1;
     for (const ch of text) {
@@ -126,14 +138,14 @@ function checkStylesheets(dir) {
     const engine = engineFindings(file, raw);
     if (engine.errors.length) throw new Error(engine.errors.join('\n'));
     warnings.push(...engine.warnings);
-    // Live 6782: `opacity-mask: none` does not cancel an earlier mask; delete declarations instead.
+    // The mask rule (live 6782, see tools/game-data.js): `opacity-mask: none` does not cancel an earlier mask.
     const lineOf = index => text.slice(0, index).split('\n').length;
     const none = /opacity-mask\s*:\s*none\b/i.exec(text);
     if (none) throw new Error(file + ':' + lineOf(none.index) + ': opacity-mask: none does not cancel an earlier mask in game; remove the mask declaration instead');
-    const stockMask = name === 'unit_status_v2.css' && /opacity-mask/i.exec(text);
+    const stockMask = isStock && /opacity-mask/i.exec(text);
     if (stockMask) throw new Error(file + ':' + lineOf(stockMask.index) + ': the generated stock sheet must declare no opacity-mask (BAR STYLE V2 restores masks through owned classes)');
     // Owned sheets cannot resolve the stock base sheet's @define colour macros.
-    if (name !== 'unit_status_v2.css') {
+    if (!isStock) {
       const keywords = new Set(['white', 'black', 'transparent', 'none', 'solid', 'fill', 'inset', 'rgb', 'rgba',
         'gradient', 'linear', 'radial', 'from', 'to', 'color-stop']);
       for (const declaration of text.matchAll(/(?:^|[;{}])\s*((?:background-|wash-|border(?:-(?:top|bottom|left|right))?-)?color|border(?:-(?:top|bottom|left|right))?|(?:text|box|img)-shadow)\s*:\s*([^;{}]+)(?=;)/g)) {

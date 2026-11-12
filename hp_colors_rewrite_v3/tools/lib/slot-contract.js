@@ -7,7 +7,6 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { sidesOf, flatKey, slotOf } = require('./schema');
 const { readJson } = require('./output');
-const ROOT = path.resolve(__dirname, '../..');
 
 function validateRelease(metadata) {
   if (!metadata || typeof metadata.release !== 'string' || !/^\d+\.\d+\.\d+$/.test(metadata.release))
@@ -29,8 +28,10 @@ function buildSlots(rows) {
   return { defaults, slots };
 }
 
-function checkSlotContract(slots, defaults, controls, metadata) {
-  const committed = readJson(path.join(ROOT, 'generated/slots.json'));
+// The slot history is the committed generated/slots.json, hp_colors_v3_settings.js and generated/defaults.json
+// of the tree at `root` (the real tree, or the copied one a tool validates in).
+function checkSlotContract(slots, defaults, controls, metadata, root) {
+  const committed = readJson(path.join(root, 'generated/slots.json'));
   if (!Array.isArray(committed) || !committed.length) throw new Error('generated/slots.json: Codec slot contract must be a nonempty array');
   const keys = new Set(), numbers = new Set();
   const current = new Map(slots.map(slot => [slot.key, slot]));
@@ -49,10 +50,10 @@ function checkSlotContract(slots, defaults, controls, metadata) {
     if (current.get(previous.key).slot !== previous.slot) throw new Error('Codec slot contract changed: ' + previous.key + ' expected=' + previous.slot + ' actual=' + current.get(previous.key).slot);
   }
   const scope = {$:{}};
-  vm.runInNewContext(fs.readFileSync(path.join(ROOT,'panorama/scripts/hp_colors_v3_settings.js'),'utf8'),scope);
+  vm.runInNewContext(fs.readFileSync(path.join(root,'panorama/scripts/hp_colors_v3_settings.js'),'utf8'),scope);
   const baseline = scope.$.HPColorsV3Settings;
   if ((baseline.retiredSlots || []).some(slot=>!retired.includes(slot))) throw new Error('record.json: retiredSlots cannot shrink: ' + JSON.stringify(baseline.retiredSlots));
-  const oldDefaults = JSON.parse(fs.readFileSync(path.join(ROOT,'generated/defaults.json'),'utf8'));
+  const oldDefaults = JSON.parse(fs.readFileSync(path.join(root,'generated/defaults.json'),'utf8'));
   if (!metadata || !Number.isSafeInteger(metadata.recordVersion) || metadata.recordVersion < baseline.recordVersion ||
       !Array.isArray(metadata.defaultChanges) || !Array.isArray(metadata.slotAdditions))
     throw new Error('record.json: Invalid recordVersion/defaultChanges/slotAdditions contract');
@@ -65,12 +66,8 @@ function checkSlotContract(slots, defaults, controls, metadata) {
       lastVersion = change.version;
     }
   }
-  // Before ticket 15, every recorded change was a slot addition, not a changed
-  // default. Move that unreleased history once; both histories are immutable thereafter.
-  const histories = [
-    [metadata.defaultChanges, baseline.slotAdditions ? baseline.defaultChanges : []],
-    [metadata.slotAdditions, baseline.slotAdditions || baseline.defaultChanges],
-  ];
+  // Both histories are immutable once committed.
+  const histories = [[metadata.defaultChanges, baseline.defaultChanges], [metadata.slotAdditions, baseline.slotAdditions]];
   for (const [next, previous] of histories) if (JSON.stringify(next.slice(0,previous.length)) !== JSON.stringify(previous))
     throw new Error('record.json: Committed defaultChanges/slotAdditions history cannot change');
   const introduced = metadata.slotAdditions.flatMap(change=>change.slots);
@@ -108,4 +105,14 @@ function checkSlotContract(slots, defaults, controls, metadata) {
     throw new Error('record.json: Changed slot semantics require a bumped recordVersion with defaultChanges (existing slots) or slotAdditions (new slots): '+changed.concat(added,widened).join(', '));
 }
 
-module.exports = { validateRelease, buildSlots, checkSlotContract };
+// Next free slot: above every slot in the schema, the retired list and the record history (and the committed
+// generated/slots.json of the tree at `root` when it has one), so a retired or once-introduced number never returns.
+function nextSlot(rows, record, root) {
+  const used = [...rows.flatMap(row => sidesOf(row).map(side => slotOf(row, side))), ...(record.retiredSlots || []),
+    ...(record.slotAdditions || []).flatMap(change => change.slots), ...(record.defaultChanges || []).flatMap(change => change.slots)];
+  const committed = path.join(root, 'generated/slots.json');
+  if (fs.existsSync(committed)) used.push(...readJson(committed).map(slot => slot.slot));
+  return Math.max(-1, ...used.filter(Number.isSafeInteger)) + 1;
+}
+
+module.exports = { validateRelease, buildSlots, checkSlotContract, nextSlot };

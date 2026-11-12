@@ -3097,3 +3097,17 @@ test('a replaced StatusEffects row takes the whole-row move on the next pickup p
   cfg.side.enemy.barOffsetX = 40; send(2); h.scheduler.runFor(500, 10000);
   assert.equal(replacement.style.transform, 'translate3d(40px, 0px, 0px)');
 });
+
+test('renderer DEFAULTS table equals the schema defaults it stands for', () => {
+  const schema = JSON.parse(fs.readFileSync(path.join(__dirname, '../settings/schema.json'), 'utf8'));
+  const rows = Object.fromEntries(Object.values(schema).filter(row => row && row.key).map(row => [row.key, row]));
+  const isolated = loadLayout('unit_status_overlay_v2.xml', { skipScripts: ['hp_colors_v3_world_boot'] }); isolated.includeScripts();
+  const defaults = isolated.harness.$.HPColorsV3Renderer.defaults;
+  assert.ok(Object.keys(defaults).length >= 8);
+  for (const key of Object.keys(defaults)) {
+    assert.ok(rows[key], key + ' has a schema row');
+    const want = rows[key].default;
+    if (want !== null && typeof want === 'object') for (const side of Object.keys(want)) assert.equal(defaults[key], want[side], key + '.' + side);
+    else assert.equal(defaults[key], want, key);
+  }
+});

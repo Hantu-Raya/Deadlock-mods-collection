@@ -15,15 +15,6 @@ const TOOL = path.join(__dirname, '..', 'tools', 'dev.js');
 const V3 = 'hp_colors_rewrite_v3', QOL = 'hp_colors_rewrite_v3_qollock', SR = 'hp_colors_rewrite_v3_showrank';
 const ALL = ['v3', 'qollock', 'showrank'];
 
-// generate.js is asked in a child process: a require() here would make tools/test.js map every generator
-// lib file to this suite too (tests/quick-test.test.js keeps tools/lib/* mapped exactly like generate.js).
-test('the watched-output list is exactly what tools/generate.js writes', () => {
-  const script = 'process.stdout.write(JSON.stringify(Object.keys(require(process.argv[1]).menuParts().files)))';
-  const child = spawnSync(process.execPath, ['-e', script, path.join(__dirname, '..', 'tools', 'generate.js')], { encoding: 'utf8' });
-  assert.equal(child.status, 0, child.stderr);
-  assert.deepEqual([...dev.GENERATED].sort(), JSON.parse(child.stdout).map(file => V3 + '/' + file).sort());
-});
-
 test('watch filter: generated and composed outputs, build trees, docs and editor files never trigger a cycle', () => {
   for (const rel of [...dev.GENERATED, ...dev.COMPOSED.qollock, ...dev.COMPOSED.showrank, V3 + '/generated/new.json',
     V3 + '/.build/debug/pak02_dir.vpk', V3 + '/.tmp/x.js', V3 + '/docs/adr/1.md', V3 + '/MAP.md', V3 + '/issues/1.md',
@@ -79,11 +70,11 @@ function fakeDeps(state = {}) {
     now: () => (clock += 250),
     log: () => {},
     exists: () => true,
-    hash: files => Object.fromEntries(files.map(file => [file, (generated && /v3_settings\.js$|ids\.json$/.test(file)) || (composed && /qollock\/panorama\/layout\/hud_escape_menu/.test(file)) ? 'new' : 'old'])),
+    hash: files => Object.fromEntries(files.map(file => [file, (generated && /v3_settings\.js$|slots\.json$/.test(file)) || (composed && /qollock\/panorama\/layout\/hud_escape_menu/.test(file)) ? 'new' : 'old'])),
     runNode: async (script, args) => {
       calls.push([path.basename(script), ...args.map(arg => path.isAbsolute(arg) ? '<dir>' : arg)]);
       const name = path.basename(script);
-      if (name === 'generate.js' && args[0] === '--check') return state.generateStale && !generated ? { code: 1, stdout: '', stderr: 'Stale generated files: generated/ids.json' } : state.generateBroken ? { code: 1, stdout: '', stderr: 'settings/schema.json: invalid JSON: Unexpected token' } : { code: 0, stdout: 'ok', stderr: '' };
+      if (name === 'generate.js' && args[0] === '--check') return state.generateStale && !generated ? { code: 1, stdout: '', stderr: 'Stale generated files: generated/slots.json' } : state.generateBroken ? { code: 1, stdout: '', stderr: 'settings/schema.json: invalid JSON: Unexpected token' } : { code: 0, stdout: 'ok', stderr: '' };
       if (name === 'generate.js') { generated = true; return { code: 0, stdout: 'HPV3 generator: 12 outputs written', stderr: '' }; }
       if (name === 'qollock.js' && args[0] === '--check') return generated && !composed ? { code: 1, stdout: '', stderr: 'Stale QOLLOCK layouts: panorama/layout/hud_escape_menu.xml; run it' } : { code: 0, stdout: '', stderr: '' };
       if (name === 'qollock.js') { composed = true; return { code: 0, stdout: '', stderr: '' }; }
@@ -117,7 +108,7 @@ test('stale outputs without a generator input change fail instead of being rewri
   const result = await dev.runCycle([V3 + '/panorama/styles/hp_colors_v3_menu.css'], { projects: ['v3'], tests: false }, deps);
   assert.equal(result.ok, false);
   assert.ok(!deps.calls.some(call => call[0] === 'generate.js' && call.length === 1), 'generate.js never ran in write mode');
-  assert.match(dev.formatCycle(result), /\n {2}x generate --check {2}Stale generated files: generated\/ids\.json \(no generator input changed/);
+  assert.match(dev.formatCycle(result), /\n {2}x generate --check {2}Stale generated files: generated\/slots\.json \(no generator input changed/);
   const broken = await dev.runCycle([V3 + '/settings/schema.json'], { projects: ['v3'], tests: false }, fakeDeps({ generateBroken: true }));
   assert.match(dev.formatCycle(broken), /x generate --check {2}settings\/schema\.json: invalid JSON/);
 });

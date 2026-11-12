@@ -3,6 +3,7 @@
 // pak02 asset/forbidden contracts and the generator checks. tools/build.js, doctor.js, vpk-check.js, test.js,
 // budgets.js, logscan.js, timing.js, engine-facts.js and ticket.js take lane names, folders, labels and build
 // commands from LANES instead of typing them.
+const fs = require('node:fs');
 const path = require('node:path');
 
 const REPO = path.resolve(__dirname, '..', '..', '..');
@@ -11,14 +12,15 @@ const V3_DIR = 'hp_colors_rewrite_v3';
 // One entry per lane. `dir`: the lane folder under the repo; `label`: short name in test output; `ticketLabel`: the
 // wording of tools/ticket.js; `sourceDirs`: the lane folders whose panorama/ files the lane ships (variants add
 // their own to the canonical v3 sources they package); `composer`: the variant's layout composer under `dir`;
+// `extraAssets`: compiled assets the lane ships beyond the canonical v3 contract (HPV3_ASSETS below);
 // `build`: the command that builds the lane's release pak.
-const lane = (key, dir, label, ticketLabel, sourceDirs, composer) => Object.freeze({
-  key, dir, label, ticketLabel, sourceDirs: Object.freeze(sourceDirs), composer,
+const lane = (key, dir, label, ticketLabel, sourceDirs, composer, extraAssets = []) => Object.freeze({
+  key, dir, label, ticketLabel, sourceDirs: Object.freeze(sourceDirs), composer, extraAssets: Object.freeze(extraAssets),
   build: `node ${V3_DIR}/tools/build.js --project ${key} --skip-deploy`
 });
 const LANES = Object.freeze({
   v3: lane('v3', V3_DIR, 'v3', 'normal v3', [V3_DIR], null),
-  qollock: lane('qollock', V3_DIR + '_qollock', 'QOLLOCK', 'QOLLOCK variant', [V3_DIR, V3_DIR + '_qollock'], 'tools/qollock.js'),
+  qollock: lane('qollock', V3_DIR + '_qollock', 'QOLLOCK', 'QOLLOCK variant', [V3_DIR, V3_DIR + '_qollock'], 'tools/qollock.js', ['panorama/scripts/hp_colors_v3_qollock_bridge.vjs_c']),
   showrank: lane('showrank', V3_DIR + '_showrank', 'ShowRank', 'ShowRank variant', [V3_DIR, V3_DIR + '_showrank'], 'tools/showrank.js')
 });
 const PROJECT_NAMES = Object.keys(LANES);
@@ -26,31 +28,30 @@ const VARIANT_NAMES = PROJECT_NAMES.filter(name => name !== 'v3');
 // `all` is accepted by tools that run every lane.
 const isProject = (name, { all = false } = {}) => Object.hasOwn(LANES, name) || (all && name === 'all');
 
-// Get-HpV3Assets: the exact canonical v3 pak02 asset contract; variant lanes add their own assets.
-const HPV3_ASSETS = Object.freeze([
-  'panorama/layout/hud_escape_menu.vxml_c',
-  'panorama/layout/unit_status_overlay_v2.vxml_c',
-  'panorama/layout/hp_colors_v3_relay.vxml_c',
-  'panorama/layout/citadel_hud_top_bar.vxml_c',
-  'panorama/layout/citadel_status_effect.vxml_c',
-  'panorama/images/hpv3/ultimate_progress.vsvg_c',
-  'panorama/scripts/hp_colors_v3_settings.vjs_c',
-  'panorama/scripts/hp_colors_v3_world_settings.vjs_c',
-  'panorama/scripts/hp_colors_v3_world_boot.vjs_c',
-  'panorama/scripts/hp_colors_v3_from_v2.vjs_c',
-  'panorama/scripts/hp_colors_v3_codec.vjs_c',
-  'panorama/scripts/hp_colors_v3_storage.vjs_c',
-  'panorama/scripts/hp_colors_v3_menu.vjs_c',
-  'panorama/scripts/hp_colors_v3_preview.vjs_c',
-  'panorama/scripts/hp_colors_v3_renderer.vjs_c',
-  'panorama/scripts/hp_colors_v3_bridge.vjs_c',
-  'panorama/scripts/hp_colors_v3_timers_world.vjs_c',
-  'panorama/scripts/hp_colors_v3_timers_hud.vjs_c',
-  'panorama/styles/hp_colors_v3_menu.vcss_c',
-  'panorama/styles/hp_colors_v3_world.vcss_c',
-  'panorama/styles/hp_colors_v3_status.vcss_c',
-  'panorama/styles/unit_status_v2.vcss_c'
-]);
+// Compiled asset name <-> panorama source name (the stage compiles each source to its `v<ext>_c` file).
+// tools/logscan.js maps compiler/runtime paths back with STAGE_NAME.
+const COMPILED_EXT = Object.freeze({ xml: 'vxml_c', js: 'vjs_c', css: 'vcss_c', svg: 'vsvg_c' });
+const STAGE_NAME = /\.v(js|css|xml|svg)_c$/;
+const sourceName = compiled => compiled.replace(STAGE_NAME, '.$1');
+
+// The canonical v3 pak02 asset contract is exactly panorama/** of the v3 lane (the generated layouts, scripts and
+// the stock sheet included) with each extension compiled; lanes add their own with `extraAssets`.
+// tests/build-tool.test.js pins the count (22) on purpose: a shipped file added or dropped is a deliberate edit.
+function panoramaAssets(dir) {
+  const out = [];
+  const walk = relative => {
+    for (const entry of fs.readdirSync(path.join(dir, relative), { withFileTypes: true })) {
+      const next = relative + '/' + entry.name;
+      if (entry.isDirectory()) { walk(next); continue; }
+      const ext = path.extname(entry.name).slice(1);
+      if (!Object.hasOwn(COMPILED_EXT, ext)) throw new Error('panorama file with no compiled form: ' + next);
+      out.push(next.replace(/\.[^./]+$/, '.' + COMPILED_EXT[ext]));
+    }
+  };
+  walk('panorama');
+  return out.sort();
+}
+const HPV3_ASSETS = Object.freeze(panoramaAssets(path.join(REPO, V3_DIR)));
 
 const BASE_FORBIDDEN = Object.freeze(['.js', '.xml', '.css', 'hp_colors_v2', 'unit_status_v2_colors', 'panorama/scripts/hp_colors_v3_timers.vjs_c']);
 
@@ -89,7 +90,7 @@ function projectConfig(name, root = REPO) {
       name, wrapper: L.build,
       lane: null,
       buildRoot: path.join(p.v3, '.build'),
-      assets: [...HPV3_ASSETS],
+      assets: [...HPV3_ASSETS, ...L.extraAssets],
       forbidden: [...BASE_FORBIDDEN],
       label: 'HPV3 pak02',
       generators: [{ script: p.tools.generate, args: ['--check'], error: 'V3 generation check failed; see pin mismatch/stale-file details above. Run tools/generate.js only after reviewing inputs.' }],
@@ -105,7 +106,7 @@ function projectConfig(name, root = REPO) {
       name, wrapper: L.build,
       lane: laneDir, composer, laneLeaf: L.dir,
       buildRoot: path.join(laneDir, '.build'),
-      assets: [...HPV3_ASSETS, 'panorama/scripts/hp_colors_v3_qollock_bridge.vjs_c'],
+      assets: [...HPV3_ASSETS, ...L.extraAssets],
       forbidden: [...BASE_FORBIDDEN, 'panorama/layout/hud.vxml_c', 'ql_', 'qollock_hp_colors_bridge'],
       label: 'HPV3 QOLLOCK pak02',
       generators: [
@@ -122,7 +123,7 @@ function projectConfig(name, root = REPO) {
     lane: laneDir, composer, laneLeaf: L.dir,
     buildRoot: path.join(laneDir, '.build'),
     // ShowRank adds no asset to pak02: its script, styles and other layouts stay in pak89.
-    assets: [...HPV3_ASSETS],
+    assets: [...HPV3_ASSETS, ...L.extraAssets],
     forbidden: [...BASE_FORBIDDEN, 'showrank_barebones'],
     label: 'HPV3 ShowRank pak02',
     generators: [
@@ -157,4 +158,4 @@ function expandProjects(name) {
   return [name];
 }
 
-module.exports = { REPO, V3_DIR, LANES, PROJECT_NAMES, VARIANT_NAMES, isProject, HPV3_ASSETS, BASE_FORBIDDEN, repoPaths, projectConfig, stagePaths, expandProjects };
+module.exports = { REPO, V3_DIR, LANES, PROJECT_NAMES, VARIANT_NAMES, isProject, HPV3_ASSETS, COMPILED_EXT, STAGE_NAME, sourceName, BASE_FORBIDDEN, repoPaths, projectConfig, stagePaths, expandProjects };

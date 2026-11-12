@@ -25,6 +25,7 @@ const vm = require('node:vm');
 const crypto = require('node:crypto');
 const childProcess = require('node:child_process');
 const { REPO, expandProjects } = require('./lib/projects');
+const { OUTPUTS } = require('./generate');
 const quick = require('./test');
 
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/dev.js [--project v3|qollock|showrank|all] [--once] [--files a,b] [--build] [--no-write] [--no-tests] [--debounce <ms>]';
@@ -39,16 +40,11 @@ const TOOLS = {
   qollock: QOL + '/tools/qollock.js',
   showrank: SR + '/tools/showrank.js',
 };
-// tools/generate.js outputs (its `files` map; tests/dev-loop.test.js keeps this list equal to it).
-const GENERATED = [
-  'generated/defaults.json', 'generated/slots.json', 'generated/ids.json', 'generated/search-index.json', 'generated/heroes.json',
-  'generated/menu-rows.xml', 'panorama/styles/unit_status_v2.css', 'panorama/layout/hud_escape_menu.xml',
-  'panorama/layout/unit_status_overlay_v2.xml', 'panorama/layout/citadel_hud_top_bar.xml', 'panorama/layout/citadel_status_effect.xml',
-  'panorama/scripts/hp_colors_v3_world_settings.js', 'panorama/scripts/hp_colors_v3_settings.js',
-].map(file => V3 + '/' + file);
+// tools/generate.js outputs, and the layouts each variant composer writes (their OUTPUTS tables).
+const GENERATED = Object.keys(OUTPUTS).map(file => V3 + '/' + file);
 const COMPOSED = {
-  qollock: [QOL + '/panorama/layout/hud_escape_menu.xml', QOL + '/panorama/layout/citadel_hud_top_bar.xml'],
-  showrank: [SR + '/panorama/layout/hud_escape_menu.xml', SR + '/panorama/layout/citadel_hud_top_bar.xml'],
+  qollock: Object.values(require('../../' + QOL + '/tools/qollock').OUTPUTS).map(file => QOL + '/' + file),
+  showrank: Object.values(require('../../' + SR + '/tools/showrank').OUTPUTS).map(file => SR + '/' + file),
 };
 const VARIANTS = ['qollock', 'showrank'];
 

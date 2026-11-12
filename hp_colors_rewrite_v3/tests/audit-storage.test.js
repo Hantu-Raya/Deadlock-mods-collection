@@ -19,10 +19,10 @@ for(const state of ['loading','unreadable','readonly'])test('append import refus
 test('pre-hydration HPCR2 preserves pending values and conditions through restore/restart',()=>{
  const p=profile();const seed=launch(p);seed.run(2000);p.disk.set(CURRENT,seed.codec.encodeRecord({settings:seed.settings(),presets:[]}));const f=launch(p,{navLatencySec:3});f.run(100);const index=require('./fixtures/v2-contract.json').codecKeys.indexOf('pipsVisible');paste(f,'Settings','HPCR2'+JSON.stringify({v:[[index,false]],c:{pipsVisible:{slot:1,minTier:2,value:false}}}));f.run(6000);const b=f.harness.$.HPColorsV3Store.getBundle(),cell=f.harness.$.HPColorsV3Settings.slots.find(slot=>slot.setting==='linesVisible'&&slot.side==='enemy').slot;assert.equal(b.settings.side.enemy.linesVisible,false);assert.equal(b.rules[cell].value,false);assert.equal(b.v2conditions,undefined);const again=launch(p);again.run(2000);assert.equal(again.harness.$.HPColorsV3Store.getBundle().rules[cell].value,false);
 });
-test('settings edits never encode; explicit preset mutation encodes once',()=>{
+test('settings edits never encode; explicit preset mutation encodes once for check and save',()=>{
  const p=profile();const f=launch(p);f.run(2000);const old=f.harness.$.HPColorsV3Codec;let count=0;f.harness.$.HPColorsV3Codec={...old,encodeRecord(b){count++;return old.encodeRecord(b);}};
  f.edit('#123456');assert.equal(count,0);f.run(2000);assert.equal(count,1,'flush encodes once');
- count=0;const b=f.harness.$.HPColorsV3Store.getBundle();b.presets.push({id:'new',name:'New',settings:b.settings});f.harness.$.HPColorsV3Store.replaceBundle(b);assert.equal(count,1,'preset mutation checks size once');f.run(2000);assert.equal(count,2,'one validation and one durable encoding');
+ count=0;const b=f.harness.$.HPColorsV3Store.getBundle();b.presets.push({id:'new',name:'New',settings:b.settings});f.harness.$.HPColorsV3Store.replaceBundle(b);assert.equal(count,1,'preset mutation checks size once');f.run(2000);assert.equal(count,1,'the durable write reuses that encoding');
 });
 test('connection recreation registers one router per event/panel',()=>{
  const p=profile();const f=launch(p);f.run(2000);const panel=f.harness.contextPanel.FindChildTraverse('HPColorsV3StorePanel');let bridge=f.harness.$.HPColorsV3StorageFactory.create({panel});for(let i=0;i<4;i++){bridge.start();bridge.dispose();bridge=bridge.recreate();}for(const event of ['HTMLTitle','HTMLURLChanged'])assert.equal(f.harness.handlerEntries.filter(x=>x.panel===panel&&x.eventName===event).length,1);

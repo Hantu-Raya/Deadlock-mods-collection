@@ -268,3 +268,48 @@ test('the menu preview shows a sample pill on the enemy hero only while the sett
  find('HPColorsPreviewSideOptionEnemy').events.onactivate();assert.equal(canvas.BHasClass('HPColorsV3KillBounty'),true);
  find(row.toggleId).events.onactivate();assert.equal(canvas.BHasClass('HPColorsV3KillBounty'),false);
 });
+
+// Cross-context protocol: what the topbar publishes is accepted by the world bars, and the world accepts only
+// the documented shapes ([player, souls] or [player, souls, hero], each name "" or trimmed upper case).
+test('protocol: bounty snapshots are republished inside the world window and the world accepts only the tuple shapes',()=>{
+ const f=bountyMatch(),before=f.snapshots().length;f.advance(30000);
+ const sent=f.snapshots().slice(before);assert.ok(sent.length>=2);
+ for(let i=1;i<sent.length;i++)assert.ok(sent[i].at-sent[i-1].at<12000,'producer period is shorter than the world freshness window');
+ const shown=f.value().text;assert.ok(shown!=='');
+ f.top.harness.$.HPColorsV3Timers.stop();
+ const base=f.snapshots().at(-1);
+ const probe=(players)=>{f.broadcast(JSON.stringify({...base,at:f.h.now,players:[['NOBODY',1]]}));f.advance(100);assert.equal(f.visible(),false,'an unmatched snapshot clears the bar');
+  f.broadcast(JSON.stringify({magic:'HPV3_PICKUP_SCAN_GATE',scan:false,localName:'LOCAL',since:base.since,at:f.h.now}));
+  f.broadcast(JSON.stringify({...base,at:f.h.now,players}));f.advance(100);return f.visible();};
+ assert.equal(probe([['REMOTE',1234]]),true,'[player, souls]');
+ assert.equal(probe([['REMOTE',1234,'']]),true,'[player, souls, hero]');
+ assert.equal(probe([['',1234,'REMOTE']]),true,'hero-only card matches by hero name');
+ assert.equal(probe([['REMOTE',1234.5]]),false,'souls must be an integer');
+ assert.equal(probe([['REMOTE',-1]]),false,'souls cannot be negative');
+ assert.equal(probe([['remote',1234]]),false,'names arrive trimmed and upper case');
+ assert.equal(probe([['REMOTE',1234,'X','Y']]),false,'no fourth slot');
+ assert.equal(probe([['REMOTE']]),false,'no one-slot tuple');
+ assert.equal(probe([['REMOTE',1],['REMOTE',2]]),false,'no name twice');
+});
+
+// Committed 76e8c4c reads, per call site, on a map root with NEITHER isDefaultMap NOR connectedToHeroTesting:
+//  - bounty sample (normalMatch): BAscendantHasClass(connectedToHeroTesting) false, then isDefaultMap false, stop = 2 reads, no exclusion reads;
+//  - pickup gate (inline "normal"): isDefaultMap false, short-circuits before testing and the exclusions = 1 read.
+// So per sample the root sees testing reads == bounty samples, isDefaultMap reads == bounty samples + gate sends, and 0 exclusion reads.
+test('map with neither default-map nor hero-testing class: class reads per sample equal the committed 2 (bounty) and 1 (pickup gate)',()=>{
+ const reads=[];
+ const proto=MockPanel.prototype,orig=proto.BAscendantHasClass;
+ assert.equal(typeof orig,'function','mock provides BAscendantHasClass');
+ const f=bountyMatch({solo:true,setup:g=>{g.top.harness.root.RemoveClass('isDefaultMap');}});
+ proto.BAscendantHasClass=function(c){if(c!=='gameIsPaused')reads.push(c);return orig.call(this,c);};
+ try{
+  const gates=()=>f.traffic.filter(x=>x.magic==='HPV3_PICKUP_SCAN_GATE').length,g0=gates();
+  f.advance(6000);
+  const g=gates()-g0,n=c=>reads.filter(x=>x===c).length;
+  assert.ok(g>0,'pickup gate was sent');
+  assert.ok(n('connectedToHeroTesting')>0,'bounty samples ran');
+  assert.equal(n('isDefaultMap'),n('connectedToHeroTesting')+g,'bounty reads testing+default, gate reads default only');
+  for(const c of ['connectedToTutorial','connectedToHideout','gamemode_streetbrawl'])assert.equal(n(c),0,c);
+  assert.equal(reads.length,2*n('connectedToHeroTesting')+g);
+ }finally{proto.BAscendantHasClass=orig;}
+});

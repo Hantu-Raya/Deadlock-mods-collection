@@ -5,18 +5,31 @@
   var context = $.GetContextPanel(), config = null, stopped = false, listener = null;
   // Opt-in (QOLLOCK's composed topbar root carries the class): cards also answer to their hero name.
   var heroNames = context.BHasClass("HPColorsV3TimersHeroNames");
-  var jobs = {}, rows = [], records = Object.create(null), localLabels = [];
-  var retirement = $.HPColorsV3TimerRetirement || { rows: [], job: null };
-  $.HPColorsV3TimerRetirement = retirement;
-  var retiredRows = retirement.rows, since = 0, lastClock = null;
+  // Shared state (every section reads it): jobs, config, since (the match epoch), rows, records, paused.
+  // Each section below owns its own state object; nothing else writes those.
+  var jobs = {}, rows = [], records = Object.create(null), localLabels = [], since = 0;
+  var gateState = { lastClock: null };
   // Reinclusion retains only authority and pending restoration leases, not active rows or records.
   // Opaque epochs need one string per replacement publisher, not per revision/sample; eviction
   // would reopen replay. This session-only history is collected with the context.
   var authority = $.HPColorsV3TimersAuthority || { epoch: "", revision: -1, retired: [] };
   $.HPColorsV3TimersAuthority = authority;
-  var epoch = "", retiredEpochs = authority.retired, requestAttempt = 0, lastUltimate = null, lastUltimateAt = -Infinity;
-  var pausePanel = null, paused = false, pauses = [], ttl = 24000;
-  var bountyKey = "", bountyAt = -Infinity, clockLabel = null, cardParts = new WeakMap(), scoreLabels = null;
+  var retiredEpochs = authority.retired, follower = { epoch: "", attempt: 0 }, ultimate = { last: null, lastAt: -Infinity };
+  var pausePanel = null, paused = false, pauses = [];
+  var bounty = { key: "", at: -Infinity, enemyDied: false, deathSince: -1 };
+  var clockLabel = null, cardParts = new WeakMap(), scoreLabels = null;
+  // ---- CADENCE: every period and window of this context (seconds for $.Schedule, milliseconds for Date.now).
+  // The world context (timers_world.js CADENCE) accepts each snapshot for a longer window than its period here.
+  var BOUNTY_SAMPLE_S = 1, BOUNTY_REPUBLISH_MS = 5000;     // world BOUNTY_WINDOW_MS 12000
+  var ULTIMATE_SAMPLE_S = 1, ULTIMATE_REPUBLISH_MS = 2000; // world ULTIMATE_WINDOW_MS 12000
+  var DISCOVERY_S = 5;                                     // gate republished each pass; world GATE_WINDOW_MS 15000
+  var PROGRESS_S = 1, REQUEST_LADDER_S = [0.5, 1, 2, 4, 8];
+  // Three uses of the same 24 s: how long a pickup record stays usable (the world republishes every 6 s, so
+  // it stays fresh), how much pause history is kept, and how old a record's progress sample may be.
+  var RECORD_TTL_MS = 24000, PAUSE_HISTORY_MS = 24000, PROGRESS_AGE_MS = 24000;
+  var ULT_CORRECTION_DEG = 15; // world extrapolates the same 359.999 ceiling
+  // Ultimate snapshot players: [player, angle, rate, hero?]; bounty snapshot players: [player, souls, hero?].
+  var ULT_PLAYER = 0, ULT_ANGLE = 1, ULT_RATE = 2, ULT_HERO = 3;
   var colors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
   var images = ["gun", "movement", "spirit", "survival"];
   function valid(panel) { try { return !!panel && panel.IsValid(); } catch (error) { return false; } }
@@ -25,6 +38,7 @@
     return typeof text === "string" && text.charAt(0) !== "{" ? text.trim().toUpperCase() : "";
   }
   function enabled(key) { return !!(config && config.shared.enabled && config.shared[key]); }
+  function anyTimerEnabled() { return enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || enabled("killBountyEnabled"); }
   function schedule(key, delay, fn) {
     if (jobs[key] || stopped) return;
     var ticket = $.Schedule(delay, function () {
@@ -50,14 +64,15 @@
     if (next && !paused) pauses.push({ start: now, end: null });
     if (!next && paused) pauses[pauses.length - 1].end = now;
     paused = !!next;
-    pauses = pauses.filter(function (p) { return p.end === null || now - p.end <= ttl; });
+    pauses = pauses.filter(function (p) { return p.end === null || now - p.end <= PAUSE_HISTORY_MS; });
   }
+  // ======== BountyFormula: kill bounty (state: bounty; server.dll 6839 soloBounty) ========
   // ---- Kill bounty (ticket 50): souls YOUR solo kill on each card pays you now, from server.dll 6839
   // (rva 9f2b50 base + first-kill bonus, a0ff20 comeback, 9e7a90/c3f770 killer payment; issues/50-kill-bounty.md).
   // Live 6839 server log: the kill popup = base share + first-kill bonus + killer portion (0.3 of the comeback;
   // 70% of it goes to tick gold instead when the killer is richer than the victim team's average). Float32 like
   // the server. Mode-hash variants are not visible here; non-default maps are gated off.
-  var f = Math.fround, enemyDied = false, deathSince = -1;
+  var f = Math.fround;
   function soloBounty(seconds, k) {
     var base = Math.trunc(f(f(200) + f(f(Math.max(0, Math.min(1, f(f(seconds) / f(2400))))) * f(2000))));
     var scaled = Math.ceil(f(f(base) * f(1.25)));
@@ -107,11 +122,16 @@
     var match = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(text);
     return match && Number(match[3]) < 60 && (!match[1] || Number(match[2]) < 60) ? Number(match[1] || 0) * 3600 + Number(match[2]) * 60 + Number(match[3]) : null;
   }
-  // Hero testing (Testing Tools, bots) pays hero kills by the same server rules, so it counts whatever its
-  // map class says (live 6839: no pill there before). Tutorial, hideout and Street Brawl stay off.
-  function normalMatch() {
+  // Two callers, two conditions, each reading the match classes in the order and with the short-circuits it always had.
+  // Hero testing (Testing Tools, bots) pays hero kills by the same server rules, so bountyCounts counts it
+  // whatever its map class says (live 6839: no pill there before), while the pickup gate treats testing as a
+  // scan-everything match. Tutorial, hideout and Street Brawl stay off for both.
+  function bountyMatch() {
     var testing = context.BAscendantHasClass("connectedToHeroTesting");
     return (testing || context.BAscendantHasClass("isDefaultMap")) && !["connectedToTutorial", "connectedToHideout", "gamemode_streetbrawl"].some(function (c) { return context.BAscendantHasClass(c); });
+  }
+  function pickupNormal() {
+    return context.BAscendantHasClass("isDefaultMap") && !["connectedToHeroTesting", "connectedToTutorial", "connectedToHideout", "gamemode_streetbrawl"].some(function (c) { return context.BAscendantHasClass(c); });
   }
   // A card's souls label and team panel are fixed for its lifetime; both are revalidated before use.
   function cardOf(owner) {
@@ -126,7 +146,7 @@
   }
   function bountyPlayers() {
     var seconds = clockSeconds();
-    if (seconds === null || !normalMatch()) return [];
+    if (seconds === null || !bountyMatch()) return [];
     // Exact seconds: the popup shows exact souls, and the base moves about 2 souls a second.
     var sides = [], self = null, cards = rows.map(function (row) { return { row: row, owner: row.owner }; })
       .concat(localLabels.map(function (entry) { return { owner: entry.owner, local: true }; }));
@@ -144,9 +164,9 @@
     sides.forEach(function (s) { s.nw = known ? bounded(s.total, s.friendly ? score.friendly : score.enemy) : s.total; });
     // The 125 first-kill bonus is the killer's own first kill. Live 6839 the team kills label stayed 0 for 22 s
     // after the first kill (second kill showed +125 too), so an enemy card seen Dead also ends it this match.
-    if (deathSince !== since) { deathSince = since; enemyDied = false; }
-    if (known && !enemyDied) enemyDied = cards.some(function (c) { return c.row && !c.side.friendly && valid(c.owner) && c.owner.BHasClass("Dead"); });
-    var firstKill = self !== null && score.kills === 0 && !enemyDied;
+    if (bounty.deathSince !== since) { bounty.deathSince = since; bounty.enemyDied = false; }
+    if (known && !bounty.enemyDied) bounty.enemyDied = cards.some(function (c) { return c.row && !c.side.friendly && valid(c.owner) && c.owner.BHasClass("Dead"); });
+    var firstKill = self !== null && score.kills === 0 && !bounty.enemyDied;
     var scan = counts(), players = [];
     cards.forEach(function (card) {
       if (!card.row) return;
@@ -166,15 +186,16 @@
     if (!enabled("killBountyEnabled")) return;
     try {
       var now = Date.now(), players = bountyPlayers(), key = since + ":" + JSON.stringify(players);
-      if (players.length <= 12 && (key !== bountyKey || now < bountyAt || now - bountyAt >= 5000)) {
+      if (players.length <= 12 && (key !== bounty.key || now < bounty.at || now - bounty.at >= BOUNTY_REPUBLISH_MS)) {
         $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({ magic: "HPV3_BOUNTY_SNAPSHOT", since: since, at: now, players: players }));
-        // HPV3_DEBUG if (key !== bountyKey) { var ds = scores(); $.Msg("[HPV3] bounty snapshot clock=" + clockSeconds() + " teamNW=" + JSON.stringify([ds.friendly, ds.enemy]) + " kills=" + ds.kills + " players=" + JSON.stringify(players)); };
-        bountyKey = key; bountyAt = now;
+        // HPV3_DEBUG if (key !== bounty.key) { var ds = scores(); $.Msg("[HPV3] bounty snapshot clock=" + clockSeconds() + " teamNW=" + JSON.stringify([ds.friendly, ds.enemy]) + " kills=" + ds.kills + " players=" + JSON.stringify(players)); };
+        bounty.key = key; bounty.at = now;
       }
     } catch (error) { /* Topbar races retry on the next sample. */ }
     // One-second samples: the base rises about 1.5 souls a second, and 2 s samples trailed the popup by 5 (live 6839).
-    schedule("bounty", 1, bountyTick);
+    schedule("bounty", BOUNTY_SAMPLE_S, bountyTick);
   }
+  // ======== RowDiscovery (shared by every section: topbar cards and local labels) ========
   // With heroNames, a world bar titled with the hero name (citadel_unit_status_hero_name_mode; Street
   // Brawl showed hero names) still finds its card. A name identifies a card only when no other card
   // (local included) shows it as a player or hero name. Without heroNames no hero label is read.
@@ -213,6 +234,7 @@
     cleanupRows();
     rows = next.filter(function (row) { return !retiredRows.some(function (old) { return old.owner === row.owner; }); });
   }
+  // ======== PickupArtwork: card artwork, extrapolated progress and pause history (state: rows, records, pauses) ========
   function style(row, panel, key, value) {
     if (!panel) return;
     var map = row.cache[panel.id] || (row.cache[panel.id] = {}), text = value === null ? null : String(value);
@@ -311,7 +333,7 @@
   }
   function paintProgress(row) {
     var now = Date.now(), angles = row.models.map(function (model) { return model ? angleAt(model, now) : null; });
-    if (!paused && row.models.some(function (p, bit) { return p && p.rate > 0 && angles[bit] < 0; })) schedule("progress", 1, progressTick);
+    if (!paused && row.models.some(function (p, bit) { return p && p.rate > 0 && angles[bit] < 0; })) schedule("progress", PROGRESS_S, progressTick);
     var key = row.mask + ":" + angles.join(":");
     if (row.progressKey === key) return;
     row.icons.forEach(function (item, bit) {
@@ -324,7 +346,7 @@
   function renderRows() {
     var now = Date.now(), scan = counts(), units = Object.create(null);
     Object.keys(records).forEach(function (key) {
-      var r = records[key]; if (!fresh(r.at, ttl + 1, now)) { delete records[key]; return; }
+      var r = records[key]; if (!fresh(r.at, RECORD_TTL_MS + 1, now)) { delete records[key]; return; }
       if (r.name) units[r.name] = Object.prototype.hasOwnProperty.call(units, r.name) ? false : r;
     });
     rows.forEach(function (row) {
@@ -337,20 +359,21 @@
     if (!valid(context)) { stop(); return; }
     if (!enabled("pickupTimersEnabled")) return;
     try { updatePause(Date.now()); renderRows(); }
-    catch (error) { schedule("progress", 1, progressTick); }
+    catch (error) { schedule("progress", PROGRESS_S, progressTick); }
   }
+  // ======== Gate: scan gate publisher (state: gateState) ========
   function publishGate() {
     var seconds = clockSeconds();
-    if (seconds !== null && lastClock !== null && seconds < lastClock) { since = Date.now(); records = Object.create(null); lastUltimate = null; rows.forEach(function (r) { r.sample = null; }); }
-    if (seconds !== null) lastClock = seconds;
-    var normal = context.BAscendantHasClass("isDefaultMap") && !["connectedToHeroTesting", "connectedToTutorial", "connectedToHideout", "gamemode_streetbrawl"].some(function (c) { return context.BAscendantHasClass(c); });
+    if (seconds !== null && gateState.lastClock !== null && seconds < gateState.lastClock) { since = Date.now(); records = Object.create(null); ultimate.last = null; rows.forEach(function (r) { r.sample = null; }); }
+    if (seconds !== null) gateState.lastClock = seconds;
+    var normal = pickupNormal();
     var scan = counts(), gate = { magic: "HPV3_PICKUP_SCAN_GATE", scan: !normal || seconds === null || seconds >= 300, localName: scan.local, since: since, at: Date.now() };
     if (heroNames) gate.localHero = scan.localHero;
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(gate));
   }
   function discoveryTick() {
     if (!valid(context)) { stop(); return; }
-    if (!enabled("pickupTimersEnabled") && !enabled("ultimateTimerEnabled") && !enabled("killBountyEnabled")) return;
+    if (!anyTimerEnabled()) return;
     try {
       discoverRows();
       if (!valid(pausePanel)) pausePanel = topRoot().FindChildTraverse("PausedGameContainer");
@@ -358,8 +381,9 @@
       // The bounty alone never writes topbar cards; it still restores artwork left by turned-off pickups.
       if (enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || rows.some(function (r) { return r.container; })) renderRows();
     } catch (error) { /* Discovery races retry on the same cadence. */ }
-    schedule("discovery", 5, discoveryTick);
+    schedule("discovery", DISCOVERY_S, discoveryTick);
   }
+  // ======== UltimatePublisher: native ultimate samples (state: ultimate) ========
   function ultimateTick() {
     if (!valid(context)) { stop(); return; }
     if (!enabled("ultimateTimerEnabled")) return;
@@ -376,32 +400,36 @@
         r.sample = { name: n, angle: angle, at: now, unlocked: unlocked, since: since };
         if (angle === null) return;
         var state = unlocked ? ready ? 2 : 1 : 0;
-        if (heroNames) { players.push([player, angle, rate, hero]); states.push([player, hero, state]); }
+        if (heroNames) { players.push([player, angle, rate, hero]); /* [ULT_PLAYER..ULT_HERO] */ states.push([player, hero, state]); }
         else { players.push([player, angle, rate]); states.push([player, state]); }
-        var sent = lastUltimate && lastUltimate.players.filter(function (entry) { return entry[0] === player && (entry[3] || "") === hero; })[0];
-        if (sent && ((sent[2] === 0) !== (rate === 0) || Math.abs(angle - Math.min(sent[1] === 360 ? 360 : 359.999, sent[1] + sent[2] * (now - lastUltimateAt) / 1000)) >= 15)) correction = true;
+        var sent = ultimate.last && ultimate.last.players.filter(function (entry) { return entry[ULT_PLAYER] === player && (entry[ULT_HERO] || "") === hero; })[0];
+        if (sent && ((sent[ULT_RATE] === 0) !== (rate === 0) || Math.abs(angle - Math.min(sent[ULT_ANGLE] === 360 ? 360 : 359.999, sent[ULT_ANGLE] + sent[ULT_RATE] * (now - ultimate.lastAt) / 1000)) >= ULT_CORRECTION_DEG)) correction = true;
       });
       var key = since + ":" + JSON.stringify(states);
-      if (players.length <= 12 && (!lastUltimate || key !== lastUltimate.key || correction || now < lastUltimateAt || now - lastUltimateAt >= 2000)) {
+      if (players.length <= 12 && (!ultimate.last || key !== ultimate.last.key || correction || now < ultimate.lastAt || now - ultimate.lastAt >= ULTIMATE_REPUBLISH_MS)) {
         $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({ magic: "HPV3_ULTIMATE_SNAPSHOT", since: since, at: now, players: players }));
-        lastUltimate = { key: key, players: players }; lastUltimateAt = now;
+        ultimate.last = { key: key, players: players }; ultimate.lastAt = now;
       }
     } catch (error) { /* Native cooldown races retry on the next sample. */ }
-    schedule("ultimate", 1, ultimateTick);
+    schedule("ultimate", ULTIMATE_SAMPLE_S, ultimateTick);
   }
+  // ======== ConfigFollower: request ladder, config acceptance and pickup snapshots (state: follower, authority) ========
+  // Pickup record validation used by the snapshot branch of receive().
   function validProgress(progress, mask, at) {
     return Array.isArray(progress) && progress.length === 4 && progress.every(function (p, bit) {
       return p === null || p && mask & (1 << bit) && typeof p.angle === "number" && Number.isFinite(p.angle) && p.angle >= -360 && p.angle <= 0 &&
-        typeof p.rate === "number" && Number.isFinite(p.rate) && p.rate >= 0 && p.rate <= 360 && typeof p.at === "number" && Number.isFinite(p.at) && p.at >= 0 && p.at <= at && at - p.at <= ttl;
+        typeof p.rate === "number" && Number.isFinite(p.rate) && p.rate >= 0 && p.rate <= 360 && typeof p.at === "number" && Number.isFinite(p.at) && p.at >= 0 && p.at <= at && at - p.at <= PROGRESS_AGE_MS;
     });
   }
   function requestConfig() {
     if (config || stopped) return;
     if (!valid(context)) { stop(); return; }
-    // Late menus and lost replies use the same shared request/answer seam as world bars.
+    // Late menus and lost replies: this context fires the request on the output channel itself (not through the
+    // bridge's request helper) with epoch "" and revision -1, which is what the bridge sends for an absent epoch.
+    // The ladder below counts failures per HUD; the renderer's own ladder counts differently (kept as is).
     try { $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({ magic: "HPV3_CONFIG_REQUEST", epoch: "", revision: -1 })); }
     catch (error) { /* Delivery may race HUD attachment; the bounded cadence retries. */ }
-    if (!config) schedule("request", [0.5, 1, 2, 4, 8][Math.min(requestAttempt++, 4)], requestConfig);
+    if (!config) schedule("request", REQUEST_LADDER_S[Math.min(follower.attempt++, REQUEST_LADDER_S.length - 1)], requestConfig);
   }
   function receive(raw) {
     if (stopped || !valid(context) || typeof raw !== "string" || raw.length > 64000) return;
@@ -415,30 +443,35 @@
             (m.epoch === authority.epoch ? m.revision < authority.revision || config && m.revision === authority.revision : retiredEpochs.indexOf(m.epoch) >= 0) ||
             !$.HPColorsV3WorldSettings.validate(m.settings)) return;
         cancel("request");
-        if (m.epoch !== epoch) {
+        if (m.epoch !== follower.epoch) {
           if (authority.epoch && authority.epoch !== m.epoch && retiredEpochs.indexOf(authority.epoch) < 0) retiredEpochs.push(authority.epoch);
-          records = Object.create(null); lastUltimate = null;
+          records = Object.create(null); ultimate.last = null;
         }
-        epoch = m.epoch; config = m.settings;
-        authority.epoch = epoch; authority.revision = m.revision;
+        follower.epoch = m.epoch; config = m.settings;
+        authority.epoch = m.epoch; authority.revision = m.revision;
         if (!enabled("pickupTimersEnabled")) { records = Object.create(null); cancel("progress"); }
-        if (!enabled("ultimateTimerEnabled")) { cancel("ultimate"); lastUltimate = null; rows.forEach(function (r) { r.sample = null; }); }
-        if (!enabled("killBountyEnabled")) { cancel("bounty"); bountyKey = ""; }
-        if (enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || enabled("killBountyEnabled")) {
+        if (!enabled("ultimateTimerEnabled")) { cancel("ultimate"); ultimate.last = null; rows.forEach(function (r) { r.sample = null; }); }
+        if (!enabled("killBountyEnabled")) { cancel("bounty"); bounty.key = ""; }
+        if (anyTimerEnabled()) {
           discoveryTick(); if (enabled("ultimateTimerEnabled")) ultimateTick();
           // Next frame: world bars must take this configuration before the first bounty snapshot.
-          if (enabled("killBountyEnabled")) { cancel("bounty"); bountyKey = ""; schedule("bounty", 0, bountyTick); }
+          if (enabled("killBountyEnabled")) { cancel("bounty"); bounty.key = ""; schedule("bounty", 0, bountyTick); }
         } else { cancel("discovery"); renderRows(); }
         return;
       }
-      if (m.magic !== "HPV3_PICKUP_SNAPSHOT" || !enabled("pickupTimersEnabled") || typeof m.source !== "string" || !m.source || m.source.length > 256 || typeof m.instance !== "string" || !m.instance || m.instance.length > 200 || !Number.isSafeInteger(m.seq) || m.seq < 1 || !fresh(m.at, ttl + 1, now) || m.at < since) return;
+      if (m.magic !== "HPV3_PICKUP_SNAPSHOT" || !enabled("pickupTimersEnabled") || typeof m.source !== "string" || !m.source || m.source.length > 256 || typeof m.instance !== "string" || !m.instance || m.instance.length > 200 || !Number.isSafeInteger(m.seq) || m.seq < 1 || !fresh(m.at, RECORD_TTL_MS + 1, now) || m.at < since) return;
       var previous = records[m.source], record = m.record;
       if (previous && (m.at < previous.sentAt || m.instance === previous.instance && m.seq <= previous.seq)) return;
-      if (record !== null && (!record || typeof record.name !== "string" || !record.name.trim() || record.name.length > 256 || typeof record.mask !== "number" || record.mask !== (record.mask & 15) || !fresh(record.at, ttl + 1, now) || record.at < since || record.at > m.at || previous && record.at < previous.at || !validProgress(record.progress, record.mask, record.at))) return;
+      if (record !== null && (!record || typeof record.name !== "string" || !record.name.trim() || record.name.length > 256 || typeof record.mask !== "number" || record.mask !== (record.mask & 15) || !fresh(record.at, RECORD_TTL_MS + 1, now) || record.at < since || record.at > m.at || previous && record.at < previous.at || !validProgress(record.progress, record.mask, record.at))) return;
       records[m.source] = { name: record ? record.name.trim().toUpperCase() : "", mask: record ? record.mask : 0, at: record ? record.at : m.at, progress: record ? record.progress : null, sentAt: m.at, instance: m.instance, seq: m.seq };
       updatePause(now); renderRows();
     } catch (error) { /* Untrusted transport is fail-closed; races retry at the next native sample. */ }
   }
+  // ======== PickupArtwork retirement: restores native ultimates before deleting artwork (state: retirement) ========
+  // Survives reinclusion so a replacement script finishes pending restorations; owned by this section.
+  var retirement = $.HPColorsV3TimerRetirement || { rows: [], job: null };
+  $.HPColorsV3TimerRetirement = retirement;
+  var retiredRows = retirement.rows;
   function retireRow(row) {
     try {
       render(row, null);

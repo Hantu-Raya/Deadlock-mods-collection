@@ -163,7 +163,7 @@ function checkPacked(decompiled, root = ROOT) {
 // checkout whose generated menu is stale is refused: the lane consumes v3's committed outputs.
 function layouts(root = ROOT, v3Root = V3_ROOT) {
   const parts = require(path.join(v3Root, 'tools/generate.js')).menuParts(v3Root);
-  const stale = ['generated/menu-rows.xml', 'generated/ids.json', 'panorama/layout/hud_escape_menu.xml', 'panorama/layout/citadel_hud_top_bar.xml']
+  const stale = Object.keys(parts.files)
     .filter(relative => { const file = path.join(v3Root, relative); return !fs.existsSync(file) || lf(fs.readFileSync(file, 'utf8')) !== lf(parts.files[relative]); });
   if (stale.length) throw new Error('hp_colors_rewrite_v3 generated outputs are stale (' + stale.join(', ') + '); run hp_colors_rewrite_v3/tools/generate.js first.');
   return compose(readPin(root), parts);

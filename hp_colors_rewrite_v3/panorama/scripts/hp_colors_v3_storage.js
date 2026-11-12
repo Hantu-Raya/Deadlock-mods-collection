@@ -16,6 +16,14 @@
   // snapshot or a late reply to a retired bridge cannot match new work.
   var bridgeGeneration = 0;
   var INSTANCE = Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36);
+  // requires: include order is settings, codec, from_v2, storage. Collaborators are read at call time through one
+  // table (the codec and settings are replaced whole in tests and by a reincluded script).
+  var deps = {
+    get codec() { return $.HPColorsV3Codec; },
+    get settings() { return $.HPColorsV3Settings; },
+    get sharing() { return $.HPColorsV3Sharing; },
+    get fromV2() { return $.HPColorsV3FromV2; }
+  };
   function isCallable(value) { return typeof value === "function"; }
   function isValid(panel) { try { return !!panel && isCallable(panel.IsValid) && panel.IsValid(); } catch (error) { return false; } }
   // -- Hosted page protocol --
@@ -28,7 +36,8 @@
     return typeof href === "string" && href.split("#")[0] === PAGE_URL;
   }
 
-  // -- Bridge --
+  // ==== Section 1: bridge (hosted page queue, create) ====
+  // Talks to the page only through the request queue; reads codec, from_v2 through deps and checksum through options.
 
   function create(options) {
     var opts = options || {};
@@ -52,6 +61,7 @@
         // HPV3_DEBUG $.Msg("[HPV3] store " + message);
       };
 
+    var checksum = opts.checksum || function (text) { return deps.codec.checksum(text); };
     var started = false;
     var ready = false;
     // Hosted pages that list "latest" answer "lv" with the newest released version (latest.json).
@@ -232,7 +242,7 @@
       if (message.d === 1) {
         if (!last) return fail(request, "malformed");
         trustedSum = request.record.split(".")[1];
-        currentMatch = $.HPColorsV3Codec.checksum(request.record);
+        currentMatch = checksum(request.record);
         unacked = [];
         return settle(request, { ok: true });
       }
@@ -422,17 +432,8 @@
         unreadable = result.kind === "corrupt"; newerSave = result.kind === "newer";
         callback(result);
       }
-      readKey("hantu.hpcolors.v2/state", function (current) {
-        if (!current.ok) return finish({kind:"error",error:current.error});
-        var result = $.HPColorsV3FromV2.classifyRecord(current.record);
-        if (["valid","newer","conversion_error"].indexOf(result.kind) >= 0) { result.source = "v2current"; return finish(result); }
-        readKey("hantu.hpcolors.v2/state.prev", function (previous) {
-          if (!previous.ok) return finish({kind:"error",error:previous.error});
-          var backup = $.HPColorsV3FromV2.classifyRecord(previous.record);
-          if (["valid","newer","conversion_error"].indexOf(backup.kind) >= 0) { backup.source = "v2previous"; return finish(backup); }
-          finish({kind:result.kind === "absent" && backup.kind === "absent" ? "absent" : "corrupt"});
-        });
-      });
+      // The v2 keys, envelope and current-then-backup order live in from_v2; storage passes readKey only.
+      deps.fromV2.loadLegacy(readKey, function (result) { finish(fitLegacy(result)); });
     }
     // Reads current, then previous only when current is corrupt or absent. A
     // newer-schema current record stops here: falling back would let this
@@ -447,8 +448,8 @@
       loaded = false; unreadable = false;
       readKey(KEY_CURRENT, function (current) {
         if (!current.ok) return callback({ kind: "error", error: current.error });
-        var currentRecord = $.HPColorsV3Codec.classifyRecord(current.record);
-        currentMatch = current.record === null ? "none" : $.HPColorsV3Codec.checksum(current.record);
+        var currentRecord = deps.codec.classifyRecord(current.record);
+        currentMatch = current.record === null ? "none" : checksum(current.record);
         var commit = unacked.filter(function (candidate) { return candidate.record === current.record; }).pop();
         var own = !!commit && currentRecord.kind === "valid";
         if (own) currentRecord.ownToken = commit.token;
@@ -464,7 +465,7 @@
         }
         readKey(KEY_PREVIOUS, function (previous) {
           if (!previous.ok) return callback({ kind: "error", error: previous.error });
-          var previousRecord = $.HPColorsV3Codec.classifyRecord(previous.record);
+          var previousRecord = deps.codec.classifyRecord(previous.record);
           if (previousRecord.kind === "valid" || previousRecord.kind === "newer") {
             loaded = true; newerSave = previousRecord.kind === "newer";
             previousRecord.source = "previous";
@@ -483,14 +484,17 @@
       });
     }
 
-    function save(bundle, callback, token) {
+    // record: the bundle's encoding when the caller already made it (identical output, no second encode).
+    function save(bundle, callback, token, encoded) {
       if (!loaded || newerSave) {
         if (isCallable(callback)) callback({ ok: false, error: newerSave ? "newer_version" : "not_loaded" });
         return;
       }
-      var record;
-      try { record = $.HPColorsV3Codec.encodeRecord(bundle); }
-      catch (error) { if (isCallable(callback)) callback({ ok: false, error: "invalid", message: $.HPColorsV3Codec.errorMessage(error) }); return; }
+      var record = encoded;
+      if (!record) {
+        try { record = deps.codec.encodeRecord(bundle); }
+        catch (error) { if (isCallable(callback)) callback({ ok: false, error: "invalid", message: deps.codec.errorMessage(error) }); return; }
+      }
       var total = Math.max(1, Math.ceil(record.length / CHUNK_CHARS));
       if (total > MAX_CHUNKS) {
         if (isCallable(callback)) callback({ ok: false, error: "too_large", message: TOO_LARGE_TEXT });
@@ -517,14 +521,26 @@
     });
   }
 
+  // ==== Section 2: persistence (draft, merge, conflicts) and the HPColorsV3Store menu facade ====
+  // Reads deps (codec, settings, sharing) and drives the bridge through load/save only.
+  // A converted v2 bundle must fit one v3 save: the converter never encodes, so it is fitted here.
+  function fitLegacy(result) {
+    if (result.kind !== "valid") return result;
+    try {
+      if (deps.codec.encodeRecord(result.bundle).length > deps.codec.RECORD.maxChars) throw new Error(TOO_LARGE_TEXT);
+      return result;
+    } catch (error) {
+      return { kind: "conversion_error", message: "V2 save could not be converted: " + deps.codec.errorMessage(error), source: result.source };
+    }
+  }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function persistence(options) {
     var opts = options || {}, session = opts.session || {};
-    var bridge = opts.bridge || create({ panel: opts.panel, state: session.bridge });
+    var bridge = opts.bridge || create({ panel: opts.panel, state: session.bridge, checksum: deps.codec.checksum });
     var started = false, stopped = false, loading = false, gate = false, readonly = false, corrupt = false;
     var pending = session.pending ? clone(session.pending) : null;
     var touched = clone(session.touched || {});
-    var baseline = clone(session.baseline || { settings: $.HPColorsV3Settings.defaults, presets: [] });
+    var baseline = clone(session.baseline || { settings: deps.settings.defaults, presets: [] });
     var dirtyPresets = Object.assign(Object.create(null), session.dirtyPresets || {});
     var dirtyMetadata = Object.assign(Object.create(null), session.dirtyMetadata || {});
     var orderTouched = session.orderTouched || 0;
@@ -572,7 +588,7 @@
     }
     function flush() {
       if (stopped || !gate || readonly || inFlight || !pending) return;
-      var token = serial, bundle = clone(pending);
+      var token = serial, bundle = clone(pending), record = pendingFor === pending ? pendingRecord : "";
       inFlight = true;
       status("SAVING");
       bridge.save(bundle, function (result) {
@@ -599,23 +615,27 @@
           status("RETRYING");
           schedule(Math.pow(2, retries));
         } else unavailable();
-      }, token);
+      }, token, record);
     }
+    // The encoded record of a bundle that fits one save, or "" (after reporting why not). The encoding is kept for
+    // the pending draft it validated (pendingFor) so the flush does not encode it again.
+    var pendingRecord = "", pendingFor = null;
     function validBundle(bundle) {
       try {
-        if ($.HPColorsV3Codec.encodeRecord(bundle).length > $.HPColorsV3Codec.RECORD.maxChars) {
-          status(TOO_LARGE_TEXT, "error"); return false;
-        }
-        return true;
-      } catch (error) { status($.HPColorsV3Codec.errorMessage(error), "error"); return false; }
+        var record = deps.codec.encodeRecord(bundle);
+        if (record.length > deps.codec.RECORD.maxChars) { status(TOO_LARGE_TEXT, "error"); return ""; }
+        return record;
+      } catch (error) { status(deps.codec.errorMessage(error), "error"); return ""; }
     }
+    // validated: true when the caller already checked the size, or that check's encoded record.
     function change(bundle, mode, validated) {
       if (stopped) return false;
       if (readonly) { status("Save from a newer version", "error"); return false; }
-      if (!bundle || !$.HPColorsV3Settings.validate(bundle.settings) || !Array.isArray(bundle.presets) || bundle.presets.length > $.HPColorsV3Codec.RECORD.maxPresets) {
+      if (!bundle || !deps.settings.validate(bundle.settings) || !Array.isArray(bundle.presets) || bundle.presets.length > deps.codec.RECORD.maxPresets) {
         status("Some settings cannot be used by this build.", "error"); return false;
       }
-      if (mode === "bundle" && !validated && !validBundle(bundle)) return false;
+      var record = typeof validated === "string" ? validated : "";
+      if (mode === "bundle" && !validated && !(record = validBundle(bundle))) return false;
       if (mode === "settings" && !hydrated) migrationNotice = "Saved; settings import replaced all saved settings";
       var previousBundle = pending || baseline, previous = previousBundle.settings;
       var oldPresets = byId(previousBundle.presets), editedPresets = byId(bundle.presets);
@@ -626,15 +646,15 @@
         if (key !== "settings" && key !== "presets" && !same(previousBundle[key], bundle[key])) dirtyMetadata[key] = serial + 1;
       });
       if (!same(order(previousBundle.presets, editedPresets), order(bundle.presets, oldPresets))) orderTouched = serial + 1;
-      var valuesOf = $.HPColorsV3Codec.valuesOf;
-      $.HPColorsV3Settings.slots.forEach(function (slot) {
+      var valuesOf = deps.codec.valuesOf;
+      deps.settings.slots.forEach(function (slot) {
         var edited = valuesOf(bundle.settings, slot);
         var old = valuesOf(previous, slot);
         // Before hydration, a settings import explicitly supplies every setting, including defaults.
         if (edited[slot.setting] !== old[slot.setting] || (mode === "settings" && !hydrated))
           touched[slot.slot] = serial + 1;
       });
-      pending = clone(bundle); serial += 1; retries = 0;
+      pending = clone(bundle); pendingRecord = record; pendingFor = pending; serial += 1; retries = 0;
       if (gate) { status("SAVING"); schedule(0.5); }
       else if (started && !loading && !corrupt) {
         cancel();
@@ -673,8 +693,8 @@
         return null;
       }
       var merged = clone(restored);
-      var valuesOf = $.HPColorsV3Codec.valuesOf;
-      $.HPColorsV3Settings.slots.forEach(function (slot) {
+      var valuesOf = deps.codec.valuesOf;
+      deps.settings.slots.forEach(function (slot) {
         var edited = valuesOf(pending.settings, slot);
         var target = valuesOf(merged.settings, slot);
         if (touched[slot.slot]) target[slot.setting] = edited[slot.setting];
@@ -740,7 +760,7 @@
           return;
         }
         corrupt = false; readonly = result.kind === "newer"; gate = !readonly;
-        var restored = result.bundle || { settings: clone($.HPColorsV3Settings.defaults), presets: [] };
+        var restored = result.bundle || { settings: clone(deps.settings.defaults), presets: [] };
         var observed = clone(restored);
         if ((resetBundle || resetPending) && result.kind === "valid" && !result.own) {
           // Another writer repaired the save between offering and confirming
@@ -767,10 +787,11 @@
         if (pending && !readonly) {
           restored = resetPending ? clone(pending) : mergeDraft(restored);
           if (!restored) { gate = false; return; }
-          if (!validBundle(restored)) {
+          var restoredRecord = validBundle(restored);
+          if (!restoredRecord) {
             gate = false; status("UNAVAILABLE: edits conflict with saved settings or preset limits; export your draft", "error"); return;
           }
-          pending = clone(restored);
+          pending = clone(restored); pendingRecord = restoredRecord; pendingFor = pending;
           if (foreign && result.kind === "valid" && !migrationNotice) migrationNotice = "Saved; merged a change saved elsewhere";
         }
         if (result.migrated && !readonly) { pending = clone(restored); serial += 1; }
@@ -815,6 +836,13 @@
   // Menu/preset facade. Settings-only operations never discard bundle metadata.
   var menuApi = null, menuRoot = null, controller = null, menuBundle = null;
   var importMode = "";
+  // The menu API attached by hp_colors_v3_menu.js. Required members are called directly; optional members
+  // (older or partial menus, tests) are only called when present, through menuHas.
+  var MENU_API = {
+    required: ["getRoot", "getSettings", "applySettings", "applyPresetSettings", "setSaveStatus"],
+    optional: ["refreshPresets", "setCodeStatus", "hydrateSettings", "setSaveResetAvailable", "getRules", "editSettings"]
+  };
+  function menuHas(name) { return !!menuApi && isCallable(menuApi[name]); }
   // A session handed over by a retired store incarnation, kept until a menu attaches.
   var inheritedSession = null, retiredStore = false;
   function commitConfig(config) {
@@ -825,7 +853,7 @@
     // it again, or the hero default routing back to it, restored the values it was created with). The baked
     // Default never changes.
     var source = menuBundle.sourcePresetId;
-    if (source && source !== $.HPColorsV3Codec.RECORD.reservedPresetId) (menuBundle.presets || []).forEach(function (preset) {
+    if (source && source !== deps.codec.RECORD.reservedPresetId) (menuBundle.presets || []).forEach(function (preset) {
       if (preset.id !== source) return;
       preset.settings = clone(config.settings);
       if (hasRules) preset.rules = clone(config.rules); else delete preset.rules;
@@ -839,11 +867,11 @@
     return bundle;
   }
   function refreshPresets() {
-    if (menuApi && isValid(menuRoot) && isCallable(menuApi.refreshPresets)) menuApi.refreshPresets();
+    if (menuHas("refreshPresets") && isValid(menuRoot)) menuApi.refreshPresets();
   }
   function unwrap(result) {
     if (!result.ok) throw new Error(result.message);
-    if (menuApi && isCallable(menuApi.setCodeStatus)) menuApi.setCodeStatus(result.message || "");
+    if (menuHas("setCodeStatus")) menuApi.setCodeStatus(result.message || "");
     return result;
   }
   var presetSerial = 0;
@@ -852,10 +880,10 @@
     var refusal = controller.presetEditError();
     if (refusal) throw new Error(refusal);
     var record;
-    try { record = $.HPColorsV3Codec.encodeRecord(bundle); }
-    catch (error) { throw new Error($.HPColorsV3Codec.errorMessage(error)); }
-    if (record.length > $.HPColorsV3Codec.RECORD.maxChars) throw new Error(TOO_LARGE_TEXT);
-    if (!controller.change(bundle, "bundle", true)) throw new Error("That preset change could not be saved.");
+    try { record = deps.codec.encodeRecord(bundle); }
+    catch (error) { throw new Error(deps.codec.errorMessage(error)); }
+    if (record.length > deps.codec.RECORD.maxChars) throw new Error(TOO_LARGE_TEXT);
+    if (!controller.change(bundle, "bundle", record)) throw new Error("That preset change could not be saved.");
     menuBundle = clone(bundle);
     if (apply !== false) menuApi.applySettings(bundle.settings, bundle.rules || {});
     refreshPresets();
@@ -876,14 +904,14 @@
       onLoad: function (bundle) {
         if (!isValid(root) || root !== menuRoot) return;
         menuBundle = clone(bundle);
-        if (isCallable(menuApi.hydrateSettings)) menuApi.hydrateSettings(bundle.settings);
+        if (menuHas("hydrateSettings")) menuApi.hydrateSettings(bundle.settings);
         else menuApi.applySettings(bundle.settings, bundle.rules || {});
         refreshPresets();
       },
       // The menu may be reincluded onto the same root after this controller started.
       onStatus: function (text, tone) { if (isValid(root) && root === menuRoot) menuApi.setSaveStatus(text, tone); },
       onResetAvailable: function (available) {
-        if (isValid(root) && root === menuRoot && isCallable(menuApi.setSaveResetAvailable)) menuApi.setSaveResetAvailable(available);
+        if (isValid(root) && root === menuRoot && menuHas("setSaveResetAvailable")) menuApi.setSaveResetAvailable(available);
       },
     });
     controller.start();
@@ -920,7 +948,7 @@
     },
     commit: commitConfig,
     getBundle: function (settings) {
-      return currentBundle(settings || (menuApi ? menuApi.getSettings() : $.HPColorsV3Settings.defaults));
+      return currentBundle(settings || (menuApi ? menuApi.getSettings() : deps.settings.defaults));
     },
     // Hero routing reads only the route every settled second: no copy of the whole preset library.
     getRoute: function () {
@@ -937,7 +965,7 @@
     replaceBundle: function (bundle) { return commitBundle(bundle); },
     applyPreset: function (preset, automatic, mappedRoute) {
       var bundle = currentBundle(preset.settings);
-      bundle.sourcePresetId = preset.id || $.HPColorsV3Codec.RECORD.reservedPresetId;
+      bundle.sourcePresetId = preset.id || deps.codec.RECORD.reservedPresetId;
       bundle.sourceWasMapped = automatic === true ? mappedRoute === true :
         Object.keys(bundle.heroPresets || {}).some(function (hero) { return bundle.heroPresets[hero] === bundle.sourcePresetId; });
       ["v2pending","rules"].forEach(function (key) {
@@ -950,12 +978,12 @@
     resetUnreadableSave: function (confirmed) {
       return !!controller && isValid(menuRoot) && controller.reset(confirmed, currentBundle(menuApi.getSettings()));
     },
-    exportSettingsCode: function (settings) { return unwrap($.HPColorsV3Sharing.exportSettingsCode(settings, menuApi && isCallable(menuApi.getRules) ? menuApi.getRules() : menuBundle && menuBundle.rules)).code; },
+    exportSettingsCode: function (settings) { return unwrap(deps.sharing.exportSettingsCode(settings, menuHas("getRules") ? menuApi.getRules() : menuBundle && menuBundle.rules)).code; },
     decodeSettingsCode: function (code) {
-      return unwrap($.HPColorsV3Sharing.importSettingsCode(code, currentBundle(menuApi ? menuApi.getSettings() : $.HPColorsV3Settings.defaults))).settings;
+      return unwrap(deps.sharing.importSettingsCode(code, currentBundle(menuApi ? menuApi.getSettings() : deps.settings.defaults))).settings;
     },
     importSettingsCode: function (code) {
-      var result = unwrap($.HPColorsV3Sharing.importSettingsCode(code, currentBundle(menuApi ? menuApi.getSettings() : $.HPColorsV3Settings.defaults)));
+      var result = unwrap(deps.sharing.importSettingsCode(code, currentBundle(menuApi ? menuApi.getSettings() : deps.settings.defaults)));
       if (result.metadata) {
         menuBundle = currentBundle(result.settings);
         Object.keys(result.metadata).forEach(function (key) { menuBundle[key] = clone(result.metadata[key]); });
@@ -966,19 +994,19 @@
       // commit a second, identical time after a changed import).
       // Only when the menu already holds exactly this import: a refusing (retired) menu commits nothing.
       var rules = result.rules || {};
-      if (menuApi && isCallable(menuApi.editSettings) && !menuApi.editSettings(result.settings, rules) &&
-          isCallable(menuApi.getSettings) && isCallable(menuApi.getRules) &&
+      if (menuHas("editSettings") && !menuApi.editSettings(result.settings, rules) &&
+          menuHas("getSettings") && menuHas("getRules") &&
           JSON.stringify(menuApi.getSettings()) === JSON.stringify(result.settings) && JSON.stringify(menuApi.getRules()) === JSON.stringify(rules))
         commitConfig({ settings: result.settings, rules: rules });
       return result.settings;
     },
-    exportBundleCode: function (settings) { return unwrap($.HPColorsV3Sharing.exportBundleCode(currentBundle(settings))).code; },
-    decodeBundleCode: function (code) { return unwrap($.HPColorsV3Sharing.importBundleCode(code)).bundle; },
+    exportBundleCode: function (settings) { return unwrap(deps.sharing.exportBundleCode(currentBundle(settings))).code; },
+    decodeBundleCode: function (code) { return unwrap(deps.sharing.importBundleCode(code)).bundle; },
     importBundleCode: function (code) {
       if (!controller) throw new Error("Wait for saved settings to finish loading before editing presets.");
       var refusal = controller.presetEditError();
       if (refusal) throw new Error(refusal);
-      var result = unwrap($.HPColorsV3Sharing.importBundleCode(code)), bundle = currentBundle(menuApi.getSettings());
+      var result = unwrap(deps.sharing.importBundleCode(code)), bundle = currentBundle(menuApi.getSettings());
       if (!result.bundle.presets.length) throw new Error("This bundle has no presets to append. Use REPLACE ALL to restore active settings and metadata; confirmation replaces the saved preset library.");
       var ids = Object.create(null);
       bundle.presets.forEach(function (preset) { ids[preset.id] = true; });
@@ -988,7 +1016,7 @@
         ids[item.id] = true; bundle.presets.push(item);
       });
       commitBundle(bundle, false);
-      if (menuApi && isCallable(menuApi.setCodeStatus)) menuApi.setCodeStatus(
+      if (menuHas("setCodeStatus")) menuApi.setCodeStatus(
         (result.message ? result.message + " " : "") + "Presets imported; active settings and metadata unchanged. Use REPLACE ALL for full bundle recovery.", "ok");
       return bundle.settings;
     },

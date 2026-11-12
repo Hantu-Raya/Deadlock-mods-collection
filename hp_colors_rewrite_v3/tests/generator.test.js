@@ -6,6 +6,8 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { OUTPUTS } = require('../tools/generate');
+const { checkStylesheets } = require('../tools/lib/stylesheets');
 const root = path.resolve(__dirname, '..');
 const cli = path.join(root, 'tools/generate.js');
 const table = JSON.parse(fs.readFileSync(path.join(root, 'settings/schema.json'), 'utf8'));
@@ -29,7 +31,7 @@ test('CLI deterministically generates all outputs, committed --check passes and 
   const dir = temporary(t);
   assert.equal(run('--output-root', dir).status, 0);
   const first = hashes(dir);
-  assert.equal(Object.keys(first).length, 13);
+  assert.deepEqual(Object.keys(first).sort(), Object.keys(OUTPUTS).sort());
   assert.equal(run('--output-root', dir).status, 0);
   assert.deepEqual(hashes(dir), first);
   assert.equal(run('--check', '--output-root', dir).status, 0);
@@ -42,7 +44,7 @@ test('CLI deterministically generates all outputs, committed --check passes and 
     assert.equal(fs.readFileSync(file, 'utf8').endsWith('\nSTALE\n'), true, 'check must not repair files');
     fs.writeFileSync(file, original);
   }
-  fs.unlinkSync(path.join(dir, 'generated/ids.json'));
+  fs.unlinkSync(path.join(dir, 'generated/menu-rows.xml'));
   assert.notEqual(run('--check', '--output-root', dir).status, 0);
   console.log('determinism hashes ' + JSON.stringify(first));
 });
@@ -209,13 +211,21 @@ test('CSS contract: --check rejects opacity-mask: none anywhere and any mask in 
   let result = run('--check', '--styles-root', dir);
   assert.notEqual(result.status, 0); assert.match(result.stderr, /world\.css.*opacity-mask: none/);
   fs.writeFileSync(path.join(dir, 'world.css'), '.WindowRoot.X #UnitHealthbar { opacity-mask: url("s2r://m.vsvg"); }\n');
-  fs.writeFileSync(path.join(dir, 'unit_status_v2.css'), '.UnitHealthbarContainer\n{\n\topacity-mask: url("s2r://m.vsvg");\n}\n');
-  result = run('--check', '--styles-root', dir);
-  assert.notEqual(result.status, 0); assert.match(result.stderr, /unit_status_v2\.css.*opacity-mask/);
-  fs.writeFileSync(path.join(dir, 'unit_status_v2.css'), '.UnitHealthbarContainer\n{\n\theight: 18px;\n}\n');
+  // The generated stock sheet is checked from its generated text (the table's stockSheet output), not from the folder.
+  assert.throws(() => checkStylesheets(dir, { stock: { 'unit_status_v2.css': '.UnitHealthbarContainer\n{\n\topacity-mask: url("s2r://m.vsvg");\n}\n' } }),
+    /unit_status_v2\.css.*opacity-mask/);
+  assert.equal(checkStylesheets(dir, { stock: { 'unit_status_v2.css': '.UnitHealthbarContainer\n{\n\theight: 18px;\n}\n' } }).files, 2);
   result = run('--check', '--styles-root', dir);
   assert.equal(result.status, 0, result.stderr);
   result = run('--check'); assert.equal(result.status, 0, result.stderr);
+});
+test('CSS contract: the folder and the layouts agree on the shipped sheets', t => {
+  const dir = temporary(t);
+  fs.writeFileSync(path.join(dir, 'a.css'), '.A { opacity: 1; }\n');
+  const stock = { 'unit_status_v2.css': '.B { opacity: 1; }\n' };
+  assert.equal(checkStylesheets(dir, { stock, shipped: ['a', 'unit_status_v2'] }).files, 2);
+  assert.throws(() => checkStylesheets(dir, { stock, shipped: ['unit_status_v2'] }), /no layout includes: a\.css/);
+  assert.throws(() => checkStylesheets(dir, { stock, shipped: ['a', 'b', 'unit_status_v2'] }), /included by a layout but missing.*b\.css/);
 });
 test('generated stock sheet deletes the three masks and nine container backers like v2, dropping emptied rules', () => {
   const sheet = fs.readFileSync(path.join(root, 'panorama/styles/unit_status_v2.css'), 'utf8');

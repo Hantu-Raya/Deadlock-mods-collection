@@ -416,3 +416,76 @@ for(const mode of ['stop','rediscover'])test('audit review R1: replacement ultim
  assert.equal(container.valid,false,'artwork is deleted only after replacement restoration');
  assert.ok(replacement.valid);
 });
+
+// Cross-context protocol (B4). The topbar and world scripts run in different contexts and keep their own copies of
+// the small helpers; these tests drive both real scripts through the real messages and compare what is observable.
+const GATE='HPV3_PICKUP_SCAN_GATE',ULT='HPV3_ULTIMATE_SNAPSHOT',PICKUP='HPV3_PICKUP_SNAPSHOT';
+const fillClip=f=>{const p=f.r.FindChildTraverse('HPColorsV3UltimateFill');return p?p.style.clip:'';};
+const clipAngle=raw=>{const m=/^radial\(50% 50%, 0deg, (-?[\d.]+)deg\)$/.exec(raw);return m?Number(m[1]):null;};
+test('protocol: every topbar snapshot is republished inside the window its consumer accepts it for',()=>{
+ const f=setup();f.advance(40000);
+ const gaps=magic=>{const at=f.traffic.filter(m=>m.magic===magic).map(m=>m.at);assert.ok(at.length>=3,magic);return Math.max(...at.slice(1).map((x,i)=>x-at[i]));};
+ assert.ok(gaps(GATE)<15000,'gate: world accepts for 15 s');
+ assert.ok(gaps(ULT)<12000,'ultimate: world accepts for 12 s');
+ assert.ok(gaps(PICKUP)<24001,'pickup: topbar keeps a record for 24 s');
+});
+test('protocol: both contexts extrapolate an ultimate the same way (rate, 359.999 ceiling, 15 degree correction)',()=>{
+ const f=setup();f.advance(3000);f.top.harness.$.HPColorsV3Timers.stop();
+ for(const [angle,rate,seconds,expected] of [[100,30,1,130],[100,30,3,190],[350,30,1,359.999],[0,360,1,359.999],[200,0,2,200]]){
+  f.broadcast(JSON.stringify({magic:ULT,since:0,at:f.h.now,players:[['REMOTE',angle,rate]]}));
+  f.advance(seconds*1000);assert.equal(clipAngle(fillClip(f)),expected,angle+'@'+rate);
+ }
+ // The producer republishes early only when the world's extrapolation would drift 15 degrees or more.
+ const drift=offset=>{const g=setup();g.advance(3000);let a=60;const sent=[];
+  for(let i=0;i<4;i++){a+=30+(i===3?offset:0);g.remote.radial.style.clip='radial(50% 50%, 0deg, '+a+'deg)';const n=g.traffic.length;g.advance(1000);sent.push(g.traffic.slice(n).filter(m=>m.magic===ULT).length);}
+  return sent;};
+ assert.deepEqual(drift(0),[1,1,0,1],'on-trend samples wait for the 2 s heartbeat');
+ assert.equal(drift(10)[3],1,'heartbeat second still sends');
+ const quiet=drift(0),off=drift(10),jump=drift(20);assert.deepEqual(off,quiet,'under 15 degrees changes nothing');assert.ok(jump.reduce((a,b)=>a+b)>=quiet.reduce((a,b)=>a+b),'a 20 degree jump is republished');
+});
+test('protocol: name normalisation, radial parsing and freshness agree between topbar and world',()=>{
+ // Names: the topbar publishes the card's trimmed upper-case text; the world matches its bar title the same way.
+ for(const [card,bar,matched] of [['  remote ','Remote ',true],['REMOTE','remote',true],['{s:hero}','{s:hero}',false],['Remote','Other',false]]){
+  const f=setup();f.top.harness.contextPanel.FindChildTraverse('GameTime').text='1:00';f.remote.label.text=card;f.name.text=bar;f.advance(4000);
+  const sent=f.traffic.filter(m=>m.magic===ULT).at(-1);
+  if(card.charAt(0)==='{')assert.ok(!sent||sent.players.length===0,'unresolved text is never a name');
+  else assert.equal(sent.players[0][0],card.trim().toUpperCase());
+  f.top.harness.$.HPColorsV3Timers.stop();
+  f.broadcast(JSON.stringify({magic:ULT,since:0,at:f.h.now,players:[[card.trim().toUpperCase(),180,0]]}));
+  assert.equal(clipAngle(fillClip(f))===180,matched,card+' / '+bar);
+ }
+ // Radial: ultimate clips are 0..360 on the topbar, pickup clips -360..0 on the world bar; both read one grammar.
+ for(const [clip,top,world] of [['radial(50% 50%, 0deg, 120deg)',120,null],['radial(50.0%  50%, 0deg, -120.5deg)',null,-120.5],['radial(40% 50%, 0deg, 10deg)',null,null],['radial(50% 50%, 0deg, 361deg)',null,null],['radial(50% 50%, 0deg, -361deg)',null,null],['nonsense',null,null]]){
+  const f=setup();f.advance(3000);f.remote.radial.style.clip=clip;let n=f.traffic.length;f.advance(1000);
+  const ult=f.traffic.slice(n).filter(m=>m.magic===ULT).at(-1);assert.equal(ult&&ult.players.length?ult.players[0][1]:null,top,'topbar '+clip);
+  f.border.style.clip=clip;n=f.traffic.length;f.advance(3100);
+  const pick=f.traffic.slice(n).filter(m=>m.magic===PICKUP&&m.record).at(-1);assert.equal(pick?pick.record.progress[0]&&pick.record.progress[0].angle:null,world,'world '+clip);
+ }
+ // Freshness: a snapshot dated in the future or at/after the window is ignored by the world.
+ for(const [offset,accepted] of [[0,true],[-11999,true],[-12000,false],[1,false]]){
+  const f=setup();f.top.harness.$.HPColorsV3Timers.stop();f.advance(30000);
+  f.broadcast(JSON.stringify({magic:GATE,scan:false,localName:'LOCAL',since:0,at:f.h.now}));
+  f.broadcast(JSON.stringify({magic:ULT,since:0,at:f.h.now+offset,players:[['REMOTE',250,0]]}));f.advance(100);
+  assert.equal(clipAngle(fillClip(f))===250,accepted,'offset '+offset);
+ }
+});
+test('protocol: the topbar accepts a config envelope by the same rules as the renderer',()=>{
+ const make=()=>{const f=setup({dropTopConfig:()=>true});f.advance(1000);const base=latestPublishedConfig(f.menu.harness);assert.ok(base);
+  const gates=()=>f.traffic.filter(m=>m.magic===GATE).length;
+  const send=(patch,raw)=>{const text=raw||JSON.stringify({...base,...patch}),before=gates();for(const e of [...f.top.harness.handlerEntries])if(e.channel==='ClientUI_FireOutput')e.fn(text);return gates()>before;};
+  return {f,base,send};};
+ let t=make();
+ assert.equal(t.send({epoch:''},null),false,'empty epoch');
+ assert.equal(t.send({epoch:'e'.repeat(129)}),false,'epoch over 128');
+ assert.equal(t.send({epoch:'e'.repeat(128),revision:1}),true,'epoch of 128 is accepted');
+ t=make();for(const revision of [-1,1.5,'3',NaN,Number.MAX_SAFE_INTEGER+2])assert.equal(t.send({epoch:'a',revision}),false,'revision '+revision);
+ assert.equal(t.send({epoch:'a',revision:1,magic:'HP_COLORS_V3_CONFIGX'}),false,'wrong magic');
+ const big=JSON.stringify({...t.base,epoch:'a',revision:1,pad:'x'.repeat(64000)});assert.ok(big.length>64000);assert.equal(t.send(null,big),false,'over 64000 characters');
+ assert.equal(t.send({epoch:'a',revision:5}),true,'first envelope hydrates');
+ assert.equal(t.send({epoch:'a',revision:5}),false,'equal revision once configured');
+ assert.equal(t.send({epoch:'a',revision:4}),false,'lower revision');
+ assert.equal(t.send({epoch:'a',revision:6}),true,'higher revision');
+ assert.equal(t.send({epoch:'b',revision:1}),true,'a new epoch starts again from any revision');
+ assert.equal(t.send({epoch:'a',revision:99}),false,'a retired epoch is never accepted again');
+ assert.equal(t.send({epoch:'b',revision:0}),false,'lower revision in the current epoch');
+});

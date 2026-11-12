@@ -8,6 +8,62 @@
   function emptyPickups() { return { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] }; }
   // A neutral camp uses the enemy side's config.
   function sideConfig(config, carrier) { return config.side[carrier.side === "neutral" ? "enemy" : carrier.side]; }
+  // TUNING: cadences and limits, each read once into a local here so the per-tick path keeps plain variable reads.
+  // The game has no change event for panel classes or layout, so polling stays; the numbers are the cost/latency trade.
+  var TUNING = {
+    tickActiveSeconds: 0.15,          // tick period while a bar is painted (health/layer signatures only)
+    tickDormantSeconds: 1,            // tick period while the bar is gated off (the 1 s player wake)
+    carrierCheckMs: 1000,             // carrier lineage / class re-check
+    geometryMs: 1500,                 // geometry refresh (plus one settling sample after a layout write)
+    fullPaintMs: 1500,                // idle repaint floor
+    pickupsMs: 3000,                  // pickup structure walk
+    staminaStructureMs: 3000,         // low-stamina structure walk
+    staminaIdleCharges: 3.5,          // idle stamina reads stretch by (charges + 1) / this beyond the six-charge rate
+    dormantProbeEvery: 5,             // every fifth dormant check probes kind tags on the existing ancestry
+    ancestryDepth: 12,                // carrier ancestry walk limit
+    maxPips: 128,                     // stamina pip cap
+    maxEnvelopeLength: 64000,         // config envelope size limit
+    maxEpochLength: 128,              // config epoch length limit
+    maxMeasurement: 1000000,          // layout reads beyond this are engine garbage
+    requestDelays: [0.5, 1, 2, 4, 8], // config request backoff
+    requestFailureLimit: 3            // unanswered config requests before giving up
+  };
+  var TICK_ACTIVE = TUNING.tickActiveSeconds, TICK_DORMANT = TUNING.tickDormantSeconds, CARRIER_CHECK_MS = TUNING.carrierCheckMs;
+  var GEOMETRY_MS = TUNING.geometryMs, FULL_PAINT_MS = TUNING.fullPaintMs, PICKUPS_MS = TUNING.pickupsMs;
+  var STAMINA_STRUCTURE_MS = TUNING.staminaStructureMs, STAMINA_IDLE_CHARGES = TUNING.staminaIdleCharges;
+  var DORMANT_PROBE_EVERY = TUNING.dormantProbeEvery, ANCESTRY_DEPTH = TUNING.ancestryDepth, MAX_PIPS = TUNING.maxPips;
+  var MAX_ENVELOPE = TUNING.maxEnvelopeLength, MAX_EPOCH = TUNING.maxEpochLength, MAX_MEASUREMENT = TUNING.maxMeasurement;
+  var REQUEST_DELAYS = TUNING.requestDelays, REQUEST_FAILURE_LIMIT = TUNING.requestFailureLimit;
+  // DEFAULTS: schema defaults (settings/schema.json) the planner compares against to decide a row is still stock.
+  // tests/renderer.test.js compares every entry to the schema. barOffsetY is the default bar offset (-3.8).
+  var DEFAULTS = { staminaWidth: 11, staminaHeight: 4.48, nameSize: 14, nameOutline: 5, hpTextOutline: 5, barOffsetY: -3.8,
+    damageShakeStrength: 3, lineOpacity: 100 };
+  var DEFAULT_STAMINA_WIDTH = DEFAULTS.staminaWidth, DEFAULT_STAMINA_HEIGHT = DEFAULTS.staminaHeight;
+  var DEFAULT_NAME_SIZE = DEFAULTS.nameSize, DEFAULT_NAME_OUTLINE = DEFAULTS.nameOutline, DEFAULT_HP_TEXT_OUTLINE = DEFAULTS.hpTextOutline;
+  var DEFAULT_BAR_OFFSET_Y = DEFAULTS.barOffsetY, DEFAULT_SHAKE_STRENGTH = DEFAULTS.damageShakeStrength, DEFAULT_LINE_OPACITY = DEFAULTS.lineOpacity;
+  // STOCK: sizes of the game's own unit-status panel (vendor/unit_status_v2.css) that the layout maths scales from.
+  var STOCK = {
+    barWidth: 79, barHeight: 18,         // stock #HealthBar fill extent the bar width/height settings scale from
+    canvasWidth: 200, canvasHeight: 210, // stock overlay canvas used when the live canvas reports 0
+    accessoryCenterY: 85, accessoryPad: 14, // level/ult accessory placement: centre line and padding of the stock layout
+    motionOrigin: 8500,                  // shake transform-origin numerator (percent of canvas height * 100)
+    nameMaxWidth: 170                    // stylesheet fallback for #name max-width
+  };
+  var STOCK_BAR_WIDTH = STOCK.barWidth, STOCK_BAR_HEIGHT = STOCK.barHeight;
+  var STOCK_CANVAS_WIDTH = STOCK.canvasWidth, STOCK_CANVAS_HEIGHT = STOCK.canvasHeight;
+  var STOCK_ACCESSORY_CENTER_Y = STOCK.accessoryCenterY, STOCK_ACCESSORY_PAD = STOCK.accessoryPad;
+  var STOCK_MOTION_ORIGIN = STOCK.motionOrigin, STOCK_NAME_MAX_WIDTH = STOCK.nameMaxWidth;
+  // LEASE: ledger pseudo-keys. A stock lease on a style property keys by its property name; the reparent lease keys "@parent"
+  // and a class toggle keys "@class:<name>" (restore, claim and apply branch on these).
+  var LEASE = { parent: "@parent", classPrefix: "@class:" };
+  var LEASE_PARENT = LEASE.parent, LEASE_CLASS = LEASE.classPrefix, LEASE_CORE_CLASS = LEASE_CLASS + "HPColorsV3Core";
+  // PAINTER-VISIBLE STATE: module state the painter-path helpers read or write besides their arguments. The menu preview shares
+  // these helpers, so each is keyed by panel (WeakMap) or reset per painter, never by the world carrier:
+  //   classReads / childKinds   per-panel class and child-kind memos (has, childrenOfKind); classReads resets only in checkCarriers
+  //   pickupEntries / textWrites  per-panel pickup entries (pickupParts) and the last text written (ledger-adjacent text cache)
+  //   statusScaleSource / statusScaleClasses  memo of the native status icon scale source (reconcileNativeIndicators)
+  //   laidSizes / nameBases / accessoryBounds / hiddenLayers  last laid sizes, captured name bases, accessory and layer facts
+  //   staminaShowing / ultimateArtwork / bountyParts / lineChildren read cache fields and the timer facts only.
   var root = null, carriers = [], ancestry = [], cache = null, cachedFacts = null, memo = null;
   var settings = null, revision = -1, epoch = "", lastRaw = "", ledger = [], carrierSignature = "", kind = null;
   // SHOW BOUNDS: session-only view state that travels beside the settings, never inside them.
@@ -50,6 +106,7 @@
   var pickupColors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
   var pickupEntries = new WeakMap(), lastPickups = -Infinity, textWrites = new WeakMap();
   var messageHooks = [], stateHooks = [], lastTimerState = "", timerFacts = { pickupAllowed: true, ultimateAngle: null, bounty: null };
+  // ====== DRIVER STATE: timer hooks, tick scheduling, config authority ======
   function timerState() {
     var carrier = null;
     for (var i = 0; i < carriers.length; i++) {
@@ -97,8 +154,17 @@
         memo = { key: current.signature + "|" + epoch + "|" + revision + "|" + showBounds, value: timed }; return; }
       catch (error) { /* Pending leases retry through the normal guarded paint. */ }
     }
-    cachedFacts = null; memo = null; lastFull = -Infinity;
+    invalidate("facts");
     if (running) scheduleTick(0, generation);
+  }
+  // The named reset scopes of the cached facts / memoised plan. "facts" also forces the next tick to repaint; "probe" also
+  // forgets the last probe signature; "painted" does the probe reset without forcing a repaint (lease release paths);
+  // "geometry" also drops the sampled geometry. Only reached on change events, never per tick.
+  function invalidate(scope) {
+    cachedFacts = null; memo = null;
+    if (scope !== "painted") lastFull = -Infinity;
+    if (scope === "probe" || scope === "painted") lastProbe = "";
+    else if (scope === "geometry") { geometry = null; lastGeometry = -Infinity; }
   }
   // Each scheduled tick carries the generation and a ticket captured when it is scheduled. A canceled callback
   // delivered late (or any replaced one) fails the ticket check before touching the current job slot.
@@ -173,9 +239,10 @@
     delete classSources[key];
     return false;
   }
+  // ====== DISCOVERY: carrier lineage and class classification ======
   function discoverCarriers() {
     carriers = []; ancestry = []; classSources = {};
-    for (var panel = root, depth = 0; valid(panel) && depth < 12; depth++) {
+    for (var panel = root, depth = 0; valid(panel) && depth < ANCESTRY_DEPTH; depth++) {
       var parent = panel.GetParent();
       ancestry.push({ panel: panel, parent: parent });
       if (allClasses.some(function (name) { return has(panel, name); })) carriers.push(panel);
@@ -208,7 +275,7 @@
     // closed gates pay no extra calls and the 1s player wake remains intact.
     if (status.state === "dormant" && openKinds.length) dormantChecks++;
     else dormantChecks = 0;
-    var unitWake = dormantChecks && dormantChecks % 5 === 0 ? openKinds
+    var unitWake = dormantChecks && dormantChecks % DORMANT_PROBE_EVERY === 0 ? openKinds
       : openKinds.length ? ["enemy", "friend"].concat(neutralClasses.slice(0, 4)) : [];
     var wake = eligible ? activeWake
       : kind && kind.kind === "player" && kind.side === "unknown" ? playerClasses.concat(["enemy", "friend"]) : playerClasses.concat(unitWake);
@@ -306,7 +373,7 @@
     // BAR STYLE OLD grid of THIS primary only: a recycled primary keeps its own grid inactive.
     cache.pipGrid = primary.FindChild("HPColorsV3PipGrid");
     PIP_PARTS.forEach(function (name) { cache["pip" + name] = valid(cache.pipGrid) ? cache.pipGrid.FindChild("HPColorsV3Pip" + name) : null; });
-    cachedFacts = null; memo = null; geometry = null; lastGeometry = -Infinity;
+    invalidate("geometry");
     reconcileLines();
     reconcileLevel();
     cache.ultBackground = valid(cache.ult) ? cache.ult.FindChild("unit_info_bg") : null;
@@ -319,6 +386,7 @@
   function lineChildren(parts) {
     return childrenOfKind(parts.lines, ["line_small", "line_large"]);
   }
+  // ====== RECONCILE: native line / level / accessory / pickup / stamina parts ======
   function reconcileLines() {
     if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible) return;
     if (!valid(cache.lines) || cache.lines.GetParent() !== cache.primary) {
@@ -359,7 +427,7 @@
     part("ultReady", cache.ultBackground, "unit_ult_ready_icon");
     if (cache.ultimateOverlay) part("ultimateOverlay", cache.ultBackground, "HPColorsV3UltimateOverlay");
     part("rejuvAnchor", root, "HPColorsV3RejuvenatorAnchor");
-    if (changed) { geometry = null; cachedFacts = null; memo = null; lastProbe = ""; lastFull = -Infinity; }
+    if (changed) { geometry = null; invalidate("probe"); }
   }
   var STATUS_LABELS = ["critical", "assassinate", "unkillable"];
   // Ticket 52, in class-letter order A..H (hp_colors_v3_status.css pairs each letter with the game's icon class).
@@ -383,10 +451,10 @@
     entries.forEach(function (entry) {
       var current = cache[entry[0]], native = entry.length > 3 ? entry[3] : root.FindChild(entry[1]);
       var parent = valid(current) ? current.GetParent() : null;
-      var adopted = parent && ledger.some(function (owner) { return owner.panel === current && owner.key === "@parent" && owner.owned && owner.value === parent; });
+      var adopted = parent && ledger.some(function (owner) { return owner.panel === current && owner.key === LEASE_PARENT && owner.owned && owner.value === parent; });
       var next = native || (parent && (parent === entry[2] || adopted) ? current : null);
       if (next !== current) {
-        cache[entry[0]] = next; cachedFacts = null; memo = null; lastFull = -Infinity;
+        cache[entry[0]] = next; invalidate("facts");
       }
     });
   }
@@ -424,7 +492,7 @@
     var effects = root.FindChild("StatusEffects");
     // The whole-row move (styles.effects) targets this panel: a replaced row is adopted on this 3 s pass.
     if ((valid(effects) ? effects : null) !== cache.effects) {
-      cache.effects = valid(effects) ? effects : null; cachedFacts = null; memo = null; lastFull = -Infinity;
+      cache.effects = valid(effects) ? effects : null; invalidate("facts");
     }
     var container = valid(effects) ? effects.FindChildTraverse("StatusEffectContainer") : null;
     var next = kind && kind.kind === "player" && kind.eligible && settings && settings.shared.pickupTimersEnabled && timerFacts.pickupAllowed ? pickupParts(container)
@@ -434,7 +502,7 @@
     });
     if (changed) {
       Object.keys(next).forEach(function (key) { cache[key] = next[key]; });
-      cachedFacts = null; memo = null; lastFull = -Infinity;
+      invalidate("facts");
     }
     lastPickups = Date.now();
   }
@@ -442,7 +510,7 @@
     if (!config || !config.shared.enabled || !carrier || !carrier.eligible || carrier.kind !== "player" ||
         (carrier.side !== "enemy" && carrier.side !== "ally")) return false;
     var side = config.side[carrier.side];
-    return side.staminaColorEnabled || side.staminaShape !== "arrow" || side.staminaWidth !== 11 || side.staminaHeight !== 4.48 ||
+    return side.staminaColorEnabled || side.staminaShape !== "arrow" || side.staminaWidth !== DEFAULT_STAMINA_WIDTH || side.staminaHeight !== DEFAULT_STAMINA_HEIGHT ||
       side.staminaOffsetX !== 0 || side.staminaOffsetY !== 0;
   }
   // Low stamina (ticket 35) needs Custom stamina color; threshold 0 is off.
@@ -474,7 +542,7 @@
   }
   function keepStamina(container, next) {
     cache.stamina = container; cache.staminaIcons = next.icons; cache.staminaEmpty = next.empty; cache.staminaPips = next.pips;
-    cachedFacts = null; memo = null; lastProbe = ""; lastFull = -Infinity;
+    invalidate("probe");
   }
   // Low stamina counts the stock empty marker only: stock draws an empty charge from `.StaminaPip.PipEmpty`
   // and nothing else, so the count matches what the game shows and one read per pip covers every input.
@@ -497,7 +565,7 @@
     var low = staminaLow(kind, settings);
     // Low stamina reads charge states in sampleStamina at bar cadence and checks every pip it reads, so the
     // structure walk (container, pips, icons) runs every 3 s like pickups, or at once when a read pip is gone.
-    if (low && cache.staminaLowOn && valid(cache.stamina) && !cache.staminaStale && Date.now() - cache.staminaChecked < 3000) return;
+    if (low && cache.staminaLowOn && valid(cache.stamina) && !cache.staminaStale && Date.now() - cache.staminaChecked < STAMINA_STRUCTURE_MS) return;
     var container = root.FindChild("StaminaContainer");
     var next = staminaParts(container, staminaProbe(kind, settings) && !low);
     var same = cache.stamina === container && next.icons.length === cache.staminaIcons.length &&
@@ -521,6 +589,7 @@
     if (empty.some(function (value, i) { return value !== cache.staminaEmpty[i]; }))
       keepStamina(cache.stamina, { icons: cache.staminaIcons, pips: cache.staminaPips, empty: empty });
   }
+  // ====== SAMPLING: geometry and layer probes read from the live panels ======
   function measurement(panel) { return { valid: valid(panel) }; }
   function css(panel, key, axis, sample) {
     sample = sample || measurement(panel);
@@ -534,7 +603,7 @@
     }
     var value = Number(panel[key]);
     var result = value / scale;
-    return Number.isFinite(result) && Math.abs(result) < 1000000 && scale > 0 ? result : 0;
+    return Number.isFinite(result) && Math.abs(result) < MAX_MEASUREMENT && scale > 0 ? result : 0;
   }
   function dimensions(panel) {
     var sample = measurement(panel);
@@ -551,7 +620,7 @@
       if (measured.width > 0 && measured.height > 0) { size = measured; accessoryBounds.set(panel, size); }
     }
     return size ? { width: size.width, height: size.height,
-      x: left + (g.canvas.width - 200) / 2, y: 85 - (size.height + 14) / 2 } : null;
+      x: left + (g.canvas.width - STOCK_CANVAS_WIDTH) / 2, y: STOCK_ACCESSORY_CENTER_Y - (size.height + STOCK_ACCESSORY_PAD) / 2 } : null;
   }
   // Live 6779: opacity-0 (fading) panels report width 0. Like v2 applyPlayerName/positionReadout,
   // keep the last laid size; a panel never laid reports 0 and its placement waits.
@@ -564,10 +633,10 @@
   // v2 widens the captured inline #name max-width (170 stylesheet fallback). Read once per panel at its
   // first geometry sample, which always precedes ownership: a new module or carrier releases first.
   function nameBase(panel) {
-    if (!panel) return 170;
+    if (!panel) return STOCK_NAME_MAX_WIDTH;
     if (!nameBases.has(panel)) nameBases.set(panel, valid(panel) ? parseFloat(String(panel.style.maxWidth || "")) : NaN);
     var value = nameBases.get(panel);
-    return Number.isFinite(value) ? value : 170;
+    return Number.isFinite(value) ? value : STOCK_NAME_MAX_WIDTH;
   }
   function geometryOf(canvas, parts) {
     var canvasSample = measurement(canvas), statusSample = measurement(parts.status), infoSample = measurement(parts.info);
@@ -737,6 +806,7 @@
     }
     return result;
   }
+  // ====== MODEL: pure plan of one bar from facts + settings (no driver state) ======
   function pixels(value) { return String(Math.round(value * 1000000) / 1000000) + "px"; }
   function translation(x, y) { return "translate3d(" + pixels(x) + ", " + pixels(y) + ", 0px)"; }
   function clamp(value, low, high) { return Math.max(low, Math.min(Math.max(low, high), value)); }
@@ -761,7 +831,7 @@
         : input.team === "team1" ? "#937600" : input.team === "team2" ? "#4156A0" : "#10130D";
   }
   function accessoryPlacement(bounds, g, cy, side, config, prefix, lift) {
-    var anchored = config.shared.accessoryAnchorEnabled, sx = side.barWidth / 79, sy = side.barHeight / 18;
+    var anchored = config.shared.accessoryAnchorEnabled, sx = side.barWidth / STOCK_BAR_WIDTH, sy = side.barHeight / STOCK_BAR_HEIGHT;
     var offsets = prefix === "level" ? side : config.shared;
     var stockY = bounds.y + bounds.height / 2;
     var x = bounds.x + g.primary.width * (1 - sx) / 2 + offsets[prefix + "OffsetX"] * (anchored ? 1 : sx) + (anchored ? side.barOffsetX : 0);
@@ -784,8 +854,8 @@
     // (shared neutralHp*/objectiveHp* settings; eligible non-hero bars are only these two kinds).
     var unitHp = player ? "" : neutral ? "neutral" : "objective";
     var colorsEnabled = !player || side.barColorEnabled;
-    var w = g.canvas.width || 200, h = g.canvas.height || 210;
-    var sx = side.barWidth / 79, sy = side.barHeight / 18;
+    var w = g.canvas.width || STOCK_CANVAS_WIDTH, h = g.canvas.height || STOCK_CANVAS_HEIGHT;
+    var sx = side.barWidth / STOCK_BAR_WIDTH, sy = side.barHeight / STOCK_BAR_HEIGHT;
     var cx = g.status.x + g.info.x + g.stack.x + g.primary.x + g.primary.width / 2;
     var cy = g.status.y + g.info.y + g.stack.y + g.primary.y + g.primary.height / 2;
     var tx = side.barOffsetX + (cx - w / 2) * (1 - sx), ty = side.barOffsetY + (cy - h / 2) * (1 - sy);
@@ -795,7 +865,7 @@
     // once the line total is known (count capped like v2: 128 boxes cover the 50-line maximum).
     var style = player ? config.shared.barStyle : "none", old = style === "old", total = old && input.old ? input.old.total : 0;
     var pipCount = total > 0 ? Math.max(0, Math.ceil(total / 100 - 0.05)) : 0;
-    if (pipCount > 128 || !(g.primary.width > 0)) pipCount = 0;
+    if (pipCount > MAX_PIPS || !(g.primary.width > 0)) pipCount = 0;
     var pipRows = pipCount ? Math.min(Math.ceil(pipCount / 10), 4) : 0;
     // An unlaid inner under OLD boxes (opacity 0) still has the fill's percent clip.
     var healthKnown = input.laid || !!(pipCount && input.old.clipped);
@@ -811,7 +881,7 @@
     // ui-scale and damage motion, and only inline colors are written.
     if (player) {
       styles.stack = { preTransformScale2d: String(sx) + ", " + String(sy), transform: translation(tx, ty) };
-      styles.motion = { transformOrigin: "50% " + String(Math.round(8500 / h * 1000000) / 1000000) + "%" };
+      styles.motion = { transformOrigin: "50% " + String(Math.round(STOCK_MOTION_ORIGIN / h * 1000000) / 1000000) + "%" };
     }
     var classes = { root: { HPColorsV3Core: true, HPColorsV3Layout: player, HPColorsV3BarColored: player && colorsEnabled,
       HPColorsV3BarHidden: player && colorsEnabled && (!side.barVisible || pulseHidden), HPColorsV3Outline: player && side.barOutlineEnabled && !old,
@@ -826,7 +896,7 @@
     // Damage shake (v2 slots 76/77): one root class swaps the motion frame's keyframes; strength 3
     // is the native wiggle, so the default adds no class. Unit bars keep the native motion.
     if (player && !config.shared.damageShakeEnabled) classes.root.HPColorsV3ShakeOff = true;
-    else if (player && config.shared.damageShakeStrength !== 3) classes.root["HPColorsV3Shake" + config.shared.damageShakeStrength] = true;
+    else if (player && config.shared.damageShakeStrength !== DEFAULT_SHAKE_STRENGTH) classes.root["HPColorsV3Shake" + config.shared.damageShakeStrength] = true;
     // Ticket 52: the stylesheet the status row's own layout includes (hp_colors_v3_status.css via citadel_status_effect.xml)
     // scales the game's icon by its class and lets the 32 px row fit it. The script only sets these root classes, so a
     // new icon is drawn at its size at once and no native icon is read or written.
@@ -867,7 +937,7 @@
     }
     // OLD releases line color/opacity: the fallback gaps and the boxes have their own look.
     if (player && side.linesVisible && !input.spectating && !old) {
-      if (side.lineOpacity !== 100) styles.lines = { opacity: String(side.lineOpacity / 100) };
+      if (side.lineOpacity !== DEFAULT_LINE_OPACITY) styles.lines = { opacity: String(side.lineOpacity / 100) };
       if (side.lineColorEnabled) styles.lineWash = { washColor: side.lineColor };
     }
     var markerGate = player && side.barColorEnabled && side.barVisible && !pulseHidden && side.killMarkerEnabled;
@@ -946,7 +1016,7 @@
       // parent's top edge is never shown, so it never moves up past its native place.
       var effectsX = side.barOffsetX + (config.shared.pickupTimersEnabled ? config.shared.pickupOffsetX : 0);
       // Relative to the default bar offset (schema barOffsetY -3.8), so the default look leaves the row in place.
-      var effectsY = side.barOffsetY + 3.8 + (config.shared.pickupTimersEnabled ? config.shared.pickupOffsetY : 0);
+      var effectsY = side.barOffsetY - DEFAULT_BAR_OFFSET_Y + (config.shared.pickupTimersEnabled ? config.shared.pickupOffsetY : 0);
       effectsY = Math.round(effectsY * 1000) / 1000;
       if (effectsX || effectsY > 0) styles.effects = { transform: translation(clamp(effectsX, -w / 2, w / 2), Math.max(0, effectsY)) };
       parents.rejuv = "rejuvAnchor";
@@ -984,7 +1054,7 @@
         styles.pickupGlyphs = { washColor: config.shared.pickupGlyphColor };
       }
       if (staminaWanted(input, config)) {
-        var shaped = side.staminaShape !== "arrow", widthOwned = side.staminaWidth !== 11, heightOwned = side.staminaHeight !== 4.48;
+        var shaped = side.staminaShape !== "arrow", widthOwned = side.staminaWidth !== DEFAULT_STAMINA_WIDTH, heightOwned = side.staminaHeight !== DEFAULT_STAMINA_HEIGHT;
         var colored = side.staminaColorEnabled, charges = input.stamina || [];
         var fillColor = colored && side.staminaColorMode === "team" && teamColor(config, input.team) || side.staminaColor;
         var filled = charges.filter(function (empty) { return !empty; }).length;
@@ -1039,7 +1109,7 @@
       var hpSize = pulseModifiers ? side.pulseReadoutSize : side.hpTextSize;
       styles.value = { washColor: hpColor, fontFamily: fonts[side.hpTextFont], fontSize: pixels(hpSize),
         padding: "0px " + pixels(room), marginLeft: pixels(-room), marginRight: pixels(-room) };
-      if (side.hpTextOutline !== 5) styles.value.textShadow = "0px 0px 0px " + side.hpTextOutline + " #10130D";
+      if (side.hpTextOutline !== DEFAULT_HP_TEXT_OUTLINE) styles.value.textShadow = "0px 0px 0px " + side.hpTextOutline + " #10130D";
       // Tilt rotates the adopted label only; the row keeps the geometry translate. 0 stays level (CSS).
       if (side.hpTextTilt) styles.value.transform = "rotateZ(" + side.hpTextTilt + "deg)";
       if (textPulse) {
@@ -1087,12 +1157,12 @@
     // Customized names are level by CSS (v2 `.WindowRoot #name`); NAME TILT rotates after the offset.
     var nameTilt = config.shared.nameTilt, nameRotation = nameTilt ? "rotateZ(" + nameTilt + "deg)" : "";
     if (player && side.nameVisible && (side.nameAlign !== "center" || side.nameOffsetX || nameOffsetY || nameTilt ||
-        side.nameColorEnabled || side.nameSize !== 14 || side.nameOutline !== 5)) {
+        side.nameColorEnabled || side.nameSize !== DEFAULT_NAME_SIZE || side.nameOutline !== DEFAULT_NAME_OUTLINE)) {
       // v2 applyPlayerName: the label box and its text grow the same way (stock #name centres both).
       var nameGrowth = nameAlign === "left" ? "right" : nameAlign === "center" ? "center" : "left";
-      styles.name = { padding: "2px " + pixels(nameRoom) + " 0px " + pixels(nameRoom), maxWidth: pixels((Number.isFinite(g.name.maxWidth) ? g.name.maxWidth : 170) + 2 * (nameRoom - 2)),
+      styles.name = { padding: "2px " + pixels(nameRoom) + " 0px " + pixels(nameRoom), maxWidth: pixels((Number.isFinite(g.name.maxWidth) ? g.name.maxWidth : STOCK_NAME_MAX_WIDTH) + 2 * (nameRoom - 2)),
         horizontalAlign: nameGrowth, textAlign: nameGrowth };
-      if (side.nameSize !== 14) {
+      if (side.nameSize !== DEFAULT_NAME_SIZE) {
         styles.name.fontSize = pixels(side.nameSize); styles.name.maxHeight = pixels(Math.ceil(side.nameSize * 1.5));
       }
       // A name never laid has no extent to clamp; its translate waits for the first laid sample (v2).
@@ -1100,7 +1170,7 @@
         styles.name.transform = translation(nameX - weight * w, nameY) + (nameRotation ? " " + nameRotation : "");
       else if (nameRotation) styles.name.transform = nameRotation;
       if (side.nameColorEnabled) styles.name.color = (side.nameColorMode === "team" && teamColor(config, input.team) || side.nameColor) + (input.spectating ? "80" : "");
-      if (side.nameOutline !== 5) styles.name.textShadow = "0px 0px 0px " + side.nameOutline + " #10130Dee";
+      if (side.nameOutline !== DEFAULT_NAME_OUTLINE) styles.name.textShadow = "0px 0px 0px " + side.nameOutline + " #10130Dee";
     }
     return { styles: styles, classes: classes, parents: parents, texts: texts, old: oldPlan,
       settle: !!(levelShown && !g.level || ultPlaced && !g.ult) };
@@ -1110,6 +1180,7 @@
     if (!memo || memo.key !== key) { memo = { key: key, value: plan(input, settings, { showBounds: showBounds }) }; status.plansComputed++; }
     return memo.value;
   }
+  // ====== LEASE: style property table, write-if-changed, restore, claim and apply of the ledger ======
   // Live 6779: assigning "" fails to parse for some properties (textShadow). Like v2's setStyle,
   // clear with null; shorthand-backed longhands clear their shorthand and rewrite the siblings.
   var STYLE_ALIASES = {
@@ -1299,7 +1370,7 @@
   }
   // target = { root, parts, ledger, settle }: the world bar or the menu preview.
   function restore(owner) {
-    if (owner.key === "@parent") {
+    if (owner.key === LEASE_PARENT) {
       if (!valid(owner.stockParent)) return false;
       if (owner.owned || owner.value !== owner.stockParent) {
         owner.panel.SetParent(owner.stockParent);
@@ -1308,7 +1379,7 @@
         else if (valid(owner.stockPrevious) && owner.stockPrevious.GetParent() === owner.stockParent) owner.stockParent.MoveChildAfter(owner.panel, owner.stockPrevious);
         owner.value = owner.stockParent;
       }
-    } else if (owner.key.indexOf("@class:") === 0) {
+    } else if (owner.key.indexOf(LEASE_CLASS) === 0) {
       if (owner.owned || owner.value !== owner.stockClass) {
         owner.panel.SetHasClass(owner.key.slice(7), owner.stockClass); owner.value = owner.stockClass;
       }
@@ -1334,7 +1405,7 @@
       var parent = parts && parts[typeof placement === "string" ? placement : placement.parent];
       var before = typeof placement === "string" ? null : parts && parts[placement.before];
       if (available(panel) && available(parent) && (!before || available(before)))
-        wanted.push({ panel: panel, key: "@parent", part: part, value: parent, before: before });
+        wanted.push({ panel: panel, key: LEASE_PARENT, part: part, value: parent, before: before });
     });
     Object.keys(next.styles).forEach(function (part) {
       var panels = part === "lineWash" ? parts && parts.lineChildren || [] : Array.isArray(parts && parts[part]) ? parts[part] : [parts && parts[part]];
@@ -1348,7 +1419,7 @@
     Object.keys(next.classes || {}).forEach(function (part) {
       var panel = part === "root" ? target.root : parts && parts[part];
       if (available(panel)) Object.keys(next.classes[part]).forEach(function (name) {
-        wanted.push({ panel: panel, key: "@class:" + name, part: part, value: next.classes[part][name] });
+        wanted.push({ panel: panel, key: LEASE_CLASS + name, part: part, value: next.classes[part][name] });
       });
     });
     wanted.forEach(function (entry) {
@@ -1399,13 +1470,13 @@
       var owner = index.has(entry.panel) && index.get(entry.panel).get(entry.key);
       if (!owner) {
         owner = { panel: entry.panel, key: entry.key, part: entry.part, value: undefined, owned: false };
-        if (entry.key === "@parent") {
+        if (entry.key === LEASE_PARENT) {
           owner.stockParent = entry.panel.GetParent();
           if (!valid(owner.stockParent)) throw new Error("Native parent unavailable");
           var siblings = owner.stockParent.Children(), siblingIndex = siblings.indexOf(entry.panel);
           owner.stockNext = siblings[siblingIndex + 1] || null;
           owner.stockPrevious = siblings[siblingIndex - 1] || null;
-        } else if (entry.key.indexOf("@class:") === 0) {
+        } else if (entry.key.indexOf(LEASE_CLASS) === 0) {
           owner.stockClass = entry.panel.BHasClass(entry.key.slice(7));
         } else {
           var captured = entry.panel.style[entry.key], explicit = EXPLICIT_STOCK[entry.part];
@@ -1423,14 +1494,14 @@
       if (!owner.owned || owner.value !== entry.value || owner.before !== entry.before) {
         // Keep a pending lease even if the native setter mutates and then throws.
         owner.owned = true;
-        if (entry.key === "@parent") {
+        if (entry.key === LEASE_PARENT) {
           entry.panel.SetParent(entry.value);
           if (entry.panel.GetParent() !== entry.value) throw new Error("Native adoption rejected");
           if (valid(entry.before)) entry.value.MoveChildBefore(entry.panel, entry.before);
           owner.before = entry.before;
-        } else if (entry.key.indexOf("@class:") === 0) {
+        } else if (entry.key.indexOf(LEASE_CLASS) === 0) {
           entry.panel.SetHasClass(entry.key.slice(7), entry.value);
-          if (entry.key === "@class:HPColorsV3Core") target.settle = true;
+          if (entry.key === LEASE_CORE_CLASS) target.settle = true;
         } else {
           writeStyle(entry.panel, entry.key, entry.value);
           if (entry.part === "name" && /^(fontSize|padding|maxWidth|maxHeight)$/.test(entry.key)) target.settle = true;
@@ -1457,6 +1528,7 @@
       if (target.rediscover) { rediscover = true; lastProbe = ""; lastFull = -Infinity; }
     }
   }
+  // ====== DRIVER: cache reset, carrier check, tick, config bus, start / stop ======
   function resetCache() {
     apply(EMPTY_PLAN); cache = null; cachedFacts = null; memo = null; geometry = null; settleGeometry = false;
     lastProbe = ""; lastConfigKey = ""; lastGeometry = -Infinity;
@@ -1476,7 +1548,7 @@
     var next = classify();
     if (next.signature !== carrierSignature || changedLineage) {
       var release = changedLineage || !kind || next.base !== kind.base || next.eligible !== kind.eligible;
-      kind = next; carrierSignature = next.signature; cachedFacts = null; memo = null; lastProbe = "";
+      kind = next; carrierSignature = next.signature; invalidate("painted");
       if (release) { apply(EMPTY_PLAN); geometry = null; lastGeometry = -Infinity; }
       // HPV3_DEBUG $.Msg("[HPV3] renderer carrier changed: " + kind.kind + "/" + kind.side);
     } else kind = next;
@@ -1494,7 +1566,7 @@
     if (!valid(root)) { stop(); return; }
     // HPV3_DEBUG var began = Date.now();
     try {
-      if (force || rediscover || Date.now() - lastCarrierCheck >= 1000 || !ancestry.length) checkCarriers();
+      if (force || rediscover || Date.now() - lastCarrierCheck >= CARRIER_CHECK_MS || !ancestry.length) checkCarriers();
       if (!settings || !settings.shared.enabled || !kind || !kind.eligible) {
         apply(EMPTY_PLAN); status.state = "dormant"; return;
       }
@@ -1504,20 +1576,20 @@
       // OLD plans no line washes, so it skips this per-tick recount (the 1s carrier check remains).
       if (kind.side !== "neutral" && lineSide.linesVisible && lineSide.lineColorEnabled && !kind.spectating && settings.shared.barStyle !== "old" &&
           valid(cache.lines) && cache.lines.GetChildCount() !== cache.nativeLineCount) reconcileLines();
-      if (force || Date.now() - lastPickups >= 3000) reconcilePickups();
+      if (force || Date.now() - lastPickups >= PICKUPS_MS) reconcilePickups();
       cache.ultimateAngle = timerFacts.ultimateAngle; cache.bounty = timerFacts.bounty;
       if (kind.kind === "player" && settings.shared.ultimateTimerEnabled && cache.ultimateAngle !== null &&
           (!valid(cache.ultimateOverlay) || !valid(cache.ultimateDark) || !valid(cache.ultimateFill))) ultimateArtwork(cache, "HPColorsV3");
       if (kind.kind === "player" && settings.shared.killBountyEnabled && cache.bounty !== null && !cache.bountyLooked) bountyParts(cache, "HPColorsV3");
       // Only health/layer and bound-row extent signatures run at 0.15s. Geometry
       // refreshes at 1.5s, plus one settling sample after a layout-changing write.
-      if (!geometry || settleGeometry || force || Date.now() - lastGeometry >= 1500) sampleGeometry();
+      if (!geometry || settleGeometry || force || Date.now() - lastGeometry >= GEOMETRY_MS) sampleGeometry();
       // Low stamina follows the bar: every 0.15 s tick while active; while idle every other tick (0.3 s),
       // stretched for more than six charges so idle reads stay at the six-charge rate (10 charges: 0.6 s).
       if (cache.stamina && staminaLow(kind, settings) && (status.state !== "idle" ||
-          ++staminaIdleTicks % Math.max(2, Math.ceil((cache.staminaPips.length + 1) / 3.5)) === 0)) sampleStamina();
+          ++staminaIdleTicks % Math.max(2, Math.ceil((cache.staminaPips.length + 1) / STAMINA_IDLE_CHARGES)) === 0)) sampleStamina();
       var input = probe(), changed = input.signature !== lastProbe, configKey = epoch + "|" + revision, probed = input.signature;
-      if (status.state !== "idle" || changed || configKey !== lastConfigKey || Date.now() - lastFull >= 1500) {
+      if (status.state !== "idle" || changed || configKey !== lastConfigKey || Date.now() - lastFull >= FULL_PAINT_MS) {
         // probe() already signed the input; only a changed layer visibility needs a new signature.
         if (refreshLayerVisibility(input, cache)) signProbe(input);
         changed = input.signature !== lastProbe; probed = input.signature;
@@ -1536,7 +1608,7 @@
       lastProbe = probed;
     } catch (error) {
       status.state = "dormant";
-      cachedFacts = null; memo = null; geometry = null; lastProbe = "";
+      invalidate("painted"); geometry = null;
       try { apply(EMPTY_PLAN); } catch (restoreError) {
         // The pending stock lease survives; the next cold tick retries it.
         settleGeometry = true;
@@ -1548,7 +1620,7 @@
       // HPV3_DEBUG debugCostTicks++; debugCostMs += Date.now() - began;
       // HPV3_DEBUG if (Date.now() - debugCostAt >= 10000) { var debugSeconds = Math.max(1, Date.now() - debugCostAt) / 1000, debugRate = function (value) { return Math.round(value / debugSeconds * 10) / 10; }; if (cache && staminaWanted(kind, settings)) $.Msg("[HPV3] stamina cost " + (debugLastName || debugName()) + " " + kind.side + " reads/s=" + debugRate(debugFastReads) + " skipped/s=" + debugRate(debugFastSkipped) + " ticks/s=" + debugRate(debugCostTicks) + " paints=" + debugCostPaints + " ms=" + debugCostMs + (staminaLow(kind, settings) ? " gate=" + (cache.staminaGate || "none") + " pip0=" + debugClasses(cache.staminaPips[0]) + " icon0=" + debugClasses(cache.staminaIcons[0]) : " low=off")); debugCostAt = Date.now(); debugCostTicks = 0; debugFastTicks = 0; debugFastSkipped = 0; debugFastReads = 0; debugCostPaints = 0; debugCostMs = 0; };
       // HPV3_DEBUG if (Date.now() - timingAt >= 5000) { $.Msg("[HPV3] renderer timing ticks=" + timingTicks + " ms=" + timingMs + " paints=" + status.fullPaints + " state=" + status.state); timingAt = Date.now(); timingTicks = 0; timingMs = 0; };
-      if (running && valid(root)) scheduleTick(status.state === "dormant" ? 1 : 0.15, token);
+      if (running && valid(root)) scheduleTick(status.state === "dormant" ? TICK_DORMANT : TICK_ACTIVE, token);
       notifyTimers();
     }
   }
@@ -1559,10 +1631,10 @@
     if (!HEADER_RE.test(raw)) {
       messageHooks.slice().forEach(function (fn) { fn(raw); }); return;
     }
-    if (raw === lastRaw || raw.length > 64000) return;
+    if (raw === lastRaw || raw.length > MAX_ENVELOPE) return;
     try {
       var data = JSON.parse(raw);
-      if (!data || data.magic !== MAGIC || typeof data.epoch !== "string" || !data.epoch || data.epoch.length > 128 ||
+      if (!data || data.magic !== MAGIC || typeof data.epoch !== "string" || !data.epoch || data.epoch.length > MAX_EPOCH ||
           !Number.isSafeInteger(data.revision) || data.revision < 0 || !acceptsConfig(data.epoch, data.revision) ||
           !$.HPColorsV3WorldSettings.validate(data.settings)) return;
       retireEpoch(data.epoch);
@@ -1577,9 +1649,8 @@
     }
   }
   function requestConfig(token) {
-    if (!running || token !== generation || revision >= 0 || requestFailures >= 3 || !valid(root)) return;
-    var delays = [0.5, 1, 2, 4, 8];
-    requestJob = $.Schedule(delays[Math.min(requestAttempt, delays.length - 1)], function () {
+    if (!running || token !== generation || revision >= 0 || requestFailures >= REQUEST_FAILURE_LIMIT || !valid(root)) return;
+    requestJob = $.Schedule(REQUEST_DELAYS[Math.min(requestAttempt, REQUEST_DELAYS.length - 1)], function () {
       requestJob = null;
       if (!running || token !== generation || revision >= 0 || !valid(root)) return;
       requestAttempt++;
@@ -1596,7 +1667,7 @@
     handlerId = null;
     try { if (valid(root)) checkCarriers(); resetCache(); } catch (error) {
       // Native teardown races must not prevent cancellation or script reinclusion.
-      cache = null; cachedFacts = null; memo = null; geometry = null; lastProbe = ""; lastConfigKey = "";
+      cache = null; invalidate("painted"); geometry = null; lastConfigKey = "";
       // HPV3_DEBUG $.Msg("[HPV3] renderer stop release pending: " + String(error));
     }
     carriers = []; ancestry = []; kind = null; settings = null; revision = -1; epoch = ""; lastRaw = ""; carrierSignature = ""; showBounds = false;
@@ -1619,6 +1690,7 @@
     tick(generation, true); requestConfig(generation);
   }
   // Menu preview: the world's classify -> facts -> plan -> apply chain over a caller-owned part map
+  // ====== PREVIEW: the menu painter over the same chain ======
   // and ledger. It reads no world state, schedules nothing and registers no listener.
   function createPainter(canvas, parts) {
     var target = { root: canvas, parts: parts, ledger: [], settle: false };
@@ -1665,5 +1737,5 @@
     onMessage: function (fn) { return subscribe(messageHooks, fn); },
     onState: function (fn) { var off = subscribe(stateHooks, fn); fn(timerState()); return off; },
     refreshPickups: reconcilePickups,
-    setTimerFacts: setTimerFacts };
+    setTimerFacts: setTimerFacts, defaults: DEFAULTS };
 })();

@@ -8,15 +8,24 @@ function patchStock(text, anchor, replacement) {
   return patchOnce(text, anchor, replacement, matches => 'Stock layout patch anchor missing or ambiguous (' + matches + ' matches): ' + anchor);
 }
 
-// One script include line of a layout's <scripts> block (also used by the QOLLOCK lane).
+// One script include line of a layout's <scripts> block (also used by the QOLLOCK lane) and one stylesheet include line.
 const includeLine = name => '\t\t<include src="s2r://panorama/scripts/' + name + '.vjs_c" />\n';
+const styleLine = (name, indent = '\t') => indent + '<include src="s2r://panorama/styles/' + name + '.vcss_c" />\n';
 
 // Shared v3 Escape-menu and topbar pieces, also published to variant lanes through menuParts().
 const MENU_RESUME = 'if (!$.HPColorsMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())';
-const MENU_STYLES = '\t<include src="s2r://panorama/styles/citadel_ui_color_picker.vcss_c" />\n\t<include src="s2r://panorama/styles/hp_colors_v3_world.vcss_c" />\n\t<include src="s2r://panorama/styles/hp_colors_v3_menu.vcss_c" />\n';
-const MENU_SCRIPTS = ['hp_colors_v3_settings', 'hp_colors_v3_from_v2', 'hp_colors_v3_codec', 'hp_colors_v3_storage', 'hp_colors_v3_renderer', 'hp_colors_v3_preview', 'hp_colors_v3_menu']
-  .map(includeLine).join('');
+const MENU_OWN_STYLES = ['hp_colors_v3_world', 'hp_colors_v3_menu'];
+const MENU_STYLES = ['citadel_ui_color_picker', ...MENU_OWN_STYLES].map(name => styleLine(name)).join('');
+const MENU_SCRIPT_NAMES = ['hp_colors_v3_settings', 'hp_colors_v3_from_v2', 'hp_colors_v3_codec', 'hp_colors_v3_storage', 'hp_colors_v3_renderer', 'hp_colors_v3_preview', 'hp_colors_v3_menu'];
+const MENU_SCRIPTS = MENU_SCRIPT_NAMES.map(includeLine).join('');
 const TOPBAR_SCRIPTS = ['hp_colors_v3_world_settings', 'hp_colors_v3_timers_hud'];
+const OVERLAY_STYLES = ['hp_colors_v3_world'];
+const OVERLAY_SCRIPTS = ['hp_colors_v3_world_settings', 'hp_colors_v3_bridge', 'hp_colors_v3_renderer', 'hp_colors_v3_timers_world', 'hp_colors_v3_world_boot'];
+const STATUS_STYLES = ['hp_colors_v3_status'];
+// Every owned sheet and script a stock layout includes (the stock sheets are not ours): panorama/styles and
+// panorama/scripts hold exactly these, plus the generated stock sheet and the QOLLOCK bridge script.
+const OWNED_STYLES = [...new Set([...MENU_OWN_STYLES, ...OVERLAY_STYLES, ...STATUS_STYLES])];
+const OWNED_SCRIPTS = [...new Set([...MENU_SCRIPT_NAMES, ...OVERLAY_SCRIPTS, ...TOPBAR_SCRIPTS])];
 const TOPBAR_CLASS = 'HPColorsV3TimersTopBar';
 
 // Names the stock layout a failed patch came from.
@@ -47,9 +56,8 @@ function patchMenu(stock, menu) {
 
 function patchOverlay(stock) {
   let overlay = patchStock(stock, 'unit_status_v2.vcss', 'unit_status_v2.vcss_c');
-  overlay = patchStock(overlay, '</styles>', '\t\t<include src="s2r://panorama/styles/hp_colors_v3_world.vcss_c" />\n\t</styles>\n\t<scripts>\n' +
-    ['hp_colors_v3_world_settings', 'hp_colors_v3_bridge', 'hp_colors_v3_renderer', 'hp_colors_v3_timers_world', 'hp_colors_v3_world_boot']
-      .map(includeLine).join('') + '\t</scripts>');
+  overlay = patchStock(overlay, '</styles>', OVERLAY_STYLES.map(name => styleLine(name, '\t\t')).join('') + '\t</styles>\n\t<scripts>\n' +
+    OVERLAY_SCRIPTS.map(includeLine).join('') + '\t</scripts>');
   overlay = patchStock(overlay, '<Panel id="InfoHealthContainer">',
     '<Panel id="InfoHealthContainer">\n\t\t\t\t<Panel id="HPColorsV3Level" hittest="false" hittestchildren="false">\n' +
     '\t\t\t\t\t<Label id="unit_level_label" text="{i:player_level}" hittest="false" />\n\t\t\t\t</Panel>');
@@ -95,8 +103,7 @@ function patchTopbar(stock) {
   for (const sheet of ['citadel_base_styles', 'hud_common', 'citadel_hud_top_bar', 'unit_status_icons'])
     topbar = patchStock(topbar, sheet + '.vcss', sheet + '.vcss_c');
   topbar = patchStock(topbar, '</styles>', '</styles>\n\t<scripts>\n' +
-    TOPBAR_SCRIPTS
-      .map(includeLine).join('') + '\t</scripts>');
+    TOPBAR_SCRIPTS.map(includeLine).join('') + '\t</scripts>');
   topbar = patchStock(topbar, '<CitadelHudTopBar hittest="false">', '<CitadelHudTopBar class="' + TOPBAR_CLASS + '" hittest="false">');
   return topbar;
 }
@@ -108,7 +115,7 @@ function patchStatusEffect(stock) {
   let statusEffect = stock;
   for (const sheet of ['citadel_base_styles', 'unit_status_icons', 'citadel_status_effect'])
     statusEffect = patchStock(statusEffect, sheet + '.vcss', sheet + '.vcss_c');
-  return patchStock(statusEffect, '</styles>', '\t<include src="s2r://panorama/styles/hp_colors_v3_status.vcss_c" />\n\t</styles>');
+  return patchStock(statusEffect, '</styles>', STATUS_STYLES.map(name => styleLine(name)).join('') + '\t</styles>');
 }
 
 function stockLayouts(gameData, menu) {
@@ -120,4 +127,4 @@ function stockLayouts(gameData, menu) {
   };
 }
 
-module.exports = { patchStock, includeLine, stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS };
+module.exports = { includeLine, stockLayouts, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OVERLAY_SCRIPTS, OVERLAY_STYLES, STATUS_STYLES, OWNED_STYLES, OWNED_SCRIPTS };
