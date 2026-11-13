@@ -1,0 +1,23 @@
+# Detailed Postgame v1
+Turns the post-game **Scoreboard** screen into a stats board for all 12 players. Every stat of the match on one screen.
+
+**What it shows**
+- **Exact numbers**, not rounded: souls, kills, deaths, assists, player damage, objective damage and healing. The best value in the match is highlighted.
+- **Souls by source** for every player: troopers, neutrals, breakables, team bonus, enemy kills, objectives, urn, assists and denies.
+- **Final items**, plus MVP and Key Player slips.
+- **Soul lead graph**: who was ahead and by how much, with objectives marked in the colour of the team that took them.
+- Click the **match ID** to copy it.
+- Fits **4:3** screens.
+
+**Install**
+1. Put `pak11_dir.vpk` in `Deadlock\game\citadel\addons`.
+2. Restart Deadlock.
+3. Open a match on the post-game page and go to the Scoreboard screen.
+
+**Notes**
+- Only one mod can own the post-game page. With Observer HUD or DLF installed, their board shows instead.
+- Works alongside ShowRank.
+- Reads everything from the game's own post-game page. No web requests.
+
+Free. Support: <https://ko-fi.com/hantuaraya>
+Download: <GAMEBANANA LINK>
