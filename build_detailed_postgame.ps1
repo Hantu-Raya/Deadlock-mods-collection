@@ -19,7 +19,10 @@ $source = Join-Path $stage 'detailed_postgame'
 $compiled = Join-Path $stage 'detailed_postgame_compiled'
 $dist = Join-Path $root 'dist\detailed_postgame'
 $vpkOut = Join-Path $dist 'game\citadel\addons\pak11_dir.vpk'
-$archiveOut = Join-Path $root ('dist\Detailed_Post_Scoreboard_Menu_{0}.7z' -f (Get-Date -Format 'yy.MM.dd'))
+# The version is the board's own MOD_VERSION (the credit line), so the archive name cannot drift from it.
+$versionMatch = [regex]::Match((Get-Content -Raw (Join-Path $module 'panorama\scripts\detailed_postgame\pg_board.js')), 'MOD_VERSION\s*=\s*"([^"]+)"')
+if (-not $versionMatch.Success) { throw 'MOD_VERSION not found in pg_board.js' }
+$archiveOut = Join-Path $root ('dist\Detailed_Postgame_v{0}_{1}.7z' -f $versionMatch.Groups[1].Value, (Get-Date -Format 'yy.MM.dd'))
 $destination = 'G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak11_dir.vpk'
 $compiler = Join-Path $root 'sr2compiler\New folder.exe'
 $sevenZip = Get-RepoToolPath -ToolName '7z.exe' -Candidates @(
