@@ -12,6 +12,7 @@ const { computed } = require('./style-cascade');
 
 const root = path.resolve(__dirname, '..');
 const news = JSON.parse(fs.readFileSync(path.join(root, 'settings/news.json'), 'utf8'));
+const record = JSON.parse(fs.readFileSync(path.join(root, 'settings/record.json'), 'utf8'));
 const schema = JSON.parse(fs.readFileSync(path.join(root, 'settings/schema.json'), 'utf8'));
 const pascal = text => String(text).replace(/[^A-Za-z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : '')).replace(/^./, c => c.toUpperCase());
 const copy = value => JSON.parse(JSON.stringify(value));
@@ -49,13 +50,14 @@ function menu(options = {}) {
 }
 
 test('ticket 36: news.json holds the 3.7.0, 3.6.0, 3.5.0, 3.4.0, 3.3.0 and 3.2.0 items, each with a target row or page', () => {
+  assert.equal(record.release, '3.7.0', 'the one release pin: the newest news group below is this release');
   const v370 = ['status-effect-sizes', 'hp-percent'];
   const v360 = ['kill-bounty', 'deferred-damage-color', 'status-effects'];
   const v350 = ['neutral-hp-number', 'colorblind-saved'];
   const v340 = ['colorblind-view', 'greyed-settings', 'feedback-window', 'ultimate-badge', 'neutral-camp-bars'];
   assert.deepEqual(news.map(item => item.id), [...v370, ...v360, ...v350, ...v340, 'team-name', 'team-colors', 'team-hp-number', 'team-stamina', 'low-stamina', 'ally-stamina', 'preview-team', 'old-shield-bar', 'icons-tab']);
   for (const item of news) {
-    assert.equal(item.release, v370.includes(item.id) ? '3.7.0' : v360.includes(item.id) ? '3.6.0' : v350.includes(item.id) ? '3.5.0' : v340.includes(item.id) ? '3.4.0' : item.id === 'team-name' ? '3.3.0' : '3.2.0');
+    assert.equal(item.release, v370.includes(item.id) ? record.release : v360.includes(item.id) ? '3.6.0' : v350.includes(item.id) ? '3.5.0' : v340.includes(item.id) ? '3.4.0' : item.id === 'team-name' ? '3.3.0' : '3.2.0');
     assert.ok(['New', 'Updated'].includes(item.badge), item.id);
     assert.ok(item.targets.length || item.page, item.id + ' needs a target');
   }

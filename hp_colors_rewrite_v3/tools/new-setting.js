@@ -394,6 +394,10 @@ function checklist(result, root, lanes) {
     }
   }
   const newsTest = named('news.test.js');
+  if (newsTest) read(newsTest).forEach((text, index) => {
+    const pinned = /assert\.equal\(record\.release,\s*'([^']+)'/.exec(text);
+    if (pinned && pinned[1] !== result.release) add(newsTest, index + 1, 'release pin ' + pinned[1] + ' -> ' + result.release);
+  });
   if (newsTest && result.newsItem) {
     const lines = read(newsTest), variable = 'v' + result.release.replace(/\./g, '');
     const declared = lines.findIndex(text => new RegExp('const\\s+' + variable + '\\s*=\\s*\\[').test(text));

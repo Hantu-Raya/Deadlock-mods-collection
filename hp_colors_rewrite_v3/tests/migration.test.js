@@ -90,7 +90,7 @@ test('ticket 28: complete v2 parity preserves every setting and refuses oversize
  // Ticket 35: every v2 scope keeps a full v3 settings copy, so 19 more settings lower the largest synthetic
  // all-keys-changed save that converts under the 192,000 cap from 27 to 26 scopes; the v17 neutral camp
  // look (slot 198) lowers it to 25, the v18 objective HP number settings (204-208) to 24, and the v22 HP number
- // format (216-217) to 23, and the v23 status effect sizes (218-225) to 22.
+ // format (216-217) to 23, and the status effect sizes (218-225) to 22.
  const input=frame(4,body(22)),codec=seed.harness.$.HPColorsV3Codec;let encodes=0;
  seed.harness.$.HPColorsV3Codec={...codec,encodeRecord(bundle){encodes++;return codec.encodeRecord(bundle);}};
  const converted=legacyOf(input);assert.equal(converted.kind,'valid');assert.equal(converted.source,'v2current');assert.equal(encodes,0,'the converter never encodes');
@@ -487,7 +487,7 @@ test('ticket 28: v12 records without label slots load native defaults and promot
 test('ticket 28: v13 sparse label slots round-trip and beat same-version pending',()=>{
  const seed=launch(profile());seed.run(2000);
  const contract=seed.harness.$.HPColorsV3Settings,slots=contract.slots.filter(slot=>slot.slot>=167&&slot.slot<=175);
- assert.equal(contract.recordVersion,23,'v13 label slots stay in later record versions');
+ assert.ok(contract.recordVersion>=13,'v13 label slots stay in later record versions');
  assert.deepEqual(Array.from(slots,slot=>[slot.slot,slot.setting]),[
   [167,'criticalIndicatorVisible'],[168,'criticalOffsetX'],[169,'criticalOffsetY'],
   [170,'assassinateIndicatorVisible'],[171,'assassinateOffsetX'],[172,'assassinateOffsetY'],

@@ -59,7 +59,11 @@ test('variant, helper, script and tool files map to the suites that use them', (
   assert.deepEqual(names(map(V3 + '/tools/suite-cache.js').tests), ['audit-tooling']);
   const generator = map(V3 + '/tools/generate.js').tests;
   for (const file of fs.readdirSync(path.join(__dirname, '../tools/lib')).filter(name => name.endsWith('.js') && name !== 'stylesheets.js' && !quick.BUILD_TOOL_LIBS.includes(name.replace(/\.js$/, ''))))
-    assert.deepEqual(map(V3 + '/tools/lib/' + file).tests, generator, 'tools/lib/' + file + ' maps like generate.js');
+  {
+    // A suite that require()s the module is added on top (logging and preview-chrome read WIRE_VERSION).
+    const mapped = map(V3 + '/tools/lib/' + file).tests;
+    assert.deepEqual(generator.filter(test => !mapped.includes(test)), [], 'tools/lib/' + file + ' reaches every suite generate.js does');
+  }
   // The shared tool modules (cli, tap, run) map to the suites of the tools that read them.
   for (const file of ['cli.js', 'tap.js', 'run.js'])
     for (const name of ['quick-test', 'budgets', 'timing', 'logscan', 'ticket', 'engine-facts']) assert.ok(map(V3 + '/tools/lib/' + file).tests.includes(suite(name)), 'tools/lib/' + file + ' -> ' + name);

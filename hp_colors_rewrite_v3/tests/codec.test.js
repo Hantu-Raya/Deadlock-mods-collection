@@ -380,7 +380,7 @@ test('record v23: status effect sizes default to 100% on v22 records and round-t
   const code=sharing.exportSettingsCode(settings);assert.equal(code.ok,true);
   assert.deepEqual(plain(body(code.code).d),[[218,150],[225,250]]);
   assert.deepEqual(plain(sharing.importSettingsCode(code.code).settings),settings);
-  const outside=sharing.importSettingsCode(frame(codec,{v:23,k:'settings',d:[218,260]}));
+  const outside=sharing.importSettingsCode(frame(codec,{v:contract.recordVersion,k:'settings',d:[218,260]}));
   assert.notEqual(outside.ok&&outside.settings.shared.statusScaleFixation,260,'a size past the slider is not accepted');
 });
 

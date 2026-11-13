@@ -7,6 +7,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { loadLayout, sourceRoot } = require('./boot-layout');
 const { computed } = require('./style-cascade');
+const { WIRE_VERSION } = require('../tools/lib/settings-scripts');
 
 const root = path.resolve(__dirname, '..');
 const metadata = JSON.parse(fs.readFileSync(path.join(root, 'settings/record.json'), 'utf8'));
@@ -51,8 +52,8 @@ test('ticket 30: changing the release source alone updates the generated pane, n
   const m = menu({ sourceRoot: out, resolveScript: relative =>
     path.join(fs.existsSync(path.join(out, relative)) ? out : sourceRoot, relative) });
   assert.equal(m.find('HPColorsPreviewVersion').text, 'v3.1.7');
-  assert.equal(m.h.$.HPColorsV3Settings.version, '3.0.0', 'wire contract is not the release');
-  assert.equal(m.h.$.HPColorsV3Settings.recordVersion, 23);
+  assert.equal(m.h.$.HPColorsV3Settings.version, WIRE_VERSION, 'wire contract is not the release');
+  assert.equal(m.h.$.HPColorsV3Settings.recordVersion, metadata.recordVersion);
   for (const file of ['defaults.json', 'slots.json']) {
     assert.equal(fs.readFileSync(path.join(out, 'generated', file), 'utf8'),
       fs.readFileSync(path.join(root, 'generated', file), 'utf8'));

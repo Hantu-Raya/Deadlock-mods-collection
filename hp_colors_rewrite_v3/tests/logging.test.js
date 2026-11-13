@@ -7,12 +7,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { WIRE_VERSION } = require('../tools/lib/settings-scripts');
 
 test('boot logging matches the selected build mode and both real scripts execute', () => {
   const debug = process.env.HPV3_DEBUG === '1';
   for (const [layout, message, attribute, hostId] of [
-    ['hud_escape_menu.xml', '[HPV3] menu boot 3.0.0', 'hpv3_boot', 'HPColorsMenuHost'],
-    ['unit_status_overlay_v2.xml', '[HPV3] renderer boot 3.0.0', 'hpv3_renderer_boot', null],
+    ['hud_escape_menu.xml', '[HPV3] menu boot ' + WIRE_VERSION, 'hpv3_boot', 'HPColorsMenuHost'],
+    ['unit_status_overlay_v2.xml', '[HPV3] renderer boot ' + WIRE_VERSION, 'hpv3_renderer_boot', null],
   ]) {
     const boot = loadLayout(layout);
     boot.includeScripts(); boot.onload();
@@ -37,7 +38,7 @@ test('both real contexts expose the generated release version', () => {
     const boot = loadLayout(layout);
     boot.includeScripts();
     const contract = boot.harness.$.HPColorsV3Settings || boot.harness.$.HPColorsV3WorldSettings;
-    assert.equal(contract.version, '3.0.0');
+    assert.equal(contract.version, '3.0.0'); // the one wire-version pin; WIRE_VERSION in tools/lib/settings-scripts.js is its source
   }
 });
 
@@ -70,7 +71,7 @@ test('isolated debug staging prints the release version exactly once in both VM 
       }
       boot.onload();
       boot.harness.scheduler.runFor(3000);
-      assert.equal(boot.harness.logs.filter(line => line === '[HPV3] ' + kind + ' boot 3.0.0').length, 1);
+      assert.equal(boot.harness.logs.filter(line => line === '[HPV3] ' + kind + ' boot ' + WIRE_VERSION).length, 1);
       if (tree) {
         assert.ok(boot.harness.logs.some(line => line === '[HPV3] hero hero_inferno'));
         assert.ok(boot.harness.logs.some(line => line === '[HPV3] route applied baked_default'));

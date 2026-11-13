@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  // Reinclusion step 1: stop the previous instance (its teardown() runs before anything below is evaluated).
   if ($.HPColorsV3Renderer) $.HPColorsV3Renderer.stop();
   var MAGIC = "HP_COLORS_V3_CONFIG";
   var HEADER_RE = new RegExp('^\\s*\\{\\s*"magic"\\s*:\\s*"' + MAGIC + '"\\s*[,}]');
@@ -69,6 +70,11 @@
   // SHOW BOUNDS: session-only view state that travels beside the settings, never inside them.
   var showBounds = false;
   var job = null, jobTicket = 0, requestJob = null, handlerId = null, generation = 0, running = false;
+  // What outlives this IIFE (reinclusion), the four stores in one place:
+  //   $.HPColorsV3RendererAuthority  config epoch / revision floor / retired epochs (below)
+  //   root.HPColorsV3StockLedger     explicit stock writes, read in start() (dies with the root panel)
+  //   grid.HPColorsV3PipState        per-pip-grid paint state (applyPips)
+  //   $.HPColorsV3Renderer           the previous instance, stopped by the file's first statement
   // Authority outlives this IIFE: reinclusion must not let an old publisher regain control.
   // Opaque epochs require one retained string per replacement publisher (not per revision/paint).
   // Do not evict history: that reopens replay. It is session-only and collected with this context.
@@ -84,7 +90,7 @@
   // HPV3_DEBUG var debugLastName = "", debugTeamLogged = "", debugTeam = "", debugStamina = "", debugColors = "", debugAllyAt = -1, debugAllySeen = false, debugAllyNone = false, debugCostAt = 0, debugCostTicks = 0, debugFastTicks = 0, debugFastSkipped = 0, debugFastReads = 0, debugCostPaints = 0, debugCostMs = 0;
   // HPV3_DEBUG function debugName() { debugLastName = cache && valid(cache.name) && cache.name.text || "?"; return debugLastName; };
   // HPV3_DEBUG function debugClasses(panel) { return valid(panel) ? ["StaminaPip", "PipEmpty", "StaminaRecentlyUsed", "StaminaRecentlyDepleted"].filter(function (name) { return panel.BHasClass(name); }).join(",") : "missing"; };
-  var status = { state: "stopped", revision: -1, epoch: "", plansComputed: 0, fullPaints: 0 };
+  var status = { started: false, state: "stopped", revision: -1, epoch: "", plansComputed: 0, fullPaints: 0 };
   // Unit bars release to CSS with null; captured non-empty inline values are restored exactly.
   var relationStock = { team1: "#E7B659", team2: "#5B79E6" };
   var playerClasses = ["player", "CLASS_PLAYER"];
@@ -208,6 +214,18 @@
     // A restarted consumer may hydrate the current revision once, never an older one.
     if (nextEpoch === authority.epoch) return nextRevision > authority.revision || !settings && nextRevision === authority.revision;
     return retiredEpochs.indexOf(nextEpoch) < 0;
+  }
+  // The one place a config envelope is accepted or refused: shape, epoch/revision rule, settings validation.
+  // Returns the shared `accepted` record (no allocation per message) or null; the caller consumes it at once.
+  var accepted = { settings: null, epoch: "", revision: -1, showBounds: false };
+  function acceptConfig(raw) {
+    var data = JSON.parse(raw);
+    if (!data || data.magic !== MAGIC || typeof data.epoch !== "string" || !data.epoch || data.epoch.length > MAX_EPOCH ||
+        !Number.isSafeInteger(data.revision) || data.revision < 0 || !acceptsConfig(data.epoch, data.revision) ||
+        !$.HPColorsV3WorldSettings.validate(data.settings)) return null;
+    accepted.settings = data.settings; accepted.epoch = data.epoch; accepted.revision = data.revision;
+    accepted.showBounds = data.showBounds === true;
+    return accepted;
   }
   function retireEpoch(nextEpoch) {
     if (!authority.epoch || authority.epoch === nextEpoch || retiredEpochs.indexOf(authority.epoch) >= 0) return;
@@ -1678,7 +1696,7 @@
   }
   function tick(token, force) {
     if (!running || token !== generation) return;
-    if (!valid(root)) { stop(); return; }
+    if (!valid(root)) { teardown(); return; }
     // HPV3_DEBUG var began = Date.now();
     try {
       if (force || rediscover || Date.now() - lastCarrierCheck >= CARRIER_CHECK_MS || !ancestry.length) checkCarriers();
@@ -1749,12 +1767,10 @@
     }
     if (raw === lastRaw || raw.length > MAX_ENVELOPE) return;
     try {
-      var data = JSON.parse(raw);
-      if (!data || data.magic !== MAGIC || typeof data.epoch !== "string" || !data.epoch || data.epoch.length > MAX_EPOCH ||
-          !Number.isSafeInteger(data.revision) || data.revision < 0 || !acceptsConfig(data.epoch, data.revision) ||
-          !$.HPColorsV3WorldSettings.validate(data.settings)) return;
-      retireEpoch(data.epoch);
-      settings = data.settings; revision = data.revision; epoch = data.epoch; lastRaw = raw; showBounds = data.showBounds === true;
+      var next = acceptConfig(raw);
+      if (!next) return;
+      retireEpoch(next.epoch);
+      settings = next.settings; revision = next.revision; epoch = next.epoch; lastRaw = raw; showBounds = next.showBounds;
       authority.epoch = epoch; authority.revision = revision;
       status.revision = revision; status.epoch = epoch;
       if (requestJob) $.CancelScheduled(requestJob);
@@ -1775,7 +1791,11 @@
       requestFailures = sent ? 0 : requestFailures + 1; requestConfig(token);
     });
   }
-  function stop() {
+  // Teardown order (also the first step of start()): stop scheduling (running/generation, tick, request retry, event handler),
+  // release panels (checkCarriers before resetCache so paints are lifted from the live carriers), clear instance state,
+  // report "stopped" to timers, then release the sibling relay. Panel release is guarded: native teardown races must not
+  // prevent cancellation or reinclusion; its catch only clears what resetCache would, without touching panels.
+  function teardown() {
     running = false; generation++;
     cancelTick();
     if (requestJob) $.CancelScheduled(requestJob);
@@ -1789,16 +1809,17 @@
     }
     carriers = []; ancestry = []; kind = null; settings = null; revision = -1; epoch = ""; lastRaw = ""; carrierSignature = ""; showBounds = false;
     classReads = new WeakMap(); classSources = {};
-    status.state = "stopped"; status.revision = -1; status.epoch = "";
+    status.started = false; status.state = "stopped"; status.revision = -1; status.epoch = "";
     notifyTimers();
     if ($.HPColorsV3Bridge) $.HPColorsV3Bridge.stop();
   }
   function start() {
     var context = $.GetContextPanel();
     if (!valid(context) || (running && root === context)) return;
-    stop(); root = context;
+    teardown(); root = context;
     // Persist explicit stock writes across stop/restart and script reinclusion, not across dead roots.
     ledger = root.HPColorsV3StockLedger || []; root.HPColorsV3StockLedger = ledger;
+    status.started = true;
     running = true; requestAttempt = 0; requestFailures = 0; lastCarrierCheck = -Infinity; dormantChecks = 0;
     // HPV3_DEBUG timingAt = Date.now(); timingTicks = 0; timingMs = 0; debugCostAt = Date.now();
     handlerId = $.RegisterForUnhandledEvent("ClientUI_FireOutput", onConfig);
@@ -1858,7 +1879,7 @@
     };
   }
   // Inclusion exports only. The separate world_boot include starts the world loop.
-  $.HPColorsV3Renderer = { facts: facts, plan: plan, apply: apply, start: start, stop: stop, status: status, createPainter: createPainter,
+  $.HPColorsV3Renderer = { facts: facts, plan: plan, apply: apply, start: start, stop: teardown, status: status, createPainter: createPainter,
     onMessage: function (fn) { return $.HPColorsV3Bridge ? $.HPColorsV3Bridge.subscribe(fn) : function () {}; },
     onState: function (fn) { var off = subscribeState(fn); fn(timerState()); return off; },
     refreshPickups: reconcilePickups, barFacts: barFacts,

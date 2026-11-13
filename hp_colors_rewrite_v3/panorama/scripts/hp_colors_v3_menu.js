@@ -1218,7 +1218,7 @@
       setLabel("HPColorsConditionSlot" + slot + "Label", slot === rule.slot ? "TIER " + rule.minTier + "+" : "");
     }
     var ordinary = valuesFor(config.settings, row)[row.key];
-    var equal = row.type === "color" ? normalizeColor(rule.value) === normalizeColor(ordinary) : rule.value === ordinary;
+    var equal = controlType(row).equal(rule.value, ordinary);
     panel("HPColorsConditionApplyButton").enabled = draft.valid && !equal;
     panel("HPColorsConditionRemoveButton").enabled = !!config.rules[draft.cell];
     panel("HPColorsConditionBooleanToggle").SetHasClass("Checked", rule.value === true);
@@ -1239,9 +1239,9 @@
   function readConditionEditor(rejectedCommit) {
     if (!conditionDraft) return;
     var row = conditionDraft.row;
-    if (row.type === "color") changeCondition(normalizeColor(panel("HPColorsConditionHex").text));
-    if (row.type === "number") changeCondition(normalizeNumber(row, panel("HPColorsConditionNumberEntry").text, null));
-    if (rejectedCommit === true && !conditionDraft.valid) trigger(panel(row.type === "color" ? "HPColorsConditionHex" : "HPColorsConditionNumberEntry"), "HPC3NegativeShake");
+    var type = controlType(row), edited = type.readEditor(row);
+    if (edited !== undefined) changeCondition(edited);
+    if (rejectedCommit === true && !conditionDraft.valid) trigger(panel(type.field), "HPC3NegativeShake");
   }
   function closeCondition() {
     if (!conditionDraft) return;
@@ -1259,8 +1259,8 @@
       { slot: 1, minTier: 1, value: valuesFor(config.settings, row)[row.key] } };
     setLabel("HPColorsConditionTitle", "CONDITION");
     setLabel("HPColorsConditionSubtitle", ((row.name || row.key) + " · " + row.side).toUpperCase());
-    ["BooleanToggle", "Options", "Number", "Color"].forEach(function (kind, index) {
-      panel("HPColorsCondition" + kind).SetHasClass("HPC3Hidden", row.type !== ["boolean", "enum", "number", "color"][index]);
+    EDITOR_ORDER.forEach(function (name) {
+      panel("HPColorsCondition" + CONTROL_TYPES[name].editor).SetHasClass("HPC3Hidden", row.type !== name);
     });
     var options = panel("HPColorsConditionOptions"); options.RemoveAndDeleteChildren();
     if (row.type === "enum") row.options.forEach(function (option, index) {
@@ -1274,13 +1274,7 @@
     syncing = true;
     try {
       var value = conditionDraft.rule.value;
-      if (row.type === "number") {
-        var slider = panel("HPColorsConditionNumberSlider");
-        slider.min = row.bounds[0]; slider.max = row.bounds[1]; slider.increment = row.step; slider.value = value;
-        panel("HPColorsConditionNumberEntry").text = String(value);
-        setLabel("HPColorsConditionNumberUnit", row.unit.toUpperCase());
-      }
-      if (row.type === "color") panel("HPColorsConditionHex").text = value;
+      controlType(row).seedEditor(row, value);
     } finally { syncing = false; }
     syncCondition();
     sampleTiers();
@@ -1339,19 +1333,84 @@
   }
 
   // ---- Model -> controls ----
-  function sync(row, hueEdit) {
-    if (!config) return;
-    var value = valuesFor(config.settings, row)[row.key], target;
-    syncing = true;
-    try {
-      if (row.type === "boolean") {
-        target = panel(row.toggleId); if (target) target.SetHasClass("Checked", value === true);
-      } else if (row.type === "enum") {
+  // One entry per control type, used by sync, binding, reset, the condition editor and the requirement
+  // greying. editor = the condition dialog's editor panel suffix; field = the dialog entry a rejected
+  // value shakes; equal compares a rule value with the ordinary one. A type that is none of the first
+  // three is a number.
+  var CONTROL_TYPES = {
+    boolean: {
+      editor: "BooleanToggle", field: "HPColorsConditionNumberEntry",
+      equal: function (a, b) { return a === b; },
+      resetValue: function (row) { return row.default; },
+      readEditor: function () { return undefined; },
+      seedEditor: function () {},
+      sync: function (row, value) {
+        var target = panel(row.toggleId); if (target) target.SetHasClass("Checked", value === true);
+      },
+      bind: function (row) {
+        on(row.toggleId, "onactivate", function () { commit(row, valuesFor(config.settings, row)[row.key] !== true); });
+      }
+    },
+    enum: {
+      editor: "Options", field: "HPColorsConditionNumberEntry",
+      equal: function (a, b) { return a === b; },
+      resetValue: function (row) { return row.default; },
+      readEditor: function () { return undefined; },
+      seedEditor: function () {},
+      sync: function (row, value) {
         for (var i = 0; i < row.options.length; i++) {
-          target = panel(row.options[i].id); if (target) target.SetHasClass("Selected", row.options[i].value === value);
+          var target = panel(row.options[i].id); if (target) target.SetHasClass("Selected", row.options[i].value === value);
         }
-      } else if (row.type === "color") {
-        target = panel(row.hexId); if (target) target.text = value;
+      },
+      bind: function (row) {
+        row.options.forEach(function (option) {
+          on(option.id, "onactivate", function () { commit(row, option.value); });
+        });
+      }
+    },
+    number: {
+      editor: "Number", field: "HPColorsConditionNumberEntry",
+      equal: function (a, b) { return a === b; },
+      resetValue: function (row) { return normalizeNumber(row, row.default, config.settings); },
+      readEditor: function (row) { return normalizeNumber(row, panel("HPColorsConditionNumberEntry").text, null); },
+      seedEditor: function (row, value) {
+        var slider = panel("HPColorsConditionNumberSlider");
+        slider.min = row.bounds[0]; slider.max = row.bounds[1]; slider.increment = row.step; slider.value = value;
+        panel("HPColorsConditionNumberEntry").text = String(value);
+        setLabel("HPColorsConditionNumberUnit", row.unit.toUpperCase());
+      },
+      sync: function (row, value) {
+        var target = panel(row.entryId); if (target) target.text = String(value);
+        target = panel(row.sliderId); if (target) target.value = value;
+      },
+      bind: function (row) {
+        var slider = panel(row.sliderId);
+        if (slider && bound[row.sliderId + "\nrange"] !== slider) {
+          bound[row.sliderId + "\nrange"] = slider;
+          syncing = true;
+          try { slider.min = row.bounds[0]; slider.max = row.bounds[1]; slider.increment = row.step; } finally { syncing = false; }
+        }
+        var entry = function () {
+          if (!panel(row.entryId)) return;
+          var value = normalizeNumber(row, panel(row.entryId).text, config.settings);
+          if (value === null) trigger(panel(row.entryId), "HPC3NegativeShake");
+          commit(row, value);
+        };
+        on(row.entryId, "ontextentrysubmit", entry);
+        on(row.entryId, "onblur", entry);
+        bindSliderGesture(row, row.sliderId, function () {
+          commit(row, normalizeNumber(row, panel(row.sliderId).value, config.settings));
+        });
+      }
+    },
+    color: {
+      editor: "Color", field: "HPColorsConditionHex",
+      equal: function (a, b) { return normalizeColor(a) === normalizeColor(b); },
+      resetValue: function (row) { return row.default; },
+      readEditor: function () { return normalizeColor(panel("HPColorsConditionHex").text); },
+      seedEditor: function (row, value) { panel("HPColorsConditionHex").text = value; },
+      sync: function (row, value, hueEdit) {
+        var target = panel(row.hexId); if (target) target.text = value;
         target = panel(row.swatchId); if (target) target.style.backgroundColor = value;
         var hue = panel(row.hueId);
         if (hue) {
@@ -1367,10 +1426,38 @@
           }
           if (thumb) thumb.style.backgroundColor = value;
         }
-      } else {
-        target = panel(row.entryId); if (target) target.text = String(value);
-        target = panel(row.sliderId); if (target) target.value = value;
+      },
+      bind: function (row) {
+        var hex = function () {
+          if (!panel(row.hexId)) return;
+          var value = normalizeColor(panel(row.hexId).text);
+          if (value === null) trigger(panel(row.hexId), "HPC3NegativeShake");
+          commit(row, value);
+        };
+        on(row.hexId, "ontextentrysubmit", hex);
+        on(row.hexId, "onblur", hex);
+        on(row.swatchId, "onactivate", function () { openPicker(row); });
+        var hue = panel(row.hueId);
+        if (hue && bound[row.hueId + "\nrange"] !== hue) {
+          bound[row.hueId + "\nrange"] = hue;
+          syncing = true;
+          try { hue.min = 0; hue.max = 1000; hue.increment = 1; } finally { syncing = false; }
+        }
+        bindSliderGesture(row, row.hueId, function () {
+          commit(row, hueToHex(Number(panel(row.hueId).value) / 1000), true);
+        });
       }
+    }
+  };
+  // The condition dialog's editors, in the order the dialog hides and shows them.
+  var EDITOR_ORDER = ["boolean", "enum", "number", "color"];
+  function controlType(row) { return CONTROL_TYPES[row.type] || CONTROL_TYPES.number; }
+  function sync(row, hueEdit) {
+    if (!config) return;
+    var value = valuesFor(config.settings, row)[row.key], target;
+    syncing = true;
+    try {
+      controlType(row).sync(row, value, hueEdit);
       target = panel(row.rowId); if (target) target.SetHasClass("Changed", value !== row.default);
       target = panel(row.conditionId); if (target) target.SetHasClass("Marked", !!config.rules[cellFor(row)]);
     } finally { syncing = false; }
@@ -1384,6 +1471,8 @@
   // contract at boot; shownActive is what each row's panels last showed and is cleared whenever the panels
   // are collected again.
   var requirementRows = {}, requirementKeys = {}, shownActive = {};
+  // The rows with a condition and, parallel to them, the ids of the panels each greys (those it has).
+  var requirementList = [], requirementIds = [];
   // The words of every unmet condition for one side; a met switch passes on its own row's missing words (cascade).
   function conditionMissing(condition, side) {
     if (condition.any) {
@@ -1419,18 +1508,16 @@
   // Pure settings reads per row; panels are touched only when a row's state changes (or the panels are new).
   function syncRequirements() {
     if (!contractRef || !config) return;
-    contractRef.controls.forEach(function (row) {
-      if (!row.requires) return;
-      var active = rowActive(row);
-      if (shownActive[row.rowId] === active) return;
+    for (var i = 0; i < requirementList.length; i++) {
+      var row = requirementList[i], active = rowActive(row);
+      if (shownActive[row.rowId] === active) continue;
       var target = panel(row.rowId);
-      if (!target) return;
+      if (!target) continue;
       shownActive[row.rowId] = active;
       target.SetHasClass("HPC3RowDisabled", !active);
-      [row.toggleId, row.hexId, row.hueId, row.swatchId, row.sliderId, row.entryId, row.resetId, row.conditionId]
-        .concat(row.kind === "segment" ? row.options.map(function (option) { return option.id; }) : [])
-        .forEach(function (id) { var control = id && panel(id); if (control) control.enabled = active; });
-    });
+      var ids = requirementIds[i];
+      for (var j = 0; j < ids.length; j++) { var control = panel(ids[j]); if (control) control.enabled = active; }
+    }
   }
   function syncNavDots() {
     if (!contractRef || !config) return;
@@ -1644,57 +1731,14 @@
     on(row.rowId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.rowId)); });
     on(row.resetId, "onactivate", function () {
       closeFor(CLOSES_ON_OPEN.editor);
-      commit(row, row.type === "number" ? normalizeNumber(row, row.default, config.settings) : row.default);
+      commit(row, controlType(row).resetValue(row));
     });
     on(row.resetId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.resetId), "Reset " + row.name + " to default"); });
     on(row.resetId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.resetId)); });
     on(row.conditionId, "onactivate", function () { if (!retired) openCondition(row); });
     on(row.conditionId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.conditionId), "Ability condition · " + row.name); });
     on(row.conditionId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.conditionId)); });
-    if (row.type === "boolean") {
-      on(row.toggleId, "onactivate", function () { commit(row, valuesFor(config.settings, row)[row.key] !== true); });
-    } else if (row.type === "enum") {
-      row.options.forEach(function (option) {
-        on(option.id, "onactivate", function () { commit(row, option.value); });
-      });
-    } else if (row.type === "color") {
-      var hex = function () {
-        if (!panel(row.hexId)) return;
-        var value = normalizeColor(panel(row.hexId).text);
-        if (value === null) trigger(panel(row.hexId), "HPC3NegativeShake");
-        commit(row, value);
-      };
-      on(row.hexId, "ontextentrysubmit", hex);
-      on(row.hexId, "onblur", hex);
-      on(row.swatchId, "onactivate", function () { openPicker(row); });
-      var hue = panel(row.hueId);
-      if (hue && bound[row.hueId + "\nrange"] !== hue) {
-        bound[row.hueId + "\nrange"] = hue;
-        syncing = true;
-        try { hue.min = 0; hue.max = 1000; hue.increment = 1; } finally { syncing = false; }
-      }
-      bindSliderGesture(row, row.hueId, function () {
-        commit(row, hueToHex(Number(panel(row.hueId).value) / 1000), true);
-      });
-    } else {
-      var slider = panel(row.sliderId);
-      if (slider && bound[row.sliderId + "\nrange"] !== slider) {
-        bound[row.sliderId + "\nrange"] = slider;
-        syncing = true;
-        try { slider.min = row.bounds[0]; slider.max = row.bounds[1]; slider.increment = row.step; } finally { syncing = false; }
-      }
-      var entry = function () {
-        if (!panel(row.entryId)) return;
-        var value = normalizeNumber(row, panel(row.entryId).text, config.settings);
-        if (value === null) trigger(panel(row.entryId), "HPC3NegativeShake");
-        commit(row, value);
-      };
-      on(row.entryId, "ontextentrysubmit", entry);
-      on(row.entryId, "onblur", entry);
-      bindSliderGesture(row, row.sliderId, function () {
-        commit(row, normalizeNumber(row, panel(row.sliderId).value, config.settings));
-      });
-    }
+    controlType(row).bind(row);
   }
 
   // ---- Pages, folds and search (menu-local: never touch config or the store) ----
@@ -1757,15 +1801,20 @@
     var title = card && card.FindChildrenWithClassTraverse("HPC3CardTitle")[0];
     trigger(title, "HPC3SearchLanding");
   }
-  function resetGroup(group) {
-    closeFor(CLOSES_ON_OPEN.editor);
-    var next = clone(config.settings), rules = clone(config.rules);
+  // Group and page resets: every row of the page (and of the group, when one is given) goes back to its
+  // default and loses its condition rule. A single row's reset (bindControl) keeps its rule.
+  function resetRows(next, rules, page, group) {
     contractRef.controls.forEach(function (row) {
-      if (row.page === group.page && row.group === group.name) {
+      if (row.page === page && (group === undefined || row.group === group)) {
         valuesFor(next, row)[row.key] = row.default;
         delete rules[cellFor(row)];
       }
     });
+  }
+  function resetGroup(group) {
+    closeFor(CLOSES_ON_OPEN.editor);
+    var next = clone(config.settings), rules = clone(config.rules);
+    resetRows(next, rules, group.page, group.name);
     editSettings(next, rules);
   }
   function words(text) { return String(text).toLowerCase().split(/[^a-z0-9#%]+/).filter(Boolean); }
@@ -2200,7 +2249,7 @@
     if (resetPage === null) return;
     var page = resetPage, next = clone(config.settings), rules = clone(config.rules);
     cancelReset();
-    contractRef.controls.forEach(function (row) { if (row.page === page) { valuesFor(next, row)[row.key] = row.default; delete rules[cellFor(row)]; } });
+    resetRows(next, rules, page);
     editSettings(next, rules);
   }
 
@@ -2935,16 +2984,27 @@
         });
       });
       ruleRows = {}; rowCells = new Map(); requirementRows = {};
-      contract.slots.forEach(function (slot) {
-        ruleRows[slot.slot] = contract.controls.filter(function (row) { return row.side === slot.side && row.key === slot.setting; })[0];
-        rowCells.set(ruleRows[slot.slot], slot.slot);
-      });
+      requirementList = []; requirementIds = [];
       requirementKeys = {};
+      // One pass over the controls: key|side -> row (the last wins for requirements, the first for rules).
+      var firstRows = {};
       contract.controls.forEach(function (row) {
-        requirementRows[row.key + "|" + row.side] = row;
+        var id = row.key + "|" + row.side;
+        requirementRows[id] = row;
+        if (!firstRows[id]) firstRows[id] = row;
+        if (row.requires) {
+          requirementList.push(row);
+          requirementIds.push([row.toggleId, row.hexId, row.hueId, row.swatchId, row.sliderId, row.entryId, row.resetId, row.conditionId]
+            .concat(row.kind === "segment" ? row.options.map(function (option) { return option.id; }) : [])
+            .filter(Boolean));
+        }
         (row.requires || []).forEach(function readKeys(condition) {
           if (condition.any) condition.any.forEach(readKeys); else requirementKeys[condition.key] = true;
         });
+      });
+      contract.slots.forEach(function (slot) {
+        ruleRows[slot.slot] = firstRows[slot.setting + "|" + slot.side];
+        rowCells.set(ruleRows[slot.slot], slot.slot);
       });
       effectiveSettings = null; lastPublishedRevision = -1;
       replace(config.settings, config.rules);

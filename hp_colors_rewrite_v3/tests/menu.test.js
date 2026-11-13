@@ -759,3 +759,25 @@ test('ticket 29: VM Sliders swallow mouse panel events and emit value/release en
   assert.deepEqual(nativeValues, ['25', '40', '64']); assert.equal(releases, 0);
   h.releaseSlider(slider); assert.equal(releases, 1);
 });
+
+test('a single row reset keeps that row\'s condition rule; a page reset clears it with the values', () => {
+  let api = null;
+  const rules = {}, defaults = JSON.parse(JSON.stringify(booted().h.$.HPColorsV3Settings.defaults));
+  const store = { attach(value) { api = value; }, commit() {}, getBundle() { return { settings: JSON.parse(JSON.stringify(defaults)), presets: [] }; }, isHydrated() { return true; } };
+  const m = booted({ store });
+  const contract = m.h.$.HPColorsV3Settings;
+  const row = contract.controls.find(control => control.type === 'number' && control.side === 'enemy' && contract.slots.some(slot => slot.setting === control.key && slot.side === 'enemy'));
+  const cell = contract.slots.find(slot => slot.setting === row.key && slot.side === 'enemy').slot;
+  rules[cell] = { slot: 1, minTier: 2, value: row.bounds[0] };
+  const seeded = JSON.parse(JSON.stringify(contract.defaults));
+  assert.equal(api.applySettings(seeded, rules), true);
+  const page = contract.menu.pages.find(entry => entry.name === row.page);
+  m.activate(page.navId);
+  m.submit(row.entryId, row.bounds[1]);
+  assert.equal(m.find(row.rowId).BHasClass('Changed'), true);
+  m.activate(row.resetId);
+  assert.equal(m.find(row.rowId).BHasClass('Changed'), false);
+  assert.ok(api.getRules()[cell], 'the row reset leaves the rule');
+  m.activate('HPColorsResetPageButton'); m.activate('HPColorsResetPageConfirmButton');
+  assert.equal(api.getRules()[cell], undefined, 'the page reset clears the rule');
+});
