@@ -25,7 +25,7 @@ A spectator HUD for community tournaments: two top bar looks, team names, logos,
 
 ### Detailed Postgame
 
-A stats board on the post-game scoreboard: exact numbers per player, souls by source, final items and graphs.
+A stats board on the post-game scoreboard: exact numbers per player, souls by source, final items and graphs. [Download on GameBanana](https://gamebanana.com/mods/739947).
 
 <img src=".github/readme/detailed-postgame.jpg" width="70%" alt="Detailed Postgame scoreboard" />
 

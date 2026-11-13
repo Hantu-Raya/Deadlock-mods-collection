@@ -20,4 +20,4 @@ Turns the post-game **Scoreboard** screen into a stats board for all 12 players.
 - Reads everything from the game's own post-game page. No web requests.
 
 Free. Support: <https://ko-fi.com/hantuaraya>
-Download: <GAMEBANANA LINK>
+Download: <https://gamebanana.com/mods/739947>
