@@ -94,6 +94,11 @@ Versions follow `settings/record.json` `release` (see [SPEC](SPEC.md#implementat
   - **Behaviour changes that cannot ship or touch dev tools only:** `dev.js` treats `relay.xml` as source; `test.js --list-unmapped`; the generator throws for enums over 4 options; an unknown menu control type throws at boot; the preview API lost `setTeam`, `setUnitKind` and `shakeOnEdit`; renderer facts lost `relation`, `team1`, `team2` and the `apply` export; `showrank --check` refuses a stale v3 stage; `engine-facts` and `logscan` read `ClientVersion` with spaces around `=`.
   - **Measured load cost:** the world scripts run once per health-bar panel. Run-only load of the five world scripts went from 142 us to 162 us (median of 4000, node vm; about +20 us per bar creation, +14%). Per-tick and per-paint budgets (73 counted scenarios) did not increase.
   - **Left on purpose, and two possible bugs for the owner** (resetting one row keeps its condition rule; preview stage 284x278 in the script vs 286x280 in CSS): see the decision log.
+- **Optimisation pass (2026-11-13, commit be2a0cd; details in [research/untangle-decision-log.md](research/untangle-decision-log.md#optimisation-pass)):** all numbers come from the node harness with fake panels (engine calls are exact counts, microseconds are medians), not from the game.
+  - **Per bar:** world script load 162 -> 70 us (pre-refactor 145); the world settings script 100 -> 5 us and 54 -> 29 KB retained. Hero health tick 104.6 -> 57.5 us (enemy) and 70.6 -> 39.7 us (ally).
+  - **Menu:** one slider drag step 227 -> 130 engine calls and 12.5 -> 1.5 stringifies; a save with 30 presets 185 -> 8 stringifies (1.48 M -> 21 K characters). Saved bytes are unchanged.
+  - **Timers:** live match 3740 -> 3473 engine calls per second; bounty poll 138 -> 94, pickup heartbeat 112 -> 52.
+  - **Not improved:** renderer load is still about 37 us (23 before the refactor); minified renderer 56.1 KB (50.1) and menu 76.9 KB (75.5); the codec allocates more object bytes (encode 1655 -> 2001 KB).
 
 ### 3.6.0 (2026-11-02, game 6839; released 2026-11-04: GameBanana normal `#FileInfo_1875519`, QOLLOCK `#FileInfo_1875520`, both md5-identical to the local archives; ShowRank not uploaded; hpv2-store pushed 2026-11-04: save guard `83f6077`, `latest.json` 3.6.0 `61fc9c7`, served script hash `9bb18da5` = pin, pin `published: true`)
 

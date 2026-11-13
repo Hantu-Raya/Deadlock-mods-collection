@@ -362,3 +362,49 @@ The world scripts are evaluated once per health-bar panel. Run-only load of the 
 
 - B14: resetting one row leaves that row's condition rule in place. A test pins this.
 - The preview stage is 284x278 in the script while the CSS says 286x280.
+
+## Optimisation pass
+
+Commit `be2a0cd` on top of `8d8b20e`. All numbers come from the node test harness with fake panels, not from the game. Engine calls are exact counts; microseconds and bytes are medians with noise. Gate: 1618 tests, 73 budget scenarios with no increase, release builds of the three lanes, pak file lists unchanged. Profiles and benchmarks: `.scratch/untangle/opt/{renderer,timers,menu}/PROFILE.md` (scratch, not shipped).
+
+### Measured first
+
+Profiles of the renderer tick, the settings message to a bar, the menu drag and save, and the timers. The world scripts run once per bar panel, so load cost counts.
+
+### Changed
+
+- **World settings:** the generator emits the 221 rows as one flat array, 7 values per row. The world validator remembers the last accepted value of each field and re-checks only changed fields. The section guard and the low/high rule run on every message. The first message and any message after a refusal check everything. Old and new validators agreed on 68,384 comparisons.
+- **Renderer:** `applyTo` keeps its ledger index and uses stamps. `apply()` skips `applyTo` when `stateVersion` and the plan are unchanged. `signProbe` builds its signature without a copy. Timer state records are built only on change. `onConfig` tests the message header before reading validity.
+- **Menu:** a drag step no longer builds an undo snapshot of the whole bundle. Save uses structural copies instead of JSON round trips.
+- **Timers:** bars not concerned by a message do no calls. An empty pickup record equal to the last is not re-sent while pickup timers are off.
+
+### Before and after
+
+- Per-bar load of the five world scripts: 145 us (d6b5e62), 162 us (after the refactor), 70 us now. World settings script 100 -> 5 us, retained 54 -> 29 KB, minified 18.4 -> 8.7 KB.
+- Settings message: dormant trooper 46.5 -> 20.9 us, neutral camp 153 -> 90, boss 112 -> 85, enemy hero 219 -> 155, ally hero 277 -> 113.
+- Renderer tick: enemy hero steady 11.9 -> 9.0 us, health change 104.6 -> 57.5; ally hero 9.0 -> 7.3 and 70.6 -> 39.7; camp 22.2 -> 14.6; boss 26.8 -> 17.2; trooper 3.7 -> 2.9. Enemy hero bytes per tick: steady 16.7 -> 9.7 KB, health change 83.2 -> 26.7 KB.
+- Menu: drag step 227 -> 130 engine calls, stringify/parse 12.5/6.4 -> 1.5/0; with 30 presets about 1050 -> 400 us. Undo/preset apply 2373 -> 1145 calls; page switch 648 -> 435; closed-menu polls 56 -> 42 per second; boot 21,478 -> 16,624.
+- Save with 30 presets: 185 stringifies of 1.48 M characters -> 8 of 21 K.
+- Timers (12 players, 30 bars): 3740 -> 3473 calls per second; bounty poll 138 -> 94; ultimate poll 128 -> 106; pickup heartbeat 112 -> 52.
+
+### Not improved
+
+- Renderer load is about 37 us against 23 before the refactor. Minified renderer 56.1 KB against 50.1; menu 76.9 KB against 75.5.
+- Codec encode is 15-30 % faster but allocates more (encode 1655 -> 2001 KB, classify 955 -> 1363 KB). Saved bytes are unchanged.
+- Engine calls per renderer tick were already at the baseline, so that count barely moved.
+- Nothing was measured inside the game engine.
+
+### Review findings fixed
+
+- The validator threw on a BigInt or Symbol value; it now refuses it.
+- An enum with no options passed the guard; the empty case is now handled.
+- Stamp order in `applyTo` was wrong; fixed.
+- Owner-less parent panels lost their validity re-read when `apply()` skipped; a validity watch list keeps it.
+- Very deep input raised a RangeError; there is now a fallback.
+Reviews: `.scratch/untangle/review/opt-{menu,ws,renderer}.md`.
+
+### Behaviour notes
+
+- The idle full paint never repaired a class or style changed behind the renderer's back; a test now pins that.
+- A non-config message reaches the world timers even when the bar's root panel is dead; the timers check their own context before acting.
+- `tests/fixtures/console-sample.log` and `logscan.test.js` carry the current text of the menu's `panel()` line.
