@@ -1,124 +1,126 @@
-# Deadlock Mods Collection 🔒
+# Deadlock Mods Collection
 
-![Status](https://img.shields.io/badge/Status-Experimental-orange)
 ![Game](https://img.shields.io/badge/Game-Deadlock-red)
-![Platform](https://img.shields.io/badge/Platform-Windows_&_Linux-blue)
+![Platform](https://img.shields.io/badge/Platform-Windows-blue)
+![License](https://img.shields.io/badge/License-Apache_2.0-green)
 
-## 📖 Introduction
+Source for my Deadlock UI mods. Each mod is a folder of Panorama layouts, scripts and styles that compiles into one `pakNN_dir.vpk` for the game's `addons` folder.
 
-Welcome to the **Deadlock Mods Collection**. This repository houses a set of custom HUD modifications and gameplay scripts for Valve's _Deadlock_.
-These mods were created to experiment with the internal Panorama UI system, unlocking new ways to visualize game data like buff timers, health checking, and rank displays.
+Most players should download the released builds from GameBanana instead of building from source.
 
-Whether you're looking to customize your own HUD or understand how Deadlock's UI works under the hood, this collection serves as a practical resource.
+## Showcase
 
-## Repository Structure
+### HP Colors v3
 
-For current layout and cleanup conventions, see
-[WORKSPACE_STRUCTURE.md](WORKSPACE_STRUCTURE.md).
-Archived non-runtime metadata and one-off artifacts are kept in `_archive/`.
+Restyle Deadlock's health bars from the Escape menu: colors per side, shield bar, HP number, markers, timers, presets and share codes. [Download on GameBanana](https://gamebanana.com/mods/603113).
 
-## 🛠️ Tech Stack
+<img src=".github/readme/hp-colors-1.jpg" width="49%" alt="HP Colors v3: bar styles and the Escape menu editor" /> <img src=".github/readme/hp-colors-2.jpg" width="49%" alt="HP Colors v3: the separate shield bar" />
+<img src=".github/readme/hp-colors-3.jpg" width="49%" alt="HP Colors v3: markers on the bar" /> <img src=".github/readme/hp-colors-4.jpg" width="49%" alt="HP Colors v3: settings that follow your ability tiers" />
 
-- **Valve Panorama UI**: The underlying UI framework used by Deadlock (and Dota 2/CS2).
-- **JavaScript / XML / CSS**: Core technologies for layout and logic.
+### Observer HUD
 
-## ✨ Features
+A spectator HUD for community tournaments: two top bar looks, team names, logos, series score, bans and a private-lobby setup page. [Download on GameBanana](https://gamebanana.com/mods/731315).
 
-This collection includes several discrete modules:
+<img src=".github/readme/observer-hud-1.jpg" width="49%" alt="Observer HUD: match setup from the private lobby" /> <img src=".github/readme/observer-hud-2.jpg" width="49%" alt="Observer HUD: custom top bars for leagues" />
 
-### TopBar Rank Barebones (V40D TopBarPlus)
+### Detailed Postgame
 
-Two mutually exclusive editions replace the former combined design with a clean cutover: the V40D TopBarPlus base plus the ES5 ShowRank Barebones rank surfaces. They preserve native `GameTime`, all TopBarPlus script includes, account-ID authority, duplicate-name/account safety, bounded Escape probing, six/twelve verified-account caching, native Escape behavior, and ranks in profile, context menu, topbar, team average, and player list. They do not use the old canonical ShowRank bridge.
+A stats board on the post-game scoreboard: exact numbers per player, souls by source, final items and graphs.
 
-- **Alert edition (`topbar_rank`)** — ranks plus missing labels, portrait darkening, clock polling, notification root, and hero-icon announcements.
-- **No-missing edition (`topbar_rank_no_missing`)** — rank-only; it contains none of the alert-only features.
+<img src=".github/readme/detailed-postgame.jpg" width="70%" alt="Detailed Postgame scoreboard" />
 
-Both editions check in 16 TopBarPlus base assets derived from the supplied `G:\v40d_top_bar_plus.zip`. Archive witnesses: ZIP SHA-256 `9610965fc621c7d2f8fa5054c79c1d31f32ef30bb93dfd2ea2475598ba6bd608`; VPK SHA-256 `986d28a49f06919d84a090e9921929075fb2b9c5a445df58de13b1e06921d10d`. Each source tree packages 22 assets: those 16 base assets, four rank layouts (profile, context menu, Escape, player list), one Barebones runtime, and one Barebones style. The topbar root and player layouts are merged replacements, not additions.
+### Buff Timer
 
-Build from the repository root:
+Timers for rejuvenator, urn and other buffs beside the minimap.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build_topbar_rank_barebones.ps1
-powershell -ExecutionPolicy Bypass -File .\build_topbar_rank_barebones_no_missing.ps1
-```
+<img width="530" height="280" alt="Buff Timer" src="https://github.com/user-attachments/assets/8dae2040-129b-4af3-9c08-dde441d0ba22" />
 
-The artifacts are `topbar_rank_barebones_dir.vpk` and `topbar_rank_barebones_no_missing_dir.vpk`. Either build may use `-KeepStaging`; use `-Install` only to install one edition as `G:\SteamLibrary\steamapps\common\Deadlock\game\citadel\addons\pak89_dir.vpk`. Because both use `pak89_dir.vpk`, install only one at a time.
+## Mods
 
-These TopBar Rank editions are separate from the standalone `showrank_barebones` editions and their release artifacts. Source/build validation verifies inputs and packages; it is not live in-game proof. Smoke-test the installed edition in Deadlock.
+### Maintained
 
-### ❤️ Health & Status
+| Mod | Folder | What it does |
+|---|---|---|
+| HP Colors v3 | [`hp_colors_rewrite_v3`](hp_colors_rewrite_v3) | Health bar editor. Variants for QOLLOCK ([`_qollock`](hp_colors_rewrite_v3_qollock)) and ShowRank ([`_showrank`](hp_colors_rewrite_v3_showrank)). |
+| Observer HUD | [`observer_hud`](observer_hud) | Tournament spectator HUD with an Escape-menu editor and lobby setup. |
+| DLF Observer | [`dlf`](dlf) | Spectator HUD and broadcast banner for the DLF league. |
+| Detailed Postgame | [`detailed_postgame`](detailed_postgame) | Post-game stats board. |
+| Buff Timer | [`buff_timer_virgin`](buff_timer_virgin) | Buff timers beside the minimap, with a settings page. |
+| ShowRank Barebones | [`showrank_barebones`](showrank_barebones) | Predicted rank on profile cards, the top bar and Escape player rows. |
+| Show Rank Merger | [`Show-rank-merger`](Show-rank-merger) | Browser app that merges two GameBanana downloads into one VPK. |
+| Feeder Feed | [`feeder_feed`](feeder_feed) | A tab in the damage report that ranks who fed souls to the other team. |
+| Mercurial Magnum Notifier | [`mercurial_magnum_notifier`](mercurial_magnum_notifier) | Item-state indicators beside the ammo count. |
+| Passive Items and Actives Icons | [`abilities`](abilities) | Always shows passive items and active icons ([GameBanana](https://gamebanana.com/mods/601444)). |
+| Old Main Menu | [`old_main_menu`](old_main_menu) | The July 2025 main menu on the current client. |
+| Profile Stats | [`profile_stats_community`](profile_stats_community) | Community stats on the profile page. |
+| FPS configs | [`fps`](fps) | FPS optimization configs and the benchmarks behind them. |
 
-- **Custom Health Bars**: Modified health bars (`hp`, `self_hp`) including color-blind friendly options.
+### Deprecated
 
-### 📊 Utility
+These have not been updated for months and may not work on the current game build. The source stays here for reference.
 
-- **Recent Purchase Tracker**: Keeps a history of items bought in the current session.
-- **Buff Timer (`buff_timer_virgin`)**: Full timer edition with Bridge Buff minimap glows, claim indicators, and enemy-fog linger markers.
-- **Buff Timer Minimal (`buff_timer_virgin_minimal`)**: Timers-only edition. It keeps Rejuvenator, Bridge Buff, Rift, Urn, neutral-phase, and team-chat timers without custom minimap glows, claim overlays, or enemy `?` markers.
-- **Legacy Target**: Restores targeting indicators to previous styles.
+| Mod | Folder | Last change |
+|---|---|---|
+| HP Colors v2 and v1 | `hp_colors_rewrite_v2*`, `hp_colors_rewrite`, `hp_colors*` | Oct 2026 (replaced by v3) |
+| Recent Purchase | `recent_purchase` | Oct 2026 |
+| Soul Timer, Jungle Timer, Combined Timer | `soul_timer`, `jungle_timer`, `combined_timer_v2` | Aug 2026 |
+| Better Map, old color blind | `bettermapmod`, `old_color_blind` | Aug 2026 |
+| Self HP, Shiv sound | `self_hp`, `hp`, `shiv` | May 2026 |
+| Early experiments | `radar`, `event*`, `apis`, `api_test`, `obj_damage_top_bar`, `post`, `legacytarget` | Jan 2026 or earlier |
 
-## 🏗️ Building from Source
+<details>
+<summary>Old screenshots (deprecated mods)</summary>
 
-**Note**: This repository contains the raw source code. before installing, you must compile the mods.
+**Recent Purchase (deprecated)**
 
-1.  **Compile Source**: Use the **Dota 2 Workshop Tools** to compile the scripts and layout files.
-2.  **Create VPK Structure**: After compiling, you need to pack the files into a VPK format or folder structure.
-    - _The game requires this format to load the mods correctly._
+<img width="315" alt="Recent Purchase (deprecated)" src="https://github.com/user-attachments/assets/1b4d8704-4df8-4bb2-bdcd-c0002bba9266" />
 
-## 🚀 How to Run
+**Soul Timer (deprecated)**
 
-### Prerequisite: Enable Mod Loading
+<img width="431" alt="Soul Timer (deprecated)" src="https://github.com/user-attachments/assets/28a68dcc-3885-469b-92da-2798e964bfde" />
 
-Before mods can work, you must tell the game to look for them.
+**Self HP (deprecated)**
 
-1.  Navigate to your Deadlock installation directory:
-    - Usually: `C:\Program Files (x86)\Steam\steamapps\common\Deadlock\game\citadel`
-2.  Open **`gameinfo.gi`** with a text editor (Notepad, VS Code, etc.).
-3.  Locate the `SearchPaths` section.
-4.  Add the line `Game citadel/addons` **ABOVE** the `Game citadel` line. It should look like this:
+<img width="619" alt="Self HP (deprecated)" src="https://github.com/user-attachments/assets/5d0c7997-43c7-4211-963c-f5c30ee91149" />
+
+**Shiv Neon Prime sound (deprecated)**
+
+[![Shiv Neon Prime Sound](http://img.youtube.com/vi/o2YOa693yLQ/0.jpg)](http://www.youtube.com/watch?v=o2YOa693yLQ)
+
+</details>
+
+## Install
+
+1. Open your Deadlock folder, usually `C:\Program Files (x86)\Steam\steamapps\common\Deadlock\game\citadel`.
+2. Open `gameinfo.gi` in a text editor and find `SearchPaths`.
+3. Add `Game citadel/addons` above the `Game citadel` line:
 
     ```text
     SearchPaths
     {
-        Game citadel/addons   <-- ADD THIS LINE
+        Game citadel/addons
         Game citadel
         Game core
         ...
     }
     ```
 
-5.  Save and close the file.
+4. Put the mod's `pakNN_dir.vpk` in `game\citadel\addons` (create the folder if it is missing) and restart the game.
 
-## 🧠 Process & Learnings
+## Build from source
 
-_Building this collection involved reverse-engineering the existing HUD XML layouts._
+The repository holds raw source; the game loads compiled files only.
 
-- **Challenge**: Finding the correct parent panels to attach custom elements to was trial-and-error.
-- **Learning**: Learned how to hook into game events (like `OnTakeDamage` or `OnBuyItem`) using the Panorama event system.
-- **Technique**: Discovered the "CSS Hijack" pattern to override game styles without modifying XML, by creating CSS files with matching names and using `@import` to load the base styles.
-- **Improvement**: Future versions could use a centralized loader instead of separate folders for easier management.
+- **HP Colors v3:** needs Node.js. Run `node hp_colors_rewrite_v3/tools/doctor.js` to check the toolchain, then `node hp_colors_rewrite_v3/tools/build.js --project v3|qollock|showrank|all --skip-deploy`. See [`hp_colors_rewrite_v3/AGENTS.md`](hp_colors_rewrite_v3/AGENTS.md).
+- **Other mods:** run the matching `build_<mod>.ps1` in the repository root. Each mod's `AGENTS.md` lists its checks.
 
-## 🎥 Preview
-
-<img width="530" height="280" alt="image" src="https://github.com/user-attachments/assets/8dae2040-129b-4af3-9c08-dde441d0ba22" />
-<img width="630" height="991" alt="image" src="https://github.com/user-attachments/assets/1b4d8704-4df8-4bb2-bdcd-c0002bba9266" />
-<img width="782" height="516" alt="image" src="https://github.com/user-attachments/assets/8dc2b32e-958b-4af3-9c08-dde441d0ba22" />
-<img width="431" height="100" alt="image" src="https://github.com/user-attachments/assets/28a68dcc-3885-469b-92da-2798e964bfde" />
-<img width="619" height="348" alt="image" src="https://github.com/user-attachments/assets/5d0c7997-43c7-4211-963c-f5c30ee91149" />
-
-### Shiv Neon Prime Sound Example
-
-[![Shiv Neon Prime Sound](http://img.youtube.com/vi/o2YOa693yLQ/0.jpg)](http://www.youtube.com/watch?v=o2YOa693yLQ)
+Builds never write to the game folder; copy the resulting VPK yourself.
 
 ## License
 
 Unless otherwise noted, original code and original mod source in this repository are licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
-Attribution notices for this project are included in [NOTICE](NOTICE). If you distribute this software or derivative works, preserve the applicable copyright, license, and notice files as required by Apache-2.0.
-
-### Attribution
-
-When distributing this project or derivative works based on its original code, please preserve the included `LICENSE` and `NOTICE` files. This project was created by Hantu-Raya.
+Attribution notices for this project are included in [NOTICE](NOTICE). If you distribute this software or derivative works, preserve the applicable copyright, license, and notice files as required by Apache-2.0. This project was created by Hantu-Raya.
 
 ### Third-party and game materials
 
