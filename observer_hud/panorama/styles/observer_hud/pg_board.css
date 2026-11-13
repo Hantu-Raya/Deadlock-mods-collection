@@ -490,10 +490,6 @@
 	horizontal-align: center;
 	vertical-align: center;
 	text-align: center;
-	/* a 7-digit value must stay inside the 105 px cell */
-	max-width: 101px;
-	white-space: nowrap;
-	text-overflow: shrink;
 	font-family: VALVEOracle, Reaver, sans-serif;
 	font-size: 21px;
 	font-weight: bold;
@@ -520,7 +516,7 @@
 .NSCell.NSBest .NSCellValue
 {
 	min-width: 42px;
-	max-width: 97px; /* 105 px cell less the 2 x 3 px padding and a margin, so the box fits either box model */
+	/* no max-width, nowrap or text-overflow on these labels: they put the number small and left of its burst (user, live 2026-11-13) */
 	padding: 8px 3px;
 	background-size: 42px 42px;
 	background-repeat: no-repeat;
