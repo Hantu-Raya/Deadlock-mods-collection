@@ -40,6 +40,76 @@
 	opacity: 1;
 }
 
+/* ---------- credit strip (STANDALONE ONLY: pak11; observer_hud has its own branding) ----------
+   One line at the bottom centre of the screen, under the stock page-nav row. Measured 2026-11-13 (live shots,
+   build 6861, 16:9 and 4:3): the nav buttons span y 1011..1050 of the 1080 virtual height at both ratios (the
+   stock footer is not scaled by the board), so the strip's 18 px box sits at y 1058..1076 (4 px margin-bottom),
+   8 px under the buttons. It is a sibling of NSFrame, outside the ui-scale fit. Only NSCreditDonate is hittable. */
+.NSCredit
+{
+	width: fit-children;
+	height: 18px;
+	horizontal-align: center;
+	vertical-align: bottom;
+	margin-bottom: 4px;
+	flow-children: right;
+	visibility: collapse;
+}
+
+/* same two steps as the frame: NSOn (set by show) lays it out at opacity 0, NSIntro (set by the intro) fades it in */
+.NSCredit.NSOn
+{
+	visibility: visible;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.4s;
+}
+
+.NSCredit.NSOn.NSIntro
+{
+	opacity: 1;
+}
+
+.NSCreditText,
+.NSCreditSep,
+.NSCreditDonate
+{
+	vertical-align: center;
+	font-family: VALVEPulp, "Noto Sans", sans-serif;
+	font-size: 12px;
+	letter-spacing: 1px;
+	text-shadow: 0px 0px 0px 2 #10130D;
+}
+
+.NSCreditText
+{
+	color: #aeaa94aa;
+}
+
+.NSCreditSep
+{
+	color: #aeaa9466;
+	margin: 0px 8px;
+}
+
+/* not hittable until the entrance has played, so it never takes a click while the board is faded out */
+.NSCreditDonate
+{
+	color: #D4860B;
+	padding: 2px 6px;
+	visibility: collapse;
+}
+
+.NSCredit.NSIntro .NSCreditDonate
+{
+	visibility: visible;
+}
+
+.NSCreditDonate:hover
+{
+	color: #FBDCA0;
+}
+
 /* ---------- header: two dark torn paper scraps, plain centre ---------- */
 
 .NSHeader

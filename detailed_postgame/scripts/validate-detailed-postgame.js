@@ -433,6 +433,7 @@ function boardWorld({ visible = true, graph = null, names = true } = {}) {
       if (graph && name === "DispatchPanelEvent" && args[1] === "onmouseover") showTip(args[0]);
       // The native column mouseout hides the tooltip: TooltipVisible off (client.dll 6821 0x181a98620).
       if (graph && name === "DispatchPanelEvent" && args[1] === "onmouseout" && tip && graphCanvas && graphCanvas.children.includes(args[0])) tip.classes.delete("TooltipVisible");
+      if (name === "ExternalBrowserGoToURL") copy.urls.push(args[0]);
       if (name === "CitadelPostGameCopyMatchID") { if (copy.stockThrows) throw new Error("Event arguments could not be parsed"); copy.stock.push(args[0]); }
       if (name === "TextEntryCopyToClipboard") copy.entry.push({ text: String(args[0].text), selected: !!args[0].allSelected, focused: !!args[0].focused });
       if (graph && graph.lanes && name === "CitadelMatchDetailsGraphClickPlayer") showLane(args[0], args[1]);
@@ -469,7 +470,7 @@ function boardWorld({ visible = true, graph = null, names = true } = {}) {
   // Stock tooltip_base (6821): .TooltipContainer { opacity: 0 } and .TooltipVisible { opacity: 1 }; the
   // native show adds TooltipVisible, the native hide removes it. An inline opacity beats both rules.
   const tipLog = { opaqueFrames: 0, shows: 0 };
-  const copy = { stock: [], entry: [], stockThrows: false };
+  const copy = { stock: [], entry: [], stockThrows: false, urls: [] };
   let tip = null;
   const showTip = (col) => {
     const cols = graphCanvas ? graphCanvas.children : [];
@@ -1386,11 +1387,71 @@ check("standalone: only its own detailed_postgame files, every include resolves,
   assert.match(read("panorama/scripts/detailed_postgame/pg_loader.js"), /play_btn_grn_flame\.webm/);
 });
 
+check("standalone: the credit strip (donate link) sits under the page nav, shows with the board, only DONATE is hittable, a click opens Ko-fi, teardown hides it", () => {
+  // How it could fail: the strip is missing or shows another version text; it or its text covers the stock nav, ESC BACK or
+  // the replay buttons (a hittable ancestor or label); DONATE opens the wrong page or another event; the strip shows on
+  // another post-game screen or after teardown; it sits inside the scaled frame; it leaked into observer_hud.
+  const board = read("panorama/layout/detailed_postgame/pg_board.xml");
+  const js = read("panorama/scripts/detailed_postgame/pg_board.js");
+  const css = read("panorama/styles/detailed_postgame/pg_board.css");
+  assert.match(js, /const MOD_VERSION = "1";/);
+  assert.match(js, /const CREDIT_TEXT = `DETAILED POSTGAME V\$\{MOD_VERSION\} BY HANTURAYA`;/);
+  const strip = board.match(/<Panel id="NSCredit"[\s\S]*?\n\t\t<\/Panel>/);
+  assert.ok(strip, "strip in the layout");
+  assert.ok(board.indexOf('id="NSCredit"') < board.indexOf('id="NSFrame"') && !/<Panel id="NSFrame"[\s\S]*id="NSCredit"/.test(board), "sibling of the frame, outside the ui-scale");
+  const hit = [...strip[0].matchAll(/<(?:Panel|Label)\b[^>]*>/g)].map((m) => [m[0].match(/id="([^"]+)"|class="([^"]+)"/), /hittest="true"/.test(m[0]), /hittest="false"/.test(m[0])]);
+  assert.equal(hit.filter((h) => h[1]).length, 1, "exactly one hittable element");
+  assert.ok(/id="NSCreditDonate"[^>]*hittest="true"/.test(strip[0]));
+  assert.ok(hit.filter((h) => !h[1]).every((h) => h[2]), "everything else says hittest=false");
+  assert.match(css, /\.NSCredit\s*\{[^}]*horizontal-align: center;[^}]*vertical-align: bottom;/);
+  assert.match(css, /\.NSCredit\s*\{[^}]*height: 18px;[^}]*margin-bottom: 4px;/);
+  assert.match(css, /\.NSCreditDonate:hover\s*\{\s*color: #FBDCA0;/);
+  assert.match(js + css + board, /STANDALONE ONLY/);
+  for (const [name, text] of [["pg_board.js", js], ["pg_board.css", css], ["pg_board.xml", board]]) assert.match(text, /STANDALONE ONLY|standalone-only|standalone only/i, `${name} marks the block`);
+  const w = boardWorld({ graph: { duration: 31 * 60 + 7, souls: [140000, 150000] } });
+  w.boot();
+  const host = w.boardHost();
+  const credit = host.FindChildTraverse("NSCredit");
+  const donate = host.FindChildTraverse("NSCreditDonate");
+  assert.equal(w.text("NSCreditText"), "DETAILED POSTGAME V1 BY HANTURAYA");
+  assert.ok(!credit.BHasClass("NSOn") && !credit.BHasClass("NSIntro"), "hidden before the board shows");
+  present(w, pgMatch(121685912));
+  w.advance(20000);
+  assert.equal(w.shown(), 1, "board built");
+  assert.ok(credit.BHasClass("NSOn"), "laid out with the board");
+  assert.equal(credit.BHasClass("NSIntro"), host.FindChildTraverse("NSFrame").BHasClass("NSIntro"), "the strip follows the frame's entrance");
+  w.selectScreen("ScoreboardScreen");
+  w.advance(3000);
+  assert.ok(credit.BHasClass("NSOn") && credit.BHasClass("NSIntro"), "on the Scoreboard screen: shown, in the same intro as the frame");
+  assert.ok(host.FindChildTraverse("NSFrame").BHasClass("NSIntro"));
+  assert.equal(typeof donate.events.onactivate, "function", "DONATE takes the click");
+  assert.equal(w.text("NSCreditText"), "DETAILED POSTGAME V1 BY HANTURAYA");
+  donate.events.onactivate();
+  deq(w.copy.urls, ["https://ko-fi.com/hantuaraya"], "one ExternalBrowserGoToURL with the Ko-fi page");
+  // another post-game screen: the frame loses NSIntro and so does the strip (DONATE collapses with it, so it takes no click)
+  w.selectScreen("GraphsScreen");
+  w.advance(5000);
+  assert.ok(!host.FindChildTraverse("NSFrame").BHasClass("NSIntro"), "frame hidden off the Scoreboard screen");
+  assert.ok(!credit.BHasClass("NSIntro"), "strip hidden off the Scoreboard screen");
+  w.selectScreen("ScoreboardScreen");
+  w.advance(3000);
+  assert.ok(credit.BHasClass("NSIntro"), "back on the Scoreboard screen");
+  host.NSStop();
+  assert.ok(!credit.BHasClass("NSOn") && !credit.BHasClass("NSIntro"), "hidden after teardown");
+  assert.ok(noBoardErrors(w));
+  // the observer fork is untouched
+  for (const f of ["observer_hud/panorama/scripts/observer_hud/pg_board.js", "observer_hud/panorama/layout/observer_hud/pg_board.xml", "observer_hud/panorama/styles/observer_hud/pg_board.css"]) {
+    const t = fs.readFileSync(path.join(REPO, f), "utf8");
+    assert.ok(!/NSCredit|ko-fi|HANTURAYA/i.test(t), `${f}: no credit strip`);
+  }
+});
+
 check("standalone: no observer extras - no web page, no handoff listener, stock team names, no organiser or alias", () => {
   // How it could fail: a leftover store call loads a hosted page for every match; a leftover handoff
   // listener lets another mod's OHM1 message rename the teams; the header or graph shows a card's names.
   for (const name of ["pg_board.js", "pg_loader.js"]) {
-    const js = script(name);
+    // the standalone credit strip's Ko-fi constant is the one allowed URL
+    const js = script(name).replace(/^.*const DONATE_URL = .*$/m, "");
     for (const bad of [/https?:\/\//, /SetURL/, /CitadelHTMLPanel/, /ClientUI_FireOutput/, /\$\.OHState/, /\bOH\./]) assert.ok(!bad.test(js), `${name}: no ${bad}`);
   }
   const w = boardWorld({ graph: { duration: 31 * 60 + 7, souls: [140000, 150000] } });

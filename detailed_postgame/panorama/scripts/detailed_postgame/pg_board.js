@@ -13,6 +13,10 @@
   "use strict";
 
   const TAG = "[DPS]";
+  // STANDALONE ONLY (pak11): credit + donate strip under the stock page nav; observer_hud has its own branding and none of this.
+  const MOD_VERSION = "1";
+  const CREDIT_TEXT = `DETAILED POSTGAME V${MOD_VERSION} BY HANTURAYA`;
+  const DONATE_URL = "https://ko-fi.com/hantuaraya";
   // Event-driven (plan phase 2): the match event (CitadelMatchDetailsUpdated) and a screen pick
   // (CitadelPostGameSelectScreenIndex) check at once; otherwise one check a second. While the page is
   // hidden that check reads only PageVisible: live, reopening a match already loaded this session
@@ -112,7 +116,8 @@
     clock: null, match: null, soulsLabel: null, frame: null,
     graph: null, draw: null, canvas: null, marks: null, peaks: [null, null], end: null, ticks: null, events: null, stems: null,
     top: null, bottom: null, topScale: null, bottomScale: null,
-    progress: null, progressFill: null, progressText: null, progressStep: null
+    progress: null, progressFill: null, progressText: null, progressStep: null,
+    credit: null, creditDonate: null // standalone-only credit strip
   };
   const S = {
     key: "",
@@ -186,6 +191,24 @@
     UI.progressStep = ctx.FindChildTraverse("NSProgressStep");
     UI.frame = ctx.FindChildTraverse("NSFrame");
     if (ok(UI.match)) UI.match.SetPanelEvent("onactivate", copyMatchId);
+    // standalone-only credit strip: the text carries the version, only the donate label takes clicks
+    UI.credit = ctx.FindChildTraverse("NSCredit");
+    UI.creditDonate = ctx.FindChildTraverse("NSCreditDonate");
+    const creditText = ctx.FindChildTraverse("NSCreditText");
+    if (ok(creditText)) creditText.text = CREDIT_TEXT;
+    if (ok(UI.creditDonate)) UI.creditDonate.SetPanelEvent("onactivate", openDonate);
+  }
+
+  // ---------- credit strip (standalone only) ----------
+  // The strip follows the frame: NSOn with the board, NSIntro with its entrance (that also makes the donate label hittable).
+  function openDonate() {
+    try { $.DispatchEvent("ExternalBrowserGoToURL", DONATE_URL); } catch (e) { log(`donate link: ${e}`); }
+  }
+  function creditSet(on, intro) {
+    const p = UI.credit;
+    if (!ok(p)) return;
+    if (on) p.AddClass("NSOn"); else p.RemoveClass("NSOn");
+    if (intro) p.AddClass("NSIntro"); else p.RemoveClass("NSIntro");
   }
 
   // ---------- progress bar ----------
@@ -917,6 +940,7 @@
     const graphOn = ok(UI.graph) && UI.graph.BHasClass("NSOn");
     if (graphOn) UI.graph.RemoveClass("NSShow");
     trigger([UI.frame], "NSIntro");
+    trigger([UI.credit], "NSIntro");
     trigger(S.cols.map((c) => c.column), "NSIn");
     trigger(souls, "NSShow");
     if (graphOn) { trigger([UI.graph], "NSShow"); reveal(); }
@@ -927,6 +951,7 @@
     S.introShown = false;
     S.introToken++;
     if (ok(UI.frame)) UI.frame.RemoveClass("NSIntro");
+    if (ok(UI.credit)) UI.credit.RemoveClass("NSIntro");
     for (const c of S.cols) {
       if (ok(c.column)) c.column.RemoveClass("NSIn");
       itemsShown(c, false);
@@ -935,6 +960,7 @@
 
   function show(m) {
     UI.frame.AddClass("NSOn");
+    if (ok(UI.credit)) UI.credit.AddClass("NSOn");
     S.introShown = false;
     if (UI.screen.BHasClass("Focused")) playIntro();
     for (const kid of UI.screen.Children()) {
@@ -951,6 +977,7 @@
     if (S.hovered) unhover(); // a scan cut short leaves its hover open
     unhoverItems(HOVER.items);
     if (ok(UI.frame)) { UI.frame.RemoveClass("NSOn"); UI.frame.RemoveClass("NSIntro"); }
+    creditSet(false, false);
     for (const c of S.cols) {
       if (ok(c.column)) c.column.DeleteAsync(0);
       css(c.items, { transitionDuration: "0s", opacity: "1" }); // the rows may stay stock

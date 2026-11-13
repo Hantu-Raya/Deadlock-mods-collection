@@ -19,6 +19,13 @@
 			</Panel>
 			<Label id="NSProgressStep" class="NSProgressStep" text="" />
 		</Panel>
+		<!-- STANDALONE ONLY (pak11): credit + Ko-fi donate strip under the stock page-nav row. Not in observer_hud (its own branding).
+		     Sibling of NSFrame, so the board fit (ui-scale on NSFrame / the scoreboard) never scales it. Only #NSCreditDonate is hittable. -->
+		<Panel id="NSCredit" class="NSCredit" hittest="false">
+			<Label id="NSCreditText" class="NSCreditText" text="" hittest="false" />
+			<Label class="NSCreditSep" text="|" hittest="false" />
+			<Label id="NSCreditDonate" class="NSCreditDonate" text="DONATE" hittest="true" />
+		</Panel>
 		<Panel id="NSFrame" class="NSFrame" hittest="false">
 			<Panel id="NSHeader" class="NSHeader" hittest="false">
 				<Panel class="NSHeadSide NSHeadLeft" hittest="false">
