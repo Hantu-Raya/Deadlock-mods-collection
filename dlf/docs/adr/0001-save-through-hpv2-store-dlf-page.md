@@ -1,0 +1,5 @@
+# Save the match through the hosted `/dlf/` page
+
+The editor saves through a hidden `CitadelHTMLPanel#DLFStore` that loads `https://hantu-raya.github.io/hpv2-store/dlf/` (source `D:/hpv2-store/dlf/index.html`, repo `Hantu-Raya/hpv2-store`), the same pattern as the Buff Timer store. A page on the existing store origin keeps the save across restarts without a new service. The page uses its own key, `hantu.dlf.v1/match`, and never touches the HP Colors or Buff Timer keys.
+
+The cost is that a hosted page can be unreachable, stale or newer than the menu. The menu therefore treats the store as optional: an unreachable page leaves a working session without saving, a damaged or newer save blocks writes until RESET, and a page without the record cap (`m`) or the delete op (`d`) is handled as the older page (1024-character records; FORGET SAVE reports that it needs the updated page). Pushing the page publishes it for everyone (Pages caches up to 10 minutes) and needs the user's go-ahead. The protocol is in [SPEC.md](../../SPEC.md#save-and-share); the page is checked by the validator against a fake CEF panel.

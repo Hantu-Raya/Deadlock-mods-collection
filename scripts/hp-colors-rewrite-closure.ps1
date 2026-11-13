@@ -80,6 +80,63 @@ function Get-HpColorsRewriteClosureContract {
         'feeder_feed.js' {
             return @('FeederFeedStop', 'ff_entry', 'FeederRow', 'CitadelHudInfoFeed')
         }
+        'dlf_state.js' {
+            return @('DLFState', 'dlf_match_state', 'DLFC1.')
+        }
+        'dlf_banner.js' {
+            return @('DLFBannerStop', 'DLFBanner')
+        }
+        'dlf_menu.js' {
+            return @('DLFMenuStop', 'DLFMenuCancel', 'hantu-raya.github.io/hpv2-store/dlf/', 'TextEntryCopyToClipboard')
+        }
+        'dlf_debuffs.js' {
+            return @('DLFDebuffsStop', 'DLF_DEBUFF_SNAPSHOT', 'DLF_DEBUFF_CONFIG')
+        }
+        'dlf_debuff_world.js' {
+            return @('DLFDebuffStop', 'DLFOnDebuffConfig', 'DLF_DEBUFF_SNAPSHOT')
+        }
+        'dlf_debuff_relay.js' {
+            return @('dlf_debuff_message', 'ClientUI_FireOutput')
+        }
+        'dlf_ult_cooldown.js' {
+            return @('DLFUltCooldownStop', 'DLFUltCooldown')
+        }
+        'dlf_soul_graph.js' {
+            return @('DLFSoulGraphStop', 'DLFSoulGraph', 'TeamScoreFriendly', 'RejuvBuff', 'KothCashInMeter', 'objectives_health_friendly')
+        }
+        'dlf_pause.js' {
+            return @('DLFPauseStop', 'PausedCountdownLabel', 'PausedGameContainer')
+        }
+        'dlf_buys.js' {
+            return @('DLFBuysStop', 'RecentPurchasesContainer', 'recent_hero_name', 'MOD_ICONS', 'QuickPurchasesPanel')
+        }
+        'dlf_names.js' {
+            return @('DLFNamesStop', 'unit_indicators_v2', 'EventFeed', 'killerInfo', 'HeroBadge')
+        }
+        'dlf_urn.js' {
+            return @('DLFUrnStop', 'EventFeed', 'hud_minimap', 'PlayerIsHoldingIdol', 'IdolPickedUp', 'KillerImage', 'HeroBadge', 'DLFUrnHeld')
+        }
+        'dlf_objmap.js' {
+            return @('DLFObjMapStop', 'hud_minimap', 'ObjectivesMap', 'Alive', 'boss_icon_t1', 'yellowLane', 'boss_buildingzip')
+        }
+        'dlf_pg_loader.js' {
+            return @('NSHost', 'dlf/dlf_pg_board.xml', 'play_btn_grn_flame.webm', 'SetMovie', 'PlayButtonFX')
+        }
+        'dlf_pg_board.js' {
+            return @('NSStop', 'CitadelMatchDetailsUpdated', 'CitadelPostGameSelectScreenIndex', 'DispatchPanelEvent', 'PostGameGraphTooltip', 'accountid', 'dlf/dlf_pg_column.xml', 'PageVisible', 'DLFM1:', 'ClientUI_FireOutput')
+        }
+        'pickup_host.js' {
+            return @('DLFPickupHostStop', 'DLFOnDebuffConfig', 'ClientUI_FireOutput')
+        }
+        'pickup_config.js' {
+            return @('DLFPickupConfig', 'DLFPickupContractFactory')
+        }
+        'pickup_timers.js' {
+            return @('DLF_PICKUP_SNAPSHOT', 'DLF_ULTIMATE_SNAPSHOT', 'DLFPickupContractFactory')
+        }
+        'pickup_bridge.js' {
+            return @('DLF_PICKUP_SNAPSHOT', 'ClientUI_FireOutput')
+        }
         'oh_state.js' {
             return @('OHState', 'observer_hud_state', 'OHC1.', 'TEAM_PANELS')
         }
@@ -87,7 +144,7 @@ function Get-HpColorsRewriteClosureContract {
             return @('OHHost', 'OHHostStop', 'observer_hud/tournament_bar.xml', 'observer_hud/band.xml', 'OHBandHost', 'OHDebuffsHost', 'OHMenuAttach')
         }
         'oh_menu.js' {
-            return @('OHMenuAttach', 'OHMenuStop', 'TextEntryCopyToClipboard', 'ontextentrychange')
+            return @('OHMenuAttach', 'OHMenuStop', 'OHMenuResetAll', 'TextEntryCopyToClipboard', 'ontextentrychange')
         }
         'oh_debuffs.js' {
             return @('OHDebuffsStop', 'OH_DEBUFF_SNAPSHOT', 'OH_DEBUFF_CONFIG', 'cardsVersion')
@@ -97,6 +154,12 @@ function Get-HpColorsRewriteClosureContract {
         }
         'oh_debuff_world.js' {
             return @('OHDebuffStop', 'OH_DEBUFF_SNAPSHOT', 'OH_DEBUFF_CONFIG', 'CitadelHudRoot')
+        }
+        'oh_link.js' {
+            return @('OHLinkStop', 'OHL1:', 'OHL1S:', 'ClientUI_FireOutput', 'clearBans', 'OHMenuResetAll')
+        }
+        'oh_lobby.js' {
+            return @('OHLobbyStop', 'OHL1:', 'OHL1S:', 'CitadelPartyUpdated', 'Team1Listing', 'PlayerID', 'accountid', 'IsPlayer', 'PageVisible', 'observer_hud/lobby_setup.xml', 'OHLShareEntry')
         }
         'oh_debuff_relay.js' {
             return @('oh_debuff_message', 'ClientUI_FireOutput')

@@ -1,6 +1,6 @@
 // Observer HUD ability status column, HUD side (host: this mod's hud_spectate_bar.xml), ported from
 // DLF's dlf_debuffs.js with its rules. World healthbars (oh_debuff_world.js) send OH_DEBUFF_SNAPSHOT
-// { source, name, items: [[key, debuff, count, end, stun, hit]] }; this draws each hero's statuses in the
+// { source, name, items: [[key, debuff, count, end, stun, hit, total]] }; this draws each hero's statuses in the
 // six slots of the column oh_host.js injects under each stock top-bar card (observer_hud/debuffs.xml),
 // matched by player name: a centred grid two wide (one in the middle, a pair either side of it, an odd
 // last one centred under the row above; user 2026-10-23). A status keeps its slot panel while it shows,
@@ -9,7 +9,10 @@
 // ($.OHHost.cards(), re-read when $.OHHost.cardsVersion() moves); the column never walks the top bar.
 // A slot's colour is the applying team's: the
 // other team for a debuff, the hero's own team for a listed buff. A count of 2+ shows as a badge; a
-// predicted end shows as whole seconds left plus END_PAD_MS, redrawn every 0.25 s while one runs. A stun is its own
+// predicted end with its full duration (total, ms) shows as a sweep: the icon stays bright for the part
+// that remains and a dark wedge (.OHDebuffShade, clip radial from 12 o'clock) covers the part that has
+// passed (user 2026-11-06: on a low-bitrate stream the seconds over the icon hid it). An end without a
+// total (an older world bar) shows whole seconds left plus END_PAD_MS. Both redraw every 0.25 s. A stun is its own
 // slot with the stock stun mark (.OHStun). A status that goes away keeps its slot for FADE_MS with
 // .OHFading, whose CSS keyframe animation fades it out. A new hit number (pulse rules: Shining Wonder,
 // one per orb bounce) pulses its slot once (.OHPulse). The editor's DEV settings (state.dev) go to
@@ -30,9 +33,12 @@
   const CONFIG_HEARTBEAT_MS = 4000;
   const TTL_MS = 10000; // world bars resend every 4 s while something is shown
   const MAX_END_AHEAD_MS = 300000;
+  // More than the six slots of a column (debuffs.xml): entriesFor keeps what already shows and drops the
+  // rest, so a seventh status waits for a free slot instead of pushing a shown one out.
   const MAX_KEYS = 8;
   const MAX_COUNT = 99;
   const MAX_HIT = 1e9;
+  const MAX_TOTAL_MS = 300000; // a sweep's full duration: the world side caps a fit at the rule's maxSeconds
   const FADE_MS = 1000; // equal to the OHDebuffFadeOut animation-duration in oh_debuffs.css
   const END_PAD_MS = 1000; // the countdown reads one second longer than the predicted end (user 2026-10-23)
   // Grid places, equal to oh_debuffs.css: a pair's centres 20 px either side of the middle, rows 39 px
@@ -141,7 +147,7 @@
       State.configSentAt = now;
       $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({
         magic_word: "OH_DEBUFF_CONFIG", on: State.on, poll: State.poll, log: State.log, watch: watch, wake: State.wake,
-        aliases: $.OHHost.aliases(), at: now
+        aliases: $.OHHost.aliases()
       }));
     }
     return changed;
@@ -173,9 +179,10 @@
         const image = slot.FindChildrenWithClassTraverse("OHDebuffIcon")[0];
         const count = slot.FindChildrenWithClassTraverse("OHDebuffCount")[0];
         const time = slot.FindChildrenWithClassTraverse("OHDebuffTime")[0];
+        const shade = slot.FindChildrenWithClassTraverse("OHDebuffShade")[0] || null;
         if (image && count && time) {
-          slots.push({ panel: slot, image: image, count: count, time: time, key: "", stun: false, by: "", countText: "",
-            timeText: "", fading: false, place: "", glide: false, shownSeq: 0 });
+          slots.push({ panel: slot, image: image, count: count, time: time, shade: shade, key: "", stun: false, by: "",
+            countText: "", timeText: "", sweep: -1, fading: false, place: "", glide: false, shownSeq: 0 });
         }
       }
       cards.push({ panel: entry.panel, label: entry.label, column: entry.debuffs, grid: grid, slots: slots, rows: 0,
@@ -218,11 +225,13 @@
     return State.names;
   }
 
-  // A label shows when its text is non-empty; writes happen only on change.
+  // A label shows when its text is non-empty; writes happen only on change, and the class only when the
+  // label appears or goes (a countdown step 6 -> 5 writes the text alone).
   function setBadge(slot, field, labelKey, flag, text) {
-    if (slot[field] === text) return;
+    const old = slot[field];
+    if (old === text) return;
     if (text) slot[labelKey].text = text;
-    slot.panel.SetHasClass(flag, !!text);
+    if (!old !== !text) slot.panel.SetHasClass(flag, !!text);
     slot[field] = text;
   }
 
@@ -352,10 +361,22 @@
         slot.by = by;
       }
       setBadge(slot, "countText", "count", "OHHasCount", item && item[2] >= 2 ? String(item[2]) : "");
-      const shownEnd = item && item[3] > 0 ? item[3] + END_PAD_MS : 0;
+      // The sweep: degrees passed out of 360 (-1: none). A fading status that had one is all passed (its
+      // entry carries no end any more), so it stays dark through the fade.
+      const total = item && item[3] > 0 && slot.shade ? item[6] || 0 : 0;
+      const sweep = fading ? (slot.sweep >= 0 ? 360 : -1) :
+        total > 0 ? Math.round(360 * Math.min(1, Math.max(0, 1 - (item[3] - now) / total))) : -1;
+      if (slot.sweep !== sweep) {
+        // The CSS transition smooths each step. A sweep that ends resets the hidden wedge to 0, so the next
+        // status in this slot grows in from 12 o'clock instead of unwinding the last one's.
+        if (sweep >= 0 || slot.sweep >= 0) slot.shade.style.clip = `radial(50% 50%, 0deg, ${Math.max(0, sweep)}deg)`;
+        if ((slot.sweep >= 0) !== (sweep >= 0)) slot.panel.SetHasClass("OHSweep", sweep >= 0);
+        slot.sweep = sweep;
+      }
+      const shownEnd = item && item[3] > 0 && sweep < 0 ? item[3] + END_PAD_MS : 0;
       const left = shownEnd > now ? Math.ceil((shownEnd - now) / 1000) : 0;
       setBadge(slot, "timeText", "time", "OHHasTime", left > 0 ? String(left) : "");
-      counting = counting || left > 0 || fading;
+      counting = counting || left > 0 || (sweep >= 0 && sweep < 360) || fading;
       const hit = item && !fading ? item[5] || 0 : 0;
       if (hit) {
         if (card.hits.get(entry.id) !== hit) pulse(slot.panel);
@@ -402,7 +423,8 @@
 
   function validItems(items, at) {
     return Array.isArray(items) && items.length <= MAX_KEYS && items.every((item) =>
-      Array.isArray(item) && (item.length === 5 || item.length === 6 && Number.isInteger(item[5]) && item[5] >= 0 && item[5] <= MAX_HIT) &&
+      Array.isArray(item) && (item.length === 5 || (item.length === 6 || item.length === 7) && Number.isInteger(item[5]) && item[5] >= 0 &&
+        item[5] <= MAX_HIT && (item.length === 6 || Number.isInteger(item[6]) && item[6] >= 0 && item[6] <= MAX_TOTAL_MS)) &&
       typeof item[0] === "string" && KEY.test(item[0]) &&
       (item[1] === 0 || item[1] === 1) &&
       Number.isInteger(item[2]) && item[2] >= 1 && item[2] <= MAX_COUNT &&

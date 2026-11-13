@@ -1,5 +1,5 @@
 <strong>[<a href="https://www.twitch.tv/hanturaya101" target="_blank">Twitch</a>]</strong> | <strong>[<a href="https://x.com/hanturaya" target="_blank">Twitter</a>]</strong> | <strong>[<a href="https://ko-fi.com/hantuaraya" target="_blank">Support</a>]</strong><br><br>
-Observer HUD is a spectator HUD for community Deadlock tournaments. Under each player on the top bar it shows the crowd control on them with the seconds left, which a spectator normally can't see. It also shows purchases, ultimate cooldowns and objective timers, and puts your event, teams, logos, bans and series score on the stock top bar. You set it all up in game from the Escape menu. After the match, the post-game Scoreboard screen becomes a stats board for all 12 players with a soul lead graph.<br><br>
+Observer HUD is a spectator HUD for community Deadlock tournaments. Under each player on the top bar it shows the crowd control on them with the seconds left, which a spectator normally can't see. It also shows purchases, ultimate cooldowns and objective timers, and puts your event, teams, logos, bans and series score on the stock top bar. You set it all up in game: on the private lobby page between maps, or from the Escape menu while you spectate. After the match, the post-game Scoreboard screen becomes a stats board for all 12 players with a soul lead graph.<br><br>
 
 <b>For observer PCs only.</b> The pak includes modified ability data so the status column works in spectator mode. Don't play matches with it installed: take it out of the addons folder before you queue.<br><br>
 
@@ -39,7 +39,7 @@ Amber's soul lead over Sapphire across the match, with a pin every 5 minutes (or
 
 <b>Two top bar looks</b>
 <ul>
-<li><b>Base Game+ Names</b> (default) looks like the stock bar. Each team gets a plate with its name, logo and a stage/format line, and the player names sit in a row above the cards. The organiser logo or name sits in the centre between the series wins, and each team's two bans sit beside the clock.</li>
+<li><b>Base Game+ Names</b> (default) looks like the stock bar. Each team gets a plate with its name, logo and a stage/format line, and the player names sit in a row above the cards. The organiser logo or name sits in the centre between the series wins, and each team's bans (two or three) sit beside the clock.</li>
 <li><b>Night Desk</b> is a dark band across the top. Event, stage and format sit on the left, game number and "first to" on the right. Each team gets its name, player names and bans, the logos sit in an arch by the centre with the series score, and you can add an info card (for example a prize pool).</li>
 </ul>
 
@@ -58,13 +58,24 @@ Set the wins by hand. When the end screen of a game you're spectating names a wi
 <li>It works for any match the post-game page can open, not only the ones you spectated. Everything is read from the game's own post-game page.</li>
 </ul>
 
+<b>Private lobby setup</b><br>
+The Escape menu doesn't open in a private lobby, so the lobby page carries what you change between maps.
+<ul>
+<li>Each team title shows that side's name, tag, logo, bans and series wins. Click the name or the pencil to edit the name, tag and logo link. Click a ban to pick the hero from a grid (a hero can only be banned once). Click a series dot to set the wins.</li>
+<li>Click a player's name to give them an alias. It's kept by their Steam account.</li>
+<li>An Observer HUD section under the lobby settings has the format (best of 1, 3, 5 or 7), the stage, and buttons to swap the HUD's sides, clear the bans and open SHARE.</li>
+<li>SHARE copies your whole setup as one code, imports a code, or resets everything (RESET ALL asks twice).</li>
+<li>When last match's players come back on the other sides, the lobby offers to swap the HUD's sides. It never swaps on its own.</li>
+<li>These edits change the HUD on this PC only, not on other spectators' PCs.</li>
+</ul>
+
 <b>Setup</b>
 <ul>
-<li>Open the Escape menu and click TOURNAMENT SETUP. The button only shows while you're spectating.</li>
+<li>In a private lobby, use the lobby page (above). While you spectate, open the Escape menu and click TOURNAMENT SETUP. The button only shows while you're spectating.</li>
 <li>Pages: MATCH, TEAMS, PLAYERS, TOP BAR, NIGHT DESK, TIMERS, SHARE. Changes apply as you type.</li>
 <li>Logos: paste an image URL. PNG, JPG and GIF work, and so do imgur, Giphy and Tenor links.</li>
 <li>On TEAMS, a USE &lt;TEAM&gt;? button shows up when the players on a side match a team from your earlier matches. One click fills in its name, tag and logo.</li>
-<li>Your setup is saved on this PC and comes back after a restart. A setup saved with 0.1.0 is copied over the first time 0.2.0 starts. SHARE gives you a code that copies the whole setup onto another observer PC.</li>
+<li>Your setup is saved on this PC and comes back after a restart. A setup saved with 0.1.0 is copied over the first time this version starts. SHARE gives you one code that copies the whole setup onto another observer PC, however long the names and logo links are.</li>
 <li>Saving goes through a small page on hantu-raya.github.io, loaded in Steam's built-in browser. If the page can't be reached, the editor says OFFLINE - SESSION ONLY and your settings last until you close the game.</li>
 </ul>
 
@@ -88,6 +99,7 @@ Set the wins by hand. When the end screen of a game you're spectating names a wi
 <li>It doesn't replace the top bar, Escape menu or healthbar layouts, so mods that do (HP Colors, ShowRank, QOL Lock, Top Bar Plus) can stay installed.</li>
 <li>Don't use it together with the DLF Observer Mod. Both draw a band over the top bar.</li>
 <li>The post-game board replaces the post-game page layout (citadel_db_page_post_game_new.xml). Another mod that replaces that file conflicts with it. ShowRank Barebones was installed during testing and both worked.</li>
+<li>The lobby setup replaces the private lobby page layout (citadel_db_page_private_lobby.xml). Another mod that replaces that file conflicts with it.</li>
 <li>Mods that ship their own ability data (abilities.vdata_c or modifiers.vdata_c) in a lower-numbered pak take over those files. The status column then shows only what the game itself draws.</li>
 <li>When Bebop hooks someone, the hooked player isn't pulled toward Bebop on the observer's screen. It's a side effect of making the hook show in the column. Players in the match aren't affected.</li>
 <li>Ability data changes with Deadlock patches. I update the mod after each patch; until then, some statuses may be missing.</li>

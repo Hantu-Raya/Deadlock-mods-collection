@@ -16,7 +16,7 @@
   "use strict";
 
   const TAG = "[OH-MENU]";
-  const VERSION = "0.2.0";
+  const VERSION = "0.3.2";
   const AUTHOR_URL = "https://x.com/hanturaya";
   const DONATE_URL = "https://ko-fi.com/hantuaraya";
   // Local save: the hpv2-store /oh/v2/ page (store v2) keeps the setup record and the match cards in Steam's
@@ -52,21 +52,23 @@
     failed: "Could not load that image; the monogram stays."
   };
   const BAD_URL = "Not used: needs a plain http(s) address.";
-  const LOOKS = [["names", "OHLookNames"], ["desk", "OHLookDesk"]];
-  const GRAPH_CHOICES = [[0, "OHGraphOff"], [15, "OHGraph15"], [30, "OHGraph30"], [60, "OHGraph60"], [-1, "OHGraphAlways"]];
-  const EVERY_CHOICES = [60, 120, 180, 300, 600].map((every) => [every, `OHGraphEvery${every}`]); // = OHState GRAPH_EVERY
+  // Choice buttons: [state value, button id]. The values are $.OHState's lists; the id ends in the value,
+  // with Off for 0, Always for -1 and a word capitalised (editor.xml carries the same ids).
+  const choiceSuffix = (value) => value === 0 ? "Off" : value === -1 ? "Always" :
+    typeof value === "string" ? value[0].toUpperCase() + value.slice(1) : String(value);
+  const choices = (values, prefix) => values.map((value) => [value, prefix + choiceSuffix(value)]);
+  const LOOKS = choices(S.STYLES, "OHLook");
+  const GRAPH_CHOICES = choices(S.GRAPH_SHOW, "OHGraph");
+  const EVERY_CHOICES = choices(S.GRAPH_EVERY, "OHGraphEvery");
   const GRAPH_STEPS = [["size", "Size"], ["x", "X"], ["y", "Y"]];
-  const LOGO_SHAPE_CHOICES = [["circle", "OHLogoCircle"], ["square", "OHLogoSquare"]]; // = OHState LOGO_SHAPES
+  const LOGO_SHAPE_CHOICES = choices(S.LOGO_SHAPES, "OHLogo");
   const LOGO_STEPS = [["size", "Size"], ["gap", "Gap"]];
-  // Objective timers: [state key, button id] for each pick; the rift has only OFF / ON (Always id).
-  const CUE_LABELS = [[0, "Off"], [15, "15"], [30, "30"], [60, "60"], [120, "120"], [-1, "Always"]];
+  // Objective timers: [state key, value, button id]; the rift has only OFF / ON (Always id).
   const CUE_CHOICES = [];
-  for (const [side, key] of [["Bridge", "bridge"], ["Urn", "urn"], ["Mid", "mid"]]) {
-    for (const [show, suffix] of CUE_LABELS) CUE_CHOICES.push([key, show, `OHCue${side}${suffix}`]);
+  for (const [side, key] of [["Bridge", "bridge"], ["Urn", "urn"], ["Mid", "mid"], ["Rift", "rift"]]) {
+    for (const [show, id] of choices(key === "rift" ? S.RIFT_SHOW : S.CUE_SHOW, `OHCue${side}`)) CUE_CHOICES.push([key, show, id]);
   }
-  CUE_CHOICES.push(["rift", 0, "OHCueRiftOff"], ["rift", -1, "OHCueRiftAlways"]);
-  // Purchase notices: seconds -> button (OHBuysOff, OHBuys3, ...).
-  const BUYS_CHOICES = S.BUYS_SHOW.map((show) => [show, show ? `OHBuys${show}` : "OHBuysOff"]);
+  const BUYS_CHOICES = choices(S.BUYS_SHOW, "OHBuys");
   // Settings-style pages: [name, title, description]; the rail button is #OHNav<name>, the root gets
   // OHShow<name>. RESET <title> resets the state keys in PAGE_RESET (SHARE has none: its button hides).
   const PAGES = [
@@ -218,6 +220,7 @@
     for (const n of S.BEST_OF) pick(UI[`OHBo${n}`], state.bestOf === n);
     const wins = S.winsNeeded(state.bestOf);
     setText(UI.OHFormatNote, `first to ${wins}`);
+    for (const n of S.BAN_COUNTS) pick(UI[`OHBans${n}`], state.banCount === n);
     for (const [look, id] of LOOKS) pick(UI[id], state.style === look);
     const desk = state.style === "desk";
     root.SetHasClass("OHLookDeskOn", desk);
@@ -255,6 +258,9 @@
       renderLogo(team, side);
       entry.bans.forEach((id, slot) => {
         const button = UI[`OH${side}Ban${slot}`];
+        // A slot past banCount collapses (its ban stays in the state).
+        const shown = slot < state.banCount;
+        if (button.visible !== shown) button.visible = shown;
         button.SetHasClass("OHBanSet", id > 0);
         if (id > 0) UI[`OH${side}Ban${slot}Image`].SetHeroID(id);
         setText(UI[`OH${side}Ban${slot}Label`], id > 0 ? heroName(id) || `Hero ${id}` : `Ban ${slot + 1}: none`);
@@ -396,10 +402,7 @@
     if (!picking) return;
     const { team, slot } = picking;
     closePicker();
-    edit((next) => {
-      for (const [other] of SIDES) next[other].bans = next[other].bans.map((ban) => ban === id ? 0 : ban);
-      next[team].bans[slot] = id;
-    });
+    edit((next) => S.moveBan(next, team, slot, id));
   }
 
   function buildHeroGrid() {
@@ -423,7 +426,12 @@
   // this game (DLF, live 2026-10-17); TextEntryCopyToClipboard copies a selected entry.
   function copyCode() {
     const entry = UI.OHShareEntry;
-    entry.text = S.encodeShare($.OHHost.getState());
+    const code = S.encodeShare($.OHHost.getState());
+    if (!code) {
+      setText(UI.OHShareStatus, S.SHARE_TOO_LONG);
+      return;
+    }
+    entry.text = code;
     let copied = false;
     try {
       entry.SetFocus();
@@ -453,13 +461,10 @@
       return;
     }
     closePicker();
-    const dev = $.OHHost.getState().dev;
-    const next = result.state && typeof result.state === "object" ? S.clone(result.state) : {};
-    next.dev = dev;
     logoError.amber = false;
     logoError.sapphire = false;
     logoError.org = false;
-    $.OHHost.setState(S.normalize(next, Object.assign(S.defaults(), { dev })));
+    $.OHHost.setState(S.importShared(result.state, $.OHHost.getState().dev));
     setText(UI.OHShareStatus, "Imported.");
   }
 
@@ -478,9 +483,7 @@
     closePicker();
     const base = S.defaults();
     if (kind === "all") {
-      logoError.amber = logoError.sapphire = logoError.org = false;
-      unblockStore();
-      $.OHHost.setState(base);
+      resetAll();
       return;
     }
     if (page === "Share") return; // nothing to reset (the button is hidden there)
@@ -488,6 +491,7 @@
       if (page === "Match") {
         next.stage = base.stage;
         next.bestOf = base.bestOf;
+        next.banCount = base.banCount;
         for (const [team] of SIDES) {
           next[team].series = base[team].series;
           next[team].bans = base[team].bans.slice();
@@ -590,6 +594,7 @@
       render();
     });
     for (const n of S.BEST_OF) bind(UI[`OHBo${n}`], "onactivate", () => setBestOf(n));
+    for (const n of S.BAN_COUNTS) bind(UI[`OHBans${n}`], "onactivate", () => edit((next) => { next.banCount = n; }));
     const state = () => $.OHHost.getState();
     bindText(UI.OHEventEntry, (next, text) => { next.event = text; }, () => state().event);
     bindText(UI.OHStageEntry, (next, text) => { next.stage = text; }, () => state().stage);
@@ -666,13 +671,14 @@
   for (const [, id] of BUYS_CHOICES) IDS.push(id);
   IDS.push("OHResetPage", "OHResetPageLabel", "OHDonate", "OHAuthor", "OHAuthorLabel", "OHVersion", "OHSupporterStrip",
     "OHSaveStatus", "OHStore");
-  for (const n of [1, 3, 5, 7]) IDS.push(`OHBo${n}`);
+  for (const n of S.BEST_OF) IDS.push(`OHBo${n}`);
+  for (const n of S.BAN_COUNTS) IDS.push(`OHBans${n}`);
   for (const [name] of PAGES) IDS.push(`OHNav${name}`);
   for (const [, side] of SIDES) {
     IDS.push(`OH${side}NameEntry`, `OH${side}TagEntry`, `OH${side}SeriesDown`, `OH${side}SeriesValue`, `OH${side}SeriesUp`,
       `OH${side}LogoEntry`, `OH${side}LogoNote`, `OH${side}PlayersEmpty`, `OH${side}SeriesNote`, `OH${side}SeriesTitle`,
       `OH${side}BansTitle`, `OH${side}SuggestRow`, `OH${side}UseTeam`, `OH${side}UseTeamLabel`);
-    for (let slot = 0; slot < 2; slot++) IDS.push(`OH${side}Ban${slot}`, `OH${side}Ban${slot}Image`, `OH${side}Ban${slot}Label`);
+    for (let slot = 0; slot < S.BAN_SLOTS; slot++) IDS.push(`OH${side}Ban${slot}`, `OH${side}Ban${slot}Image`, `OH${side}Ban${slot}Label`);
     for (let slot = 0; slot < PLAYER_ROWS; slot++) {
       IDS.push(`OH${side}Player${slot}Row`, `OH${side}Player${slot}Game`, `OH${side}Player${slot}Entry`, `OH${side}Player${slot}Bind`);
     }
@@ -852,7 +858,7 @@
       if (Store.phase !== "hello" || reply.i !== Store.helloId) return;
       if (typeof reply.h !== "string" || reply.h.split("#")[0] !== STORE_URL) return;
       if (reply.v !== STORE_VERSION || reply.ok !== true) {
-        storeUnavailable("SAVE PAGE OUTDATED - SESSION ONLY");
+        storeUnavailable("SAVE PAGE OUTDATED - SESSION ONLY", false);
         return;
       }
       Store.capacity = Number.isInteger(reply.m) && reply.m >= 1024 && reply.m <= S.RECORD_LIMIT ? reply.m : 4096;
@@ -952,7 +958,7 @@
       $.Schedule(SAVE_RETRY_S[Store.retry++], () => { if (gen === Store.gen) flushSave(); });
       setSaveStatus("SAVE RETRYING", "warn");
     } else {
-      storeUnavailable("SAVE FAILED - SESSION ONLY");
+      storeUnavailable("SAVE FAILED - SESSION ONLY", false);
     }
   }
   // Match cards (plan phase 4): the host hands each card it writes to $.OHHost.onCard; it goes to the page's
@@ -1019,6 +1025,17 @@
     Store.phase = "ready";
     Store.savedRecord = "";
   }
+  // RESET ALL: every setting back to the defaults (DEV included), and a blocked save is overwritten with
+  // them. The lobby page asks for it through oh_link.js (the private lobby has no Escape menu).
+  function resetAll() {
+    closePicker();
+    logoError.amber = logoError.sapphire = logoError.org = false;
+    unblockStore();
+    $.OHHost.setState(S.defaults());
+  }
+  $.OHMenuResetAll = () => {
+    if (!stopped) resetAll();
+  };
 
   $.OHMenuAttach = (panel) => {
     if (stopped || !valid(panel)) return;

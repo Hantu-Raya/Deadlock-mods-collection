@@ -1,0 +1,469 @@
+<!-- xml reconstructed by Source 2 Viewer - https://valveresourceformat.github.io -->
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss" />
+		<include src="s2r://panorama/styles/hud_escape_menu.vcss" />
+		<include src="s2r://panorama/styles/dlf/dlf_menu.vcss_c" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/dlf/dlf_state.vjs_c" />
+		<include src="s2r://panorama/scripts/dlf/dlf_match.vjs_c" />
+		<include src="s2r://panorama/scripts/dlf/dlf_heroes.vjs_c" />
+		<include src="s2r://panorama/scripts/dlf/dlf_menu.vjs_c" />
+	</scripts>
+	<CitadelHudEscapeMenu oncancel="if (!$.DLFMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())">
+		<Panel id="EscapeBackground" onactivate="if (!$.DLFMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())" />
+		<Panel id="LeftStripeBlur" />
+		<Panel id="LeftStripe" hittest="false">
+			<Panel id="Menu" hittest="false">
+				<Panel id="ContextualMenu">
+					<Panel class="MatchmakingOptions OptionGroup">
+						<Button id="matchmakingLeaveQueue" class="nav_menu_item primary leavequeue" onactivate="CitadelLeaveMatchmaking()">
+							<Label text="#menu_leave_queue" class="menuButtonLabel" antialias="true" />
+						</Button>
+						<Button id="matchmakingEditRoster" class="nav_menu_item primary" onactivate="CitadelEditMatchmakingRoster()">
+							<Panel class="MenuIcon" />
+							<Label text="#menu_edit_roster" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Panel class="ReconnectOptions OptionGroup">
+						<Button id="reconnectRejoin" class="nav_menu_item primary" onactivate="CitadelReconnect()" onmouseover="UIShowTextTooltip( #Citadel_Dashboard_RejoinTooltip )" onmouseout="UIHideTextTooltip()">
+							<Label text="#menu_rejoin" class="menuButtonLabel" />
+						</Button>
+						<Button id="reconnectAbandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+							<Label text="{s:reconnect_abandon_action}" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Button id="disconnect" class="nav_menu_item primary" onactivate="CitadelDisconnectFromGame()">
+						<Label text="#menu_disconnect" class="menuButtonLabel" />
+					</Button>
+					<Button id="abandon" class="nav_menu_item primary endsession" onactivate="CitadelConfirmAbandonGame()">
+						<Label text="{s:abandon_action}" class="menuButtonLabel" />
+					</Button>
+					<Button id="Unstick" class="nav_menu_item minor" onactivate="CitadelConCommand( &apos;unstick&apos; );" onmouseover="CitadelUIShowTextTooltip( &apos;#DevMenu_UnstickHeroTooltip&apos; )" onmouseout="CitadelUIHideTextTooltip()">
+						<Label text="#DevMenu_UnstickHero" class="menuButtonLabel" />
+					</Button>
+				</Panel>
+				<Button id="changehero" class="nav_menu_item primary" onactivate="CitadelEscapeMenuChangeHero()">
+					<Label text="#menu_changehero" class="menuButtonLabel" />
+				</Button>
+				<Panel id="SubOptions">
+					<Button id="DLFMenuButton" class="nav_menu_item minor">
+						<Label text="DLF BROADCAST" class="menuButtonLabel" />
+					</Button>
+					<Panel class="FeedbackRow">
+						<Button id="PlayerFeedback" class="nav_menu_item minor" onactivate="CitadelShowPlayerFeedbackPopup()">
+							<Label text="#Citadel_PlayerFeedback_Title" class="menuButtonLabel" />
+						</Button>
+					</Panel>
+					<Panel class="SettingsRow">
+						<Button id="settings" class="nav_menu_item minor" onactivate="CitadelSettings()">
+							<Panel class="smallIcon GearIcon" />
+							<Label text="#menu_settings" class="menuButtonLabel" />
+						</Button>
+						<Button id="QuickMute" class="nav_menu_item minor" onactivate="CitadelMuteButtonClicked();" onmouseover="CitadelUIShowTextTooltip( &apos;#citadel_mute_game_audio&apos; )" onmouseout="CitadelUIHideTextTooltip()" />
+					</Panel>
+					<Button id="quit" onactivate="CitadelQuitConfirm()">
+						<Label text="#menu_exit_deadlock" />
+					</Button>
+				</Panel>
+			</Panel>
+		</Panel>
+		<CitadelPrivilegedFeatures id="PrivilegedFeatures" />
+		<CitadelBindingButton id="EscapeButton" action="MenuBack" onactivate="if (!$.DLFMenuCancel()) $.DispatchEvent(&apos;CitadelResumePlaying&apos;, $.GetContextPanel())" text="#menu_resume" />
+		<Panel id="RightSideBlur" hittest="false" />
+		<Panel id="RightSide" hittest="false">
+			<Panel id="PartySpacer" />
+			<Panel class="FriendsOrPlayersTabs">
+				<Panel class="Center">
+					<TabButton id="FriendsTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Friends_WindowTitle" selected="true" />
+					<TabButton id="PlayersTab" class="FriendsOrPlayersButton" group="people_list_tabs" text="#Citadel_Players_WindowTitle" />
+				</Panel>
+			</Panel>
+			<Panel class="FriendsOrPlayersContents" hittest="false">
+				<TabContents id="FriendsTabContents" tabid="FriendsTab" group="people_list_tabs" hittest="false" selected="true">
+					<CitadelFriendsList id="FriendsList" />
+				</TabContents>
+				<TabContents id="PlayersTabContents" tabid="PlayersTab" group="people_list_tabs" hittest="false">
+					<CitadelPlayersList id="PlayersList" />
+				</TabContents>
+			</Panel>
+		</Panel>
+		<Panel id="DLFMenuRoot" hittest="true">
+			<Button id="DLFMenuBackdrop" hittest="true" />
+			<Panel id="DLFMenuShell">
+				<Panel class="DLFMenuHeader">
+					<Label class="DLFMenuTitle" text="DLF BROADCAST" />
+					<Label id="DLFMenuStatus" class="DLFMenuStatus" text="LOADING" />
+					<Button id="DLFMenuResetPage" class="DLFTextButton DLFDangerButton DLFHeaderReset"><Label id="DLFMenuResetPageLabel" text="RESET" /></Button>
+					<Button id="DLFMenuReset" class="DLFTextButton DLFDangerButton DLFHeaderReset"><Label id="DLFMenuResetLabel" text="RESET ALL" /></Button>
+					<Button id="DLFMenuClose" class="DLFTextButton"><Label text="CLOSE" /></Button>
+				</Panel>
+				<Panel class="DLFMenuTabs">
+					<Button id="DLFMatchToggle" class="DLFMenuTab"><Label text="MATCH" /></Button>
+					<Button id="DLFTeamsToggle" class="DLFMenuTab"><Label text="TEAMS" /></Button>
+					<Button id="DLFPlayersToggle" class="DLFMenuTab"><Label text="PLAYERS" /></Button>
+					<Button id="DLFGraphToggle" class="DLFMenuTab"><Label text="SOUL GRAPH" /></Button>
+					<Button id="DLFStyleToggle" class="DLFMenuTab"><Label text="STYLE" /></Button>
+					<Button id="DLFShareToggle" class="DLFMenuTab"><Label text="SHARE / SAVE" /></Button>
+					<Panel class="DLFMenuTabSpacer" />
+					<Button id="DLFDevToggle" class="DLFMenuTab DLFMenuTabLast"><Label text="DEV" /></Button>
+				</Panel>
+				<Panel id="DLFMenuPages">
+					<Panel id="DLFMatchPanel" class="DLFPage">
+						<Panel class="DLFEventRow">
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="SEASON" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFSeasonDown" class="DLFStepButton"><Label text="-" /></Button>
+									<TextEntry id="DLFSeasonEntry" class="DLFEntry DLFNumberEntry" maxchars="5" text="" />
+									<Button id="DLFSeasonUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="MATCH" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFMatchDown" class="DLFStepButton"><Label text="-" /></Button>
+									<TextEntry id="DLFMatchEntry" class="DLFEntry DLFNumberEntry" maxchars="5" text="" />
+									<Button id="DLFMatchUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFField DLFSeriesField">
+								<Label class="DLFFieldLabel" text="SERIES FORMAT" />
+								<TextEntry id="DLFSeriesEntry" class="DLFEntry" maxchars="32" text="" />
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="AUTO SERIES" />
+								<Button id="DLFAutoSeries" class="DLFToggleButton"><Label id="DLFAutoSeriesLabel" text="" /></Button>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="BANS" />
+								<Button id="DLFBanCount" class="DLFToggleButton"><Label id="DLFBanCountLabel" text="" /></Button>
+							</Panel>
+						</Panel>
+						<Panel class="DLFTeams">
+							<Panel id="DLFAmberCard" class="DLFTeamCard DLFAmber">
+								<Label id="DLFAmberMatchTitle" class="DLFTeamTitle" text="AMBER" />
+								<Panel class="DLFStepper">
+									<Label class="DLFFieldLabel" text="SERIES SCORE" />
+									<Panel class="DLFStepRow">
+										<Button id="DLFAmberScoreDown" class="DLFStepButton"><Label text="-" /></Button>
+										<Label id="DLFAmberScoreValue" class="DLFStepValue" text="" />
+										<Button id="DLFAmberScoreUp" class="DLFStepButton"><Label text="+" /></Button>
+									</Panel>
+								</Panel>
+								<Panel class="DLFField">
+									<Label class="DLFFieldLabel" text="BANNED HEROES" />
+									<Panel class="DLFBanRow">
+										<Button id="DLFAmberBan0" class="DLFBanSlot">
+											<CitadelHeroImage id="DLFAmberBan0Image" class="DLFBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+											<Label id="DLFAmberBan0Label" class="DLFBanLabel" text="" />
+										</Button>
+										<Button id="DLFAmberBan1" class="DLFBanSlot">
+											<CitadelHeroImage id="DLFAmberBan1Image" class="DLFBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+											<Label id="DLFAmberBan1Label" class="DLFBanLabel" text="" />
+										</Button>
+										<Button id="DLFAmberBan2" class="DLFBanSlot">
+											<CitadelHeroImage id="DLFAmberBan2Image" class="DLFBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+											<Label id="DLFAmberBan2Label" class="DLFBanLabel" text="" />
+										</Button>
+									</Panel>
+								</Panel>
+							</Panel>
+							<Panel id="DLFSapphireCard" class="DLFTeamCard DLFSapphire">
+								<Label id="DLFSapphireMatchTitle" class="DLFTeamTitle" text="SAPPHIRE" />
+								<Panel class="DLFStepper">
+									<Label class="DLFFieldLabel" text="SERIES SCORE" />
+									<Panel class="DLFStepRow">
+										<Button id="DLFSapphireScoreDown" class="DLFStepButton"><Label text="-" /></Button>
+										<Label id="DLFSapphireScoreValue" class="DLFStepValue" text="" />
+										<Button id="DLFSapphireScoreUp" class="DLFStepButton"><Label text="+" /></Button>
+									</Panel>
+								</Panel>
+								<Panel class="DLFField">
+									<Label class="DLFFieldLabel" text="BANNED HEROES" />
+									<Panel class="DLFBanRow">
+										<Button id="DLFSapphireBan0" class="DLFBanSlot">
+											<CitadelHeroImage id="DLFSapphireBan0Image" class="DLFBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+											<Label id="DLFSapphireBan0Label" class="DLFBanLabel" text="" />
+										</Button>
+										<Button id="DLFSapphireBan1" class="DLFBanSlot">
+											<CitadelHeroImage id="DLFSapphireBan1Image" class="DLFBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+											<Label id="DLFSapphireBan1Label" class="DLFBanLabel" text="" />
+										</Button>
+										<Button id="DLFSapphireBan2" class="DLFBanSlot">
+											<CitadelHeroImage id="DLFSapphireBan2Image" class="DLFBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+											<Label id="DLFSapphireBan2Label" class="DLFBanLabel" text="" />
+										</Button>
+									</Panel>
+								</Panel>
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel id="DLFTeamsPanel" class="DLFPage">
+						<Panel class="DLFTeams">
+							<Panel class="DLFTeamCard DLFAmber">
+								<Label class="DLFTeamTitle" text="AMBER" />
+								<Panel class="DLFField">
+									<Label class="DLFFieldLabel" text="TEAM NAME" />
+									<TextEntry id="DLFAmberNameEntry" class="DLFEntry" maxchars="32" text="" />
+								</Panel>
+								<Panel class="DLFField">
+									<Panel class="DLFLogoHeader"><Label class="DLFFieldLabel" text="TEAM LOGO (WEB IMAGE URL, EMPTY = EMBLEM)" /><Label id="DLFAmberLogoStatus" class="DLFLogoStatus" text="" /></Panel>
+									<Panel class="DLFLogoRow">
+										<TextEntry id="DLFAmberLogoEntry" class="DLFEntry DLFLogoEntry" maxchars="512" text="" />
+										<Button id="DLFAmberLogoDown" class="DLFStepButton"><Label text="-" /></Button>
+										<Label id="DLFAmberLogoScale" class="DLFStepValue DLFLogoScale" text="" />
+										<Button id="DLFAmberLogoUp" class="DLFStepButton"><Label text="+" /></Button>
+									</Panel>
+								</Panel>
+							</Panel>
+							<Panel class="DLFTeamCard DLFSapphire">
+								<Label class="DLFTeamTitle" text="SAPPHIRE" />
+								<Panel class="DLFField">
+									<Label class="DLFFieldLabel" text="TEAM NAME" />
+									<TextEntry id="DLFSapphireNameEntry" class="DLFEntry" maxchars="32" text="" />
+								</Panel>
+								<Panel class="DLFField">
+									<Panel class="DLFLogoHeader"><Label class="DLFFieldLabel" text="TEAM LOGO (WEB IMAGE URL, EMPTY = EMBLEM)" /><Label id="DLFSapphireLogoStatus" class="DLFLogoStatus" text="" /></Panel>
+									<Panel class="DLFLogoRow">
+										<TextEntry id="DLFSapphireLogoEntry" class="DLFEntry DLFLogoEntry" maxchars="512" text="" />
+										<Button id="DLFSapphireLogoDown" class="DLFStepButton"><Label text="-" /></Button>
+										<Label id="DLFSapphireLogoScale" class="DLFStepValue DLFLogoScale" text="" />
+										<Button id="DLFSapphireLogoUp" class="DLFStepButton"><Label text="+" /></Button>
+									</Panel>
+								</Panel>
+							</Panel>
+						</Panel>
+						<Label class="DLFDevHint DLFPageHint" text="Team names and logos follow the team, not the side. A logo needs a direct http(s) image URL; Enter commits, Escape reverts, an invalid URL keeps the current logo. Size is a percentage of the logo slot." />
+					</Panel>
+					<Panel id="DLFPlayersPanel" class="DLFPage">
+						<Panel class="DLFTeams">
+							<Panel class="DLFTeamCard DLFAmber">
+								<Label id="DLFAmberPlayersTitle" class="DLFTeamTitle" text="AMBER" />
+								<Panel class="DLFField">
+									<Label class="DLFFieldLabel" text="PLAYER NAMES (BY STEAM ACCOUNT)" />
+									<Panel id="DLFAmberPlayer0Row" class="DLFPlayerRow"><Label id="DLFAmberPlayer0Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFAmberPlayer0Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFAmberPlayer1Row" class="DLFPlayerRow"><Label id="DLFAmberPlayer1Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFAmberPlayer1Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFAmberPlayer2Row" class="DLFPlayerRow"><Label id="DLFAmberPlayer2Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFAmberPlayer2Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFAmberPlayer3Row" class="DLFPlayerRow"><Label id="DLFAmberPlayer3Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFAmberPlayer3Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFAmberPlayer4Row" class="DLFPlayerRow"><Label id="DLFAmberPlayer4Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFAmberPlayer4Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFAmberPlayer5Row" class="DLFPlayerRow"><Label id="DLFAmberPlayer5Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFAmberPlayer5Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+								</Panel>
+							</Panel>
+							<Panel class="DLFTeamCard DLFSapphire">
+								<Label id="DLFSapphirePlayersTitle" class="DLFTeamTitle" text="SAPPHIRE" />
+								<Panel class="DLFField">
+									<Label class="DLFFieldLabel" text="PLAYER NAMES (BY STEAM ACCOUNT)" />
+									<Panel id="DLFSapphirePlayer0Row" class="DLFPlayerRow"><Label id="DLFSapphirePlayer0Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFSapphirePlayer0Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFSapphirePlayer1Row" class="DLFPlayerRow"><Label id="DLFSapphirePlayer1Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFSapphirePlayer1Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFSapphirePlayer2Row" class="DLFPlayerRow"><Label id="DLFSapphirePlayer2Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFSapphirePlayer2Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFSapphirePlayer3Row" class="DLFPlayerRow"><Label id="DLFSapphirePlayer3Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFSapphirePlayer3Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFSapphirePlayer4Row" class="DLFPlayerRow"><Label id="DLFSapphirePlayer4Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFSapphirePlayer4Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+									<Panel id="DLFSapphirePlayer5Row" class="DLFPlayerRow"><Label id="DLFSapphirePlayer5Game" class="DLFPlayerGame" text="" /><TextEntry id="DLFSapphirePlayer5Entry" class="DLFEntry DLFPlayerEntry" maxchars="16" text="" /></Panel>
+								</Panel>
+							</Panel>
+						</Panel>
+						<Label class="DLFDevHint DLFPageHint" text="A blank box shows the game name. An alias for a player with a Steam account follows that player and is saved; bots keep theirs for this session only." />
+					</Panel>
+					<Panel id="DLFGraphPanel" class="DLFPage DLFSection">
+						<Label class="DLFTeamTitle" text="SOUL LEAD GRAPH" />
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="SHOW AT EACH MARK" />
+								<Panel id="DLFGraphShowRow" class="DLFChoiceRow" />
+							</Panel>
+						</Panel>
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="FIRST MARK AT" />
+								<Panel id="DLFGraphFirstRow" class="DLFChoiceRow" />
+							</Panel>
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="THEN EVERY" />
+								<Panel id="DLFGraphEveryRow" class="DLFChoiceRow" />
+							</Panel>
+						</Panel>
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="SIZE" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFGraphSizeDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFGraphSizeValue" class="DLFStepValue DLFGraphValue" text="" />
+									<Button id="DLFGraphSizeUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="X" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFGraphXDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFGraphXValue" class="DLFStepValue DLFGraphValue" text="" />
+									<Button id="DLFGraphXUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="Y" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFGraphYDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFGraphYValue" class="DLFStepValue DLFGraphValue" text="" />
+									<Button id="DLFGraphYUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="LINE" />
+								<Panel id="DLFGraphLineRow" class="DLFChoiceRow" />
+							</Panel>
+						</Panel>
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="AREA FILL" />
+								<Button id="DLFGraphFill" class="DLFToggleButton"><Label id="DLFGraphFillLabel" text="" /></Button>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text=" " />
+								<Button id="DLFGraphReset" class="DLFTextButton"><Label text="RESET" /></Button>
+							</Panel>
+							<Label class="DLFDevHint" text="The soul lead graph sits under the top-bar clock and appears for SHOW seconds at every mark (OFF never, ALWAYS all game). SIZE scales it; X and Y move it in pixels; AREA FILL colours the lead in the leading team's colour. The graph previews on the top bar for a few seconds after each change. RESET restores the graph settings only." />
+						</Panel>
+						<Label class="DLFTeamTitle" text="OBJECTIVE TIMERS" />
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="BRIDGE BUFFS" />
+								<Panel id="DLFCueBridgeRow" class="DLFChoiceRow" />
+							</Panel>
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="URN" />
+								<Panel id="DLFCueUrnRow" class="DLFChoiceRow" />
+							</Panel>
+						</Panel>
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="MID-BOSS" />
+								<Panel id="DLFCueMidRow" class="DLFChoiceRow" />
+							</Panel>
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="RIFT" />
+								<Panel id="DLFCueRiftRow" class="DLFChoiceRow" />
+							</Panel>
+							<Label class="DLFDevHint" text="How many seconds before each spawn its top-bar timer shows (OFF never, ALWAYS all game). Bridge buffs and the urn read UP while they are up, a respawned mid-boss reads Spawn for 30 s; the rift only has its 20 s warning, so it is ON or OFF. A held rejuvenator's time always shows." />
+						</Panel>
+					</Panel>
+					<Panel id="DLFStylePanel" class="DLFPage DLFSection">
+						<Label class="DLFTeamTitle" text="BANNER TEXT STYLE" />
+						<Panel class="DLFStyleTabs">
+							<Button id="DLFStyleTab_event" class="DLFStyleTab"><Label text="SEASON / MATCH" /></Button>
+							<Button id="DLFStyleTab_team" class="DLFStyleTab"><Label text="TEAM NAMES" /></Button>
+							<Button id="DLFStyleTab_player" class="DLFStyleTab"><Label text="PLAYER NAMES" /></Button>
+							<Button id="DLFStyleTab_score" class="DLFStyleTab"><Label text="SCORES" /></Button>
+							<Button id="DLFStyleTab_series" class="DLFStyleTab"><Label text="SERIES FORMAT" /></Button>
+						</Panel>
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="FONT" />
+								<Button id="DLFStyleFont" class="DLFToggleButton DLFStyleFont"><Label id="DLFStyleFontLabel" text="" /></Button>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="MAX SIZE" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFStyleSizeDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFStyleSizeValue" class="DLFStepValue DLFStyleValue" text="" />
+									<Button id="DLFStyleSizeUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="X" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFStyleXDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFStyleXValue" class="DLFStepValue DLFStyleValue" text="" />
+									<Button id="DLFStyleXUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="Y" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFStyleYDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFStyleYValue" class="DLFStepValue DLFStyleValue" text="" />
+									<Button id="DLFStyleYUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="SPACING" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFStyleSpacingDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFStyleSpacingValue" class="DLFStepValue DLFStyleValue" text="" />
+									<Button id="DLFStyleSpacingUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text=" " />
+								<Button id="DLFStyleReset" class="DLFTextButton"><Label text="RESET" /></Button>
+							</Panel>
+						</Panel>
+						<Label class="DLFDevHint DLFPageHint" text="Max size: long text shrinks to fit its frame on the banner. X and Y move the text a few pixels inside its frame. RESET restores this section." />
+					</Panel>
+					<Panel id="DLFSharePanel" class="DLFPage DLFSection">
+						<Label class="DLFTeamTitle" text="SHARE SETTINGS" />
+						<Panel class="DLFDevRow">
+							<TextEntry id="DLFShareEntry" class="DLFEntry DLFShareEntry" maxchars="16384" text="" />
+							<Button id="DLFShareCopy" class="DLFTextButton"><Label text="COPY CODE" /></Button>
+							<Button id="DLFShareImport" class="DLFTextButton"><Label text="IMPORT" /></Button>
+						</Panel>
+						<Label id="DLFShareStatus" class="DLFShareStatus" text="" />
+						<Label class="DLFDevHint DLFPageHint" text="COPY CODE puts everything this menu saves in one code: match details and AUTO SERIES, team names, logos, bans, banner style, the soul graph and objective timer windows, the purchase notice time, the DEV debuff settings and the player names. IMPORT (or Enter) replaces your settings with a pasted code, except this PC's DEV settings, which stay; with the box empty it pastes from the clipboard." />
+						<Panel class="DLFSaveBlock">
+							<Label class="DLFTeamTitle" text="THIS PC'S SAVE" />
+							<Panel class="DLFDevRow">
+								<Button id="DLFMenuForget" class="DLFTextButton DLFDangerButton"><Label id="DLFMenuForgetLabel" text="FORGET SAVE" /></Button>
+								<Label class="DLFDevHint" text="RESET ALL and RESET (the page shown) are in the header; each puts settings back after a second press within 4 s (RESET ALL also repairs a damaged save). FORGET SAVE deletes this PC's save and the player names; click it twice within 3 s." />
+							</Panel>
+						</Panel>
+					</Panel>
+					<Panel id="DLFDevPanel" class="DLFPage DLFSection">
+						<Label class="DLFTeamTitle" text="DEV - SPECTATOR DEBUFF ICONS" />
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="DEBUFF ICONS" />
+								<Button id="DLFDebuffToggle" class="DLFToggleButton"><Label id="DLFDebuffToggleLabel" text="" /></Button>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="DEBUFF POLL" />
+								<Panel class="DLFStepRow">
+									<Button id="DLFPollDown" class="DLFStepButton"><Label text="-" /></Button>
+									<Label id="DLFPollValue" class="DLFStepValue" text="" />
+									<Button id="DLFPollUp" class="DLFStepButton"><Label text="+" /></Button>
+								</Panel>
+							</Panel>
+							<Panel class="DLFStepper">
+								<Label class="DLFFieldLabel" text="STATUS LOG" />
+								<Button id="DLFLogToggle" class="DLFToggleButton"><Label id="DLFLogToggleLabel" text="" /></Button>
+							</Panel>
+							<Label class="DLFDevHint" text="Poll: how often each hero's world healthbar is checked. Faster shows changes sooner and costs more CPU. Status log: each healthbar prints its statuses (id, classes, stacks, radial) to the console (F8) when they change; leave it OFF for broadcasts." />
+						</Panel>
+						<Label class="DLFTeamTitle" text="TOP-BAR CARDS" />
+						<Panel class="DLFDevRow">
+							<Panel class="DLFStepper DLFChoiceField">
+								<Label class="DLFFieldLabel" text="PURCHASE NOTICE SHOWS FOR" />
+								<Panel id="DLFBuysRow" class="DLFChoiceRow" />
+							</Panel>
+							<Label class="DLFDevHint" text="How long a purchase notice stays under its player's card (OFF shows none)." />
+						</Panel>
+					</Panel>
+				</Panel>
+				<Panel id="DLFHeroPicker">
+					<Panel class="DLFPickerHeader">
+						<Label id="DLFPickerTitle" class="DLFPickerTitle" text="" />
+						<Button id="DLFPickerNone" class="DLFTextButton"><Label text="NO BAN" /></Button>
+						<Button id="DLFPickerCancel" class="DLFTextButton"><Label text="CANCEL" /></Button>
+					</Panel>
+					<Panel id="DLFHeroGrid" />
+				</Panel>
+				<Panel class="DLFMenuFooter">
+					<Label class="DLFMenuHint" text="Changes show on the banner at once and are saved on this PC. ESC closes the hero picker, then the editor." />
+				</Panel>
+				<Panel class="DLFStoreWrap">
+					<CitadelHTMLPanel id="DLFStore" class="DLFStore" hittest="false" acceptsfocus="false" />
+				</Panel>
+			</Panel>
+		</Panel>
+	</CitadelHudEscapeMenu>
+</root>

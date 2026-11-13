@@ -1,0 +1,59 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss" />
+		<include src="s2r://panorama/styles/citadel_db_page_private_lobby.vcss" />
+		<include src="s2r://panorama/styles/observer_hud/oh_lobby.vcss_c" />
+	</styles>
+	<!-- The Observer HUD block of the private-lobby page (0.3.0): oh_lobby.js loads it into a Panel it puts
+	     in #LobbyInfo right after the stock match settings, so the tournament settings sit with the lobby's
+	     own. The private lobby has no Escape menu (it only opens in a match), so everything the observer
+	     changes between maps is here or on the team titles (names, logos, series, bans). It stays two rows
+	     (head, then format, stage and icon actions) so the stock Unassigned list keeps the column; SHARE opens
+	     lobby_share.xml over it. -->
+	<Panel class="OHLSetup">
+		<Panel class="OHLSetupHead">
+			<Label class="OHLSetupTitle" text="Observer HUD" />
+			<Panel class="OHLLinkState">
+				<Panel id="OHLLinkDot" class="OHLLinkDot" />
+				<Label id="OHLLink" class="OHLLink" text="" />
+			</Panel>
+		</Panel>
+		<Panel id="OHLOffer" class="OHLOffer">
+			<Label id="OHLOfferText" class="OHLOfferText" text="" />
+			<Panel class="OHLRow">
+				<Button id="OHLOfferYes" class="SecondaryButton light outline OHLPill">
+					<Label class="OHLPillText" text="Swap HUD Sides" />
+				</Button>
+				<Button id="OHLOfferNo" class="SecondaryButton light outline OHLPill">
+					<Label class="OHLPillText" text="Not Now" />
+				</Button>
+			</Panel>
+		</Panel>
+		<!-- One row: format, bans per team, stage, then the three actions as icon buttons (tooltips name them). -->
+		<Panel class="SettingSubSection OHLRow OHLMatchRow">
+			<DropDown id="OHLFormat" class="OHLFormat">
+				<Label id="OHLBo1" class="RegionOption" value="1" text="Best of 1" />
+				<Label id="OHLBo3" class="RegionOption" value="3" text="Best of 3" />
+				<Label id="OHLBo5" class="RegionOption" value="5" text="Best of 5" />
+				<Label id="OHLBo7" class="RegionOption" value="7" text="Best of 7" />
+			</DropDown>
+			<DropDown id="OHLBanCount" class="OHLFormat OHLBanCount">
+				<Label id="OHLBans2" class="RegionOption" value="2" text="2 Bans" />
+				<Label id="OHLBans3" class="RegionOption" value="3" text="3 Bans" />
+			</DropDown>
+			<TextEntry id="OHLStage" class="OHLBox OHLStage" maxchars="28" placeholder="Stage" text="" />
+			<Button id="OHLSwap" class="OHLIconButton">
+				<Panel class="OHLIconSwap" hittest="false">
+					<Panel class="OHLIcon OHLSwapEast" />
+					<Panel class="OHLIcon OHLSwapWest" />
+				</Panel>
+			</Button>
+			<Button id="OHLClearBans" class="OHLIconButton OHLIconDanger">
+				<Panel class="OHLIcon OHLIconClear" hittest="false" />
+			</Button>
+			<Button id="OHLShareOpen" class="OHLIconButton">
+				<Panel class="OHLIcon OHLIconShare" hittest="false" />
+			</Button>
+		</Panel>
+	</Panel>
+</root>

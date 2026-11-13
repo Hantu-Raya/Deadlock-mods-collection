@@ -130,6 +130,20 @@ The vocabulary of the pak10 observer HUD: looks, top bar parts, objective cues, 
 
 **Record**: The saved text `OHS1.<fnv1a32>.<{s:1,state}>`. Phases: hello, read, ready, blocked, unavailable.
 
+**Lobby setup**: The 0.3.0 controls on the stock private-lobby page (`oh_lobby.js`): team titles with bans, edit cards, ban pickers, alias buttons, the Observer HUD block and its share card. The private lobby has no Escape menu (it only opens in a match).
+
+**Observer HUD block**: The lobby page's section under the stock match settings (`lobby_setup.xml`): link state, offer, format, stage, SWAP HUD SIDES, CLEAR BANS, SHARE.
+
+**Share card**: The lobby box (`lobby_share.xml`) with COPY CODE, IMPORT and RESET ALL.
+
+**Ban picker**: The hero grid a team title's ban opens over that column.
+
+**Lobby link**: `oh_link.js` in the HUD and the `OHL1:` / `OHL1S:` messages between it and the lobby page. `$.OHHost` stays the only writer; the page shows what the HUD echoes.
+
+**Edit card**: The box a team title opens over its column on the lobby page (name, tag, logo URL).
+
+**Offer**: The lobby row that suggests SWAP HUD SIDES when the players of the last ended match came back on the other sides.
+
 **Reset page / Reset all**: Footer buttons that each need a second press within 4 s.
 
 ## Engineering terms

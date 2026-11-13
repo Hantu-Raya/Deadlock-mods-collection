@@ -1,0 +1,754 @@
+/* Observer HUD lobby setup (oh_lobby.js) on the stock private-lobby page, in the page's own look: the stock
+   colours (offWhite #FFEFD7, offBlack #10130D, silvered #C6C6C6, team1ColorBright #FBDCA0,
+   team2ColorBright #BDCBFF), the stock DropDown box for text boxes, SecondaryButton light outline pills.
+   Nothing adds height to the team columns: the team row lives in the stock .TeamTitle, the edit card and
+   the ban picker lie over the slot list (ignore-parent-flow), the alias button lies over the stock name.
+   The Observer HUD block sits in #LobbyInfo under the stock match settings (lobby_setup.xml).
+   Opacity is the only transition. */
+
+/* ---------------------------------------------------------------- team titles */
+
+.OHLTitle
+{
+	width: 100%;
+	height: 26px;
+	flow-children: right;
+}
+
+.OHLTitleMain
+{
+	width: fill-parent-flow( 1.0 );
+	height: 100%;
+	flow-children: right;
+	padding: 0px 6px 0px 1px;
+	border-radius: 3px;
+	overflow: clip;
+}
+
+.OHLTitleMain:hover,
+.OHLEdit:hover,
+.OHLPip:hover
+{
+	background-color: #FFEFD71f;
+}
+
+.OHLLogoBox
+{
+	width: 24px;
+	height: 24px;
+	vertical-align: center;
+	margin-right: 8px;
+	border-radius: 50%;
+	background-color: #10130D99;
+}
+
+.OHLMono
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-size: 11px;
+	font-weight: bold;
+	color: #FFEFD7cc;
+}
+
+.OHLLogo
+{
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	transition-property: opacity;
+	transition-duration: 0.15s;
+}
+
+.OHLName
+{
+	vertical-align: center;
+	font-size: 17px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHLTag
+{
+	vertical-align: center;
+	margin-left: 8px;
+	font-size: 15px;
+	font-weight: semi-bold;
+	color: #FFEFD799;
+	white-space: nowrap;
+}
+
+.OHLRight
+{
+	height: 100%;
+	flow-children: right;
+}
+
+/* Bans (state.banCount: 2 or 3): the hero's portrait, or the "no" icon in an empty frame. */
+.OHLBans
+{
+	vertical-align: center;
+	flow-children: right;
+	margin-right: 6px;
+}
+
+.OHLBan
+{
+	width: 24px;
+	height: 24px;
+	margin-left: 4px;
+	border-radius: 3px;
+	background-color: #10130D80;
+	border: 1px solid #FFEFD740;
+}
+
+.OHLBan:hover
+{
+	border: 1px solid #FFEFD7;
+}
+
+.OHLBanImage
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+}
+
+.OHLBanSet .OHLBanImage
+{
+	visibility: visible;
+}
+
+.OHLBan.OHLBanSet
+{
+	border: 1px solid #ee5945cc;
+}
+
+/* An empty ban: the stock "no" ping icon, dimmed. */
+.OHLBanPlus
+{
+	width: 16px;
+	height: 16px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-image: url("s2r://panorama/images/hud/ping/ping_icon_no.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	wash-color: #FFEFD7;
+	opacity: 0.45;
+}
+
+.OHLBan:hover .OHLBanPlus
+{
+	opacity: 1;
+}
+
+.OHLBanSet .OHLBanPlus
+{
+	visibility: collapse;
+}
+
+.OHLPips
+{
+	vertical-align: center;
+	flow-children: right;
+	margin-right: 2px;
+}
+
+.OHLPip
+{
+	width: 22px;
+	height: 24px;
+	border-radius: 50%;
+}
+
+/* The visible dot inside the target. */
+.OHLPipDot
+{
+	width: 12px;
+	height: 12px;
+	horizontal-align: center;
+	vertical-align: center;
+	border-radius: 50%;
+	border: 2px solid #FFEFD799;
+}
+
+.OHLWon .OHLPipDot
+{
+	background-color: #FBDCA0;
+	border: 2px solid #FBDCA0;
+}
+
+.TeamSapphire .OHLWon .OHLPipDot
+{
+	background-color: #BDCBFF;
+	border: 2px solid #BDCBFF;
+}
+
+.OHLEdit
+{
+	width: 26px;
+	height: 24px;
+	vertical-align: center;
+	border-radius: 3px;
+}
+
+.OHLEditIcon
+{
+	width: 16px;
+	height: 16px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-image: url("s2r://panorama/images/main_menu/icons/menu_edit.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	wash-color: #FFEFD7cc;
+}
+
+/* ---------------------------------------------------------------- edit card and ban picker */
+
+.OHLCard,
+.OHLPicker
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	margin-top: 38px;
+	padding: 14px 16px 10px 16px;
+	flow-children: down;
+	background-color: #10130Df7;
+	border: 1px solid #FFEFD733;
+	border-radius: 0px 0px 4px 4px;
+	z-index: 20;
+}
+
+.OHLCardTitle
+{
+	margin-bottom: 10px;
+	font-family: serif;
+	font-size: 24px;
+	font-weight: bold;
+	color: #FFEFD7;
+}
+
+.OHLField
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 8px;
+}
+
+.OHLFieldLabel
+{
+	width: 96px;
+	vertical-align: center;
+	font-size: 16px;
+	font-weight: semi-bold;
+	color: #FFEFD799;
+}
+
+/* Text boxes look like the stock lobby DropDowns. */
+.OHLEntry,
+.OHLBox
+{
+	height: 36px;
+	padding: 4px 10px;
+	font-size: 18px;
+	color: #FFEFD7;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #292e2e ), to( #191e1e ) );
+	border: 2px solid #5e686966;
+}
+
+.OHLEntry
+{
+	width: fill-parent-flow( 1.0 );
+}
+
+.OHLEntry:focus,
+.OHLBox:focus
+{
+	border: 2px solid #FFEFD7aa;
+}
+
+.OHLCardNote
+{
+	margin: 2px 0px 4px 96px;
+	font-size: 15px;
+	color: #FFEFD799;
+}
+
+.OHLCardButtons
+{
+	horizontal-align: right;
+	flow-children: right;
+}
+
+.OHLPickerHead
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.OHLPickerTitle
+{
+	width: fill-parent-flow( 1.0 );
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.OHLPickerHover
+{
+	margin-top: 6px;
+	font-size: 17px;
+	font-weight: semi-bold;
+	color: #FFEFD7;
+}
+
+.OHLHeroGrid
+{
+	width: 100%;
+	flow-children: right-wrap;
+}
+
+.OHLHeroTile
+{
+	width: 45px;
+	height: 45px;
+	margin: 0px 4px 4px 0px;
+	border-radius: 3px;
+	background-color: #FFEFD70f;
+	border: 2px solid #FFEFD714;
+}
+
+.OHLHeroTile:hover
+{
+	border: 2px solid #FFEFD7;
+}
+
+/* Banned elsewhere: still pickable (it moves the ban here), dimmed and outlined red. Live 6842: opacity on
+   the tile Button did not show, so the portrait itself dims. */
+.OHLHeroTile.OHLTaken
+{
+	border: 2px solid #ee594566;
+}
+
+.OHLTaken .OHLHeroImage
+{
+	opacity: 0.3;
+	saturation: 0;
+}
+
+.OHLHeroTile.OHLCurrent
+{
+	border: 2px solid #ee5945;
+}
+
+.OHLHeroImage
+{
+	width: 100%;
+	height: 100%;
+}
+
+/* ---------------------------------------------------------------- pills (stock SecondaryButton light outline) */
+
+.OHLPill
+{
+	width: fit-children;
+	vertical-align: top;
+	margin: 8px 6px 0px 0px;
+	padding: 4px 11px;
+}
+
+.OHLPillText
+{
+	font-size: 15px;
+	white-space: nowrap;
+}
+
+.OHLRow
+{
+	flow-children: right;
+}
+
+.OHLPill.OHLSelected
+{
+	background-color: #C6C6C6;
+	border: 2px solid #C6C6C600;
+}
+
+.OHLPill.OHLSelected .OHLPillText
+{
+	color: #10130D;
+}
+
+.OHLPill.OHLDanger .OHLPillText
+{
+	color: #ee5945;
+}
+
+.OHLPill.OHLDanger.OHLArmed
+{
+	background-color: #ee5945;
+	border: 2px solid #ee594500;
+}
+
+.OHLPill.OHLDanger.OHLArmed .OHLPillText
+{
+	color: #10130D;
+}
+
+/* ---------------------------------------------------------------- the Observer HUD block (lobby_setup.xml) */
+
+.OHLSetup
+{
+	width: 100%;
+	flow-children: down;
+	padding: 2px 20px 6px 20px;
+}
+
+.OHLSetupHead
+{
+	width: 100%;
+	flow-children: right;
+	padding-top: 4px;
+	border-top: 1px solid #FFEFD726;
+}
+
+.OHLSetupTitle
+{
+	vertical-align: center;
+	font-family: serif;
+	font-size: 22px;
+	font-weight: bold;
+	color: #FFEFD7;
+}
+
+.OHLLinkState
+{
+	width: fill-parent-flow( 1.0 );
+	vertical-align: center;
+	flow-children: right;
+	margin-left: 12px;
+}
+
+.OHLLinkDot
+{
+	width: 8px;
+	height: 8px;
+	vertical-align: center;
+	margin-right: 6px;
+	border-radius: 50%;
+	background-color: #ee5945;
+}
+
+.OHLLinkDot.OHLLinkOn
+{
+	background-color: #69e799;
+}
+
+.OHLLink
+{
+	width: fill-parent-flow( 1.0 );
+	vertical-align: center;
+	font-size: 15px;
+	color: #FFEFD799;
+	text-overflow: shrink;
+	white-space: nowrap;
+}
+
+.OHLLink.OHLLinkNote
+{
+	color: #FFED79;
+}
+
+/* Everything but the head waits for the HUD. */
+.OHLSetup.OHLOff .SettingSubSection,
+.OHLSetup.OHLOff .OHLRow
+{
+	opacity: 0.35;
+}
+
+/* One row as wide as the Unassigned list below: format, stage, then swap, clear bans and share as
+   icon buttons the height of the boxes (stock icons; the tooltips name them). */
+.OHLMatchRow
+{
+	width: 100%;
+	margin-top: 4px;
+}
+
+.OHLFormat
+{
+	width: 132px;
+}
+
+/* Bans per team (2 or 3): a short drop-down beside the format; the stage box gives up the room. */
+.OHLBanCount
+{
+	width: 96px;
+	margin-left: 6px;
+}
+
+.OHLStage
+{
+	width: fill-parent-flow( 1.0 );
+	margin-left: 6px;
+}
+
+.OHLIconButton
+{
+	width: 36px;
+	height: 36px;
+	margin-left: 6px;
+	border-radius: 3px;
+	background-color: #10130D80;
+	border: 1px solid #FFEFD740;
+}
+
+.OHLIconButton:hover,
+.OHLIconButton.OHLSelected
+{
+	border: 1px solid #FFEFD7;
+}
+
+.OHLIcon
+{
+	width: 20px;
+	height: 20px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	wash-color: #FFEFD7;
+	opacity: 0.75;
+}
+
+.OHLIconButton:hover .OHLIcon,
+.OHLIconButton.OHLSelected .OHLIcon
+{
+	opacity: 1;
+}
+
+.OHLIconDanger:hover .OHLIcon
+{
+	wash-color: #ee5945;
+}
+
+/* Swap: the stock east and west arrows stacked, offset, as a two-way arrow. */
+.OHLIconSwap
+{
+	width: 22px;
+	height: 22px;
+	horizontal-align: center;
+	vertical-align: center;
+	flow-children: down;
+}
+
+.OHLIconSwap .OHLIcon
+{
+	width: 15px;
+	height: 11px;
+	horizontal-align: left;
+	vertical-align: top;
+}
+
+.OHLSwapEast
+{
+	margin-left: 7px;
+	background-image: url("s2r://panorama/images/icons/arrow_east.vsvg");
+}
+
+.OHLSwapWest
+{
+	background-image: url("s2r://panorama/images/icons/arrow_west.vsvg");
+}
+
+.OHLIconClear
+{
+	background-image: url("s2r://panorama/images/icons/icon_trash.vsvg");
+}
+
+.OHLIconShare
+{
+	background-image: url("s2r://panorama/images/icons/icon_party_code.vsvg");
+}
+
+/* The share card: over the foot of #LobbyInfo (the stock Unassigned list) while open. */
+.OHLShareCard
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	vertical-align: bottom;
+	flow-children: down;
+	padding: 8px 20px 12px 20px;
+	background-color: #10130D;
+	border-top: 1px solid #FFEFD733;
+	z-index: 20;
+}
+
+.OHLShareHead
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.OHLShareTitle
+{
+	width: fill-parent-flow( 1.0 );
+}
+
+.OHLClose
+{
+	width: 28px;
+	height: 28px;
+	border-radius: 3px;
+}
+
+.OHLClose:hover
+{
+	background-color: #FFEFD71f;
+}
+
+.OHLCloseIcon
+{
+	width: 16px;
+	height: 16px;
+	horizontal-align: center;
+	vertical-align: center;
+	background-image: url("s2r://panorama/images/control_icons/24px/x_close.vsvg");
+	background-size: contain;
+	background-repeat: no-repeat;
+	wash-color: #FFEFD7cc;
+}
+
+.OHLShareNote
+{
+	width: 100%;
+	margin-bottom: 8px;
+	font-size: 15px;
+	color: #FFEFD7aa;
+}
+
+.OHLShareEntry
+{
+	width: 100%;
+	font-size: 15px;
+}
+
+.OHLShareStatus
+{
+	width: 100%;
+	margin-top: 6px;
+	font-size: 15px;
+	color: #FFED79;
+}
+
+/* The offer: the players of the last match came back on the other sides. */
+.OHLOffer
+{
+	width: 100%;
+	flow-children: down;
+	margin-top: 8px;
+	padding: 8px 10px;
+	background-color: #FFED7914;
+	border: 1px solid #FFED7966;
+	border-radius: 3px;
+}
+
+.OHLOfferText
+{
+	width: 100%;
+	font-size: 16px;
+	color: #FFEFD7;
+}
+
+/* ---------------------------------------------------------------- aliases over player names */
+
+.OHLAlias
+{
+	ignore-parent-flow: true;
+	border-radius: 3px;
+}
+
+.OHLAlias:hover
+{
+	background-color: #FFEFD71a;
+}
+
+.OHLAliasRow
+{
+	height: 100%;
+	flow-children: right;
+}
+
+.OHLAliasText
+{
+	vertical-align: center;
+	font-size: 19px;
+	font-weight: bold;
+	color: #FFEFD7;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.OHLAliasReal
+{
+	vertical-align: center;
+	margin-left: 8px;
+	font-size: 15px;
+	color: #FFEFD78c;
+	white-space: nowrap;
+}
+
+/* Without an alias the stock name shows under the button; the hint sits after it on hover. */
+.OHLAliasHint
+{
+	ignore-parent-flow: true;
+	horizontal-align: right;
+	vertical-align: center;
+	margin-right: 6px;
+	padding: 2px 8px;
+	font-size: 14px;
+	font-weight: semi-bold;
+	color: #FFEFD7;
+	background-color: #10130Dcc;
+	border: 1px solid #FFEFD740;
+	border-radius: 50px;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.1s;
+}
+
+.OHLAlias:hover .OHLAliasHint
+{
+	opacity: 1;
+}
+
+.OHLHasAlias .OHLAliasHint
+{
+	visibility: collapse;
+}
+
+.OHLAliasEntry
+{
+	ignore-parent-flow: true;
+	width: 100%;
+	height: 100%;
+	padding: 0px 10px;
+	font-size: 18px;
+	color: #FFEFD7;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #292e2e ), to( #191e1e ) );
+	border: 2px solid #FFEFD7aa;
+}
+
+.OHLEditing .OHLAliasRow
+{
+	visibility: collapse;
+}
+
+/* A panel a stopped instance left until its DeleteAsync lands (oh_lobby.js teardown). */
+.OHLDead
+{
+	visibility: collapse;
+}

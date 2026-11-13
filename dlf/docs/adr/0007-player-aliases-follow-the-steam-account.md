@@ -1,0 +1,5 @@
+# Key player aliases by Steam account, not slot
+
+The banner shows an alias per player, typed in the editor. An alias belongs to the player's Steam account so it follows that player to any slot and survives restarts; `state.aliases` maps account id to alias (at most 24) and saves with the match. Players with no account (bots) get a session alias by slot that shows only while the slot holds that game name.
+
+The top bar has no account binding (live 2026-10-16: no `account_id` or `steamid` variable or attribute on top-bar or players-list panels), so the editor learns accounts the way ShowRank does: it briefly activates the stock PLAYERS list's rows and reads each opened profile card's `{i:r:account_id}`. The cost is that opening the editor briefly opens and closes profile cards, which ends when the editor closes, and bots stay slot-bound. The top bar's own name labels are never renamed, because the debuff column matches cards by them. See [SPEC.md](../../SPEC.md#players-page) and [ENGINE.md](../../ENGINE.md#top-bar-cards).

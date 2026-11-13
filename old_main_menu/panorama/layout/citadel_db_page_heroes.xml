@@ -1,0 +1,207 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss" />
+		<include src="s2r://panorama/styles/citadel_db_page_shared.vcss" />
+		<include src="s2r://panorama/styles/citadel_db_page_heroes.vcss" />
+	</styles>
+	<scripts>
+		<include src="s2r://panorama/scripts/citadel_db_page_heroes_data.vjs" />
+		<include src="s2r://panorama/scripts/citadel_db_page_heroes.vjs" />
+	</scripts>
+	<CitadelCustomLayoutPage class="DashboardPage HeroesPage" oncancel="CitadelNavigateBack();" dashboardclass="isShowingHeroesPage">
+		<Panel id="HeroGridView">
+			<Panel id="HeroesPageHeader">
+				<Label id="HeroesPageTitle" text="#menu_hero_grid" />
+			</Panel>
+			<CitadelHeroGrid id="HeroGrid" />
+		</Panel>
+		<Panel id="HeroDetailsView" acceptsfocus="true" oncancel="HeroesPage_ShowGrid()">
+			<CitadelHeroSpotlight id="DetailsSpotlight" />
+			<Panel id="DetailsLeftShade" hittest="false" />
+			<Panel id="DetailsTabs">
+				<Button id="TabBasic" class="DetailsTab Active">
+					<Label text="BASIC" />
+				</Button>
+				<Label class="DetailsTabSep" text="/" />
+				<Button id="TabBackground" class="DetailsTab">
+					<Label text="BACKGROUND" />
+				</Button>
+				<Label class="DetailsTabSep" text="/" />
+				<Panel class="DetailsTab Unavailable">
+					<Label text="EQUIPMENT" />
+				</Panel>
+				<Label class="DetailsTabSep" text="/" />
+				<Button id="TabBuilds" class="DetailsTab">
+					<Label text="BUILDS" />
+				</Button>
+				<Label class="DetailsTabSep" text="/" />
+				<Panel class="DetailsTab Unavailable">
+					<Label text="PROGRESSION" />
+				</Panel>
+			</Panel>
+			<Panel id="DetailsLeftPanel">
+				<CitadelHeroLogo id="DetailsLogo" />
+				<Label id="DetailsRole" text="" />
+				<CitadelHeroTags id="DetailsTags" />
+				<Panel id="DetailsAbilitiesArea">
+					<CitadelHeroAbilities id="DetailsAbilities" hittest="false" hittestchildren="false" />
+					<Panel id="DetailsAbilityHotspots">
+						<Panel id="AbilityHotspot0" class="AbilityHotspot" />
+						<Panel id="AbilityHotspot1" class="AbilityHotspot" />
+						<Panel id="AbilityHotspot2" class="AbilityHotspot" />
+						<Panel id="AbilityHotspot3" class="AbilityHotspot" />
+					</Panel>
+				</Panel>
+				<Label id="DetailsPlaystyle" html="true" text="" />
+				<Button id="DetailsSandboxButton">
+					<Label text="Hero Sandbox" />
+				</Button>
+			</Panel>
+			<Panel id="DetailsLorePanel">
+				<Label id="DetailsLoreTitle" text="BACKGROUND" />
+				<Label id="DetailsLoreText" html="true" text="" />
+			</Panel>
+			<Panel id="DetailsRightPanel">
+				<Label class="DetailsStatsTitle Weapon" text="WEAPON" />
+				<Panel class="StatGrid">
+					<Panel class="StatBox">
+						<Label id="Stat_DPS" class="StatValue" text="-" />
+						<Label class="StatName" text="DPS" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_BulletDamage" class="StatValue" text="-" />
+						<Label class="StatName" text="Bullet Damage" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_Ammo" class="StatValue" text="-" />
+						<Label class="StatName" text="Ammo" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_BulletsPerSec" class="StatValue" text="-" />
+						<Label class="StatName" text="Bullets per sec" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_LightMelee" class="StatValue" text="-" />
+						<Label class="StatName" text="Light Melee" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_HeavyMelee" class="StatValue" text="-" />
+						<Label class="StatName" text="Heavy Melee" />
+					</Panel>
+				</Panel>
+				<Label class="DetailsStatsTitle Vitality" text="VITALITY" />
+				<Panel class="StatGrid">
+					<Panel class="StatBox">
+						<Label id="Stat_MaxHealth" class="StatValue" text="-" />
+						<Label class="StatName" text="Max Health" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_HealthRegen" class="StatValue" text="-" />
+						<Label class="StatName" text="Health Regen" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_BulletResist" class="StatValue" text="-" />
+						<Label class="StatName" text="Bullet Resist" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_SpiritResist" class="StatValue" text="-" />
+						<Label class="StatName" text="Spirit Resist" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_MoveSpeed" class="StatValue" text="-" />
+						<Label class="StatName" text="Move Speed" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_SprintSpeed" class="StatValue" text="-" />
+						<Label class="StatName" text="Sprint Speed" />
+					</Panel>
+					<Panel class="StatBox">
+						<Label id="Stat_Stamina" class="StatValue" text="-" />
+						<Label class="StatName" text="Stamina" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Panel id="AbilityTooltip" hittest="false">
+				<Panel id="AbilityTooltipMain">
+					<Panel id="AbilityTooltipHeader">
+						<Label id="AbilityTooltipName" text="" />
+						<Panel id="AbilityTooltipCooldown" class="TipBadge">
+							<Label id="AbilityTooltipCooldownText" text="" />
+						</Panel>
+					</Panel>
+					<Panel id="AbilityTooltipBadges">
+						<Panel id="TipBadge0" class="TipBadge">
+							<Label id="TipBadgeText0" text="" />
+						</Panel>
+						<Panel id="TipBadge1" class="TipBadge">
+							<Label id="TipBadgeText1" text="" />
+						</Panel>
+						<Panel id="TipBadge2" class="TipBadge">
+							<Label id="TipBadgeText2" text="" />
+						</Panel>
+						<Panel id="TipBadge3" class="TipBadge">
+							<Label id="TipBadgeText3" text="" />
+						</Panel>
+					</Panel>
+					<Label id="AbilityTooltipDesc" html="true" text="" />
+					<Panel id="AbilityTooltipProps">
+						<Panel id="TipImportant">
+							<Panel id="TipImp0" class="TipImpBox">
+								<Label id="TipImpScale0" class="TipImpScale" text="" />
+								<Label id="TipImpValue0" class="TipImpValue" text="" />
+								<Label id="TipImpLabel0" class="TipImpLabel" text="" />
+							</Panel>
+							<Panel id="TipImp1" class="TipImpBox">
+								<Label id="TipImpScale1" class="TipImpScale" text="" />
+								<Label id="TipImpValue1" class="TipImpValue" text="" />
+								<Label id="TipImpLabel1" class="TipImpLabel" text="" />
+							</Panel>
+							<Panel id="TipImp2" class="TipImpBox">
+								<Label id="TipImpScale2" class="TipImpScale" text="" />
+								<Label id="TipImpValue2" class="TipImpValue" text="" />
+								<Label id="TipImpLabel2" class="TipImpLabel" text="" />
+							</Panel>
+						</Panel>
+						<Panel id="TipBasic">
+							<Label id="TipBasic0" class="TipBasicRow" html="true" text="" />
+							<Label id="TipBasic1" class="TipBasicRow" html="true" text="" />
+							<Label id="TipBasic2" class="TipBasicRow" html="true" text="" />
+							<Label id="TipBasic3" class="TipBasicRow" html="true" text="" />
+							<Label id="TipBasic4" class="TipBasicRow" html="true" text="" />
+							<Label id="TipBasic5" class="TipBasicRow" html="true" text="" />
+						</Panel>
+					</Panel>
+				</Panel>
+				<Panel id="AbilityTooltipTiers">
+					<Panel id="AbilityTierBox1" class="TierBox">
+						<Panel class="TierHeader">
+							<Panel class="TierIcon" />
+							<Label class="TierCost" text="1" />
+						</Panel>
+						<Label id="AbilityTier1" class="TierDesc" html="true" text="" />
+					</Panel>
+					<Panel id="AbilityTierBox2" class="TierBox">
+						<Panel class="TierHeader">
+							<Panel class="TierIcon" />
+							<Label class="TierCost" text="2" />
+						</Panel>
+						<Label id="AbilityTier2" class="TierDesc" html="true" text="" />
+					</Panel>
+					<Panel id="AbilityTierBox3" class="TierBox">
+						<Panel class="TierHeader">
+							<Panel class="TierIcon" />
+							<Label class="TierCost" text="5" />
+						</Panel>
+						<Label id="AbilityTier3" class="TierDesc" html="true" text="" />
+					</Panel>
+				</Panel>
+			</Panel>
+			<Button id="DetailsPrevButton" class="DetailsNavButton" onactivate="HeroesPage_Step(-1)">
+				<Image class="DetailsNavArrow" src="s2r://panorama/images/icons/arrow_east.vsvg" />
+			</Button>
+			<Button id="DetailsNextButton" class="DetailsNavButton" onactivate="HeroesPage_Step(1)">
+				<Image class="DetailsNavArrow" src="s2r://panorama/images/icons/arrow_east.vsvg" />
+			</Button>
+		</Panel>
+	</CitadelCustomLayoutPage>
+</root>

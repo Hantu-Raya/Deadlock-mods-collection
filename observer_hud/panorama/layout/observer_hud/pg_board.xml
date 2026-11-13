@@ -60,7 +60,7 @@
 				</Panel>
 			</Panel>
 			<Panel id="NSBody" class="NSBody" hittest="false">
-				<Panel class="NSTeam NSTeam1" hittest="false" />
+				<Panel class="NSTeam" hittest="false" />
 				<Panel id="NSLabels" class="NSLabels" hittest="false">
 					<Panel class="NSOrg" hittest="false">
 						<Label id="NSOrgText" class="NSOrgText" text="" />
@@ -77,7 +77,7 @@
 					<Label id="NSSoulsLabel" class="NSRowLabel NSSoulsLabel" text="SOULS BY SOURCE" />
 					<Label class="NSRowLabel NSItemsLabel" text="FINAL ITEMS" />
 				</Panel>
-				<Panel class="NSTeam NSTeam2" hittest="false" />
+				<Panel class="NSTeam" hittest="false" />
 			</Panel>
 			<Panel id="NSGraph" class="NSGraph" hittest="false">
 				<!-- Soul lead: a line on a UICanvas (pg_board.js renderGraph), dots and labels over it, a pill in the right gutter. -->
@@ -94,7 +94,7 @@
 					<Panel id="NSGraphDraw" class="NSGraphDraw" hittest="false">
 						<UICanvas id="NSGraphCanvas" class="NSGraphCanvas" hittest="false" />
 						<Panel id="NSGraphMarks" class="NSGraphMarks" hittest="false" />
-						<Label id="NSGraphPeak1" class="NSGraphPeak NSPeakTeam1" text="" />
+						<Label id="NSGraphPeak1" class="NSGraphPeak" text="" />
 						<Label id="NSGraphPeak2" class="NSGraphPeak NSPeakTeam2" text="" />
 						<Label id="NSGraphEnd" class="NSGraphEnd" text="" />
 					</Panel>

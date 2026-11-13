@@ -21,7 +21,7 @@
 						<Panel class="OHCredits">
 							<Button id="OHDonate" class="SecondaryButton light OHDonate"><Label text="Donate" hittest="false" /></Button>
 							<Button id="OHAuthor" class="OHAuthor"><Label id="OHAuthorLabel" class="OHAuthorLabel" text="by hanturaya" hittest="false" /></Button>
-							<Label id="OHVersion" class="OHVersion" text="v0.2.0" />
+							<Label id="OHVersion" class="OHVersion" text="v0.3.2" />
 						</Panel>
 					</Panel>
 					<Panel class="OHContent">
@@ -41,8 +41,9 @@
 							</Panel>
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Bans" /><Label class="OHScope" text="BOTH LOOKS" /><Label class="OHNote OHWhere" text="beside the clock" /></Panel>
-								<Panel class="OHRow"><Label id="OHAmberBansTitle" class="OHRowTitle OHTeamAmber" text="" /><Panel class="OHRowControls"><Button id="OHAmberBan0" class="OHBanSlot"><CitadelHeroImage id="OHAmberBan0Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHAmberBan0Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHAmberBan1" class="OHBanSlot"><CitadelHeroImage id="OHAmberBan1Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHAmberBan1Label" class="OHBanSlotLabel" text="" hittest="false" /></Button></Panel></Panel>
-								<Panel class="OHRow"><Label id="OHSapphireBansTitle" class="OHRowTitle OHTeamSapphire" text="" /><Panel class="OHRowControls"><Button id="OHSapphireBan0" class="OHBanSlot"><CitadelHeroImage id="OHSapphireBan0Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHSapphireBan0Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHSapphireBan1" class="OHBanSlot"><CitadelHeroImage id="OHSapphireBan1Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHSapphireBan1Label" class="OHBanSlotLabel" text="" hittest="false" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label class="OHRowTitle" text="Per team" /><Panel class="OHRowControls"><Button id="OHBans2" class="SecondaryButton light OHChoice"><Label text="2" /></Button><Button id="OHBans3" class="SecondaryButton light OHChoice"><Label text="3" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label id="OHAmberBansTitle" class="OHRowTitle OHTeamAmber" text="" /><Panel class="OHRowControls"><Button id="OHAmberBan0" class="OHBanSlot"><CitadelHeroImage id="OHAmberBan0Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHAmberBan0Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHAmberBan1" class="OHBanSlot"><CitadelHeroImage id="OHAmberBan1Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHAmberBan1Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHAmberBan2" class="OHBanSlot"><CitadelHeroImage id="OHAmberBan2Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHAmberBan2Label" class="OHBanSlotLabel" text="" hittest="false" /></Button></Panel></Panel>
+								<Panel class="OHRow"><Label id="OHSapphireBansTitle" class="OHRowTitle OHTeamSapphire" text="" /><Panel class="OHRowControls"><Button id="OHSapphireBan0" class="OHBanSlot"><CitadelHeroImage id="OHSapphireBan0Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHSapphireBan0Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHSapphireBan1" class="OHBanSlot"><CitadelHeroImage id="OHSapphireBan1Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHSapphireBan1Label" class="OHBanSlotLabel" text="" hittest="false" /></Button><Button id="OHSapphireBan2" class="OHBanSlot"><CitadelHeroImage id="OHSapphireBan2Image" class="OHBanSlotImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" hittest="false" /><Label id="OHSapphireBan2Label" class="OHBanSlotLabel" text="" hittest="false" /></Button></Panel></Panel>
 							</Panel>
 						</Panel>
 						<Panel class="OHPage OHPageTeams">
@@ -138,7 +139,7 @@
 						<Panel class="OHPage OHPageShare">
 							<Panel class="OHCard">
 								<Panel class="OHCardHead"><Label class="OHCardTitle" text="Share code" /></Panel><Label class="OHHelp" text="Copy the code to another observer PC, or paste one here and import it." />
-								<Panel class="OHShareRow"><TextEntry id="OHShareEntry" class="OHEntry OHShareEntry" maxchars="8192" placeholder="OHC1...." text="" /><Button id="OHShareCopy" class="SecondaryButton light OHAction"><Label text="Copy code" /></Button><Button id="OHShareImport" class="SecondaryButton light OHAction"><Label text="Import" /></Button></Panel>
+								<Panel class="OHShareRow"><TextEntry id="OHShareEntry" class="OHEntry OHShareEntry" maxchars="20480" placeholder="OHC1...." text="" /><Button id="OHShareCopy" class="SecondaryButton light OHAction"><Label text="Copy code" /></Button><Button id="OHShareImport" class="SecondaryButton light OHAction"><Label text="Import" /></Button></Panel>
 								<Label id="OHShareStatus" class="OHNote OHShareStatus" text="" />
 							</Panel>
 							<Panel class="OHCard">

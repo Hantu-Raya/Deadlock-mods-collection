@@ -1,0 +1,99 @@
+# DLF observer HUD layout contract
+
+Geometry, CSS and build contracts for the banner, the top-bar card, the soul graph, the spectator VData and the pickup composition. Behavior is in [SPEC.md](SPEC.md); engine evidence is in [ENGINE.md](ENGINE.md); terms are in [CONTEXT.md](CONTEXT.md).
+
+## Shipped stock frame
+
+DLF overrides six stock layouts (`citadel_hud_top_bar`, `citadel_hud_top_bar_player`, `hud_escape_menu`, `hud_paused`, `unit_status_overlay_v2`, `citadel_status_effect`), `styles/objectives_map.css` and `styles/citadel_hud_hero_shop.css`, each a stock file with DLF edits (the shop layout override went 2026-10-24 with the QOLLOCK purchase code; the shop stylesheet still hides the shop's own recent-purchases panel); `gameinfo/gameinfo.gi` is a stock file with the `citadel/addons` mount, kept as the validated reference and no longer shipped in the 7z (2026-10-20). `stock-pin.json` pins the GameTracking source of each; `styles/base/*.css` are verbatim stock copies that the wrapper styles `@import`. Stock XML IDs and classes stay engine-owned; DLF adds only its own panels, includes and CSS.
+
+## Source map
+
+```text
+layout/citadel_hud_top_bar.xml   stock + observer scripts + #DLFBanner + #DLFSoulGraph + QOLLOCK timer panels
+  -> dlf_state.js        shared match-state normalization ($.DLFState), also used by the ESC menu
+  -> dlf_match.js        generated from dlf/match.json (DLF_MATCH): the defaults
+  -> dlf_banner.js + styles/dlf/dlf_banner.css + images/dlf/dlf_banner.png
+  -> dlf_soul_graph.js + styles/dlf/dlf_soul_graph.css      soul lead graph under the clock
+  -> pickup_config.js + pickup_timers.js      generated ring consumer (class HPV2PickupTopBar)
+  -> dlf_debuff_icons.js (generated icon table) + dlf_debuffs.js   debuff column renderer
+  -> dlf_ult_cooldown.js                      ult_cooldown copy to the visible counter
+  -> qollock/ql_recent_purchases_data.js (MOD_ICONS) + dlf_buys.js   purchase notices from the stock shop list
+  -> dlf_names.js                             aliases on far-away markers and kill feed rows
+  -> dlf_urn.js                               urn carrier icon (feed pickup row + minimap holding class)
+layout/hud_paused.xml            stock pause box + dlf_pause.js (II follows #PausedCountdownLabel.Hidden)
+layout/citadel_hud_top_bar_player.xml  stock card + #DLFUltColumn (ult icon, #DLFUltCooldown under it) + #DLFUltCooldownHidden + #DLFUrn + #DLFDebuffs; styles/dlf/dlf_card.css
+layout/hud_escape_menu.xml       stock + DLF BROADCAST button + #DLFMenuRoot editor + #DLFStore save page
+  -> dlf_state, dlf_match, dlf_heroes.js (generated), dlf_menu.js, styles/dlf/dlf_menu.css
+layout/unit_status_overlay_v2.xml  stock world healthbar (root class DLFWorldBar)
+  -> pickup_config, pickup_host, pickup_bridge, pickup_timers, dlf_status_css.js (generated), dlf_debuff_world.js
+layout/citadel_status_effect.xml   stock status-list layout + styles/dlf/dlf_status_world.css (stun hiding; stylesheets only reach panels of their own layout file)
+layout/dlf/pickup_event_relay.xml + debuff_event_relay.xml   sibling relays (pickup_bridge, dlf_debuff_relay)
+layout/post_game/citadel_db_page_post_game_new.xml  pinned stock post-game page + dlf_pg_loader.js (flame video src set by the loader)
+  -> layout/dlf/dlf_pg_board.xml in #ScoreboardScreen#NSHost: dlf_state.js + dlf_pg_board.js + styles/dlf/dlf_pg_board.css + images/dlf/torn_*
+  -> layout/dlf/dlf_pg_column.xml, one per stock scoreboard row (ported from observer_hud pg_*; header names from dlf_menu.js's DLFM1: handoff)
+spectator-status.json + scripts/spectator_status.py  -> scripts/abilities.vdata_c, scripts/modifiers.vdata_c
+scripts/export-banner-art.py: G:\NEW HUD 3 ban.psd -> images/dlf/dlf_banner.png (1920x100, text and emblems cut, transparent pixels bled) + dlf_emblem_amber/sapphire.png (only from smart-object emblem layers; HK is a pixel layer in that PSD, pixel-identical, so its PNG is kept)
+fonts/modesto-lite-expanded.otf, gofire.otf, operation-napalm-italic.ttf  -> loose citadel/panorama/fonts files (not in pak01)
+```
+
+- `dlf_debuff_world.js` (one per world healthbar) owns status sampling, stun-panel muting on hero bars and `DLF_DEBUFF_SNAPSHOT` publishing. `dlf_debuffs.js` (top bar) owns message validation, card matching, slot rendering, fades and `DLF_DEBUFF_CONFIG`. `pickup_host.js` owns the world context's single `ClientUI_FireOutput` listener.
+- `dlf_menu.js` owns the Escape editor, the `dlf_match_state` and `dlf_player_names` root attributes, `$.DLFMenuCancel` and the save bridge. `dlf_banner.js` reads those and owns the `dlf_roster` and `dlf_logo_status` attributes. Every HUD-root attribute goes through `$.DLFState.hudAttrs(context)`; `dlf_soul_graph.js` reads `dlf_match_state` the same way.
+
+## Banner
+
+- Coordinates are 1920x100 HUD px; the art is `images/dlf/dlf_banner.png`, rows 504-603 of `G:\NEW HUD 3 ban.psd` (2026-10-28: a third ban box per team and the team names moved to the band's outer ends; before it `G:\NEW HUD(1).psd`, 2026-10-20, and the 1920x66 art of `G:\NEW HUD.psd`), with every text layer and both team emblems removed. Rows 0-67 are the solid band; rows 68-99 are its torn bottom edge, which fades out over the top of the card area. The art's top rows are partly transparent, as in the PSD.
+- Fully transparent pixels of the banner and emblems carry the colour of the nearest visible pixel (`export-banner-art.py` `bleed`). Panorama filters these textures with straight alpha, so the PSD's white behind transparency drew a white outline and white specks along the torn edge when the 1920 px art was scaled (user screenshot 2026-10-20, 1600x900). Visible pixels and alpha are unchanged.
+- The art's name rows assume the stock top-bar geometry (1260px `#TeamsContainer`, two 528px teams of 88px players); `dlf_banner.css` locks it, including under `.showNewTopbar`. Each name label (88px, one card) is placed by `dlf_banner.js` under its own card: card and banner `GetPositionWithinWindow()` x and the card's `actuallayoutwidth`, divided by the banner's `actualuiscale_x`. The stock bar packs a short team toward the clock and reverses the order in some modes (`.friend #PlayersContainer` in hero testing), so fixed slots drifted from the cards (seen live 2026-10-16). A name stays hidden (`.DLFUnplaced`) while its card is missing, hidden or not laid out.
+- Left/right follows the stock CSS (`.friend`/`.team1` left, `.enemy`/`.team2` right). Team name and score follow the team, not the side.
+- The banner's room is `padding-top: 68px` on `CitadelHudTopBar` (the solid band), with `margin-top: 0px` against stock `.spec_mode CitadelHudTopBar { margin-top: 8px }`, which showed an 8px strip of the world above the banner when spectating (live 2026-10-20); the banner sits in it with a negative margin. A `margin-top` on the top bar pushes the banner outside the top bar's bounds, where it is not drawn (seen live, 2026-10-13). The banner is the top bar's first child and has no `z-index`, so the clock, team scores and cards draw over the torn edge (the old art used `z-index: 20` and had no overhang). That stacking is unverified live.
+- Only `.DLFPlayerName` uses `white-space: nowrap`: on the fixed-width team, event and series labels it broke `text-align: center` in game.
+- Ban portraits (`CitadelHeroImage.SetHeroID`, 45x34 at y 6) cover the red boxes in the art: Amber x 691, 737, 783 and Sapphire x 1092, 1138, 1184, slot 0 leftmost on both sides; an empty ban leaves the box. The validator finds the boxes in `dlf_banner.png` and checks that each has exactly one portrait.
+- Team names: bands of 310x28 at y 15, x 334 (Amber, `text-align: left`) and x 1271 (Sapphire, `text-align: right`), from the PSD's name layers (VENOM starts at 334, BANANABREAD ends at 1581, glyph rows 21-35). Each band stays clear of the frame arrow outside it and the ban icon inside it at every allowed X offset (±6 px); the validator checks those pixels of the art. The fit width is 306 px.
+- Text sections are fixed bands (`.DLFBand`) placed on their frames in the art; the label fills the band and is centered. `text-overflow: shrink` squashed GOFIRE's stencil cuts on long names (live 2026-10-16), so `dlf_banner.js` picks the largest whole font size (style size down to a per-section minimum) whose width, estimated from the fonts' glyph advances (`FIT_ADVANCES` in `dlf_state.js`, `scripts/font-metrics.py`), fits the band; if it still does not fit, that label drops its letter spacing, and ellipsis is the last backstop. The style offsets (`STYLE_LIMITS`) translate the label (or the event stack and player row) a few pixels inside the band. Default sizes start from the PSD text layers (tracking 80: event 22/14, team 19.6, players 11, score 30, series 22) and were raised for the team (24) and player (13) names toward the reference broadcast; event line 2 is always 14/22 of line 1. The 2026-10-20 PSD kept every text position of the old one; its text tints are in `dlf_banner.css` (event and series #FFCFBC, team names #F7E9D5, players and scores #FEFEFE).
+- Fonts: the 2026-10-20 PSD sets event, team and series text in Modesto Expanded, and players and scores in Modesto Poster. The supplied file is Modesto Lite Expanded (one face, used for every section). It is an Adobe Typekit font (check its licence before publishing). It ships as `citadel/panorama/fonts/vt323.ttf` (a listed name the game does not use); Pango matches the family `ModestoLite Expanded` inside the file. Without that file the banner falls back to GOFIRE, which also ships and is still selectable in the editor.
+- The art has no team logos: `scripts/export-banner-art.py` starts from Photoshop's stored composite and re-renders only the text and emblem boxes (plus 4 px) with psd-tools, which draws vector shapes slightly differently. `#DLFLeftLogo`/`#DLFRightLogo` hold the team's emblem (`dlf_emblem_amber.png`, the Hidden King, from smart object `HK`; `dlf_emblem_sapphire.png`, the Archmother, from `AM`) and any web logo. The emblem follows the team: `dlf_banner.js` swaps the default Image's source when the sides swap. 100% is the PSD emblem box, 83x83 centered at x 268 / 1653, y 43 / 40 (the emblems hang into the torn edge); the script scales it around that center and caps the height at 90 px. The DLF logo is part of the art, between the scores.
+
+## Top-bar card
+
+`citadel_hud_top_bar_player.xml` is the stock card plus `#DLFUltColumn` (holding the stock `#UltimateStatus` and the visible `#DLFUltCooldown`), `#DLFUltCooldownHidden` and `#DLFDebuffs` (six static slots since 2026-10-24); styles are `styles/dlf/dlf_card.css`.
+
+- Ultimate cooldown: the game sets the `ult_cooldown` dialog variable on `#UltimateStatusBG`, and a binding only sees its own or an ancestor's variables, so `#DLFUltCooldownHidden` (`{i:ult_cooldown}`, collapsed) must stay inside it (Third Eye's `topbar_ult_cooldown` finding). The visible `#DLFUltCooldown` sits under the icon: `#DLFUltColumn` in `#StatusRow` flows down (icon, then counter) and `#StatusRow` is 44px tall (user request 2026-10-16; it was beside the icon). The engine finds the card's ultimate panels by traversal (client.dll 6785 looks up the nested `UltimateStatusBG` from the card with vtable +0x190, rva 0x1bc149d), so the extra wrapper does not hide them. The pickup rings move `#UltimateStatus` into `#HPV2PickupIndicators`, which they create in the icon's parent (the column), centred with equal wings, so the counter stays under the icon. CSS hides the counter without `.UltimateUnlocked`, with `.UltimateCooldownReady`, and on the scoreboard. A counter inside `#UltimateStatus` was rejected: it would inherit the icon's 0.6 opacity and its ready animation.
+- Debuff column (Observer HUD's grid, 2026-10-24): `#DLFDebuffs` is 88px wide from 167px down the card (under the ultimate icon and its counter) and as tall as its rows (`.DLFRows1-3`: 39, 78, 117px). Its six `.DLFDebuff` slots are 40x39 boxes at its top centre, each moved to its place with an inline `translate3d` (x -20/0/+20, y 0/39/78) by `dlf_debuffs.js`; 34px circles with 22px icons, 6px apart in a pair, 14px to the next card's pair. Slots are collapsed until `.DLFShown`; `.DLFGlide` (0.22 s transform transition) goes on from the frame after a slot's first placement, and `DLFDebuffPop` pops the circle in. The column hides on the scoreboard, in pre-game wait, and while the stock name/KDA strip is open over the card (`.wants_scoreboard`, `.gDetailView`; it sat on the player name there, live 2026-10-20).
+- Slot colour is the applying team: `.DLFByAmber` #E8892B (The Hidden King, `TeamFriendly`) and `.DLFBySapphire` #4D75C3 (The Archmother, `TeamEnemy`, stock team2Color). Stock top-bar team panels are fixed by game team, not by the local perspective.
+- `.DLFStun` uses the stock stun ring colour (`#ffb800`, unit_status_icons.css `.stunned`) on the circle and a 15px `icon_stun.vsvg` mark on its bottom-left edge (the slot is `overflow: noclip`; moved out of the circle at the user's request, 2026-10-16). `.DLFHasTime` shows seconds over the icon and dims it to 0.55; `.DLFHasCount` shows a count badge.
+- Fade: `.DLFDebuff.DLFFading` runs `@keyframes 'DLFDebuffFadeOut'` (opacity 1 to 0, 1 s, linear, once, `animation-fill-mode: forwards`, the stock `RosterFadeIn` pattern). The duration equals `FADE_MS` in `dlf_debuffs.js`. Removing the class shows a reused slot at once. A transition declared only on the fading class did not show live, and script-stepped inline opacity looked jittery (both 2026-10-14).
+
+## World healthbar status list
+
+The engine fills `#StatusEffects` -> `#StatusEffectContainer` on every unit's world healthbar (`unit_status_overlay_v2.xml`), and `CitadelStatusEffect` builds the status panels from its own layout, `citadel_status_effect.xml`. The engine facts (which modifiers get panels, panel ids, classes, the radial, the stun records, Bebop's hook and its class, Billy's Chain Gang) are in [ENGINE.md](ENGINE.md#world-status-panels). What DLF ships:
+
+- DLF's `citadel_status_effect.xml` is the stock file plus one include, `styles/dlf/dlf_status_world.css`, after the stock styles. Its one rule, `.DLFWorldBar .statusEffect.stunned { opacity: 0; width: 0px; height: 0px; margin: 0px; }`, is scoped to world bars by the owned class on the overlay's `WindowRoot` (stock `CitadelHud .statusEffect` shows that selectors match ancestors outside the status layout). The HUD's own status list keeps stock styling. The panels are not collapsed so the engine may keep their radial current.
+- `dlf_debuff_world.js` writes the same inline styles once per stun panel on hero bars while the icons are ON, and restores them if a panel stops being a stun. It is a fallback until the stylesheet is confirmed live; check with the DEV icons OFF, which skips it.
+- The panels stay in the list, so detection is unchanged; the sampler reads stun panels even when `visible` is false.
+- Keep selectors short ([ENGINE.md](ENGINE.md#world-status-panels)). No stock rule sets visibility on a status panel itself.
+
+## Soul graph
+
+`#DLFSoulGraph` (in `citadel_hud_top_bar.xml`, styles `styles/dlf/dlf_soul_graph.css`, behaviour in [SPEC.md](SPEC.md#soul-graph)) is 180 x 66 layout px: a 180 x 46 plot at (0, 0) with the zero line at y 23 (amplitude 19), then a centred row at y 48 with SOUL LEAD and the lead. The constants are `G` in `dlf_soul_graph.js` and the CSS; keep them equal. The script writes `margin-left`/`margin-top` (placement), the size (every box, font and drawn piece scaled in layout px; a transform scale blurred the text live) and the line and fill classes; the area fill is columns 2 px apart and the line short rotated 3 px segments, because Panorama has no path drawing. Colours follow ShowRank's Rank History chart: accent #3FBF7F, muted #C4C9D0, team colours #D6880C / #4F74C3 (bright #FFC15A / #8FB2FF). It fades with a 0.3 s opacity transition (the only transition) and is `visibility: collapse` under `.gScoreboardOpen`, `.gShopOpen` and `.gDetailView`.
+
+Placement measures the centre pieces from the top bar's top, while `margin-top` counts from under the top bar's `padding-top: 68px`, so the script subtracts `TOP_PAD` (68, = `dlf_banner.css`; the validator compares them). Purchase notice stacks that would cross their team's inner edge (858 / 1062 px at 1080p) align to the card's inner side (`.DLFBuyHugRight` / `.DLFBuyHugLeft` in `dlf_card.css`), so they stay out of the clock column the graph sits in. `designs/overlap-fix.html` is an HTML mock of this geometry (live bug, the 2026-10-23 code and the fix, with a mid-boss toggle and an overlap finder); it uses the Observer HUD design assets, which are generated locally.
+
+## Spectator VData
+
+`build_dlf.ps1` decompiles `scripts/abilities.vdata_c` and `scripts/modifiers.vdata_c` from `-GamePak` (the installed `citadel/pak01_dir.vpk`; Source2Viewer output is byte-identical to GameTracking), strips the root `_include` (`Export-VData` first drops the RED2 edit-info block with `scripts/strip_red2.py`, [ENGINE.md](ENGINE.md#vdata-and-build)), applies `spectator-status.json`, compiles, copies the stock RERL into `abilities.vdata_c` (`abilities/scripts/inject_stock_external_refs.py`; stock `modifiers.vdata_c` has none), then decompiles the packed files and runs `spectator_status.py --verify`. The same call passes `--localization <game>/resource/localization`, which checks the `unnamed` list against the installed English names. The compiler drops `_editor` blocks and reorders `_base` records; nothing else differs.
+
+- Each listed modifier (by `_my_subclass_name` inside its ability record) and each `genericModifiers` record (a whole `modifiers.vdata` record, marked by its `_class` line) gets `m_bIsHidden false`, `m_bIsHiddenOverhead false` and `m_eDrawOverheadStatus OVERHEAD_DRAW_FOR_EVERYONE` (schema `CCitadelModifierVData`; `CASTER_ONLY`/`CASTER_TEAM_ONLY` never reach a spectator). Every record and marker must exist exactly once, so a rename fails the build. The transform reuses `abilities/scripts` helpers (`iter_record_spans`, `_set_modifier_fields`) and is idempotent.
+- `genericModifiers` are `modifier_citadel_stunned`, `modifier_citadel_stunned_no_cc_diminish` and `modifier_citadel_knockdown`; they make every ability's stun readable. Only the top bar filters them.
+- `classSwaps` entries replace a modifier's client class (`from`/`to`, plus an optional `baseAction` `m_AG2BaseAction`; today only Bebop's hook target, [ADR 0002](docs/adr/0002-spectator-vdata-class-swap-for-bebop-hook.md)). `unnamed` modifiers also get `m_eHudDisplayLocation DISPLAY_HUD_NONE` ([SPEC.md](SPEC.md#spectator-vdata)).
+- pak01 outranks the `abilities/` paks (pak02-05), so with DLF installed their item filters do not apply on that PC.
+
+## Pickup rings
+
+`pickup_timers.js`, `pickup_bridge.js` and `pickup_config.js` are composed at build time by `scripts/compose-pickups.js` from canonical `hp_colors_rewrite_v2/panorama/scripts/test_topbar_pickups.js`, `test_event_bridge.js` and the HPv2 contract defaults. Each adaptation is an exact substitution with an expected count, so drift fails the build:
+
+- DLF message names (`DLF_PICKUP_SNAPSHOT`, `DLF_PICKUP_SCAN_GATE`, `DLF_PICKUP_CONFIG`, attribute `dlf_pickup_config`, relay attribute `dlf_pickup_message`), so an installed HPv2 pak02 can neither feed nor configure DLF rings;
+- read-only world sampling (native pickup icons are never restyled);
+- the relay layout path and a static config factory;
+- the world ultimate overlay off through `ultimateTimerEnabled: false`, not deleted code.
+
+`pickup_host.js` is hand-written: it supplies the timer's world config hooks and owns the world context's single `ClientUI_FireOutput` listener (replaced on reload). It has no wake hook, so every hero bar samples every 3 s, including the spectated hero that HPv2's renderer would skip.

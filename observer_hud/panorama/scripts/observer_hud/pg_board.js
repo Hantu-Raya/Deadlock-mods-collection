@@ -42,7 +42,16 @@
       try { $.UnregisterForUnhandledEvent("ClientUI_FireOutput", handoffListener); } catch (e) { /* already gone */ }
       handoffListener = null;
     }
-    if (ST.panel && ok(ST.panel)) ST.panel.DeleteAsync(0);
+    // A reloaded script starts with none of this run's memory: its columns, custom logos and store panel
+    // go with it (the next run would stack its own beside them).
+    try {
+      teardown();
+      for (const side of [0, 1]) setLogo(side, "");
+    } catch (e) { /* page gone */ }
+    if (ST.panel && ok(ST.panel)) {
+      const wrap = ST.panel.GetParent();
+      (ok(wrap) && wrap.id === "NSStoreWrap" ? wrap : ST.panel).DeleteAsync(0);
+    }
   };
   const OH = $.OHState; // cards are cleaned and matched with oh_state.js (loaded before this script)
 
@@ -87,7 +96,7 @@
   const logged = new Set();
   const logOnce = (key, msg) => { if (!logged.has(key)) { logged.add(key); log(msg); } };
   // E2E artifact: one console line per item, because console.log cuts a $.Msg near 2 KB
-  // (live: the souls array ran into the next line). verify-live.js reads the newest block.
+  // (live: the souls array ran into the next line). verify-postgame-live.js reads the newest block.
   const logData = (kind, items) => {
     log(`data ${kind} begin ${items.length}`);
     for (const item of items) log(`data ${kind} + ${JSON.stringify(item)}`);
@@ -100,12 +109,15 @@
   const UI = {
     page: null, screen: null, scoreboard: null, graphs: null, tip: null,
     names: [null, null], results: [null, null], worth: [null, null], kills: [null, null],
-    clock: null, match: null, soulsLabel: null, graph: null, ticks: null, events: null, top: null, bottom: null,
-    progress: null, progressFill: null, progressText: null
+    clock: null, match: null, soulsLabel: null, frame: null, logo: [null, null], org: null,
+    graph: null, draw: null, canvas: null, marks: null, peaks: [null, null], end: null, ticks: null, events: null, stems: null,
+    top: null, bottom: null, topScale: null, bottomScale: null,
+    progress: null, progressFill: null, progressText: null, progressStep: null
   };
   const S = {
     key: "",
     gen: 0,
+    rescan: null, // a scan to run again (retryScan): { m, gen, attempt, at }
     cols: [], // per player row: { hero, column, souls, plate, nameBlock, account, alias, items, delay }
     focused: false, // the Scoreboard screen was focused at the last check
     blurAt: 0, // Date.now() when it lost focus
@@ -728,7 +740,6 @@
     for (let t = 300; t < duration; t += 300) stroke([graphX(t, duration), 2, graphX(t, duration), GRAPH_H - 2], HAIR, 0.5, "#FFEFD70A");
     // Objective hairlines from the line down to the icons.
     const objs = events.map((e) => { const x = graphX(e.t, duration); return { e, x, y: curve(Math.min(x, endX)) }; });
-    // The line: a glow, then the pen.
     for (const run of runs) {
       const flat = [];
       for (const [x, y] of run.pts) flat.push(x, y);
@@ -883,7 +894,7 @@
     const panel = UI.logo[side];
     if (!ok(panel) || slot.url === url) return;
     slot.url = url;
-    slot.sources = url ? OH.logoSources(url) : [];
+    slot.sources = url ? OH.logoSources(url).filter((source) => !failedSources.has(source)) : [];
     slot.seq++;
     if (ok(slot.image)) slot.image.DeleteAsync(0);
     slot.image = null;
@@ -891,7 +902,9 @@
     loadLogo(side, 0);
   }
   // One Image per source: a failed one makes way for the next; the wordmark stays until ImageLoaded and
-  // when every source failed. URLs are never logged.
+  // when every source failed. URLs are never logged. A source that failed is not asked for again this
+  // session: live (lobby page, 6842), a second request reports ImageLoaded and draws nothing.
+  const failedSources = new Set();
   function loadLogo(side, index) {
     const slot = LOGOS[side];
     const panel = UI.logo[side];
@@ -908,6 +921,7 @@
     });
     $.RegisterEventHandler("ImageFailedLoad", image, () => {
       if (stopped || slot.image !== image || slot.seq !== seq) return;
+      failedSources.add(slot.sources[index]);
       loadLogo(side, index + 1);
     });
     image.SetImage(slot.sources[index]);
@@ -971,8 +985,7 @@
     CARDS.accounts = CARDS.team1.concat(CARDS.team2);
     CARDS.id = String(m.id || "");
     CARDS.key = S.key;
-    CARDS.applied = undefined; // the header is redrawn for this match
-    renderCard(null);
+    renderCard(null); // the header is redrawn for this match
     refreshCard();
     renderAliases();
     if (!CARDS.applied && !CARDS.asked.has(CARDS.key) && CARDS.accounts.length >= OH.MATCH_MIN) {
@@ -1336,11 +1349,28 @@
     return parts;
   }
 
-  function scan(m) {
+  // The next game in the same private lobby (user 2026-11-06: souls by source, the lead graph and the
+  // objectives showed for the first game only): the page and its rows are reused, and the stock Graphs data
+  // can come after the rows, so a scan may find no graph or the last match's. The lead check names the
+  // tooltip rows only against this match's totals, so such a scan reads no lead; the 1 s safety check
+  // (step) runs it again, up to SCAN_RETRIES times (no timers of its own). Lane Stats has no such check:
+  // without a lead read, its times are not trusted.
+  const SCAN_RETRIES = 8;
+  function retryScan(m, gen, attempt, why) {
+    if (attempt >= SCAN_RETRIES) return false;
+    log(`scan: ${why}; again on the next check (${attempt + 1}/${SCAN_RETRIES})`);
+    S.rescan = { m, gen, attempt: attempt + 1, at: Date.now() + 1000 }; // bursts check every 0.1 s: wait 1 s
+    return true;
+  }
+
+  function scan(m, attempt = 0) {
     const gen = S.gen;
     const canvas = UI.graphs ? UI.graphs.FindChildTraverse("Graph") : null;
     const count = ok(canvas) ? canvas.GetChildCount() : 0;
-    if (!count) { log("scan: no graph columns"); progressDone(); return; }
+    if (!count) {
+      if (!retryScan(m, gen, attempt, "no graph columns")) { log("scan: no graph columns"); progressDone(); }
+      return;
+    }
     S.scanning = gen;
     const totals = [m.teams[0].totals.value.souls, m.teams[1].totals.value.souls];
     const series = [];
@@ -1463,11 +1493,18 @@
     runJobs(gen, jobs, (stats) => {
       S.scanning = 0;
       unhover();
+      // No last column matched this match's totals: the graph is missing or still the last match's.
+      if (!lastPoint && retryScan(m, gen, attempt, "the graph is not this match's yet")) return;
+      // Nothing read from such a graph is trusted: no objectives and no souls by source.
+      if (!lastPoint) {
+        lanes.length = 0;
+        souls.clear();
+      }
       for (const lane of lanes) {
         LANE_TIERS.forEach(([, tier], i) => {
           const labels = lane.sig[i];
           // [team 1's structure, tier name, team 2's structure]: a time on the left is team 1's
-          // structure falling, so team 2 took it (verified against the metadata, FINDINGS.md).
+          // structure falling, so team 2 took it (verified against the metadata).
           const left = secs(labels[0]);
           const right = secs(labels[labels.length - 1]);
           if (left >= 0) events.push({ t: left, tier, owner: 1, killer: 2 });
@@ -1516,6 +1553,12 @@
     if (ok(UI.tip) && S.scanning !== S.gen && UI.tip.BHasClass(TIP_SHOWN)) {
       const graphsShown = ok(UI.graphs.GetParent()) && UI.graphs.GetParent().BHasClass("Focused");
       if (!graphsShown) hideTip();
+    }
+    // A scan that found no graph of this match yet runs again (retryScan), once its second is up.
+    const again = S.rescan;
+    if (again && (again.gen !== S.gen || (!S.scanning && Date.now() >= again.at))) {
+      S.rescan = null;
+      if (again.gen === S.gen) scan(again.m, again.attempt);
     }
     // Steady state: the first row's bound label still reads what the board was built from.
     // Rows are reused across matches, so panel identity is not enough.

@@ -1,0 +1,26 @@
+{
+  "note": "Jul 2025 (build 5712) files the current game no longer ships. crc32/size are from GameTracking-Deadlock 1aac1d6 game/citadel/pak01_dir.txt; the build extracts each from the first source that matches and never packs a mismatch.",
+  "images": [
+    { "path": "panorama/images/main_menu/dl_v1_png.vtex_c", "crc32": "b4dc1319", "size": 22643, "fallback": null },
+    { "path": "panorama/images/main_menu/menu_images/menu_play_deadlock_psd.vtex_c", "crc32": "375da5aa", "size": 1050816, "fallback": "panorama/images/main_menu/play/card_play_psd.vtex" },
+    { "path": "panorama/images/main_menu/menu_images/menu_play_playersbots_psd.vtex_c", "crc32": "55cf9026", "size": 1050864, "fallback": "panorama/images/main_menu/play/card_bots_sm_psd.vtex" },
+    { "path": "panorama/images/main_menu/menu_images/menu_play_sandbox_horizontal_psd.vtex_c", "crc32": "c694e9a8", "size": 264400, "fallback": "panorama/images/main_menu/play/card_sandbox_psd.vtex" },
+    { "path": "panorama/images/main_menu/menu_images/menu_play_privatebots_horizontal_psd.vtex_c", "crc32": "5d0ef2a6", "size": 653504, "fallback": "panorama/images/main_menu/play/card_bots_sm_psd.vtex" },
+    { "path": "panorama/images/main_menu/menu_images/menu_play_exploremap_psd.vtex_c", "crc32": "6faebf54", "size": 264432, "fallback": "panorama/images/main_menu/play/card_map_psd.vtex" },
+    { "path": "panorama/images/main_menu/menu_images/menu_play_custom_match_horizontal_psd.vtex_c", "crc32": "86c75fa6", "size": 264400, "fallback": "panorama/images/main_menu/play/card_custom_psd.vtex" },
+    { "path": "panorama/images/main_menu/menu_images/menu_play_hero_labs_horizontal_psd.vtex_c", "crc32": "b59d3a4e", "size": 264400, "fallback": "panorama/images/main_menu/play/play_inactive_psd.vtex" },
+    { "path": "panorama/images/main_menu/news_shop_rework_png.vtex_c", "crc32": "851fd66f", "size": 898590, "fallback": "hide:#NewsContainer" }
+  ],
+  "imageSources": [
+    "E:\\jundeadlock\\depot_1422456_*\\game\\citadel\\pak01_dir.vpk",
+    "G:\\Project8Staging\\game\\citadel\\pak01_dir.vpk"
+  ],
+  "videos": [
+    { "path": "panorama/videos/main_menu/menu_streets_intro.webm", "sha1": "c27e15324c0827e6756807a4cbb9168d0b585e6c", "size": 5630807 },
+    { "path": "panorama/videos/main_menu/menu_streets_loop2.webm", "sha1": "40f98c8db6d79d9058d92dbff0d2a29d55af76e9", "size": 3158283 }
+  ],
+  "videoSources": [
+    "E:\\jundeadlock\\depot_1422456_*\\game\\citadel",
+    "G:\\SteamLibrary\\steamapps\\common\\Deadlock\\game\\citadel"
+  ]
+}

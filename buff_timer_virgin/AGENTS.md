@@ -142,6 +142,10 @@ Generated output that you must not edit: `buff_timer_virgin_compiled/`, `buff_ti
 - The `?` toggle gates only `showLinger()`; enemy activity bookkeeping keeps running while it is off, and switching it off calls `clearAllLingers()`.
 - Changing the page: edit only `D:/hpv2-store/bt/index.html`, keep the HP Colors root page byte-identical, bump `VERSION` and `BT_STORE_VERSION` together for any format change, run `validate-settings-store.js`, then push with the user's go-ahead (Pages publishes immediately, cache up to 10 minutes). Before relying on saves, check `curl -s https://hantu-raya.github.io/hpv2-store/bt/ | diff --strip-trailing-cr - D:/hpv2-store/bt/index.html` prints nothing.
 
+## Reviews and change proposals
+
+During reviews or change proposals, score each issue: Value (1 low-5 high), Effort (1 low-5 high), Risk (1-4). Only fix high-value low-effort low-risk ones: Value ≥4, Effort ≤2 and Risk ≤2. Stop when none remain above threshold.
+
 ## Coding conventions
 
 - Use two-space indentation, `UPPER_SNAKE_CASE` constants, `camelCase` state and functions, and `_prefixed` caches. Keep the strict IIFE.

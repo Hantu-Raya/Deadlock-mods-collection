@@ -1,0 +1,663 @@
+.HeroesPage
+{
+	width: 100%;
+	height: 100%;
+	background-color: #000000bb;
+}
+
+#HeroGridView
+{
+	width: 100%;
+	height: 100%;
+	flow-children: down;
+}
+
+.ShowingHeroDetails #HeroGridView
+{
+	visibility: collapse;
+}
+
+#HeroesPageHeader
+{
+	width: 100%;
+	height: fit-children;
+	margin-top: 90px;
+	margin-bottom: 10px;
+	flow-children: down;
+}
+
+#HeroesPageTitle
+{
+	horizontal-align: center;
+	font-family: serif;
+	font-weight: bold;
+	font-size: 56px;
+	color: offWhite;
+}
+
+#HeroGrid
+{
+	horizontal-align: center;
+	height: fill-parent-flow( 1.0 );
+	margin-bottom: 70px;
+}
+
+#HeroDetailsView
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+}
+
+.ShowingHeroDetails #HeroDetailsView
+{
+	visibility: visible;
+}
+
+.ShowingHeroDetails.HeroesPage
+{
+	background-color: #00000066;
+}
+
+#DetailsSpotlight
+{
+	width: 100%;
+	height: 100%;
+	z-index: 0;
+}
+
+#DetailsLeftShade
+{
+	width: 900px;
+	height: 100%;
+	background-color: gradient( linear, 0% 0%, 100% 0%, from( #000000cc ), to( #00000000 ) );
+}
+
+#DetailsTabs
+{
+	flow-children: right;
+	margin: 40px 0px 0px 100px;
+}
+
+#DetailsLeftPanel
+{
+	width: 640px;
+	height: fit-children;
+	margin-left: 100px;
+	vertical-align: middle;
+	flow-children: down;
+}
+
+#DetailsLogo
+{
+	horizontal-align: center;
+	width: 100%;
+	height: 110px;
+}
+
+#DetailsTags
+{
+	horizontal-align: center;
+	margin-bottom: 26px;
+}
+
+#DetailsAbilitiesArea
+{
+	horizontal-align: center;
+	width: 405px;
+	height: 108px;
+	margin-bottom: 50px;
+}
+
+#DetailsAbilities
+{
+	horizontal-align: center;
+	vertical-align: center;
+}
+
+#DetailsAbilityHotspots
+{
+	width: 100%;
+	height: 100%;
+	flow-children: right;
+	z-index: 5;
+}
+
+.AbilityHotspot
+{
+	width: 25%;
+	height: 100%;
+}
+
+#AbilityTooltip
+{
+	visibility: collapse;
+	width: 640px;
+	margin-left: 760px;
+	vertical-align: middle;
+	flow-children: down;
+	z-index: 60;
+}
+
+.ShowingAbilityTooltip #AbilityTooltip
+{
+	visibility: visible;
+}
+
+#AbilityTooltipMain
+{
+	width: 100%;
+	flow-children: down;
+	padding: 26px 30px 30px 30px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #262624f5 ), to( #1b1b1af5 ) );
+	border: 2px solid #4f8a74;
+	box-shadow: 0px 0px 30px #000000dd;
+}
+
+#AbilityTooltipName
+{
+	font-family: serif;
+	font-weight: bold;
+	font-size: 44px;
+	color: #fff1d6;
+	margin-bottom: 16px;
+}
+
+#AbilityTooltipDesc
+{
+	width: 100%;
+	font-family: sans;
+	font-size: 21px;
+	color: #e6dccb;
+}
+
+#AbilityTooltipTiers
+{
+	width: 100%;
+	flow-children: right;
+	margin-top: 4px;
+}
+
+.TierBox
+{
+	width: 210px;
+	height: 190px;
+	margin-right: 5px;
+	flow-children: down;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #3a1813f2 ), to( #5c2219f2 ) );
+	border: 2px solid #6e2a20;
+}
+
+.TierHeader
+{
+	width: 100%;
+	height: 40px;
+	flow-children: right;
+	background-color: #1f1110f2;
+}
+
+.TierIcon
+{
+	width: 18px;
+	height: 18px;
+	margin: 11px 6px 0px 82px;
+	border: 2px solid #ff6a3d;
+	border-radius: 50%;
+}
+
+.TierCost
+{
+	vertical-align: center;
+	font-family: sans;
+	font-weight: bold;
+	font-size: 22px;
+	color: #ff6a3d;
+}
+
+.TierDesc
+{
+	width: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+	margin-top: 20px;
+	padding: 0px 14px;
+	text-align: center;
+	font-family: sans;
+	font-weight: semi-bold;
+	font-size: 19px;
+	color: #e6dccb;
+}
+
+#DetailsSandboxButton
+{
+	horizontal-align: center;
+	width: 320px;
+	height: 70px;
+	background-color: #4a4a4a;
+	transition-property: background-color;
+	transition-duration: 0.1s;
+}
+
+#DetailsSandboxButton:hover
+{
+	background-color: offWhite;
+}
+
+#DetailsSandboxButton Label
+{
+	horizontal-align: center;
+	vertical-align: middle;
+	font-family: serif;
+	font-weight: bold;
+	font-size: 34px;
+	color: offWhite;
+}
+
+#DetailsSandboxButton:hover Label
+{
+	color: offBlack;
+}
+
+.DetailsStatsTitle
+{
+	font-family: sans;
+	font-weight: bold;
+	font-size: 15px;
+	margin: 18px 0px 6px 16px;
+}
+
+.DetailsStatsTitle.Weapon
+{
+	color: #e8a33d;
+}
+
+.DetailsStatsTitle.Vitality
+{
+	color: #8fd43f;
+}
+
+.DetailsStatsTitle.Spirit
+{
+	color: #c389ff;
+}
+
+.DetailsNavButton
+{
+	z-index: 50;
+	width: 40px;
+	height: 100px;
+	vertical-align: middle;
+	background-color: #2a2a2acc;
+	transition-property: background-color;
+	transition-duration: 0.1s;
+}
+
+.DetailsNavButton:hover
+{
+	background-color: #555555ee;
+}
+
+#DetailsPrevButton
+{
+	horizontal-align: left;
+}
+
+#DetailsNextButton
+{
+	horizontal-align: right;
+}
+
+.DetailsNavArrow
+{
+	width: 22px;
+	height: 22px;
+	horizontal-align: center;
+	vertical-align: middle;
+	wash-color: offWhite;
+}
+
+#DetailsPrevButton .DetailsNavArrow
+{
+	transform: rotateZ( 180deg );
+}
+
+.highlight,.highlight_special
+{
+	color: #ffffff;
+	font-weight: bold;
+}
+
+.highlight_spirit
+{
+	color: #c389ff;
+	font-weight: bold;
+}
+
+.diminish
+{
+	color: #ffffff80;
+}
+
+.DetailsTab
+{
+	margin-right: 18px;
+}
+
+.DetailsTab Label,.DetailsTabSep
+{
+	font-family: sans;
+	font-weight: bold;
+	font-size: 17px;
+	text-transform: uppercase;
+	color: #ffffff70;
+}
+
+.DetailsTabSep
+{
+	margin-right: 18px;
+}
+
+Button.DetailsTab:hover Label
+{
+	color: #ffffffcc;
+}
+
+.DetailsTab.Active Label
+{
+	color: offWhite;
+}
+
+.DetailsTab.Unavailable Label
+{
+	color: #ffffff35;
+}
+
+#DetailsRole
+{
+	horizontal-align: center;
+	font-family: sans;
+	font-size: 22px;
+	font-weight: semi-bold;
+	color: #d8d0c4;
+	margin-bottom: 18px;
+}
+
+#DetailsPlaystyle
+{
+	width: 100%;
+	font-family: sans;
+	font-size: 18px;
+	color: #d8d0c4;
+	margin-bottom: 40px;
+}
+
+#DetailsLorePanel
+{
+	visibility: collapse;
+	width: 640px;
+	height: fit-children;
+	max-height: 760px;
+	margin-left: 100px;
+	vertical-align: middle;
+	flow-children: down;
+	overflow: squish scroll;
+}
+
+.ShowingLore #DetailsLorePanel
+{
+	visibility: visible;
+}
+
+.ShowingLore #DetailsLeftPanel
+{
+	visibility: collapse;
+}
+
+#DetailsLoreTitle
+{
+	font-family: serif;
+	font-weight: bold;
+	font-size: 40px;
+	color: offWhite;
+	margin-bottom: 16px;
+}
+
+#DetailsLoreText
+{
+	width: 100%;
+	font-family: sans;
+	font-size: 19px;
+	color: #d8d0c4;
+}
+
+#DetailsRightPanel
+{
+	horizontal-align: right;
+	vertical-align: middle;
+	margin-right: 100px;
+	flow-children: down;
+	width: 300px;
+}
+
+.StatGrid
+{
+	width: 100%;
+	flow-children: right-wrap;
+}
+
+.StatBox
+{
+	width: 148px;
+	height: 72px;
+	margin: 0px 2px 2px 0px;
+	flow-children: down;
+	background-color: #2e2e2ee6;
+}
+
+.StatValue
+{
+	horizontal-align: center;
+	margin-top: 12px;
+	font-family: sans;
+	font-weight: bold;
+	font-size: 20px;
+	color: offWhite;
+}
+
+.StatName
+{
+	horizontal-align: center;
+	font-family: sans;
+	font-size: 15px;
+	color: #ffffffaa;
+}
+
+#AbilityTooltipHeader
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 12px;
+}
+
+#AbilityTooltipHeader #AbilityTooltipName
+{
+	margin-bottom: 0px;
+}
+
+#AbilityTooltipCooldown
+{
+	horizontal-align: right;
+	vertical-align: top;
+}
+
+#AbilityTooltipBadges
+{
+	flow-children: right;
+	margin-bottom: 16px;
+}
+
+.TipBadge
+{
+	padding: 6px 12px;
+	margin-right: 8px;
+	background-color: #3a3a38;
+	border-radius: 3px;
+}
+
+.TipBadge Label
+{
+	font-family: sans;
+	font-weight: bold;
+	font-size: 20px;
+	color: #e6dccb;
+}
+
+.TipHidden
+{
+	visibility: collapse;
+}
+
+#AbilityTooltipProps
+{
+	width: 100%;
+	flow-children: down;
+	margin-top: 18px;
+}
+
+#TipImportant
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.TipImpBox
+{
+	width: 186px;
+	height: 92px;
+	margin-right: 6px;
+	flow-children: down;
+	background-color: #3a3835;
+}
+
+.TipImpBox.SpiritProp
+{
+	background-color: #2c1f3a;
+	border: 2px solid #6b4a94;
+}
+
+.TipImpScale
+{
+	horizontal-align: right;
+	margin: 4px 8px 0px 0px;
+	height: 18px;
+	font-family: sans;
+	font-weight: bold;
+	font-size: 14px;
+	color: #d6b8ff;
+}
+
+.TipImpValue
+{
+	horizontal-align: center;
+	font-family: sans;
+	font-weight: bold;
+	font-size: 28px;
+	color: #fff1d6;
+}
+
+.TipImpLabel
+{
+	horizontal-align: center;
+	font-family: sans;
+	font-weight: semi-bold;
+	font-size: 17px;
+	color: #e6dccb;
+}
+
+#TipBasic
+{
+	width: 100%;
+	flow-children: right-wrap;
+	margin-top: 6px;
+	padding: 10px 18px;
+	background-color: #33312e;
+}
+
+.TipBasicRow
+{
+	width: 270px;
+	margin: 4px 0px;
+	font-family: sans;
+	font-size: 18px;
+	color: #e6dccb;
+}
+
+.TipTierValue
+{
+	font-size: 28px;
+	font-weight: bold;
+	color: #fff1d6;
+}
+
+.HeroesPage .RMHiddenCard
+{
+	width: 132px;
+	height: 179px;
+	margin: 5px;
+	ui-scale: 110%;
+	border-radius: 2px;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #6E6A63 ), to( #3E3A34 ) );
+	box-shadow: 0px 0px 20px #00000090;
+	transition-property: pre-transform-scale2d, brightness;
+	transition-duration: 0.04s;
+	z-index: 10;
+	saturation: 0.55;
+}
+
+.HeroesPage .RMHiddenCard:hover
+{
+	pre-transform-scale2d: 1.2;
+	brightness: 1.1;
+	saturation: 1;
+	z-index: 100;
+}
+
+.HeroesPage .RMHiddenCard #RMHiddenImage
+{
+	width: 100%;
+	height: 100%;
+}
+
+.HeroesPage .RMHiddenCard #RMHiddenShade
+{
+	width: 100%;
+	height: 60px;
+	vertical-align: bottom;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #00000000 ), to( #000000dd ) );
+}
+
+.HeroesPage .RMHiddenCard #RMHiddenPlate
+{
+	width: 100%;
+	vertical-align: bottom;
+	flow-children: down;
+	padding: 0px 4px 6px 4px;
+}
+
+.HeroesPage .RMHiddenCard #RMHiddenName
+{
+	horizontal-align: center;
+	font-size: 20px;
+	color: offWhite;
+	text-shadow: 0px 0px 6px 3.0 #000000;
+}
+
+.HeroesPage .RMHiddenCard #RMHiddenTag
+{
+	horizontal-align: center;
+	font-size: 13px;
+	letter-spacing: 1px;
+	color: #E8A53A;
+	text-shadow: 0px 0px 4px 2.0 #000000;
+}
+

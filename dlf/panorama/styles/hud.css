@@ -1,0 +1,43 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud.vcss_c");
+.spec_mode #spectate_bar,.TeamSpectator #spectate_bar,.replay_playback #spectate_bar
+{
+	visibility: visible;
+}
+
+/* The stock net/FPS stats (HudPerfStatsBasics: top right, padding-top 8px) drew over the banner's
+   BEST OF 3 (user screenshot 2026-10-24). Start them under the 100 px banner. */
+CitadelHud HudPerfStatsBasics
+{
+	margin-top: 100px;
+}
+
+/* The stock objective health (walker / mid-boss bars) starts here, its bars 4 px under the timers
+   (a walker bar 160 px under the panel's top: 169 = under the QOLLOCK rows at 165). dlf_soul_graph.js
+   then moves it under the timers or the rift HUD with an inline margin-top, as Observer HUD does; no
+   !important, or the inline margin would lose. OBJ_CSS_MARGIN in dlf_soul_graph.js equals this value. */
+#objectives_health_friendly
+{
+	margin-top: 9px;
+}
+
+#CitadelHudDamageReport,CitadelHudDamageReport#CitadelHudDamageReport
+{
+	visibility: collapse !important;
+	opacity: 0 !important;
+	ui-scale: 0% !important;
+	width: 0px !important;
+	height: 0px !important;
+	transform: translate3d(9999px, 0px, 0px) !important;
+	hittest: false !important;
+	pointer-events: none !important;
+}
+
+#CitadelHudDamageReport *
+{
+	visibility: collapse !important;
+	opacity: 0 !important;
+	ui-scale: 0% !important;
+}
+

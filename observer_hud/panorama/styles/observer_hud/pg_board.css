@@ -1085,7 +1085,8 @@
 .NSGraph.NSShow .NSEvent.NSW6 { animation-delay: 0.70s; }
 .NSGraph.NSShow .NSEvent.NSW7 { animation-delay: 0.75s; }
 
-/* ---------- progress bar (outside NSFrame, in the label column's empty logo slot) ---------- */
+/* ---------- progress bar (outside NSFrame, over the label column's organiser slot, which fades out
+   while the bar shows: .NSBusy) ---------- */
 
 .NSProgress
 {
@@ -1099,6 +1100,17 @@
 .NSBoard.NSBusy .NSProgress
 {
 	visibility: visible;
+}
+
+.NSOrg
+{
+	transition-property: opacity;
+	transition-duration: 0.2s;
+}
+
+.NSBoard.NSBusy .NSOrg
+{
+	opacity: 0;
 }
 
 .NSProgress.NSDone
@@ -1335,7 +1347,6 @@
 	0% { transform: scale3d( 0.001, 1, 1 ); }
 	100% { transform: scale3d( 1, 1, 1 ); }
 }
-
 
 @keyframes 'NSInkSeek'
 {

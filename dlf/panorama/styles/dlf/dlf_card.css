@@ -1,0 +1,670 @@
+/* DLF additions to each top-bar hero card (citadel_hud_top_bar_player.xml): the ultimate cooldown
+   counter under the ultimate icon (dlf_ult_cooldown.js) and the debuff column (dlf_debuffs.js). */
+
+/* ---------------------------------------------------------------- ultimate cooldown */
+
+/* Source of the value: bound to the game's ult_cooldown, never drawn. */
+#DLFUltCooldownHidden
+{
+	visibility: collapse;
+}
+
+/* StatusRow flows right: [#DLFUltColumn][rejuvenator] from 125px. The column flows down: the
+   22px ultimate icon (or the pickup-ring row the rings move it into, centred), then the counter. */
+CitadelHudTopBarPlayer #StatusRow
+{
+	height: 44px;
+}
+
+#DLFUltColumn
+{
+	width: fit-children;
+	height: fit-children;
+	vertical-align: top;
+	flow-children: down;
+	overflow: noclip;
+}
+
+#DLFUltColumn .UltimateStatus
+{
+	horizontal-align: center;
+}
+
+.DLFUltCooldown
+{
+	height: 20px;
+	min-width: 18px;
+	horizontal-align: center;
+	text-align: center;
+	font-family: Jost, Noto Sans, sans-serif;
+	font-size: 18px;
+	font-weight: bold;
+	color: #FFEFD7;
+	text-shadow: 0px 0px 0px 3.0 #10130D;
+	visibility: collapse;
+}
+
+.DLFUltCooldown.DLFCounting
+{
+	visibility: visible;
+}
+
+CitadelHudTopBarPlayer:not(.UltimateUnlocked) .DLFUltCooldown,
+.UltimateCooldownReady .DLFUltCooldown,
+.gScoreboardOpen .DLFUltCooldown
+{
+	visibility: collapse;
+}
+
+/* ---------------------------------------------------------------- urn carrier */
+
+/* The urn carrier's card (dlf_urn.js sets .DLFUrnHeld): the stock minimap urn (hud_minimap.css
+   .held_idol_image), the icon alone with the stock rejuvenator's dark shadow (user 2026-10-25: no circle
+   or border, which the first buff-style placement drew). It is the last child of #DLFUltColumn but outside its flow, so the
+   ult icon stays put (in #StatusRow it moved the ult icon 12 px left; user 2026-10-25). Centred on the
+   column, which is centred on the ult icon (the ring row's wings are equal), it moves right into the first
+   free buff slot: the rings put floor(n/2) of n buffs on the right in 24 px slots (pickupSize 22,
+   pickupSpacing 1), so slot k sits 11 + 1 + (k - 1) * 24 + 11 px right of the ult icon's centre.
+   dlf_urn.js picks k = floor(n/2) + 1. */
+.DLFUrn
+{
+	width: 22px;
+	height: 22px;
+	horizontal-align: center;
+	vertical-align: top;
+	ignore-parent-flow: true;
+	background-image: url("s2r://panorama/images/minimap/soul_jar_marker_psd.vtex");
+	background-size: 100% 100%;
+	img-shadow: 0px 0px 3px 3.0 #000000;
+	transform: translateX(23px);
+	visibility: collapse;
+}
+
+.DLFUrn.DLFUrnSlot1
+{
+	transform: translateX(23px);
+}
+
+.DLFUrn.DLFUrnSlot2
+{
+	transform: translateX(47px);
+}
+
+.DLFUrn.DLFUrnSlot3
+{
+	transform: translateX(71px);
+}
+
+.DLFUrn.DLFUrnHeld
+{
+	visibility: visible;
+}
+
+/* ---------------------------------------------------------------- debuffs */
+
+/* A slot's colour is the team applying the status, set per slot by dlf_debuffs.js: the other team
+   for a debuff, the hero's own team for a listed buff. Observer HUD's grid (user 2026-10-24): the column
+   starts right under the ultimate icon and its counter (125-167px) and is a centred grid two wide, up
+   to six. Every slot is a 40x39 box at the column's top centre, moved to its place with an inline
+   translate3d by dlf_debuffs.js: one status sits in the card's middle; a pair sits 20 px left and right
+   of it; an odd last one is centred under the row above. A status keeps its slot panel, so the others
+   glide (.DLFGlide: transform transition, no layout) and the new one pops in. Sizes for the 88 px stock
+   card: 34 px circles, 6 px apart inside a pair, the pair 74 px wide, so 14 px to the next card's pair.
+   The column's height is its rows (.DLFRows1-3), so the purchase notices follow under it (ROW_H in
+   dlf_buys.js). The stun mark and stack count are siblings of the circle on its bottom-left and
+   top-right edges: a rounded panel clips what sticks out of it (the mark drew nowhere when it was a
+   child of the circle placed outside it, 2026-10-16). */
+#DLFDebuffs
+{
+	width: 88px;
+	height: 0px;
+	horizontal-align: center;
+	vertical-align: top;
+	margin-top: 167px;
+	overflow: noclip;
+	z-index: 30;
+}
+
+#DLFDebuffs.DLFRows1 { height: 39px; }
+#DLFDebuffs.DLFRows2 { height: 78px; }
+#DLFDebuffs.DLFRows3 { height: 117px; }
+
+.DLFDebuff
+{
+	width: 40px;
+	height: 39px;
+	horizontal-align: center;
+	vertical-align: top;
+	overflow: noclip;
+	visibility: collapse;
+}
+
+.DLFDebuff.DLFShown
+{
+	visibility: visible;
+}
+
+/* Placed slots glide to a new place; a slot's first placement is written before this class. */
+.DLFDebuff.DLFGlide
+{
+	transition-property: transform;
+	transition-duration: 0.22s;
+	transition-timing-function: ease-out;
+}
+
+.DLFDebuffCircle
+{
+	width: 34px;
+	height: 34px;
+	horizontal-align: center;
+	vertical-align: top;
+	border-radius: 50%;
+	border: 2px solid #10130DCC;
+	background-color: #E8892B;
+}
+
+/* A new status pops in: the circle grows from 40 % past full size and settles, 0.22 s. */
+@keyframes 'DLFDebuffPop'
+{
+	0%
+	{
+		opacity: 0;
+		transform: scale3d(0.4, 0.4, 1);
+	}
+
+	60%
+	{
+		opacity: 1;
+		transform: scale3d(1.12, 1.12, 1);
+	}
+
+	100%
+	{
+		opacity: 1;
+		transform: scale3d(1, 1, 1);
+	}
+}
+
+.DLFDebuff.DLFShown .DLFDebuffCircle
+{
+	animation-name: DLFDebuffPop;
+	animation-duration: 0.22s;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
+}
+
+/* A status that went away fades out once over 1 s (FADE_MS in dlf_debuffs.js), then holds at 0 until
+   the slot is released; removing the class shows a reused slot at once. */
+@keyframes 'DLFDebuffFadeOut'
+{
+	0%
+	{
+		opacity: 1;
+	}
+
+	100%
+	{
+		opacity: 0;
+	}
+}
+
+.DLFDebuff.DLFFading
+{
+	animation-name: DLFDebuffFadeOut;
+	animation-duration: 1s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+	animation-fill-mode: forwards;
+}
+
+/* One hit of a pulse ability (Celeste's Shining Wonder, one per orb bounce; dlf_debuffs.js adds
+   .DLFPulse when the hit number changes): the circle hops 5 px and swells to 130 % over 0.35 s
+   (Observer HUD's OHDebuffPulse). Only transform moves; nothing reflows. */
+@keyframes 'DLFDebuffPulse'
+{
+	0%
+	{
+		transform: translateY(0px) scale3d(1, 1, 1);
+	}
+
+	35%
+	{
+		transform: translateY(-5px) scale3d(1.3, 1.3, 1);
+	}
+
+	100%
+	{
+		transform: translateY(0px) scale3d(1, 1, 1);
+	}
+}
+
+.DLFDebuff.DLFPulse .DLFDebuffCircle
+{
+	animation-name: DLFDebuffPulse;
+	animation-duration: 0.35s;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
+}
+
+/* The Hidden King (Amber) */
+.DLFByAmber .DLFDebuffCircle
+{
+	background-color: #E8892B;
+}
+
+/* The Archmother (Sapphire), stock team2Color */
+.DLFBySapphire .DLFDebuffCircle
+{
+	background-color: #4D75C3;
+}
+
+/* Same white wash the world healthbar puts on ability images. */
+.DLFDebuffIcon
+{
+	width: 22px;
+	height: 22px;
+	horizontal-align: center;
+	vertical-align: center;
+	wash-color: #FFFFFF;
+}
+
+/* Seconds left, over the icon. */
+.DLFDebuffTime
+{
+	width: 100%;
+	horizontal-align: center;
+	vertical-align: center;
+	text-align: center;
+	font-family: Jost, Noto Sans, sans-serif;
+	font-size: 18px;
+	font-weight: bold;
+	color: #FFFFFF;
+	text-shadow: 0px 0px 0px 3.0 #10130D;
+	visibility: collapse;
+}
+
+.DLFHasTime .DLFDebuffTime
+{
+	visibility: visible;
+}
+
+/* The icon dims behind the number. */
+.DLFHasTime .DLFDebuffIcon
+{
+	opacity: 0.55;
+}
+
+/* Sweep (user 2026-11-06, on Observer HUD: the seconds over the icon hid it on a low-bitrate stream): the
+   time that has passed is a dark wedge over the circle from 12 o'clock, clockwise (dlf_debuffs.js sets the
+   clip radial(50% 50%, 0deg, Xdeg), X = 360 x elapsed, at its 0.25 s tick); the part that remains shows the
+   icon untouched. The clip transition interpolates between ticks so the wedge moves smoothly (Panorama
+   interpolates radial clips: stock citadel_db_post_game_progress_ranked.css 'HighlightCalibratedPip');
+   0.3 s, a little over the tick, so a late tick never stops it. Black at 82 % (was 66 %, user: "25% more"). */
+.DLFDebuffShade
+{
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background-color: #000000D2;
+	visibility: collapse;
+	transition-property: clip;
+	transition-duration: 0.3s;
+	transition-timing-function: linear;
+}
+
+.DLFSweep .DLFDebuffShade
+{
+	visibility: visible;
+}
+
+/* Stun: the stock stun ring colour (unit_status_icons.css .stunned) on the circle, and the stun
+   icon on the circle's bottom-left edge (user request 2026-10-16), above the circle. */
+.DLFStun .DLFDebuffCircle
+{
+	border: 2px solid #ffb800;
+}
+
+.DLFDebuffStunMark
+{
+	width: 15px;
+	height: 15px;
+	margin-left: 0px;
+	margin-top: 22px;
+	horizontal-align: left;
+	vertical-align: top;
+	border-radius: 50%;
+	border: 1px solid #ffb800;
+	background-color: #10130DE6;
+	background-image: url("s2r://panorama/images/hud/modifiers/icon_stun.vsvg");
+	background-size: 10px 10px;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	wash-color: #ffb800;
+	z-index: 2;
+	visibility: collapse;
+}
+.DLFStun .DLFDebuffStunMark
+{
+	visibility: visible;
+}
+
+/* Stack count (e.g. Baba's pigeons), on the circle's top-right edge. */
+.DLFDebuffCount
+{
+	min-width: 15px;
+	height: 15px;
+	margin-right: 0px;
+	horizontal-align: right;
+	vertical-align: top;
+	padding: 0px 2px;
+	border-radius: 7px;
+	background-color: #10130DE6;
+	text-align: center;
+	font-family: Jost, Noto Sans, sans-serif;
+	z-index: 2;
+	font-size: 12px;
+	font-weight: bold;
+	color: #FFEFD7;
+	visibility: collapse;
+}
+
+.DLFHasCount .DLFDebuffCount
+{
+	visibility: visible;
+}
+
+/* .wants_scoreboard and .gDetailView open the stock name/KDA strip down over the card; the column
+   sat on the player name there (live 2026-10-20). */
+.gScoreboardOpen #DLFDebuffs,
+.wants_scoreboard #DLFDebuffs,
+.gDetailView #DLFDebuffs,
+.GameStatePreGameWait #DLFDebuffs
+{
+	visibility: collapse;
+}
+
+/* ---------------------------------------------------------------- purchase notices */
+
+/* The host (dlf_buys.js adds .DLFBuyHost to QOLLOCK's .QuickPurchasesPanel, still centred on the card and
+   flowing up) is a fixed 209 px, Observer HUD's column width (.OHBuys). In QOLLOCK's fit-children host
+   the notice kept a stale, narrower width live (user screenshots 2026-10-24 20261024192243/192302): the
+   frame and paper ended inside the name ("Express Sh|ot") or short of the right cap. Notices centre in
+   the host, so every stack is centred on its card, the innermost too (user 2026-10-24, screenshot
+   20261024193435_1.jpg; an inner-edge alignment from the same day's review is gone). */
+.QuickPurchasesPanel.DLFBuyHost
+{
+	width: 209px;
+}
+
+/* Observer HUD's notice (oh_debuffs.css .OHBuy, ported 2026-10-24; user: "add wobble recent purchase from
+   the observer hud"). The host stays QOLLOCK's .QuickPurchasesPanel above (centred, flowing up). One line,
+   a frame at most 205 px wide in a 2 px transparent rim (209 px notice, NOTICE_W in dlf_buys.js), 36 px high,
+   margins -2 and 1 (35 px a row, ROW_H). The surface is the stock shop item card's paper
+   (citadel_shop_mod_view.css, 6819): slot/tier backer, wear washed per tier, paper grain multiplied
+   over it. DLFBuyBg wobbles with the stock chat bubble's poses at 35 % (.bubble_bg ChatGroove_Allies:
+   stepped rotate and skew, 4 s loop, 400 ms frames; tuned in Observer HUD with the user 2026-10-23).
+   Panorama draws a transformed panel's own edges without anti-aliasing (live in Observer HUD 2026-10-23:
+   a CSS border stair-stepped), so the frame is three images (observer_hud/scripts/make-notice-frame.py,
+   copied to images/dlf: left cap, stretched middle, right cap, white, washed per slot/tier) inside a
+   transparent rim. The icon and name stay still. The name is the stock "Spotted" chat ping font
+   (oracle bold black) with oracle spelled out (this sheet does not import citadel_base_styles). */
+@keyframes 'DLFBuyFadeIn'
+{
+	0%
+	{
+		opacity: 0;
+	}
+
+	100%
+	{
+		opacity: 1;
+	}
+}
+
+/* FADE_SEC in dlf_buys.js */
+@keyframes 'DLFBuyFadeOut'
+{
+	0%
+	{
+		opacity: 1;
+	}
+
+	100%
+	{
+		opacity: 0;
+	}
+}
+
+.DLFBuy
+{
+	width: fit-children;
+	max-width: 209px;
+	height: 36px;
+	horizontal-align: center;
+	margin-top: -2px;
+	margin-bottom: 1px;
+	flow-children: right;
+	overflow: noclip;
+	animation-name: DLFBuyFadeIn;
+	animation-duration: 0.3s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+}
+
+.DLFBuy.DLFBuyFading
+{
+	animation-name: DLFBuyFadeOut;
+	animation-duration: 0.4s;
+	animation-timing-function: linear;
+	animation-iteration-count: 1;
+	animation-fill-mode: forwards;
+}
+
+/* The wobbling layer under the icon and name (out of the row's flow): the paper box is its one flow
+   child (fill-parent-flow takes the 3 px insets off the width), the frame pieces lie over it. */
+.DLFBuyBg
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	flow-children: right;
+	overflow: noclip;
+	animation-name: DLFBuyGroove;
+	animation-duration: 4s;
+	animation-iteration-count: infinite;
+	animation-frame-time: 400ms;
+}
+
+/* The stock ChatGroove_Allies keyframes (citadel_hud_top_bar_chat.css, 6819) at 35 %: stock
+   rotateZ(-1/1/-1/0deg) skew(9/3/7/-5deg). */
+@keyframes 'DLFBuyGroove'
+{
+	0%
+	{
+		transform: rotateZ(-0.35deg) skew(3.15deg);
+	}
+
+	25%
+	{
+		transform: rotateZ(0.35deg) skew(1.05deg);
+	}
+
+	50%
+	{
+		transform: rotateZ(-0.35deg) skew(2.45deg);
+	}
+
+	75%
+	{
+		transform: rotateZ(0deg) skew(-1.75deg);
+	}
+}
+
+.DLFBuyPaperBox
+{
+	width: fill-parent-flow(1.0);
+	height: 30px;
+	margin: 3px;
+	border-radius: 2px;
+	background-color: #AD7C46;
+	overflow: clip;
+}
+
+/* The frame: 36 px high pieces (2 px rim, 32 px frame), white, washed with the border colour below. */
+.DLFBuyEdgeRow
+{
+	width: 100%;
+	height: 100%;
+	ignore-parent-flow: true;
+	flow-children: right;
+}
+
+.DLFBuyEdgeM,
+.DLFBuyEdgeL,
+.DLFBuyEdgeR
+{
+	height: 100%;
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	wash-color: #EC9719;
+}
+
+/* The middle runs from x 6 to width - 6, 3 px under each 9 px cap (the caps' inner column is clear). */
+.DLFBuyEdgeM
+{
+	width: fill-parent-flow(1.0);
+	margin: 0px 6px;
+	background-image: url("s2r://panorama/images/dlf/buy_frame2_m.vtex");
+}
+
+.DLFBuyEdgeL,
+.DLFBuyEdgeR
+{
+	width: 9px;
+	ignore-parent-flow: true;
+}
+
+.DLFBuyEdgeL { background-image: url("s2r://panorama/images/dlf/buy_frame2_l.vtex"); }
+.DLFBuyEdgeR { horizontal-align: right; background-image: url("s2r://panorama/images/dlf/buy_frame2_r.vtex"); }
+.DLFBuyT4 .DLFBuyEdgeM { background-image: url("s2r://panorama/images/dlf/buy_frame3_m.vtex"); }
+.DLFBuyT4 .DLFBuyEdgeL { background-image: url("s2r://panorama/images/dlf/buy_frame3_l.vtex"); }
+.DLFBuyT4 .DLFBuyEdgeR { background-image: url("s2r://panorama/images/dlf/buy_frame3_r.vtex"); }
+
+/* The stock shop card's paper layers inside the frame. */
+.DLFBuyBacker,
+.DLFBuyWear,
+.DLFBuyPaper
+{
+	width: 100%;
+	height: 100%;
+}
+
+.DLFBuyBacker
+{
+	background-size: cover;
+	background-position: 50% 50%;
+}
+
+.DLFBuyWear
+{
+	background-image: url("s2r://panorama/images/shop/catalog/cards/shopitem_paperwear01_psd.vtex");
+	background-size: 100% 100%;
+	opacity: 0.5;
+}
+
+.DLFBuyPaper
+{
+	background-image: url("s2r://panorama/images/shop/catalog/cards/shopitem_papertexture01_psd.vtex");
+	background-size: 100% 100%;
+	-s2-mix-blend-mode: multiply;
+}
+
+.DLFBuyWeapon.DLFBuyT1 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t1_psd.vtex"); }
+.DLFBuyWeapon.DLFBuyT2 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t2_psd.vtex"); }
+.DLFBuyWeapon.DLFBuyT3 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t3_psd.vtex"); }
+.DLFBuyWeapon.DLFBuyT4 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_weapon_t4_psd.vtex"); }
+.DLFBuyVitality.DLFBuyT1 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t1_psd.vtex"); }
+.DLFBuyVitality.DLFBuyT2 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t2_psd.vtex"); }
+.DLFBuyVitality.DLFBuyT3 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t3_psd.vtex"); }
+.DLFBuyVitality.DLFBuyT4 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_vitality_t4_psd.vtex"); }
+.DLFBuySpirit.DLFBuyT1 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t1_psd.vtex"); }
+.DLFBuySpirit.DLFBuyT2 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t2_psd.vtex"); }
+.DLFBuySpirit.DLFBuyT3 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t3_psd.vtex"); }
+.DLFBuySpirit.DLFBuyT4 .DLFBuyBacker { background-image: url("s2r://panorama/images/shop/catalog/cards/card_backer_spirit_t4_psd.vtex"); }
+
+/* Wear washed per tier as the stock card (.ModTier1-4 .paperWear). */
+.DLFBuyVitality.DLFBuyT1 .DLFBuyWear { opacity: 1; wash-color: #F3E1CC; }
+.DLFBuySpirit.DLFBuyT1 .DLFBuyWear { opacity: 1; wash-color: #F7E8D5; }
+.DLFBuyT2 .DLFBuyWear { wash-color: #E6D1BF; }
+.DLFBuyT3 .DLFBuyWear { wash-color: #CEAD9B; }
+.DLFBuyT4 .DLFBuyWear { wash-color: #69615C; }
+
+.DLFBuyIcon
+{
+	width: 25px;
+	height: 25px;
+	margin: 0px 0px 0px 4px;
+	vertical-align: center;
+	border-radius: 4px;
+	border: 2px solid #EC9719;
+}
+
+.DLFBuyIcon.DLFBuyNoIcon
+{
+	visibility: collapse;
+}
+
+/* The stock "Spotted" chat bubble's text (#MessageText: oracle bold black), with oracle spelled out. */
+.DLFBuyName
+{
+	max-width: 164px;
+	margin: 0px 7px 0px 4px;
+	vertical-align: center;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	font-size: 15px;
+	font-weight: bold;
+	color: black;
+	text-shadow: none;
+	white-space: nowrap;
+	text-overflow: shrink;
+}
+
+/* Fallback colour under the backer art (QOLLOCK's backerWeapon/Vitality/SpiritT1-T4). */
+.DLFBuyWeapon.DLFBuyT1 .DLFBuyPaperBox { background-color: #E7CD9B; }
+.DLFBuyWeapon.DLFBuyT2 .DLFBuyPaperBox { background-color: #C9A46A; }
+.DLFBuyWeapon.DLFBuyT3 .DLFBuyPaperBox { background-color: #AD7C46; }
+.DLFBuyWeapon.DLFBuyT4 .DLFBuyPaperBox { background-color: #534944; }
+.DLFBuyVitality.DLFBuyT1 .DLFBuyPaperBox { background-color: #CED79A; }
+.DLFBuyVitality.DLFBuyT2 .DLFBuyPaperBox { background-color: #A6B180; }
+.DLFBuyVitality.DLFBuyT3 .DLFBuyPaperBox { background-color: #7C8B56; }
+.DLFBuyVitality.DLFBuyT4 .DLFBuyPaperBox { background-color: #4E4E43; }
+.DLFBuySpirit.DLFBuyT1 .DLFBuyPaperBox { background-color: #DDC3E5; }
+.DLFBuySpirit.DLFBuyT2 .DLFBuyPaperBox { background-color: #AFA1C4; }
+.DLFBuySpirit.DLFBuyT3 .DLFBuyPaperBox { background-color: #8C87B6; }
+.DLFBuySpirit.DLFBuyT4 .DLFBuyPaperBox { background-color: #504949; }
+
+/* Border colour of the frame (washed images) and the icon: courage/fortitude/spirit Bright, Dark,
+   Darker; tier 4 bright (its frame images are 3 px). */
+.DLFBuyWeapon .DLFBuyIcon { border-color: #EC9719; }
+.DLFBuyWeapon.DLFBuyT2 .DLFBuyIcon { border-color: #7F540E; }
+.DLFBuyWeapon.DLFBuyT3 .DLFBuyIcon { border-color: #302306; }
+.DLFBuyVitality .DLFBuyIcon { border-color: #7BBA1D; }
+.DLFBuyVitality.DLFBuyT2 .DLFBuyIcon { border-color: #4C7113; }
+.DLFBuyVitality.DLFBuyT3 .DLFBuyIcon { border-color: #1F3400; }
+.DLFBuySpirit .DLFBuyIcon { border-color: #CE90FF; }
+.DLFBuySpirit.DLFBuyT2 .DLFBuyIcon { border-color: #613484; }
+.DLFBuySpirit.DLFBuyT3 .DLFBuyIcon { border-color: #362147; }
+.DLFBuyWeapon .DLFBuyEdgeL, .DLFBuyWeapon .DLFBuyEdgeM, .DLFBuyWeapon .DLFBuyEdgeR { wash-color: #EC9719; }
+.DLFBuyWeapon.DLFBuyT2 .DLFBuyEdgeL, .DLFBuyWeapon.DLFBuyT2 .DLFBuyEdgeM, .DLFBuyWeapon.DLFBuyT2 .DLFBuyEdgeR { wash-color: #7F540E; }
+.DLFBuyWeapon.DLFBuyT3 .DLFBuyEdgeL, .DLFBuyWeapon.DLFBuyT3 .DLFBuyEdgeM, .DLFBuyWeapon.DLFBuyT3 .DLFBuyEdgeR { wash-color: #302306; }
+.DLFBuyVitality .DLFBuyEdgeL, .DLFBuyVitality .DLFBuyEdgeM, .DLFBuyVitality .DLFBuyEdgeR { wash-color: #7BBA1D; }
+.DLFBuyVitality.DLFBuyT2 .DLFBuyEdgeL, .DLFBuyVitality.DLFBuyT2 .DLFBuyEdgeM, .DLFBuyVitality.DLFBuyT2 .DLFBuyEdgeR { wash-color: #4C7113; }
+.DLFBuyVitality.DLFBuyT3 .DLFBuyEdgeL, .DLFBuyVitality.DLFBuyT3 .DLFBuyEdgeM, .DLFBuyVitality.DLFBuyT3 .DLFBuyEdgeR { wash-color: #1F3400; }
+.DLFBuySpirit .DLFBuyEdgeL, .DLFBuySpirit .DLFBuyEdgeM, .DLFBuySpirit .DLFBuyEdgeR { wash-color: #CE90FF; }
+.DLFBuySpirit.DLFBuyT2 .DLFBuyEdgeL, .DLFBuySpirit.DLFBuyT2 .DLFBuyEdgeM, .DLFBuySpirit.DLFBuyT2 .DLFBuyEdgeR { wash-color: #613484; }
+.DLFBuySpirit.DLFBuyT3 .DLFBuyEdgeL, .DLFBuySpirit.DLFBuyT3 .DLFBuyEdgeM, .DLFBuySpirit.DLFBuyT3 .DLFBuyEdgeR { wash-color: #362147; }
+
+/* Tier 4 sits on a dark backer: the stock card's tier 4 name colours (.isWeapon/.isArmor/.isTech.ModTier4 .modName). */
+.DLFBuyWeapon.DLFBuyT4 .DLFBuyName { color: #E4C5A1; }
+.DLFBuyVitality.DLFBuyT4 .DLFBuyName { color: #C2E7CD; }
+.DLFBuySpirit.DLFBuyT4 .DLFBuyName { color: #E3D4F2; }

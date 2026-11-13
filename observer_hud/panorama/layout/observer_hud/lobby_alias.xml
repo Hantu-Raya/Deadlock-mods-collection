@@ -1,0 +1,17 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss" />
+		<include src="s2r://panorama/styles/observer_hud/oh_lobby.vcss_c" />
+	</styles>
+	<!-- Loaded by oh_lobby.js into a Button it makes in a lobby slot's .Player panel. Panels a script creates
+	     under the slot take the slot layout's stylesheets (live 6842, as the post-game rows), so the alias
+	     button is a layout of its own that brings oh_lobby.css. -->
+	<Button class="OHLAlias">
+		<Panel class="OHLAliasRow" hittest="false">
+			<Label id="OHLAliasText" class="OHLAliasText" text="" />
+			<Label id="OHLAliasReal" class="OHLAliasReal" text="" />
+		</Panel>
+		<Label id="OHLAliasHint" class="OHLAliasHint" text="Set alias" hittest="false" />
+		<TextEntry id="OHLAliasEntry" class="OHLAliasEntry" maxchars="24" placeholder="alias" text="" />
+	</Button>
+</root>

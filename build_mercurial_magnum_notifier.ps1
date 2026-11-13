@@ -33,6 +33,10 @@ $viewer = Get-RepoToolPath -ToolName 'Source2Viewer-CLI.exe' -Candidates @(
     (Join-Path $root '.tmp\vrf-cli-19.2\Source2Viewer-CLI.exe'),
     (Join-Path $root '.tmp\source2viewer-cli\Source2Viewer-CLI.exe')
 )
+$sevenZip = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source
+if (-not $sevenZip) { $sevenZip = 'C:\Program Files\7-Zip\7z.exe' }
+# Both variants pack the same pak99_dir.vpk, so each run archives its own copy.
+$archivePath = Join-Path $AddonsPath "mercurial_magnum_notifier_${Variant}_$(Get-Date -Format 'MM_dd').7z"
 $assets = @(
     'panorama/images/blood_tribute/upgrade_blood_tribute.vtex_c',
     'panorama/images/mercurial_magnum/upgrade_ethereal_bullets.vtex_c',
@@ -75,7 +79,7 @@ function Get-Sha256 {
     finally { $stream.Dispose(); $sha256.Dispose() }
 }
 
-foreach ($path in @($moduleSrc, $variantStyles, $compiler)) {
+foreach ($path in @($moduleSrc, $variantStyles, $compiler, $sevenZip)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required input missing: $path" }
 }
 
@@ -152,6 +156,13 @@ try {
     Remove-TreeUnderRoot -Path $stage -RootPath $root -ExpectedLeaf $stageLeaf
     Remove-TreeUnderRoot -Path $stageCompiled -RootPath $root -ExpectedLeaf "${stageLeaf}_compiled"
 }
+
+# -- Archive (pak99_dir.vpk at the archive root, like the other dated releases) --
+if (-not (Test-Path -LiteralPath $AddonsPath)) { throw "Deadlock addons folder missing: $AddonsPath" }
+if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }
+& $sevenZip a -t7z $archivePath $vpkOut -mx=9 -bso0 -bsp0
+if ($LASTEXITCODE -ne 0) { throw "7z failed with exit code $LASTEXITCODE" }
+Write-Host "  Archive -> $archivePath" -ForegroundColor Green
 
 # -- 5. Deploy (backup beside the target, then hash-verify) ----------------------
 if ($SkipDeploy) { return }

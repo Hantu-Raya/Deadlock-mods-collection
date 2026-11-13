@@ -15,6 +15,7 @@
 		<include src="s2r://panorama/scripts/observer_hud/oh_menu.vjs_c" />
 		<include src="s2r://panorama/scripts/observer_hud/oh_debuffs.vjs_c" />
 		<include src="s2r://panorama/scripts/observer_hud/oh_buys.vjs_c" />
+		<include src="s2r://panorama/scripts/observer_hud/oh_link.vjs_c" />
 	</scripts>
 	<Panel class="Spectator" hittest="true" hittestchildren="true">
 		<Panel class="SpectateTopBar" hittest="false" hittestchildren="false">

@@ -1,0 +1,320 @@
+/* DLF broadcast banner above the stock top bar.
+   Positions are banner pixels (1920x100 art, HUD px at 1080p; G:\NEW HUD 3 ban.psd rows 504..603). The
+   solid band is rows 0..67 and the top bar's padding reserves exactly that; rows 68..99 are the art's
+   torn bottom edge, which fades out behind the clock and the cards. The art's name rows match the
+   stock top-bar geometry (a 1260px TeamsContainer of two 6x88px teams); dlf_banner.js places each
+   name under its own card's measured position. */
+
+/* Padding (not margin) keeps the banner inside the top bar's own bounds, so the
+   banner's negative margin cannot be clipped by the top bar's composition layer. Stock
+   .spec_mode CitadelHudTopBar adds margin-top: 8px, which showed the world above the banner. */
+CitadelHudTopBar,
+.spec_mode CitadelHudTopBar
+{
+	margin-top: 0px;
+	padding-top: 68px;
+	overflow: noclip;
+}
+
+/* Lock the stock geometry the name slots are aligned to (also under showNewTopbar). */
+#TeamsContainer,
+.showNewTopbar #TeamsContainer
+{
+	width: 1260px;
+}
+
+CitadelHudTopBarTeam,
+.showNewTopbar CitadelHudTopBarTeam
+{
+	width: 528px;
+}
+
+/* The banner is the top bar's first child with no z-index, so the stock clock, cards and team scores
+   draw over the torn edge that hangs below the padding. */
+#DLFBanner
+{
+	width: 1920px;
+	height: 100px;
+	margin-top: -68px;
+	horizontal-align: center;
+	vertical-align: top;
+	flow-children: none;
+	overflow: noclip;
+	background-image: url("s2r://panorama/images/dlf/dlf_banner.vtex");
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+}
+
+/* Fonts and sizes here are the first-frame defaults ($.DLFState.STYLE_DEFAULTS); dlf_banner.js then
+   writes each section's font, size, letter spacing and offset from the ESC editor's style.
+   Modesto Lite Expanded is the 2026-10-20 PSD face. */
+.DLFText
+{
+	font-family: "ModestoLite Expanded", GOFIRE, Jost, Noto Sans, sans-serif;
+	font-weight: normal;
+	font-style: normal;
+	text-transform: uppercase;
+	color: #fefefe;
+	text-shadow: 0px 0px 3.0 #000000;
+	text-align: center;
+	text-overflow: ellipsis;
+}
+
+/* Each band is the fixed envelope of one text section inside its frame in the art; its label is
+   centered in it (team names hug the band's outer end) and moves only by the bounded style offsets.
+   dlf_banner.js picks a whole font size that fits the band (the engine's text-overflow: shrink squashes
+   the stencil font); ellipsis is the backstop. */
+.DLFBand
+{
+	overflow: noclip;
+}
+
+.DLFBand Label
+{
+	width: 100%;
+	vertical-align: center;
+}
+
+#DLFEventBox
+{
+	width: 210px;
+	height: 50px;
+	margin-left: 6px;
+	margin-top: 10px;
+}
+
+#DLFEventStack
+{
+	width: 100%;
+	height: fit-children;
+	vertical-align: center;
+	flow-children: down;
+}
+/* Season / match and series text use the PSD's warm tint; team names a paler cream. */
+#DLFEventLine1
+{
+	width: 100%;
+	font-size: 22px;
+	letter-spacing: 2px;
+	color: #ffcfbc;
+}
+
+#DLFEventLine2
+{
+	width: 100%;
+	font-size: 14px;
+	letter-spacing: 2px;
+	color: #ffcfbc;
+}
+
+/* Team names sit at the outer ends of the band (2026-10-28 art: VENOM starts at x 334, BANANABREAD ends
+   at 1581), between the frame arrow and the ban icon; each name hugs its outer end. */
+.DLFTeamBand
+{
+	width: 310px;
+	height: 28px;
+	margin-top: 15px;
+}
+
+.DLFTeamName
+{
+	font-size: 24px;
+	letter-spacing: 2px;
+	color: #f7e9d5;
+}
+
+#DLFLeftTeamBand
+{
+	margin-left: 334px;
+}
+
+#DLFLeftTeamName
+{
+	text-align: left;
+}
+
+#DLFRightTeamBand
+{
+	margin-left: 1271px;
+}
+
+#DLFRightTeamName
+{
+	text-align: right;
+}
+
+.DLFScoreBand
+{
+	width: 48px;
+	height: 52px;
+	margin-top: 8px;
+}
+
+.DLFScore
+{
+	font-size: 30px;
+}
+
+#DLFLeftScoreBand
+{
+	margin-left: 860px;
+}
+
+#DLFRightScoreBand
+{
+	margin-left: 1016px;
+}
+
+/* Player names: both rows span the banner; dlf_banner.js puts each 88px label (one card wide) centered under its own
+   top-bar card (margin-left), and keeps it hidden (.DLFUnplaced) until that card is laid out. */
+.DLFPlayers
+{
+	width: 100%;
+	height: 22px;
+	margin-top: 41px;
+	overflow: noclip;
+}
+
+.DLFPlayerName
+{
+	width: 88px;
+	vertical-align: center;
+	font-size: 13px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	letter-spacing: 0px;
+}
+
+.DLFPlayerName.DLFUnplaced
+{
+	visibility: collapse;
+}
+
+#DLFSeriesBand
+{
+	width: 210px;
+	height: 50px;
+	margin-left: 1704px;
+	margin-top: 10px;
+}
+
+#DLFSeriesFormat
+{
+	font-size: 22px;
+	letter-spacing: 2px;
+	color: #ffcfbc;
+}
+
+/* Team logos: 100% is the PSD emblem box (83x83, centered at x 268 / 1653, y 43 / 40); the emblems
+   hang into the torn edge below the band. dlf_banner.js resizes the box around that center and caps
+   its height at 90 px. The default Image is the team's emblem; a web logo is a second Image created
+   per URL and shown only after it loads (.DLFLogoCustomShown). */
+.DLFLogo
+{
+	width: 83px;
+	height: 83px;
+	overflow: noclip;
+}
+
+#DLFLeftLogo
+{
+	margin-left: 227px;
+	margin-top: 2px;
+}
+
+#DLFRightLogo
+{
+	margin-left: 1612px;
+	margin-top: -2px;
+}
+
+.DLFLogoImage
+{
+	width: 100%;
+	height: 100%;
+}
+
+.DLFLogoCustom
+{
+	visibility: collapse;
+}
+
+.DLFLogoCustomShown .DLFLogoCustom
+{
+	visibility: visible;
+}
+
+.DLFLogoCustomShown #DLFLeftLogoDefault,
+.DLFLogoCustomShown #DLFRightLogoDefault
+{
+	visibility: collapse;
+}
+
+/* Ban portraits cover the red boxes in the art (45x34 at banner y 6), three per team, slot 0 leftmost.
+   An empty slot keeps the box. */
+.DLFBan
+{
+	width: 45px;
+	height: 34px;
+	margin-top: 6px;
+}
+
+.DLFBanEmpty
+{
+	visibility: collapse;
+}
+
+#DLFLeftBan0
+{
+	margin-left: 691px;
+}
+
+#DLFLeftBan1
+{
+	margin-left: 737px;
+}
+
+#DLFLeftBan2
+{
+	margin-left: 783px;
+}
+
+#DLFRightBan0
+{
+	margin-left: 1092px;
+}
+
+#DLFRightBan1
+{
+	margin-left: 1138px;
+}
+
+#DLFRightBan2
+{
+	margin-left: 1184px;
+}
+
+/* Two bans per team (state.banCount 2, .DLFTwoBans on #DLFBanner from dlf_banner.js): the art without
+   the inner box of each side (dlf_banner_2ban.png, scripts/make-two-ban-banner.py). Slots 0 and 1 keep the two
+   outer boxes (691, 737) on the left; the right side's two bans move to its outer boxes (1138, 1184). The third slot is
+   always written empty at 2, and collapses here as well. */
+#DLFBanner.DLFTwoBans
+{
+	background-image: url("s2r://panorama/images/dlf/dlf_banner_2ban.vtex");
+}
+
+.DLFTwoBans #DLFRightBan0
+{
+	margin-left: 1138px;
+}
+
+.DLFTwoBans #DLFRightBan1
+{
+	margin-left: 1184px;
+}
+
+.DLFTwoBans #DLFLeftBan2,
+.DLFTwoBans #DLFRightBan2
+{
+	visibility: collapse;
+}

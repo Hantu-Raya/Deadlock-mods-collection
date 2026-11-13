@@ -1305,6 +1305,89 @@ test('v2 excludes only HasHealth shield and armor visible clip extents', () => {
   }
 });
 
+// Static 6782 client.dll RE (health-layer update, rva 0x1dd9d80): every layer is full width,
+// HasHealth = value > 0, and clip rect(0%, right%, 100%, left%) stacks from a running cursor in
+// order lagging, deferred, healing, bullet_shield (barrier), ratking_armor, delta. A layer whose
+// value drops to 0 keeps its stale clip. Total = max(max HP, HP + barrier + delta).
+function paintEngineHealth(fixture, { hp, max, barrier = 0, delta = 0 }) {
+  const total = Math.max(max, hp + barrier + delta);
+  const find = id => fixture.inner.FindChildTraverse(id);
+  let cursor = 0;
+  for (const [panel, value] of [[fixture.fill, hp], [find('unit_healthbar_deferred'), 0],
+    [find('unit_healthbar_healing'), 0], [find('unit_healthbar_bullet_shield'), barrier],
+    [find('unit_healthbar_ratking_armor'), 0], [find('unit_healthbar_delta'), delta]]) {
+    panel.SetHasClass('HasHealth', value > 0);
+    if (!(value > 0)) continue;
+    const width = value / total * 100;
+    panel.actuallayoutwidth = 69;
+    panel.style.clip = `rect(0%, ${cursor + width}%, 100%, ${cursor}%)`;
+    cursor += width;
+  }
+}
+
+test('v2 keeps an enemy hero customised through barrier gain, a shielded hit and barrier loss', () => {
+  // Player report 2026-10-15: enemy Celeste's bar looked stock for ~1 s around Prismatic Guard.
+  const fixture = makeStatusFixture('enemy', {
+    enabled: true, enemyEnabled: true, enemyMode: 'fixed',
+    enemyLow: '#FF0000', enemyMid: '#FFFF00', enemyHigh: '#2E5BFF',
+    lowThreshold: 25, highThreshold: 80,
+    widthScale: 125, heightScale: 125, readoutVisible: true,
+    enemyPulseEnabled: true, enemyPulseThreshold: 25,
+  }, 1, '2455', false, false, false, true, null, null, { fillWidth: 69 });
+  const shield = fixture.inner.FindChildTraverse('unit_healthbar_bullet_shield');
+  for (const [label, state] of [
+    ['full', { hp: 2455, max: 2455 }],
+    ['barrier gained', { hp: 2455, max: 2455, barrier: 300 }],
+    ['hit absorbed by the barrier', { hp: 2455, max: 2455, barrier: 150, delta: 150 }],
+    ['barrier broken', { hp: 2387, max: 2455, delta: 218 }],
+    ['settled', { hp: 2387, max: 2455 }],
+  ]) {
+    paintEngineHealth(fixture, state);
+    fixture.harness.scheduler.runFor(1200);
+    assert.equal(fixture.fill.style.washColor, '#2E5BFF', label);
+    assert.equal(shield.style.backgroundColor, '#FFFFFF', label);
+    assert.equal(fixture.healthbars.style.preTransformScale2d, '1.25, 1.25', label);
+    assert.ok(fixture.healthValue.GetParent() === fixture.counterRow, label);
+    assert.equal(fixture.windowRoot.BHasClass('HPColorsRewriteEnemyPlayer'), true, label);
+  }
+});
+
+test('v2 survives engine line deletion during barrier changes without releasing the bar', () => {
+  // Live 6782: the line builder (client.dll rva 0x1bf1590) deletes surplus UnitHealthbarLines
+  // children when the bar total drops (barrier hit, decay or expiry), and every native call on a
+  // deleted panel throws "Underlying panel is deleted!". v3 rolled the whole bar back to stock on
+  // that throw; v2's setStyle checks IsValid and swallows setter errors, which this test pins.
+  const fixture = makeStatusFixture('enemy', {
+    enabled: true, enemyColor: '#2E5BFF', widthScale: 125, heightScale: 125,
+    readoutVisible: true, enemyPipColorEnabled: true, enemyPipColor: '#000000',
+  });
+  const lines = [];
+  for (let index = 0; index < 11; index++)
+    lines.push(fixture.lines.add(new MockPanel('', { classes: [index % 4 ? 'line_small' : 'line_large'] })));
+  fixture.harness.scheduler.runFor(2500);
+  assert.ok(lines.every(line => line.style.washColor === '#000000'));
+  let deadCalls = 0;
+  const kill = (panel, stayListed) => {
+    if (stayListed) panel.valid = false; else panel.DeleteAsync();
+    const dead = () => { deadCalls++; throw new Error('Underlying panel is deleted!'); };
+    panel.style = new Proxy({}, { get: dead, set: dead });
+    for (const method of ['BHasClass', 'AddClass', 'RemoveClass', 'SetHasClass', 'GetParent', 'Children', 'GetChildCount'])
+      panel[method] = dead;
+  };
+  kill(lines.pop());
+  kill(lines.pop(), true);
+  const replacement = fixture.lines.add(new MockPanel('', { classes: ['line_small'] }));
+  for (let ms = 0; ms < 2000; ms += 50) {
+    fixture.harness.scheduler.runFor(50);
+    assert.equal(fixture.fill.style.washColor, '#2E5BFF', `fill at ${ms}ms`);
+    assert.equal(fixture.healthbars.style.preTransformScale2d, '1.25, 1.25', `geometry at ${ms}ms`);
+    assert.ok(fixture.healthValue.GetParent() === fixture.counterRow, `HP text at ${ms}ms`);
+  }
+  assert.equal(replacement.style.washColor, '#000000', 'replacement line is washed by the next scan');
+  assert.ok(lines.every(line => line.style.washColor === '#000000'));
+  assert.equal(deadCalls, 0, 'deleted lines are never touched');
+});
+
 test('v2 normalizes health and marker measurements without converting CSS clip lengths', () => {
   const fixture = makeStatusFixture('enemy', {
     enemyEnabled: true, enemyMode: 'fixed',

@@ -765,10 +765,11 @@
 	color: #FFEFD788;
 }
 
-/* Ban slots: a dark well with the hero portrait. */
+/* Ban slots: a dark well with the hero portrait. Up to three per row (state.banCount); 200 px (220 with
+   two) keeps three inside the row. A slot past banCount is collapsed by oh_menu.js. */
 .OHBanSlot
 {
-	width: 220px;
+	width: 200px;
 	height: 44px;
 	margin-right: 10px;
 	flow-children: right;

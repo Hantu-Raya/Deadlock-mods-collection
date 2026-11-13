@@ -1,0 +1,17 @@
+/* DLF stun hiding for world healthbars. Included by DLF's citadel_status_effect.xml, the layout
+   CitadelStatusEffect loads for its own status panels: Panorama stylesheets apply per layout file,
+   so a rule included from unit_status_overlay_v2.xml never reached them (the stun icon flashed until
+   dlf_debuff_world.js muted it on its next poll, 2026-10-16). The spectator VData makes the shared
+   stun modifiers (modifier_citadel_stunned, _no_cc_diminish, modifier_citadel_knockdown) visible so
+   dlf_debuff_world.js can read them, but healthbars show no stun icon: on bars under DLF's
+   .DLFWorldBar root, stun panels take no space and draw nothing. They are not collapsed, so the
+   engine keeps them current for the sampler. Keep selectors short: Panorama rejects long ones
+   ("Selector exceeds temp buffer size"), which fails the layout and the game (fatal error at start,
+   2026-10-14). */
+.DLFWorldBar .statusEffect.stunned
+{
+	opacity: 0;
+	width: 0px;
+	height: 0px;
+	margin: 0px;
+}

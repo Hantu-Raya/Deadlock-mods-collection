@@ -40,10 +40,10 @@ SteamTracking abilities.vdata (pak01_dir/scripts)
 
 ## Build flow
 
-- Run from the repo root: `powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1`. It resolves `py.exe` and 7-Zip, extracts stock `scripts/abilities.vdata_c` from `citadel/pak01_dir.vpk`, and builds each spec in order.
-- `-Only pak03` (any pak names) builds a subset. `-Deploy` also copies each built `pakXX_dir.vpk` into `citadel/addons`, replacing the installed one; without it only archives are written. `-Deploy` refuses to start while Deadlock runs, because the game locks addon paks. `-Only` cannot be combined with `-RefreshFromSteamTracking`.
-- `-GamePak <pak01_dir.vpk>` picks the installed game (default `G:\SteamLibrary\...\citadel\pak01_dir.vpk`, the same parameter as `build_dlf.ps1` and `build_observer_hud.ps1`). Stock RERL comes from that pak, and archives and `-Deploy` go to the `addons` folder beside it.
-- `-RefreshFromSteamTracking` resolves GameTracking `master` to a commit SHA through the GitHub API and fetches `abilities.vdata` at that SHA (the raw CDN serves a cached previous build for `.../master/...` for a while after an update). It requires exactly one root `_include` block, removes it, and writes the same content to both baselines. Never refresh only one: `abilities.vdata` feeds pak02/03/05 and `abilities2.vdata` feeds pak04. Record the printed upstream revision in the commit.
+- Run from the repo root: `node scripts/build-abilities.js`. It resolves `py.exe` and 7-Zip, extracts stock `scripts/abilities.vdata_c` from `citadel/pak01_dir.vpk`, and builds each spec in order.
+- `--only pak03` (any pak names) builds a subset. `--deploy` also copies each built `pakXX_dir.vpk` into `citadel/addons`, replacing the installed one; without it only archives are written. `--deploy` refuses to start while Deadlock runs, because the game locks addon paks. `--only` cannot be combined with `--refresh-from-steam-tracking`.
+- `--game-pak <pak01_dir.vpk>` picks the installed game (default: the installed game found through Steam's library list, else `G:\SteamLibrary\...\citadel\pak01_dir.vpk`, the same parameter as `build_dlf.ps1` and `build_observer_hud.ps1`). Stock RERL comes from that pak, and archives and `--deploy` go to the `addons` folder beside it.
+- `--refresh-from-steam-tracking` resolves GameTracking `master` to a commit SHA through the GitHub API and fetches `abilities.vdata` at that SHA (the raw CDN serves a cached previous build for `.../master/...` for a while after an update). It requires exactly one root `_include` block, removes it, and writes the same content to both baselines. Never refresh only one: `abilities.vdata` feeds pak02/03/05 and `abilities2.vdata` feeds pak04. Record the printed upstream revision in the commit.
 - Each spec restores its input from a temp baseline before transforming, so variants never stack. After packing, both inputs are restored to the post-override baseline and stage folders and root VPKs are deleted; the dated `.7z` archives (and deployed paks) are the only durable output.
 - `sr2compiler/New folder.exe` may exit nonzero or hang after writing output; the wrapper accepts existing required outputs. It targets .NET 9; on a machine with only .NET 8/10 it exits at once with "You must install or update .NET" and the wrapper reports missing outputs. Set `DOTNET_ROLL_FORWARD=Major` to run it on .NET 10. `[rerl] N external refs` must appear for every compile (590 on 6828 and 6860; 589 on 6801; 585 on 6790; 578 on 6779; 565 on the 10_07 baseline).
 
@@ -63,7 +63,7 @@ SteamTracking abilities.vdata (pak01_dir/scripts)
 
 ## Source and generated files
 
-Edit only `abilities/scripts/*.py`, the `.bat` wrappers, and `build_abilities_paks.ps1`. The two `.vdata` files are generated baselines: change them only through `-RefreshFromSteamTracking` (and the override step the wrapper runs). Do not hand-edit `abilities_compiled/`, `pak0X_dir/` stages, VPKs, or archives. Files are ~7 MB; process them with scripts, not editors.
+Edit only `abilities/scripts/*.py`, the `.bat` wrappers, and `scripts/build-abilities.js` (tests: `node --test scripts/build-abilities.test.js`; it replaced `build_abilities_paks.ps1` on 2026-11-13 after producing four byte-identical paks). The two `.vdata` files are generated baselines: change them only through `--refresh-from-steam-tracking` (and the override step the wrapper runs). Do not hand-edit `abilities_compiled/`, `pak0X_dir/` stages, VPKs, or archives. Files are ~7 MB; process them with scripts, not editors.
 
 ## Verification
 
@@ -73,13 +73,13 @@ Run from `abilities/scripts/`:
 py -m unittest test_active
 ```
 
-Then build: the full flow for a release, or `-Only pak03 -Deploy` to test one variant in game. The wrapper verifies behavior state for pak03/05 and RERL injection for every pak.
+Then build: the full flow for a release, or `--only pak03 --deploy` to test one variant in game. The wrapper verifies behavior state for pak03/05 and RERL injection for every pak.
 
 To check a built pak without the game, decompile it: `.tmp/source2viewer-cli/Source2Viewer-CLI.exe -i <pak> --vpk_filepath scripts/abilities.vdata_c -o <dir> -d`, then read the targeted records' `m_eAbilityTargetingLocation` and `m_AbilityBehaviorsBits`. Compare the deployed pak's SHA-256 with the `.7z` member.
 
 ### Release checklist
 
-- **Rebuild all four variants** with the full flow; never upload an `-Only` subset alongside stale archives from another day.
+- **Rebuild all four variants** with the full flow; never upload an `--only` subset alongside stale archives from another day.
 - **Upload all dated archives** to GameBanana mod 601444, then sync Custom Passive (`npm run sync:gamebanana`, then `npm run check` with the archives in `citadel/addons`) and push it. Its Pages deploy is manual-only.
-- **Baselines must match the installed game.** An RERL injection failure saying icons differ means the baseline is stale: rerun with `-RefreshFromSteamTracking`. A stale baseline also desyncs client ability data from the server.
+- **Baselines must match the installed game.** An RERL injection failure saying icons differ means the baseline is stale: rerun with `--refresh-from-steam-tracking`. A stale baseline also desyncs client ability data from the server.
 - **Data tests are not gameplay evidence.** Casting behavior, icons and hitch changes need an in-game check; say which variant was tested.

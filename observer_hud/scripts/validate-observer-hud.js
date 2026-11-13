@@ -48,7 +48,15 @@ const STORE_PAGE = process.env.OH_STORE_PAGE || "D:/hpv2-store/oh/v2/index.html"
 const STORE_URL = "https://hantu-raya.github.io/hpv2-store/oh/v2/";
 const V1_PAGE = "D:/hpv2-store/oh/index.html";
 const V1_URL = "https://hantu-raya.github.io/hpv2-store/oh/";
-const pageScript = (file) => (fs.existsSync(file) ? /<script>([\s\S]*)<\/script>/.exec(fs.readFileSync(file, "utf8"))[1] : "");
+// A missing page stops the run with its path (an empty script used to fail a dozen store checks with
+// errors that named something else).
+const pageScript = (file) => {
+  if (!fs.existsSync(file)) {
+    console.error(`not ok - the hosted store page is missing: ${file} (clone Hantu-Raya/hpv2-store there, or set OH_STORE_PAGE for the v2 page)`);
+    process.exit(1);
+  }
+  return /<script>([\s\S]*)<\/script>/.exec(fs.readFileSync(file, "utf8"))[1];
+};
 const storeScript = pageScript(STORE_PAGE);
 const v1Script = pageScript(V1_PAGE);
 const PAGE_SCRIPTS = { [STORE_URL]: storeScript, [V1_URL]: v1Script };
@@ -58,6 +66,9 @@ const clockDate = (nowMs) => class extends Date {
   constructor(...args) { if (args.length) super(...args); else super(nowMs()); }
   static now() { return nowMs(); }
 };
+// The engine throws when an alias style property (marginTop, verticalAlign, fontSize, ...) is cleared with null
+// (live 6860); the fake does too, so a restore that would throw in the game fails here.
+MockPanel.strictAliasNull = true;
 // UICanvas (client.dll 6819, ui_canvas.cpp, static RE): ClearJS(color) and
 // DrawSoftLinePointsJS(nPoints, [x0, y0, x1, y1, ...], thickness, softness, color); a bad colour draws white.
 MockPanel.prototype.ClearJS = function (color) { this.__draws = []; this.__clear = color; };
@@ -169,7 +180,9 @@ const RAW_EXCLUDED = new Set(["childWrappers", "nodeVisits"]);
 // Measured 2026-10-25 before -> after the quick-poll world sampler, the watch gate and the respawn wake:
 // spectating 361 -> 216.2, counting down 483.8 -> 274.3, playing with pak10 installed 310.5 -> 4.3,
 // not spectating 4.3, after spectating 4.8 us/s. Re-measure before raising.
-const BUDGET_US = { spectating: 222, countdown: 280, idle: 6, after: 6, playing: 6, scan: 12 };
+// 2026-11-06: the status sweep (user request) writes each counting slot's clip at the 0.25 s tick, where
+// the seconds wrote text once a second: counting down 262.9 -> 304.9 us/s with 12 counting slots.
+const BUDGET_US = { spectating: 222, countdown: 310, idle: 6, after: 6, playing: 6, scan: 12 };
 // The post-game board (plan phase 2): at most 11 native calls per second while its page shows and
 // nothing changes; while hidden one visibility check a second (a reopen can bring no event, live).
 const BUDGET_BOARD = { calls: 11, us: 3, hiddenUs: 2 };
@@ -177,17 +190,20 @@ const ATTRIB = { on: !!process.env.OH_ATTRIB, map: new Map() };
 
 let lastLogs = null;
 // Engine model (ENGINE.md, live 2026-10-23): after style.visibility = "collapse", writing null clears the
-// inline value but the panel stays hidden. Every check fails if any panel of its worlds got that sequence.
+// inline value but the panel stays hidden. The same for an inline opacity "0" cleared with null (user
+// report 2026-11-03: the stock lobby name stayed invisible after RESET ALL removed its alias). Every
+// check fails if any panel of its worlds got either sequence.
 const WORLDS = [];
+const STUCK = { visibility: "collapse", opacity: "0" };
 function stuckHidden() {
   const stuck = [];
   const visit = (panel) => {
-    let collapsed = false;
+    const hidden = {};
     for (const { property, value } of panel.__styleWrites || []) {
-      if (property !== "visibility") continue;
-      if (value === "collapse") collapsed = true;
-      else if (value === null && collapsed) stuck.push(panel.id || panel.paneltype);
-      else if (value) collapsed = false;
+      if (!(property in STUCK)) continue;
+      if (String(value) === STUCK[property]) hidden[property] = true;
+      else if (value === null && hidden[property]) stuck.push(`${panel.id || panel.paneltype}.${property}`);
+      else if (value) hidden[property] = false;
     }
     for (const child of panel.children || []) visit(child);
   };
@@ -215,7 +231,7 @@ function check(name, fn) {
   try {
     fn();
     const stuck = stuckHidden();
-    assert.deepEqual(stuck, [], `visibility collapse then null leaves these hidden live: ${stuck.join(", ")}`);
+    assert.deepEqual(stuck, [], `collapse / opacity 0 then null leaves these hidden live: ${stuck.join(", ")}`);
     const bad = invalidStyles();
     assert.deepEqual(bad, [], `these style values throw live: ${bad.join(", ")}`);
   } catch (error) {
@@ -292,11 +308,14 @@ const OWN = {
   debuffs: parseLayout(read("panorama/layout/observer_hud/debuffs.xml")),
   urn: parseLayout(read("panorama/layout/observer_hud/urn.xml")),
   editor: parseLayout(read("panorama/layout/observer_hud/editor.xml")),
-  relay: parseLayout(read("panorama/layout/observer_hud/debuff_relay.xml"))
+  relay: parseLayout(read("panorama/layout/observer_hud/debuff_relay.xml")),
+  lobbyAlias: parseLayout(read("panorama/layout/observer_hud/lobby_alias.xml")),
+  lobbySetup: parseLayout(read("panorama/layout/observer_hud/lobby_setup.xml")),
+  lobbyShare: parseLayout(read("panorama/layout/observer_hud/lobby_share.xml"))
 };
 const HPV3_ESCAPE = path.join(REPO, "hp_colors_rewrite_v3/panorama/layout/hud_escape_menu.xml");
 const HOST_FILES = ["oh_state.js", "oh_heroes.js", "oh_debuff_icons.js", "oh_item_icons.js", "oh_host.js", "oh_menu.js",
-  "oh_debuffs.js", "oh_buys.js"];
+  "oh_debuffs.js", "oh_buys.js", "oh_link.js"];
 const ITEM_ICONS = new vm.Script(`${read("panorama/scripts/observer_hud/oh_item_icons.js")}\nOH_ITEM_ICONS`).runInNewContext({});
 const HEROES = new vm.Script(`${read("panorama/scripts/observer_hud/oh_heroes.js")}\nOH_HEROES`).runInNewContext({});
 
@@ -382,7 +401,10 @@ function world({ width = 1920, height = 1080, scale = 1, escape = "stock", spect
     "file://{resources}/layout/observer_hud/band.xml": OWN.band,
     "file://{resources}/layout/observer_hud/debuffs.xml": OWN.debuffs,
     "file://{resources}/layout/observer_hud/urn.xml": OWN.urn,
-    "file://{resources}/layout/observer_hud/editor.xml": OWN.editor
+    "file://{resources}/layout/observer_hud/editor.xml": OWN.editor,
+    "file://{resources}/layout/observer_hud/lobby_alias.xml": OWN.lobbyAlias,
+    "file://{resources}/layout/observer_hud/lobby_setup.xml": OWN.lobbySetup,
+    "file://{resources}/layout/observer_hud/lobby_share.xml": OWN.lobbyShare
   };
   MockPanel.prototype.BLoadLayout = function (file) {
     loads.push(file);
@@ -717,17 +739,22 @@ check("own s2r:// references resolve to source files, and every source file is l
   for (const [list, dir, ext] of [[layouts, "layout", "xml"], [styles, "styles", "css"], [scripts, "scripts", "js"], [images, "images", "vtex"]]) {
     for (const name of list) assert.ok(fs.existsSync(path.join(PANORAMA, dir, `${name}.${ext}`)), `listed ${dir}/${name}.${ext} exists`);
   }
-  // Only the host layouts, the post-game page and the VData override stock files; everything else has this mod's own names.
-  deq(layouts.filter((name) => !name.startsWith("observer_hud/")), ["hud_spectate_bar", "citadel_status_effect", "post_game/citadel_db_page_post_game_new"]);
+  // Only the host layouts, the post-game page, the private-lobby page (0.3.0), the kill feed row and the VData
+  // override stock files; everything else has this mod's own names.
+  deq(layouts.filter((name) => !name.startsWith("observer_hud/")),
+    ["hud_spectate_bar", "citadel_status_effect", "post_game/citadel_db_page_post_game_new", "citadel_db_page_private_lobby",
+      "citadel_hud_data_feed_info"]);
   assert.ok(styles.every((name) => name.startsWith("observer_hud/")) && scripts.every((name) => name.startsWith("observer_hud/")));
   assert.match(wrapper, /pak10_dir\.vpk/, "pak10");
 });
 
-check("the three overrides are the pinned stock files plus this mod's include lines only", () => {
+check("the five overrides are the pinned stock files plus this mod's include lines only", () => {
   const pin = JSON.parse(read("stock-pin.json"));
   const overrides = {
     "panorama/layout/hud_spectate_bar.xml": "game/citadel/pak01_dir/panorama/layout/hud_spectate_bar.xml",
-    "panorama/layout/citadel_status_effect.xml": "game/citadel/pak01_dir/panorama/layout/citadel_status_effect.xml"
+    "panorama/layout/citadel_status_effect.xml": "game/citadel/pak01_dir/panorama/layout/citadel_status_effect.xml",
+    "panorama/layout/citadel_db_page_private_lobby.xml": "game/citadel/pak01_dir/panorama/layout/citadel_db_page_private_lobby.xml",
+    "panorama/layout/citadel_hud_data_feed_info.xml": "game/citadel/pak01_dir/panorama/layout/citadel_hud_data_feed_info.xml"
   };
   for (const [local, stock] of Object.entries(overrides)) {
     const own = read(local);
@@ -746,7 +773,7 @@ check("the three overrides are the pinned stock files plus this mod's include li
     pin.files["game/citadel/pak01_dir/panorama/layout/post_game/citadel_db_page_post_game_new.xml"], "post-game page = stock + loader - flame src");
   assert.match(read("panorama/scripts/observer_hud/pg_loader.js"), /play_btn_grn_flame\.webm/);
   for (const name of ["hud", "hud_escape_menu", "citadel_hud_top_bar", "citadel_hud_top_bar_team", "citadel_hud_top_bar_player", "unit_status_overlay_v2",
-    "citadel_hud_hero_shop", "hud_unit_indicators_v2", "hud_data_feed", "citadel_hud_data_feed_info"]) {
+    "citadel_hud_hero_shop", "hud_unit_indicators_v2", "hud_data_feed", "citadel_hud_data_feed_info", "citadel_ui_private_lobby_team_slot"]) {
     const digest = crypto.createHash("sha256").update(fs.readFileSync(path.join(MODULE, `stock/${name}.xml`))).digest("hex");
     assert.equal(digest, pin.files[`game/citadel/pak01_dir/panorama/layout/${name}.xml`], `stock/${name}.xml matches the pin`);
   }
@@ -754,11 +781,25 @@ check("the three overrides are the pinned stock files plus this mod's include li
   assert.equal(crypto.createHash("sha256").update(feedCss).digest("hex"), pin.files["game/citadel/pak01_dir/panorama/styles/hud_data_feed.css"]);
   // The host restores the kill feed to the stock margin it reads from here.
   assert.match(String(feedCss), /#EventFeed\s*\{[^}]*margin-top:\s*200px;/);
-  assert.match(read("panorama/scripts/observer_hud/oh_host.js"), /const FEED_STOCK_TOP = 200;/);
   // Script order in the host: state and tables first, the host before the editor and the column.
   const spectate = read("panorama/layout/hud_spectate_bar.xml");
   const order = [...spectate.matchAll(/observer_hud\/(\w+)\.vjs_c/g)].map((m) => `${m[1]}.js`);
   deq(order, HOST_FILES);
+});
+
+// User 2026-11-06: the kill feed's killstreak flame sat above the killer's name. The stock flame
+// (#KillStreakParticlePanel, citadel_hud_data_feed_info.css 6860: height 100%, vertical-align middle,
+// rotateZ(-90deg)) is centred on the whole killer box, which starts 16 px above the name plate (.unit_bg
+// margin-top 16px). Ways this fails: the rule never loads (stylesheets apply per layout, so it must be
+// included from the row layout itself), or it drops the stock rotation, or it moves the flame sideways.
+check("kill feed: the killstreak flame moves down onto the name plate, keeping the stock rotation", () => {
+  const row = read("panorama/layout/citadel_hud_data_feed_info.xml");
+  assert.match(row, /citadel_hud_data_feed_info\.vcss" \/>\n\t\t<include src="s2r:\/\/panorama\/styles\/observer_hud\/oh_feed\.vcss_c" \/>\n\t<\/styles>/,
+    "oh_feed after the stock sheet, in the row layout");
+  assert.ok(parseLayout(row).children.some(function has(node) { return node.attrs.id === "KillStreakParticlePanel" || node.children.some(has); }));
+  const rule = /#KillStreakParticlePanel\s*\{([^}]*)\}/.exec(read("panorama/styles/observer_hud/oh_feed.css"));
+  assert.ok(rule, "flame rule");
+  assert.equal(/transform:\s*([^;]+);/.exec(rule[1])[1].trim(), "translateY(16px) rotateZ(-90deg)", "straight down 16 px, then the stock rotation");
 });
 
 check("ids and classes agree across layouts, stylesheets and scripts", () => {
@@ -795,7 +836,7 @@ check("ids and classes agree across layouts, stylesheets and scripts", () => {
   }
   for (const side of ["Left", "Right"]) {
     const expected = ["Bans"].map((part) => `OH${part}${side}`)
-      .concat([0, 1].flatMap((slot) => [`OHBan${side}${slot}`, `OHBan${side}${slot}Image`]));
+      .concat([0, 1, 2].flatMap((slot) => [`OHBan${side}${slot}`, `OHBan${side}${slot}Image`]));
     for (const id of expected) assert.ok(barIds.includes(id), `tournament_bar.xml has #${id}`);
     for (const id of ["Team", "Plate", "Logo", "Mono", "Name", "Cap", "Join", "Score", "ScoreText"].map((part) => `OH${part}${side}`)) {
       assert.ok(bandIds.includes(id) && !barIds.includes(id), `band.xml has #${id}`);
@@ -803,7 +844,7 @@ check("ids and classes agree across layouts, stylesheets and scripts", () => {
     // The join draws over the strip and under the names row.
     assert.ok(bandIds.indexOf(`OHStrip${side}`) < bandIds.indexOf(`OHJoin${side}`) && bandIds.indexOf(`OHJoin${side}`) < bandIds.indexOf("OHWhoRow"), `#OHJoin${side} between strip and names`);
     const desk = ["Desk", "DeskLogo", "DeskMono", "DeskName", "DeskBans", "Strip", "Corner", "MidSeries"].map((part) => `OH${part}${side}`)
-      .concat([0, 1].flatMap((slot) => [`OHDeskBan${side}${slot}`, `OHDeskBan${side}${slot}Image`]));
+      .concat([0, 1, 2].flatMap((slot) => [`OHDeskBan${side}${slot}`, `OHDeskBan${side}${slot}Image`]));
     for (const id of desk) assert.ok(bandIds.includes(id), `band.xml has #${id}`);
     assert.match(host, /find\(`OHTeam\$\{side\}`\)/);
     assert.match(host, /find\(`OHDesk\$\{side\}`\)/);
@@ -811,7 +852,7 @@ check("ids and classes agree across layouts, stylesheets and scripts", () => {
   // Every id the editor script looks up exists once in the editor layout (it refuses to attach otherwise).
   const stateTables = { $: { Msg() {} } };
   vm.runInNewContext(read("panorama/scripts/observer_hud/oh_state.js"), stateTables);
-  const ctx = { $: { OHState: { BUYS_SHOW: stateTables.$.OHState.BUYS_SHOW }, OHHost: { onChange() {} }, GetContextPanel: () => ({}), Schedule() {}, Msg() {} }, OH_HEROES: [] };
+  const ctx = { $: { OHState: stateTables.$.OHState, OHHost: { onChange() {} }, GetContextPanel: () => ({}), Schedule() {}, Msg() {} }, OH_HEROES: [] };
   const looked = [];
   vm.runInNewContext(menuJs.replace(/\$\.OHHost\.onChange\([\s\S]*?\n\}\)\(\);\s*$/, "globalThis.__ids = IDS;\n})();"), Object.assign(ctx, { globalThis: ctx }));
   looked.push(...ctx.__ids);
@@ -955,14 +996,13 @@ check("spec: world RULES equal dlf/spectator-status.json; the stun-hiding rule i
   for (const entry of spec.abilities) assert.ok(known.has(entry.ability) || extra[entry.ability], `${entry.ability} has an icon`);
   const css = read("panorama/styles/observer_hud/oh_status_world.css").replace(/\/\*[\s\S]*?\*\//g, "");
   const blocks = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => [m[1].trim(), m[2].replace(/\s+/g, " ").trim()]);
-  deq(blocks, [[".WindowRoot.CLASS_PLAYER .statusEffect.stunned", "opacity: 0; width: 0px; height: 0px; margin: 0px;"]]);
+  deq(blocks, [[".CLASS_PLAYER .statusEffect.stunned", "opacity: 0; width: 0px; height: 0px; margin: 0px;"]]);
   assert.equal(classesOf(STOCK.overlay).join(" "), "WindowRoot", "the stock overlay root is .WindowRoot");
   assert.match(read("panorama/layout/citadel_status_effect.xml"), /citadel_status_effect\.vcss" \/>\n\t\t<include src="s2r:\/\/panorama\/styles\/observer_hud\/oh_status_world\.vcss_c" \/>/);
   // Poll defaults and ranges agree between the state and the world sampler.
   const stateJs = read("panorama/scripts/observer_hud/oh_state.js");
   assert.match(stateJs, /DEBUFF_POLL_STEPS = \[100, 250, 500, 1000, 2000\]/);
   assert.match(stateJs, /debuffPollMs: 250/);
-  assert.match(worldJs, /DEFAULT_POLL_MS = 250;\n  const MIN_POLL_MS = 100;\n  const MAX_POLL_MS = 2000;/);
 });
 
 // ---------------------------------------------------------------- state rules
@@ -989,8 +1029,22 @@ check("state: field-by-field fallback, rejection instead of truncation, series c
   assert.equal(s.amber.name, "Night Owls", "a 29-character name is rejected, not cut (the sample stays)");
   assert.equal(s.amber.tag, "NOW");
   assert.equal(s.amber.series, 3);
-  deq(s.amber.bans, [13, 0], "a hero is banned once per team");
-  deq(s.sapphire.bans, [0, 6], "and once across teams");
+  deq(s.amber.bans, [13, 0, 0], "a hero is banned once per team");
+  deq(s.sapphire.bans, [0, 6, 0], "and once across teams");
+  // Bans per team (2 or 3): a setup from before the third ban (two slots, no banCount) shows two and gets an
+  // empty third slot; a ban past banCount is kept (switching back to 3 brings it back) but never shown.
+  assert.equal(s.banCount, 2, "an older setup shows two bans");
+  for (const bad of [0, 1, 4, "3", 2.5, null]) assert.equal(S.normalize({ banCount: bad }).banCount, 2, `banCount ${bad} falls back`);
+  const three = S.normalize({ banCount: 3, amber: { bans: [7, 8, 7] }, sapphire: { bans: [9, 0, 8] } });
+  assert.equal(three.banCount, 3);
+  deq([three.amber.bans, three.sapphire.bans], [[7, 8, 0], [9, 0, 0]], "the third slot is banned once too");
+  deq(S.shownBans(three, "amber"), [7, 8, 0]);
+  const hidden = S.normalize(Object.assign(S.clone(three), { banCount: 2, amber: { bans: [7, 8, 5] } }));
+  deq([hidden.amber.bans, S.shownBans(hidden, "amber")], [[7, 8, 5], [7, 8]], "a hidden third ban is kept, not shown");
+  const shared = S.decodeShare(S.encodeShare(Object.assign(S.defaults(), { banCount: 3 })));
+  assert.equal(S.importShared(shared.state, d.dev).banCount, 3, "a share code carries banCount");
+  const oldCode = S.importShared({ amber: { bans: [4, 5] } }, d.dev);
+  deq([oldCode.banCount, oldCode.amber.bans], [2, [4, 5, 0]], "a code from before the third ban");
   assert.equal(s.sapphire.tag, "BRS", "a 7-character tag is rejected (the sample stays)");
   assert.equal(s.sapphire.series, 0, "series 4 is more than Bo5 needs");
   deq(s.legacy, { Kestrel: "Kes" }, "a v1 name-keyed map is kept as legacy, never re-keyed");
@@ -1016,6 +1070,13 @@ check("state: field-by-field fallback, rejection instead of truncation, series c
   deq([v2.style, v2.org, v2.info, v2.graph], ["desk", { name: "Community Cup", logo: { url: "" } },
     { title: "Prize pool", value: "$2,130", caption: "Donate" }, { show: 30, every: 300, size: 100, x: 0, y: 0 }], "a 17-character value keeps the sample");
   assert.equal(S.normalize({ style: "base" }).style, "names", "v1's look is gone: unknown looks fall back");
+});
+
+// The two captions an org variant translates (apply-org.py swaps the literals and reads the "one|many"
+// forms back at build time). How it could fail: the base text changes, or {n} is left in.
+check("state: the game and first-to captions carry their number", () => {
+  const S = stateApiOf();
+  deq([S.caption("game", 1), S.caption("game", 5), S.caption("first", 1), S.caption("first", 4)], ["GAME 1", "GAME 5", "FIRST TO 1", "FIRST TO 4"]);
 });
 
 // Logo links from image and GIF hosts (user 2026-10-23: "support imgur and more with gifs"). The game
@@ -1096,6 +1157,46 @@ check("state: share codes round-trip, leave DEV out, and reject corrupt or newer
   const json = JSON.stringify({ s: 2, state: {} });
   const newer = "OHC1." + S.checksum(json) + "." + Buffer.from(json).toString("base64url");
   assert.equal(S.decodeShare(newer).kind, "unsupported");
+  // Every legal setup fits one code (user 2026-11-03): the longest one, every text and link at its limit
+  // in the most expensive characters normalize keeps, 24 players and 24 name aliases, encodes under
+  // MAX_SHARE and imports back unchanged. Control characters count as spaces and a lone surrogate half
+  // becomes U+FFFD (each would take 6 JSON characters).
+  const L = S.LIMITS;
+  const maxState = (ch) => {
+    const fill = (n) => ch.repeat(Math.floor(n / ch.length));
+    const players = {};
+    const legacy = {};
+    for (let i = 0; i < S.MAX_ALIASES; i++) {
+      players[String(4294967295 - i)] = { a: fill(L.alias), n: fill(L.gameName) };
+      legacy[fill(L.gameName - 2) + String(i).padStart(2, "0")] = fill(L.alias);
+    }
+    const url = (k) => `https://${"a".repeat(50)}.com/${fill(S.MAX_URL - 64)}${k}`;
+    return S.normalize({ style: "desk", event: fill(L.event), stage: fill(L.stage), bestOf: 7,
+      amber: { name: fill(L.name), tag: fill(L.tag), logo: { url: url(1) }, series: 4, bans: [999, 998] },
+      sapphire: { name: fill(L.name), tag: fill(L.tag), logo: { url: url(2) }, series: 4, bans: [997, 996] },
+      org: { name: fill(L.org), logo: { url: url(3) } },
+      info: { title: fill(L.infoTitle), value: fill(L.infoValue), caption: fill(L.infoCaption) },
+      graph: { show: -1, every: 600, size: 150, x: -600, y: -40 }, logo: { shape: "square", size: 50, gap: 48 },
+      cues: { bridge: 120, urn: 120, rift: -1, mid: 120 }, buys: 15, players, legacy });
+  };
+  let longest = 0;
+  for (const ch of ["界", "\uffff", "\"", "\\", "😀", "a", "a\u0001", "a\u0085", "a\ud800", "a\udc00"]) {
+    const max = maxState(ch);
+    assert.equal(Object.keys(max.players).length + Object.keys(max.legacy).length, 2 * S.MAX_ALIASES, `${JSON.stringify(ch)}: full alias lists`);
+    const code = S.encodeShare(max);
+    assert.ok(code, `${JSON.stringify(ch)}: a code`);
+    longest = Math.max(longest, code.length);
+    const back = S.decodeShare(code);
+    assert.equal(back.kind, "valid", `${JSON.stringify(ch)}: imports`);
+    deq(S.normalize(back.state), Object.assign(S.normalize(max), { dev: S.normalize(back.state).dev }), `${JSON.stringify(ch)}: unchanged`);
+  }
+  assert.ok(longest <= S.MAX_SHARE && longest >= 18000, `longest legal code ${longest} of ${S.MAX_SHARE}`);
+  results.shareLongest = longest;
+  assert.equal(S.normalize({ event: "a\u0001\u0002b\u0085c" }).event, "a b c", "controls are spaces");
+  assert.equal(S.normalize({ event: "x\ud800y" }).event, "x\ufffdy", "a lone surrogate half is U+FFFD");
+  assert.equal(S.cleanUrl("https://x.org/\ud800.png"), null, "a URL with a lone surrogate half is refused");
+  // The guard: a raw state past the limit (normalize never makes one) gets no code.
+  assert.equal(S.encodeShare({ event: "界".repeat(8000) }), "", "no code past the decoder's limit");
 });
 
 // ---------------------------------------------------------------- host: injection
@@ -1137,7 +1238,13 @@ check("host: idles outside spectating, then injects the band, the bar, one colum
   assert.equal(countIn(w.hud, "OHBandHost"), 1);
   const core = w.topBar.GetParent().Children();
   assert.ok(w.band() && core.indexOf(w.band()) === core.indexOf(w.topBar) + 1,
-    "the band sits right after #TopBar: above the stock top bar's glow, under the panels after it");
+    "the band sits right after #TopBar: above the stock top bar's glow");
+  // User 2026-11-06: a card's killstreak flame (stock #KillStreakContainer, lifted 100 px) covered the
+  // names. The stock CitadelHudTopBar is z-index 10, so a band at 0 drew under the whole top bar; at 10 it
+  // wins the tie by order, and it takes no input, so the cards under it still take clicks.
+  const bandCss = read("panorama/styles/observer_hud/oh_band.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(/\n\.OHBand\s*\{([^}]*)\}/.exec(bandCss)[1], /z-index:\s*10;/, "the band has #TopBar's z-index");
+  assert.match(read("panorama/layout/observer_hud/band.xml"), /class="OHBand" hittest="false" hittestchildren="false"/);
   deq([w.ui("OHBandBack").style.marginLeft, w.ui("OHBandBack").style.width], ["0px", "1920px"],
     "full-width lacquer, as in the mockup");
   assert.equal(countIn(w.topBar, "OHDebuffsHost"), 12);
@@ -1247,15 +1354,54 @@ check("host: parts hidden while #GameTime or a team panel is missing come back w
     w.removeTeam("TeamFriendly");
     w.advance(1100);
     assert.ok(gone("OHStripLeft"), `${look}: Amber's strip hides while its team panel is missing`);
+    assert.ok(gone("OHTeamLeft") && gone("OHJoinLeft"), `${look}: so do its plate and join`);
     if (look === "OHLookDesk") assert.ok(gone("OHDeskLeft"));
     w.rebuildTeam("TeamFriendly");
     w.geometry({ friendX: 330, enemyX: 1062 });
     w.advance(2200);
     assert.ok(!gone("OHWho0") && !gone("OHStripLeft"), `${look}: Amber's names and strip are back`);
+    assert.ok(!gone("OHTeamLeft") && !gone("OHJoinLeft"), `${look}: and its plate and join`);
     assert.equal(w.who("Kestrel"), "Kestrel", `${look}: the rebuilt cards have their names`);
     assert.equal(countIn(w.topBar, "OHDebuffsHost"), 12, `${look}: every card has its status column again`);
     if (look === "OHLookDesk") deq(["OHArch", "OHRings", "OHDeskLeft"].map(gone), [false, false, false]);
   }
+});
+
+check("names: a slot whose new card has no name yet does not keep the previous card's name", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  assert.equal(w.ui("OHWho6").__text, "Volt");
+  // Volt leaves; Mole's card moves into the slot before its stock name label has a text.
+  const mole = w.card("Mole");
+  for (const label of mole.FindChildrenWithClassTraverse("AlwaysPlayerName").concat(mole.FindChildrenWithClassTraverse("PlayerName"))) label.__text = "";
+  w.card("Volt").DeleteAsync();
+  w.advance(1100);
+  assert.equal(w.ui("OHWho6").BHasClass("OHShown"), false, "the slot hides until the name arrives");
+  assert.equal(w.ui("OHWho6").__text, "", "and does not show Volt");
+  for (const label of mole.FindChildrenWithClassTraverse("AlwaysPlayerName").concat(mole.FindChildrenWithClassTraverse("PlayerName"))) label.__text = "Mole";
+  w.advance(1100);
+  assert.equal(w.ui("OHWho6").__text, "Mole");
+  assert.ok(w.ui("OHWho6").BHasClass("OHShown"));
+});
+
+// A failing step must not take the steps behind it down (one try around the tick did, on every tick).
+check("host: a step of the tick that throws is logged once and the later steps and the hand-back still run", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  // The stock clock label throws on every read: place() fails each tick.
+  const time = w.topBar.FindChildTraverse("GameTime");
+  Object.defineProperty(time, "actuallayoutwidth", { configurable: true, get() { throw new Error("boom"); } });
+  w.press("OHMenuButton");
+  w.type("OHAmberPlayer0Entry", "Kes");
+  w.press("OHDone");
+  w.advance(3300);
+  assert.equal(w.who("Kestrel"), "Kes", "names still render");
+  assert.equal(w.harness.logs.filter((line) => line.includes("place failed")).length, 1, "logged once, by step name");
+  for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
+  w.advance(2200);
+  assert.ok(!w.topBar.style.marginTop, "back to playing: the stock top bar returns to its place");
 });
 
 check("host: a card whose name label another mod renamed still gets its status column and purchase notices", () => {
@@ -1392,9 +1538,29 @@ check("bar: editor fields reach the bar; a team follows its stock panel when the
   assert.equal(w.ui("OHBansLeft").style.marginLeft, `${920 - 11 - 36}px`, "one left ban (32 px + margins) ends at the clock");
   w.press("OHSapphireBan1");
   w.ui(`OHHero${haze}`).events.onactivate();
-  deq([w.state().amber.bans, w.state().sapphire.bans], [[0, 0], [0, haze]]);
+  deq([w.state().amber.bans, w.state().sapphire.bans], [[0, 0, 0], [0, haze, 0]]);
   assert.ok(!w.ui("OHBansLeft").BHasClass("OHHasBans"));
   assert.equal(w.ui("OHBanRight1Image").heroId, haze);
+  // Bans per team: 3 shows a third slot in the editor and on the bar; 2 collapses it again and keeps its ban.
+  assert.equal(w.ui("OHAmberBan2").visible, false, "two bans: the editor's third slot is collapsed");
+  assert.ok(w.ui("OHBans2").BHasClass("OHSelected") && !w.ui("OHBans3").BHasClass("OHSelected"));
+  w.press("OHBans3");
+  assert.equal(w.state().banCount, 3);
+  assert.ok(w.ui("OHBans3").BHasClass("OHSelected") && w.ui("OHAmberBan2").visible === true, "three bans: the third slot shows");
+  const abrams3 = HEROES.find(([, name]) => name === "Abrams")[0];
+  w.press("OHSapphireBan2");
+  w.ui(`OHHero${abrams3}`).events.onactivate();
+  assert.ok(w.ui("OHBanRight2").BHasClass("OHBanSet") && w.ui("OHBanRight2Image").heroId === abrams3, "the bar shows the third ban");
+  w.press("OHBans2");
+  assert.ok(!w.ui("OHBanRight2").BHasClass("OHBanSet") && w.ui("OHBanRight1").BHasClass("OHBanSet"), "two bans: the bar hides the third");
+  deq(w.state().sapphire.bans, [0, haze, abrams3], "and keeps it for a switch back");
+  assert.equal(w.ui("OHSapphireBan2").visible, false);
+  w.press("OHBans3");
+  assert.ok(w.ui("OHBanRight2").BHasClass("OHBanSet"), "switching back brings it back");
+  w.press("OHSapphireBan2");
+  w.press("OHPickerNone");
+  w.press("OHBans2");
+  deq([w.state().banCount, w.state().sapphire.bans], [2, [0, haze, 0]]);
   // The stock teams swap sides (spectating the other team): the plates follow the teams.
   w.geometry({ friendX: 1062, enemyX: 330 });
   w.advance(1100);
@@ -1458,6 +1624,46 @@ check("series: the stock match-end screen adds one win to the winner, once per m
   for (const cls of ["ShowMatchEnd", "MatchFinished", "Team1Victory"]) playedEnd.AddClass(cls);
   p.advance(2000);
   deq([p.state().amber.series, p.state().sapphire.series], [0, 0]);
+});
+
+// User 2026-11-06 (a series in one private lobby): game 1 counted, game 2 did not. Games played one after
+// another in the same lobby keep #TopBar, so they keep the bar, and the old once-per-bar rule swallowed
+// every later result. Live (no replay_playback), the counted end screen going away while spectating starts
+// the next game. How it fails: game 2 never counts; or a screen that stays up counts twice; or a demo seek
+// (replay_playback, the check above) counts twice.
+check("series: live, each game in the same lobby counts once, on the same bar", () => {
+  const w = world();
+  w.bootHost();
+  w.hud.RemoveClass("replay_playback"); // spectating a live lobby: spec_mode and TeamSpectator only
+  w.advance(2000);
+  const end = w.hud.FindChildTraverse("MatchEnd");
+  const show = (...classes) => {
+    for (const cls of ["ShowMatchEnd", "MatchFinished", "MatchAbandoned", "Team1Victory", "Team2Victory"]) end.RemoveClass(cls);
+    for (const cls of classes) end.AddClass(cls);
+  };
+  const series = () => [w.state().amber.series, w.state().sapphire.series];
+  const bar = w.bar();
+  show("ShowMatchEnd", "MatchFinished", "Team2Victory");
+  w.advance(1100);
+  deq(series(), [0, 1], "game 1: Sapphire");
+  w.advance(5000);
+  deq(series(), [0, 1], "a screen that stays up counts once");
+  // Back to the lobby (not spectating), then game 2 starts on the same bar.
+  for (const cls of ["spec_mode", "TeamSpectator"]) w.hud.RemoveClass(cls);
+  show();
+  w.advance(2000);
+  for (const cls of ["spec_mode", "TeamSpectator"]) w.hud.AddClass(cls);
+  w.advance(2000);
+  assert.equal(w.bar(), bar, "the same bar: no map load between the games");
+  show("ShowMatchEnd", "MatchFinished", "Team1Victory");
+  w.advance(1100);
+  deq(series(), [1, 1], "game 2 counts: Amber (the left side)");
+  assert.equal(text(w.ui("OHScoreTextLeft")), "1");
+  show();
+  w.advance(2000);
+  show("ShowMatchEnd", "MatchFinished", "Team1Victory");
+  w.advance(1100);
+  deq(series(), [2, 1], "game 3 too");
 });
 
 check("series: an end screen awards only after this map was seen without it (stale screens, reloads, first sight)", () => {
@@ -1568,6 +1774,15 @@ check("bar: a web logo shows only after ImageLoaded; a failed one keeps the mono
   w.advance(1100);
   assert.ok(w.ui("OHAmberLogoNote").BHasClass("OHError"));
   assert.ok(!w.harness.logs.some((line) => line.includes("imgur")), "host links are never logged either");
+  // A source that failed is not asked for again this session (live: the second request reports
+  // ImageLoaded and draws nothing): the URL back on this side goes straight to the monogram and the error.
+  w.type("OHAmberLogoEntry", "https://cdn.example.org/night-owls.png", { submit: true });
+  images()[0].events.ImageLoaded();
+  w.type("OHAmberLogoEntry", "https://cdn.example.org/broken.png", { submit: true });
+  assert.equal(images().length, 0, "the known-broken source is not loaded again");
+  assert.ok(!logo.BHasClass("OHLogoShown"));
+  w.advance(1100);
+  assert.ok(w.ui("OHAmberLogoNote").BHasClass("OHError"), "and the note says it failed");
 });
 
 // ---------------------------------------------------------------- looks and soul lead graph
@@ -1732,6 +1947,30 @@ check("graph: a pin at each 5:00 from the stock soul plates, shown for the set t
   w.advance(1100);
   assert.equal(shown(), true, "the graph shows in Base Game+ Names");
   assert.equal(w.state().graph.show, -1);
+});
+
+check("graph: a new map starts over, while a bar rebuilt in the same game keeps its pins", () => {
+  const w = world();
+  w.bootHost();
+  w.advance(2000);
+  const at = (clock, amber, sapphire) => { w.clock(clock); w.souls(amber, sapphire); w.advance(1000); };
+  const marks = () => w.host().graphPins().map((p) => p.m);
+  at("4:50", "9.0k", "9.4k");
+  at("5:03", "9.1k", "9.7k");
+  at("10:01", "14.4k", "12.0k");
+  deq(marks(), [0, 5, 10]);
+  // Another mod's reload deletes the bar mid-game: the clock runs on, so the game is the same.
+  w.bar().DeleteAsync();
+  at("10:03", "14.4k", "12.1k");
+  deq(marks(), [0, 5, 10], "the same game keeps its pins");
+  for (const minute of [15, 20, 25, 30]) at(`${minute}:01`, "30.0k", "28.0k");
+  deq(marks(), [0, 5, 10, 15, 20, 25, 30]);
+  // The next map, joined at 35:00 (later than the last one ended): none of the old game's leads.
+  w.bar().DeleteAsync();
+  at("35:01", "40.0k", "41.0k");
+  at("40:01", "45.0k", "47.0k");
+  assert.ok(!marks().some((m) => m < 35), `no pin from the map before: ${marks()}`);
+  assert.equal(text(w.ui("OHGraphLead")), "SAP +2.0k");
 });
 
 check("graph: pins at the interval set in the editor; a new interval re-pins from the recorded lead", () => {
@@ -2097,7 +2336,7 @@ check("editor: credits rail (version, author link, donate) and HP Colors v3's su
   w.press("OHMenuButton");
   assert.ok(loaded.length === 1 && loaded[0].startsWith("https://hantu-raya.github.io/hp-colors-preset-builder/supporters-strip-v3/?v="), loaded[0]);
   assert.ok(strip.BHasClass("Open"), "the strip shows while the editor is open");
-  assert.equal(text(w.ui("OHVersion")), "v0.2.0");
+  assert.equal(text(w.ui("OHVersion")), "v0.3.2");
   assert.equal(text(w.ui("OHAuthorLabel")), "by hanturaya");
   w.press("OHAuthor");
   w.press("OHDonate");
@@ -2332,6 +2571,23 @@ check("cues: objective chips only while close; rejuvenator in the middle; minima
   look("OHLookDesk");
   at("12:59");
   deq(chip("Rift"), { text: "LIVE", cls: ["OHLive"] });
+  // User 2026-11-06 (Night Desk, live): LIVE stayed after "Rift faded away" and minutes later. An ended
+  // rift keeps the stock meter visible (opacity 0 after its 5 s fade) with .captured, plus
+  // .captured_neutral when time ran out (citadel_hud_koth.css 6860), until the next rift.
+  koth.AddClass("captured");
+  koth.AddClass("captured_neutral");
+  at("13:05");
+  deq(on(), [], "timed out: no LIVE though the faded meter is still visible");
+  at("13:15");
+  deq(on(), [], "and none later");
+  koth.RemoveClass("captured");
+  koth.RemoveClass("captured_neutral");
+  at("13:17");
+  deq(chip("Rift"), { text: "LIVE", cls: ["OHLive"] }, "the next rift opens: the meter loses its result classes");
+  koth.AddClass("captured");
+  at("13:19");
+  deq(on(), [], "captured by a team: no LIVE");
+  koth.RemoveClass("captured");
   look("OHLookNames");
   koth.visible = false;
   at("13:22");
@@ -2455,7 +2711,7 @@ check("cues: objective chips only while close; rejuvenator in the middle; minima
   scores.visible = false;
   for (const cls of ["spec_mode", "TeamSpectator", "replay_playback"]) w.hud.RemoveClass(cls);
   w.advance(1100);
-  assert.ok(!timer.style.opacity && !timer.style.visibility, "the stock circle is back outside spectating");
+  assert.ok(timer.style.opacity === "1" && !timer.style.visibility, "the stock circle is back outside spectating (opacity 1, never null)");
 });
 
 check("bans: Base Game+ Names spreads the stock teams just enough that the clock bans clear the innermost cards", () => {
@@ -2506,7 +2762,7 @@ check("bans: Base Game+ Names spreads the stock teams just enough that the clock
   w.press("OHResetPage");
   w.press("OHResetPage");
   w.advance(1100);
-  deq([w.state().amber.bans, w.state().sapphire.bans], [[0, 0], [0, 0]]);
+  deq([w.state().amber.bans, w.state().sapphire.bans], [[0, 0, 0], [0, 0, 0]]);
   assert.equal(teams.style.width || "", "", "no bans: stock width");
 });
 
@@ -2586,7 +2842,6 @@ check("names: the plate follows the team logo shape (curve or step) and size (lo
   const st = (id, key) => w.ui(id).style[key] || "";
   // Circle (default): round 30 px logo, the plate 43 px (the default) with its inner bottom corner curved
   // by the 17 px it hangs below the 26 px strip; the joins and digits in their team colour.
-  assert.ok(w.ui("OHTeamLeft").BHasClass("OHCurve") && w.ui("OHTeamRight").BHasClass("OHCurve"));
   deq([st("OHLogoLeft", "width"), st("OHLogoLeft", "borderRadius"), st("OHMonoLeft", "fontSize")], ["30px", "50%", "10px"]);
   deq([st("OHTeamLeft", "height"), st("OHPlateLeft", "borderRadius"), st("OHPlateRight", "borderRadius")], ["43px", "0px 0px 17px 0px", "0px 0px 0px 17px"]);
   // The plate follows the logo both ways (user 2026-10-23): 32 px gives 45 px (curve 19), 26 px gives 39 px (curve 13).
@@ -2618,7 +2873,6 @@ check("names: the plate follows the team logo shape (curve or step) and size (lo
   w.press("OHDone");
   w.advance(1100);
   assert.equal(w.state().logo.size, 50);
-  assert.ok(!w.ui("OHTeamLeft").BHasClass("OHCurve"), "a square logo keeps the step");
   deq([st("OHLogoLeft", "width"), st("OHLogoLeft", "height"), st("OHLogoLeft", "borderRadius"), st("OHMonoLeft", "fontSize")], ["50px", "50px", "3px", "17px"]);
   deq([st("OHTeamLeft", "height"), st("OHPlateLeft", "borderRadius")], ["63px", "0px 0px 0px 0px"], "largest logo: 63 px plate; square: the step");
   // A team image fills the square (cover) with the same corners.
@@ -2689,7 +2943,7 @@ check("pause: while spectating the stock pause box is DLF's minimal 80 px box wi
   w.advance(1100);
   deq(css(box.style.width, box.style.height, icon.style.visibility), ["", "", "collapse"], "stock box outside spectating");
   deq(css(count.style.marginRight, count.style.marginBottom, count.style.fontSize), ["", "", ""], "stock countdown outside spectating");
-  for (const id of ["PausedLabel", "PauserLabel", "UnpauseButtonLabel"]) assert.equal(info.FindChildTraverse(id).style.opacity || "", "", id);
+  for (const id of ["PausedLabel", "PauserLabel", "UnpauseButtonLabel"]) assert.equal(info.FindChildTraverse(id).style.opacity, "1", id);
   // A HUD without the stock pause layout (another mod's) is left alone.
   const bare = world();
   bare.bootHost();
@@ -3363,6 +3617,20 @@ check("editor: share code export and import on another PC, reset asks twice, DEV
   a.press("OHShareCopy");
   const code = a.harness.clipboardWrites[a.harness.clipboardWrites.length - 1];
   assert.ok(code.startsWith("OHC1."));
+  // A long setup (24 CJK aliases, two long logo links) copies as one code over 8192 characters.
+  const saved = JSON.parse(JSON.stringify(a.state()));
+  const wide = JSON.parse(JSON.stringify(saved));
+  wide.players = {};
+  for (let i = 0; i < 24; i++) wide.players[String(100000 + i)] = { a: "界".repeat(24), n: "界".repeat(32) };
+  for (const key of ["amber", "sapphire"]) wide[key].logo = { url: `https://example.org/${"x".repeat(480)}${key}.png` };
+  a.host().setState(wide);
+  const clips = a.harness.clipboardWrites.length;
+  a.press("OHShareCopy");
+  assert.equal(a.harness.clipboardWrites.length, clips + 1, "copied");
+  const wideCode = a.harness.clipboardWrites.slice(-1)[0];
+  assert.ok(wideCode.length > 8192, `one code of ${wideCode.length} characters`);
+  assert.equal(stateApiOf().decodeShare(wideCode).kind, "valid");
+  a.host().setState(saved);
   const b = world();
   b.bootHost();
   markAll(b);
@@ -3418,7 +3686,7 @@ function statusWorld(options) {
   return w;
 }
 
-check("column: a hero's debuff reaches its card with the applying team's colour and a countdown", () => {
+check("column: a hero's debuff reaches its card with the applying team's colour and a sweep of the time that has passed", () => {
   const w = statusWorld();
   const start = w.harness.now;
   w.giveDebuff("Volt", "ability_viper_petrifybola", { radial: (now) => -360 + ((now - start) / 6000) * 360 });
@@ -3426,7 +3694,22 @@ check("column: a hero's debuff reaches its card with the applying team's colour 
   deq(w.icons("Volt"), [PETRIFY]);
   const slot = w.shownSlots("Volt")[0];
   assert.ok(slot.BHasClass("OHByAmber"), "a debuff on a Sapphire hero comes from Amber");
-  assert.equal(w.slotText(slot, "OHDebuffTime", "OHHasTime"), "4", "3 s left reads one second longer (user 2026-10-23)");
+  // User 2026-11-06: the seconds over the icon hid it on a low-bitrate stream. The part of the 6 s that
+  // has passed is a dark wedge from 12 o'clock; the rest of the icon stays untouched; no number.
+  const shade = slot.FindChildrenWithClassTraverse("OHDebuffShade")[0];
+  const passed = () => Number((/^radial\(50% 50%, 0deg, (\d+)deg\)$/.exec(String(shade.style.clip)) || [])[1]);
+  assert.ok(slot.BHasClass("OHSweep") && !slot.BHasClass("OHHasTime"), "a sweep, not the seconds");
+  const half = passed();
+  assert.ok(Math.abs(half - 180) <= 20, `3 s of 6 s passed: about half the circle dark (${half} deg)`);
+  w.advance(1500);
+  const later = passed();
+  assert.ok(later > half && Math.abs(later - 270) <= 20, `1.5 s later: about three quarters (${later} deg)`);
+  // Smooth (user: "interp for smoothing"): the 0.25 s steps are interpolated by a native clip transition a
+  // little longer than the tick; the passed part is 82 % black (user: 25 % darker than 66 %).
+  const shadeRule = /\n\.OHDebuffShade\s*\{([^}]*)\}/.exec(read("panorama/styles/observer_hud/oh_debuffs.css"))[1];
+  for (const decl of [/transition-property:\s*clip;/, /transition-duration:\s*0\.3s;/, /transition-timing-function:\s*linear;/, /background-color:\s*#000000D2;/]) {
+    assert.match(shadeRule, decl);
+  }
   // Abilities outside the spec never draw.
   w.giveDebuff("Mole", "ability_some_unlisted_debuff");
   w.advance(1000);
@@ -3435,8 +3718,10 @@ check("column: a hero's debuff reaches its card with the applying team's colour 
   w.units.Volt.container.children[0].DeleteAsync();
   w.advance(600);
   assert.ok(w.slots("Volt")[0].BHasClass("OHFading"));
+  assert.ok(w.slots("Volt")[0].BHasClass("OHSweep") && passed() === 360, `a fading status stays dark, all of its time has passed (${shade.style.clip})`);
   w.advance(1500);
   assert.ok(!w.slots("Volt")[0].BHasClass("OHShown"));
+  assert.equal(String(shade.style.clip), "radial(50% 50%, 0deg, 0deg)", "a freed slot's wedge is back at 0: the next status grows in");
 });
 
 check("purchases: a notice on the buyer's card under the status column; old rows, history and other cards never show", () => {
@@ -3690,6 +3975,13 @@ check("column: stuns are their own item, Djinn's Mark from 8 stacks, listed buff
   w.giveDebuff("Kestrel", "ability_viper_petrifybola");
   const mark = w.giveDebuff("Doyle", "mirage_sand_phantom", { stacks: "5" });
   w.giveDebuff("Moth", "ability_ice_dome", { debuff: false });
+  // The Hyperline knock-off has no applying ability: a knockdown panel plus the state panel (live
+  // 2026-10-14). Any other such stun (Seven's, Ivy's; user 2026-11-06) is the plain stun plus the
+  // same state panel, and must not draw as the Hyperline.
+  w.giveDebuff("Volt", "modifier_citadel_knockdown", { css: "stunned" });
+  w.giveDebuff("Volt", "MODIFIER_STATE_STUNNED", { css: "stunned" });
+  w.giveDebuff("Talon", "modifier_citadel_stunned", { css: "stunned" });
+  w.giveDebuff("Talon", "MODIFIER_STATE_STUNNED", { css: "stunned" });
   w.advance(2000);
   const kestrel = w.shownSlots("Kestrel");
   assert.equal(kestrel.length, 2);
@@ -3700,6 +3992,8 @@ check("column: stuns are their own item, Djinn's Mark from 8 stacks, listed buff
   deq(w.icons("Doyle"), [DJINN]);
   assert.equal(w.slotText(w.shownSlots("Doyle")[0], "OHDebuffCount", "OHHasCount"), "8");
   assert.ok(w.shownSlots("Moth")[0].BHasClass("OHByAmber"), "Kelvin's dome on an Amber hero: own colour");
+  deq(w.icons("Volt"), ["s2r://panorama/images/icons/properties/zipline.vsvg"], "Hyperline knock-off: one zipline stun");
+  deq(w.icons("Talon"), [], "a stun with no applying ability other than the knockdown is not the Hyperline");
   // The stun panel is muted on the world bar (inline fallback to the stylesheet).
   const stunPanel = w.units.Kestrel.container.children.find((child) => child.BHasClass("stunned"));
   assert.equal(stunPanel.style.width, "0px");
@@ -4046,12 +4340,30 @@ check("column: the DEV switch and poll reach every world bar; OFF stops publishi
   assert.ok(rate >= 18 && rate <= 22, `0.5 s poll: ${rate} polls in 10 s`);
 });
 
+check("column: world bars poll every 250 ms by default and refuse a poll outside 100-2000 ms", () => {
+  const w = statusWorld();
+  w.giveDebuff("Geist", "ability_viper_petrifybola");
+  w.advance(2000);
+  const polls = (ms) => { const a = w.units.Geist.samples.polls; w.advance(ms); return w.units.Geist.samples.polls - a; };
+  const base = polls(10000);
+  assert.ok(base >= 38 && base <= 42, `the default is 0.25 s: ${base} polls in 10 s`);
+  const send = (msg) => { for (const entry of w.bus.slice()) entry.fn(JSON.stringify(msg)); };
+  for (const poll of [99, 2001, 250.5]) {
+    send({ magic_word: "OH_DEBUFF_CONFIG", on: true, poll, log: false, watch: true, wake: 0, aliases: {} });
+    const rate = polls(10000);
+    assert.ok(rate >= 38 && rate <= 42, `a ${poll} ms poll is refused: ${rate} polls in 10 s`);
+  }
+});
+
 // ---------------------------------------------------------------- native cost metric
 
 let lastNodes = 0; // subtree node visits of the last counted window
 // Counts every crossing the scripts make, including the ones the shared adapter books only as
 // "traversal" (GetChildCount) and the child wrappers Children() allocates (live P0: about 140 ns each).
-// OH_ATTRIB=1 prints the weighted cost per script function for each counted window (dev aid).
+// OH_ATTRIB=1 prints the weighted cost per script function for each counted window (dev aid). Known
+// limit (m3 audit O2, 2026-11-03): reads the adapter makes inside a mock GetPositionWithinWindow are booked
+// to the caller as well, so geometry readers are inflated (host rect shows 36.3 us/s; about 13.8 is
+// real). The scenario totals and budgets are not affected.
 const blame = (key, n) => {
   if (!ATTRIB.on || !(n > 0)) return;
   const match = /at (\S+) \(((?:oh|pg)_[a-z_]+\.js):(\d+)/.exec(new Error().stack || "");
@@ -4364,6 +4676,10 @@ check("board: the scan reads the lead with a totals row a few souls off, and the
   assert.ok(w.harness.logs.some((l) => l.startsWith("[NS] scan done")), "scan finished");
   const series = w.harness.logs.filter((l) => l.startsWith("[NS] data series + "));
   assert.ok(series.length >= 30, `lead points: ${series.length}`);
+  // Each team's own line: the last point is each team's own total (rows named for the wrong team would
+  // turn every lead around).
+  const last = JSON.parse(series[series.length - 1].slice("[NS] data series + ".length));
+  assert.ok(Math.abs(last.a - totals[0]) <= 1 && Math.abs(last.b - totals[1]) <= 1, `the last point is the totals: ${JSON.stringify(last)} vs ${totals}`);
   assert.ok(w.boardHost().FindChildTraverse("NSGraph").BHasClass("NSOn"), "lead graph shown");
   assert.ok(w.tipLog.shows > 0, "the scan hovered the graph");
   assert.equal(w.tipLog.opaqueFrames, 0, "tooltip drawn during the scan");
@@ -4395,6 +4711,24 @@ check("board: the scan reads the lead with a totals row a few souls off, and the
   w.advance(1500);
   assert.ok(w.tipDrawn(), "a new hover still shows it");
   deq(opacityWrites(), [], "still no inline opacity");
+});
+
+check("board: the Play Again flame is put back even when the board cannot load", () => {
+  const w = boardWorld();
+  const fx = w.page.FindChildTraverse("PlayButtonFX");
+  assert.ok(fx, "the page has #PlayButtonFX");
+  const movies = [];
+  fx.SetMovie = (src) => movies.push(src);
+  fx.Play = () => movies.push("play");
+  const load = MockPanel.prototype.BLoadLayout;
+  MockPanel.prototype.BLoadLayout = () => false; // the board layout fails to load
+  try {
+    w.boot();
+    w.advance(1000);
+  } finally {
+    MockPanel.prototype.BLoadLayout = load;
+  }
+  deq(movies, ["file://{resources}/videos/pick_screen/play_btn_grn_flame.webm", "play"], "the flame plays");
 });
 
 check("board: builds when the match loads, again for the next match on the reused rows, never twice for one", () => {
@@ -4437,6 +4771,69 @@ check("board: builds when the match loads, again for the next match on the reuse
   w.advance(1100);
   assert.equal(w.shown(), 3, "found without an event");
   assert.equal(w.text("NSMatch"), `MATCH ${c.id}`);
+});
+
+// User 2026-11-06 (one private lobby, game after game): souls by source, the lead graph and the destroyed
+// objectives showed for the first game only. The rows are reused and can be the next game's before the
+// stock Graphs data is. How it fails: the board scans once at once and settles on an empty or stale graph
+// (no lead, nothing by source, the last game's objectives), and never looks again.
+check("board: the next game in the same lobby waits for its own graph; the last game's graph is never drawn", () => {
+  const a = pgMatch(121917141);
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  // Another game: other souls (thousands apart, as real games are) and another length.
+  b.teams[0].forEach((p, k) => { p.net_worth += 2500 + 300 * k; });
+  b.minutes = 26;
+  const sum = (m) => m.teams.map((team) => team.reduce((s, p) => s + p.net_worth, 0));
+  const graph = { duration: a.minutes * 60 + a.seconds, souls: sum(a), lanes: [[[300, -1], [-1, -1], [-1, -1]]] };
+  const w = boardWorld({ graph });
+  const done = () => w.harness.logs.filter((l) => l.startsWith("[NS] scan done"));
+  const eventTimes = (from) => w.harness.logs.slice(from).filter((l) => l.startsWith("[NS] data events + "))
+    .map((l) => JSON.parse(l.slice("[NS] data events + ".length)).t);
+  w.boot();
+  w.fill(a);
+  w.fire("CitadelMatchDetailsUpdated", a.id);
+  w.advance(30000);
+  assert.equal(done().length, 1);
+  assert.match(done()[0], /: [1-9]\d* lead points, .* [1-9]\d* objectives$/, "game 1 read");
+  // Game 2: its rows, but the Graphs data is still game 1's for a few seconds.
+  const from = w.harness.logs.length;
+  w.fill(b);
+  w.fire("CitadelMatchDetailsUpdated", b.id);
+  w.advance(4000);
+  assert.equal(w.text("NSMatch"), `MATCH ${b.id}`, "the rows are game 2's");
+  assert.equal(done().length, 1, "no scan settled on game 1's graph");
+  assert.ok(w.harness.logs.some((l) => l.includes("the graph is not this match's yet")), "it waits");
+  graph.duration = b.minutes * 60 + b.seconds;
+  graph.souls = sum(b);
+  graph.lanes = [[[400, 900], [-1, -1], [-1, -1]]];
+  w.advance(30000);
+  assert.equal(done().length, 2, "read once game 2's graph is there");
+  assert.match(done()[1], /: [1-9]\d* lead points, .* [1-9]\d* objectives$/, "game 2's lead and objectives");
+  const times = eventTimes(from);
+  assert.ok(times.includes(400) && times.includes(900) && !times.includes(300), `game 2's objectives only (${times})`);
+  assert.ok(w.boardHost().FindChildTraverse("NSGraph").BHasClass("NSOn"), "lead graph shown");
+});
+
+check("board: a graph that never becomes this match's gives no lead, no objectives and no souls by source", () => {
+  const a = pgMatch(121917141);
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  b.teams[0].forEach((p, k) => { p.net_worth += 2500 + 300 * k; });
+  // The same length as game 1: the stale graph's last column sits at game 2's end time.
+  b.minutes = a.minutes;
+  b.seconds = a.seconds;
+  const sum = (m) => m.teams.map((team) => team.reduce((s, p) => s + p.net_worth, 0));
+  const w = boardWorld({ graph: { duration: a.minutes * 60 + a.seconds, souls: sum(a), lanes: [[[300, -1], [-1, -1], [-1, -1]]] } });
+  const done = () => w.harness.logs.filter((l) => l.startsWith("[NS] scan done"));
+  w.boot();
+  w.fill(a);
+  w.fire("CitadelMatchDetailsUpdated", a.id);
+  w.advance(30000);
+  assert.equal(done().length, 1);
+  w.fill(b);
+  w.fire("CitadelMatchDetailsUpdated", b.id);
+  w.advance(120000);
+  assert.equal(done().length, 2, "the retries ran out and the scan settled");
+  assert.match(done()[1], /: 0 lead points, 0 souls, 0 lanes, 0 objectives$/, `nothing of game 1 is shown for game 2: ${done()[1]}`);
 });
 
 check("board: cheap while hidden, little while shown; a reopen without events, an early event and a screen pick are found", () => {
@@ -4543,6 +4940,12 @@ check("board: a layout reload keeps one loop and one match listener", () => {
   w.advance(10000);
   const ops = per(stop(), 10);
   assert.ok((ops.schedules || 0) <= 1.1, `one 1 s loop: ${ops.schedules} schedules/s`);
+  // A reload with a board up: the old run's columns go with it, the new run builds its own.
+  const columns = w.columns().length;
+  assert.ok(columns > 0);
+  w.reload();
+  w.advance(6000);
+  assert.equal(w.columns().length, columns, "one set of columns after a reload");
 });
 
 // ---------------------------------------------------------------- phase 4: match cards and store v2
@@ -4898,6 +5301,14 @@ check("board: a custom logo replaces the wordmark only once loaded and falls bac
   images()[0].__handlers.ImageFailedLoad[0]();
   assert.equal(images().length, 0, "a failed logo is deleted");
   assert.ok(!logo().BHasClass("NSLogoCustom"), "the wordmark stays");
+  // Live (lobby page, 6842): a source that failed reports ImageLoaded on a second request and draws
+  // nothing, so the next match card with the same link must not ask for it again (the wordmark stays).
+  const c = pgMatch(121917141);
+  present(w, c);
+  w.fire("ClientUI_FireOutput", handoff(boardCard(c, { t: [["C1", "", "https://imgur.com/AbCdEfG"], ["C2", "", ""]] })));
+  w.advance(300);
+  assert.equal(images().length, 0, "a source that failed this session is not requested again");
+  assert.ok(!logo().BHasClass("NSLogoCustom"), "the wordmark stays");
   assert.ok(noBoardErrors(w));
 });
 
@@ -5181,7 +5592,6 @@ check("board: a hovered item is drawn over its neighbours and the next players' 
   assert.ok(noBoardErrors(w));
 });
 
-
 // ---------------------------------------------------------------- phase 5: learned registry
 // Plan phase 5 (decision 4). The page learns "team -> its 12 most recent accounts" from the cards of ended
 // matches (a winner is set; an untouched sample name never reaches a card) and only ever offers it: the
@@ -5426,7 +5836,6 @@ check("board: player names follow the editor's aliases by Steam account (the sav
   assert.ok(noBoardErrors(broken) && noBoardErrors(off));
 });
 
-
 // ---------------------------------------------------------------- budgets
 
 check("steady state: no writes while nothing changes; native calls per second under the budgets", () => {
@@ -5546,8 +5955,13 @@ check("identity: the account scan costs a few microseconds a second while accoun
   const scanning = per(stop(), 10);
   console.log(`   account scan (6 of 12 known) ${weighted(scanning)} us/s, ${total(scanning)} calls/s ${JSON.stringify(scanning)}`);
   assert.ok(weighted(scanning) - base <= BUDGET_US.scan, `scan: ${weighted(scanning)} us/s`);
+  // The budget means nothing unless the scan works: a known account is joined, a missing one is not yet.
+  const late = [...AMBER, ...SAPPHIRE][6];
+  assert.equal(w.host().accountOf(AMBER[0]), String(ACCOUNT_OF(AMBER[0])), "an account known from the start is joined");
+  assert.ok(!w.host().accountOf(late), "an account not on its marker yet is not joined");
   entries.forEach((e, i) => { if (i >= 6 && i < 11) e.FindChildTraverse("PlayerName").accountid = ACCOUNT_OF([...AMBER, ...SAPPHIRE][i]); });
   w.advance(3000);
+  assert.equal(w.host().accountOf(late), String(ACCOUNT_OF(late)), "an account that arrives later is joined");
   reset(w);
   stop = counted(w.harness);
   w.advance(10000);
@@ -5558,7 +5972,848 @@ check("identity: the account scan costs a few microseconds a second while accoun
   results.accountScan = { baseUs: base, scanningUs: weighted(scanning), doneUs: weighted(done) };
 });
 
+// ---------------------------------------------------------------- private-lobby setup (0.3.0)
+// oh_lobby.js runs in this mod's override of citadel_db_page_private_lobby.xml (dashboard) and edits the setup
+// through oh_link.js in the HUD over ClientUI_FireOutput. The engine side, from live (client 6842, ENGINE.md
+// "Private-lobby page"): #Team1Listing / #Team2Listing hold 8 children (CitadelPrivateLobbyTeamSlot at 0, 1, 3,
+// 4, 6, 7, spacer Panels at 2 and 5); a filled slot has .IsPlayer and CitadelFriend#PlayerID.accountid (text);
+// an emptied slot keeps the old account; CitadelPartyUpdated arrives on every slot change; the page carries
+// PageVisible while shown; both directions of ClientUI_FireOutput arrive in the same frame.
+// How the lobby setup can fail, each with a check below:
+//  1. Esc in an edit card or alias box leaves the lobby (instead of closing the box);
+//  2. a late or repeated swap undoes a newer edit or a match-end series win;
+//  3. an op from an older HUD session, or a forged / oversized one, changes the setup;
+//  4. an alias lands on the wrong player (an emptied slot's old account, a bot);
+//  5. the "teams changed sides" offer swaps on a roster that has moved since it showed;
+//  6. the hidden page costs time, or the HUD keeps echoing to a lobby that left;
+//  7. without the HUD the page shows controls that do nothing;
+//  8. a ban lands twice, on the wrong team, or Esc in the picker leaves the lobby;
+//  9. a share code is lost on the way, a bad code changes the setup, or RESET ALL fires on one press.
+const LOBBY = {
+  page: parseLayout(read("panorama/layout/citadel_db_page_private_lobby.xml")),
+  slot: parseLayout(read("stock/citadel_ui_private_lobby_team_slot.xml"))
+};
+// A HUD stand-in for checks that need a set match card (the real host builds cards from in-game markers).
+const fakeHost = (initial, card) => `(() => {
+  const S = $.OHState;
+  let state = S.normalize(${JSON.stringify(initial)});
+  let version = 0;
+  const listeners = [];
+  $.OHHost = { getState: () => state, version: () => version, card: () => (${JSON.stringify(card)}),
+    setState: (next) => { state = S.normalize(next); version++; for (const fn of listeners) fn(); },
+    onChange: (fn) => listeners.push(fn) };
+})();`;
+function lobbyWorld({ link = "host", visible = true, initial = null, card = 0 } = {}) {
+  const w = world({ spectating: false });
+  if (link === "host") w.bootHost();
+  const hudContext = link === "fake" ? new MockPanel("Panel", w.hudRoot, "FakeHud") : null;
+  if (link === "fake") w.runIn(hudContext, [["oh_state.js", script("oh_state.js")], ["fake_host.js", fakeHost(initial || {}, card)], ["oh_link.js", script("oh_link.js")]]);
+  w.advance(1500);
+  const counts = {};
+  const dash = new MockPanel("CitadelDashboardRoot", { operationCounts: counts });
+  WORLDS.push(dash);
+  const page = instantiate(LOBBY.page, dash);
+  if (visible) page.AddClass("PageVisible");
+  const slots = { amber: [], sapphire: [] };
+  for (const [side, id] of [["amber", "Team1Listing"], ["sapphire", "Team2Listing"]]) {
+    const list = page.FindChildTraverse(id);
+    for (let i = 0; i < 8; i++) {
+      if (i === 2 || i === 5) { new MockPanel("Panel", list, ""); continue; }
+      const slot = instantiate(LOBBY.slot, list);
+      const friend = slot.FindChildTraverse("PlayerID");
+      friend.actualxoffset = 60;
+      const details = new MockPanel("Panel", friend, "FriendDetails");
+      details.actualxoffset = 44;
+      const nameBox = new MockPanel("Panel", details, "FriendNameContainer");
+      nameBox.actualyoffset = 8;
+      nameBox.actuallayoutheight = 22;
+      new MockPanel("Label", new MockPanel("CitadelUserName", nameBox, "FriendName"), "");
+      friend.GetParent().actuallayoutwidth = 360;
+      slots[side].push(slot);
+    }
+  }
+  const fire = (name, ...args) => { for (const entry of w.bus.slice()) if (entry.name === name) entry.fn(...args); };
+  // A player joins slot k of a side (or the slot is emptied: account null); the event follows like live.
+  const seat = (side, k, account, name, { event = true } = {}) => {
+    const slot = slots[side][k];
+    const friend = slot.FindChildTraverse("PlayerID");
+    if (account === null) {
+      slot.RemoveClass("IsPlayer"); // the old accountid stays on the friend panel (live)
+    } else {
+      slot.AddClass("IsPlayer");
+      friend.accountid = String(account);
+      friend.FindChildTraverse("FriendName").children[0].__text = name;
+    }
+    if (event) fire("CitadelPartyUpdated", "123456789012345678");
+  };
+  const boot = () => w.runIn(page, [["oh_state.js", script("oh_state.js")], ["oh_heroes.js", script("oh_heroes.js")], ["oh_lobby.js", script("oh_lobby.js")]]);
+  const ctn = (side) => page.FindChildrenWithClassTraverse(side === "amber" ? "TeamAmber" : "TeamSapphire")[0];
+  const title = (side) => ctn(side).FindChildrenWithClassTraverse("OHLTitle")[0];
+  const cardOf = (side) => ctn(side).FindChildrenWithClassTraverse("OHLCard")[0];
+  const entries = (side) => cardOf(side).FindChildrenWithClassTraverse("OHLEntry");
+  const alias = (side, k) => slots[side][k].FindChildTraverse("OHLAlias");
+  const shown = (panel) => !!panel && panel.valid && panel.style.visibility !== "collapse";
+  const replies = () => w.sent.filter((m) => m.startsWith("OHL1S:")).map((m) => JSON.parse(m.slice(6)));
+  // The HUD's link listener, called directly with a raw message (a forged or late op).
+  const toHud = (raw) => { for (const entry of w.bus.slice()) if (entry.name === "ClientUI_FireOutput" && entry.panel !== page) entry.fn(raw); };
+  const hudHost = () => {
+    const ctx = w.contexts.get(link === "fake" ? hudContext : w.spectateBar);
+    return ctx[ctx.length - 1].$.OHHost;
+  };
+  const hudState = () => hudHost().getState();
+  const submit = (entry, value) => { entry.text = value; entry.events.oninputsubmit(); };
+  const ui = (id) => page.FindChildTraverse(id);
+  // The format DropDown: pick an option as a click does (SetSelected, then oninputsubmit).
+  const pickFormat = (n) => { const dd = ui("OHLFormat"); dd.SetSelected(`OHLBo${n}`); dd.events.oninputsubmit(); };
+  return { w, page, dash, counts, slots, seat, boot, fire, ctn, title, card: cardOf, entries, alias, shown, replies, toHud,
+    hudState, hudHost, submit, ui, pickFormat, advance: (ms) => w.advance(ms) };
+}
+
+check("lobby: the override includes the lobby scripts, keeps the stock Esc handler, and every OHL class is styled", () => {
+  const page = read("panorama/layout/citadel_db_page_private_lobby.xml");
+  for (const include of ["styles/observer_hud/oh_lobby.vcss_c", "scripts/observer_hud/oh_state.vjs_c", "scripts/observer_hud/oh_heroes.vjs_c", "scripts/observer_hud/oh_lobby.vjs_c"]) {
+    assert.ok(page.includes(`s2r://panorama/${include}`), include);
+  }
+  assert.ok(page.indexOf("oh_state.vjs_c") < page.indexOf("oh_heroes.vjs_c") && page.indexOf("oh_heroes.vjs_c") < page.indexOf("oh_lobby.vjs_c"), "oh_state, oh_heroes, then oh_lobby");
+  // The stock Esc handler stays: a focused OH box takes Esc first (live), so nothing replaces it.
+  assert.match(page, /oncancel="CitadelPrivateLobbyLeave\( 1 \);"/);
+  const js = read("panorama/scripts/observer_hud/oh_lobby.js");
+  const css = read("panorama/styles/observer_hud/oh_lobby.css");
+  const classes = new Set([...js.matchAll(/class: "([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)).filter((c) => c.startsWith("OHL")));
+  for (const name of ["OHLWon", "OHLEditing", "OHLHasAlias", "OHLLinkNote", "OHLLinkOn", "OHLOff", "OHLBanSet", "OHLTaken", "OHLCurrent", "OHLSelected", "OHLArmed"]) {
+    assert.ok(js.includes(`"${name}"`), `${name} is set by oh_lobby.js`);
+    classes.add(name);
+  }
+  for (const c of classes) assert.match(css, new RegExp(`\\.${c}\\b`), `.${c} has a rule in oh_lobby.css`);
+  // The alias button is its own layout (slot children take the slot's stylesheets, live): it brings oh_lobby.css.
+  const aliasXml = read("panorama/layout/observer_hud/lobby_alias.xml");
+  assert.ok(aliasXml.includes("s2r://panorama/styles/observer_hud/oh_lobby.vcss_c"), "lobby_alias.xml includes oh_lobby.css");
+  for (const c of new Set([...aliasXml.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)))) {
+    assert.match(css, new RegExp(`\\.${c}\\b`), `.${c} (lobby_alias.xml) has a rule in oh_lobby.css`);
+  }
+  // The Observer HUD block is its own layout too (it brings the stock base and lobby styles for its DropDown
+  // and pills); every OHL class in it is styled, and every id oh_lobby.js looks up is in it.
+  for (const [file, list] of [["lobby_setup", "SETUP_IDS"], ["lobby_share", "SHARE_IDS"]]) {
+    const xml = read(`panorama/layout/observer_hud/${file}.xml`);
+    for (const include of ["citadel_base_styles.vcss", "citadel_db_page_private_lobby.vcss", "observer_hud/oh_lobby.vcss_c"]) {
+      assert.ok(xml.includes(`s2r://panorama/styles/${include}`), `${file}.xml includes ${include}`);
+    }
+    for (const c of new Set([...xml.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)).filter((c) => c.startsWith("OHL")))) {
+      assert.match(css, new RegExp(`\\.${c}\\b`), `.${c} (${file}.xml) has a rule in oh_lobby.css`);
+    }
+    const ids = new RegExp(`const ${list} = \\[([^\\]]+)\\]`).exec(js)[1].match(/"(\w+)"/g).map((q) => q.slice(1, -1));
+    for (const id of ids) assert.ok(xml.includes(`id="${id}"`), `${file}.xml has #${id}`);
+  }
+  assert.ok(!/box-shadow|clip-path/.test(css), "no box-shadow / clip-path");
+  for (const [, prop] of css.matchAll(/transition-property:\s*([\w-]+)/g)) assert.equal(prop, "opacity", "only opacity transitions");
+});
+
+check("lobby: the team titles show the HUD's teams, and an edit card saves name, tag and logo in the HUD", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const amber = l.title("amber");
+  assert.ok(l.shown(amber), "team row shown once the HUD answered");
+  const stockTitle = l.ctn("amber").FindChildrenWithClassTraverse("TeamTitleText")[0];
+  assert.equal(stockTitle.style.visibility, "collapse", "the stock title gives way");
+  assert.equal(text(amber.FindChildrenWithClassTraverse("OHLName")[0]), l.hudState().amber.name);
+  assert.ok(!l.shown(l.card("amber")), "card closed");
+  amber.FindChildrenWithClassTraverse("OHLTitleMain")[0].events.onactivate();
+  assert.ok(l.shown(l.card("amber")), "card opens on a title click");
+  const [name, tag, logo] = l.entries("amber");
+  assert.ok(name.focused, "the name field takes focus");
+  name.text = "Night Owls";
+  tag.text = "now";
+  logo.text = "https://imgur.com/AbCdE12";
+  name.events.oninputsubmit();
+  l.advance(100);
+  const state = l.hudState();
+  deq([state.amber.name, state.amber.tag, state.amber.logo.url], ["Night Owls", "NOW", "https://imgur.com/AbCdE12"]);
+  assert.ok(!l.shown(l.card("amber")), "Enter saves and closes");
+  assert.equal(text(amber.FindChildrenWithClassTraverse("OHLName")[0]), "Night Owls");
+  assert.equal(text(amber.FindChildrenWithClassTraverse("OHLTag")[0]), "NOW");
+  // The logo: the first source of the imgur page link, one Image, the monogram until ImageLoaded.
+  const image = l.ctn("amber").FindChildrenWithClassTraverse("OHLLogo")[0];
+  assert.equal(image.src, "https://i.imgur.com/AbCdE12.gif");
+  assert.ok(l.shown(amber.FindChildrenWithClassTraverse("OHLMono")[0]), "monogram until the image loads");
+  image.events.ImageLoaded();
+  assert.equal(amber.FindChildrenWithClassTraverse("OHLMono")[0].style.visibility, "collapse");
+  // A refused value says why and changes nothing.
+  amber.FindChildrenWithClassTraverse("OHLTitleMain")[0].events.onactivate();
+  l.entries("amber")[2].text = "javascript:alert(1)";
+  l.entries("amber")[2].events.oninputsubmit();
+  assert.ok(l.shown(l.card("amber")), "a rejected URL keeps the card open");
+  assert.match(text(l.card("amber").FindChildrenWithClassTraverse("OHLCardNote")[0]), /Logo URL not accepted/);
+  assert.equal(l.hudState().amber.logo.url, "https://imgur.com/AbCdE12");
+  // A logo that failed to load is not asked for again this session (live: a second request reports
+  // ImageLoaded and draws nothing, a blank circle after SWAP HUD SIDES and back).
+  l.entries("amber")[2].text = "https://cdn.example.com/expired.png";
+  l.entries("amber")[2].events.oninputsubmit();
+  l.advance(100);
+  const failing = l.ctn("amber").FindChildrenWithClassTraverse("OHLLogo").find((img) => img.src === "https://cdn.example.com/expired.png");
+  failing.events.ImageFailedLoad();
+  const mono = () => l.title("amber").FindChildrenWithClassTraverse("OHLMono")[0];
+  assert.ok(l.shown(mono()), "monogram after the failure");
+  l.ui("OHLSwap").events.onactivate();
+  l.advance(100);
+  l.ui("OHLSwap").events.onactivate();
+  l.advance(100);
+  assert.equal(l.hudState().amber.logo.url, "https://cdn.example.com/expired.png", "back on Amber");
+  assert.equal(l.ctn("amber").FindChildrenWithClassTraverse("OHLLogo").filter((img) => img.valid !== false && img.src === "https://cdn.example.com/expired.png").length, 0, "not requested again");
+  assert.ok(l.shown(mono()), "the monogram stays");
+});
+
+check("lobby: Esc in an edit card or an alias box closes the box and changes nothing", () => {
+  const l = lobbyWorld();
+  l.seat("amber", 0, 1018009958, "JDBeast");
+  l.boot();
+  l.advance(1500);
+  const before = JSON.stringify(l.hudState());
+  l.title("amber").FindChildrenWithClassTraverse("OHLTitleMain")[0].events.onactivate();
+  l.entries("amber")[0].text = "Typed but cancelled";
+  l.entries("amber")[0].events.oncancel();
+  assert.ok(!l.shown(l.card("amber")), "Esc closes the card");
+  const button = l.alias("amber", 0);
+  button.events.onactivate();
+  const entry = button.FindChild("OHLAliasEntry");
+  assert.ok(l.shown(entry) && entry.focused, "alias box open and focused");
+  entry.text = "Typed but cancelled";
+  entry.events.oncancel();
+  assert.ok(!l.shown(entry), "Esc closes the alias box");
+  l.advance(500);
+  assert.equal(JSON.stringify(l.hudState()), before, "nothing changed");
+  // Every OH text box has its own oncancel (live: a focused TextEntry's oncancel runs instead of the page's leave).
+  for (const box of l.page.FindChildrenWithClassTraverse("OHLEntry").concat(l.page.FindChildrenWithClassTraverse("OHLBox"), [entry])) {
+    assert.equal(typeof box.events.oncancel, "function", `${box.id || box.classes} has oncancel`);
+  }
+  assert.ok(l.page.FindChildrenWithClassTraverse("OHLBox").length >= 2, "stage and share boxes checked");
+});
+
+check("lobby: a click on a player's name sets an alias keyed by the slot's account; emptied slots and bots get none", () => {
+  const l = lobbyWorld();
+  l.seat("amber", 0, 1018009958, "JDBeast");
+  l.seat("sapphire", 1, 90007, "Volt");
+  l.boot();
+  l.advance(1500);
+  const button = l.alias("amber", 0);
+  assert.ok(l.shown(button), "alias button on a filled slot");
+  // Over the stock name: offsets from the .Player panel (friend 60 + details 44, name 8 down).
+  deq([button.style.marginLeft, button.style.marginTop, button.style.height], ["104px", "8px", "22px"]);
+  button.events.onactivate();
+  l.submit(button.FindChild("OHLAliasEntry"), "Ace");
+  l.advance(100);
+  deq(l.hudState().players["1018009958"], { a: "Ace", n: "JDBeast" });
+  assert.equal(text(button.FindChildTraverse("OHLAliasText")), "Ace");
+  assert.equal(text(button.FindChildTraverse("OHLAliasReal")), "JDBeast");
+  assert.equal(l.slots.amber[0].FindChildTraverse("FriendNameContainer").style.opacity, "0", "the stock name hides under the alias");
+  // Cleared: the stock name comes back.
+  button.events.onactivate();
+  l.submit(button.FindChild("OHLAliasEntry"), "");
+  l.advance(100);
+  assert.equal(l.hudState().players["1018009958"], undefined);
+  assert.notEqual(l.slots.amber[0].FindChildTraverse("FriendNameContainer").style.opacity, "0");
+  // The player leaves: the slot keeps the old account (live) but loses its button.
+  l.seat("amber", 0, null);
+  l.advance(500);
+  assert.ok(!l.shown(l.alias("amber", 0)), "no alias button on an emptied slot");
+  // A bot slot (no player) never gets one.
+  assert.equal(l.alias("amber", 1), null);
+  // Another player in the same slot binds to the new account.
+  l.seat("amber", 0, 90003, "Doyle");
+  l.advance(500);
+  l.alias("amber", 0).events.onactivate();
+  l.submit(l.alias("amber", 0).FindChild("OHLAliasEntry"), "Rook");
+  l.advance(100);
+  deq(l.hudState().players["90003"], { a: "Rook", n: "Doyle" });
+  assert.equal(l.hudState().players["1018009958"], undefined);
+});
+
+check("lobby: RESET ALL after an alias shows the stock name again (user report 2026-11-03)", () => {
+  const l = lobbyWorld();
+  l.seat("amber", 0, 1018009958, "amira");
+  l.boot();
+  l.advance(1500);
+  const button = l.alias("amber", 0);
+  button.events.onactivate();
+  l.submit(button.FindChild("OHLAliasEntry"), "Ami");
+  l.advance(100);
+  const nameBox = l.slots.amber[0].FindChildTraverse("FriendNameContainer");
+  assert.equal(nameBox.style.opacity, "0", "the stock name hides under the alias");
+  l.ui("OHLShareOpen").events.onactivate();
+  const reset = l.ui("OHLReset");
+  reset.events.onactivate();
+  l.advance(100);
+  reset.events.onactivate();
+  l.advance(100);
+  deq(l.hudState().players, {}, "the alias is gone");
+  assert.equal(text(l.alias("amber", 0).FindChildTraverse("OHLAliasText")), "");
+  // Live a null write leaves the old inline opacity (see stuckHidden): the name must be written back.
+  assert.equal(nameBox.style.opacity, "1", "the stock name shows again");
+});
+
+check("lobby: an open alias box closes when its slot changes hands; an emptied or bot slot gets the stock name back", () => {
+  const l = lobbyWorld();
+  l.seat("amber", 0, 1018009958, "JDBeast");
+  l.boot();
+  l.advance(1500);
+  // Typing for JDBeast, then another player takes the slot before Enter: nothing goes to the new account.
+  const button = l.alias("amber", 0);
+  button.events.onactivate();
+  const entry = button.FindChild("OHLAliasEntry");
+  entry.text = "AliasForJD";
+  l.seat("amber", 0, 90003, "Doyle");
+  l.advance(500);
+  assert.ok(!l.shown(entry), "the box closed when the slot changed hands");
+  entry.events.oninputsubmit();
+  entry.events.onblur();
+  l.advance(100);
+  assert.equal(l.hudState().players["90003"], undefined, "no alias for the new player");
+  assert.equal(l.hudState().players["1018009958"], undefined, "none for the old one either");
+  // An alias hides the stock name; emptying the slot, then a bot in it, brings the stock name back.
+  const nameBox = l.slots.amber[0].FindChildTraverse("FriendNameContainer");
+  l.alias("amber", 0).events.onactivate();
+  l.submit(l.alias("amber", 0).FindChild("OHLAliasEntry"), "Rook");
+  l.advance(100);
+  assert.equal(nameBox.style.opacity, "0");
+  l.seat("amber", 0, null);
+  l.advance(500);
+  assert.notEqual(nameBox.style.opacity, "0", "an emptied slot shows its stock name");
+  l.seat("amber", 0, 0, "Bot");
+  l.advance(500);
+  assert.notEqual(nameBox.style.opacity, "0", "a bot slot shows its stock name");
+});
+
+check("lobby: a malformed reply card is dropped and the page keeps working", () => {
+  const l = lobbyWorld();
+  // A full swapped roster: Amber holds the card's b players, Sapphire its a players (the offer's case).
+  const amber = [1, 2, 3, 4, 5, 6];
+  const sapphire = [11, 12, 13, 14, 15, 16];
+  for (let k = 0; k < 6; k++) {
+    l.seat("amber", k, amber[k] + 90000, `A${k}`, { event: false });
+    l.seat("sapphire", k, sapphire[k] + 90000, `S${k}`, { event: false });
+  }
+  l.boot();
+  l.advance(1500);
+  const reply = l.replies().slice(-1)[0];
+  const a = sapphire.map((n) => n + 90000);
+  const b = amber.map((n) => n + 90000);
+  for (const card of [{ a, b, t: [] }, { a, b, t: [[]] }, { a, b, t: [null, ["B"]] }, { a: "x", b, t: [["A"], ["B"]] }, { a, b, t: [[5], [6]] }]) {
+    assert.doesNotThrow(() => l.fire("ClientUI_FireOutput", "OHL1S:" + JSON.stringify(Object.assign({}, reply, { c: card, q: 0 }))));
+  }
+  l.advance(1500);
+  assert.ok(!l.shown(l.ui("OHLOffer")), "no offer from a broken card");
+  assert.ok(l.shown(l.title("amber")), "still linked");
+});
+
+check("lobby: a second boot on the same page leaves one of everything; the old instance is inert", () => {
+  const l = lobbyWorld();
+  l.seat("amber", 0, 1018009958, "JDBeast");
+  l.boot();
+  l.advance(1500);
+  l.alias("amber", 0).events.onactivate();
+  l.submit(l.alias("amber", 0).FindChild("OHLAliasEntry"), "Ace");
+  l.advance(100);
+  l.boot();
+  l.advance(1500);
+  for (const side of ["amber", "sapphire"]) assert.equal(l.ctn(side).FindChildrenWithClassTraverse("OHLTitle").length, 1, `${side}: one title row`);
+  for (const cls of ["OHLCard", "OHLPicker"]) assert.equal(l.ctn("amber").FindChildrenWithClassTraverse(cls).length, 1, `one ${cls}`);
+  for (const id of ["OHLSetup", "OHLShare"]) assert.equal(l.page.FindChildTraverse("LobbyInfo").Children().filter((p) => p.id === id).length, 1, `one #${id}`);
+  const player = l.slots.amber[0].FindChildrenWithClassTraverse("Player")[0];
+  assert.equal(player.Children().filter((p) => p.id === "OHLAlias" && p.valid).length, 1, "one alias button");
+  assert.equal(l.slots.amber[0].FindChildTraverse("FriendNameContainer").style.opacity, "0", "the new instance hides the stock name again");
+  // The button the new instance shows works once: one op per submit.
+  const before = l.w.sent.filter((m) => m.startsWith("OHL1:") && m.includes('"alias"')).length;
+  l.alias("amber", 0).events.onactivate();
+  l.submit(l.alias("amber", 0).FindChild("OHLAliasEntry"), "Ace2");
+  l.advance(100);
+  assert.equal(l.w.sent.filter((m) => m.startsWith("OHL1:") && m.includes('"alias"')).length, before + 1, "one alias op");
+  deq(l.hudState().players["1018009958"], { a: "Ace2", n: "JDBeast" });
+});
+
+check("lobby: SWAP HUD SIDES swaps names, tags, logos, series and bans but not aliases; a late or repeated swap is refused", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const host = l.hudHost();
+  const next = JSON.parse(JSON.stringify(host.getState()));
+  Object.assign(next.amber, { name: "Night Owls", tag: "NOW", series: 1, bans: [1, 2] });
+  Object.assign(next.sapphire, { name: "Brass Saints", tag: "BRS", series: 0, bans: [3, 0] });
+  next.players = { "90001": { a: "Ace", n: "Kestrel" } };
+  host.setState(next);
+  l.advance(100);
+  const versionBefore = host.version();
+  l.page.FindChildTraverse("OHLSwap").events.onactivate();
+  l.advance(100);
+  const s = l.hudState();
+  deq([s.amber.name, s.amber.tag, s.amber.series, s.amber.bans, s.sapphire.name, s.sapphire.series, s.sapphire.bans],
+    ["Brass Saints", "BRS", 0, [3, 0, 0], "Night Owls", 1, [1, 2, 0]]);
+  deq(s.players, { "90001": { a: "Ace", n: "Kestrel" } }, "aliases stay with the players");
+  assert.equal(text(l.title("amber").FindChildrenWithClassTraverse("OHLName")[0]), "Brass Saints");
+  // The same swap delivered again (built on the old version): refused, nothing moves.
+  const hostId = l.replies().pop().h;
+  l.toHud(`OHL1:${JSON.stringify({ k: "swap", h: hostId, v: versionBefore, q: 99 })}`);
+  l.advance(100);
+  assert.equal(l.hudState().amber.name, "Brass Saints", "a repeated swap is refused");
+  const refused = l.replies().filter((r) => r.q === 99);
+  assert.equal(refused.length, 1);
+  assert.equal(refused[0].e, "stale");
+  // A match-end win lands between the page's view and its swap: the late swap must not undo it.
+  const seen = host.version();
+  const won = JSON.parse(JSON.stringify(host.getState()));
+  won.sapphire.series = 2;
+  host.setState(won);
+  l.toHud(`OHL1:${JSON.stringify({ k: "swap", h: hostId, v: seen, q: 100 })}`);
+  l.advance(100);
+  deq([l.hudState().sapphire.name, l.hudState().sapphire.series], ["Night Owls", 2], "the win stays where it was won");
+  // CLEAR BANS empties both teams' bans (a compound op on the current version).
+  l.page.FindChildTraverse("OHLClearBans").events.onactivate();
+  l.advance(100);
+  deq([l.hudState().amber.bans, l.hudState().sapphire.bans], [[0, 0, 0], [0, 0, 0]]);
+});
+
+check("lobby: ops from an older HUD session and forged or oversized ops change nothing", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const before = JSON.stringify(l.hudState());
+  const hostId = l.replies().pop().h;
+  const op = (fields) => `OHL1:${JSON.stringify(Object.assign({ h: hostId, q: 7 }, fields))}`;
+  for (const raw of [
+    op({ k: "set", f: "name", t: "amber", x: "Old session", h: "someoneelse" }),
+    op({ k: "set", f: "name", t: "amber", x: "x".repeat(29) }),
+    op({ k: "set", f: "tag", t: "amber", x: "TOOLONG" }),
+    op({ k: "set", f: "logo", t: "amber", x: "javascript:alert(1)" }),
+    op({ k: "set", f: "logo", t: "amber", x: "https://user:pw@example.com/a.png" }),
+    op({ k: "set", f: "series", t: "amber", x: 9 }),
+    op({ k: "set", f: "bestOf", x: 4 }),
+    op({ k: "set", f: "name", t: "org", x: "Nope" }),
+    op({ k: "set", f: "style", t: "amber", x: "desk" }),
+    op({ k: "alias", a: "0", n: "Bot", x: "Bot alias" }),
+    op({ k: "alias", a: "abc", n: "X", x: "Y" }),
+    op({ k: "alias", a: "90001", n: "X", x: "y".repeat(25) }),
+    op({ k: "drop", x: 1 }),
+    "OHL1:{not json",
+    `OHL1:${JSON.stringify({ k: "set", f: "name", t: "amber", h: hostId, x: "z".repeat(3000) })}`,
+    "OHL1:null", "OHL1:[]", 'OHL1:{"k":5}'
+  ]) l.toHud(raw);
+  l.advance(200);
+  assert.equal(JSON.stringify(l.hudState()), before, "nothing changed");
+  // A full alias list keeps the list as it is.
+  const host = l.hudHost();
+  const full = JSON.parse(JSON.stringify(host.getState()));
+  full.players = Object.fromEntries(Array.from({ length: 24 }, (_, i) => [String(80000 + i), { a: `P${i}`, n: `N${i}` }]));
+  host.setState(full);
+  l.toHud(op({ k: "alias", a: "70000", n: "New", x: "Newcomer", q: 8 }));
+  l.advance(100);
+  assert.equal(Object.keys(l.hudState().players).length, 24);
+  assert.equal(l.replies().filter((r) => r.q === 8)[0].e, "alias list full");
+});
+
+check("lobby: format and series pips edit the HUD, and a shorter format caps the series", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const format = l.ui("OHLFormat");
+  assert.equal(format.paneltype, "DropDown", "the format is a stock DropDown in the Observer HUD block");
+  assert.equal(format.GetSelected().id, `OHLBo${l.hudState().bestOf}`, "shows the HUD's format");
+  const sentBefore = l.w.sent.length;
+  format.events.oninputsubmit(); // the same value again (SetSelected fires this too): nothing is sent
+  assert.equal(l.w.sent.length, sentBefore);
+  l.pickFormat(5);
+  l.advance(100);
+  assert.equal(l.hudState().bestOf, 5);
+  const pips = () => l.title("sapphire").FindChildrenWithClassTraverse("OHLPip").filter((p) => l.shown(p));
+  assert.equal(pips().length, 3, "Bo5: three pips");
+  pips()[1].events.onactivate();
+  l.advance(100);
+  assert.equal(l.hudState().sapphire.series, 2);
+  deq(pips().map((p) => p.BHasClass("OHLWon")), [true, true, false]);
+  pips()[1].events.onactivate(); // the last won pip again: one fewer
+  l.advance(100);
+  assert.equal(l.hudState().sapphire.series, 1);
+  l.pickFormat(1);
+  l.advance(100);
+  assert.equal(l.hudState().sapphire.series, 1, "Bo1 keeps one win");
+  assert.equal(pips().length, 1);
+  assert.equal(format.GetSelected().id, "OHLBo1");
+  // Bo5 with 3 wins, then Bo7 keeps them, and Bo1 caps them at 1.
+  l.pickFormat(5);
+  l.advance(100);
+  pips()[2].events.onactivate();
+  l.advance(100);
+  assert.equal(l.hudState().sapphire.series, 3);
+  l.pickFormat(7);
+  l.advance(100);
+  deq([l.hudState().bestOf, l.hudState().sapphire.series], [7, 3]);
+  l.pickFormat(1);
+  l.advance(100);
+  deq([l.hudState().bestOf, l.hudState().sapphire.series], [1, 1]);
+  // A format the HUD changed elsewhere (the editor) shows here without being sent back.
+  const next = JSON.parse(JSON.stringify(l.hudHost().getState()));
+  next.bestOf = 3;
+  const echoed = l.w.sent.filter((m) => m.startsWith("OHL1:") && m.includes('"bestOf"')).length;
+  l.hudHost().setState(next);
+  l.advance(100);
+  assert.equal(format.GetSelected().id, "OHLBo3");
+  assert.equal(l.w.sent.filter((m) => m.startsWith("OHL1:") && m.includes('"bestOf"')).length, echoed);
+});
+
+check("lobby: bans per team (2 or 3) edit the HUD; the team titles show that many ban tiles and keep a hidden ban", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const count = l.ui("OHLBanCount");
+  assert.equal(count.paneltype, "DropDown", "bans per team is a stock DropDown beside the format");
+  assert.equal(count.GetSelected().id, "OHLBans2", "shows the HUD's 2");
+  const tiles = (key) => l.title(key).FindChildrenWithClassTraverse("OHLBan").filter((p) => l.shown(p)).length;
+  deq([tiles("amber"), tiles("sapphire")], [2, 2]);
+  const sentBefore = l.w.sent.length;
+  count.events.oninputsubmit(); // the same value again: nothing is sent
+  assert.equal(l.w.sent.length, sentBefore);
+  count.SetSelected("OHLBans3");
+  count.events.oninputsubmit();
+  l.advance(100);
+  assert.equal(l.hudState().banCount, 3, "the HUD shows three bans");
+  deq([tiles("amber"), tiles("sapphire")], [3, 3]);
+  // A ban in the third slot stays in the HUD's state while two show, and comes back with three.
+  const next = JSON.parse(JSON.stringify(l.hudHost().getState()));
+  next.amber.bans = [0, 0, 6];
+  next.banCount = 2;
+  const echoed = l.w.sent.filter((m) => m.startsWith("OHL1:") && m.includes('"banCount"')).length;
+  l.hudHost().setState(next);
+  l.advance(100);
+  assert.equal(count.GetSelected().id, "OHLBans2", "a count changed in the editor shows here");
+  assert.equal(l.w.sent.filter((m) => m.startsWith("OHL1:") && m.includes('"banCount"')).length, echoed, "and is not sent back");
+  deq([tiles("amber"), l.hudState().amber.bans], [2, [0, 0, 6]]);
+});
+
+check("lobby: the offer shows only when last match's players changed sides, and re-checks the roster on click", () => {
+  const amberIds = [101, 102, 103, 104, 105, 106];
+  const sapphireIds = [201, 202, 203, 204, 205, 206];
+  // Last match: Night Owls (101-106) on Amber beat Brass Saints (201-206) on Sapphire.
+  const card = { a: amberIds, b: sapphireIds, t: [["Night Owls", "NOW", ""], ["Brass Saints", "BRS", ""]], w: 1 };
+  const initial = { amber: { name: "Night Owls", tag: "NOW" }, sapphire: { name: "Brass Saints", tag: "BRS" } };
+  const swapped = (l) => {
+    // The players came back on the other sides (the organiser pressed the stock Swap Teams).
+    sapphireIds.forEach((id, k) => l.seat("amber", k, id, `S${k}`, { event: false }));
+    amberIds.forEach((id, k) => l.seat("sapphire", k, id, `A${k}`, { event: false }));
+  };
+  const l = lobbyWorld({ link: "fake", initial, card });
+  swapped(l);
+  l.boot();
+  l.advance(1500);
+  const offer = l.page.FindChildTraverse("OHLOffer");
+  assert.ok(l.shown(offer), "offer shown");
+  assert.match(text(offer.FindChildrenWithClassTraverse("OHLOfferText")[0]), /Night Owls are now on the Sapphire side/);
+  // Three Amber players change before the click (no event yet): the click re-reads the roster and does nothing.
+  for (let k = 0; k < 3; k++) l.seat("amber", k, 301 + k, `N${k}`, { event: false });
+  offer.FindChildrenWithClassTraverse("SecondaryButton")[0].events.onactivate();
+  l.advance(100);
+  assert.equal(l.hudState().amber.name, "Night Owls", "no swap on a moved roster");
+  assert.ok(!l.shown(offer), "the offer goes");
+  // Back as before: the offer returns, and its button swaps.
+  for (let k = 0; k < 3; k++) l.seat("amber", k, sapphireIds[k], `S${k}`);
+  l.advance(500);
+  assert.ok(l.shown(offer));
+  offer.FindChildrenWithClassTraverse("SecondaryButton")[0].events.onactivate();
+  l.advance(100);
+  deq([l.hudState().amber.name, l.hudState().sapphire.name], ["Brass Saints", "Night Owls"]);
+  assert.ok(!l.shown(offer), "names follow the players: no second offer");
+  // NOT NOW hides it until the roster changes.
+  const m = lobbyWorld({ link: "fake", initial, card });
+  swapped(m);
+  m.boot();
+  m.advance(1500);
+  const offer2 = m.page.FindChildTraverse("OHLOffer");
+  assert.ok(m.shown(offer2));
+  offer2.FindChildrenWithClassTraverse("SecondaryButton")[1].events.onactivate();
+  assert.ok(!m.shown(offer2));
+  m.advance(5000);
+  assert.ok(!m.shown(offer2), "stays hidden for this roster");
+  // A lobby that holds fewer than 4 of a side's players from the card gets no offer.
+  const n = lobbyWorld({ link: "fake", initial, card });
+  [301, 302, 303, 204, 205, 206].forEach((id, k) => n.seat("amber", k, id, `X${k}`, { event: false }));
+  amberIds.forEach((id, k) => n.seat("sapphire", k, id, `A${k}`, { event: false }));
+  n.boot();
+  n.advance(1500);
+  assert.ok(!n.shown(n.page.FindChildTraverse("OHLOffer")));
+});
+
+check("lobby: a ban tile opens a hero picker over its column; a hero is banned once, No Ban clears, Esc closes", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const ban = (side, slot) => l.ui(`OHL${side === "amber" ? "Amber" : "Sapphire"}Ban${slot}`);
+  const picker = (side) => l.ctn(side).FindChildrenWithClassTraverse("OHLPicker")[0];
+  const tile = (side, id) => picker(side).FindChildrenWithClassTraverse("OHLHeroTile").find((t) => t.children[0].heroId === id);
+  deq([l.hudState().amber.bans, l.hudState().sapphire.bans], [[0, 0, 0], [0, 0, 0]]);
+  assert.ok(!l.shown(picker("amber")), "picker closed");
+  assert.equal(picker("amber").FindChildrenWithClassTraverse("OHLHeroTile").length, 0, "the grid is built on first open");
+  ban("amber", 0).events.onactivate();
+  assert.ok(l.shown(picker("amber")) && picker("amber").focused, "picker open and focused (Esc goes to it)");
+  assert.equal(picker("amber").FindChildrenWithClassTraverse("OHLHeroTile").length, HEROES.length, "every hero");
+  const [abrams, bebop, haze] = [6, 15, 13];
+  tile("amber", abrams).events.onactivate();
+  l.advance(100);
+  deq(l.hudState().amber.bans, [abrams, 0, 0]);
+  assert.ok(!l.shown(picker("amber")), "a pick closes the picker");
+  assert.ok(ban("amber", 0).BHasClass("OHLBanSet"));
+  assert.equal(ban("amber", 0).FindChildrenWithClassTraverse("OHLBanImage")[0].heroId, abrams, "the tile shows the hero");
+  // Sapphire bans the same hero: it moves (a hero is banned once), and the picker marked it.
+  ban("sapphire", 1).events.onactivate();
+  assert.ok(tile("sapphire", abrams).BHasClass("OHLTaken"), "banned elsewhere: marked");
+  tile("sapphire", abrams).events.onactivate();
+  l.advance(100);
+  deq([l.hudState().amber.bans, l.hudState().sapphire.bans], [[0, 0, 0], [0, abrams, 0]]);
+  assert.ok(!ban("amber", 0).BHasClass("OHLBanSet"), "the old tile empties");
+  // Opening a picker closes the other boxes; the current hero is marked; Esc closes without a change.
+  ban("amber", 1).events.onactivate();
+  tile("amber", bebop).events.onactivate();
+  l.advance(100);
+  ban("amber", 1).events.onactivate();
+  assert.ok(tile("amber", bebop).BHasClass("OHLCurrent"));
+  l.title("sapphire").FindChildrenWithClassTraverse("OHLTitleMain")[0].events.onactivate();
+  assert.ok(!l.shown(picker("amber")) && l.shown(l.card("sapphire")), "one box at a time");
+  l.card("sapphire").events.oncancel();
+  ban("amber", 1).events.onactivate();
+  const before = JSON.stringify(l.hudState());
+  picker("amber").events.oncancel();
+  assert.ok(!l.shown(picker("amber")), "Esc closes the picker");
+  assert.equal(JSON.stringify(l.hudState()), before);
+  // No Ban clears that slot only.
+  ban("amber", 1).events.onactivate();
+  picker("amber").FindChildrenWithClassTraverse("OHLPill")[0].events.onactivate();
+  l.advance(100);
+  deq([l.hudState().amber.bans, l.hudState().sapphire.bans], [[0, 0, 0], [0, abrams, 0]]);
+  // The HUD checks a forged ban: a bad slot or id changes nothing; a ban of the other team's hero moves it.
+  const hostId = l.replies().pop().h;
+  const op = (fields) => l.toHud(`OHL1:${JSON.stringify(Object.assign({ k: "set", f: "ban", h: hostId, q: 50 }, fields))}`);
+  const kept = JSON.stringify(l.hudState());
+  op({ t: "amber", i: 3, x: haze });
+  op({ t: "amber", i: -1, x: haze });
+  op({ t: "amber", i: 0, x: 1001 });
+  op({ t: "amber", i: 0, x: "13" });
+  op({ t: "org", i: 0, x: haze });
+  for (const x of [1, 4, "3", null]) op({ f: "banCount", x });
+  l.advance(100);
+  assert.equal(JSON.stringify(l.hudState()), kept, "forged bans and ban counts refused");
+  // CLEAR BANS (the block's button) empties both.
+  op({ t: "amber", i: 0, x: haze });
+  l.advance(100);
+  l.ui("OHLClearBans").events.onactivate();
+  l.advance(100);
+  deq([l.hudState().amber.bans, l.hudState().sapphire.bans], [[0, 0, 0], [0, 0, 0]]);
+});
+
+check("lobby: the Observer HUD block sits under the stock match settings; the stage edits the HUD", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const info = l.ui("LobbyInfo");
+  const kids = info.Children();
+  const setup = l.ui("OHLSetup");
+  assert.equal(kids.indexOf(setup), kids.indexOf(info.FindChildrenWithClassTraverse("SettingsPanel")[0]) + 1, "right after the settings");
+  assert.ok(kids.indexOf(setup) < kids.indexOf(info.FindChildrenWithClassTraverse("Unassigned")[0]), "before Unassigned");
+  // Nothing of OH is left in the stock button row or under VS.
+  assert.equal(l.page.FindChildrenWithClassTraverse("LobbyButtons")[0].Children().length, 3, "stock buttons only");
+  const stage = l.ui("OHLStage");
+  assert.equal(stage.text, l.hudState().stage);
+  l.submit(stage, "Semi Final");
+  l.advance(100);
+  assert.equal(l.hudState().stage, "Semi Final");
+  // Esc puts the HUD's stage back; nothing is sent.
+  stage.text = "Typo";
+  stage.events.oncancel();
+  assert.equal(stage.text, "Semi Final");
+  // Too long: refused with a note, nothing changes.
+  l.submit(stage, "s".repeat(29));
+  l.advance(100);
+  assert.equal(l.hudState().stage, "Semi Final");
+  assert.match(text(l.ui("OHLLink")), /at most 28/);
+  // A box being typed in is never overwritten by an echo.
+  stage.keyFocus = true;
+  stage.text = "Grand F";
+  const next = JSON.parse(JSON.stringify(l.hudHost().getState()));
+  next.amber.series = 1;
+  l.hudHost().setState(next);
+  l.advance(100);
+  assert.equal(stage.text, "Grand F");
+});
+
+check("lobby: SHARE copies the HUD's code, imports a code (keeping DEV), refuses bad codes, and RESET ALL needs two presses", () => {
+  const l = lobbyWorld();
+  l.boot();
+  l.advance(1500);
+  const host = l.hudHost();
+  const mine = JSON.parse(JSON.stringify(host.getState()));
+  Object.assign(mine, { event: "Spring Cup", stage: "Final", style: "desk" });
+  mine.amber.name = "Night Owls";
+  mine.dev.debuffPollMs = 1000;
+  host.setState(mine);
+  l.advance(100);
+  const share = l.ui("OHLShare");
+  assert.ok(!l.shown(share), "share closed");
+  l.ui("OHLShareOpen").events.onactivate();
+  assert.ok(l.shown(share) && l.ui("OHLShareOpen").BHasClass("OHLSelected"));
+  // Copy: the HUD answers with the full code (event, look and all), copied through the box.
+  l.ui("OHLShareCopy").events.onactivate();
+  l.advance(100);
+  const entry = l.ui("OHLShareEntry");
+  const S = stateApiOf();
+  const code = l.w.harness.clipboardWrites.slice(-1)[0];
+  assert.ok(code && code.startsWith("OHC1."), "code copied through the box");
+  assert.equal(entry.text, "", "the box is emptied after a copy (live: a code-long line draws nothing)");
+  const decoded = S.normalize(S.decodeShare(code).state);
+  deq([decoded.event, decoded.stage, decoded.style, decoded.amber.name], ["Spring Cup", "Final", "desk", "Night Owls"]);
+  assert.match(text(l.ui("OHLShareStatus")), /copied/);
+  // Import a code made on another PC: the setup changes, this PC's DEV settings stay.
+  const other = S.normalize({ event: "Other Cup", amber: { name: "Brass Saints" }, sapphire: { name: "Iron Owls" }, dev: { debuffPollMs: 100 }, bestOf: 5 });
+  const otherCode = S.encodeShare(other);
+  l.submit(entry, otherCode);
+  l.advance(100);
+  deq([l.hudState().event, l.hudState().amber.name, l.hudState().bestOf, l.hudState().dev.debuffPollMs], ["Other Cup", "Brass Saints", 5, 1000]);
+  assert.match(text(l.ui("OHLShareStatus")), /Imported/);
+  // Bad codes: told here, nothing sent, nothing changed.
+  const before = JSON.stringify(l.hudState());
+  const sent = l.w.sent.length;
+  l.submit(entry, "hello");
+  assert.match(text(l.ui("OHLShareStatus")), /Not an Observer HUD code/);
+  l.submit(entry, otherCode.slice(0, -2) + "AA");
+  assert.match(text(l.ui("OHLShareStatus")), /Not an Observer HUD code/);
+  assert.equal(l.w.sent.length, sent, "nothing sent for a bad code");
+  // A forged import op with a bad code is refused by the HUD too, and so is an oversized op.
+  const hostId = l.replies().pop().h;
+  l.toHud(`OHL1:${JSON.stringify({ k: "import", h: hostId, c: "OHC1.00000000.e30", q: 60 })}`);
+  l.toHud(`OHL1:${JSON.stringify({ k: "import", h: hostId, c: otherCode + " ".repeat(S.MAX_SHARE + 1100), q: 61 })}`);
+  l.advance(100);
+  assert.equal(JSON.stringify(l.hudState()), before);
+  assert.equal(l.replies().filter((r) => r.q === 60)[0].e, "code");
+  assert.equal(l.replies().filter((r) => r.q === 61).length, 0, "oversized: dropped");
+  // A large real code (logos at the URL limit, 24 aliases) still fits one op.
+  const big = S.normalize({ amber: { logo: { url: `https://example.com/${"a".repeat(480)}.png` } }, sapphire: { logo: { url: `https://example.com/${"b".repeat(480)}.png` } },
+    org: { logo: { url: `https://example.com/${"c".repeat(480)}.png` } },
+    players: Object.fromEntries(Array.from({ length: 24 }, (_, i) => [String(70000 + i), { a: `Alias number ${i}`, n: `Steam name ${i}` }])) });
+  const bigCode = S.encodeShare(big);
+  assert.ok(bigCode.length > 3000, `big code ${bigCode.length}`);
+  l.submit(entry, bigCode);
+  l.advance(100);
+  assert.equal(Object.keys(l.hudState().players).length, 24, "big code imported");
+  // Every legal setup fits one code (user 2026-11-03): 24 aliases in CJK text and three long logo links
+  // copy as one code over 8192 characters, through the HUD's reply and the box, and import back.
+  const wide = JSON.parse(JSON.stringify(l.hudState()));
+  for (const account of Object.keys(wide.players)) wide.players[account] = { a: "界".repeat(24), n: "界".repeat(32) };
+  host.setState(wide);
+  l.advance(100);
+  const clips = l.w.harness.clipboardWrites.length;
+  l.ui("OHLShareCopy").events.onactivate();
+  l.advance(100);
+  assert.equal(l.w.harness.clipboardWrites.length, clips + 1, "copied");
+  const wideCode = l.w.harness.clipboardWrites.slice(-1)[0];
+  assert.ok(wideCode.length > 8192, `one code of ${wideCode.length} characters`);
+  deq(S.normalize(S.decodeShare(wideCode).state).players, l.hudState().players);
+  host.setState(S.defaults());
+  l.advance(100);
+  l.submit(entry, wideCode);
+  l.advance(100);
+  deq(l.hudState().players, wide.players, "a long code imports whole");
+  // RESET ALL: the first press only arms (and says what it does); a second press within 4 s resets.
+  const reset = l.ui("OHLReset");
+  reset.events.onactivate();
+  l.advance(100);
+  assert.equal(Object.keys(l.hudState().players).length, 24, "one press changes nothing");
+  assert.ok(reset.BHasClass("OHLArmed"));
+  assert.match(text(l.ui("OHLShareStatus")), /forget the saved setup/);
+  l.advance(4500);
+  assert.ok(!reset.BHasClass("OHLArmed"), "disarms after 4 s");
+  reset.events.onactivate();
+  l.advance(1000);
+  reset.events.onactivate();
+  l.advance(100);
+  const defaults = S.defaults();
+  deq([l.hudState().players, l.hudState().amber.name, l.hudState().event, l.hudState().dev], [{}, defaults.amber.name, defaults.event, defaults.dev]);
+  assert.match(text(l.ui("OHLShareStatus")), /back to the defaults/);
+  // Esc in the code box or the close button shuts the card.
+  l.ui("OHLShareEntry").events.oncancel();
+  assert.ok(!l.shown(share), "Esc closes the share card");
+  l.ui("OHLShareOpen").events.onactivate();
+  assert.ok(l.shown(share));
+  l.title("amber").FindChildrenWithClassTraverse("OHLTitleMain")[0].events.onactivate();
+  assert.ok(!l.shown(share) && l.shown(l.card("amber")), "a team card closes the share card");
+  l.card("amber").events.oncancel();
+  l.ui("OHLShareOpen").events.onactivate();
+  l.ui("OHLShareClose").events.onactivate();
+  assert.ok(!l.shown(share), "the close button shuts it");
+  // A late reset (built on an older version) is refused.
+  const seen = host.version();
+  const edited = JSON.parse(JSON.stringify(host.getState()));
+  edited.amber.name = "Fresh";
+  host.setState(edited);
+  l.toHud(`OHL1:${JSON.stringify({ k: "reset", h: hostId, v: seen, q: 70 })}`);
+  l.advance(100);
+  assert.equal(l.hudState().amber.name, "Fresh");
+  assert.equal(l.replies().filter((r) => r.q === 70)[0].e, "stale");
+});
+
+check("lobby: without a HUD answer the controls stay off and the stock titles show", () => {
+  const l = lobbyWorld({ link: "none" });
+  l.seat("amber", 0, 1018009958, "JDBeast");
+  l.boot();
+  l.advance(15000);
+  assert.ok(!l.shown(l.title("amber")), "no OH team row");
+  assert.notEqual(l.ctn("amber").FindChildrenWithClassTraverse("TeamTitleText")[0].style.visibility, "collapse", "stock title shown");
+  assert.equal(l.page.FindChildTraverse("OHLSwap").enabled, false);
+  assert.ok(!l.shown(l.alias("amber", 0)), "no alias button");
+  assert.match(text(l.page.FindChildTraverse("OHLLink")), /Not linked/);
+  assert.ok(l.page.FindChildTraverse("OHLSetup").BHasClass("OHLOff"), "the block dims");
+  for (const id of ["OHLFormat", "OHLBanCount", "OHLStage", "OHLClearBans", "OHLShareOpen"]) assert.equal(l.page.FindChildTraverse(id).enabled, false, id);
+  // The HUD comes up later: the page links on its next hello.
+  l.w.bootHost();
+  l.advance(6000);
+  assert.ok(l.shown(l.title("amber")));
+  assert.ok(l.shown(l.alias("amber", 0)));
+  assert.ok(!/Not linked/.test(text(l.page.FindChildTraverse("OHLLink"))));
+});
+
+check("lobby: a hidden page sends and writes nothing, and the HUD stops echoing to a lobby that left", () => {
+  const l = lobbyWorld({ visible: false });
+  l.seat("amber", 0, 1018009958, "JDBeast");
+  l.boot();
+  l.advance(2000);
+  // Party events while hidden only mark the roster dirty (m3 audit O3: they used to place alias buttons).
+  l.seat("amber", 1, 90004, "Doyle", { event: false });
+  for (const key of Object.keys(l.counts)) l.counts[key] = 0;
+  const lobbyTraffic = () => l.w.sent.filter((m) => m.startsWith("OHL1")).length;
+  const sentBefore = lobbyTraffic();
+  l.fire("CitadelPartyUpdated", "123456789012345678");
+  l.advance(60000);
+  assert.equal(lobbyTraffic(), sentBefore, "no hello (and no echo) while hidden");
+  const writes = (l.counts.styleWrites || 0) + (l.counts.textWrites || 0) + (l.counts.classWrites || 0);
+  assert.equal(writes, 0, `hidden page writes ${JSON.stringify(l.counts)}`);
+  // One class read a second (PageVisible) and the schedule: under the idle budget.
+  const perSecond = per(l.counts, 60);
+  assert.ok(weighted(perSecond) + 1 <= BUDGET_US.idle, `hidden page ${weighted(perSecond)} us/s ${JSON.stringify(perSecond)}`);
+  // Shown, linked, then hidden again: 15 s after the last hello the HUD no longer echoes its changes.
+  l.page.AddClass("PageVisible");
+  l.advance(3000);
+  assert.ok(l.replies().length > 0, "linked while shown");
+  assert.ok(l.shown(l.alias("amber", 1)), "the dirty roster is read when the page shows again");
+  l.page.RemoveClass("PageVisible");
+  l.advance(20000);
+  const echoes = l.replies().length;
+  const next = JSON.parse(JSON.stringify(l.hudState()));
+  next.stage = "Semi Final";
+  l.hudHost().setState(next);
+  l.advance(1000);
+  assert.equal(l.replies().length, echoes, "no echo to a lobby that left");
+  results.lobbyHidden = { usPerSecond: weighted(perSecond), ops: perSecond };
+});
+
 const out = path.join(REPO, ".tmp", "observer-hud-validate.json");
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(results, null, 2));
 console.log(`${results.checks.length} checks passed; artifact ${path.relative(REPO, out)}`);
+// A filter that matches nothing must not read as a pass (the build clears OH_CHECK; m3 audit B4).
+if (!results.checks.length) {
+  console.error(`no check matched OH_CHECK=${process.env.OH_CHECK || ""}`);
+  process.exitCode = 1;
+}

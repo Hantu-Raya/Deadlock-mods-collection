@@ -12,8 +12,16 @@
 				<CitadelHeroImage id="OHBanLeft1Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
 				<Panel class="OHBanSlash" />
 			</Panel>
+			<Panel id="OHBanLeft2" class="OHBan">
+				<CitadelHeroImage id="OHBanLeft2Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+				<Panel class="OHBanSlash" />
+			</Panel>
 		</Panel>
 		<Panel id="OHBansRight" class="OHBans OHRight">
+			<Panel id="OHBanRight2" class="OHBan">
+				<CitadelHeroImage id="OHBanRight2Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+				<Panel class="OHBanSlash" />
+			</Panel>
 			<Panel id="OHBanRight1" class="OHBan">
 				<CitadelHeroImage id="OHBanRight1Image" class="OHBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
 				<Panel class="OHBanSlash" />

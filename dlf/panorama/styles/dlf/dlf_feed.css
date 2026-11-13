@@ -1,0 +1,12 @@
+/* Kill feed killstreak flame (user 2026-11-06, ported from Observer HUD: it sat above the killer's
+   name). Included by DLF's citadel_hud_data_feed_info.xml, the layout every kill feed row loads:
+   Panorama stylesheets apply per layout file. The stock #KillStreakParticlePanel
+   (citadel_hud_data_feed_info.css, GameTracking 6860) is height 100% and vertical-align middle in the
+   killer box, rotated -90deg. The name plate (.unit_bg) starts 16 px down that box, so the flame is
+   centred 8 px above the plate, and the particle draws about 8 px higher still (measured on a spectator
+   capture). It moves down 16 px onto the plate's middle; the translate comes before the stock rotation,
+   so it moves the flame straight down on screen. */
+#KillStreakParticlePanel
+{
+	transform: translateY(16px) rotateZ(-90deg);
+}

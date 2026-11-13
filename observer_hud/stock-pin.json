@@ -1,6 +1,6 @@
 {
   "repo": "SteamTracking/GameTracking-Deadlock",
-  "commit": "cc1878831d359fa8ed741db947835e331bbeec59",
+  "commit": "fc53d8b267db6949b03d3fdb975dff4c9028f77b",
   "files": {
     "game/citadel/pak01_dir/panorama/layout/hud.xml": "932480bfe9590544ef575734ebbba39059b40ecc5bf0da3321a0aea9ae1a0342",
     "game/citadel/pak01_dir/panorama/layout/hud_escape_menu.xml": "378378848d72bba376520720173661dbd23de42ac112fdd3620eb78d81babd63",
@@ -10,15 +10,17 @@
     "game/citadel/pak01_dir/panorama/layout/unit_status_overlay_v2.xml": "9d77cae72a080deebd57a0767ebc815dbaeb5dc95216d1ac39a1aeb4ab12e1f4",
     "game/citadel/pak01_dir/panorama/layout/hud_spectate_bar.xml": "1af7eb3aeb058ea4bc5d0dbcf16c1095e27854c7297f5183b7579ee8dde815f3",
     "game/citadel/pak01_dir/panorama/layout/citadel_status_effect.xml": "e35e9ecc801873740d04b56067edf84174e79e01199b8d11cd24bdb48b9b5e01",
-    "game/citadel/pak01_dir/scripts/heroes.vdata": "df1952701db64e1d7581d1ce47f165b3d0a285c9463011ce9b2b473b90903b0b",
+    "game/citadel/pak01_dir/scripts/heroes.vdata": "e114bc27dfac8d56926db6fe6d805e8c48eaef0f738f3bac5460dea4edd5bc88",
     "game/citadel/resource/localization/citadel_gc_hero_names/citadel_gc_hero_names_english.txt": "d270ce41b8b4bcc1b92f5657301d0634701cb28dbd85d303f4e0bc65292c6e9b",
-    "game/citadel/pak01_dir/scripts/abilities.vdata": "91e78632a310b2965cdb0094ff03aa1a006cd5404f44ae364a75832bb4157fb0",
+    "game/citadel/pak01_dir/scripts/abilities.vdata": "712c899e19c2c2c3455d5b4d2ffa84ad6c819b191d6233a3dfa5f605907fa88d",
     "game/citadel/pak01_dir/panorama/layout/citadel_hud_hero_shop.xml": "54645be890730942884b75d511911ba1d3b6e44812415eb17598787a177e0d34",
     "game/citadel/resource/localization/citadel_gc_mod_names/citadel_gc_mod_names_english.txt": "25d275c6410f6d4a249ee51545690a3902a352e19968982ff7e48b9a6e834d38",
     "game/citadel/pak01_dir/panorama/layout/hud_unit_indicators_v2.xml": "769f08e557163d090001eb8666b5c7922c920fb79654076f97688079fa591083",
     "game/citadel/pak01_dir/panorama/layout/hud_data_feed.xml": "6394775637b7702a12588ef187171af42a4df82986dd504912c57a3fe7ff11cf",
     "game/citadel/pak01_dir/panorama/styles/hud_data_feed.css": "102a86b7e1a8b6d184affb9635366d252d4039644cc17d60b9cba9ad2a5d4024",
     "game/citadel/pak01_dir/panorama/layout/citadel_hud_data_feed_info.xml": "9973979e5b5328f09431bf8deb7f7714bc06d7b6db13fe14266cd6fbd4cfd7ba",
-    "game/citadel/pak01_dir/panorama/layout/post_game/citadel_db_page_post_game_new.xml": "9bcdf0f5a64f0e62a84439fb9b502b733de6433117eb6cc8f9537cb037981ac2"
+    "game/citadel/pak01_dir/panorama/layout/post_game/citadel_db_page_post_game_new.xml": "9bcdf0f5a64f0e62a84439fb9b502b733de6433117eb6cc8f9537cb037981ac2",
+    "game/citadel/pak01_dir/panorama/layout/citadel_ui_private_lobby_team_slot.xml": "3adba4abdee19cc9298096fcd7838cbff1c365ffb98ece93508f78d1e80761b4",
+    "game/citadel/pak01_dir/panorama/layout/citadel_db_page_private_lobby.xml": "c07d9b6206a52d675dbffc79fe233f9ae03c902bb1357a18b62b6723772647ec"
   }
 }

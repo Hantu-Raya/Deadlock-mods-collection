@@ -10,9 +10,14 @@
   const ctx = $.GetContextPanel();
   const ok = (p) => !!(p && p.IsValid && p.IsValid());
 
-  function flame() {
+  // The flame does not depend on the board: it comes back even when the board cannot load.
+  function flame(attempt) {
     const fx = ctx.FindChildTraverse("PlayButtonFX");
-    if (!ok(fx) || typeof fx.SetMovie !== "function") return;
+    if (!ok(fx)) {
+      if (attempt < 40) $.Schedule(0.5, () => flame(attempt + 1));
+      return;
+    }
+    if (typeof fx.SetMovie !== "function") return;
     try {
       fx.SetMovie(FLAME);
       if (typeof fx.Play === "function") fx.Play();
@@ -32,10 +37,9 @@
     if (!host.BLoadLayout(BOARD, false, false)) {
       $.Msg(`${TAG} could not load ${BOARD}`);
       host.DeleteAsync(0);
-      return;
     }
-    flame();
   }
 
+  flame(0);
   boot(0);
 })();

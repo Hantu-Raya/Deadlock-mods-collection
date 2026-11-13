@@ -1,0 +1,8 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/citadel_hud_hero_shop.vcss_c");
+CitadelHudHeroShop #RecentPurchasesPanel
+{
+	visibility: collapse;
+}
+

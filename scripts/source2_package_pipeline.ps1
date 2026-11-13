@@ -1,3 +1,20 @@
+# sr2compiler\New folder.exe ends with Console.ReadKey, which throws under redirected stdin AFTER compiling.
+# With the default Windows error mode that unhandled .NET exception (0xe0434352) opens a modal
+# "New folder.exe - Application Error" box that blocks the build until OK is clicked. Child processes
+# inherit the error mode, so turn off the fault box once for every wrapper that loads this file.
+# Success is still judged by each wrapper's "0 failed" summary and required outputs.
+# Wrappers with a -Debug switch set $DebugPreference, which makes Windows PowerShell 5.1 Add-Type throw
+# NullReferenceException; force it off here. The box suppression is a convenience, never a build failure.
+try {
+    if (-not ('Source2Pipeline.ErrorMode' -as [type])) {
+        Add-Type -Debug:$false -Namespace Source2Pipeline -Name ErrorMode -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetErrorMode(uint mode);'
+    }
+    $null = [Source2Pipeline.ErrorMode]::SetErrorMode(([Source2Pipeline.ErrorMode]::SetErrorMode(0)) -bor 0x0003)
+}
+catch {
+    Write-Warning "Could not disable the compiler crash box: $($_.Exception.Message)"
+}
+
 function Get-RepoToolPath {
     param(
         [Parameter(Mandatory=$true)][string[]]$Candidates,

@@ -10,8 +10,8 @@
 // A notice is at most MAX_NOTICE_W wide (oh_debuffs.css). While any notice shows, each team's stacks are
 // laid out left to right by their cards' x (child order is not screen order: .connectedToHeroTesting
 // .friend #PlayersContainer flows left in stock CSS): a stack whose notices (measured width, else the
-// maximum) would overlap an earlier stack's moves under it. Heights are known (status slots 43 px,
-// notice rows 39 px); a stack counts every notice still drawn, fading ones too.
+// maximum) would overlap an earlier stack's moves under it. Heights are known (status rows GRID_ROW_H,
+// notice rows ROW_H); a stack counts every notice still drawn, fading ones too.
 // Compared with DLF: no shop layout override, no full-list scan per tick, no per-hero panels. The poll
 // runs only while spectating and reads one validity flag below the stock cap (two at it) while no
 // notice shows; rows are matched once, when they appear.
@@ -49,6 +49,10 @@
   let stopped = false;
   context.OHBuysStop = () => {
     stopped = true;
+    // A reloaded script starts with no memory of the stacks this one pushed down: give them back now.
+    try {
+      for (const host of Array.from(Buys.pushed.keys())) setPush(host, 0);
+    } catch (e) { /* a host going away */ }
   };
 
   const valid = $.OHState.valid;

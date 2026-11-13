@@ -1,0 +1,17 @@
+
+/* ---------------------------------------------------------------- org notlynx (orgs/notlynx, appended by the -Org build) */
+
+/* The post-game board's centre column shows the organiser's built-in logo where the organiser name was
+   (the box keeps its base height: the row labels under it line up with the rows). */
+.NSOrg
+{
+	background-image: url("s2r://panorama/images/observer_hud/org_logo.vtex");
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+}
+
+.NSOrgText
+{
+	visibility: collapse;
+}

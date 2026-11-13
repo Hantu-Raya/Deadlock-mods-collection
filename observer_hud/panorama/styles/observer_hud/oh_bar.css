@@ -23,7 +23,7 @@
 	visibility: visible;
 }
 
-/* Base Game+ Names: each team's two bans beside the stock clock, on that team's side
+/* Base Game+ Names: each team's bans (state.banCount: 2 or 3) beside the stock clock, on that team's side
    (oh_host.js places them from #GameTime; BAN_SIZE). 32 px circles (28 before; user 2026-10-23
    "make it bigger a bit"). */
 .OHBans

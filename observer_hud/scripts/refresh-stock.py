@@ -6,11 +6,11 @@
 
 `stock/*.xml` are verbatim stock layouts that the validator boots the mod inside; they are refreshed
 automatically, and so are the generated tables `panorama/scripts/observer_hud/oh_heroes.js` (ban
-picker), `oh_debuff_icons.js` (status column icons) and `oh_item_icons.js` (purchase notice icons). The three overrides
-(`hud_spectate_bar.xml`, `citadel_status_effect.xml`, `post_game/citadel_db_page_post_game_new.xml`) carry this
-mod's includes on top of stock (the post-game page also drops the flame video `src`); for those the script
-only reports upstream drift. Rebase them by hand (diff the pinned and current stock file, port the change),
-then run --accept.
+picker), `oh_debuff_icons.js` (status column icons) and `oh_item_icons.js` (purchase notice icons). The five overrides
+(`hud_spectate_bar.xml`, `citadel_status_effect.xml`, `post_game/citadel_db_page_post_game_new.xml`,
+`citadel_db_page_private_lobby.xml`, `citadel_hud_data_feed_info.xml`) carry this mod's includes on top of stock (the post-game page also drops the
+flame video `src`); for those the script only reports upstream drift. Rebase them by hand (diff the pinned and
+current stock file, port the change), then run --accept.
 
 The table builders are DLF's (dlf/scripts/refresh-stock.py): they describe game data, not DLF.
 """
@@ -32,12 +32,14 @@ PANORAMA = dlf.PANORAMA
 # Stock path -> verbatim copy (validator fixtures).
 STOCK = {PANORAMA + f"layout/{name}.xml": f"stock/{name}.xml" for name in (
     "hud", "hud_escape_menu", "citadel_hud_top_bar", "citadel_hud_top_bar_team", "citadel_hud_top_bar_player",
-    "unit_status_overlay_v2", "citadel_hud_hero_shop")}
+    "unit_status_overlay_v2", "citadel_hud_hero_shop", "citadel_ui_private_lobby_team_slot")}
 # Stock path -> this mod's file that carries edits on top of it.
 OVERRIDDEN = {
     PANORAMA + "layout/hud_spectate_bar.xml": "panorama/layout/hud_spectate_bar.xml",
     PANORAMA + "layout/citadel_status_effect.xml": "panorama/layout/citadel_status_effect.xml",
     PANORAMA + "layout/post_game/citadel_db_page_post_game_new.xml": "panorama/layout/post_game/citadel_db_page_post_game_new.xml",
+    PANORAMA + "layout/citadel_db_page_private_lobby.xml": "panorama/layout/citadel_db_page_private_lobby.xml",
+    PANORAMA + "layout/citadel_hud_data_feed_info.xml": "panorama/layout/citadel_hud_data_feed_info.xml",
 }
 HEROES_OUT = "panorama/scripts/observer_hud/oh_heroes.js"
 ICONS_OUT = "panorama/scripts/observer_hud/oh_debuff_icons.js"

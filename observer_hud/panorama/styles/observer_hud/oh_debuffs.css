@@ -10,7 +10,7 @@
    glide (.OHGlide: transform transition, no layout) and the new one pops in where it belongs. Sizes
    for the 88 px stock card (playerDetailsWidth): 34 px circles, 6 px apart inside a pair, the pair
    74 px wide, so 14 px to the next card's pair keeps each card's statuses grouped. The grid's height is
-   its rows (.OHRows1-3), so the purchase notices follow under it (ROW_PITCH in oh_buys.js). The stun
+   its rows (.OHRows1-3), so the purchase notices follow under it (ROW_PITCH in oh_debuffs.js, GRID_ROW_H in oh_buys.js). The stun
    mark and stack count are siblings of the circle on its bottom-left and top-right edges (a rounded
    panel clips what sticks out of it). */
 .OHDebuffs
@@ -265,6 +265,30 @@ CitadelHudTopBarPlayer:not(.UltimateUnlocked) .OHUltTime,
 .OHHasTime .OHDebuffIcon
 {
 	opacity: 0.55;
+}
+
+/* Sweep (user 2026-11-06: the seconds over the icon hid it on a low-bitrate stream): the time that has
+   passed is a dark wedge over the circle from 12 o'clock, clockwise (oh_debuffs.js sets the clip
+   radial(50% 50%, 0deg, Xdeg), X = 360 x elapsed, at its 0.25 s tick); the part that remains shows the
+   icon untouched. The clip transition interpolates between ticks so the wedge moves smoothly (user:
+   "interp for smoothing"; Panorama interpolates radial clips, stock citadel_db_post_game_progress_ranked.css
+   'HighlightCalibratedPip'). 0.3 s, a little over the tick, so a late tick never stops it; a new target
+   restarts the transition from where the wedge is. Black at 82 % (was 66 %, user: "25% more"). */
+.OHDebuffShade
+{
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	background-color: #000000D2;
+	visibility: collapse;
+	transition-property: clip;
+	transition-duration: 0.3s;
+	transition-timing-function: linear;
+}
+
+.OHSweep .OHDebuffShade
+{
+	visibility: visible;
 }
 
 /* Stun: the stock stun ring colour (unit_status_icons.css .stunned) on the circle, and the stun

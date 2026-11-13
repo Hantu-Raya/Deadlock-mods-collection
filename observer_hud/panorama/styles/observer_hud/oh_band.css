@@ -11,12 +11,18 @@
    oh_host.js writes every position (margin-left/margin-top/width) from the stock panels. */
 
 /* Taller than either look (26/56 px) and transparent: Panorama gives a child only the room inside its
-   parent, so the info card under the band needs it (live 2026-10-22: a 56 px band collapsed it). */
+   parent, so the info card under the band needs it (live 2026-10-22: a 56 px band collapsed it).
+   z-index 10 = the stock CitadelHudTopBar's (citadel_hud_top_bar.css): with 0 the whole #TopBar drew over
+   the band, and a card's killstreak flame (#KillStreakContainer, 300 px, lifted 100 px) covered the player
+   names (user 2026-11-06). At the same z-index the band, placed right after #TopBar, wins the tie, and it
+   stays where #TopBar is against every other panel (the stock siblings after it set none). It takes no
+   input (hittest false), so the cards under it still take clicks. */
 .OHBand
 {
 	height: 220px;
 	overflow: noclip;
 	visibility: collapse;
+	z-index: 10;
 }
 
 .spec_mode .OHBand,
@@ -896,7 +902,6 @@
 	color: #FFFFFF;
 }
 
-
 /* Parts hidden while their stock panel (#GameTime, a team panel) is missing (oh_host.js place,
    placeBand, placeNames): a class, not inline visibility, since a cleared inline collapse never shows a
    panel again (ENGINE.md). Last in the sheet and as specific as each show rule, so it wins. */
@@ -911,6 +916,8 @@
 .OHStyleDesk .OHStrip.OHGone,
 .OHDeskTeam.OHGone,
 .OHStyleDesk .OHDeskTeam.OHGone,
+.OHStyleNames .OHTeam.OHGone,
+.OHStyleNames .OHJoin.OHJoinShown.OHGone,
 .OHWho.OHGone,
 .OHWho.OHShown.OHGone
 {

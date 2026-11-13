@@ -45,13 +45,16 @@ Important lanes:
 - `hp_colors/` — full ANITA UI and HP Colors runtime.
 - `hp_colors_minimal/` — minimal pak97 runtime paired with a separate pak96 builder preset.
 - `hp_colors_rewrite/`, `hp_colors_rewrite_qollock/` — canonical Rewrite source and its pak02 compatibility layer for an installed QOLLOCK pak03.
+- `hp_colors_rewrite_v3/`, `hp_colors_rewrite_v3_qollock/`, `hp_colors_rewrite_v3_showrank/` — canonical HP Colors v3 and its downstream QOLLOCK and ShowRank pak02 variants; read [hp_colors_rewrite_v3/AGENTS.md](hp_colors_rewrite_v3/AGENTS.md) for source boundaries, variant builds and live-release gates.
 - `hp_color_debug/`, `hp_colors_minimal*_debug/` — diagnostic variants; follow their local contracts instead of copying them into production lanes.
 - `topbar_rank/`, `showrank/` — rank surfaces, topbar HUD, profile/player-list hooks, and build variants. Current combined code uses `showrank_common.js`; legacy `topbar_rank_rank_bridge.js` references are stale.
 - `topbar_status_buffs/` — healthbar-to-topbar status-effect bridge.
 - `test_hpv2/` — standalone pak04 pickup indicators; read `test_hpv2/AGENTS.md` before changing its runtime, relay layouts, or `build_test_hpv2.ps1`.
 - `feeder_feed/` — pak08 FEEDER FEED tab in the damage report (kill-feed donors/recipients with server bounty and comeback math); read `feeder_feed/AGENTS.md` first.
-- `observer_hud/` — pak10 community-edition observer HUD for organiser-run tournaments, separate from DLF's league branding: two looks picked in its Escape-menu editor (Base Game+ Names, Night Desk with a soul lead graph), injected as a header band and into the stock spectator top bar from `hud_spectate_bar.xml`, plus the ability status column with spectator VData and per-player purchase notices (DLF's, rewritten). It also owns the Night Shift post-game stats board (`pg_*`: the stock post-game Scoreboard screen restyled with exact stats, souls by source, final items and a soul lead graph, read offline from the stock page; never reparent stock rows, that is fatal). The old postgame_stats pak11 is retired; the new standalone fork is `detailed_postgame/`. Read `observer_hud/AGENTS.md` first.
+- `dlf/` — pak01 DLF spectator HUD: the Deadlock Observer Mod rebased on current stock, the DLF broadcast banner above the top bar with an ESC-menu editor (saved through the hpv2-store `/dlf/` page), HPv2 top-bar pickup rings composed from the canonical HPv2 timer at build time, team-coloured debuff icons under each top-bar card for the listed ultimates (DEV poll settings in the ESC editor), and Observer HUD's post-game board (ported, header names from the DLF setup); read `dlf/AGENTS.md` first, then `dlf/SPEC.md` (behavior), `dlf/MAP.md` (status, changelog), `dlf/ENGINE.md` (engine evidence), `dlf/LIVE-VERIFIED.md` (live ledger, open checks) and `dlf/design.md` (banner and card geometry, VData and pickup build contract).
+- `observer_hud/` — pak10 community-edition observer HUD for organiser-run tournaments, separate from DLF's league branding: two looks picked in its Escape-menu editor (Base Game+ Names, Night Desk with a soul lead graph), a private-lobby setup on the stock lobby page (team names, logos, series, click-a-name aliases, swap HUD sides; 0.3.0), injected as a header band and into the stock spectator top bar from `hud_spectate_bar.xml`, plus the ability status column with spectator VData and per-player purchase notices (DLF's, rewritten). It also owns the Night Shift post-game stats board (`pg_*`: the stock post-game Scoreboard screen restyled with exact stats, souls by source, final items and a soul lead graph, read offline from the stock page; never reparent stock rows, that is fatal). The old postgame_stats pak11 is retired; the new standalone fork is `detailed_postgame/`. Read `observer_hud/AGENTS.md` first.
 - `detailed_postgame/` — pak11 Detailed Post Scoreboard Menu: a standalone fork of Observer HUD's post-game board for any player, without its observer extras (match cards, logos, aliases, hosted store page). Never edit `observer_hud/` for it. pak01 (DLF) and pak10 override the same page and win over it. Read `detailed_postgame/AGENTS.md` first.
+- `old_main_menu/` — pak04 Old Main Menu: the Jul 2025 (build 5712) main menu on the current client, rebuilt from GameTracking sources plus the forked recreation's Heroes page, profile, party and queue-hero panels. Old images come from a Jul 2025 depot download, pinned by CRC in `assets.json`. Read `old_main_menu/AGENTS.md` and `RESEARCH.md` first.
 - `fps/` — gameinfo/ConVar performance research; `fps/gameinfo_bench/` is the A/B benchmark harness. Read `fps/AGENTS.md` (ask before every benchmark launch; user hard limits) first.
 - `buff_timer_virgin/`, `recent_purchase/`, `3d hud/` — independent Panorama HUD/shop overrides.
 - `anitaui/`, `soul_timer/`, `self_hp/`, `passive_items_mod/` — Anita UI settings host, unsecured soul-drain countdown, self health bar override, and passive items driven by generated JS config.
@@ -67,26 +70,23 @@ Important lanes:
 
 There is no root package manifest or repo-wide command. Run the focused validator and wrapper for the module being changed.
 
+PowerShell build scripts are being retired in favour of Node (2026-11-13). HP Colors v3 builds with `node hp_colors_rewrite_v3/tools/build.js --project v3|qollock|showrank|all --skip-deploy` (see `hp_colors_rewrite_v3/AGENTS.md`). The build scripts of mods untouched since before 2026-08-13 were deleted on the owner's instruction (full, minimal and debug HP Colors, Poker, ShowRank variants, topbar status buffs, 3D HUD heroes, jungle timer, old color blind, the fps ETW scripts and the packaging self-test); their sources and validators remain, and the scripts are recoverable from git history. Do not add new `.ps1` build scripts.
+
 ```powershell
-# Shared packaging helper self-test
-powershell -ExecutionPolicy Bypass -File scripts\validate-source2-package-pipeline.ps1
 
 # Poker / Bluff Deck
 node poker/scripts/validate-ready-state.js
 node poker/scripts/validate-poker-game.js
 node poker/scripts/validate-bluff-deck-game.js
-powershell -ExecutionPolicy Bypass -File build_poker.ps1
 
 # Full HP Colors
 node hp_colors/scripts/validate-schema.js
 node hp_colors/scripts/validate-hero-selector.js
 node hp_colors/scripts/validate-runtime-replay.js
-powershell -ExecutionPolicy Bypass -File build_hp_colors.ps1
 
 # Minimal HP Colors
 node hp_colors_minimal/scripts/validate-minimal.js
 node --test hp_colors_minimal/scripts/validate-minimal.test.js
-powershell -ExecutionPolicy Bypass -File build_hp_colors_minimal.ps1
 
 # Feeder Feed
 node feeder_feed/scripts/validate-feeder-feed.js
@@ -101,23 +101,31 @@ powershell -ExecutionPolicy Bypass -File build_observer_hud.ps1
 node detailed_postgame/scripts/validate-detailed-postgame.js
 powershell -ExecutionPolicy Bypass -File build_detailed_postgame.ps1 -Install
 
+# Old Main Menu (pak04, Jul 2025 main menu)
+node old_main_menu/scripts/validate-old-main-menu.js
+powershell -ExecutionPolicy Bypass -File build_old_main_menu.ps1
+
+# DLF observer HUD (team names/scores in dlf/match.json)
+node dlf/scripts/validate-dlf.js
+powershell -ExecutionPolicy Bypass -File build_dlf.ps1
+
 # HP Colors Rewrite + QOLLOCK compatibility
 node --test scripts/validate-hp-colors-rewrite-qollock.test.js
 powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_qollock.ps1
 
 # Topbar Rank / ShowRank
 npm --prefix showrank test
-powershell -ExecutionPolicy Bypass -File build_showrank_variants.ps1 -Variant all
+
+# Repo hygiene: clutter report by category; deletes nothing unless --apply --category <name>
+node tools/clean.js > .scratch/clean-report.md
 
 # Other production wrappers
-powershell -ExecutionPolicy Bypass -File build_topbar_status_buffs.ps1
 powershell -ExecutionPolicy Bypass -File build_buff_timer_virgin.ps1
 powershell -ExecutionPolicy Bypass -File build_recent_purchase.ps1
-powershell -ExecutionPolicy Bypass -File build_hud_3d_heroes.ps1
-powershell -ExecutionPolicy Bypass -File build_abilities_paks.ps1
+node scripts/build-abilities.js
 ```
 
-Use `build_abilities_paks.ps1 -RefreshFromSteamTracking` only when intentionally refreshing upstream baselines. Prefer module wrappers over direct compiler/packer calls: wrappers encode staging, Closure transforms, required/forbidden asset checks, safe cleanup, archives, and deployment.
+Use `node scripts/build-abilities.js --refresh-from-steam-tracking` only when intentionally refreshing upstream baselines. Prefer module wrappers over direct compiler/packer calls: wrappers encode staging, Closure transforms, required/forbidden asset checks, safe cleanup, archives, and deployment.
 
 Run abilities transforms directly from `abilities/scripts/` with `py passive.py abilities2.vdata`, `py active.py abilities.vdata`, or `py active_no_behavior.py abilities.vdata` (batch wrappers: `passive.bat`, `active.bat`, `active_no_behavior.bat`). Respect required preprocess/postprocess steps for include blocks.
 
@@ -171,7 +179,8 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 
 ## Runtime/Tooling Preferences
 
-- The automated workflow is Windows PowerShell-first. Paths commonly target Deadlock under `G:\SteamLibrary\steamapps\common\Deadlock` and Dota Workshop Tools under `E:\SteamLibrary\steamapps\common\dota 2 beta`; build parameters/config are authoritative when local installs differ.
+- The automated workflow is moving from PowerShell to Node. HP Colors v3 (`hp_colors_rewrite_v3/tools/build.js`) and abilities (`scripts/build-abilities.js`) build through Node only; write new build, check and debug tooling in Node and reuse `hp_colors_rewrite_v3/tools/lib/toolchain.js` (compiler run with the .NET roll-forward, VPK pack and listing, 7-Zip, Deadlock install discovery) instead of adding `.ps1` files. When you touch a mod that still has a `.ps1` build, port it the way abilities was ported: prove the Node build produces byte-identical paks with `hp_colors_rewrite_v3/tools/vpk-check.js diff`, then delete the script.
+- The remaining PowerShell wrappers default to Deadlock under `G:\SteamLibrary\steamapps\common\Deadlock`, which does not exist on this machine: the game is found through Steam's library list (currently `F:\SteamLibrary`) by `discoverDeadlock`, so pass their game-path parameter explicitly. Paths commonly target Deadlock there and Dota Workshop Tools under `E:\SteamLibrary\steamapps\common\dota 2 beta`; build parameters/config are authoritative when local installs differ.
 - Edit the HP preset builder only in `D:\web\hp-colors-preset-builder`; leave the Desktop sibling checkout untouched.
 - Required tooling varies by wrapper: Node, PowerShell, .NET 9, Dota 2 Workshop Tools/resourcecompiler, `vpkeditcli.exe`, 7-Zip, and the Python launcher for abilities.
 - There is no root package manager. Node validators run directly. Closure builds invoke `npx --yes google-closure-compiler`; do not assume dependencies are pinned locally.
@@ -186,12 +195,13 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 - Static validators prove source/layout/style/token/asset contracts. VM validators prove behavior only inside synthetic Panorama mocks.
 - After changing deployable JS/XML/CSS/images/VTex:
   1. run every focused validator for that module;
-  2. run the module build wrapper;
+  2. run the module build (the Node build where one exists, otherwise its wrapper);
   3. confirm required compiled/VPK assets and forbidden raw assets;
   4. perform an in-game Panorama smoke test for rendering, timing, chat, or cross-client behavior: launch Deadlock with `-dev -tools`, open the Panorama debugger (`F7`) or VConsole (`F8`), run `panorama_reload_layout`, and confirm no script errors.
-- Poker changes require all three Poker/Bluff validators and `build_poker.ps1`; multiplayer/chat authority still requires a real multi-client smoke where relevant.
+- Poker changes require all three Poker/Bluff validators (its build script `build_poker.ps1` was removed on 2026-11-13; restore it from git history or port it to Node before building); multiplayer/chat authority still requires a real multi-client smoke where relevant.
 - HP Colors changes should pair schema checks with hero/runtime replay checks. Minimal lanes also run their `node --test` suites.
 - FPS/convar recommendations require fresh ETW/PerfView evidence; do not rely on old traces.
+- Use the shared tools instead of manual checks: `hp_colors_rewrite_v3/tools/vpk-check.js` to list, search, compare and hash any built `_dir.vpk`; `hp_colors_rewrite_v3/tools/logscan.js` to read the game's `console.log` after a session (errors mapped to source lines; it never launches or writes to the game); `hp_colors_rewrite_v3/tools/doctor.js` to check the compiler, .NET runtime and game install; `node tools/clean.js` to find clutter (it deletes nothing without `--apply --category <name>`, and never tracked or REVIEW items).
 - Keep tests deterministic, isolated, and full-suite safe. Test observable transitions, authority boundaries, precedence, invalid/stale input, and real error paths—not source-text implementation details.
 - Never write unit tests after you write code.
 - Highly prefer E2E tests as the sole testing mechanism. Use them to verify complex features work. At the end of E2E tests, produce a verifiable and repeatable artifact.

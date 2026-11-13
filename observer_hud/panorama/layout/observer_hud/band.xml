@@ -52,10 +52,18 @@
 					<CitadelHeroImage id="OHDeskBanLeft1Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
 					<Panel class="OHDeskBanSlash" />
 				</Panel>
+				<Panel id="OHDeskBanLeft2" class="OHDeskBan">
+					<CitadelHeroImage id="OHDeskBanLeft2Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+					<Panel class="OHDeskBanSlash" />
+				</Panel>
 			</Panel>
 		</Panel>
 		<Panel id="OHDeskRight" class="OHDeskTeam OHRight">
 			<Panel id="OHDeskBansRight" class="OHDeskBans">
+				<Panel id="OHDeskBanRight2" class="OHDeskBan">
+					<CitadelHeroImage id="OHDeskBanRight2Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
+					<Panel class="OHDeskBanSlash" />
+				</Panel>
 				<Panel id="OHDeskBanRight1" class="OHDeskBan">
 					<CitadelHeroImage id="OHDeskBanRight1Image" class="OHDeskBanImage" heroimagestyle="small" scaling="stretch-to-cover-preserve-aspect" />
 					<Panel class="OHDeskBanSlash" />
@@ -83,11 +91,11 @@
 			<Label id="OHWho11" class="OHWho" text="" />
 		</Panel>
 		<Panel id="OHArch" class="OHArch">
-			<Panel id="OHArchLeft" class="OHArchClip OHArchClipLeft"><Panel id="OHArchCurveLeft" class="OHArchCurve" /></Panel>
+			<Panel id="OHArchLeft" class="OHArchClip"><Panel id="OHArchCurveLeft" class="OHArchCurve" /></Panel>
 			<Panel id="OHArchRight" class="OHArchClip OHArchClipRight"><Panel id="OHArchCurveRight" class="OHArchCurve" /></Panel>
 		</Panel>
 		<Panel id="OHMid" class="OHMid">
-			<Panel id="OHScoreLeft" class="OHScore OHScoreL"><Label id="OHScoreTextLeft" class="OHScoreText" text="" /></Panel>
+			<Panel id="OHScoreLeft" class="OHScore"><Label id="OHScoreTextLeft" class="OHScoreText" text="" /></Panel>
 			<Panel id="OHOrgLogo" class="OHOrgLogo" />
 			<Label id="OHOrgName" class="OHOrgName" text="" />
 			<Panel id="OHMidSeries" class="OHMidSeries">

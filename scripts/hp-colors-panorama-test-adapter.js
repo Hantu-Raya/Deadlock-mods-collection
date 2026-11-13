@@ -5,6 +5,56 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 
+// Engine facts (hp_colors_rewrite_v3/tools/lib/engine-facts.json, extracted from the Deadlock DLLs). In strict
+// mode (default; HPV3_ADAPTER_STRICT=0 turns it off) the adapter refuses $ functions, panel methods and event
+// names the engine does not register, so tests cannot pass against an API that does not exist. GameUI, Game and
+// SteamOverlayAPI are not checked: their bindings are not in the DLL string tables (see the research report).
+const ENGINE_FACTS = JSON.parse(fs.readFileSync(
+  path.resolve(__dirname, '../hp_colors_rewrite_v3/tools/lib/engine-facts.json'), 'utf8'));
+const ADAPTER_STRICT = process.env.HPV3_ADAPTER_STRICT !== '0';
+const ENGINE_DOLLAR = new Set(ENGINE_FACTS.js.dollar.values);
+const ENGINE_PANEL = new Set([...ENGINE_FACTS.js.panel.values, ...Object.values(ENGINE_FACTS.js.panelTyped.values).flat()]);
+const ENGINE_EVENTS = new Set(Object.keys(ENGINE_FACTS.js.events.values));
+// Mod callbacks stored on panels (HPV2OnWake, ...) are mod members, not engine panel methods.
+const MOD_PANEL_MEMBER = /^(?:HPColors|HPC3|HPV3|HPV2|ShowRank)/;
+// HPV3_ADAPTER_STRICT=full also refuses handler registrations for unregistered event names (off by default:
+// scripts/validate-hp-colors-rewrite-v2-diag.test.js registers a stand-in 'Throws' event).
+const ADAPTER_STRICT_FULL = process.env.HPV3_ADAPTER_STRICT === 'full';
+
+function engineApiError(kind, name) {
+  return new Error('Panorama test adapter (strict): ' + kind + ' "' + name + '" is not registered by the engine ' +
+    '(engine-facts.json, Deadlock ' + ENGINE_FACTS.build.clientVersion + '); do not fake APIs the engine lacks ' +
+    '(HPV3_ADAPTER_STRICT=0 bypasses)');
+}
+
+function checkEngineEvent(name) {
+  if (ADAPTER_STRICT && typeof name === 'string' && !ENGINE_EVENTS.has(name)) throw engineApiError('event', name);
+}
+
+// Own or prototype methods with engine-style (capitalized) names on a panel tree must be engine panel methods.
+function assertEngineApi(panel, seen = new Set()) {
+  if (!ADAPTER_STRICT || !panel || typeof panel !== 'object' || seen.has(panel)) return;
+  seen.add(panel);
+  for (const key of Object.keys(panel)) {
+    if (/^[A-Z]/.test(key) && typeof panel[key] === 'function' && !ENGINE_PANEL.has(key) && !MOD_PANEL_MEMBER.test(key)) throw engineApiError('panel method', key);
+  }
+  for (const child of Array.isArray(panel.children) ? panel.children : []) assertEngineApi(child, seen);
+}
+
+// The adapter's own $ functions must be engine functions; dispatched event names must be registered.
+function guardDollar(dollar) {
+  const eventArg = { DispatchEvent: 0, DispatchEventAsync: 1, RegisterForUnhandledEvent: 0, UnregisterForUnhandledEvent: 0, RegisterEventHandler: 0 };
+  for (const key of Object.keys(dollar)) {
+    if (ADAPTER_STRICT && typeof dollar[key] === 'function' && !ENGINE_DOLLAR.has(key)) throw engineApiError('$ function', key);
+    if (Object.hasOwn(eventArg, key) && (key.startsWith('Dispatch') || ADAPTER_STRICT_FULL)) {
+      const original = dollar[key], index = eventArg[key];
+      dollar[key] = (...args) => { checkEngineEvent(args[index]); return original(...args); };
+    }
+  }
+  // Scripts and tests may publish their own $ members (mods do this in game), so assignments are not checked.
+  return dollar;
+}
+
 const hpColorsContractSource = fs.readFileSync(
   path.resolve(__dirname, '../hp_colors_rewrite/panorama/scripts/hp_colors_contract.js'),
   'utf8',
@@ -154,10 +204,18 @@ class MockPanel {
         const prop = String(property);
         incrementCounter(this.operationCounts, 'styleWrites');
         this.__styleWrites.push({ property: prop, value });
+        // Opt-in (MockPanel.strictAliasNull): the engine refuses to clear an alias property on its own
+        // (live, client 6860: panel.style.marginLeft = null throws this text; only a base property clears).
+        if (MockPanel.strictAliasNull && (value === null || value === undefined) && MockPanel.STYLE_ALIASES.has(prop)) {
+          throw "Cannot set a property alias to undefined, only a base property, we don't support unset of alias alone";
+        }
         if (value === null && ['margin', 'font', 'animation', 'border'].includes(prop)) {
           for (const key of Object.keys(target)) {
             if (key.startsWith(prop) && (prop !== 'border' || /^border(?:(?:Top|Right|Bottom|Left))?(?:Color|Width|Style)$/.test(key))) target[key] = '';
           }
+        }
+        if (value === null && prop === 'align') {
+          for (const key of ['verticalAlign', 'horizontalAlign']) if (key in target) target[key] = '';
         }
         target[property] = value === null ? '' : value;
         return true;
@@ -521,8 +579,6 @@ function createPanoramaHarness(options = {}) {
     }, options.operationCounts || {}),
     createPanelCount: 0,
     eventSetCounter: { count: 0 },
-    mouseCallback: null,
-    mouseCallbackWrites: 0,
   };
   harness.root = new MockPanel('Root', {
     findCounts: harness.findCounts,
@@ -590,13 +646,11 @@ function createPanoramaHarness(options = {}) {
     DispatchEventAsync: (...args) => { harness.dispatches.push(args); return true; },
     Msg: (message) => { harness.logs.push(String(message)); },
   };
+  harness.$ = guardDollar(harness.$);
+  // CustomUIConfig stays: renderer.test.js and import-fuzz-cases.js override it. GetCursorPosition and
+  // SetMouseCallback were removed (no test or current script used them; no engine string exists for them).
   harness.GameUI = {
     CustomUIConfig: () => harness.shared,
-    GetCursorPosition: () => (options.cursorPosition || [0, 0]).slice(0),
-    SetMouseCallback: (callback) => {
-      harness.mouseCallback = typeof callback === 'function' ? callback : null;
-      harness.mouseCallbackWrites += 1;
-    },
   };
   if (options.includeGame !== false) {
     let gameState = options.gameState === undefined ? 7 : Number(options.gameState);
@@ -612,8 +666,6 @@ function createPanoramaHarness(options = {}) {
     for (const key of Object.keys(harness.handlers)) delete harness.handlers[key];
     harness.logs.length = 0;
     harness.clipboardWrites.length = 0;
-    harness.mouseCallback = null;
-    harness.mouseCallbackWrites = 0;
     harness.scheduler.jobs.length = 0;
     for (const key of Object.keys(harness.shared)) delete harness.shared[key];
     for (const key of Object.keys(harness.findCounts)) delete harness.findCounts[key];
@@ -622,6 +674,7 @@ function createPanoramaHarness(options = {}) {
     harness.eventSetCounter.count = 0;
     harness.root.RemoveAndDeleteChildren();
     harness.root.valid = true;
+    assertEngineApi(harness.root);
     harness.contextPanel = harness.root;
     for (const key of Object.keys(harness.operationCounts)) harness.operationCounts[key] = 0;
   };
@@ -676,6 +729,7 @@ function runHpColorsSourcesInVm(stateSource, menuSource, harness, options = {}) 
   }
   runInVm(stateSource, context, 'hp_colors_state.js');
   runInVm(menuSource, context, 'hp_colors_menu.js');
+  assertEngineApi(harness.root);
   return context;
 }
 
@@ -914,6 +968,19 @@ function dispatchClientUiPayload(harness, payload, options = {}) {
   return payload;
 }
 
+// Style properties the engine treats as aliases of a base property (live, client 6860): a null write throws.
+MockPanel.STYLE_ALIASES = new Set(['marginTop', 'marginRight', 'marginBottom', 'marginLeft', 'paddingTop', 'paddingRight',
+  'paddingBottom', 'paddingLeft', 'verticalAlign', 'horizontalAlign', 'fontSize', 'x', 'y', 'borderTop', 'borderRight',
+  'borderBottom', 'borderLeft']);
+MockPanel.strictAliasNull = false;
+
+// Every engine-style method the mock panel defines must be an engine panel method.
+if (ADAPTER_STRICT) {
+  for (const key of Object.getOwnPropertyNames(MockPanel.prototype)) {
+    if (/^[A-Z]/.test(key) && !ENGINE_PANEL.has(key)) throw engineApiError('MockPanel method', key);
+  }
+}
+
 module.exports = {
   MockPanel,
   createPanoramaHarness,
@@ -935,4 +1002,9 @@ module.exports = {
   getStyleWrites,
   assertObjectFields,
   dispatchClientUiPayload,
+  assertEngineApi,
+  checkEngineEvent,
+  ENGINE_FACTS,
+  ADAPTER_STRICT,
+  ADAPTER_STRICT_FULL,
 };

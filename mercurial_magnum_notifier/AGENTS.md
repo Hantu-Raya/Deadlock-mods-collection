@@ -42,6 +42,7 @@ mercurial_magnum_notifier/panorama
   -> validate-notifier.js re-run against the minified runtime
   -> sr2compiler -> ../<Variant>_mercurial_magnum_notifier_compiled/
   -> ../pak99_dir.vpk (exact 12-asset inventory checked with Source2Viewer-CLI)
+  -> addons/mercurial_magnum_notifier_<Variant>_MM_DD.7z (pak99_dir.vpk at the root; written even with -SkipDeploy)
   -> backup existing addons/pak99_dir.vpk as .backup_<timestamp>, copy, SHA256-verify
 ```
 

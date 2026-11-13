@@ -1,0 +1,31 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/citadel_base_styles.vcss" />
+		<include src="s2r://panorama/styles/citadel_db_page_private_lobby.vcss" />
+		<include src="s2r://panorama/styles/observer_hud/oh_lobby.vcss_c" />
+	</styles>
+	<!-- The SHARE card of the lobby's Observer HUD block: oh_lobby.js loads it into a Panel at the foot of
+	     #LobbyInfo, over the stock Unassigned list while it is open (the column has no room below the block). -->
+	<Panel class="OHLShareCard">
+		<Panel class="OHLShareHead">
+			<Label class="OHLCardTitle OHLShareTitle" text="Share setup" />
+			<Button id="OHLShareClose" class="OHLClose">
+				<Panel class="OHLCloseIcon" hittest="false" />
+			</Button>
+		</Panel>
+		<Label class="OHLShareNote" text="Copy the whole setup to another observer PC, or paste a code." />
+		<TextEntry id="OHLShareEntry" class="OHLBox OHLShareEntry" maxchars="20480" placeholder="OHC1. code" text="" />
+		<Panel class="OHLRow">
+			<Button id="OHLShareCopy" class="SecondaryButton light outline OHLPill">
+				<Label class="OHLPillText" text="Copy Code" />
+			</Button>
+			<Button id="OHLShareImport" class="SecondaryButton light outline OHLPill">
+				<Label class="OHLPillText" text="Import" />
+			</Button>
+			<Button id="OHLReset" class="SecondaryButton light outline OHLPill OHLDanger">
+				<Label id="OHLResetLabel" class="OHLPillText" text="Reset All" />
+			</Button>
+		</Panel>
+		<Label id="OHLShareStatus" class="OHLShareStatus" text="" />
+	</Panel>
+</root>

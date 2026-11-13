@@ -1,11 +1,12 @@
 /* Stun hiding for hero world healthbars, included by this mod's citadel_status_effect.xml: Panorama
    stylesheets apply per layout file, so the rule must live in the layout CitadelStatusEffect loads.
    The spectator VData makes the shared stun modifiers visible so oh_debuff_world.js can read them,
-   but healthbars show no stun icon: on hero bars (the overlay root, .WindowRoot, carries the unit's
-   CLASS_PLAYER) stun panels take no space and draw nothing. They are not collapsed, so the engine
+   but healthbars show no stun icon: on hero bars (the unit's CLASS_PLAYER sits on the world panel above
+   the overlay root, live; a rule that wanted it on .WindowRoot itself never matched) stun panels take no
+   space and draw nothing. They are not collapsed, so the engine
    keeps them current for the sampler. Keep selectors short: Panorama rejects long ones ("Selector
    exceeds temp buffer size"), which fails the layout and the game (DLF, 2026-10-14). */
-.WindowRoot.CLASS_PLAYER .statusEffect.stunned
+.CLASS_PLAYER .statusEffect.stunned
 {
 	opacity: 0;
 	width: 0px;

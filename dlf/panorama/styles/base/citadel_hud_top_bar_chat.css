@@ -1,0 +1,559 @@
+/* Prettified by Source 2 Viewer - https://valveresourceformat.github.io */
+
+CitadelHudTopBarChat #Messages
+{
+	width: 100%;
+	height: 100%;
+}
+
+CitadelHudTopBarChat.gDetailView,CitadelHudTopBarChat.gScoreboardOpen
+{
+	visibility:collapse;
+}
+
+@keyframes 'chat_appear'
+{
+	0%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateX(0px) translateY(0px);
+		opacity: 0;
+	}
+	
+	50%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateX(5px) translateY(5px);
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+		transform: translateX(0px) translateY(0px);
+		opacity: 1;
+	}
+	
+}
+
+@keyframes 'ping_repeated'
+{
+	0%
+	{
+		pre-transform-scale2d: 1.05;
+	}
+	
+	100%
+	{
+		pre-transform-scale2d: 1;
+	}
+	
+}
+
+@keyframes 'ping_repeatable_cooldown'
+{
+	0%
+	{
+		brightness: 1.6;
+	}
+	
+	90%
+	{
+		brightness: 1.6;
+	}
+	
+	100%
+	{
+		brightness: 1.0;
+	}
+	
+}
+
+@define chatMessageFadeDuration: 0.3s;
+@define chatMessagePingRepeatableDuration: 2.5s;
+.ChatMessage
+{
+	flow-children: down;
+	max-width: 250px;
+	overflow: noclip;
+	padding: 1px 10px;
+	animation-name: chat_appear;
+	animation-duration: 0.3s;
+	animation-iteration-count: 1;
+	transition-property: opacity, height;
+	transition-duration: chatMessageFadeDuration;
+}
+
+.ChatMessage.Expired
+{
+	opacity: 0.0;
+}
+
+.ChatMessage.PingRepeated
+{
+	animation-name: ping_repeated;
+	animation-duration: 0.3s;
+	animation-iteration-count: 1;
+}
+
+.ChatMessage.PingRepeatable.IsSelf .ChatBubble
+{
+	animation-name: ping_repeatable_cooldown;
+	animation-duration: chatMessagePingRepeatableDuration;
+	animation-timing-function: ease-out;
+	animation-iteration-count: 1;
+}
+
+.ChatMessage #ChatArrow
+{
+	width: 26px;
+	min-height: 100px;
+	height: fill-parent-flow( 1.0 );
+	background-size: 100% 100%;
+	background-image: url("s2r://panorama/images/hud/top_bar/chat_arrow_png.vtex");
+	horizontal-align: center;
+	transform: scaleX( 1 ) translateX( 32px ) translateY(5px);
+	z-index: 20;
+	visibility: collapse;
+}
+
+.ChatMessage #MessageContents
+{
+	flow-children: down;
+	padding-bottom: 5px;
+}
+
+.ChatMessage #MessageContents .SubjectWrapper
+{
+	ignore-parent-flow: true;
+	flow-children: right;
+	horizontal-align: right;
+	vertical-align: bottom;
+	margin-right: -9px;
+	margin-bottom: -6px;
+}
+
+.ChatMessage #MessageContents .SubjectWrapper .IconBG
+{
+	height: 28px;
+	width: 28px;
+	margin-top: 5px;
+	border-radius: 4px;
+	margin-right: -1px;
+	background-color: black;
+	z-index: 1;
+	visibility: collapse;
+}
+
+.SubjectIconMonochrome.ChatMessage #MessageContents .SubjectWrapper .IconBG
+{
+	margin-right: -2px;
+	background-size: cover;
+	background-color: keybindBGColor;
+	background-color: white;
+	border-radius: 24px;
+}
+
+.ChatMessage #MessageContents .corrupted_frame
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+	background-image: url("s2r://panorama/images/shop/corrupted_items/item_frame_corrupted_psd.vtex");
+	background-size: cover;
+}
+
+.CorruptedItem .ChatMessage #MessageContents .corrupted_frame
+{
+	visibility: visible;
+}
+
+.ChatMessage #MessageContents #SubjectIcon
+{
+	height: 26px;
+	width: 26px;
+	vertical-align: middle;
+	horizontal-align: middle;
+	border-radius: 3px;
+}
+
+.SubjectIconMonochrome.ChatMessage #MessageContents #SubjectIcon
+{
+	wash-color: offBlack;
+	height: 20px;
+	width: 20px;
+	border-radius: 0px;
+}
+
+.ChatMessage #MessageContents #PingStyleIcon
+{
+	ignore-parent-flow: true;
+}
+
+.ChatMessage #MessageContents #CooldownTimer
+{
+	background-color: black;
+	vertical-align: center;
+	margin-top: 4px;
+	visibility: collapse;
+}
+
+.ChatMessage #MessageContents #CooldownTimer #CooldownText
+{
+	color: white;
+	font-family: oracle;
+	font-weight: bold;
+	font-size: 13px;
+	margin-right: 6px;
+	margin-left: 6px;
+}
+
+.ChatMessage .ChatBubble .TextContainer
+{
+	margin-left: 20px;
+	border: 0px solid offBlack;
+	min-height: 24px;
+	max-width: 240px;
+	min-width: 90px;
+}
+
+.HasSubjectIcon.ChatMessage .ChatBubble .TextContainer
+{
+	padding-bottom: 10px;
+}
+
+.ChatMessage .ChatBubble .TextContainer .bubble_bg
+{
+	width: 100%;
+	height: 100%;
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #D9FFEE ), to( #a4c7b7 ) );
+	background-image: url("s2r://panorama/images/hud/top_bar/chat_texture_png.vtex");
+	box-shadow: 3px 3px 0px #0C0C0C;
+	margin: 1px;
+	border: 1px solid #0C0C0C;
+	border-radius: 3px;
+	animation-name: ChatGroove_Allies;
+	animation-duration: 4s;
+	animation-iteration-count: infinite;
+	animation-frame-time: 400ms;
+}
+
+.ChatMessage .ChatBubble .TextContainer .MessageWrapper
+{
+	flow-children: right;
+	padding: 8px 10px 6px 12px;
+}
+
+.ChatMessage .ChatBubble .TextContainer .MessageWrapper #TargetHeroImage
+{
+	width: 30px;
+	height: 30px;
+	vertical-align: center;
+	horizontal-align: right;
+	margin-right: 6px;
+	visibility: collapse;
+}
+
+.ChatMessage .ChatBubble .TextContainer .MessageWrapper #TargetHeroImage.IsHeroPing
+{
+	visibility: visible;
+}
+
+.ChatMessage .ChatBubble .TextContainer .MessageWrapper #MessageText
+{
+	font-size: 15px;
+	max-height: 100px;
+	max-width: 205px;
+	text-shadow: none;
+	font-weight: bold;
+	text-align: left;
+	color: black;
+	text-overflow: shrink;
+	line-height: 15px;
+	font-family: oracle;
+	vertical-align: center;
+}
+
+.ChatMessage .ChatBubble .TextContainer .MessageWrapper #MessageText .highlight
+{
+	font-size: 16px;
+}
+
+.MessageType_ItemDraftReaction .ChatMessage .ChatBubble .TextContainer .MessageWrapper #MessageText
+{
+	font-size: 20px;
+	text-transform: uppercase;
+	color: shardColor;
+	text-shadow: 0px 0px 4.0 offBlack;
+	transform: rotateZ(-5deg);
+}
+
+.ChatMessage .ChatBubble #HeroImage
+{
+	width: 28px;
+	height: 28px;
+	vertical-align: middle;
+}
+
+.ChatMessage.MessageType_ItemDraftReaction .TextContainer
+{
+	border-radius: 3px;
+}
+
+.ChatMessage.MessageType_ItemDraftReaction #MessageText
+{
+	font-family: block;
+	color: shardColor;
+	font-size: 30px;
+	font-size: 20px;
+	text-transform: uppercase;
+	color: shardColor;
+	text-shadow: 0px 0px 4.0 offBlack;
+	transform: rotateZ(-2deg);
+}
+
+.ChatMessage.MessageType_PlayerTyping .TextContainer
+{
+	min-width: 50px;
+}
+
+.ChatMessage.MessageType_PlayerTyping .TextContainer .MessageWrapper
+{
+	horizontal-align: center;
+}
+
+.ChatMessage.MessageTarget_GameAll .TextContainer .bubble_bg
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #effff8 ), to( #ceb2aa ) );
+	animation-name: ChatGroove_Allies;
+	animation-duration: 2s;
+	animation-direction: alternate;
+	animation-iteration-count: infinite;
+	animation-frame-time: 200ms;
+}
+
+.ChatMessage.MessageTarget_GameAll
+{
+	wash-color: colorEnemy&50;
+}
+
+.enemy .ChatMessage #ChatArrow,.team2:not(.friend) .ChatMessage #ChatArrow
+{
+	transform: none;
+	transform: scaleX( -1 ) translateX( -32px ) translateY(5px);
+}
+
+.enemy .ChatMessage .ChatBubble,.team2:not(.friend) .ChatMessage .ChatBubble
+{
+	horizontal-align: right;
+	margin-right: 20px;
+}
+
+.enemy .ChatMessage #MessageContents,.team2:not(.friend) .ChatMessage #MessageContents
+{
+	horizontal-align: right;
+}
+
+.enemy .ChatMessage .TextContainer,.team2:not(.friend) .ChatMessage .TextContainer
+{
+	margin-left: 0px;
+	margin-left: 20px;
+}
+
+.CorruptedItem .corrupted_frame
+{
+	visibility: visible;
+}
+
+.CorruptedItem #SubjectIconBG .corrupted_frame
+{
+	visibility: visible;
+}
+
+.ChatMessage.OnCooldown #MessageContents #CooldownTimer
+{
+	visibility: visible;
+}
+
+.ChatMessage.HasSubjectIcon #MessageContents #SubjectIconBG
+{
+	visibility: visible;
+}
+
+.ChatMessage.ShowArrow #ChatArrow
+{
+	visibility: visible;
+}
+
+.ChatMessage.ShowOnlyTypingIndicator #ChatArrow
+{
+	background-image: url("s2r://panorama/images/hud/top_bar/chat_arrow_blank_png.vtex");
+	visibility: visible;
+}
+
+.ChatBubble.MessageType_ItemDraftReaction .TextContainer
+{
+	border-radius: 3px;
+}
+
+.ChatBubble.MessageType_ItemDraftReaction #MessageText
+{
+	font-family: block;
+	color: shardColor;
+	font-size: 40px;
+}
+
+.ChatBubble.MessageType_ItemDraftReaction #MessageText
+{
+	font-family: block;
+	color: shardColor;
+	font-size: 40px;
+}
+
+.ResponsesContainer
+{
+	margin-left: 20px;
+	visibility: collapse;
+}
+
+.HasResponse .ResponsesContainer
+{
+	visibility: visible;
+}
+
+.ResponsesContainer .ResponsesBackground
+{
+	background-color: #1371ff;
+	height: 25px;
+	width: 100%;
+	vertical-align: bottom;
+	border-radius: 10px;
+}
+
+.ResponsesContainer .ResponsesBackground .ThumbsUpIcon
+{
+	height: 15px;
+	width: 15px;
+	vertical-align: center;
+	background-size: 100% 100%;
+	background-image: url("s2r://panorama/images/hud/ping/ping_icon_thanks.vsvg");
+	margin-left: 5px;
+}
+
+.ResponsesContainer #ResponseHeroes
+{
+	margin-left: 25px;
+	flow-children: right;
+}
+
+.ResponsesContainer #ResponseHeroes .ResponseHero
+{
+	height: 40px;
+	width: 40px;
+	margin-left: 2px;
+}
+
+.ResponsesContainer #ResponseHeroes .ResponseHero #ResponseHeroImage
+{
+	height: 100%;
+	width: 100%;
+}
+
+.enemy .ResponsesContainer,.team2:not(.friend) .ResponsesContainer
+{
+	margin-left: 0px;
+	margin-right: 20px;
+	horizontal-align: right;
+}
+
+@keyframes 'ChatGroove_Allies'
+{
+	0%
+	{
+		transform: rotateZ(-1deg) skew(9deg);
+	}
+	
+	25%
+	{
+		transform: rotateZ(1deg) skew(3deg);
+	}
+	
+	50%
+	{
+		transform: rotateZ(-1deg) skew(7deg);
+	}
+	
+	75%
+	{
+		transform: rotateZ(0deg) skew(-5deg);
+	}
+	
+}
+
+#TypingAnim
+{
+	flow-children: right;
+	padding: 5px;
+}
+
+#TypingAnim .dot
+{
+	width: 8px;
+	height: 8px;
+	background-color: offBlack;
+	margin: 2px;
+}
+
+#TypingAnim .dot:nth-child(1)
+{
+	animation-name: TypingDot;
+	animation-duration: 0.5s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-out;
+}
+
+#TypingAnim .dot:nth-child(2)
+{
+	animation-name: TypingDot;
+	animation-duration: 0.5s;
+	animation-delay: 0.1s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-out;
+}
+
+#TypingAnim .dot:nth-child(3)
+{
+	animation-name: TypingDot;
+	animation-duration: 0.5s;
+	animation-delay: 0.2s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-out;
+}
+
+@keyframes 'TypingDot'
+{
+	0%
+	{
+		transform: translateY(0px) skew(5deg);
+		opacity: 0.5;
+	}
+	
+	30%
+	{
+		transform: translateY(-5px) skew(-15deg);
+		opacity: 1;
+	}
+	
+	60%
+	{
+		transform: translateY(0px) skew(5deg);
+		opacity: 0.5;
+	}
+	
+	100%
+	{
+		transform: translateY(0px) skew(5deg);
+		opacity: 0.5;
+	}
+	
+}
+

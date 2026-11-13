@@ -1,0 +1,41 @@
+
+/* ---------------------------------------------------------------- org notlynx (orgs/notlynx, appended by the -Org build) */
+
+/* Night Desk's centre plate shows the organiser's built-in logo (org_logo.vtex, 208x320 from logo.psd) in
+   place of the wordmark, as Night Shift does, with the series digits either side of it. A logo URL set in
+   the editor still wins (its image draws in the same box, the built-in one is taken away). */
+.OHStyleDesk .OHOrgLogo
+{
+	height: 52px;
+	margin-top: 2px;
+	background-image: url("s2r://panorama/images/observer_hud/org_logo.vtex");
+	background-size: contain;
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	visibility: visible;
+}
+
+.OHStyleDesk .OHOrgLogo.OHLogoShown
+{
+	background-image: none;
+}
+
+.OHStyleDesk .OHOrgName,
+.OHStyleDesk .OHMid.OHHasOrg .OHOrgName
+{
+	visibility: collapse;
+}
+
+/* The series sits over the logo's middle; the dash keeps the digits clear of it and is not drawn. */
+.OHStyleDesk .OHMidSeries,
+.OHStyleDesk .OHMid.OHNoOrg .OHMidSeries
+{
+	margin-top: -37px;
+}
+
+.OHStyleDesk .OHMidDash
+{
+	margin-left: 22px;
+	margin-right: 22px;
+	color: #00000000;
+}

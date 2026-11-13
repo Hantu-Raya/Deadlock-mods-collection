@@ -4,7 +4,7 @@ A spectator top bar that community organisers can use for their own Deadlock tou
 
 ## Status
 
-**0.1.0 is published** ([GameBanana](https://gamebanana.com/mods/731315)): two looks picked in the editor, Base Game+ Names (default) and Night Desk (with the soul lead graph), objective cues, the ability status column and purchase notices, as pak10. **0.2.0** adds the Night Shift post-game board (exact stats, souls by source, final items, the soul lead line with objectives, torn-paper header), aliases by Steam account, and team cards tied to the match id through the store v2 page. Read `AGENTS.md` for the runtime, build and verification; `MAP.md` for status and the changelog; `PLAN.md` for the design history (publishing needs the user's go-ahead).
+**0.3.2 is published** ([GameBanana](https://gamebanana.com/mods/731315), 2026-11-10: 0.3.1's fixes, 2 or 3 bans per team and more bug fixes; `docs/changelogs/2026-11-10_observer_hud_0_3_0_to_0_3_2_builds.txt`). 0.1.0 brought two looks picked in the editor, Base Game+ Names (default) and Night Desk (with the soul lead graph), objective cues, the ability status column and purchase notices, as pak10. **0.2.0** (never released) added the Night Shift post-game board (exact stats, souls by source, final items, the soul lead line with objectives, torn-paper header), aliases by Steam account, and team cards tied to the match id through the store v2 page. **0.3.0** (carries 0.2.0) adds the lobby setup: on the private-lobby page, which has no Escape menu, the team titles show and edit the HUD's team names, tags, logos, series and bans (hero picker); a click on a player's name sets an alias; an Observer HUD block under the match settings holds the format, stage, SWAP HUD SIDES, CLEAR BANS and SHARE (copy or import a setup code, RESET ALL). Read `AGENTS.md` for the runtime, build and verification; `MAP.md` for status and the changelog; `PLAN.md` for the design history (publishing needs the user's go-ahead).
 
 ```powershell
 node observer_hud/scripts/validate-observer-hud.js
@@ -18,6 +18,7 @@ Design history: round 1 (designs 1-5), round 2 (6-10, hybrids of 2 and 5), RzR's
 ## Layout
 
 ```text
+CATALOG.md              every file, what it does and what loads it
 panorama/               the mod (layouts, scripts, styles); see AGENTS.md
 stock/                  pinned GameTracking layouts for the validator
 scripts/                validate-observer-hud.js, verify-postgame-live.js, refresh-stock.py, make-torn-masks.py

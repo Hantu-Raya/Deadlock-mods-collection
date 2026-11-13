@@ -1,0 +1,6 @@
+<root>
+	<scripts>
+		<include src="s2r://panorama/scripts/dlf/dlf_debuff_relay.vjs_c" />
+	</scripts>
+	<Panel class="DLFDebuffRelay" hittest="false" hittestchildren="false" style="width: 0px; height: 0px;" />
+</root>

@@ -1,7 +1,7 @@
 // Observer HUD match state ($.OHState): the bar, the aliases, the status column and the editor all
 // read the state through normalize, so a value the editor accepts is the value the bar shows.
-// State: { v: 1, style ("names" | "desk"), event, stage, bestOf (1|3|5|7),
-//          amber/sapphire: { name, tag, logo: { url }, series, bans: [heroId, heroId] },
+// State: { v: 1, style ("names" | "desk"), event, stage, bestOf (1|3|5|7), banCount (2|3),
+//          amber/sapphire: { name, tag, logo: { url }, series, bans: [heroId, heroId, heroId] },
 //          org: { name, logo: { url } }, info: { title, value, caption }, graph: { show, every, size, x, y },
 //          logo: { shape, size, gap },
 //          cues: { bridge, urn, rift, mid }, buys,
@@ -21,7 +21,10 @@
 // buys: seconds a purchase notice shows on the buyer's top-bar card (BUYS_SHOW; 0 off).
 // Every field falls back on its own to the default when missing or invalid; text that is too long is
 // rejected, never truncated. series runs from 0 to the wins bestOf needs. bans hold CitadelHeroImage
-// hero IDs (0 = empty). Aliases (v2): players are keyed by Steam account (at most 24); legacy holds the
+// hero IDs (0 = empty): always BAN_SLOTS (3), of which banCount (2 or 3) show on the bar, the editor and
+// the lobby; a slot past banCount is kept, so switching back to 3 brings it back (a save or code from
+// before the third ban gets an empty third slot and banCount 2).
+// Aliases (v2): players are keyed by Steam account (at most 24); legacy holds the
 // v1 name-keyed aliases (a raw "aliases" key of an older save or code lands there; they still apply by name
 // and one click binds each to an account); pending are aliases typed before the card's account was known
 // (by name, this session only: never saved, never shared).
@@ -56,7 +59,9 @@
   const CUE_SHOW = [0, 15, 30, 60, 120, -1];
   const RIFT_SHOW = [0, -1];
   const BEST_OF = [1, 3, 5, 7];
-  const BAN_SLOTS = 2;
+  // Ban slots stored per team; banCount (BAN_COUNTS) is how many show. The default keeps 2 (0.3.0).
+  const BAN_SLOTS = 3;
+  const BAN_COUNTS = [2, 3];
   const MAX_ALIASES = 24;
   const MAX_URL = 512;
   const MAX_HERO_ID = 1000;
@@ -68,9 +73,9 @@
   // The editor's boxes start filled with sample values (user 2026-10-22: real text, not only hints);
   // they show on the top bar until edited, and RESET returns to them. Logo URLs and aliases start empty.
   const DEFAULTS = Object.freeze({
-    v: 1, style: "names", event: "Community Cup Season 2", stage: "Grand Final", bestOf: 3,
-    amber: { name: "Night Owls", tag: "NOW", logo: { url: "" }, series: 0, bans: [0, 0] },
-    sapphire: { name: "Brass Saints", tag: "BRS", logo: { url: "" }, series: 0, bans: [0, 0] },
+    v: 1, style: "names", event: "Community Cup Season 2", stage: "Grand Final", bestOf: 3, banCount: 2,
+    amber: { name: "Night Owls", tag: "NOW", logo: { url: "" }, series: 0, bans: [0, 0, 0] },
+    sapphire: { name: "Brass Saints", tag: "BRS", logo: { url: "" }, series: 0, bans: [0, 0, 0] },
     org: { name: "Community Cup", logo: { url: "" } },
     info: { title: "Prize pool", value: "$2,130", caption: "Donate to increase" },
     graph: { show: 30, every: 300, size: 100, x: 0, y: 0 },
@@ -84,10 +89,23 @@
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const winsNeeded = (bestOf) => Math.floor(bestOf / 2) + 1;
 
+  // The game and first-to captions. An org variant translates them (orgs/<org>/org.json "captions";
+  // apply-org.py replaces these two literals). {n} is the number; "one|many" picks the form by it.
+  const CAPTIONS = { game: "GAME {n}", first: "FIRST TO {n}" };
+  const caption = (kind, n) => {
+    const forms = CAPTIONS[kind].split("|");
+    return forms[n === 1 ? 0 : forms.length - 1].replace("{n}", String(n));
+  };
+
+  // Control characters count as whitespace and a lone surrogate half becomes U+FFFD: neither draws, and
+  // each would cost 6 characters in a share code's JSON (so the longest legal setup still fits one code).
+  const CONTROLS = /[\x00-\x1f\x7f-\x9f]/g;
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
   // Collapses whitespace; null when not a string or longer than max (rejected, not cut).
   function cleanText(value, max) {
     if (typeof value !== "string") return null;
-    const text = value.replace(/\s+/g, " ").trim();
+    const text = value.replace(CONTROLS, " ").replace(LONE_SURROGATE, (m, before) => (before === undefined ? "" : before) + "\uFFFD")
+      .replace(/\s+/g, " ").trim();
     return text.length <= max ? text : null;
   }
 
@@ -98,7 +116,8 @@
     if (typeof value !== "string") return null;
     const url = value.trim();
     if (!url) return "";
-    if (url.length > MAX_URL || /[\x00-\x20\x7f\\]/.test(url)) return null;
+    LONE_SURROGATE.lastIndex = 0;
+    if (url.length > MAX_URL || /[\x00-\x20\x7f-\x9f\\]/.test(url) || LONE_SURROGATE.test(url)) return null;
     const match = /^https?:\/\/([^/?#]*)([/?#].*)?$/i.exec(url);
     return match && HOST.test(match[1]) ? url : null;
   }
@@ -198,7 +217,8 @@
       style: STYLES.includes(source.style) ? source.style : base.style,
       event: pick(cleanText(source.event, LIMITS.event), base.event),
       stage: pick(cleanText(source.stage, LIMITS.stage), base.stage),
-      bestOf
+      bestOf,
+      banCount: BAN_COUNTS.includes(source.banCount) ? source.banCount : BAN_COUNTS.includes(base.banCount) ? base.banCount : DEFAULTS.banCount
     };
     for (const team of TEAMS) {
       const entry = source[team] && typeof source[team] === "object" ? source[team] : {};
@@ -206,11 +226,13 @@
       const logo = entry.logo && typeof entry.logo === "object" ? entry.logo : {};
       const bans = [];
       for (let slot = 0; slot < BAN_SLOTS; slot++) {
+        // A slot an older (shorter) list lacks is empty; a bad value keeps the fallback's.
         const id = Array.isArray(entry.bans) ? cleanInt(entry.bans[slot], 0, MAX_HERO_ID) : null;
-        bans.push(pick(id, fallback.bans[slot]));
+        const missing = Array.isArray(entry.bans) && slot >= entry.bans.length;
+        bans.push(pick(id, missing ? 0 : fallback.bans[slot] || 0));
       }
-      // A hero is banned once: a repeat in the second slot is dropped.
-      if (bans[1] && bans[1] === bans[0]) bans[1] = 0;
+      // A hero is banned once: a repeat of an earlier slot is dropped.
+      for (let slot = 1; slot < BAN_SLOTS; slot++) if (bans[slot] && bans.indexOf(bans[slot]) < slot) bans[slot] = 0;
       const series = pick(cleanInt(entry.series, 0, winsNeeded(bestOf)), Math.min(fallback.series, winsNeeded(bestOf)));
       state[team] = {
         name: cleanText(entry.name, LIMITS.name) || (entry.name === "" ? DEFAULT_NAMES[team] : fallback.name),
@@ -379,7 +401,11 @@
 
   const SHARE_PREFIX = "OHC1.";
   const SHARE_SCHEMA = 1;
-  const MAX_SHARE = 8192;
+  // Every legal setup fits one code: the longest (every text and link at its limit in 3-byte characters,
+  // 24 players and 24 name aliases) is 18961 characters (validator "state: share codes"). The game's text
+  // boxes and ClientUI_FireOutput carry codes this long (live 6842, LIVE-VERIFIED.md).
+  const MAX_SHARE = 20480;
+  const SHARE_TOO_LONG = "This setup is too long for a code. Shorten aliases or logo links, then copy again.";
   const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   function toBase64Url(text) {
     const bytes = encodeURIComponent(text).replace(/%([0-9A-F]{2})/g, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
@@ -407,13 +433,33 @@
     }
   }
   // The DEV settings are diagnostics for this PC and the pending aliases belong to this session; neither
-  // travels in a code.
+  // travels in a code. A setup whose code would pass MAX_SHARE (possible with many long non-Latin aliases
+  // and long logo links; real setups are about 2600) gets "" instead of a code its own import rejects.
   function encodeShare(state) {
     const shared = clone(state);
     delete shared.dev;
     delete shared.pending;
     const json = JSON.stringify({ s: SHARE_SCHEMA, state: shared });
-    return SHARE_PREFIX + checksum(json) + "." + toBase64Url(json);
+    const code = SHARE_PREFIX + checksum(json) + "." + toBase64Url(json);
+    return code.length > MAX_SHARE ? "" : code;
+  }
+  // A decoded code's raw state as this PC's setup: fields it lacks take the defaults, and this PC's DEV
+  // settings stay (the editor's SHARE page and the lobby's import, through oh_link.js).
+  function importShared(raw, dev) {
+    const next = raw && typeof raw === "object" ? clone(raw) : {};
+    next.dev = dev;
+    return normalize(next, Object.assign(clone(DEFAULTS), { dev: dev }));
+  }
+  // A hero is banned once: banning it in one slot takes it out of every other (next is a copy being
+  // edited; id 0 empties the slot).
+  function moveBan(next, team, slot, id) {
+    if (id > 0) for (const key of TEAMS) next[key].bans = next[key].bans.map((ban) => ban === id ? 0 : ban);
+    next[team].bans[slot] = id;
+  }
+  // The bans a team shows: its first banCount slots (the bar, the editor and the lobby).
+  function shownBans(state, team) {
+    const count = BAN_COUNTS.includes(state.banCount) ? state.banCount : DEFAULTS.banCount;
+    return state[team].bans.slice(0, count);
   }
   // { kind: "valid", state } | { kind: "unsupported" } (a newer code) | { kind: "corrupt" }; state is raw.
   function decodeShare(raw) {
@@ -473,11 +519,11 @@
   // Explicit keys: the Closure externs keep property names written as "key:" or ".key".
   $.OHState = Object.freeze({
     ATTR: "observer_hud_state",
-    TEAMS: TEAMS, LIMITS: LIMITS, BEST_OF: BEST_OF, BAN_SLOTS: BAN_SLOTS, MAX_URL: MAX_URL,
-    DEBUFF_POLL_STEPS: DEBUFF_POLL_STEPS, BUYS_SHOW: BUYS_SHOW, MAX_SHARE: MAX_SHARE, STYLES: STYLES, GRAPH_SHOW: GRAPH_SHOW, GRAPH_EVERY: GRAPH_EVERY, GRAPH_LIMITS: GRAPH_LIMITS, LOGO_SHAPES: LOGO_SHAPES, LOGO_LIMITS: LOGO_LIMITS, CUE_SHOW: CUE_SHOW, RIFT_SHOW: RIFT_SHOW,
+    TEAMS: TEAMS, LIMITS: LIMITS, BEST_OF: BEST_OF, BAN_SLOTS: BAN_SLOTS, BAN_COUNTS: BAN_COUNTS, MAX_HERO_ID: MAX_HERO_ID, MAX_URL: MAX_URL,
+    DEBUFF_POLL_STEPS: DEBUFF_POLL_STEPS, BUYS_SHOW: BUYS_SHOW, MAX_SHARE: MAX_SHARE, SHARE_TOO_LONG: SHARE_TOO_LONG, STYLES: STYLES, GRAPH_SHOW: GRAPH_SHOW, GRAPH_EVERY: GRAPH_EVERY, GRAPH_LIMITS: GRAPH_LIMITS, LOGO_SHAPES: LOGO_SHAPES, LOGO_LIMITS: LOGO_LIMITS, CUE_SHOW: CUE_SHOW, RIFT_SHOW: RIFT_SHOW,
     defaults: () => clone(DEFAULTS),
-    normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, logoSources: logoSources, monogram: monogram, winsNeeded: winsNeeded,
-    checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, valid: valid, clone: clone,
+    normalize: normalize, cleanText: cleanText, cleanUrl: cleanUrl, logoSources: logoSources, monogram: monogram, winsNeeded: winsNeeded, caption: caption,
+    checksum: checksum, encodeShare: encodeShare, decodeShare: decodeShare, importShared: importShared, moveBan: moveBan, shownBans: shownBans, valid: valid, clone: clone,
     RECORD_LIMIT: RECORD_LIMIT, encodeRecord: encodeRecord, decodeRecord: decodeRecord,
     parseClock: parseClock, TEAM_PANELS: TEAM_PANELS, isAccount: isAccount, MAX_ALIASES: MAX_ALIASES,
     MATCH_MIN: MATCH_MIN, cleanCard: cleanCard, cleanTeam: cleanTeam, decodeHandoff: decodeHandoff, encodeHandoff: encodeHandoff,

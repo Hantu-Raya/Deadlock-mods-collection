@@ -1,0 +1,66 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_paused.vcss_c");
+#PausedLabel
+{
+	visibility: collapse;
+}
+
+#QLPausedText
+{
+	text-transform: uppercase;
+	font-family: block;
+	font-size: 28px;
+	line-height: 32px;
+	color: offWhite;
+	max-width: 300px;
+}
+
+.gameIsPaused #QLPausedText
+{
+	max-width: 600px;
+}
+
+.minimal_pause_active CitadelPaused
+{
+	width: 80px;
+	height: 80px;
+	margin-top: 150px;
+	margin-bottom: 0px;
+	z-index: -1;
+}
+
+.minimal_pause_active #PausedContainer
+{
+	height: 80px;
+	vertical-align: middle;
+}
+
+.minimal_pause_active #PausedCountdownLabel
+{
+	margin-right: 0px;
+	font-size: 100px;
+	margin-bottom: 0px;
+}
+
+.minimal_pause_active #QLPausedText,.minimal_pause_active #PauserLabel,.minimal_pause_active #UnpauseButtonLabel
+{
+	visibility: collapse;
+}
+
+.minimal_pause_active #PausedLabel
+{
+	visibility: visible;
+	font-size: 58px;
+	margin-top: 4px;
+	transition-property: none;
+	transition-duration: 0s;
+}
+
+/* II's visibility follows #PausedCountdownLabel.Hidden in dlf_pause.js: .PausedTextMoved stays on after
+   the first unpause countdown, so hiding II on it left the second pause's box empty. */
+.minimal_pause_active #PausedLabel.PausedTextMoved
+{
+	transform: none;
+}
+

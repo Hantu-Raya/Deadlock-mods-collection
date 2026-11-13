@@ -1,0 +1,31 @@
+{
+  "id": "notlynx",
+  "name": "NotLynx (КиберФестиваль МГУ)",
+  "request": "NotLynx_ (Discord lynxisgone), 2026-11-09: Hikasami Regular font, own centre logo as in Night Shift, a third ban slot",
+  "defaults": {
+    "style": "desk",
+    "banCount": 3
+  },
+  "captions": {
+    "game": "ИГРА {n}",
+    "first": "ДО {n} ПОБЕДЫ|ДО {n} ПОБЕД"
+  },
+  "font": {
+    "source": "source/HIKASAMI-REGULAR.otf",
+    "family": "Hikasami",
+    "installAs": "creepster.otf",
+    "styles": [
+      "oh_band",
+      "oh_bar",
+      "oh_debuffs",
+      "pg_board"
+    ]
+  },
+  "art": [
+    {
+      "source": "source/logo.psd",
+      "out": "org_logo",
+      "height": 320
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+/* The top-bar offset under the DLF banner lives in styles/dlf/dlf_banner.css. */
+
+#GradientBacker
+{
+	visibility: collapse;
+}
+
+CitadelHudTopBarPlayer .AlwaysPlayerName
+{
+	visibility: collapse !important;
+	opacity: 0 !important;
+}
+
+#RiftTimer
+{
+	background-color: gradient(linear, 0% 0%, 100% 0%, from(#000000FF), color-stop(0.70, #000000FF), color-stop(0.85, #00000008), to(#00000000));
+	wash-color: #FFFFFF;
+}
+
+/* A timer outside its show window (the editor's OBJECTIVE TIMERS, ql_feat_rejuvtimers.js): collapsed
+   by class, never by an inline style. */
+#BuffHUD.DLFCueHidden,
+#RejuvHUD.DLFCueHidden
+{
+	visibility: collapse;
+}
+
+/* The urn spawn timer (ql_feat_urntimer.js): the rift timer's strip mirrored under QOLLOCK's soul lead
+   strip (#UrnTracker, y 34), with the minimap's soul jar. */
+#UrnSpawnTimer
+{
+	width: 145px;
+	height: 18px;
+	background-color: gradient(linear, 100% 0%, 0% 0%, from(#000000FF), color-stop(0.70, #000000FF), color-stop(0.85, #00000008), to(#00000000));
+	border-bottom-right-radius: 10px;
+	horizontal-align: center;
+	margin-right: 40px;
+	y: 54px;
+	x: -58px;
+	opacity-mask: url("s2r://panorama/images/masks/dust_01_psd.vtex");
+	flow-children: right;
+}
+
+#UrnSpawnTimerIcon
+{
+	width: 20px;
+	height: 100%;
+	margin-left: 40px;
+	background-image: url("s2r://panorama/images/minimap/soul_jar_marker_psd.vtex");
+	background-size: 75% 90%;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+#UrnSpawnTimerLabel
+{
+	width: 70px;
+	height: 18px;
+	margin-left: 4px;
+	margin-top: 1px;
+	font-size: 18px;
+	font-weight: bold;
+	font-family: VALVEOracle, Reaver, sans-serif;
+	text-align: left;
+	vertical-align: center;
+	color: white;
+	text-overflow: shrink;
+}
+
+#UrnSpawnTimer.urn_up #UrnSpawnTimerLabel
+{
+	color: #3FBF7F;
+}
+
+/* The held rejuvenator's time carries the holder's team colour as a 3 px bottom edge (Observer HUD). */
+#RejuvBuff.DLFHeldAmber
+{
+	border-bottom: 3px solid #E8892B;
+}
+
+#RejuvBuff.DLFHeldSapphire
+{
+	border-bottom: 3px solid #4D75C3;
+}
+

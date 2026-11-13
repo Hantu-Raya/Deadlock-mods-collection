@@ -1,0 +1,68 @@
+{
+  "_comment": "Ability modifiers DLF draws on every hero's world healthbar for a spectator (OVERHEAD_DRAW_FOR_EVERYONE, not hidden), so the top-bar debuff column can show them. Applied by dlf/scripts/spectator_status.py to the installed game's scripts/abilities.vdata and scripts/modifiers.vdata at build time. A modifier is named by its _my_subclass_name inside the ability record; buff: true lets the top bar show that ability's non-debuff statuses too (coloured as the hero's own team). minStacks: the status shows on the top bar only from that many stacks (Djinn's Mark: 8, user decision 2026-10-14). stun: true with no modifiers lists an ability only for its generic stun (Victor's ultimate, the Hyperline knock-off). Only these abilities reach the top bar; the world healthbars show no stun icons at all (styles/dlf/dlf_status_world.css). Generic stuns use modifiers.vdata's modifier_citadel_stunned (and _no_cc_diminish); Abrams' ultimate applies modifier_citadel_knockdown (seen with cl_modifier_dump), visible only while it stuns. All three are made visible, so every such stun shows. maxSeconds: a heuristic threshold per ability (roughly twice the base VData duration, not a proven bound: ETechDuration items and upgrades can lengthen effects); a radial whose full turn is longer shows its icon without a number. Reason: the user saw a number near Wraith's cooldown on a lifted enemy (2026-10-20); the cause (a status without its own duration whose radial follows the cooldown) is a hypothesis, not traced. A genuine duration above the threshold is suppressed too. ignoreClasses: status panels of the ability with any of these classes are not shown (Bebop's hook: the bullet amp after the pull, user 2026-10-20; Bebop's own hook and the post-pull slow are left stock-hidden).",
+  "fields": {
+    "m_bIsHidden": "false",
+    "m_bIsHiddenOverhead": "false",
+    "m_eDrawOverheadStatus": "\"OVERHEAD_DRAW_FOR_EVERYONE\""
+  },
+  "abilities": [
+    { "hero": "Abrams", "ability": "citadel_ability_bull_leap", "buff": true, "modifiers": ["modifier_unstoppable"], "stun": true, "maxSeconds": 6 },
+    { "hero": "Bebop", "ability": "citadel_ability_hook", "buff": true, "modifiers": ["modifier_citadel_hooktarget"], "ignoreClasses": ["bullet_armor_reduction"], "maxSeconds": 3 },
+    { "hero": "Baba", "ability": "ability_baba_ultimate_2", "modifiers": ["modifier_baba_ult2_mark", "modifier_baba_ult2_pigeon"], "maxSeconds": 10 },
+    { "hero": "The Doorman", "ability": "ability_doorman_hotel", "modifiers": ["hotel"], "maxSeconds": 12 },
+    { "hero": "Drifter", "ability": "drifter_darkness", "modifiers": ["modifier_drifter_darkness_target"], "maxSeconds": 12 },
+    { "hero": "Dynamo", "ability": "citadel_ability_self_vacuum", "modifiers": ["modifier_vacuumaura_target"], "maxSeconds": 6 },
+    { "hero": "Grey Talon", "ability": "ability_guided_arrow", "modifiers": [], "stun": true, "maxSeconds": 3 },
+    { "hero": "Holliday", "ability": "ability_gravity_lasso", "modifiers": ["modifier_citadel_gravity_lasso_enemy"], "maxSeconds": 6 },
+    { "hero": "Kelvin", "ability": "ability_ice_dome", "buff": true, "modifiers": ["modifier_ice_dome_friendly", "modifier_debuff"], "maxSeconds": 10 },
+    { "hero": "Lady Geist", "ability": "ability_health_swap", "buff": true, "modifiers": ["modifier_base", "modifier_citadel_silenced", "modifier_health_swap_debuff"], "maxSeconds": 8 },
+    { "hero": "Lash", "ability": "citadel_ability_lash_ultimate", "modifiers": ["modifier_lash_grapple_enemy_debuff"], "maxSeconds": 8 },
+    { "hero": "Mo & Krill", "ability": "ability_ult_combo", "modifiers": ["modifier_ult_combo_target"], "maxSeconds": 6 },
+    { "hero": "Paradox", "ability": "citadel_ability_chrono_swap", "modifiers": ["modifier_chrono_swap_bubble_move"], "maxSeconds": 4 },
+    { "hero": "Paige", "ability": "ability_bookworm_knightcharge", "buff": true, "modifiers": ["buff"], "stun": true, "maxSeconds": 20 },
+    { "hero": "Pocket", "ability": "synth_affliction", "modifiers": ["modifier_synth_affliction_debuff"], "maxSeconds": 20 },
+    { "hero": "Rem", "ability": "ability_familiar_ability01", "modifiers": ["effect"], "maxSeconds": 8 },
+    { "hero": "Sinclair", "ability": "ability_magician_animalhexarea", "modifiers": ["animalhex_curse_modifier"], "maxSeconds": 6 },
+    { "hero": "Viscous", "ability": "viscous_restorative_goo", "buff": true, "modifiers": ["modifier_restorative_goo"], "maxSeconds": 16 },
+    { "hero": "Vyper", "ability": "ability_viper_petrifybola", "modifiers": ["petrifybola_petrify"], "maxSeconds": 6 },
+    { "hero": "Wraith", "ability": "citadel_ability_psychic_lift", "modifiers": ["lift", "silence"], "maxSeconds": 6 },
+    { "hero": "Mirage", "ability": "mirage_sand_phantom", "modifiers": ["modifier_mirage_sand_phantom_passive_victim"], "minStacks": 8, "maxSeconds": 10 },
+    { "hero": "Victor", "ability": "ability_frank_revive", "modifiers": [], "stun": true, "maxSeconds": 6 },
+    { "hero": "(any, Hyperline knock-off)", "ability": "citadel_ability_zip_line", "modifiers": [], "stun": true, "maxSeconds": 16 },
+    { "hero": "Billy", "ability": "ability_punkgoat_tether", "modifiers": ["pull"], "maxSeconds": 2 },
+    { "hero": "Solomon", "ability": "ability_chessmaster_queen", "modifiers": [], "stun": true, "maxSeconds": 4 },
+    { "hero": "Solomon", "ability": "ability_chessmaster_forkpiece", "modifiers": ["hex"], "maxSeconds": 3 },
+    { "hero": "Infernus", "ability": "ability_fire_bomb", "modifiers": [], "stun": true, "maxSeconds": 4 },
+    { "hero": "Yamato", "ability": "citadel_ability_flying_strike", "modifiers": ["target"], "maxSeconds": 3 },
+    { "hero": "Haze", "ability": "ability_sleep_dagger", "modifiers": ["modifier_citadel_sleep_dagger_asleep"], "maxSeconds": 8 },
+    { "hero": "Deadman Danny", "ability": "ability_deadpack_ultimate", "modifiers": ["deadpack_ult_grabbed"], "maxSeconds": 6 },
+    { "hero": "Violet", "ability": "ability_artist_bamboogrove", "modifiers": ["silence"], "maxSeconds": 6 },
+    { "hero": "Warden", "ability": "ability_warden_lock_down", "modifiers": ["modifier_citadel_root"], "maxSeconds": 5 },
+    { "hero": "The Doorman", "ability": "ability_doorman_luggage_cart", "modifiers": ["drag"], "maxSeconds": 6 },
+    { "hero": "Nurse Harrow", "ability": "ability_nurse_fear", "modifiers": ["modifier_citadel_nurse_fear_debuff"], "ignoreClasses": ["nurse_fear_buildup"], "maxSeconds": 6 },
+    { "hero": "Celeste", "ability": "ability_unicorn_dazzlingorb", "modifiers": ["dazzling_orb_slow_modifier"], "pulse": true, "maxSeconds": 3 }
+  ],
+  "classSwaps": [
+    {
+      "_why": "Client CCitadel_Modifier_HookTarget::IsHidden always returns true (client.dll 6785 rva 0xdc4550), so the hooked target never gets a status panel. Its base class modifier_citadel_link decodes the same network payload, keeps the chain effect and uses the VData hidden check; m_AG2BaseAction restores the lifted pose. Known cost, accepted by the user 2026-10-16: on the observer's screen the victim is not pulled (HookTarget's client motion controller is gone); the server is unaffected.",
+      "ability": "citadel_ability_hook",
+      "modifier": "modifier_citadel_hooktarget",
+      "from": "modifier_citadel_hooktarget",
+      "to": "modifier_citadel_link",
+      "baseAction": { "m_strParamName": "lifted", "m_nPriority": 5 }
+    }
+  ],
+  "_pulseWhy": "pulse: true (Observer HUD, and DLF since 2026-10-24): the top-bar slot pulses once per hit, i.e. each time a status panel of the ability appears or its radial restarts. Shining Wonder's orb slows each hero it bounces on for SlowDuration 1.5 s (VData, client 6819) and the user asked for one pulse per bounce on a head (2026-10-23).",
+  "_unnamedWhy": "Listed modifiers with no localized name (neither m_sLocalizationName nor an ability/modifier key in resource/localization/*_english.txt, client 6813). Unhidden, the watched hero's own HUD printed the raw token, e.g. #Citadel_Ability_Hook/modifier_citadel_hooktarget (live 2026-10-22), so they also get m_eHudDisplayLocation DISPLAY_HUD_NONE. Stock pairs NONE with OVERHEAD_DRAW_FOR_EVERYONE (e.g. modifier_zipline_boost), so the world healthbar still lists them.",
+  "unnamed": [
+    "citadel_ability_hook/modifier_citadel_hooktarget",
+    "ability_doorman_hotel/hotel",
+    "ability_ice_dome/modifier_debuff",
+    "ability_health_swap/modifier_health_swap_debuff",
+    "ability_magician_animalhexarea/animalhex_curse_modifier",
+    "citadel_ability_psychic_lift/silence",
+    "citadel_ability_flying_strike/target",
+    "ability_unicorn_dazzlingorb/dazzling_orb_slow_modifier"
+  ],
+  "genericModifiers": ["modifier_citadel_stunned", "modifier_citadel_stunned_no_cc_diminish", "modifier_citadel_knockdown"]
+}

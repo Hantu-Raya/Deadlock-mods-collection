@@ -74,6 +74,13 @@ p { font-family: RetailS; font-size: 31px; line-height: 1.35; color: var(--dim);
 #d0 .title { font-family: Reaver; font-size: 112px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
 #d0 .title span { color: var(--brass); }
 #d0 .ver { display: inline-block; font-family: Reaver; font-size: 26px; letter-spacing: .06em; background: var(--brass); color: #1A140A; padding: 8px 16px 6px; transform: rotate(-3deg); box-shadow: 0 6px 14px #0B0D0999; margin-bottom: 26px; }
+/* d7 0.3.0 cover */
+#d7 .title { font-family: Reaver; font-size: 112px; line-height: .9; text-transform: uppercase; letter-spacing: .01em; }
+#d7 .title span { color: var(--brass); }
+#d7 .ver { display: inline-block; font-family: Reaver; font-size: 26px; letter-spacing: .06em; background: var(--brass); color: #1A140A; padding: 8px 16px 6px; transform: rotate(-3deg); box-shadow: 0 6px 14px #0B0D0999; margin-bottom: 26px; }
+#d7 .crop { position: absolute; inset: 0; border: 2px solid #D6B06A40; box-shadow: var(--shadow); transform: rotateY(-12deg) rotateX(3deg); transform-origin: 100% 50%;
+  background-repeat: no-repeat; background-size: calc(1920px * var(--s)) calc(1080px * var(--s));
+  background-position: calc(var(--x) * var(--s) * -1px) calc(var(--y) * var(--s) * -1px); }
 
 /* d2 tiles */
 .tile { position: absolute; width: 560px; }
@@ -110,6 +117,26 @@ p { font-family: RetailS; font-size: 31px; line-height: 1.35; color: var(--dim);
   <div class="part photo" style="left:96px;top:600px;width:1022px;height:240px;--s:.63;--x:160;--y:306;background-image:url(src/pg_075220.jpg)"><div class="tag out">Exact stats</div></div>
   <div class="part photo" style="left:1050px;top:830px;width:820px;height:96px;--s:.5;--x:160;--y:846;--r:-1deg;background-image:url(src/pg_075220.jpg)"><div class="tag r">Soul lead</div></div>
   <div class="foot" style="bottom:40px">Free · one pak · post-game board: exact stats, souls by source, final items, your team names and logos · custom top bars: <b>hanturaya101</b> on Discord</div>
+  <div class="grain"></div>
+</section>
+
+<!-- 7. 0.3.0 cover: the private lobby page with the setup (live 2026-11-04, client 6842, pak10 a91f2512,
+     borderless 1920x1080; shots in src/v030, setup restored afterwards). The lobby panel turned,
+     with the team title, the team box, the share box and the ban grid as photos in front. -->
+<section class="page" id="d7">
+  <div class="blur" style="background-image:url(src/v030/lobby_full.png)"></div>
+  <div class="vignette"></div>
+  <div class="stage" style="left:770px;top:60px;width:1100px;height:602px"><div class="crop" style="--s:.7246;--x:201;--y:70;background-image:url(src/v030/lobby_full.png)"></div></div>
+  <div class="copy" style="top:100px;width:640px">
+    <div class="ver">New in 0.3.0</div>
+    <div class="title">Observer<br><span>HUD</span></div>
+    <p style="font-size:36px;margin-top:30px;color:var(--text)">Set up the match<br><span class="hl">from the private lobby.</span></p>
+  </div>
+  <div class="part photo" style="left:96px;top:600px;width:517px;height:142px;--s:1.2;--x:750;--y:108;--r:-1deg;background-image:url(src/v030/lobby_full.png)"><div class="tag out">Team title &amp; aliases</div></div>
+  <div class="part photo" style="left:96px;top:800px;width:360px;height:180px;--s:.766;--x:201;--y:680;--r:1deg;background-image:url(src/v030/share.png)"><div class="tag">One share code</div></div>
+  <div class="part photo" style="left:645px;top:745px;width:370px;height:232px;--s:.86;--x:751;--y:150;--r:-1.5deg;background-image:url(src/v030/team_edit.png)"><div class="tag out">Name · tag · logo</div></div>
+  <div class="part photo" style="left:1030px;top:610px;width:356px;height:368px;--s:.82;--x:1266;--y:108;--r:1deg;background-image:url(src/v030/ban_grid.png)"><div class="tag r">One ban per hero</div></div>
+  <div class="foot" style="bottom:40px">Free · one pak · team names, tags, logos, series, bans and aliases set on the lobby page · custom top bars: <b>hanturaya101</b> on Discord</div>
   <div class="grain"></div>
 </section>
 

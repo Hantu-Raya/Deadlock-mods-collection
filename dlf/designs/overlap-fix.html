@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DLF · top-bar overlaps (2026-10-24)</title>
+<!-- Game fonts and masks extracted for the Observer HUD mockups (git-ignored, generated locally). -->
+<link rel="stylesheet" href="../../observer_hud/designs/assets/generated.css">
+<style>
+/* Mock of the DLF top bar and the stock panels around it at 1080p. Geometry comes from DLF's CSS
+   (dlf_banner.css, dlf_card.css, dlf_soul_graph.css, styles/hud.css, objectives_map.css, QOLLOCK's
+   citadel_hud_top_bar.css), the stock CSS DLF pins (citadel_hud_top_bar.css, hud.css, client 6819),
+   Observer HUD's measured stock panels (designs 15/19: rift HUD, objective health, damage impact) and the
+   user's screenshot of 2026-10-24 (objectives map disc, urn/rift rows, rejuvenator timer, damage badge).
+   Positions that DLF's scripts compute use the same rules (placeGraph, placeNotices below). Portraits and
+   icons are stand-ins; the banner art is the real PNG. Not a screenshot: check in game. */
+@font-face { font-family: "ModestoLite Expanded"; src: url("../fonts/modesto-lite-expanded.otf"); }
+@font-face { font-family: "GOFIRE"; src: url("../fonts/gofire.otf"); }
+:root { --offWhite: #ffefd7; --offBlack: #10130d; --team1: #d6880c; --team2: #4f74c3; --team1Fg: #2a1d08; --muted: #c4c9d0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #0b0a09; color: #e8e2d8; font: 15px/1.4 "Segoe UI", system-ui, sans-serif; }
+.ui { display: grid; grid-template-columns: max-content 1fr; gap: 8px 14px; align-items: center; padding: 12px 18px; background: #141210; border-bottom: 1px solid #2c2822; position: sticky; top: 0; z-index: 10; }
+.ui h1 { grid-column: 1 / -1; font-size: 16px; font-weight: 700; }
+.ui .lbl { font-size: 13px; color: #bfb6a8; text-transform: uppercase; letter-spacing: .06em; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid #4a4339; border-radius: 6px; overflow: hidden; }
+.seg button { min-height: 34px; padding: 5px 12px; background: transparent; color: #e8e2d8; border: 0; border-right: 1px solid #4a4339; font: 600 13px "Segoe UI", sans-serif; cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: #d6880c; color: #1b1206; }
+.seg.prop button[aria-pressed="true"] { background: #3fbf7f; color: #062014; }
+.ui label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; min-height: 34px; font-size: 14px; }
+.ui button:focus-visible, .ui input:focus-visible { outline: 2px solid #ffc15a; outline-offset: 2px; }
+.preset { min-height: 34px; padding: 5px 14px; border: 1px solid #3fbf7f; border-radius: 6px; background: #12301f; color: #bff0d2; font: 700 13px "Segoe UI", sans-serif; cursor: pointer; }
+.preset:hover { background: #1b4a30; }
+.wrap { display: grid; grid-template-columns: 1fr 380px; }
+.viewport { position: relative; overflow: hidden; }
+.notes { padding: 14px 16px; border-left: 1px solid #2c2822; background: #12100e; font-size: 14px; }
+.notes h2 { font-size: 13px; margin: 4px 0 8px; text-transform: uppercase; letter-spacing: .08em; color: #bfb6a8; }
+.notes ul { padding-left: 18px; margin-bottom: 14px; }
+.notes li { margin-bottom: 6px; }
+.ok { color: #7fd6a2; } .bad { color: #ff8a7a; } .warn { color: #ffd479; } .dim { color: #9c9286; }
+
+/* ---------------------------------------------------------------- stage (1920 x 1080 layout px) */
+.stage { position: absolute; left: 0; top: 0; width: 1920px; height: 520px; transform-origin: 0 0; overflow: hidden;
+  background: #2a2722 url("../../observer_hud/designs/assets/game/scene_backdrop.jpg") center 30% / cover no-repeat; }
+.abs { position: absolute; }
+.banner { left: 0; top: 0; width: 1920px; height: 100px; background: url("../panorama/images/dlf/dlf_banner.png") 0 0 / 100% 100% no-repeat; }
+.dtext { font-family: "ModestoLite Expanded", "GOFIRE", sans-serif; text-transform: uppercase; color: #fefefe; text-shadow: 0 0 3px #000; text-align: center; white-space: nowrap; }
+.event { left: 6px; top: 10px; width: 210px; height: 50px; display: flex; flex-direction: column; justify-content: center; }
+.event .l1 { font-size: 22px; letter-spacing: 2px; color: #ffcfbc; } .event .l2 { font-size: 14px; letter-spacing: 2px; color: #ffcfbc; }
+.series { left: 1704px; top: 10px; width: 210px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 22px; letter-spacing: 2px; color: #ffcfbc; }
+.tname { top: 15px; width: 310px; height: 28px; font-size: 24px; letter-spacing: 2px; color: #f7e9d5; line-height: 28px; }
+.tscore { top: 8px; width: 48px; height: 52px; font-size: 30px; line-height: 52px; }
+.logo { top: 2px; width: 83px; height: 83px; background: center / contain no-repeat; }
+.pname { top: 41px; width: 88px; height: 22px; font-size: 13px; line-height: 22px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Centre column (top bar children start under its 68 px padding). */
+.clock, .qlhud { top: 76px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.56); font: 700 15px/1 "VALVE Oracle", sans-serif; color: rgba(255,239,215,.9); }
+.clock { left: 915px; width: 90px; height: 30px; border-radius: 5px; z-index: 1; background: rgba(0,0,0,.75); }
+.qlhud { width: 75px; height: 31px; }
+.qlhud.rejuvhud { left: 857.5px; border-radius: 15px 5px 5px 15px; justify-content: flex-start; padding-left: 10px; }
+.qlhud.buffhud { left: 987.5px; border-radius: 5px 15px 15px 5px; justify-content: flex-end; padding-right: 10px; }
+.plate { top: 113px; width: 145px; height: 34px; display: flex; align-items: center; gap: 6px; font: 700 22px/1 "VALVE Oracle", sans-serif; }
+.plate.t1 { left: 810px; justify-content: flex-end; padding-right: 34px; background: var(--team1); color: var(--team1Fg); }
+.plate.t2 { left: 965px; padding-left: 34px; background: var(--team2); color: #fff; }
+.plate small { font-size: 14px; opacity: .8; }
+/* objectives_map.css (QOLLOCK makes the stock-collapsed #ObjectivesMap visible): 100 px at ui-scale 70%, margin-top 35. */
+.objmap { left: 925px; top: 103px; width: 70px; height: 70px; border-radius: 50%; z-index: 3; background: radial-gradient(circle, #4a443d 0 62%, #3a3530 63%); display: flex; align-items: center; justify-content: center; }
+.objmap i { width: 4px; height: 50px; background: repeating-linear-gradient(#5b8fe0 0 6px, transparent 6px 10px, #e0a23a 10px 16px, transparent 16px 20px); border-radius: 2px; box-shadow: -12px 0 0 0 rgba(91,143,224,.7), 12px 0 0 0 rgba(224,162,58,.7); }
+/* QOLLOCK rows under the plates (#UrnTracker: soul lead %; #RiftTimer: rift warning / ACTIVE): 145 x 18, y 34. */
+.urnrow, .riftrow { top: 147px; height: 18px; font: 700 16px/18px "VALVE Oracle", sans-serif; display: flex; align-items: center; }
+.urnrow { background: linear-gradient(270deg, #dcdcdc 0 70%, rgba(220,220,220,.03) 85%, transparent); color: #000; justify-content: flex-end; padding-right: 8px; border-bottom-right-radius: 10px; }
+.riftrow { background: linear-gradient(90deg, #000 0 70%, rgba(0,0,0,.03) 85%, transparent); color: #fff; padding-left: 30px; border-bottom-left-radius: 10px; }
+/* Stock #RejuvenatorCharges: the rejuvenator timer (30 px) with the mid-boss label under it, and a holding team's charge icon (70 x 40). */
+.rejuv { left: 945px; top: 182px; width: 30px; height: 30px; border-radius: 50%; background: rgba(16,19,13,.85); border: 2px solid rgba(255,239,215,.3); }
+.midboss { left: 935px; top: 214px; width: 50px; height: 12px; font: 700 10px/12px "Retail Demo", sans-serif; text-align: center; color: rgba(255,239,215,.6); text-shadow: 0 0 3px #000; }
+.charges { left: 855px; top: 177px; width: 70px; height: 40px; background: radial-gradient(ellipse at center, rgba(214,136,12,.9) 0 35%, transparent 36%); }
+/* QOLLOCK #RejuvBuff (ql citadel_hud_top_bar.css 663-676): top-bar child, centred, y 100 under the padding, 50 x 20; the 180 s held-buff time. */
+.rejuvbuff { left: 935px; top: 168px; width: 50px; height: 20px; border-radius: 4px; background: rgba(0,0,0,.6); font: 700 13px/20px "VALVE Oracle", sans-serif; text-align: center; color: #FFED79; }
+/* Proposal: stock rejuvenator timer and mid-boss label faded with opacity (QOLLOCK's #RejuvHUD shows the same countdown). */
+.faded { opacity: .15; outline: 2px dashed #3fbf7f; }
+/* Stock rift HUD (#KothCashInMeter, top-bar child, margin-top 110; open at ui-scale 70%, in range 120 at 100%). */
+.koth { border-radius: 10px; background: rgba(12,12,12,.8); border: 2px solid rgba(255,239,215,.25); display: flex; align-items: center; justify-content: center; gap: 30px; font: 700 18px "Retail Demo"; color: rgba(255,255,255,.6); }
+/* Cards (d11 rebuild of the stock CSS). */
+.card { top: 68px; width: 88px; height: 172px; }
+.card .coin { position: absolute; left: 9px; top: 22px; width: 70px; height: 70px; border-radius: 50%; }
+.card.t1 .coin { background: var(--team1); } .card.t2 .coin { background: var(--team2); }
+.card .badge { position: absolute; left: 9px; top: -3px; width: 70px; height: 95px; overflow: hidden; -webkit-mask: var(--m-hero-image-mask-psd) 0 0 / 100% 100% no-repeat; mask: var(--m-hero-image-mask-psd) 0 0 / 100% 100% no-repeat; }
+.card .badge img { width: 70px; height: 95px; }
+.card .souls { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); padding: 20px 6px 2px; border-radius: 0 0 3px 3px; font: 700 15px/1 "VALVE Oracle"; white-space: nowrap; z-index: -1; }
+.card.t1 .souls { background: var(--team1); color: var(--team1Fg); } .card.t2 .souls { background: var(--team2); color: var(--offWhite); }
+.card .ult { position: absolute; left: 33px; top: 125px; width: 22px; height: 22px; border-radius: 50%; background: var(--offBlack); opacity: .8; }
+/* DLF ult cooldown counter (dlf_card.css .DLFUltCooldown: 20 px under the 22 px icon, #StatusRow 44 px from card y 125). */
+.ultcd { top: 215px; width: 22px; height: 20px; font: 700 13px/20px "Retail Demo", sans-serif; text-align: center; color: var(--offWhite); text-shadow: 0 0 3px #000; }
+/* DLF status column: 52 px wide, 43 px per slot, under the ult (card y 172). */
+.status { width: 52px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.status i { width: 38px; height: 38px; border-radius: 50%; border: 3px solid #d6880c; background: #222; }
+/* Observer HUD status grid (oh_debuffs.css): centred, two wide (74 px), 34 px circles, 39 px rows, from card y 167 under the ult counter row. */
+.status.oh { width: 74px; flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 5px 6px; }
+.status.oh i { width: 34px; height: 34px; }
+/* Soul lead graph (dlf_soul_graph.css). */
+.graph { width: 180px; height: 66px; transition: top .3s ease; }
+.graph svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.graph .foot { position: absolute; left: 0; right: 0; top: 48px; height: 18px; display: flex; justify-content: center; align-items: center; gap: 6px; }
+.graph .title { font: 700 9px/1 "Retail Demo", sans-serif; letter-spacing: 1.5px; color: var(--muted); text-shadow: 0 0 3px #000; }
+.graph .lead { font: 700 14px/1 "Retail Demo", sans-serif; color: var(--offWhite); text-shadow: 0 0 3px #000; }
+.graph.waiting { opacity: .25; outline: 2px dashed #ff4fd8; }
+/* QOLLOCK purchase notice (.quickItemInfo at ui-scale 150%). */
+.notice { height: 33px; display: flex; align-items: center; border-radius: 4.5px; border: 1.5px solid #8c5f2a; background: #c9a46a; transition: left .3s ease, top .3s ease; white-space: nowrap; }
+.notice.armor { background: #a6b180; border-color: #5f6c36; }
+.notice i { width: 30px; height: 30px; margin: 0 2px; border-radius: 3px; background: rgba(16,19,13,.55); display: inline-flex; align-items: center; justify-content: center; font: 700 11px "Retail Demo"; font-style: normal; color: #ffefd7; }
+.notice b { margin: 3px 5px 3px 3px; font: 700 16.5px/1 "VALVE Oracle", sans-serif; color: var(--offBlack); }
+/* Observer HUD notice (oh_debuffs.css .OHBuy): 32 px high, at most 205 px, 25 px icon, 15 px name; centred under the card's grid. */
+.notice.oh { height: 32px; max-width: 205px; border-width: 2px; }
+.notice.oh i { width: 25px; height: 25px; }
+.notice.oh b { font-size: 15px; }
+/* Stock objective health (#objectives_health_friendly, hud.xml): tier-2 walker = 400 x 75 (100 x 50 image over a 16 px bar); mid-boss row 500 x 70. */
+.objective { display: flex; flex-direction: column; align-items: center; transition: top .3s ease; }
+.objective .img { width: 100px; height: 50px; background: center / contain no-repeat url("../../observer_hud/designs/assets/game/npcs__tier_2_boss_psd.png"); }
+.objective .nm { height: 50px; display: flex; align-items: flex-end; font: 600 22px/1 "VALVE Oracle"; text-transform: uppercase; color: var(--offWhite); text-shadow: 0 0 10px #000; padding-bottom: 4px; }
+.objective .bar { width: 392px; height: 16px; margin-top: 4px; background: #000; border-radius: 3px; overflow: hidden; }
+.objective.boss .bar { width: 490px; }
+.objective .bar b { display: block; height: 100%; }
+/* Stock damage impact (#damage_impact): hero badges of units the spectated player hits, centred (user screenshot). */
+.dmg { display: flex; gap: 6px; }
+.dmg .inst { width: 78px; height: 116px; border-radius: 39px 39px 10px 10px; background: #d9b896 center top / cover no-repeat; box-shadow: 0 0 0 2px #10130d; }
+/* Net/FPS stats and sandbox extras. */
+.netgraph { right: 8px; width: 300px; padding-top: 8px; display: grid; grid-template-columns: repeat(4, auto); justify-content: end; column-gap: 14px; font: 16px/1.3 Consolas, monospace; color: rgb(120,240,120); text-shadow: 1px 1px 1px #000; text-align: right; }
+.mute { left: 26px; top: 22px; width: 48px; height: 48px; border-radius: 50%; background: rgba(40,40,40,.75); display: flex; align-items: center; justify-content: center; font: 26px/1 sans-serif; color: #ddd; }
+.tools { left: 1500px; top: 12px; width: 400px; height: 94px; border-radius: 10px; background: rgba(60,60,60,.45); padding: 12px 18px; font: 700 26px/1.2 "Retail Demo", sans-serif; color: rgba(255,255,255,.35); }
+/* Collision view */
+.boxes [data-box] { outline: 1px dashed rgba(255,255,255,.55); outline-offset: -1px; }
+.hit { position: absolute; pointer-events: none; outline: 2px solid #ff3c3c; z-index: 50; background: repeating-linear-gradient(45deg, rgba(255,60,60,.55) 0 6px, rgba(255,60,60,.2) 6px 12px); }
+.hit.stock { outline-color: #ffd479; background: repeating-linear-gradient(45deg, rgba(255,212,121,.45) 0 6px, rgba(255,212,121,.15) 6px 12px); }
+.edge { position: absolute; top: 100px; height: 420px; width: 0; border-left: 1px dashed rgba(255,255,255,.3); z-index: 40; }
+</style>
+</head>
+<body>
+<div class="ui" role="toolbar" aria-label="Mock controls">
+  <h1>DLF top bar: overlaps (mock, 1080p)</h1>
+  <span class="lbl">Build</span>
+  <div class="row"><div class="seg" role="group" aria-label="Build" data-key="mode">
+    <button type="button" data-v="live">Live bug (691894f6)</button><button type="button" data-v="prev">2026-10-23 code</button><button type="button" data-v="fixed">Fixed (584c55ab + charges)</button>
+  </div></div>
+  <span class="lbl">Game state</span>
+  <div class="row">
+    <div class="seg" role="group" aria-label="Mid-boss" data-key="mid"><button type="button" data-v="alive">Mid-boss alive</button><button type="button" data-v="respawn">Respawning</button><button type="button" data-v="held">Rejuvenator held</button></div>
+    <div class="seg" role="group" aria-label="Rift" data-key="rift"><button type="button" data-v="off">No rift</button><button type="button" data-v="warn">Rift warning</button><button type="button" data-v="open">Rift open</button><button type="button" data-v="range">In range</button></div>
+    <div class="seg" role="group" aria-label="Objective health" data-key="obj"><button type="button" data-v="none">No objective bar</button><button type="button" data-v="amber">Amber walker</button><button type="button" data-v="both">Both walkers</button><button type="button" data-v="boss">Mid-boss bar</button></div>
+    <label><input type="checkbox" data-key="dmg"> Damage impact (hits)</label>
+    <label><input type="checkbox" data-key="statuses"> Statuses on inner cards (3 each)</label>
+    <label><input type="checkbox" data-key="extras"> Sandbox extras</label>
+  </div>
+  <span class="lbl">Proposals</span>
+  <div class="row">
+    <button type="button" class="preset" id="resolved">Observer HUD layout</button>
+    <div class="seg prop" role="group" aria-label="Objectives map" data-key="map"><button type="button" data-v="now">Map disc as now</button><button type="button" data-v="hidden">Hide it (stock)</button><button type="button" data-v="clear">Rows clear of it</button></div>
+    <div class="seg prop" role="group" aria-label="Stock rejuvenator timer" data-key="rejuvFade"><button type="button" data-v="now">Stock rejuvenator timer as now</button><button type="button" data-v="faded">Faded (as Observer HUD)</button></div>
+    <div class="seg prop" role="group" aria-label="Rift HUD placement" data-key="kothSize"><button type="button" data-v="now">Rift HUD as now</button><button type="button" data-v="oh">Under the timers (Observer HUD)</button></div>
+    <div class="seg prop" role="group" aria-label="Objective health placement" data-key="objPlace"><button type="button" data-v="now">Objective bar as now</button><button type="button" data-v="stack">Under the timers / rift HUD (Observer HUD)</button></div>
+    <div class="seg prop" role="group" aria-label="Status column" data-key="statusLook"><button type="button" data-v="dlf">DLF status column</button><button type="button" data-v="oh">Grid two wide (Observer HUD)</button></div>
+    <div class="seg prop" role="group" aria-label="Purchase notices" data-key="noticeLook"><button type="button" data-v="dlf">DLF notices (under the column)</button><button type="button" data-v="oh">Notices right under the grid (Observer HUD)</button></div>
+    <label><input type="checkbox" data-key="hug"> Notices hug the inner edge (keeps the soul graph clear)</label>
+    <label><input type="checkbox" data-key="boxes"> Boxes and overlaps</label>
+  </div>
+</div>
+<div class="wrap">
+  <div class="viewport" id="viewport"><div class="stage" id="stage"></div></div>
+  <aside class="notes" aria-live="polite">
+    <h2>Overlaps in this view</h2>
+    <p class="dim" style="margin-bottom:8px">Red: involves a DLF or QOLLOCK panel. Yellow: stock against stock.</p>
+    <ul id="hits"></ul>
+    <h2>Accepted (box only or your pick)</h2>
+    <ul id="accepted"></ul>
+    <h2>Fixed so far (installed or in source)</h2>
+    <ul>
+      <li>Soul graph: no more <code>Infinitypx</code>; no longer 68 px too low; also under a holding team's rejuvenator charge icon.</li>
+      <li>Purchase notices on the inner cards stay on their team's side.</li>
+      <li>Net/FPS stats start under the banner.</li>
+    </ul>
+    <h2>Observer HUD layout (proposed, not built)</h2>
+    <p class="dim" style="margin-bottom:8px">Your call (2026-10-24): be like Observer HUD. These are its rules (observer_hud/SPEC.md), applied to DLF's top bar.</p>
+    <ul>
+      <li><b>Objectives map disc</b>: hidden (your pick).</li>
+      <li><b>Stock rejuvenator timer and mid-boss label</b>: faded with opacity, as Observer HUD fades the stock rejuvenator circle. QOLLOCK's mid-boss HUD beside the clock shows the countdown and its <code>#RejuvBuff</code> the 180 s held time.</li>
+      <li><b>Rift HUD</b>: stock size (70%, 100% in range), top 4 px under the timers (<code>placeKoth</code>).</li>
+      <li><b>Objective health</b>: stock size, walkers side by side; the highest bar 4 px under the timers, or under the rift HUD while it shows (<code>placeObjectives</code>, designs 19/20).</li>
+      <li><b>Soul graph</b>: 6 px under whichever shows last; waits while the rift HUD and a bar both show.</li>
+      <li><b>Status column</b>: Observer HUD's grid, two wide (74 px, 34 px circles, 39 px rows), right under the ult counter.</li>
+      <li><b>Purchase notices</b>: Observer HUD's size (32 px high, at most 205 px), right under the card's grid, neighbours pushed down. DLF keeps one thing: a notice on an inner card aligns to the card's inner side so it stays off the soul graph (turn "hug" off to see the overlap it prevents).</li>
+      <li><b>Damage impact</b>: stock spot, overlap accepted (your pick).</li>
+    </ul>
+    <p class="dim">Accepted, as in Observer HUD: the stock-size objective bars and rift HUD reach under the inner cards' ult counters, statuses and notices.</p>
+  </aside>
+</div>
+<script>
+(() => {
+  "use strict";
+  const HERO = "../../observer_hud/designs/assets/game/heroes/";
+  const AMBER = [["haze", "KUSH"], ["bull", "TARGETDUMMY"], ["inferno", "CITADEL"], ["lash", "ABILITY"], ["shiv", "MORTY"], ["wraith", "VEX"]];
+  const SAPPHIRE = [["yamato", "BHAI.ONE"], ["mirage", "TARGETDUMMY"], ["kelvin", "BOLT"], ["viscous", "GOOP"], ["digger", "MOLE"], ["synth", "ECHO"]];
+  const TOP_PAD = 68, GAP = 6, NOTICE_TOP = 172, SLOT_H = 43;
+  const OBJ_STOCK_TOP = 91;  // dlf styles/hud.css: #objectives_health_friendly margin-top 91px !important
+  const TEAM_X = { t1: 330, t2: 1062 };
+  const INNER = { t1: TEAM_X.t1 + 6 * 88, t2: TEAM_X.t2 };
+  const stage = document.getElementById("stage");
+  // Defaults: Observer HUD's rules (user 2026-10-24: "be like the observer hud more"); the other options compare.
+  const RESOLVED = { map: "hidden", rejuvFade: "faded", kothSize: "oh", objPlace: "stack", statusLook: "oh", noticeLook: "oh", hug: true };
+  const S = Object.assign({ mode: "fixed", mid: "alive", rift: "off", obj: "none", dmg: false, statuses: false, extras: false, boxes: true }, RESOLVED);
+
+  const el = (cls, box, html, style, group) => {
+    const d = document.createElement("div");
+    d.className = `abs ${cls}`;
+    if (box) d.dataset.box = box;
+    if (group) d.dataset.group = group;
+    if (html) d.innerHTML = html;
+    if (style) Object.assign(d.style, style);
+    stage.appendChild(d);
+    return d;
+  };
+  const show = (node, on) => { node.style.display = on ? "" : "none"; };
+
+  // ---- banner
+  el("banner");
+  el("dtext event", "banner: SEASON / MATCH", '<div class="l1">Season 2</div><div class="l2">Match #57</div>', null, "dlf");
+  el("dtext series", "banner: BEST OF 3", "Best of 3", null, "dlf");
+  el("dtext tname", "banner: team name", "BSS", { left: "334px", textAlign: "left" }, "dlf");
+  el("dtext tname", "banner: team name", "BHAI", { left: "1271px", textAlign: "right" }, "dlf");
+  el("dtext tscore", "banner: score", "1", { left: "860px" }, "dlf");
+  el("dtext tscore", "banner: score", "0", { left: "1016px" }, "dlf");
+  el("logo", null, "", { left: "227px", backgroundImage: "url(../panorama/images/dlf/dlf_emblem_amber.png)" });
+  el("logo", null, "", { left: "1612px", top: "-2px", backgroundImage: "url(../panorama/images/dlf/dlf_emblem_sapphire.png)" });
+
+  // ---- centre column
+  el("qlhud rejuvhud", "QOLLOCK: mid-boss HUD", "3:26", null, "ql");
+  el("clock", "stock: clock", "22:18", null, "stock");
+  el("qlhud buffhud", "QOLLOCK: bridge buff HUD", "2:42", null, "ql");
+  el("plate t1", "stock: soul plate (amber)", "131<small>k</small>", null, "stock");
+  el("plate t2", "stock: soul plate (sapphire)", "136<small>k</small>", null, "stock");
+  const objmap = el("objmap", "QOLLOCK: objectives map disc", "<i></i>", null, "ql");
+  const urn = el("urnrow", "QOLLOCK: soul lead % row", "-4.4% ◈", null, "ql");
+  const rift = el("riftrow", "QOLLOCK: rift timer row", "0:14", null, "ql");
+  const rejuv = el("rejuv", "stock: rejuvenator timer", "", null, "stock");
+  const midLabel = el("midboss", "stock: mid-boss label", "3:26", null, "stock");
+  const charges = el("charges", "stock: rejuvenator charge icon", "", null, "stock");
+  const rejuvBuff = el("rejuvbuff", "QOLLOCK: held-buff timer", "2:41", null, "ql");
+  const koth = el("koth", "stock: rift HUD", "<span>0%</span><span>42%</span>", null, "stock");
+
+  // ---- cards, names, statuses
+  const cards = { t1: [], t2: [] };
+  const statusCols = [];
+  for (const [team, roster] of [["t1", AMBER], ["t2", SAPPHIRE]]) {
+    roster.forEach(([hero, name], i) => {
+      const left = TEAM_X[team] + i * 88;
+      el(`card ${team}`, `card ${team === "t1" ? "amber" : "sapphire"} ${i + 1}`, `<div class="coin"></div><div class="badge"><img alt="" src="${HERO}${hero}_card_psd.png"></div><div class="souls">13<small>k</small></div><div class="ult"></div>`, { left: `${left}px` }, "cards");
+      cards[team].push({ left, width: 88 });
+      el("dtext pname", null, name, { left: `${left}px` });
+      // Every card's ult is on cooldown in this mock (most of a match).
+      el("ultcd", `DLF ult counter (${team === "t1" ? "amber" : "sapphire"} card ${i + 1})`, String(20 + i * 7), { left: `${left + 33}px` }, "dlf");
+      const inner = (team === "t1" && i >= 4) || (team === "t2" && i <= 1);
+      if (inner) statusCols.push(Object.assign(el("status", `DLF status column (${team === "t1" ? "amber" : "sapphire"} card ${i + 1})`, "<i></i><i></i><i></i>", null, "dlf"), { cardLeft: left }));
+    });
+  }
+  for (const x of Object.values(INNER)) { const e = document.createElement("div"); e.className = "edge"; e.style.left = `${x}px`; stage.appendChild(e); }
+
+  // ---- soul graph
+  const graph = el("graph", "DLF soul graph", `
+    <svg width="180" height="46" aria-hidden="true">
+      <rect width="180" height="23" fill="#FFFFFF09"/><rect y="4" width="180" height="1" fill="#FFFFFF24"/><rect y="42" width="180" height="1" fill="#FFFFFF24"/><rect y="23" width="180" height="1" fill="#FFFFFF38"/>
+      <path d="M6 23 C 30 23, 40 28, 60 28 S 80 18, 100 16 S 150 18, 174 26" fill="none" stroke="#3FBF7F" stroke-width="3"/>
+      <circle cx="6" cy="23" r="3" fill="#0A0C0B" stroke="#3FBF7F"/><circle cx="60" cy="28" r="3" fill="#0A0C0B" stroke="#3FBF7F"/><circle cx="117" cy="16" r="3" fill="#0A0C0B" stroke="#3FBF7F"/><circle cx="174" cy="26" r="4" fill="#3FBF7F"/>
+    </svg><div class="foot"><span class="title">SOUL LEAD</span><span class="lead">-4.4%</span></div>`, null, "dlf");
+
+  // ---- purchase notices (inner cards)
+  const NOTICES = [{ team: "t1", card: 5, item: "Spirit Shredder", cls: "" }, { team: "t2", card: 0, item: "Enduring Speed", cls: "armor" }]
+    .map((n) => Object.assign(n, { node: el(`notice ${n.cls}`, `DLF purchase notice (${n.team === "t1" ? "amber" : "sapphire"})`, `<i>${n.item.split(" ").map((w) => w[0]).join("")}</i><b>${n.item}</b>`, null, "dlf") }));
+
+  // ---- stock objective health and damage impact (hud.xml, outside the top bar)
+  const bar = (pct, color) => `<div class="bar"><b style="width:${pct}%;background:${color}"></b></div>`;
+  const walkerA = el("objective", "stock: objective health (amber walker)", `<div class="img"></div>${bar(21, "#D4860B")}`, { width: "400px" }, "stock");
+  const walkerS = el("objective", "stock: objective health (sapphire walker)", `<div class="img"></div>${bar(64, "#4D75C3")}`, { width: "400px" }, "stock");
+  const boss = el("objective boss", "stock: objective health (mid-boss)", `<div class="nm">Mid-Boss</div>${bar(78, "#99FFD6")}`, { width: "500px" }, "stock");
+  const dmg = el("dmg", "stock: damage impact", '<div class="inst"></div><div class="inst" style="background-color:#a8c8e8"></div>', { left: "879px", top: "164px" }, "stock");
+
+  // ---- net stats, sandbox extras
+  const net = el("netgraph", "stock: net/FPS stats", ["Ping", "Miss", "Loss", "Jitter", "0ms", "↓0.0%", "↓0.0%", "0ms", "", "↑0.0%", "↑0.0%", "↑0ms"].map((t) => `<span>${t}</span>`).join(""), null, "stock");
+  const mute = el("mute", "sandbox: mute icon", "🔇", null, "stock");
+  const tools = el("tools", "sandbox: testing tools", "TESTING TOOLS<br><small style=\"font-size:18px\">Hold TAB</small>", null, "stock");
+
+  // Boxes in stage px from the rendered rects, so CSS transforms (the scaled objective rows) count.
+  const rect = (n) => {
+    const r = n.getBoundingClientRect(), s = stage.getBoundingClientRect(), k = s.width / 1920;
+    return { x: (r.left - s.left) / k, y: (r.top - s.top) / k, w: r.width / k, h: r.height / k };
+  };
+  const visible = (n) => n.style.display !== "none";
+  const bottomOf = (n) => { const r = rect(n); return r.y + r.h; };
+  const OH_COLUMN_TOP = TOP_PAD + 167, OH_ROW_H = 39;  // Observer HUD: statuses from card y 167, rows of two
+
+  function placeCentre() {
+    show(objmap, S.map !== "hidden");
+    const clear = S.map === "clear";
+    Object.assign(urn.style, { left: "809.5px", width: clear ? "111.5px" : "145px" });      // ends 4 px left of the disc when clear
+    Object.assign(rift.style, { left: clear ? "999px" : "964.5px", width: clear ? "110.5px" : "145px" });
+    show(rift, S.rift !== "off");
+    rift.textContent = S.rift === "warn" ? "0:14" : "ACTIVE";
+    show(rejuv, S.mid !== "alive");
+    show(midLabel, S.mid === "respawn");
+    show(charges, S.mid === "held");
+    show(rejuvBuff, S.mid === "held");
+    // Proposal: the stock timer and label fade (opacity 0 live); QOLLOCK's #RejuvHUD shows the same countdown.
+    const faded = S.rejuvFade === "faded";
+    for (const [n, box] of [[rejuv, "stock: rejuvenator timer"], [midLabel, "stock: mid-boss label"]]) {
+      n.classList.toggle("faded", faded);
+      n.dataset.box = faded ? "" : box;
+    }
+    show(koth, S.rift === "open" || S.rift === "range");
+    if (S.kothSize === "oh") {
+      // Observer HUD placeKoth: stock size (70%, or 100% in range / captured), top 4 px under the timers.
+      const k = S.rift === "range" ? { w: 320, h: 114 } : { w: 224, h: 80 };
+      const top = centreBottom(false) + 4;
+      Object.assign(koth.style, { left: `${960 - k.w / 2}px`, top: `${top}px`, width: `${k.w}px`, height: `${k.h}px` });
+    } else {
+      const k = S.rift === "range" ? { l: 800, t: TOP_PAD + 120, w: 320, h: 114 } : { l: 848, t: TOP_PAD + 110, w: 224, h: 80 };
+      Object.assign(koth.style, { left: `${k.l}px`, top: `${k.t}px`, width: `${k.w}px`, height: `${k.h}px` });
+    }
+  }
+  // dlf_soul_graph.js place(): the lowest measured centre piece (fixed build also counts charges). withKoth
+  // false = the pieces the rift HUD itself goes under.
+  function centreBottom(withKoth = true) {
+    const pieces = [stage.querySelector(".clock"), ...stage.querySelectorAll(".plate"), urn];
+    if (visible(rift)) pieces.push(rift);
+    if (S.rejuvFade !== "faded") {
+      if (visible(rejuv)) pieces.push(rejuv);
+      if (visible(midLabel)) pieces.push(midLabel);
+    } else if (visible(rejuvBuff)) pieces.push(rejuvBuff);            // proposal: measured once the stock timer fades
+    if (S.mode === "fixed" && visible(charges)) pieces.push(charges);
+    // KOTH_MAX_H 80 today; Observer HUD puts the graph under the rift HUD at any size.
+    if (withKoth && visible(koth) && (S.kothSize === "oh" || rect(koth).h <= 80)) pieces.push(koth);
+    if (S.map === "clear" && visible(objmap)) pieces.push(objmap);    // proposal: the graph measures the disc too
+    return Math.max(...pieces.map(bottomOf));
+  }
+  function placeObjectives() {
+    const shown = { amber: [walkerA], both: [walkerA, walkerS], boss: [boss], none: [] }[S.obj];
+    for (const n of [walkerA, walkerS, boss]) show(n, shown.includes(n));
+    if (!shown.length) return null;
+    // Observer HUD placeObjectives: the highest bar 4 px under the timers, or under the rift HUD while it shows.
+    const below = () => Math.max(centreBottom(), visible(koth) ? bottomOf(koth) : 0) + 4;
+    // Stock offsets under the panel's top: walkers 160, mid-boss 140 (designs 19/20).
+    let top = S.obj === "boss" ? OBJ_STOCK_TOP + 140 : OBJ_STOCK_TOP + 160;
+    if (S.objPlace === "stack") top = below();
+    const width = shown.reduce((s, n) => s + n.offsetWidth, 0);
+    let x = 960 - width / 2;
+    for (const n of shown) { n.style.left = `${x}px`; n.style.top = `${top}px`; x += n.offsetWidth; }
+    return { top, bottom: top + Math.max(...shown.map((n) => n.offsetHeight)) };
+  }
+  function placeGraph(obj) {
+    const bottom = centreBottom();
+    let y;
+    if (S.mode === "live") y = TOP_PAD;                         // margin-top "Infinitypx" threw: never written
+    else if (S.mode === "prev") y = TOP_PAD + bottom + GAP;     // measured from the bar's top, written under its padding
+    else y = bottom + GAP;
+    let waiting = false;
+    if (S.mode === "fixed" && S.objPlace !== "now" && obj) {
+      y = Math.max(y, obj.bottom + GAP);                        // Observer HUD: the graph under the objective bar
+      waiting = visible(koth);                                  // and it waits while the rift HUD also shows
+    }
+    graph.style.left = "870px";
+    graph.style.top = `${y}px`;
+    graph.classList.toggle("waiting", waiting);
+    graph.dataset.box = waiting ? "" : "DLF soul graph";
+  }
+  function placeNotices() {
+    const oh = S.statusLook === "oh";
+    for (const col of statusCols) {
+      show(col, S.statuses);
+      col.classList.toggle("oh", oh);
+      Object.assign(col.style, oh
+        ? { left: `${col.cardLeft + 7}px`, top: `${OH_COLUMN_TOP}px`, height: `${2 * OH_ROW_H}px` }
+        : { left: `${col.cardLeft + 18}px`, top: `${TOP_PAD + NOTICE_TOP}px`, height: "" });
+    }
+    for (const n of NOTICES) {
+      const c = cards[n.team][n.card];
+      n.node.classList.toggle("oh", S.noticeLook === "oh");
+      const w = n.node.offsetWidth;
+      let left = c.left + c.width / 2 - w / 2;
+      let top;
+      if (S.noticeLook === "oh") {
+        // Observer HUD: the notice is the column's last child, centred on the card, right under the grid
+        // (or under the ult counter row when no status shows). Neighbouring stacks push each other down.
+        top = OH_COLUMN_TOP + (S.statuses ? (oh ? 2 * OH_ROW_H : 3 * SLOT_H) : 0);
+      } else {
+        top = TOP_PAD + NOTICE_TOP + (S.statuses ? (oh ? 2 * OH_ROW_H : 3 * SLOT_H) + 4 : 0);
+      }
+      // DLF (2026-10-23, your "souls EVEN" screenshot): a stack that would cross into the centre aligns to
+      // its card's inner side, so it stays off the soul graph.
+      if (S.mode === "fixed" && S.hug) {
+        if (n.team === "t1" && left + w > INNER.t1 + 0.5) left = c.left + c.width - w;
+        if (n.team === "t2" && left < INNER.t2 - 0.5) left = c.left;
+      }
+      n.node.style.left = `${Math.round(left)}px`;
+      n.node.style.top = `${top}px`;
+    }
+  }
+
+  // ---- overlap finder
+  const ALLOWED = [
+    [/^card /, /^card /],
+    [/^card (amber 6|sapphire 1)$/, /^stock: soul plate/],                 // stock: players over the plates
+    [/^stock: clock$/, /^QOLLOCK: (mid-boss|bridge buff) HUD$/],           // QOLLOCK: side HUDs behind the clock
+    [/^stock: rejuvenator timer$/, /^stock: mid-boss label$/],
+    [/^stock: objective health/, /^stock: objective health/],
+    [/^DLF status column/, /^card /],                                       // a column hangs under its own card
+    [/^DLF purchase notice/, /^card /],                                     // notices start under the ult counter, below the card's drawing
+    [/^DLF ult counter/, /^card /]                                          // the counter is part of its card
+  ];
+  // Overlaps judged harmless or taken over from Observer HUD (listed, not drawn red), with the reason.
+  const ACCEPTED = [
+    [/^QOLLOCK: (soul lead %|rift timer) row$/, /^card (amber 6|sapphire 1)$/, "QOLLOCK rows under the inner cards: box only. They fade to transparent there, like the stock plates above them."],
+    [/^stock: rejuvenator charge icon$/, /^card amber 6$/, "Charge icon edge: box only (its radial is transparent there)."],
+    [/^stock: objective health/, /^(card |DLF (ult counter|status column|purchase notice))/, "As Observer HUD: the objective bars keep their stock size, so they reach under the inner cards' ult counters, statuses and notices."],
+    [/^stock: rift HUD$/, /^(card |DLF (ult counter|status column|purchase notice))/, "As Observer HUD: the rift HUD keeps its stock size (100% in range), so its ends reach under the inner cards."],
+    [/^stock: damage impact$/, /./, "Damage impact keeps its stock spot (your pick, as in Observer HUD); hits are short."]
+  ];
+  const allowed = (a, b) => ALLOWED.some(([p, q]) => (p.test(a) && q.test(b)) || (p.test(b) && q.test(a)));
+  const accepted = (a, b) => ACCEPTED.find(([p, q]) => (p.test(a) && q.test(b)) || (p.test(b) && q.test(a)));
+  function overlaps() {
+    stage.querySelectorAll(".hit").forEach((n) => n.remove());
+    const boxes = [...stage.querySelectorAll("[data-box]")].filter((n) => n.dataset.box && visible(n));
+    const hits = [];
+    const okd = new Map();
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = rect(boxes[i]), b = rect(boxes[j]);
+        const x = Math.max(a.x, b.x), y = Math.max(a.y, b.y);
+        const w = Math.min(a.x + a.w, b.x + b.w) - x, h = Math.min(a.y + a.h, b.y + b.h) - y;
+        if (w < 2 || h < 2) continue;
+        const na = boxes[i].dataset.box, nb = boxes[j].dataset.box;
+        if (allowed(na, nb)) continue;
+        const acc = accepted(na, nb);
+        if (acc) { okd.set(acc[2], (okd.get(acc[2]) || 0) + 1); continue; }
+        const stockOnly = boxes[i].dataset.group !== "dlf" && boxes[i].dataset.group !== "ql" && boxes[j].dataset.group !== "dlf" && boxes[j].dataset.group !== "ql";
+        hits.push({ na, nb, w, h, stockOnly });
+        if (S.boxes) {
+          const d = document.createElement("div");
+          d.className = `hit${stockOnly ? " stock" : ""}`;
+          Object.assign(d.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+          stage.appendChild(d);
+        }
+      }
+    }
+    hits.sort((p, q) => p.stockOnly - q.stockOnly);
+    document.getElementById("hits").innerHTML = hits.length
+      ? hits.map((h) => `<li class="${h.stockOnly ? "warn" : "bad"}">${h.na} × ${h.nb} <span class="dim">(${Math.round(h.w)}×${Math.round(h.h)})</span></li>`).join("")
+      : '<li class="ok">None</li>';
+    document.getElementById("accepted").innerHTML = okd.size
+      ? [...okd].map(([why, n]) => `<li class="dim">${why} <span>(${n})</span></li>`).join("")
+      : '<li class="dim">None</li>';
+    return hits;
+  }
+
+  function render() {
+    show(mute, S.extras); show(tools, S.extras); show(dmg, S.dmg);
+    net.style.top = S.mode === "fixed" ? "100px" : "0px";
+    stage.classList.toggle("boxes", S.boxes);
+    placeCentre();
+    const obj = placeObjectives();
+    placeGraph(obj);
+    placeNotices(obj);
+    window.__hits = overlaps();
+    document.querySelectorAll(".seg[data-key]").forEach((seg) => seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(S[seg.dataset.key] === b.dataset.v))));
+    document.querySelectorAll("input[data-key]").forEach((i) => { i.checked = !!S[i.dataset.key]; });
+  }
+  document.querySelectorAll(".seg[data-key] button").forEach((b) => b.addEventListener("click", () => { S[b.closest(".seg").dataset.key] = b.dataset.v; render(); }));
+  document.querySelectorAll("input[data-key]").forEach((i) => i.addEventListener("change", () => { S[i.dataset.key] = i.checked; render(); }));
+  document.getElementById("resolved").addEventListener("click", () => { Object.assign(S, RESOLVED, { mode: "fixed" }); render(); });
+  for (const [k, v] of new URLSearchParams(location.search)) if (k in S) S[k] = typeof S[k] === "boolean" ? v === "1" : v;
+  function fit() {
+    const vp = document.getElementById("viewport");
+    const s = vp.clientWidth / 1920;
+    stage.style.transform = `scale(${s})`;
+    vp.style.height = `${520 * s}px`;
+  }
+  addEventListener("resize", fit);
+  fit();
+  render();
+  document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+/* Soul lead graph under the top-bar clock (#DLFSoulGraph, dlf_soul_graph.js), drawn like ShowRank's
+   Rank History chart: no card, a faint band and guide lines, a baseline at zero, a 3 px accent line
+   with hollow pins and a marked latest pin, and one centred row under the plot: SOUL LEAD and the lead
+   in the leading team's colour. No team name, time labels or axis values (user 2026-10-23).
+   Geometry (layout px) = G in dlf_soul_graph.js: 180 wide = the plot, centred under the clock; plot
+   46 tall with the zero line at 23; the row at y 48. The script writes margin-left/margin-top
+   (placement), the line/fill classes and, for the size setting, every box, font and drawn piece
+   size scaled in layout px (no transform scale: it drew blurry text live). Colours: Rank History accent
+   #3FBF7F, muted #C4C9D0, team1Color #D6880C / team2Color #4F74C3 (bright #FFC15A / #8FB2FF). */
+
+#DLFSoulGraph
+{
+	width: 180px;
+	height: 66px;
+	horizontal-align: left;
+	vertical-align: top;
+	overflow: noclip;
+	opacity: 0;
+	transition-property: opacity;
+	transition-duration: 0.3s;
+}
+
+#DLFSoulGraph.DLFGraphShown
+{
+	opacity: 1;
+}
+
+.gScoreboardOpen #DLFSoulGraph,
+.gShopOpen #DLFSoulGraph,
+.gDetailView #DLFSoulGraph
+{
+	visibility: collapse;
+}
+
+/* ---------------------------------------------------------------- plot */
+
+#DLFGraphPlot
+{
+	width: 180px;
+	height: 46px;
+	overflow: noclip;
+}
+
+.DLFGraphBand
+{
+	width: 100%;
+	height: 23px;
+	background-color: #FFFFFF09;
+}
+
+.DLFGraphGuide
+{
+	width: 100%;
+	height: 1px;
+	background-color: #FFFFFF24;
+}
+
+.DLFGraphGuideUp
+{
+	margin-top: 4px;
+}
+
+.DLFGraphGuideDown
+{
+	margin-top: 42px;
+}
+
+#DLFGraphZero
+{
+	width: 100%;
+	height: 1px;
+	margin-top: 23px;
+	background-color: #FFFFFF38;
+}
+
+#DLFGraphDraw
+{
+	width: 100%;
+	height: 100%;
+	overflow: noclip;
+}
+
+/* Area: fades from the line toward the zero line. */
+.DLFGraphFillUp
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #D6880C66 ), to( #D6880C0A ) );
+}
+
+.DLFGraphFillDown
+{
+	background-color: gradient( linear, 0% 0%, 0% 100%, from( #4F74C30A ), to( #4F74C366 ) );
+}
+
+.DLFGraphNoFill .DLFGraphFillUp,
+.DLFGraphNoFill .DLFGraphFillDown
+{
+	visibility: collapse;
+}
+
+.DLFGraphSeg
+{
+	height: 3px;
+	transform-origin: 0% 50%;
+	background-color: #3FBF7F;
+}
+
+.DLFGraphPin
+{
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	border: 1px solid #3FBF7F;
+	background-color: #0A0C0BCC;
+}
+
+.DLFGraphPinLast
+{
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: #3FBF7F;
+}
+
+.DLFGraphHalo
+{
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background-color: #3FBF7F2E;
+}
+
+/* Line colours (state.graph.line). */
+.DLFGraphLineWhite .DLFGraphSeg,
+.DLFGraphLineWhite .DLFGraphPinLast
+{
+	background-color: #EFEFEF;
+}
+
+.DLFGraphLineWhite .DLFGraphPin
+{
+	border: 1px solid #EFEFEF;
+}
+
+.DLFGraphLineWhite .DLFGraphHalo
+{
+	background-color: #EFEFEF2E;
+}
+
+.DLFGraphLineGold .DLFGraphSeg,
+.DLFGraphLineGold .DLFGraphPinLast
+{
+	background-color: #E9C46A;
+}
+
+.DLFGraphLineGold .DLFGraphPin
+{
+	border: 1px solid #E9C46A;
+}
+
+.DLFGraphLineGold .DLFGraphHalo
+{
+	background-color: #E9C46A2E;
+}
+
+.DLFGraphLineCyan .DLFGraphSeg,
+.DLFGraphLineCyan .DLFGraphPinLast
+{
+	background-color: #4FD1E8;
+}
+
+.DLFGraphLineCyan .DLFGraphPin
+{
+	border: 1px solid #4FD1E8;
+}
+
+.DLFGraphLineCyan .DLFGraphHalo
+{
+	background-color: #4FD1E82E;
+}
+
+/* ---------------------------------------------------------------- lead row */
+
+#DLFGraphFoot
+{
+	horizontal-align: center;
+	margin-top: 48px;
+	height: 18px;
+	flow-children: right;
+}
+
+#DLFGraphTitle
+{
+	vertical-align: center;
+	font-family: sans;
+	font-size: 9px;
+	font-weight: bold;
+	letter-spacing: 1.5px;
+	color: #C4C9D0;
+	text-shadow: 0px 0px 3.0 #000000;
+}
+
+#DLFGraphLead
+{
+	vertical-align: center;
+	margin-left: 6px;
+	font-family: sans;
+	font-size: 14px;
+	font-weight: heavy;
+	color: #FFFFFF;
+	text-shadow: 0px 0px 3.0 #000000;
+}
+
+#DLFGraphLead.DLFAmber
+{
+	color: #FFC15A;
+}
+
+#DLFGraphLead.DLFSapphire
+{
+	color: #8FB2FF;
+}
+
+#DLFSoulGraph.DLFGraphPreview #DLFGraphTitle
+{
+	color: #3FBF7F;
+}
+
+/* The stock rejuvenator circle and mid-boss label under the clock fade out (opacity, as Observer HUD:
+   a collapse could never come back, and QOLLOCK reads the label's text). QOLLOCK's #RejuvHUD beside the
+   clock shows the same countdown and #RejuvBuff the held time; the charge icons stay. The graph does
+   not measure them any more. */
+#RejuvenatorCharges #RejuvenatorTimer .rejuvTimer,
+#RejuvenatorCharges #RejuvenatorTimer #MidbossTimerLabel
+{
+	opacity: 0;
+}

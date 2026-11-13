@@ -1,0 +1,84 @@
+/* Prettified by Source 2 Viewer 19.2.0.0 - https://valveresourceformat.github.io */
+
+@import url("s2r://panorama/styles/base/hud_spectate_bar.vcss_c");
+.SpectateTopBar
+{
+	font-size: 18px;
+	border-top: 0px none offBlack;
+	flow-children: none;
+}
+
+/* margin-top 76px (observer 10px + 66px DLF banner) keeps "SPECTATING <name>" below the banner. */
+#spectate_target
+{
+	flow-children: down;
+	margin: 76px 0px 0px 20px;
+	height: 100%;
+}
+
+.spectatingTitle
+{
+	font-size: 16px;
+	opacity: 0.5;
+}
+
+.specPlayerNav
+{
+	flow-children: right;
+	margin-top: 500px;
+}
+
+#fow_view_section
+{
+	flow-children: down;
+	height: fit-children;
+	horizontal-align: right;
+	margin-top: 5px;
+	margin-right: 20px;
+	margin-bottom: 420px;
+	visibility: collapse;
+	hittest: false;
+}
+
+.AspectRatio21x9 #fow_view_section
+{
+	margin-right: 170px;
+	margin-bottom: 50px;
+}
+
+.spectatingUnit.spectatingTeam1 .SpectateTopBar,.spectatingUnit.spectatingTeam2 .SpectateTopBar,.dead.spectatingUnit .SpectateTopBar
+{
+	background-color: gradient(linear, 0% 0%, 0% 100%, from(#00000000), to(#00000000));
+}
+
+#camera_section
+{
+	horizontal-align: right;
+	flow-children: down;
+	margin-right: 20px;
+	margin-top: 10px;
+	visibility: collapse;
+	hittest: false;
+}
+
+#swap_camera,#flight_control,#cursor_mode,#change_teams
+{
+	flow-children: right;
+	margin-bottom: 5px;
+}
+
+#fly_up
+{
+	margin-bottom: 5px;
+}
+
+#swap_camera
+{
+	margin-top: 5px;
+}
+
+.keybindTitle
+{
+	font-size: 15px;
+}
+

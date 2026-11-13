@@ -5,19 +5,19 @@
 // The unit class (CLASS_PLAYER) lands on the dialog only after the layout loads, and the engine
 // recycles world panels between units (spike 2026-10-22), so nothing is decided at boot: a non-hero
 // bar re-checks its class with a backoff capped at IDLE_MAX_S, and a hero bar re-checks it on every
-// sample (a recycled bar sends one clearing message and goes idle).
+// full sample (every FULL_MS, or when its status list or name changes; a recycled bar sends one
+// clearing message and goes idle).
 // Hero bars scan the direct children of #StatusEffectContainer every pollMs. A status panel's id is
 // status_<ability> (status_<ability>/<modifier> when the applying ability entity is gone). Only the
 // abilities in dlf/spectator-status.json (RULES) are sent: their debuffs (.isDebuff), their
 // non-debuff statuses only when listed as a buff, and a status listed with minStacks (Djinn's Mark)
 // only from that many stacks. A panel with the "stunned" class is a stun: its own item. Per ability
-// and kind the snapshot carries [key, debuff 0/1, count, end, stun 0/1, hit]: count is the larger of the
+// and kind the snapshot carries [key, debuff 0/1, count, end, stun 0/1, hit, total]: count is the larger of the
 // #stacks label and the number of panels, end the predicted expiry (Date.now() ms; 0 = no countdown)
 // fitted from three samples of the native radial on #StatusEffectsBorder, hit the bar's hit sequence
 // number of the item's last hit (rules with pulse only, else 0): a hit is a status panel that appears
 // or whose radial jumps back against its running direction by more than REFRESH_DEG (a refresh).
-// Changes, plus a 4 s
-// heartbeat while anything is shown, leave through a sibling relay as OH_DEBUFF_SNAPSHOT for
+// Changes, plus a 4 s heartbeat while anything is shown, leave through a sibling relay as OH_DEBUFF_SNAPSHOT for
 // oh_debuffs.js. The editor's DEV settings arrive as OH_DEBUFF_CONFIG on this context's own
 // ClientUI_FireOutput listener. DEV status log (config log: true): hero bars print every status panel
 // when it appears (+), changes classes, stacks or visibility (~), or goes away (-).
@@ -38,7 +38,7 @@
   const WAKE_WINDOW_MS = 30000;
   const FULL_MS = 2000; // a hero bar's full sample at least this often (quick polls in between)
   const RADIAL_MS = 500; // the shown statuses' radials and stacks between full samples
-  const MAX_KEYS = 8;
+  const MAX_KEYS = 8; // = oh_debuffs.js MAX_KEYS (the column shows six and picks which)
   const MAX_COUNT = 99;
   const END_JITTER_MS = 400;
   const FIT_GAP_MS = 450;
@@ -47,7 +47,6 @@
   const MAX_ALIAS = 24;
   // realLabel takes no space and draws nothing (not collapsed: its text must keep following the variable).
   const HIDDEN_STYLE = { opacity: "0", width: "0px", height: "0px" };
-  const KEY = /^[a-z0-9_]{1,64}$/;
   const RADIAL = /^radial\(\s*50(?:\.0+)?%\s+50(?:\.0+)?%\s*,\s*0(?:\.0+)?deg\s*,\s*(-?\d+(?:\.\d+)?)deg\s*\)$/;
   // One rule per ability in dlf/spectator-status.json; nothing else reaches the top bar. Keep equal to
   // the spec (validate-observer-hud.js compares them). maxSeconds: heuristic threshold, a radial whose full turn
@@ -94,9 +93,12 @@
     ["ability_unicorn_dazzlingorb", { maxSeconds: 3, pulse: true }]
   ]);
 
-  // Ids of a stun with no applying ability; the only such stun seen live is the Hyperline knock-off.
+  // A stun with no applying ability is named after its state (status_MODIFIER_STATE_STUNNED, any such
+  // stun: Seven's Static Charge, Ivy's Stone Form, ...) and after its modifier. Only the Hyperline
+  // knock-off's modifier is the knockdown (live 2026-10-14); ability knockdowns (Abrams, Solomon,
+  // Infernus) are keyed by their ability. The state panel alone is no Hyperline: it stays unlisted.
   const HYPERLINE_KEY = "citadel_ability_zip_line";
-  const NO_ABILITY_STUN_IDS = new Set(["modifier_citadel_knockdown", "MODIFIER_STATE_STUNNED"]);
+  const HYPERLINE_STUN_ID = "modifier_citadel_knockdown";
   // Stun panels stay in the status list (so they can be read) but take no space and draw nothing.
   // oh_status_world.css does this from the first frame; these inline styles are the fallback.
   const MUTED_STYLE = { opacity: "0", width: "0px", height: "0px", margin: "0px" };
@@ -145,6 +147,7 @@
   // Quick polls (2026-10-25, phase 1 of decisions/postgame-identity-perf-plan.md): see quick().
   let watch = true; // spectating (OH_DEBUFF_CONFIG watch); false sleeps the loop
   let wake = 0; // the column's wake counter: a change re-checks idle bars at once
+  let configRaw = ""; // the last OH_DEBUFF_CONFIG heard
   let awakeAt = Date.now(); // load or the last wake: the 2 s idle cap holds for WAKE_WINDOW_MS after it
   let tracked = []; // the shown status panels of the last full sample: { effect, found, slot, key, rule, stun, debuff }
   let trackedFast = false; // a shown status needs every poll (pulse or minStacks rule)
@@ -302,33 +305,38 @@
   // or missing radial gives 0. The radial runs from -360 towards 0, or the other way when reversed.
   // The fit uses samples at least FIT_GAP_MS apart at any poll rate: the angle is read in whole,
   // slightly noisy degrees, so closer samples fail the 10% steadiness test (validator, 0.25 s poll).
+  // The same fit gives the full duration (one turn: 360 / rate), sent with the end so the column can
+  // draw the elapsed part of the circle (user 2026-11-06); fit.total is 0 whenever fit.end is.
   function predictEnd(key, angle, now, maxSeconds) {
     if (angle === null) {
       fits.delete(key);
       return 0;
     }
     let fit = fits.get(key);
-    if (!fit) fits.set(key, (fit = { points: [], end: 0 }));
+    if (!fit) fits.set(key, (fit = { points: [], end: 0, total: 0 }));
     const previous = fit.points[fit.points.length - 1];
     if (previous && now - previous.at < FIT_GAP_MS) return fit.end;
     fit.points.push({ angle, at: now });
     if (fit.points.length > 3) fit.points.shift();
-    if (fit.points.length < 3) return (fit.end = 0);
+    if (fit.points.length < 3) return (fit.end = fit.total = 0);
     const [a, b, c] = fit.points;
     const span = (c.at - a.at) / 1000;
     const first = (b.at - a.at) / 1000;
     const last = (c.at - b.at) / 1000;
-    if (!(first > 0 && last > 0)) return (fit.end = 0);
+    if (!(first > 0 && last > 0)) return (fit.end = fit.total = 0);
     const rate = (c.angle - a.angle) / span;
     const firstRate = (b.angle - a.angle) / first;
     const lastRate = (c.angle - b.angle) / last;
     if (!(Math.abs(rate) >= 1 && Math.abs(rate) <= 360) || Math.abs(firstRate - lastRate) > Math.abs(rate) * 0.1 ||
         360 / Math.abs(rate) > maxSeconds * 1.05) {
-      return (fit.end = 0);
+      return (fit.end = fit.total = 0);
     }
     const left = rate > 0 ? -c.angle / rate : (360 + c.angle) / -rate;
     const end = Math.round(now + left * 1000);
-    if (!(fit.end && Math.abs(end - fit.end) <= END_JITTER_MS)) fit.end = end;
+    if (!(fit.end && Math.abs(end - fit.end) <= END_JITTER_MS)) {
+      fit.end = end;
+      fit.total = Math.round(360000 / Math.abs(rate));
+    }
     return fit.end;
   }
 
@@ -336,7 +344,6 @@
     const text = valid(label) ? label.text : "";
     return typeof text === "string" && /^\d{1,3}$/.test(text) ? Number(text) : 0;
   }
-
 
   function logStatuses(name, list) {
     const next = new Map();
@@ -375,10 +382,10 @@
       publish("", []);
       restoreName();
       if (muted.size) unmuteAll();
-      parts = new Map();
-      fits = new Map();
-      hits = new Map();
-      logged = new Map();
+      if (parts.size) parts = new Map();
+      if (fits.size) fits = new Map();
+      if (hits.size) hits = new Map();
+      if (logged.size) logged = new Map();
       announced = false;
       if (!dialog && inHud()) return -1;
       const delay = idleS;
@@ -423,9 +430,10 @@
       // visibility or debuff read.
       const id = effect.id;
       if (typeof id !== "string" || id.slice(0, 7) !== "status_") continue;
-      let key = id.slice(7).split("/")[0];
-      if (stun && NO_ABILITY_STUN_IDS.has(key)) key = HYPERLINE_KEY;
-      const rule = KEY.test(key) ? RULES.get(key) : undefined;
+      const cut = id.indexOf("/", 7);
+      let key = cut < 0 ? id.slice(7) : id.slice(7, cut);
+      if (stun && key === HYPERLINE_STUN_ID) key = HYPERLINE_KEY;
+      const rule = RULES.get(key);
       if (!rule || (effect.visible === false && !stun)) continue;
       const debuff = effect.BHasClass("isDebuff");
       if (!stun && !debuff && !rule.buff) continue;
@@ -488,8 +496,10 @@
       // A stun is one status even when the engine shows it twice (a modifier panel and a state panel).
       const count = entry.stun ? 1 : Math.min(MAX_COUNT, Math.max(entry.panels, entry.stacks));
       if (entry.hit) hits.set(slot, ++hitSeq);
-      items.push([entry.key, entry.debuff ? 1 : 0, count, predictEnd(slot, entry.angle, now, entry.rule.maxSeconds), entry.stun ? 1 : 0,
-        hits.get(slot) || 0]);
+      const end = predictEnd(slot, entry.angle, now, entry.rule.maxSeconds);
+      const fit = fits.get(slot);
+      items.push([entry.key, entry.debuff ? 1 : 0, count, end, entry.stun ? 1 : 0, hits.get(slot) || 0,
+        end > 0 && fit ? fit.total : 0]);
     }
     for (const key of fits.keys()) if (!byKey.has(key)) fits.delete(key);
     for (const key of hits.keys()) if (!byKey.has(key)) hits.delete(key);
@@ -576,9 +586,12 @@
     schedule(delay);
   }
 
-  // A change restarts the loop at once, so a faster interval or ON applies without waiting.
+  // A change restarts the loop at once, so a faster interval or ON applies without waiting. The heartbeat
+  // repeats the last message, and only this function writes what a message sets, so an equal one is skipped
+  // before the parse (one bar per world panel hears every heartbeat).
   function onConfig(raw) {
-    if (stopped || typeof raw !== "string" || raw.indexOf("OH_DEBUFF_CONFIG") < 0) return;
+    if (stopped || typeof raw !== "string" || raw === configRaw || raw.indexOf("OH_DEBUFF_CONFIG") < 0) return;
+    configRaw = raw;
     let message = null;
     try {
       message = JSON.parse(raw);

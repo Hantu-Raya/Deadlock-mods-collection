@@ -62,10 +62,10 @@
   // Night Desk team logo (design 16): the tab on each plate edge is the logo plus 2 px each way, from the
   // band's top (y 1); past LOGO_BASE px each team's stock cards move outward by size - LOGO_BASE.
   const LOGO_BASE = 30;
+  const logoTabHalf = (size) => size / 2 + 2;
   const ORG_PAD = 2; // organiser name clearance from each tab
   const ORG_FONT = [15, 13, 11]; // .OHOrgName 15 px, then smaller before the ellipsis
   const ORG_LOGO_MAX = 172; // .OHStyleDesk .OHOrgLogo width
-  const BAND_H = 56;
   const KILLS_BOTTOM = 80 + 3 + 40 + 3; // stock kills row bottom under the top bar's top (citadel_hud_top_bar.css)
   const REJUV_COUNTS = ["RejuvCount_1", "RejuvCount_2", "RejuvCount_3", "RejuvCount_4"];
   const PAUSE_RETRY_TICKS = 10;
@@ -85,6 +85,7 @@
   const OBJ_GAP = 4; // objective health top under the timers or the rift HUD
   const OBJ_STOCK_OFFSET = 160;
   const DESK_BANS = 112; // room kept at the outer end for "BANS" and two bans
+  const DESK_BAN_STEP = 32; // .OHDeskBan + margins: each ban past two (state.banCount 3)
   const CORNER_MIN = 96; // a corner narrower than this hides
   const CORNER_PAD = 16; // .OHCorner padding
   const NAME_LONG = 20; // Night Desk team names longer than this step down to 18 px, then 15 px
@@ -149,6 +150,7 @@
   }
 
   let mapGen = 0; // +1 for each OHBar injected: one per map load (and per layout reload)
+  let gameGen = 0; // +1 for each later live game on the same bar (one private lobby; awardSeries)
   let carried = false; // the state came from the HUD root (a layout reload), not a fresh process
   function adoptState() {
     try {
@@ -190,10 +192,11 @@
   // ------------------------------------------------------------------ panels
 
   const UI = {
-    hud: null, topBar: null, escape: null, bar: null, band: null, menu: null, entry: null, entryMenu: null, time: null,
-    sides: {}, clockBans: {}, desk: {}, strips: {}, corners: {}, mid: null, org: null, orgName: null,
-    midSeries: {}, who: [], info: null, clock: null, stageBox: null, stage: null, format: null,
-    graph: null, graphLead: null, graphDraw: null, cards: [], pushed: false, digits: {}, pause: { wait: 0 }, arch: null, rings: null,
+    hud: null, topBar: null, escape: null, bar: null, band: null, bandAfter: null, bandBack: null, menu: null, entry: null, entryMenu: null, time: null,
+    sides: {}, clockBans: {}, desk: {}, strips: {}, corners: {}, cornerText: null, dividers: null, mid: null, org: null, orgName: null,
+    midSeries: {}, who: [], info: null, clock: null, cues: null, scoreSpace: null,
+    graph: null, graphLead: null, graphDraw: null, graphHead: null, graphTitle: null, graphPlot: null, graphZero: null,
+    cards: [], pushed: false, digits: {}, pause: { wait: 0 }, arch: null, archParts: null, rings: null,
     cue: [], stock: {}
   };
   const writes = new Map(); // panel -> { key: last written value }
@@ -210,11 +213,22 @@
   // Panorama quirk (live 2026-10-23, [OH-PAUSE] log; HP Colors v3 saw it on 6805): clearing an inline
   // visibility: collapse (null) leaves the panel hidden (.visible stays false). So a panel that must come
   // back is written "visible" (own panels), hidden with a class, or faded with opacity (stock panels).
+  // The engine refuses to clear an alias on its own (live 6860: panel.style.marginTop = null throws "Cannot set
+  // a property alias to undefined, only a base property"); clearing the base clears every part written
+  // through its aliases, so a cleared alias clears its base and the parts are forgotten here too.
+  const STYLE_BASE = { marginTop: "margin", marginRight: "margin", marginBottom: "margin", marginLeft: "margin",
+    verticalAlign: "align", horizontalAlign: "align", fontSize: "font" };
   function setStyle(panel, key, value) {
     if (!panel) return;
     const last = writes.get(panel) || {};
     if (last[key] === value || !valid(panel)) return;
-    panel.style[key] = value;
+    const base = value === null ? STYLE_BASE[key] : undefined;
+    if (base) {
+      panel.style[base] = null;
+      for (const part of Object.keys(STYLE_BASE)) if (STYLE_BASE[part] === base && part in last) last[part] = null;
+    } else {
+      panel.style[key] = value;
+    }
     last[key] = value;
     writes.set(panel, last);
   }
@@ -269,8 +283,23 @@
     }
   }
 
-  // A team's stock panel and its #PlayersContainer in UI.topBar, cached in UI.stock (cleared on a new
-  // #TopBar) and found again when rebuilt, so the top bar is not walked every tick (m1 audit O4).
+  // Stock panels by id or by class, cached in UI.stock (cleared on a new #TopBar) and found again only when
+  // rebuilt, so the HUD is not walked every tick (m1 audit O4).
+  function stockClassPanel(key, parent, cls) {
+    const cached = UI.stock[key];
+    if (cached && valid(cached)) return cached;
+    const found = valid(parent) ? parent.FindChildrenWithClassTraverse(cls)[0] : null;
+    UI.stock[key] = valid(found) ? found : null;
+    return UI.stock[key];
+  }
+  function stockPanel(key, parent, id) {
+    const cached = UI.stock[key];
+    if (cached && valid(cached)) return cached;
+    const found = valid(parent) ? parent.FindChildTraverse(id) : null;
+    UI.stock[key] = valid(found) ? found : null;
+    return UI.stock[key];
+  }
+  // A team's stock panel and its #PlayersContainer in UI.topBar.
   function teamPanel(teamId) {
     return stockPanel(`team:${teamId}`, UI.topBar, teamId);
   }
@@ -383,7 +412,8 @@
       for (const [key, value] of PAUSE_ICON_STYLE) setStyle(pause.icon, key, value);
     }
     for (const key of ["width", "height"]) setStyle(pause.box, key, on ? "80px" : null);
-    for (const panel of pause.hide) setStyle(panel, "opacity", on ? "0" : null);
+    // Back with "1", never null (in the lobby a null write left opacity 0 live; stock sets none on these labels).
+    for (const panel of pause.hide) setStyle(panel, "opacity", on ? "0" : "1");
     for (const [key, value] of PAUSE_COUNT_STYLE) setStyle(pause.count, key, on ? value : null);
     pause.on = on;
     swapPauseIcon();
@@ -428,9 +458,12 @@
   // A new Image per source: its load events belong to that source alone. A URL gives one or more
   // sources ($.OHState.logoSources: a host link's direct image or GIF, then a fallback); a failed source
   // makes way for the next. The monogram (or wordmark) stays until an image reports ImageLoaded; a failed
-  // or replaced image is deleted. URLs are never logged.
+  // or replaced image is deleted. URLs are never logged. A source that failed is not asked for again this
+  // session: live (lobby page, 6842), a second request for it reports ImageLoaded and draws nothing, so a
+  // swap of sides left a blank circle where the monogram belonged.
+  const failedSources = new Set();
   function logoSlot(logo, imageClass, onShown) {
-    return { logo, imageClass, onShown: onShown || null, image: null, url: "", sources: [], logoState: "none", logoSeq: 0 };
+    return { logo, imageClass, onShown, image: null, url: "", sources: [], logoState: "none", logoSeq: 0 };
   }
   function showLogo(slot, on) {
     setClass(slot.logo, "OHLogoShown", on);
@@ -439,8 +472,17 @@
   function setLogo(slot, url) {
     if (!slot || slot.url === url) return;
     slot.url = url;
-    slot.sources = S.logoSources(url);
+    const sources = S.logoSources(url);
+    slot.sources = sources.filter((source) => !failedSources.has(source));
     showLogo(slot, false);
+    if (sources.length && !slot.sources.length) {
+      // Every source already failed this session: straight to the fallback, as a fresh failure would.
+      if (valid(slot.image)) slot.image.DeleteAsync(0);
+      slot.image = null;
+      slot.logoState = "failed";
+      notify();
+      return;
+    }
     loadLogo(slot, 0);
   }
   function loadLogo(slot, index) {
@@ -464,6 +506,7 @@
       notify();
     });
     $.RegisterEventHandler("ImageFailedLoad", image, () => {
+      failedSources.add(source);
       if (slot.image !== image) return;
       if (index + 1 < slot.sources.length) {
         loadLogo(slot, index + 1);
@@ -497,8 +540,8 @@
     const find = (id) => UI.bar.FindChildTraverse(id);
     for (const side of SIDES) {
       UI.clockBans[side] = {
-        bans: find(`OHBans${side}`), ban: [0, 1].map((n) => find(`OHBan${side}${n}`)),
-        banImage: [0, 1].map((n) => find(`OHBan${side}${n}Image`))
+        bans: find(`OHBans${side}`), ban: [0, 1, 2].map((n) => find(`OHBan${side}${n}`)),
+        banImage: [0, 1, 2].map((n) => find(`OHBan${side}${n}Image`))
       };
     }
     UI.clock = find("OHClock");
@@ -518,6 +561,8 @@
     writes.clear();
     UI.pushed = false;
     Graph.drawn = "";
+    Graph.fresh = true;
+    Cues.fresh = true;
     Teams.amber.side = "";
     Teams.sapphire.side = "";
     $.Msg(`${TAG} bar injected into #TopBar`);
@@ -529,8 +574,9 @@
   // ------------------------------------------------------------------ band (next to #TopBar)
 
   // The band sits right after #TopBar in its parent: the stock top bar's #GradientBacker glow (drawn
-  // with #TopBar) would otherwise wash the band orange (live 2026-10-22), and the stock panels after
-  // #TopBar (shop, damage report, menus) still draw over it.
+  // with #TopBar) would otherwise wash the band orange (live 2026-10-22). It has #TopBar's z-index (10,
+  // oh_band.css), so it draws over the top bar (a card's killstreak flame covered the names, user
+  // 2026-11-06) and stands where #TopBar does against the stock panels after it (shop, damage report).
   function ensureBand() {
     const parent = UI.topBar.GetParent();
     if (!valid(parent)) return false;
@@ -555,16 +601,16 @@
       UI.corners[side] = find(`OHCorner${side}`);
       UI.desk[side] = {
         team: find(`OHDesk${side}`), mono: find(`OHDeskMono${side}`), name: find(`OHDeskName${side}`),
-        bans: find(`OHDeskBans${side}`), ban: [0, 1].map((n) => find(`OHDeskBan${side}${n}`)),
-        banImage: [0, 1].map((n) => find(`OHDeskBan${side}${n}Image`)), teamKey: "",
-        slot: logoSlot(find(`OHDeskLogo${side}`), "OHDeskLogoImage")
+        bans: find(`OHDeskBans${side}`), ban: [0, 1, 2].map((n) => find(`OHDeskBan${side}${n}`)),
+        banImage: [0, 1, 2].map((n) => find(`OHDeskBan${side}${n}Image`)), teamKey: "",
+        slot: logoSlot(find(`OHDeskLogo${side}`), "OHDeskLogoImage", null)
       };
       UI.midSeries[side] = find(`OHMidSeries${side}`);
       // Base Game+ Names plates, joins and centre-tab scores (design 17).
       UI.sides[side] = {
         team: find(`OHTeam${side}`), plate: find(`OHPlate${side}`), mono: find(`OHMono${side}`),
         name: find(`OHName${side}`), cap: find(`OHCap${side}`), join: find(`OHJoin${side}`), teamKey: "",
-        slot: logoSlot(find(`OHLogo${side}`), "OHLogoImage")
+        slot: logoSlot(find(`OHLogo${side}`), "OHLogoImage", null)
       };
       UI.digits[side] = { box: find(`OHScore${side}`), text: find(`OHScoreText${side}`) };
       // The digits sit at the tab's ends over its full height, outside the wordmark's flow.
@@ -585,7 +631,7 @@
     UI.who = [];
     for (let i = 0; i < WHO_SLOTS; i++) UI.who.push(find(`OHWho${i}`));
     UI.info = { root: find("OHInfo"), title: find("OHInfoTitle"), value: find("OHInfoValue"), caption: find("OHInfoCaption") };
-    for (const card of UI.cards) card.who = "";
+    for (const card of UI.cards) card.who = null;
     $.Msg(`${TAG} band injected into the HUD`);
     renderBand();
     return true;
@@ -602,9 +648,11 @@
     return side === amberSide ? "amber" : "sapphire";
   };
 
+  // A slot past state.banCount shows nothing (S.shownBans); its ban is kept in the state.
   function renderBans(slot, bans) {
-    bans.forEach((id, index) => {
-      setClass(slot.ban[index], "OHBanSet", id > 0);
+    slot.ban.forEach((panel, index) => {
+      const id = index < bans.length ? bans[index] : 0;
+      setClass(panel, "OHBanSet", id > 0);
       setHero(slot.banImage[index], id);
     });
     setClass(slot.bans, "OHHasBans", bans.some((id) => id > 0));
@@ -614,13 +662,13 @@
     if (!valid(UI.bar)) return;
     const desk = state.style === "desk";
     setClass(UI.bar, "OHStyleDesk", desk);
-    for (const side of SIDES) renderBans(UI.clockBans[side], state[teamOn(side)].bans);
+    for (const side of SIDES) renderBans(UI.clockBans[side], S.shownBans(state, teamOn(side)));
   }
 
   // Night Desk's corners and the Names plates' captions say the same things.
   const gameNumber = () => Math.min(state.bestOf, state.amber.series + state.sapphire.series + 1);
   const stageCaption = () => state.stage ? `${state.stage} · BO${state.bestOf}` : `BEST OF ${state.bestOf}`;
-  const gameCaption = () => `GAME ${gameNumber()} · FIRST TO ${S.winsNeeded(state.bestOf)}`;
+  const gameCaption = () => `${S.caption("game", gameNumber())} · ${S.caption("first", S.winsNeeded(state.bestOf))}`;
 
   function renderBand() {
     if (!valid(UI.band)) return;
@@ -645,7 +693,7 @@
       setClass(slot.name, "OHNameLonger", team.name.length > NAME_LONGER);
       setText(slot.mono, S.monogram(team));
       setLogo(slot.slot, desk ? team.logo.url : "");
-      renderBans(slot, team.bans);
+      renderBans(slot, S.shownBans(state, teamKey));
       // Base Game+ Names plate: name over a caption, logo at the inner end; the score in the centre tab.
       const plate = UI.sides[side];
       if (plate && plate.teamKey !== teamKey) {
@@ -659,7 +707,6 @@
         setText(plate.name, team.name);
         setText(plate.mono, S.monogram(team));
         setText(plate.cap, side === "Left" ? stageCaption() : gameCaption());
-        setClass(plate.team, "OHCurve", state.logo.shape === "circle");
         // Each look loads the team logo only where it shows it.
         setLogo(plate.slot, desk ? "" : team.logo.url);
       }
@@ -677,8 +724,8 @@
     setText(UI.cornerText.event, state.event);
     setClass(UI.cornerText.event, "OHCornerLong", state.event.length > EVENT_LONG);
     setText(UI.cornerText.stage, stageCaption());
-    setText(UI.cornerText.game, `GAME ${gameNumber()}`);
-    setText(UI.cornerText.first, `FIRST TO ${S.winsNeeded(state.bestOf)}`);
+    setText(UI.cornerText.game, S.caption("game", gameNumber()));
+    setText(UI.cornerText.first, S.caption("first", S.winsNeeded(state.bestOf)));
     const info = state.info;
     setClass(UI.info.root, "OHHasInfo", !!info.title);
     setText(UI.info.title, info.title);
@@ -714,11 +761,14 @@
     for (const [key, teamId] of TEAM_PANELS) {
       const teamRect = rect(teamPanel(teamId));
       Teams[key].rect = teamRect;
+      // While the stock team panel is missing its plate and join hide with the strip they belong to
+      // (placeBand), on the side the team last had (stock: Amber left).
+      const side = teamRect ? sideOf(teamRect, hud) : Teams[key].side || (key === TEAM_PANELS[0][0] ? "Left" : "Right");
+      for (const part of [UI.sides[side].team, UI.sides[side].join]) setClass(part, "OHGone", !teamRect);
       if (!teamRect) {
         logOnce(`team:${teamId}`, `no #${teamId} in the top bar; its plate keeps the stock side`);
         continue;
       }
-      const side = sideOf(teamRect, hud);
       if (Teams[key].side !== side) {
         Teams[key].side = side;
         flipped = true;
@@ -728,7 +778,7 @@
     if (flipped) {
       renderBar();
       renderBand();
-      for (const card of UI.cards) card.who = "";
+      for (const card of UI.cards) card.who = null;
       renderNames();
     }
     // #GameTime is found again when it is rebuilt or arrives late (it used to be found once per bar, so a
@@ -783,7 +833,7 @@
       const top = px((time.y + time.h / 2 - bar.y) / bar.s - BAN_SIZE / 2);
       for (const side of SIDES) {
         const box = UI.clockBans[side];
-        const count = state[teamOn(side)].bans.filter((id) => id > 0).length;
+        const count = S.shownBans(state, teamOn(side)).filter((id) => id > 0).length;
         const left = side === "Left"
           ? (time.x - bar.x) / bar.s - CLOCK_PAD - 6 - count * BAN_STEP
           : (time.x + time.w - bar.x) / bar.s + CLOCK_PAD + 6;
@@ -800,7 +850,7 @@
       setStyle(UI.mid, "marginLeft", px(midLeft));
       setStyle(UI.mid, "width", desk ? px(plate) : null);
       Desk.plate = plate;
-      fitOrg(desk ? plate - 2 * (state.logo.size / 2 + 2) - 2 * ORG_PAD : plate - 2 * SCORE_W - 2 * ORG_PAD);
+      fitOrg(desk ? plate - 2 * logoTabHalf(state.logo.size) - 2 * ORG_PAD : plate - 2 * SCORE_W - 2 * ORG_PAD);
       // Night Desk arch (d15 A, sized by state.logo, design 16): the tabs under the plate and the logos
       // over it, on its edges; #OHArch and #OHRings start one tab half left of the plate.
       Desk.midLeft = midLeft;
@@ -823,7 +873,7 @@
   function layoutArch() {
     const size = state.logo.size;
     const square = state.logo.shape === "square";
-    const half = size / 2 + 2;
+    const half = logoTabHalf(size);
     const tab = 2 * half;
     const plate = Desk.plate;
     const a = UI.archParts;
@@ -835,7 +885,7 @@
       setStyle(a.curve[side], "height", px(tab));
       setStyle(a.curve[side], "borderRadius", square ? "4px" : "50%");
       setStyle(a.edge[side], "marginTop", px(1 + tab));
-      setStyle(a.edge[side], "height", px(Math.max(0, BAND_H - 1 - tab)));
+      setStyle(a.edge[side], "height", px(Math.max(0, BAND.desk - 1 - tab)));
       const logo = UI.desk[side].slot.logo;
       setStyle(logo, "width", px(size));
       setStyle(logo, "height", px(size));
@@ -890,7 +940,7 @@
     for (const key of ["amber", "sapphire"]) {
       const span = stock[key];
       const side = Teams[key].side;
-      const count = state[key].bans.filter((id) => id > 0).length;
+      const count = S.shownBans(state, key).filter((id) => id > 0).length;
       if (!span || !count || !side) continue;
       const gap = side === "Left" ? time.x - (span.x + span.n * span.w) : span.x - (time.x + time.w);
       lack = Math.max(lack, CLOCK_PAD + 6 + count * BAN_STEP + BAN_CLEAR - gap / hud.s);
@@ -1004,13 +1054,14 @@
       setStyle(desk.team, "marginLeft", px(x));
       setStyle(desk.team, "width", px(w));
       // The name ends state.logo.gap px from the logo's tab (design 16), however far the teams spread.
-      const half = state.logo.size / 2 + 2;
+      const half = logoTabHalf(state.logo.size);
       const inset = Desk.midLeft === null ? DESK_NAME : side === "Left"
         ? x + w - (Desk.midLeft - half - state.logo.gap)
         : Desk.midLeft + Desk.plate + half + state.logo.gap - x;
       const nameInset = Math.max(0, Math.round(inset));
       setStyle(desk.name, side === "Left" ? "marginRight" : "marginLeft", px(nameInset));
-      setStyle(desk.name, "maxWidth", px(Math.max(0, w - nameInset - DESK_BANS)));
+      const deskBans = DESK_BANS + (state.banCount > 2 ? (state.banCount - 2) * DESK_BAN_STEP : 0);
+      setStyle(desk.name, "maxWidth", px(Math.max(0, w - nameInset - deskBans)));
       edges[side] = side === "Left" ? x - GAP : x + w + GAP;
     }
     // Corners: to the team blocks. The left one starts after the stock mute icon, which draws over the
@@ -1110,12 +1161,12 @@
         let debuffs = panel.FindChild("OHDebuffsHost");
         if (!valid(debuffs)) debuffs = inject(panel, "OHDebuffsHost", LAYOUT.debuffs);
         if (!valid(debuffs)) continue;
-        cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, urn: urnHost(panel), who: "", ult: ultFor(panel, debuffs) });
+        cards.push({ panel: panel, teamKey: teamKey, label: nameLabel(panel), debuffs: debuffs, urn: urnHost(panel), who: null, ult: ultFor(panel, debuffs) });
       }
     }
     if (cards.length !== UI.cards.length || cards.some((card, index) => UI.cards[index] !== card)) {
       // A card that moved to another slot rewrites its name label.
-      for (const card of cards) card.who = "";
+      for (const card of cards) card.who = null;
       for (let i = cards.length; i < WHO_SLOTS; i++) setClass(UI.who[i], "OHShown", false);
       UI.cards = cards;
       changed = true;
@@ -1429,11 +1480,11 @@
   // through Label.killerInfo / Label.victimInfo bound to {s:killer_name} / {s:victim_name}. With an alias
   // the label gets the alias (which unbinds it) and a hidden Label of ours, bound to the same variable,
   // keeps reading the in-game name, so a row the engine reuses shows its new names; without one the label
-  // is bound again. Names resolve as the markers' (by name, else a name no card shows by its hero image).
+  // is bound again. Names resolve as the markers' do (markerAlias).
   // Rows live a few seconds, so while spectating with aliases a FEED_NAMES_S watch reads the row count
   // and passes over the rows when it moves; the 1 s tick passes over them too (reused rows).
   const FEED_NAMES_S = 0.25;
-  const FEED_LABELS = [["killerInfo", "{s:killer_name}", "KillerImage"], ["victimInfo", "{s:victim_name}", "VictimImage"]];
+  const FEED_LABELS = [["killerInfo", "{s:killer_name}"], ["victimInfo", "{s:victim_name}"]];
   const FeedNames = { rows: new Map(), replaced: 0, count: -1, watching: false, gen: 0 };
   const boundText = (label, bind) => {
     const text = label.text;
@@ -1442,10 +1493,10 @@
   // The row's two names, or null for other rows (team events, bans) and rows not built yet.
   function feedRowNames(row) {
     const names = [];
-    for (const [cls, bind, image] of FEED_LABELS) {
+    for (const [cls, bind] of FEED_LABELS) {
       const label = row.FindChildrenWithClassTraverse(cls)[0];
       if (!label) return null;
-      names.push({ label: label, bind: bind, hero: row.FindChildTraverse(image), real: "", hidden: null, alias: "", sig: "", shown: "" });
+      names.push({ label: label, bind: bind, real: "", hidden: null, alias: "", sig: "", shown: "" });
     }
     return names;
   }
@@ -1700,18 +1751,34 @@
 
   // ------------------------------------------------------------------ soul lead graph
 
-  // samples: SAMPLE_S bucket -> { t, v } (first sample in the bucket, v in thousands, Amber positive).
-  // lastMark: the latest pinned mark seen (a later one shows the graph); every: the interval it is for.
   const Koth = { margin: null };
   // Objective health: the stock panel and its parent, its inline margin-top while moved, its stock top under
   // the parent and the highest shown bar's top under the panel's top (bar px of the panel's own scale).
   const Obj = { panel: null, parent: null, margin: null, base: null, offset: OBJ_STOCK_OFFSET };
-  const Desk = { midLeft: null, plate: 192 }; // the centre plate's left edge (band px, once placed) and width
-  const Org = { room: null, word: "", font: 15 }; // the organiser name's fit (fitOrg): room, text and font size
+  const Desk = { midLeft: null, plate: MID_WIDTH.desk }; // the centre plate's left edge (band px, once placed) and width
+  const Org = { room: null, word: "", font: ORG_FONT[0] }; // the organiser name's fit (fitOrg): room, text and font size
   // #TeamsContainer: its stock width while spread (base), the spread written (cur) and shown this tick
   // (shown), the clock bans' spread (bans) and the unspread card spans (stock).
   const Spread = { base: null, cur: 0, shown: 0, bans: 0, stock: null };
-  const Graph = { samples: new Map(), lastT: null, lead: null, shownAt: 0, drawn: "", seq: 0, lastMark: 0, every: 0, points: null, floor: null, held: false };
+  // samples: SAMPLE_S bucket -> { t, v } (first sample in the bucket, v in thousands, Amber positive).
+  // lastMark: the latest pinned mark seen (a later one shows the graph); every: the interval it is for.
+  // fresh: a new bar since the last sample (see sameGame).
+  const Graph = { samples: new Map(), lastT: null, lead: null, shownAt: 0, drawn: "", seq: 0, lastMark: 0, every: 0, points: null, floor: null, held: false, fresh: false };
+  // A new bar is a new map (#TopBar is rebuilt on every map load), unless the game clock simply runs on:
+  // a bar another mod's reload deleted mid-game comes back within a tick or two. What the graph and the
+  // cues remember belongs to one game, so the first sample on a new bar keeps it only for the same game.
+  const RESUME_S = 10;
+  const sameGame = (lastT, t) => lastT !== null && t >= lastT - 3 && t - lastT <= RESUME_S;
+  function resetGraph() {
+    Graph.samples = new Map();
+    Graph.lastT = null;
+    Graph.lead = null;
+    Graph.shownAt = 0;
+    Graph.lastMark = 0;
+    Graph.every = 0;
+    Graph.points = null;
+    Graph.seq++;
+  }
 
   // "48.2k" (the label may carry markup around the unit) -> souls; null when unreadable.
   function parseSouls(text) {
@@ -1757,6 +1824,10 @@
     const amber = parseSouls(scoreAmber.text);
     const sapphire = parseSouls(scoreSapphire.text);
     if (amber === null || sapphire === null) return;
+    if (Graph.fresh) {
+      Graph.fresh = false;
+      if (!sameGame(Graph.lastT, t)) resetGraph();
+    }
     Graph.lead = amber - sapphire;
     const every = state.graph.every;
     if (Graph.lastT !== null && t < Graph.lastT - 3) {
@@ -1968,26 +2039,14 @@
   // radial (first sample and learned direction) and whether a buff came before this mid-boss respawn.
   // A seek resets them.
   const Cues = { lastT: null, riftAt: null, heldAt: null, sawFree: false, midLow: false, midUpUntil: null,
-    radA: null, radT: null, radDir: 0, afterRejuv: false };
+    radA: null, radT: null, radDir: 0, afterRejuv: false, fresh: false };
+  function resetCues() {
+    Cues.lastT = null; Cues.riftAt = null; Cues.heldAt = null; Cues.sawFree = false; Cues.midLow = false; Cues.midUpUntil = null;
+    Cues.radA = null; Cues.radT = null; Cues.radDir = 0; Cues.afterRejuv = false;
+  }
   const RADIAL = /^radial\(\s*50(?:\.0+)?%\s+50(?:\.0+)?%\s*,\s*0(?:\.0+)?deg\s*,\s*(-?\d+(?:\.\d+)?)deg\s*\)$/;
   const mmss = (n) => `${Math.floor(n / 60)}:${String(Math.floor(n % 60)).padStart(2, "0")}`;
 
-  // Stock panels the cues read, found once and again only when rebuilt.
-  function stockClassPanel(key, parent, cls) {
-    const cached = UI.stock[key];
-    if (cached && valid(cached)) return cached;
-    const found = valid(parent) ? parent.FindChildrenWithClassTraverse(cls)[0] : null;
-    UI.stock[key] = valid(found) ? found : null;
-    return UI.stock[key];
-  }
-
-  function stockPanel(key, parent, id) {
-    const cached = UI.stock[key];
-    if (cached && valid(cached)) return cached;
-    const found = valid(parent) ? parent.FindChildTraverse(id) : null;
-    UI.stock[key] = valid(found) ? found : null;
-    return UI.stock[key];
-  }
   const countIn = (panel, cls) => (panel ? panel.FindChildrenWithClassTraverse(cls).length : 0);
 
   // Seconds of rejuvenator buff left from the stock circle (#RejuvenatorTimer #StatusEffectsBorder), a
@@ -2034,9 +2093,12 @@
     if (t !== null) {
       // A seek back resets everything; a jump forward (seek, late sample) only forgets that a
       // rejuvenator-free sample came first, so a pickup seen first after it has no known time.
+      if (Cues.fresh) {
+        Cues.fresh = false;
+        if (!sameGame(Cues.lastT, t)) resetCues();
+      }
       if (Cues.lastT !== null && t < Cues.lastT - 3) {
-        Cues.riftAt = null; Cues.heldAt = null; Cues.sawFree = false; Cues.midLow = false; Cues.midUpUntil = null;
-        Cues.radA = null; Cues.radT = null; Cues.radDir = 0; Cues.afterRejuv = false;
+        resetCues();
       } else if (Cues.lastT !== null && t > Cues.lastT + 5) {
         Cues.sawFree = false;
       }
@@ -2051,11 +2113,14 @@
       }
       if (pick.urn) out.Urn = spawnCue(t, 600, 300, window(pick.urn), CUE.urnUp, true);
       // Rift: the stock capture meter shows while it is open; before that its minimap marker carries
-      // koth_warning for 20 s.
+      // koth_warning for 20 s. An ended rift keeps the meter visible (opacity 0 after a 5 s fade) with
+      // .captured (a team took it) or .captured_neutral (time ran out, "Rift faded away") until the
+      // next one (citadel_hud_koth.css, GameTracking 6860), so visibility alone is not LIVE.
       const koth = stockPanel("koth", UI.topBar, "KothCashInMeter");
+      const riftOpen = !!koth && koth.visible === true && !koth.BHasClass("captured") && !koth.BHasClass("captured_neutral");
       if (!pick.rift) {
         Cues.riftAt = null;
-      } else if (koth && koth.visible) {
+      } else if (riftOpen) {
         // Base Game+ Names hides the rift chip while the stock rift HUD (moved under the chips) shows:
         // it says the same thing (design 17). Night Desk keeps LIVE.
         if (state.style === "desk") out.Rift = { text: "LIVE", cls: "OHLive" };
@@ -2218,15 +2283,17 @@
     Card.sentAt = now;
     try { $.DispatchEvent("ClientUI_FireOutput", S.encodeHandoff(Card.card)); } catch (e) { logOnce("cardSend", "could not hand over the match card"); }
   }
+  // One card per game: a map load or the next live game on the same map (gameGen, awardSeries).
+  const cardGen = () => `${mapGen}.${gameGen}`;
   function serviceCard() {
-    if (Card.gen !== mapGen) {
-      Card.gen = mapGen;
+    if (Card.gen !== cardGen()) {
+      Card.gen = cardGen();
       Card.sig = "";
       Card.version = -1;
       Card.key = "";
       Card.card = null;
     }
-    if (Card.ended === mapGen || (Accts.sig === Card.sig && version === Card.version)) return;
+    if (Card.ended === cardGen() || (Accts.sig === Card.sig && version === Card.version)) return;
     Card.sig = Accts.sig;
     Card.version = version;
     const card = snapshotCard(0);
@@ -2238,8 +2305,8 @@
   }
   // The stock match-end screen named a winner (awardSeries): the card as it is now, with the winner.
   function endCard(team) {
-    if (Card.ended === mapGen) return;
-    Card.ended = mapGen;
+    if (Card.ended === cardGen()) return;
+    Card.ended = cardGen();
     const card = snapshotCard(team === "amber" ? 1 : 2);
     if (card) publishCard(card);
   }
@@ -2255,20 +2322,35 @@
   // this bar has seen #MatchEnd without ShowMatchEnd while spectating (armed): #Hud survives a map
   // change, so a screen still carrying the last result must not award again on the next map's bar
   // (it also blocked that map's own result) nor after a layout reload (m1 audit B11). A map whose first
-  // sight is its end screen is not counted; the observer is told once. Not seen live yet.
+  // sight is its end screen is not counted; the observer is told once.
+  // The same private lobby (user 2026-11-06: game 2 of a series did not count): games played one after
+  // another keep #TopBar, so they keep this bar and mapGen. Spectating live, the end screen we counted
+  // going away again starts the next game (gameGen + 1): its result counts, and the match card starts over.
+  // A demo (replay_playback) keeps one result per bar, since a seek back and forth would count it twice.
   const matchEnd = { panel: null, spectated: null, armed: null, awarded: null, told: null };
+  const replaying = () => valid(UI.hud) && UI.hud.BHasClass("replay_playback");
   function awardSeries(watching) {
     if (watching) matchEnd.spectated = UI.bar;
-    if (!valid(UI.bar) || matchEnd.spectated !== UI.bar || matchEnd.awarded === UI.bar) return;
+    if (!valid(UI.bar) || matchEnd.spectated !== UI.bar) return;
     if (!valid(matchEnd.panel)) {
       matchEnd.panel = valid(UI.hud) ? UI.hud.FindChildTraverse("MatchEnd") : null;
       if (!valid(matchEnd.panel)) return;
     }
     const panel = matchEnd.panel;
     if (!panel.BHasClass("ShowMatchEnd")) {
-      if (watching) matchEnd.armed = UI.bar;
+      if (!watching) return;
+      matchEnd.armed = UI.bar;
+      if (matchEnd.awarded === UI.bar && !replaying()) {
+        matchEnd.awarded = null;
+        gameGen++;
+        resetIdentity(); // the teams may have swapped sides: accounts and markers are read again
+        resetGraph();
+        resetCues();
+        $.Msg(`${TAG} next game on the same map: its result will count`);
+      }
       return;
     }
+    if (matchEnd.awarded === UI.bar) return;
     if (!panel.BHasClass("MatchFinished") || panel.BHasClass("MatchAbandoned")) return;
     const team = panel.BHasClass("Team1Victory") ? "amber" : panel.BHasClass("Team2Victory") ? "sapphire" : "";
     if (!team) return;
@@ -2291,69 +2373,96 @@
 
   function notify() {
     for (const fn of listeners.slice()) {
-      try { fn(); } catch (e) {}
+      try {
+        fn();
+      } catch (e) {
+        logOnce("listener", `a state listener failed: ${e && e.message ? e.message : e}`);
+      }
     }
   }
 
   let bootDelay = 0.5;
   let watchingNow = false; // the last tick's spectating(): a plain flag for oh_buys.js's poll
   let restored = false; // the stock panels were given back since spectating last ended
+  let cleared = false; // clearOld ran (at load on an attached HUD, else on the first tick that sees it)
+  // One step of the tick. A step that throws is logged once under its own name and the steps after it still
+  // run (one try around the whole tick let a single failure skip everything behind it, on every tick).
+  function step(name, fn, a, b) {
+    try {
+      return fn(a, b);
+    } catch (e) {
+      logOnce(`step:${name}`, `${name} failed: ${e && e.message ? e.message : e}`);
+      return undefined;
+    }
+  }
+  // Back to playing: the stock top bar returns to its own place.
+  function restoreTopBar() {
+    if (!UI.pushed || !valid(UI.topBar)) return;
+    setStyle(UI.topBar, "marginTop", null);
+    setStyle(UI.stock.timer, "opacity", "1"); // stock #RejuvenatorTimer is opacity 1; never null (see placePause)
+    UI.pushed = false;
+  }
+  function restoreFeed() {
+    if (Feed.margin !== FEED_STOCK_TOP) placeFeed(false, 0);
+  }
   function tick() {
     if (stopped) return;
     try {
       const root = topPanel();
       if (root.id !== "CitadelHudRoot") {
-        // Not attached to the HUD yet: retry with a backoff.
         hudRoot = null;
         $.Schedule(bootDelay, tick);
         bootDelay = Math.min(bootDelay * 2, BOOT_RETRY_MAX_S);
         return;
       }
-      ensureMenu();
+      if (!cleared) {
+        // The script loaded before the HUD was attached: the old instance's panels go now, and the first
+        // real tick waits until they are gone (as it does after a load on an attached HUD).
+        cleared = true;
+        step("clearOld", clearOld, root);
+        $.Schedule(0.5, tick);
+        return;
+      }
+      step("ensureMenu", ensureMenu);
       const watching = spectating();
       if (watching !== watchingNow) cardsVersion++; // cards() turns [] or back
       watchingNow = watching;
-      ensureMenuEntry(watching);
+      step("ensureMenuEntry", ensureMenuEntry, watching);
       if (watching) {
         restored = false;
-        if (ensureBar() && ensureBand()) {
-          ensureCards();
-          startUlt();
-          renderNames();
-          renderMarkers(Date.now());
-          if (Accts.sig !== Join.sig) renderNames(); // a new account: the band and the maps now
-          reconcileAliases();
-          serviceCard();
-          renderFeedNames();
-          renderUrn(Date.now());
-          place();
-          sampleGraph();
-          renderGraph();
-          sampleCues();
-          placeFeed(true, Date.now());
+        if (step("ensureBar", ensureBar) && step("ensureBand", ensureBand)) {
+          step("ensureCards", ensureCards);
+          step("startUlt", startUlt);
+          step("renderNames", renderNames);
+          step("renderMarkers", renderMarkers, Date.now());
+          if (Accts.sig !== Join.sig) step("renderNames", renderNames); // a new account: the band and the maps now
+          step("reconcileAliases", reconcileAliases);
+          step("serviceCard", serviceCard);
+          step("renderFeedNames", renderFeedNames);
+          step("renderUrn", renderUrn, Date.now());
+          step("place", place);
+          step("sampleGraph", sampleGraph);
+          step("renderGraph", renderGraph);
+          step("sampleCues", sampleCues);
+          step("placeFeed", placeFeed, true, Date.now());
         }
-        placePause(true);
+        step("placePause", placePause, true);
       } else if (!restored) {
         // Back to playing: the stock panels get their own places back, once (the writes are cached, but
         // repeating this every tick cost validity reads for nothing).
         restored = true;
-        placeKoth(null, 0);
-        placeObjectives(null, 0);
-        placePause(false);
-        placeSpread(false);
-        restoreMarkers();
-        restoreFeedNames();
-        clearUrn();
-        if (Feed.margin !== FEED_STOCK_TOP) placeFeed(false, 0);
-        if (UI.pushed && valid(UI.topBar)) {
-          // The stock top bar returns to its own place.
-          setStyle(UI.topBar, "marginTop", null);
-          setStyle(UI.stock.timer, "opacity", null);
-          UI.pushed = false;
-        }
+        step("placeKoth", placeKoth, null, 0);
+        step("placeObjectives", placeObjectives, null, 0);
+        step("placePause", placePause, false);
+        step("placeSpread", placeSpread, false);
+        step("restoreMarkers", restoreMarkers);
+        step("restoreFeedNames", restoreFeedNames);
+        step("clearUrn", clearUrn);
+        step("restoreFeed", restoreFeed);
+        step("restoreTopBar", restoreTopBar);
       }
-      awardSeries(watching);
-      sendCard(Date.now());
+      step("awardSeries", awardSeries, watching);
+      step("sendCard", sendCard, Date.now());
     } catch (e) {
       logOnce("tick", `tick failed: ${e && e.message ? e.message : e}`);
     }
@@ -2403,7 +2512,10 @@
 
   adoptState();
   const root = topPanel();
-  if (root.id === "CitadelHudRoot") clearOld(root);
+  if (root.id === "CitadelHudRoot") {
+    cleared = true;
+    clearOld(root);
+  }
   $.Msg(`${TAG} host loaded`);
   $.Schedule(0.5, tick);
 })();

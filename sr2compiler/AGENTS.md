@@ -33,6 +33,7 @@ The tool contains an unhandled exception when executed in environments where sta
 - **Cause**: The code calls `Console.ReadKey()` at the end of execution to keep the window open.
 - **Effect**: If `stdin` is not an interactive terminal, it throws `InvalidOperationException`.
 - **Workaround**: Ensure the tool is run in an interactive shell or use a wrapper that handles the exception. If the wrapper reports `OK: N compiled, 0 failed` or the required `<mod>_compiled` outputs exist, a trailing `ReadKey()` exception/non-zero exit can be non-fatal.
+- **Crash box (fixed 2026-10-17):** with the normal Windows error mode, that unhandled .NET exception (`0xe0434352`) opens a modal "New folder.exe - Application Error" box. The box blocks the compiler until OK is clicked. Agent hosts inherit a suppressed error mode, so they never see it. `scripts/source2_package_pipeline.ps1` now calls `SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX)` when it loads, and child compilers inherit that, so every wrapper that dot-sources it runs without the box. Repro: `.scratch/compiler_dialog/repro.ps1 -UserDefault` shows the box; adding `-NoDialog` does not. Wrappers that start the compiler without loading that file (`build_hp_color_debug.ps1` and seven others) still can show it.
 
 ### Asset Scope
 Currently strictly limited to Panorama UI assets. VData and SoundEvent compilation are handled by separate Python scripts or manual workflows.

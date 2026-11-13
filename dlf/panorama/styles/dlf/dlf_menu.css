@@ -1,0 +1,771 @@
+/* DLF broadcast editor inside the stock Escape menu. Colours follow the stock HUD tokens
+   (offWhite #FFEFD7, offBlack #10130D, context surface #181716) and the banner's team accents.
+   Layout: header, a tab strip, then one fixed-height page area (#DLFMenuPages, or the hero picker in
+   its place), so the tabs and the shell never move while a page changes. */
+
+#DLFMenuRoot
+{
+	width: 100%;
+	height: 100%;
+	visibility: collapse;
+	background-color: #0000008C;
+	z-index: 100;
+}
+
+.DLFMenuOpen #DLFMenuRoot
+{
+	visibility: visible;
+}
+
+/* Full-size Button behind the editor: it takes clicks on the dimmed area and the editor's empty space
+   so they never reach the stock Escape menu underneath (a plain Panel with hittest let them through,
+   2026-10-16; same fix as HP Colors v3's .HPC3Backdrop). */
+#DLFMenuBackdrop
+{
+	width: 100%;
+	height: 100%;
+}
+
+#DLFMenuShell
+{
+	width: 820px;
+	height: fit-children;
+	horizontal-align: center;
+	vertical-align: center;
+	flow-children: down;
+	padding: 20px 24px;
+	background-color: #181716F2;
+	border: 1px solid #FFEFD726;
+	border-radius: 6px;
+	font-family: block;
+	color: #FFEFD7;
+}
+
+.DLFMenuHeader
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 10px;
+}
+
+.DLFMenuTitle
+{
+	font-size: 26px;
+	font-weight: bold;
+	font-style: italic;
+	letter-spacing: 2px;
+	vertical-align: center;
+}
+
+.DLFMenuStatus
+{
+	font-size: 14px;
+	color: #FFEFD799;
+	margin-left: 16px;
+	vertical-align: center;
+	width: fill-parent-flow( 1 );
+}
+
+.DLFTextButton
+{
+	padding: 6px 12px;
+	margin-left: 8px;
+	border-radius: 3px;
+	background-color: #FFEFD71A;
+	vertical-align: center;
+}
+
+.DLFTextButton:hover
+{
+	background-color: #FFEFD740;
+}
+
+.DLFTextButton Label
+{
+	font-size: 14px;
+	letter-spacing: 1px;
+	color: #FFEFD7;
+}
+
+/* Tab strip: one row, always in the same place. DEV sits apart on the right. */
+.DLFMenuTabs
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 10px;
+	border-bottom: 1px solid #FFEFD726;
+}
+
+.DLFMenuTab
+{
+	height: 34px;
+	padding: 0px 14px;
+	margin-right: 4px;
+	border-radius: 3px;
+	background-color: #FFEFD70F;
+}
+
+.DLFMenuTab:hover
+{
+	background-color: #FFEFD733;
+}
+
+.DLFMenuTab.Selected
+{
+	background-color: #5E8A3ACC;
+}
+
+.DLFMenuTab Label
+{
+	vertical-align: center;
+	font-size: 14px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #FFEFD7;
+}
+
+.DLFMenuTabSpacer
+{
+	width: fill-parent-flow( 1 );
+	height: 1px;
+}
+
+.DLFMenuTab.DLFMenuTabLast
+{
+	margin-right: 0px;
+}
+
+/* The page area: fixed height so the editor keeps its size on every page and under the hero picker. */
+#DLFMenuPages
+{
+	width: 100%;
+	height: 352px;
+	overflow: squish scroll;
+}
+
+.DLFPicking #DLFMenuPages
+{
+	visibility: collapse;
+}
+
+.DLFPage
+{
+	width: 100%;
+	flow-children: down;
+	visibility: collapse;
+}
+
+.DLFMatchOpen #DLFMatchPanel,
+.DLFTeamsOpen #DLFTeamsPanel,
+.DLFPlayersOpen #DLFPlayersPanel,
+.DLFGraphOpen #DLFGraphPanel,
+.DLFStyleOpen #DLFStylePanel,
+.DLFShareOpen #DLFSharePanel,
+.DLFDevOpen #DLFDevPanel
+{
+	visibility: visible;
+}
+
+/* Pages made of one card (GRAPH, STYLE, SHARE / SAVE, DEV). */
+.DLFSection
+{
+	padding: 12px 14px;
+	border-radius: 4px;
+	background-color: #10130DCC;
+	border-top: 3px solid #FFEFD733;
+}
+
+.DLFPageHint
+{
+	width: 100%;
+	margin-top: 8px;
+}
+
+.DLFEventRow
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 12px;
+}
+
+.DLFField,
+.DLFStepper
+{
+	flow-children: down;
+	margin-right: 18px;
+}
+
+.DLFSeriesField
+{
+	width: fill-parent-flow( 1 );
+	margin-right: 0px;
+}
+
+.DLFFieldLabel
+{
+	font-size: 12px;
+	letter-spacing: 1px;
+	color: #FFEFD799;
+	margin-bottom: 4px;
+}
+
+.DLFStepRow
+{
+	flow-children: right;
+}
+
+.DLFStepButton
+{
+	width: 34px;
+	height: 34px;
+	border-radius: 3px;
+	background-color: #FFEFD71A;
+}
+
+.DLFStepButton:hover
+{
+	background-color: #FFEFD740;
+}
+
+.DLFStepButton Label
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-size: 22px;
+	font-weight: bold;
+	color: #FFEFD7;
+}
+
+.DLFStepValue
+{
+	width: 72px;
+	height: 34px;
+	text-align: center;
+	vertical-align: center;
+	font-size: 22px;
+	font-weight: bold;
+	padding-top: 4px;
+}
+
+.DLFEntry
+{
+	width: 100%;
+	height: 34px;
+	padding: 4px 8px;
+	font-size: 18px;
+	color: #FFEFD7;
+	background-color: #10130D;
+	border: 1px solid #FFEFD733;
+	border-radius: 3px;
+}
+
+.DLFEntry:focus
+{
+	border: 1px solid #FFEFD7AA;
+}
+
+/* Season and match: a typed number between the - and + buttons, the size of the old value label. */
+.DLFEntry.DLFNumberEntry
+{
+	width: 72px;
+	margin: 0px 4px;
+	padding: 4px 4px;
+	text-align: center;
+	font-size: 20px;
+	font-weight: bold;
+}
+
+/* Two team columns, Amber left and Sapphire right, the same controls in the same order. */
+.DLFTeams
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.DLFTeamCard
+{
+	width: fill-parent-flow( 1 );
+	flow-children: down;
+	padding: 12px 14px;
+	border-radius: 4px;
+	background-color: #10130DCC;
+	border-top: 3px solid #E8892B;
+}
+
+.DLFSapphire
+{
+	margin-left: 14px;
+	border-top: 3px solid #7B6CF0;
+}
+
+.DLFTeamCard .DLFField,
+.DLFTeamCard .DLFStepper
+{
+	width: 100%;
+	margin-right: 0px;
+	margin-bottom: 10px;
+}
+
+/* Player name rows: the game name, then the banner alias (blank = the game name). */
+.DLFPlayerRow
+{
+	width: 100%;
+	height: 28px;
+	margin-bottom: 3px;
+	flow-children: right;
+}
+
+.DLFPlayerGame
+{
+	width: 45%;
+	height: 28px;
+	padding-top: 5px;
+	font-size: 14px;
+	color: #FFEFD7CC;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.DLFTeamCard .DLFPlayerEntry
+{
+	width: fill-parent-flow( 1 );
+	height: 28px;
+	padding: 2px 6px;
+	font-size: 15px;
+}
+
+.DLFPlayerRow.Empty .DLFPlayerGame
+{
+	color: #FFEFD744;
+}
+
+.DLFPlayerRow.Empty .DLFPlayerEntry
+{
+	opacity: 0.35;
+}
+
+.DLFTeamTitle
+{
+	width: 100%;
+	font-size: 16px;
+	font-weight: bold;
+	letter-spacing: 2px;
+	margin-bottom: 8px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.DLFBanRow
+{
+	flow-children: right;
+}
+
+.DLFBanSlot
+{
+	width: 96px;
+	height: 92px;
+	margin-right: 10px;
+	flow-children: down;
+	border-radius: 3px;
+	background-color: #FFEFD71A;
+	border: 1px solid #FFEFD71A;
+}
+
+.DLFBanSlot:hover,
+.DLFBanSlot.Picking
+{
+	border: 1px solid #FFEFD7AA;
+}
+
+.DLFBanImage
+{
+	width: 72px;
+	height: 54px;
+	horizontal-align: center;
+	margin-top: 8px;
+}
+
+.DLFBanSlot.Empty .DLFBanImage
+{
+	visibility: collapse;
+}
+
+.DLFBanLabel
+{
+	width: 100%;
+	text-align: center;
+	vertical-align: bottom;
+	margin-bottom: 6px;
+	font-size: 12px;
+	text-overflow: shrink;
+	color: #FFEFD7;
+}
+
+.DLFBanSlot.Empty .DLFBanLabel
+{
+	vertical-align: center;
+	color: #FFEFD766;
+}
+
+/* Hero picker: takes the page area's place while a ban slot is being picked. */
+#DLFHeroPicker
+{
+	width: 100%;
+	height: 352px;
+	flow-children: down;
+	visibility: collapse;
+}
+
+.DLFPicking #DLFHeroPicker
+{
+	visibility: visible;
+}
+
+.DLFPickerHeader
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 8px;
+}
+
+.DLFPickerTitle
+{
+	width: fill-parent-flow( 1 );
+	font-size: 15px;
+	letter-spacing: 1px;
+	vertical-align: center;
+}
+
+#DLFHeroGrid
+{
+	width: 100%;
+	height: 306px;
+	flow-children: right-wrap;
+	overflow: squish scroll;
+}
+
+.DLFHeroTile
+{
+	width: 86px;
+	height: 76px;
+	margin: 0px 4px 6px 0px;
+	flow-children: down;
+	border-radius: 3px;
+	background-color: #FFEFD70F;
+	border: 1px solid #FFEFD70F;
+}
+
+.DLFHeroTile:hover
+{
+	border: 1px solid #FFEFD7AA;
+}
+
+.DLFHeroTile.Taken
+{
+	opacity: 0.35;
+}
+
+.DLFHeroTileImage
+{
+	width: 64px;
+	height: 48px;
+	horizontal-align: center;
+	margin-top: 4px;
+}
+
+.DLFHeroTileName
+{
+	width: 100%;
+	text-align: center;
+	font-size: 11px;
+	text-overflow: shrink;
+	margin-top: 2px;
+}
+
+.DLFMenuFooter
+{
+	width: 100%;
+	flow-children: right;
+	margin-top: 10px;
+}
+
+.DLFMenuHint
+{
+	width: fill-parent-flow( 1 );
+	font-size: 12px;
+	color: #FFEFD780;
+	vertical-align: center;
+}
+
+/* Rows of steppers, toggles and choices on the GRAPH, STYLE, SHARE / SAVE and DEV pages. */
+.DLFDevRow
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 10px;
+}
+
+.DLFToggleButton
+{
+	width: 72px;
+	height: 34px;
+	border-radius: 3px;
+	background-color: #FFEFD71A;
+}
+
+.DLFToggleButton:hover
+{
+	background-color: #FFEFD740;
+}
+
+.DLFToggleButton.On
+{
+	background-color: #5E8A3ACC;
+}
+
+.DLFToggleButton Label
+{
+	horizontal-align: center;
+	vertical-align: center;
+	font-size: 16px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #FFEFD7;
+}
+
+.DLFDevHint
+{
+	width: fill-parent-flow( 1 );
+	font-size: 12px;
+	color: #FFEFD780;
+	vertical-align: bottom;
+	margin-bottom: 2px;
+}
+
+/* SOUL GRAPH: one-click choices for SHOW, MARKS EVERY and LINE; steppers for SIZE, X and Y. */
+.DLFChoiceField
+{
+	margin-right: 24px;
+}
+
+.DLFChoiceRow
+{
+	flow-children: right;
+}
+
+.DLFChoice
+{
+	height: 34px;
+	padding: 0px 10px;
+	margin-right: 4px;
+	border-radius: 3px;
+	background-color: #FFEFD71A;
+}
+
+.DLFChoice:hover
+{
+	background-color: #FFEFD740;
+}
+
+.DLFChoice.Selected
+{
+	background-color: #5E8A3ACC;
+}
+
+.DLFChoice Label
+{
+	vertical-align: center;
+	font-size: 14px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #FFEFD7;
+}
+
+.DLFGraphValue
+{
+	width: 70px;
+	font-size: 18px;
+}
+
+/* SHARE / SAVE: the code box, COPY CODE and IMPORT, then this PC's save (RESET, FORGET) set apart. */
+#DLFSharePanel .DLFShareEntry
+{
+	width: fill-parent-flow( 1 );
+	margin-right: 8px;
+	font-size: 14px;
+}
+
+#DLFSharePanel .DLFTextButton
+{
+	margin-left: 4px;
+}
+
+.DLFShareStatus
+{
+	width: 100%;
+	margin-top: 6px;
+	font-size: 14px;
+	font-weight: bold;
+	color: #FFEFD7;
+}
+
+.DLFSaveBlock
+{
+	width: 100%;
+	flow-children: down;
+	margin-top: 18px;
+	padding-top: 12px;
+	border-top: 1px solid #FFEFD726;
+}
+
+.DLFSaveBlock .DLFDevRow
+{
+	margin-bottom: 0px;
+}
+
+#DLFSharePanel .DLFDangerButton
+{
+	margin-left: 0px;
+	margin-right: 8px;
+	background-color: #8A3A3A66;
+}
+
+#DLFSharePanel .DLFDangerButton:hover
+{
+	background-color: #B04A4ACC;
+}
+
+/* RESET <page> and RESET ALL in the header, left of CLOSE; the page one hides on pages with nothing of
+   their own (SHARE / SAVE). A class, never an inline visibility. */
+.DLFHeaderReset
+{
+	background-color: #8A3A3A66;
+}
+
+.DLFHeaderReset:hover
+{
+	background-color: #B04A4ACC;
+}
+
+.DLFHeaderReset.DLFNoReset
+{
+	visibility: collapse;
+}
+
+/* The DLF BROADCAST row adds 32px to the bottom-anchored #SubOptions; stock #changehero sits at a
+   fixed 280px from the bottom, so it moves up by that row (it overlapped the row, live 2026-10-16). */
+#changehero
+{
+	margin-bottom: 312px;
+}
+
+/* Team logo: header with the load state, then the URL entry and the size stepper. */
+.DLFLogoHeader
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.DLFLogoHeader .DLFFieldLabel
+{
+	width: fill-parent-flow( 1 );
+}
+
+.DLFLogoStatus
+{
+	font-size: 12px;
+	letter-spacing: 1px;
+	color: #FFEFD799;
+}
+
+.DLFLogoStatus.Failed
+{
+	color: #FF6B5B;
+}
+
+.DLFLogoRow
+{
+	width: 100%;
+	flow-children: right;
+}
+
+.DLFTeamCard .DLFLogoEntry
+{
+	width: fill-parent-flow( 1 );
+	margin-right: 6px;
+	font-size: 14px;
+}
+
+.DLFLogoScale
+{
+	width: 64px;
+	font-size: 18px;
+}
+
+/* STYLE: one banner text section at a time (tabs), shared controls. */
+.DLFStyleTabs
+{
+	width: 100%;
+	flow-children: right;
+	margin-bottom: 10px;
+}
+
+.DLFStyleTab
+{
+	height: 30px;
+	padding: 0px 10px;
+	margin-right: 6px;
+	border-radius: 3px;
+	background-color: #FFEFD71A;
+}
+
+.DLFStyleTab:hover
+{
+	background-color: #FFEFD740;
+}
+
+.DLFStyleTab.Selected
+{
+	background-color: #5E8A3ACC;
+}
+
+.DLFStyleTab Label
+{
+	vertical-align: center;
+	font-size: 13px;
+	font-weight: bold;
+	letter-spacing: 1px;
+	color: #FFEFD7;
+}
+
+#DLFStylePanel .DLFStepper
+{
+	margin-right: 12px;
+}
+
+.DLFStyleValue
+{
+	width: 48px;
+	font-size: 18px;
+}
+
+.DLFStyleFont
+{
+	width: 96px;
+}
+
+/* Hidden save page: same collapsed-wrapper pattern as the Buff Timer and HP Colors v2 stores. */
+.DLFStoreWrap
+{
+	width: 10px;
+	height: 10px;
+	ignore-parent-flow: true;
+	visibility: collapse;
+}
+
+.DLFStore
+{
+	width: 100%;
+	height: 100%;
+	opacity: 0.01;
+}
