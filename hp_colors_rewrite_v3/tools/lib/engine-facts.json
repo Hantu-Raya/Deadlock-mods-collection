@@ -4,7 +4,7 @@
     "sourceRevision": "11219368",
     "versionDate": "Nov 09 2026",
     "install": "F:/SteamLibrary/steamapps/common/Deadlock",
-    "extractedBy": ".scratch/dll-research/extract.py + dllx.py (Python 3, pefile, numpy, capstone)",
+    "extractedBy": "hp_colors_rewrite_v3/tools/research/extract.py + dllx.py (Python 3, pefile, numpy, capstone)",
     "report": "hp_colors_rewrite_v3/research/dll-tooling-findings.md",
     "sha256": {
       "panorama.dll": "aea8e631e7ee3515f8e158e7bf49234be57c5c35f3d14e54960db84045d9f58f",

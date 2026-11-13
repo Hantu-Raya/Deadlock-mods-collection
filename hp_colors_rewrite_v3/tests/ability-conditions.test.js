@@ -105,6 +105,23 @@ test('Only referenced local signature slots are sampled; effective publication c
   m.tree.hud.RemoveClass('spec_mode'); m.run(1000); assert.equal(m.published().settings.side.enemy.barColorLow, '#123456');
 });
 
+test('A single row reset removes its rule in one Undo step: the world message drops the effective rule value, the save has no rule, Undo restores both', () => {
+  const m = setup(), a = abilities(m), authored = m.settings().side.enemy.barColorLow;
+  const row = m.contract.controls.find(control => control.key === 'barColorLow' && control.side === 'enemy');
+  m.store.replaceBundle({ ...m.bundle(), rules: m.rules('barColorLow', '#123456') });
+  a.tier(1, 2); m.run(1000);
+  assert.equal(m.published().settings.side.enemy.barColorLow, '#123456', 'the rule applies before the reset');
+  assert.equal(m.find(row.rowId).BHasClass('Changed'), false); assert.equal(m.find(row.rowId).BHasClass('Ruled'), true);
+  m.fire(row.resetId); m.run(1000);
+  assert.equal(m.published().settings.side.enemy.barColorLow, authored, 'the world bars stop using the rule');
+  assert.equal(m.bundle().rules, undefined, 'the stored bundle has no rule');
+  assert.equal(m.find(row.conditionId).BHasClass('Marked'), false);
+  m.fire('HPColorsUndoButton'); m.run(1000);
+  assert.deepEqual(copy(m.bundle().rules), m.rules('barColorLow', '#123456'), 'one Undo brings the rule back');
+  assert.equal(m.published().settings.side.enemy.barColorLow, '#123456');
+  assert.equal(m.find(row.conditionId).BHasClass('Marked'), true);
+});
+
 test('Hero/epoch changes and retired callbacks clear tiers; new slot references and invalid panels cannot reuse stale observations', () => {
   const m = setup(), a = abilities(m), authored = m.settings().side.enemy.barColorLow;
   m.store.replaceBundle({ ...m.bundle(), rules: m.rules('barColorLow', '#123456') });

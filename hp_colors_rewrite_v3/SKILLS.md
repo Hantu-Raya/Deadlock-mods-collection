@@ -1,5 +1,7 @@
 # Skills for the v3 rewrite
 
+> **Note (2026-11-13):** the `.scratch` evidence folders (logs, screenshots, benchmarks, decompiles) were deleted before the 3.7.0 release; the `.scratch/...` paths in this file are kept as a record only.
+
 Routed with `ask-matt` (local `~/.agents/skills/ask-matt`), then filled in with this repo's skills and the pstack principles. Only skills that exist locally are listed as runnable; pstack is a Cursor plugin and is not installed here, so its items are reading, not commands.
 
 ## Route (ask-matt)
@@ -8,7 +10,7 @@ ask-matt sends "a huge, foggy effort, too big for one session" to `/wayfinder`, 
 
 | Step | Skill | Output for v3 |
 |---|---|---|
-| 1. Chart | `/wayfinder` (runs `/grilling` + `/domain-modeling`) | `MAP.md` plus decision tickets in `tickets/`. Started in this folder. |
+| 1. Chart | `/wayfinder` (runs `/grilling` + `/domain-modeling`) | `MAP.md` plus decision tickets in `../_archive/hp_colors_rewrite_v3/tickets/`. Started in this folder. |
 | 2. Resolve decisions | one ticket per session: `/grilling` (HITL), `/research` (AFK), `/prototype` (HITL) | Closed tickets, answers in `MAP.md` "Decisions so far" |
 | 3. Collapse | `/to-spec` | `SPEC.md` |
 | 4. Slice | `/to-tickets` | tracer-bullet build tickets with blocking edges |
@@ -18,7 +20,7 @@ Keep steps 3–4 in one context window (ask-matt "Context hygiene"). Use `/hando
 
 Vocabulary underneath: `/domain-modeling` keeps `CONTEXT.md` (surface, owner, side, scope, record version) honest; `/codebase-design` names the deep modules (schema, codec, renderer plan/apply, storage bridge).
 
-Location override: the repo tracker convention is `.scratch/hp_colors/<feature>/` (`docs/agents/issue-tracker.md`). You asked for plans in `hp_colors_rewrite_v3/`, so the map and tickets live here. They move to `.scratch/hp_colors/v3/` if you prefer the convention.
+Location override: the repo tracker convention is `.scratch/hp_colors/<feature>/` (`docs/agents/issue-tracker.md`). You asked for plans in `hp_colors_rewrite_v3/`, so the map and tickets live here. The `.scratch/hp_colors/v3/` location was not used, and the `.scratch` folders were deleted before 3.7.0, so nothing is kept there.
 
 ## Repo skills that apply
 

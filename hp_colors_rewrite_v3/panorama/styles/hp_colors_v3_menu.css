@@ -168,8 +168,8 @@
 .HPC3ControlsDropdown { max-width: 374px; }
 .HPC3RowReset { width: 20px; height: 20px; margin-left: 4px; vertical-align: center; border-radius: 50%; background-color: #FFEFD744; visibility: collapse; opacity: 0; transition-property: opacity; transition-duration: 0.2s; }
 .HPC3RowReset Image { width: 13px; height: 13px; horizontal-align: center; vertical-align: center; wash-color: #10130D; }
-.HPC3Row.Changed .HPC3RowReset { visibility: visible; }
-.HPC3Row.Changed:hover .HPC3RowReset, .HPC3RowReset:focus { opacity: 1; }
+.HPC3Row.Changed .HPC3RowReset, .HPC3Row.Ruled .HPC3RowReset { visibility: visible; }
+.HPC3Row.Changed:hover .HPC3RowReset, .HPC3Row.Ruled:hover .HPC3RowReset, .HPC3RowReset:focus { opacity: 1; }
 /* Row, reset and condition tooltips open above the hovered row (stock tooltip-position, as on
    citadel_ui_build_tag.css), not at its right end where they cover the preview. */
 .HPC3Row, .HPC3RowReset, .HPC3ConditionAction { tooltip-position: top; tooltip-body-position: 50% 0%; }

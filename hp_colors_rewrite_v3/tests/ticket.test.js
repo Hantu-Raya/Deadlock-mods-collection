@@ -11,8 +11,10 @@ const root = path.resolve(__dirname, '..');
 const tool = path.join(root, 'tools/ticket.js');
 const { nextNumber, slugify, mapStub, specStub, ticketText } = require(tool);
 const run = (...args) => spawnSync(process.execPath, [tool, ...args], { encoding: 'utf8' });
+// The planning tickets were archived 2026-11-13; live issues/ holds only tickets made since.
+const archivedIssues = path.join(root, '..', '_archive', 'hp_colors_rewrite_v3', 'issues');
 
-// The issues/ tree when ticket.js was written (2026-11-12): 01-51, suffixed 22b/22c, and audit-* notes.
+// The issues/ tree (now archived plus new) when ticket.js was written (2026-11-12): 01-51, suffixed 22b/22c, and audit-* notes.
 const SNAPSHOT = [
   ...Array.from({ length: 51 }, (_, index) => String(index + 1).padStart(2, '0') + '-ticket.md'),
   '22b-qollock-variant.md', '22c-preview-hero-model.md', 'audit-23-astra.md', 'audit-24-astra.md', 'audit-25-astra.md', 'audit-28-29-astra.md',
@@ -24,7 +26,7 @@ function tree(t) {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.mkdirSync(path.join(dir, 'issues'));
   fs.mkdirSync(path.join(dir, 'settings'));
-  for (const name of fs.readdirSync(path.join(root, 'issues'))) fs.writeFileSync(path.join(dir, 'issues', name), '');
+  for (const name of fs.readdirSync(archivedIssues)) fs.writeFileSync(path.join(dir, 'issues', name), '');
   for (const name of ['MAP.md', 'SPEC.md', 'settings/record.json']) fs.copyFileSync(path.join(root, name), path.join(dir, name));
   return dir;
 }
@@ -40,9 +42,10 @@ test('ticket: numbering takes the highest numeric prefix + 1, counting 22b as 22
   assert.equal(nextNumber(SNAPSHOT), 52, 'the tree this tool was written against picks 52');
   assert.equal(nextNumber(['09-a.md', '22b-x.md', 'audit-99-z.md', 'README.md']), 23);
   assert.equal(nextNumber(['audit-1.md']), 1);
-  const live = fs.readdirSync(path.join(root, 'issues'));
+  const liveDir = path.join(root, 'issues');
+  const live = [...(fs.existsSync(liveDir) ? fs.readdirSync(liveDir) : []), ...fs.readdirSync(archivedIssues)];
   const highest = Math.max(...live.filter(name => /^\d+[a-z]?-/.test(name)).map(name => parseInt(name, 10)));
-  assert.ok(highest >= 51 && nextNumber(live) === highest + 1, 'the live tree picks ' + (highest + 1));
+  assert.ok(highest >= 51 && nextNumber(live) === highest + 1, 'the live + archived trees pick ' + (highest + 1));
   assert.equal(slugify('HP percent: beside the number!'), 'hp-percent-beside-the-number');
   assert.ok(slugify('word '.repeat(40)).length <= 48);
 });
@@ -81,7 +84,7 @@ test('ticket: --map adds an Added bullet in the top in-development section and -
   const preview = run('new', '--root', dir, '--title', 'Kill feed colors', '--map', '--spec-after', '22', '--dry-run');
   assert.equal(preview.status, 0, preview.stderr);
   assert.match(preview.stdout, /Would write issues\/\d+-kill-feed-colors\.md/);
-  assert.equal(fs.readdirSync(path.join(dir, 'issues')).length, fs.readdirSync(path.join(root, 'issues')).length, '--dry-run writes no ticket');
+  assert.equal(fs.readdirSync(path.join(dir, 'issues')).length, fs.readdirSync(archivedIssues).length, '--dry-run writes no ticket');
   assert.equal(fs.readFileSync(path.join(dir, 'MAP.md'), 'utf8'), map);
   const result = run('new', '--root', dir, '--title', 'Kill feed colors', '--map', '--spec-after', '22', '--date', '2026-11-13');
   assert.equal(result.status, 0, result.stderr);
@@ -123,4 +126,35 @@ test('ticket: MAP and SPEC stubs handle a missing in-development section, a ship
     '## User Stories\n\n7. Seven.\n7a. As a player, I want TODO (X), so that TODO ([ticket 52](issues/52-x.md)).\n8. Eight.\n\n## Implementation Decisions\n');
   assert.throws(() => specStub(spec, 'seven', { number: '52', file: '52-x.md', title: 'X' }), /story number/);
   assert.match(ticketText({ number: '52', title: 'X', project: 'qollock' }), /\*\*Project:\*\* QOLLOCK variant/);
+});
+
+test('ticket: numbers continue after the highest of live issues/ AND the archive, and issues/ is created on demand', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hpv3-ticket-both-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const v3 = path.join(dir, 'v3'), archive = path.join(dir, '_archive', 'v3', 'issues');
+  fs.mkdirSync(path.join(v3, 'settings'), { recursive: true });
+  fs.mkdirSync(archive, { recursive: true });
+  for (const name of ['MAP.md', 'SPEC.md', 'settings/record.json']) fs.copyFileSync(path.join(root, name), path.join(v3, name));
+  for (const name of ['07-old.md', '22b-old.md', 'audit-99-x.md']) fs.writeFileSync(path.join(archive, name), '');
+  // Only the archive has tickets, and v3/issues does not exist yet: the new ticket is 23, written to a new live folder.
+  let result = run('new', '--title', 'First after archive', '--root', v3);
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(fs.existsSync(path.join(v3, 'issues', '23-first-after-archive.md')));
+  assert.deepEqual(fs.readdirSync(archive).sort(), ['07-old.md', '22b-old.md', 'audit-99-x.md'], 'the archive is never written');
+  // The live folder is highest now; a higher archived number wins over it.
+  fs.writeFileSync(path.join(archive, '40-newer-in-archive.md'), '');
+  result = run('new', '--title', 'Second', '--root', v3);
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(fs.existsSync(path.join(v3, 'issues', '41-second.md')));
+  // A live number above the archive wins too.
+  fs.writeFileSync(path.join(v3, 'issues', '60-live.md'), '');
+  result = run('new', '--title', 'Third', '--root', v3);
+  assert.ok(fs.existsSync(path.join(v3, 'issues', '61-third.md')), result.stderr);
+  // --archive points at another archived folder, and a slug that exists in the archive is refused.
+  const other = path.join(dir, 'other');
+  fs.mkdirSync(other);
+  fs.writeFileSync(path.join(other, '99-x.md'), '');
+  result = run('new', '--title', 'Fourth', '--root', v3, '--archive', other, '--dry-run');
+  assert.match(result.stdout, /Would write issues\/100-fourth\.md/);
+  assert.ok(!fs.existsSync(path.join(v3, 'issues', '100-fourth.md')), '--dry-run writes nothing');
 });

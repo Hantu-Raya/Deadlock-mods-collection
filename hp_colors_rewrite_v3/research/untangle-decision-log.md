@@ -1,5 +1,7 @@
 # Untangle decision log (2026-11-13)
 
+> **Note (2026-11-13):** the `.scratch` evidence folders (logs, screenshots, benchmarks, decompiles) were deleted before the 3.7.0 release; the `.scratch/...` paths in this file are kept as a record only.
+
 Scope: audits renderer, menu-a, menu-b, storage, timers, generators, build-tools, variants (test-harness, tests-a/b, cross-cutting handled elsewhere). Nothing here was run or edited.
 Path legend: `S:x` = `hp_colors_rewrite_v3/panorama/scripts/hp_colors_v3_x.js`; `T:x` = `hp_colors_rewrite_v3/tools/x`; `TL:x` = `hp_colors_rewrite_v3/tools/lib/x`; `TT:x` = `hp_colors_rewrite_v3/tests/x`; `QOL:` = `hp_colors_rewrite_v3_qollock/`; `SR:` = `hp_colors_rewrite_v3_showrank/`. Audit line numbers are as the audits cite them; re-read before editing.
 
@@ -360,8 +362,8 @@ The world scripts are evaluated once per health-bar panel. Run-only load of the 
 
 ### Possible bugs left for the owner
 
-- B14: resetting one row leaves that row's condition rule in place. A test pins this.
-- The preview stage is 284x278 in the script while the CSS says 286x280.
+- B14: resetting one row left that row's condition rule in place. Fixed 2026-11-13: the reset removes value and rule in one undo step, and a default-valued row that has a rule shows its reset control (`Ruled` class). Tests in `menu.test.js` and `ability-conditions.test.js`.
+- The preview stage is 284x278 in the script while the CSS says 286x280. Not a bug (checked 2026-11-13): the CSS box has a 1 px transparent border on each side. A test in `menu.test.js` ties the two.
 
 ## Optimisation pass
 

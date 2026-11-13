@@ -1,6 +1,6 @@
 # Hosted page protocol extension — independent verification
 
-Verified on 2026-10-14 against [PLAN.md D8](../PLAN.md#d8-storage-same-page-same-protocol-version-new-capability) and [GRILL.md](../GRILL.md).
+Verified on 2026-10-14 against [PLAN.md D8](../../_archive/hp_colors_rewrite_v3/PLAN.md#d8-storage-same-page-same-protocol-version-new-capability) and [GRILL.md](../../_archive/hp_colors_rewrite_v3/GRILL.md).
 
 **Reviewed commit:** `75e76209f4bdfaada1c79a05d9285c95f8c8c656`, branch `hpcolors-v3-keys`, repository `D:/hpv2-store`. No page defect was found, so no corrective page commit was needed. The assigned test suite had a real assertion gap; it is now strengthened. The store checkout was restored to clean `main`. Publishing still needs the user's go-ahead; nothing was pushed or deployed.
 

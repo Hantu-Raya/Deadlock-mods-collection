@@ -1,10 +1,12 @@
 # DLL tooling findings (Deadlock client 6861)
 
+> **Note (2026-11-13):** the `.scratch` evidence folders (logs, screenshots, benchmarks, decompiles) were deleted before the 3.7.0 release; the `.scratch/...` paths in this file are kept as a record only.
+
 Static string, xref and disassembly analysis of the installed binaries, done in 2026-11. Nothing here was observed at runtime.
 
 - **Install analysed:** `F:\SteamLibrary\steamapps\common\Deadlock`. `game/citadel/steam.inf` reads `ClientVersion=6861`, `SourceRevision=11219368`, `VersionDate=Nov 09 2026`. All DLLs are dated 2026-11-12, and their PE timestamps fall on 2026-11-09.
-- **Pin:** `game-data-pin.json` pins `clientVersion` 6828, so the install has drifted by 33 builds.
-- **Method:** `.scratch/dll-research/extract.py` extracts ASCII and UTF-16LE strings with file offsets, RVAs and sections into `strings_<dll>.tsv`. `.scratch/dll-research/dllx.py` adds:
+- **Pin:** `game-data-pin.json` pins `clientVersion` 6861 (rebased 2026-11-13), the same build as this install; at the time of the analysis the pin was 6828.
+- **Method:** `tools/research/extract.py` (`python hp_colors_rewrite_v3/tools/research/extract.py [--out <dir>] [--game <game dir>]`; output defaults to `hp_colors_rewrite_v3/.tmp/dll-research`, which is git-ignored) extracts ASCII and UTF-16LE strings with file offsets, RVAs and sections into `strings_<dll>.tsv`. `tools/research/dllx.py` (load it with `exec(open('hp_colors_rewrite_v3/tools/research/dllx.py').read())` from the repo root; it reads that same folder) adds:
   - function bounds from `.pdata`;
   - an index of `lea reg,[rip+x]` string xrefs;
   - `call rel32` scans;

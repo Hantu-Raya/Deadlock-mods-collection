@@ -1,6 +1,6 @@
 # HP Colors v2 synthetic performance baseline
 
-Measured 2026-10-14 for [ticket 05](../tickets/05-performance-baseline.md). **Evidence level 1: synthetic Panorama VM operation counts, not native execution time, CPU, frame time or FPS.** No game launch, deployment, build wrapper, test suite or source edit occurred.
+Measured 2026-10-14 for [ticket 05](../../_archive/hp_colors_rewrite_v3/tickets/05-performance-baseline.md). **Evidence level 1: synthetic Panorama VM operation counts, not native execution time, CPU, frame time or FPS.** No game launch, deployment, build wrapper, test suite or source edit occurred.
 
 ## Result
 
@@ -216,7 +216,7 @@ Use a failing **synthetic, fixture-scoped** regression check, not a wall-time ga
 | Dormant, all kinds | 30 | closed nonhero gates 40.8–46.4; master off 36–153.8 |
 | Idle first-hit response, responding fixtures | sampled max ≤150 ms; mean ≤100 ms | current sampled max 150 / mean 100 |
 
-The dormant proposal is intentionally strongest for master-off heroes: v2 still performs normal player classification/parts work, whereas [PLAN D6](../PLAN.md#d6-renderer-facts--plan--apply) calls for the same cheap dormant carrier check for all kinds. Replacing the periodic full walks is a plausible optimization hypothesis, **not a measured v3 win**. Dormant objective 40.8 → 30 is a proposed 26.5% reduction in this proxy, not a measured percentage of whole-game or whole-HPv2 CPU time.
+The dormant proposal is intentionally strongest for master-off heroes: v2 still performs normal player classification/parts work, whereas [PLAN D6](../../_archive/hp_colors_rewrite_v3/PLAN.md#d6-renderer-facts--plan--apply) calls for the same cheap dormant carrier check for all kinds. Replacing the periodic full walks is a plausible optimization hypothesis, **not a measured v3 win**. Dormant objective 40.8 → 30 is a proposed 26.5% reduction in this proxy, not a measured percentage of whole-game or whole-HPv2 CPU time.
 
 No VM wall-time ceiling is proposed: it depends on machine, competing agents, Node/JIT, GC and mock implementation. Retain VM timings for diagnostics only. Before treating this as an exhaustive native-call ceiling, extend the adapter to count omitted engine APIs and take a new v2 baseline with that exact metric; do not silently compare new full coverage to the partial figures here. Additional feature-heavy presets and OLD nonhero/ally paths need their own baseline fixtures before a parity-wide ceiling can be claimed.
 

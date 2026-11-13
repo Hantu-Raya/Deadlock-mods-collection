@@ -131,8 +131,8 @@ function refreshHelp(from, fsx = fs) {
     'engine-facts --refresh: the extractor needs a disassembler pass (pefile, numpy, capstone) and is not ported to Node.',
     'Installed ClientVersion: ' + version + '; facts file: ' + path.relative(REPO, FACTS_FILE).replace(/\\/g, '/') + ' (' + loadFacts().facts.build.clientVersion + ').',
     'Regenerate read-only from ' + from + ' with Python 3 (pip install pefile numpy capstone):',
-    '  python .scratch/dll-research/extract.py            # strings_<dll>.tsv (edit ROOT to the folder above)',
-    '  then the steps in hp_colors_rewrite_v3/research/dll-tooling-findings.md (dllx.py: factories, $ table, panel tables, events)',
+    '  python hp_colors_rewrite_v3/tools/research/extract.py --game "' + path.join(from, 'game').replace(/\\/g, '/') + '"   # strings_<dll>.tsv in hp_colors_rewrite_v3/.tmp/dll-research (--out <dir> to change)',
+    '  then the steps in hp_colors_rewrite_v3/research/dll-tooling-findings.md (tools/research/dllx.py: factories, $ table, panel tables, events)',
     'and rewrite engine-facts.json; review the diff (new/removed names) before committing.',
   ].join('\n');
 }

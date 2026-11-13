@@ -14,7 +14,7 @@
   var effectiveSettings = null, lastPublishedRevision = -1;
   var ABILITY_SLOTS = 4, MAX_TIER = 3, SIDES = ["enemy", "ally"], UNDO_LIMIT = 40, THRESHOLD_GAP = 1;
   var GESTURE_PUBLISH_MS = 50, ANSWER_THROTTLE_MS = 500;
-  // One value per ability slot (ABILITY_SLOTS and MAX_TIER must equal the codec RECORD slotRange[1] and tierRange[1]; no test ties them).
+  // One value per ability slot (ABILITY_SLOTS and MAX_TIER must equal the codec RECORD slotRange[1] and tierRange[1]; tests/menu.test.js checks it).
   function slotArray(value) { var slots = []; for (var i = 0; i < ABILITY_SLOTS; i++) slots.push(value); return slots; }
   var tiers = slotArray(-1), requiredSlots = slotArray(false), ruleRows = {};
   var signature = null, abilityOwner = null, abilityPanels = slotArray(null), matchedRules = "";
@@ -833,7 +833,7 @@
   // has points, a barrier is up or the scale is corrected: two bar reads (three with a barrier, one more
   // after a change), work only on change,
   // classes, texts and owned-panel validity every 50 ms. Writes only on change, inline only (QOLLOCK's
-  // pak03 replaces the stock sheets). Bench: .scratch/shieldbar/bench.js (issues/38, bench).
+  // pak03 replaces the stock sheets). Benchmarked for ticket 38; the bench script was not kept.
   var LEGACY_ATTR = "hpc3_legacy_shield";
   var LEGACY_OWN = { label: "HPColorsLegacyHealthLabel", zero: "HPColorsLegacyShieldZero", lines: "HPColorsLegacyLines",
     barrier: "HPColorsLegacyBarrier", barrierNumber: "HPColorsLegacyBarrierNumber" };
@@ -1566,6 +1566,8 @@
     try {
       controlType(row).sync(row, value, hueEdit);
       rowClass(row.rowId, "Changed", value !== row.default);
+      // A rule alone also shows the reset control: it is how the rule is removed from a default-valued row.
+      rowClass(row.rowId, "Ruled", !!config.rules[cellFor(row)]);
       rowClass(row.conditionId, "Marked", !!config.rules[cellFor(row)]);
     } finally { syncing = false; }
   }
@@ -1856,7 +1858,14 @@
     on(row.rowId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.rowId)); });
     on(row.resetId, "onactivate", function () {
       closeFor(CLOSES_ON_OPEN.editor);
-      commit(row, controlType(row).resetValue(row));
+      var cell = cellFor(row), value = controlType(row).resetValue(row);
+      // A row with a condition rule resets value and rule together, as one undo step (editSettings, like a
+      // group reset). A greyed row takes no input, so commit puts its controls back as before.
+      if (!config || !config.rules[cell] || !rowActive(row)) { commit(row, value); return; }
+      var next = clone(config.settings), rules = clone(config.rules);
+      valuesFor(next, row)[row.key] = value;
+      delete rules[cell];
+      editSettings(next, rules);
     });
     on(row.resetId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.resetId), "Reset " + row.name + " to default"); });
     on(row.resetId, "onmouseout", function () { $.DispatchEvent("UIHideTextTooltip", panel(row.resetId)); });
@@ -1936,8 +1945,8 @@
     var title = card && card.FindChildrenWithClassTraverse("HPC3CardTitle")[0];
     trigger(title, "HPC3SearchLanding");
   }
-  // Group and page resets: every row of the page (and of the group, when one is given) goes back to its
-  // default and loses its condition rule. A single row's reset (bindControl) keeps its rule.
+  // Group, page and single-row resets: every row concerned goes back to its default and loses its condition
+  // rule (a single row's reset is bindControl's, which does the same for that one row).
   function resetRows(next, rules, page, group) {
     contractRef.controls.forEach(function (row) {
       if (row.page === page && (group === undefined || row.group === group)) {

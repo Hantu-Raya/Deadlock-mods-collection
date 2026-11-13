@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { loadLayout, parseLayout, runInVm, sourceRoot, latestPublishedConfig } = require('./boot-layout');
+const { loadLayout, parseLayout, runInVm, sourceRoot, latestPublishedConfig, createPanoramaHarness, createVmContext } = require('./boot-layout');
 // HUD paint and local-hero detection continue independently of menu interaction work.
 const work = h => h.scheduler.jobs.filter(job => !(job.fn && ['hudWatch', 'identityWatch', 'updateCheck'].includes(job.fn.name)));
 
@@ -760,24 +760,109 @@ test('ticket 29: VM Sliders swallow mouse panel events and emit value/release en
   h.releaseSlider(slider); assert.equal(releases, 1);
 });
 
-test('a single row reset keeps that row\'s condition rule; a page reset clears it with the values', () => {
+// A row's reset removes its condition rule with the value (B14, decision log). Fixture: one number row that has an
+// ability slot, a store that records every commit, and a rule seeded through applySettings.
+function ruledRowFixture() {
   let api = null;
-  const rules = {}, defaults = JSON.parse(JSON.stringify(booted().h.$.HPColorsV3Settings.defaults));
-  const store = { attach(value) { api = value; }, commit() {}, getBundle() { return { settings: JSON.parse(JSON.stringify(defaults)), presets: [] }; }, isHydrated() { return true; } };
+  const commits = [];
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const defaults = copy(booted().h.$.HPColorsV3Settings.defaults);
+  const store = { attach(value) { api = value; }, commit(config) { commits.push(copy(config)); }, getBundle() { return { settings: copy(defaults), presets: [] }; }, isHydrated() { return true; } };
   const m = booted({ store });
   const contract = m.h.$.HPColorsV3Settings;
   const row = contract.controls.find(control => control.type === 'number' && control.side === 'enemy' && contract.slots.some(slot => slot.setting === control.key && slot.side === 'enemy'));
   const cell = contract.slots.find(slot => slot.setting === row.key && slot.side === 'enemy').slot;
-  rules[cell] = { slot: 1, minTier: 2, value: row.bounds[0] };
-  const seeded = JSON.parse(JSON.stringify(contract.defaults));
-  assert.equal(api.applySettings(seeded, rules), true);
-  const page = contract.menu.pages.find(entry => entry.name === row.page);
-  m.activate(page.navId);
+  m.activate(contract.menu.pages.find(entry => entry.name === row.page).navId);
+  const rule = { slot: 1, minTier: 2, value: row.bounds[0] };
+  const seed = () => assert.equal(api.applySettings(copy(contract.defaults), { [cell]: copy(rule) }), true);
+  return { m, api: () => api, commits, row, cell, rule, seed, contract, copy };
+}
+
+test('a single row reset removes that row\'s condition rule with the value; a page reset still clears it', () => {
+  const f = ruledRowFixture(), { m, row, cell } = f;
+  f.seed();
   m.submit(row.entryId, row.bounds[1]);
   assert.equal(m.find(row.rowId).BHasClass('Changed'), true);
   m.activate(row.resetId);
   assert.equal(m.find(row.rowId).BHasClass('Changed'), false);
-  assert.ok(api.getRules()[cell], 'the row reset leaves the rule');
+  assert.equal(f.api().getRules()[cell], undefined, 'the row reset clears the rule');
+  assert.equal(m.find(row.conditionId).BHasClass('Marked'), false);
+  f.seed();
+  m.submit(row.entryId, row.bounds[1]);
   m.activate('HPColorsResetPageButton'); m.activate('HPColorsResetPageConfirmButton');
-  assert.equal(api.getRules()[cell], undefined, 'the page reset clears the rule');
+  assert.equal(f.api().getRules()[cell], undefined, 'the page reset clears the rule');
+});
+
+test('a row reset with a rule is one undo step, saves once without the rule', () => {
+  const f = ruledRowFixture(), { m, row, cell } = f;
+  f.seed();
+  m.submit(row.entryId, row.bounds[1]);
+  const edited = f.copy(f.copy(f.api().getSettings())), commitsBefore = f.commits.length;
+  m.activate(row.resetId);
+  assert.equal(f.commits.length, commitsBefore + 1, 'one save for value and rule together');
+  assert.equal(f.commits[f.commits.length - 1].rules[cell], undefined, 'the saved config has no rule');
+  assert.notDeepEqual(f.copy(f.api().getSettings()), edited);
+  m.activate('HPColorsUndoButton');
+  assert.deepEqual(f.copy(f.api().getSettings()), edited, 'undo brings the value back');
+  assert.deepEqual(f.api().getRules()[cell], f.rule, 'undo brings the rule back');
+  assert.equal(f.commits[f.commits.length - 1].rules[cell].minTier, f.rule.minTier);
+  assert.equal(m.find(row.conditionId).BHasClass('Marked'), true);
+});
+
+test('a row without a rule resets as before: value only, one undo step', () => {
+  const f = ruledRowFixture(), { m, row } = f;
+  m.submit(row.entryId, row.bounds[1]);
+  const edited = f.copy(f.copy(f.api().getSettings()));
+  m.activate(row.resetId);
+  assert.equal(m.find(row.rowId).BHasClass('Changed'), false);
+  assert.deepEqual(f.api().getRules(), {});
+  m.activate('HPColorsUndoButton');
+  assert.deepEqual(f.copy(f.api().getSettings()), edited);
+  assert.deepEqual(f.api().getRules(), {});
+});
+
+test('a default-valued row that has a rule shows its reset control and the reset removes the rule', () => {
+  const f = ruledRowFixture(), { m, row, cell } = f;
+  f.seed();
+  const panel = m.find(row.rowId);
+  assert.equal(panel.BHasClass('Changed'), false, 'the value is default');
+  assert.equal(panel.BHasClass('Ruled'), true, 'the rule marks the row so its reset control shows');
+  const css = fs.readFileSync(path.join(sourceRoot, 'panorama/styles/hp_colors_v3_menu.css'), 'utf8');
+  assert.match(css, /\.HPC3Row\.Ruled \.HPC3RowReset\s*\{[^}]*visibility: visible/);
+  const before = f.copy(f.copy(f.api().getSettings()));
+  m.activate(row.resetId);
+  assert.equal(f.api().getRules()[cell], undefined);
+  assert.deepEqual(f.copy(f.api().getSettings()), before, 'the value stays default');
+  assert.equal(panel.BHasClass('Ruled'), false);
+  m.activate('HPColorsUndoButton');
+  assert.deepEqual(f.api().getRules()[cell], f.rule);
+});
+
+test('the menu\'s ABILITY_SLOTS and MAX_TIER equal the codec record ranges (slotRange[1], tierRange[1])', () => {
+  const read = file => fs.readFileSync(path.join(sourceRoot, `panorama/scripts/hp_colors_v3_${file}.js`), 'utf8');
+  // Source text is read from the authored lane (a build runs this suite against minified staged scripts).
+  const authored = path.resolve(__dirname, '../panorama/scripts/hp_colors_v3_menu.js');
+  const found = /var ABILITY_SLOTS = (\d+), MAX_TIER = (\d+)[,;]/.exec(fs.readFileSync(authored, 'utf8'));
+  assert.ok(found, 'the menu declares ABILITY_SLOTS and MAX_TIER as numeric literals');
+  const harness = createPanoramaHarness(), context = createVmContext(harness);
+  for (const file of ['settings', 'codec']) runInVm(read(file), context);
+  const record = harness.$.HPColorsV3Codec.RECORD;
+  assert.equal(record.slotRange[0], 1); assert.equal(record.tierRange[0], 1);
+  assert.equal(Number(found[1]), record.slotRange[1], 'ABILITY_SLOTS is the highest rule slot');
+  assert.equal(Number(found[2]), record.tierRange[1], 'MAX_TIER is the highest rule tier');
+});
+
+test('preview stage: the script camera box is the CSS box minus its 1px transparent border on each side', () => {
+  // Source text is read from the authored lane (a build runs this suite against minified staged scripts).
+  const lane = path.resolve(__dirname, '..');
+  const css = fs.readFileSync(path.join(lane, 'panorama/styles/hp_colors_v3_menu.css'), 'utf8');
+  const rule = /\.HPC3PreviewStage \{([^}]*)\}/.exec(css);
+  assert.ok(rule, 'the stage rule exists');
+  const size = /width: (\d+)px; height: (\d+)px/.exec(rule[1]), border = /border: (\d+)px solid/.exec(rule[1]);
+  assert.ok(size && border);
+  const script = fs.readFileSync(path.join(lane, 'panorama/scripts/hp_colors_v3_preview.js'), 'utf8');
+  const camera = /STAGE_W = (\d+), STAGE_H = (\d+)/.exec(script);
+  assert.ok(camera);
+  assert.equal(Number(camera[1]), Number(size[1]) - 2 * Number(border[1]), 'STAGE_W is the CSS width minus both borders');
+  assert.equal(Number(camera[2]), Number(size[2]) - 2 * Number(border[1]), 'STAGE_H is the CSS height minus both borders');
 });

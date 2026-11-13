@@ -117,7 +117,7 @@ powershell -ExecutionPolicy Bypass -File build_hp_colors_rewrite_qollock.ps1
 npm --prefix showrank test
 
 # Repo hygiene: clutter report by category; deletes nothing unless --apply --category <name>
-node tools/clean.js > .scratch/clean-report.md
+node tools/clean.js > .tmp/clean-report.md
 
 # Other production wrappers
 powershell -ExecutionPolicy Bypass -File build_buff_timer_virgin.ps1
@@ -209,7 +209,7 @@ Multiple builds reuse pak slots, notably pak89, pak97, and pak98. Treat those ou
 
 ## Agent Skills
 
-- **Issue tracker**: issues are local markdown under `.scratch/hp_colors/`; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+- **Issue tracker**: issues are local markdown (the repo convention is `.scratch/hp_colors/`; v3 tickets are in `hp_colors_rewrite_v3/issues/` and `_archive/hp_colors_rewrite_v3/issues/`); external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
 - **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 - **Domain docs**: multi-context layout; for HP Colors work read `hp_colors/CONTEXT.md` and ADRs when present. See `docs/agents/domain.md`.
 

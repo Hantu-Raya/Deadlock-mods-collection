@@ -91,7 +91,9 @@ test('engine-facts CLI: --refresh is read-only and explains the Python extractor
   const result = spawnSync(process.execPath, [TOOL, '--refresh', '--from', dir], { encoding: 'utf8' });
   assert.equal(result.status, 2);
   assert.match(result.stdout, /Installed ClientVersion: 6999/);
-  assert.match(result.stdout, /extract\.py/);
+  assert.match(result.stdout, /hp_colors_rewrite_v3\/tools\/research\/extract\.py/);
+  assert.doesNotMatch(result.stdout, /\.scratch/);
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'tools', 'research', 'extract.py')) && fs.existsSync(path.join(__dirname, '..', 'tools', 'research', 'dllx.py')), 'the helper scripts the help names are tracked');
   assert.deepEqual(fs.readdirSync(path.join(dir, 'game', 'citadel')), ['steam.inf']);
 });
 

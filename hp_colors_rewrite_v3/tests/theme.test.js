@@ -317,7 +317,7 @@ test('stock row is a single label/control/reset/condition line with passive pape
   }
 });
 
-test('row reset only reveals for Changed rows, resets one value without dropping its condition, and is undoable', () => {
+test('row reset only reveals for Changed rows, resets the value and its condition rule in one step, and is undoable', () => {
   const m = theme(), row = m.contract.controls.find(row => row.key === 'barColorLow' && row.side === 'enemy'), p = m.find(row.rowId), reset = m.find(row.resetId);
   assert.equal(computed(reset, 'visibility'), 'collapse'); state(p, 'hover'); assert.equal(computed(reset, 'visibility'), 'collapse'); state(p);
   const next = m.api.getSettings(), key = cell(m, row), rules = { [key]: { slot: 1, minTier: 1, value: '#654321' } };
@@ -325,8 +325,8 @@ test('row reset only reveals for Changed rows, resets one value without dropping
   assert.equal(computed(reset, 'visibility'), 'visible'); assert.equal(computed(reset, 'opacity'), '0');
   state(p, 'hover'); assert.equal(computed(reset, 'opacity'), '1'); state(p); state(reset, 'focus'); assert.equal(computed(reset, 'opacity'), '1');
   const before = m.api.getSettings(), commits = m.commits.length; m.fire(row.resetId);
-  assert.equal(values(m.api.getSettings(), row)[row.key], row.default); assert.deepEqual(m.api.getRules(), rules); assert.equal(m.commits.length, commits + 1);
-  assert.equal(computed(reset, 'visibility'), 'collapse'); m.fire('HPColorsUndoButton'); assert.deepEqual(m.api.getSettings(), before);
+  assert.equal(values(m.api.getSettings(), row)[row.key], row.default); assert.deepEqual(m.api.getRules(), {}); assert.equal(m.commits.length, commits + 1);
+  assert.equal(computed(reset, 'visibility'), 'collapse'); m.fire('HPColorsUndoButton'); assert.deepEqual(m.api.getSettings(), before); assert.deepEqual(m.api.getRules(), rules);
   const condition = m.find(row.conditionId); assert.equal(computed(condition, 'opacity'), '1'); m.fire(row.conditionId);
   assert.equal(m.find('HPColorsConditionDialog').BHasClass('Open'), true);
 });

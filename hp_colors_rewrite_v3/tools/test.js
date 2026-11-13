@@ -25,7 +25,7 @@ const PROJECTS = Object.fromEntries(PROJECT_NAMES.map(key => [key, { key, dir: L
 const V3 = V3_DIR;
 const VARIANTS = VARIANT_NAMES;
 // Folders no cycle or test selection cares about (docs, scratch, build output): tools/dev.js reads the same list.
-const NON_SOURCE_DIRS = Object.freeze(['docs', 'issues', 'tickets', 'research', 'prototypes', 'mocks', '.build', '.tmp']);
+const NON_SOURCE_DIRS = Object.freeze(['docs', 'issues', 'research', '.build', '.tmp']);
 // tools/lib files generate.js does not read (build and test tooling): every other tools/lib/*.js feeds the generator.
 const BUILD_TOOL_LIBS = Object.freeze(['projects', 'toolchain', 'cli', 'tap', 'run']);
 // tools/-relative generator inputs as a regex source (anchor it yourself): generate.js, menu-layout.js, tools/lib/*.js less the build tools.
@@ -90,6 +90,8 @@ const RULES = [
   { match: at('tools/new-setting.js'), tests: ['new-setting'] },
   { match: at('tools/ticket.js'), tests: ['ticket'] },
   { match: at('tools/engine-facts.js'), tests: ['engine-facts'] },
+  // Offline research helpers (Python, run by hand; engine-facts.js --refresh prints how). Nothing executes them, so the facts test is the nearest check.
+  { match: /^hp_colors_rewrite_v3\/tools\/research\/[^/]+\.py$/, tests: ['engine-facts'] },
   // Engine facts from the panorama.dll research; lib/stylesheets.js checks sheets against them in generate.js --check.
   { match: at('tools/lib/engine-facts.json'), tests: ['engine-facts', 'generator'] },
 ];

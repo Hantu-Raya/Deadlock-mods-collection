@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 'use strict';
-// Starts a ticket in issues/ (v3's folder holds the QOLLOCK and ShowRank variant tickets too, e.g. 22b and
-// 34), numbered after the highest numeric prefix (audit-* files are not tickets; 22b counts as 22), from a
-// template modelled on issues/50-kill-bounty.md and issues/51-hp-percent.md. Optional stubs:
+// Starts a ticket in issues/ (created on demand; v3's folder holds the QOLLOCK and ShowRank variant tickets
+// too, e.g. 22b and 34), numbered after the highest numeric prefix in issues/ AND in the archived tickets
+// (_archive/hp_colors_rewrite_v3/issues, or --archive <dir>) so numbers never repeat (audit-* files are not
+// tickets; 22b counts as 22), from a template modelled on the archived issues/50-kill-bounty.md and
+// issues/51-hp-percent.md. Optional stubs:
 //   --map             an **Added:** bullet under MAP.md's top in-development `### x.y.z` changelog section
 //                     (created from settings/record.json's release when there is none)
 //   --spec-after <n>  a lettered sub-story (7a., 7b., ...) after SPEC.md user story n and its sub-stories
 //
 //   node tools/ticket.js new --title "Kill feed colors" [--slug kill-feed-colors]
 //     [--request "quote|Discord, someone|2026-11-12"] [--project v3|qollock|showrank] [--map] [--spec-after 15]
-//     [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>]
+//     [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>] [--archive <archived issues dir>]
 const fs = require('node:fs');
 const path = require('node:path');
 const cli = require('./lib/cli');
@@ -20,12 +22,12 @@ const V3_ROOT = path.resolve(__dirname, '..');
 // Lane labels, folders and build commands come from the shared lane table.
 const PROJECTS = Object.fromEntries(Object.values(LANES).map(lane => [lane.key, { label: lane.ticketLabel, dir: lane.dir, build: lane.build }]));
 const USAGE = `Usage: node tools/ticket.js new --title "..." [--slug <kebab>] [--request "quote|who|date"]
-  [--project ${cli.projectChoices({ all: false })}] [--map] [--spec-after <story number>] [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>]`;
+  [--project ${cli.projectChoices({ all: false })}] [--map] [--spec-after <story number>] [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>] [--archive <archived issues dir>]`;
 const ARGS = {
   options: {
     '--title': { key: 'title', value: true }, '--slug': { key: 'slug', value: true }, '--request': { key: 'request', value: true },
     '--project': { key: 'project', value: true }, '--spec-after': { key: 'spec-after', value: true }, '--date': { key: 'date', value: true },
-    '--root': { key: 'root', value: true },
+    '--root': { key: 'root', value: true }, '--archive': { key: 'archive', value: true },
     '--map': { key: 'map' }, '--dry-run': { key: 'dry-run' }, '--help': { key: 'help' },
   },
   command: true,
@@ -171,11 +173,12 @@ function create(opts, root = V3_ROOT) {
   const date = opts.date || localDate();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('--date must be YYYY-MM-DD');
   const issues = path.join(root, 'issues');
-  if (!fs.existsSync(issues)) throw new Error('Missing ' + issues);
-  const names = fs.readdirSync(issues);
-  const number = pad(nextNumber(names));
+  const archived = opts.archive !== undefined ? path.resolve(opts.archive) : path.join(root, '..', '_archive', path.basename(root), 'issues');
+  const names = fs.existsSync(issues) ? fs.readdirSync(issues) : [];
+  const archivedNames = fs.existsSync(archived) ? fs.readdirSync(archived) : [];
+  const number = pad(nextNumber([...names, ...archivedNames]));
   const file = number + '-' + slug + '.md';
-  if (names.includes(file)) throw new Error(file + ' already exists');
+  if (names.includes(file) || archivedNames.includes(file)) throw new Error(file + ' already exists');
   const writes = [{ file: path.join(issues, file), text: ticketText({ number, title, project, request: opts.request }), note: 'ticket ' + number + ' (' + PROJECTS[project].label + ')' }];
   if (opts.map) {
     const mapFile = path.join(root, 'MAP.md');
@@ -204,6 +207,7 @@ function main(argv, out = console.log) {
       if (!write.line) out(write.text.trimEnd().replace(/^/gm, '  | '));
       else out('  | ' + write.text.split(/\r?\n/)[write.line - 1]);
     } else {
+      fs.mkdirSync(path.dirname(write.file), { recursive: true });
       fs.writeFileSync(write.file, write.text, { encoding: 'utf8', flag: write.line ? 'w' : 'wx' });
       out('Wrote ' + rel(write.file) + (write.line ? ':' + write.line : '') + ': ' + write.note);
     }

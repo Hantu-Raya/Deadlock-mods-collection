@@ -22,6 +22,16 @@ development, compilation, or runtime behavior.
     - `ENDFILE`
     - `EOF`
     - `README.txt`
+- `hp_colors_rewrite_v3/`
+  - Archived v3 planning files (moved 2026-11-13); the live lane docs link here.
+  - Current examples:
+    - `issues/` (implementation tickets; `tools/ticket.js` numbers new tickets after these)
+    - `tickets/`
+    - `prototypes/`
+    - `mocks/`
+    - `DEBATE.md`
+    - `GRILL.md`
+    - `PLAN.md`
 
 ## Restore Instructions
 
@@ -32,6 +42,7 @@ Move any archived item back to repository root using the original path mapping:
 - `_archive/misc/ENDFILE` -> `ENDFILE`
 - `_archive/misc/EOF` -> `EOF`
 - `_archive/misc/README.txt` -> `README.txt`
+- `_archive/hp_colors_rewrite_v3/<name>` -> `hp_colors_rewrite_v3/<name>` (for `issues/`, `tickets/`, `prototypes/`, `mocks/`, `DEBATE.md`, `GRILL.md`, `PLAN.md`)
 
 PowerShell example:
 

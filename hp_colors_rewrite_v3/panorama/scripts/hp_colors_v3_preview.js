@@ -50,7 +50,8 @@
   var SETTLE_SECONDS = 0.1;
   var UNLAID_SECONDS = 0.25;
   var SETTLE_LIMIT = 5;
-  // Unit-kind camera: the stage is a fixed 284x278 CSS box (menu.css .HPC3PreviewStage inside the 330px column).
+  // Unit-kind camera: the stage content box is a fixed 284x278 (menu.css .HPC3PreviewStage is 286x280 with a 1px
+  // transparent border on each side, inside the 330px column; menu.test.js checks the two agree).
   // Content around the bar (canvas px, measured live 2026-10-14): pickups/stamina/name 57 above, HP text 26 below,
   // level badge/rejuvenator 32.5 left of the bar, ult badge 10 right of it. Zoom only ever goes down from 2x.
   // Unit bars keep the stock 79x18 bar at its stock spot (user, 2026-10-29), so the fit is computed once.
