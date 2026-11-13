@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  // ---- Relay identity. The class and layout path are pinned by layout/hp_colors_v3_relay.xml and tools/projects.js.
+  // ---- Relay identity. The class and layout path are pinned by layout/hp_colors_v3_relay.xml; the layout ships because tools/lib/projects.js collects every file under panorama/.
   var RELAY_CLASS = "HPV3BridgeRelay";
   var RELAY_ID = "HPColorsV3EventRelay";
   var RELAY_LAYOUT = "file://{resources}/layout/hp_colors_v3_relay.xml";
@@ -9,11 +9,11 @@
   // the config request, the hud for the pickup snapshot, the world context for the three topbar snapshots (neither
   // the hud nor the menu layout includes this script, so they cannot read a shared table).
   var MAGICS = {
-    CONFIG_REQUEST: { magic: "HPV3_CONFIG_REQUEST" },
-    PICKUP_SNAPSHOT: { magic: "HPV3_PICKUP_SNAPSHOT" },
-    PICKUP_SCAN_GATE: { magic: "HPV3_PICKUP_SCAN_GATE" },
-    ULTIMATE_SNAPSHOT: { magic: "HPV3_ULTIMATE_SNAPSHOT" },
-    BOUNTY_SNAPSHOT: { magic: "HPV3_BOUNTY_SNAPSHOT" }
+    CONFIG_REQUEST: "HPV3_CONFIG_REQUEST",
+    PICKUP_SNAPSHOT: "HPV3_PICKUP_SNAPSHOT",
+    PICKUP_SCAN_GATE: "HPV3_PICKUP_SCAN_GATE",
+    ULTIMATE_SNAPSHOT: "HPV3_ULTIMATE_SNAPSHOT",
+    BOUNTY_SNAPSHOT: "HPV3_BOUNTY_SNAPSHOT"
   };
   var context = $.GetContextPanel();
   var relay = null;

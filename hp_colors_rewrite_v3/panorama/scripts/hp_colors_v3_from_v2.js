@@ -10,6 +10,13 @@
   var steps = {barOutlineThickness:0.5, ultimateTimerSize:5, rejuvScale:5, readoutOutlineWidth:0.5, allyReadoutOutlineWidth:0.5, nameOutlineWidth:0.5, staminaHeight:0.1};
   function object(value) { return !!value && typeof value === "object" && !Array.isArray(value); }
   function copy(value) { return JSON.parse(JSON.stringify(value)); }
+  // A v2 condition rule: an object whose slot and minTier are integers inside the v3 record ranges.
+  function ruleInRange(rule) {
+    var record = $.HPColorsV3Codec.RECORD;
+    return object(rule) &&
+      Number.isInteger(rule.slot) && rule.slot >= record.slotRange[0] && rule.slot <= record.slotRange[1] &&
+      Number.isInteger(rule.minTier) && rule.minTier >= record.tierRange[0] && rule.minTier <= record.tierRange[1];
+  }
   function fail() { throw new Error("That v2 code or save is incomplete or damaged."); }
   function scalar(key, value) {
     var meta = DATA.settingMeta[key];
@@ -57,7 +64,7 @@
       if (own.call(DATA.retiredConditionKeys,key)) return;
       if (!own.call(DATA.settingMeta,key)) fail();
       var rule = source[key];
-      if (!object(rule) || Math.floor(rule.slot) !== rule.slot || rule.slot < $.HPColorsV3Codec.RECORD.slotRange[0] || rule.slot > $.HPColorsV3Codec.RECORD.slotRange[1] || Math.floor(rule.minTier) !== rule.minTier || rule.minTier < $.HPColorsV3Codec.RECORD.tierRange[0] || rule.minTier > $.HPColorsV3Codec.RECORD.tierRange[1]) fail();
+      if (!ruleInRange(rule)) fail();
       var value = scalar(key,rule.value);
       if (DATA.settingMeta[key].type === "number" && value !== rule.value) fail();
       result[key] = {slot:rule.slot,minTier:rule.minTier,value:value};
@@ -139,8 +146,7 @@
       if (own.call(DATA.retiredConditionKeys, key)) return;
       if (!own.call(DATA.settingMeta, key)) fail();
       var rule = item.v2conditions[key];
-      if (!object(rule) || !Number.isInteger(rule.slot) || rule.slot < $.HPColorsV3Codec.RECORD.slotRange[0] || rule.slot > $.HPColorsV3Codec.RECORD.slotRange[1] ||
-          !Number.isInteger(rule.minTier) || rule.minTier < $.HPColorsV3Codec.RECORD.tierRange[0] || rule.minTier > $.HPColorsV3Codec.RECORD.tierRange[1]) fail();
+      if (!ruleInRange(rule)) fail();
       contract.controls.forEach(function (row) {
         if (legacyKeyOf(row.side, row.key) !== key) return;
         var value = rule.value;

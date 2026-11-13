@@ -5,8 +5,8 @@
   if ($.HPColorsV3Timers) $.HPColorsV3Timers.stop();
   var context = $.GetContextPanel(), renderer = $.HPColorsV3Renderer;
   var bridgeMagics = $.HPColorsV3Bridge.MAGICS;
-  var GATE_MAGIC = bridgeMagics.PICKUP_SCAN_GATE.magic, ULTIMATE_MAGIC = bridgeMagics.ULTIMATE_SNAPSHOT.magic, BOUNTY_MAGIC = bridgeMagics.BOUNTY_SNAPSHOT.magic;
-  var PICKUP_MAGIC = bridgeMagics.PICKUP_SNAPSHOT.magic, MESSAGE_CAP = 4096; // the three topbar snapshots share one cap (the hud publishes at most 12 players)
+  var GATE_MAGIC = bridgeMagics.PICKUP_SCAN_GATE, ULTIMATE_MAGIC = bridgeMagics.ULTIMATE_SNAPSHOT, BOUNTY_MAGIC = bridgeMagics.BOUNTY_SNAPSHOT;
+  var PICKUP_MAGIC = bridgeMagics.PICKUP_SNAPSHOT, MESSAGE_CAP = 4096; // the three topbar snapshots share one cap (the hud publishes at most 12 players)
   // The renderer's view of this bar (name, ultimate-ready icon, pickup icons): read where used, never cached here.
   var config = null, active = false, present = false, barRead = renderer.barFacts({ parts: null }), stopped = false, offMessage = null, offState = null;
   // Sampler state: the last pickup samples, the ms of the pass that took them (reset with them), the publisher

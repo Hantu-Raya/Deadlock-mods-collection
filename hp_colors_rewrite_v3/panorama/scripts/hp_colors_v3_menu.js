@@ -1583,22 +1583,22 @@
   }
   function gestureKey(row) { return row.side + ":" + row.key; }
   function beginGesture(key) {
-    endGesture(false);
+    endGesture();
     gesture = { key: key, before: historySnapshot() };
   }
-  function endGesture(cancel) {
-    if (!gesture) return;
-    var before = gesture.before;
+  // Drops the gesture without publishing, recording or restoring anything.
+  function abandonGesture() {
     gesture = null;
     cancelGesturePublish();
-    if (cancel) {
-      if (before !== historySnapshot()) { restoreHistory(before); notifyStore(); }
-    } else {
-      publish(); // Final value also wins when the drag returned to its opening value.
-      if (before !== historySnapshot()) {
-        record(before);
-        notifyStore();
-      }
+  }
+  function endGesture() {
+    if (!gesture) return;
+    var before = gesture.before;
+    abandonGesture();
+    publish(); // Final value also wins when the drag returned to its opening value.
+    if (before !== historySnapshot()) {
+      record(before);
+      notifyStore();
     }
     resumeHeroRoute();
   }
@@ -1610,8 +1610,7 @@
     if (retired || !contractRef || !contractRef.validate(settings)) return false;
     var bundle = presetBundle();
     sourcePresetId = bundle.sourcePresetId || ""; sourceWasMapped = bundle.sourceWasMapped === true;
-    gesture = null;
-    cancelGesturePublish();
+    abandonGesture();
     var row = picker && picker.row;
     picker = null; // Do not commit a draft or restore its pre-load opening value.
     if (panel("HPColorsPickerDialog")) panel("HPColorsPickerDialog").RemoveClass("Open");
@@ -1634,7 +1633,7 @@
     if (!contractRef.validate(settings) || JSON.stringify(settings) === JSON.stringify(config.settings) &&
         (rules === undefined || JSON.stringify(rules) === JSON.stringify(config.rules))) return false;
     closePicker(false);
-    endGesture(false);
+    endGesture();
     var before = historySnapshot();
     var previousEffective = effectiveSettings;
     if (!applySettings(settings, rules)) return false;
@@ -1664,7 +1663,7 @@
     if (!contractRef.validate(next)) { sync(row); return false; }
     var before = historySnapshot();
     var previousEffective = effectiveSettings;
-    if (gesture && gesture.key !== gestureKey(row)) endGesture(false);
+    if (gesture && gesture.key !== gestureKey(row)) endGesture();
     replace(next);
     if (!gesture) record(before);
     sync(row, hueEdit);
@@ -1688,7 +1687,7 @@
   function applyPresetSettings(settings, id, automatic, mapped, rules) {
     var before = null;
     if (!automatic) {
-      closePicker(false); endGesture(false);
+      closePicker(false); endGesture();
       before = historySnapshot();
     }
     if (JSON.stringify(settings) === JSON.stringify(config.settings) && JSON.stringify(rules || {}) === JSON.stringify(config.rules) &&
@@ -1721,11 +1720,11 @@
     if (target && bound[key] !== target) {
       bound[key] = target;
       $.RegisterEventHandler("SliderReleased", target, function () {
-        if (!retired && panel(id) === target && gesture && gesture.key === rowKey) endGesture(false);
+        if (!retired && panel(id) === target && gesture && gesture.key === rowKey) endGesture();
       });
     }
     // Keyboard steps may have no release event; focus loss still completes their edit.
-    on(id, "onblur", function () { if (gesture && gesture.key === rowKey) endGesture(false); });
+    on(id, "onblur", function () { if (gesture && gesture.key === rowKey) endGesture(); });
   }
   function bindControl(row) {
     on(row.rowId, "onmouseover", function () { $.DispatchEvent("UIShowTextTooltip", panel(row.rowId), rowHelp(row)); });
@@ -2290,15 +2289,14 @@
     set: function (p, color) { commit(p.row, color); },
     cancel: function (p, openingColor) {
       var row = p.row;
-      gesture = null;
-      cancelGesturePublish();
+      abandonGesture();
       var next = clone(config.settings);
       if (valuesFor(next, row)[row.key] !== openingColor) {
         valuesFor(next, row)[row.key] = openingColor;
         applySettings(next); notifyStore();
       }
     },
-    done: function () { endGesture(false); },
+    done: function () { endGesture(); },
     focusId: function (p) { return p.row.swatchId; }
   };
   // The condition dialog's colour editor: it edits the draft rule value only and records no Undo entry.
@@ -2464,6 +2462,18 @@
   function toggleHeroDefault(id) {
     mutatePresets(function (bundle) { bundle.heroDefault = bundle.heroDefault === id ? null : id; }, true);
   }
+  function hideBakedDefault(bundle) {
+    if (!Array.isArray(bundle.hiddenBakedPresetIds)) bundle.hiddenBakedPresetIds = [];
+    if (bundle.hiddenBakedPresetIds.indexOf(DEFAULT_PRESET_ID) < 0) bundle.hiddenBakedPresetIds.push(DEFAULT_PRESET_ID);
+  }
+  // Applies a preset through the store when it offers applyPreset, else as a plain settings edit.
+  function applyThroughStore(preset) {
+    var target = store();
+    try {
+      if (target && typeof target.applyPreset === "function") target.applyPreset(preset);
+      else editSettings(preset.settings);
+    } catch (error) { presetStatus(String(error.message || error), true); }
+  }
   function defaultName(bundle) {
     var name = bundle.bakedPresetNameOverrides && bundle.bakedPresetNameOverrides[DEFAULT_PRESET_ID];
     return typeof name === "string" && name.trim() && name.trim().length <= limits().nameMax ? name.trim() : DEFAULT_PRESET_NAME;
@@ -2506,11 +2516,7 @@
       var source = presetBundle().presets.filter(function (preset) { return preset.id === id; })[0];
       if (action === "copy") { if (source) copyPreset(source); return; }
       if (source && contractRef.validate(source.settings)) {
-        var target = store();
-        try {
-          if (target && typeof target.applyPreset === "function") target.applyPreset(source);
-          else editSettings(source.settings);
-        } catch (error) { presetStatus(String(error.message || error), true); }
+        applyThroughStore(source);
       }
       return;
     }
@@ -2563,7 +2569,7 @@
       if (found.kind !== "Bundle") throw new Error("This is a settings code. Press IMPORT to apply it; REPLACE ALL needs a bundle code.");
       var next = found.decoded;
       if (!next || !contractRef.validate(next.settings)) throw new Error(UNUSABLE_CODE);
-      closePicker(false); endGesture(false);
+      closePicker(false); endGesture();
       bundleReplacement = clone(next);
       setLabel("HPColorsBundleReplaceMessage", "Restore this bundle's active settings and metadata? This overwrites ALL " + presetBundle().presets.length + " saved presets, including any that another window added, with this bundle's " + next.presets.length + " presets. This cannot be undone for the library.");
       panel("HPColorsBundleReplaceDialog").AddClass("Open");
@@ -2693,8 +2699,7 @@
     if (action === "delete") {
       if (!baked) { requestDelete(preset); return; }
       mutatePresets(function (next) {
-        if (!Array.isArray(next.hiddenBakedPresetIds)) next.hiddenBakedPresetIds = [];
-        if (next.hiddenBakedPresetIds.indexOf(DEFAULT_PRESET_ID) < 0) next.hiddenBakedPresetIds.push(DEFAULT_PRESET_ID);
+        hideBakedDefault(next);
       });
       return;
     }
@@ -2708,11 +2713,7 @@
         else next.bakedPresetNameOverrides[DEFAULT_PRESET_ID] = name;
       });
     } else if (action === "apply") {
-      var target = store();
-      try {
-        if (target && typeof target.applyPreset === "function") target.applyPreset({ id: DEFAULT_PRESET_ID, settings: contractRef.defaults });
-        else editSettings(contractRef.defaults);
-      } catch (error) { presetStatus(String(error.message || error), true); }
+      applyThroughStore({ id: DEFAULT_PRESET_ID, settings: contractRef.defaults });
     }
   }
   // Pressing Enter in the preset-name entry does nothing by design: only the SAVE NEW button commits the
@@ -2734,8 +2735,7 @@
         createPreset(bundle, config.settings, panel("HPColorsPresetNameEntry").text.trim());
         addedId = bundle.presets[bundle.presets.length - 1].id;
         // v2 hides its baked default when an All Heroes user preset is first saved.
-        if (!Array.isArray(bundle.hiddenBakedPresetIds)) bundle.hiddenBakedPresetIds = [];
-        if (bundle.hiddenBakedPresetIds.indexOf(DEFAULT_PRESET_ID) < 0) bundle.hiddenBakedPresetIds.push(DEFAULT_PRESET_ID);
+        hideBakedDefault(bundle);
         // The new preset holds the current settings, so it becomes the applied one and takes later edits.
         bundle.sourcePresetId = addedId; bundle.sourceWasMapped = false;
       })) {

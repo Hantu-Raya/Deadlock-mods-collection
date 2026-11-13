@@ -424,8 +424,8 @@
   function requestConfig() {
     if (config || stopped) return;
     if (!valid(context)) { stop(); return; }
-    // Late menus and lost replies: this context fires the request on the output channel itself (not through the
-    // bridge's request helper) with epoch "" and revision -1, which is what the bridge sends for an absent epoch.
+    // Late menus and lost replies: this context fires the request on the output channel itself (not through
+    // bridge.send) with epoch "" and revision -1, which is what the bridge sends for an absent epoch.
     // The ladder below counts failures per HUD; the renderer's own ladder counts differently (kept as is).
     try { $.DispatchEvent("ClientUI_FireOutput", JSON.stringify({ magic: "HPV3_CONFIG_REQUEST", epoch: "", revision: -1 })); }
     catch (error) { /* Delivery may race HUD attachment; the bounded cadence retries. */ }

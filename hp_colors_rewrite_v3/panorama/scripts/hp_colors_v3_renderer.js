@@ -80,8 +80,6 @@
   // HPV3_DEBUG function debugName() { debugLastName = cache && valid(cache.name) && cache.name.text || "?"; return debugLastName; };
   // HPV3_DEBUG function debugClasses(panel) { return valid(panel) ? ["StaminaPip", "PipEmpty", "StaminaRecentlyUsed", "StaminaRecentlyDepleted"].filter(function (name) { return panel.BHasClass(name); }).join(",") : "missing"; };
   var status = { started: false, state: "stopped", revision: -1, epoch: "", plansComputed: 0, fullPaints: 0 };
-  // Unit bars release to CSS with null; captured non-empty inline values are restored exactly.
-  var relationStock = { team1: "#E7B659", team2: "#5B79E6" };
   var playerClasses = ["player", "CLASS_PLAYER"];
   var objectiveClasses = ["building", "CLASS_DESTROYABLE_BUILDING", "boss_tier1", "boss_tier2", "boss_tier3", "boss_barracks", "barracks", "neutral_vault"];
   var npcClasses = ["creature", "minion", "CLASS_TROOPER", "CLASS_TROOPER_BOSS", "neutral_weak", "neutral_normal", "neutral_strong", "midboss"];
@@ -121,13 +119,9 @@
     notified.signature = carrierSignature; notified.parts = state.parts;
     stateHooks.slice().forEach(function (fn) { fn(state); });
   }
-  function subscribeState(callback) {
-    stateHooks.push(callback);
-    return function () { var i = stateHooks.indexOf(callback); if (i >= 0) stateHooks.splice(i, 1); };
-  }
   // The world timers' view of one bar (from the state record they were notified with): the panels they sample, behind
   // getters so each read happens only where the sampler asks for it. One shared object, nothing allocated per read.
-  var barParts = null, NO_ENTRIES = [], barPickups = { icons: NO_ENTRIES, kinds: NO_ENTRIES, borders: NO_ENTRIES };
+  var barParts = null, barPickups = { icons: null, kinds: null, borders: null };
   var barView = {
     // The bar title (the player or hero name), upper-cased; "" while unreadable or still a {localization} token.
     get barName() {
@@ -141,7 +135,7 @@
     },
     // The pickup icons with their kind bits and border panels, as of the last reconcile (refreshPickups).
     get pickups() {
-      barPickups.icons = barParts.pickupIcons || NO_ENTRIES; barPickups.kinds = barParts.pickupKinds; barPickups.borders = barParts.pickupBorders;
+      barPickups.icons = barParts.pickupIcons; barPickups.kinds = barParts.pickupKinds; barPickups.borders = barParts.pickupBorders;
       return barPickups;
     }
   };
@@ -167,8 +161,7 @@
       var current = Object.assign({}, cachedFacts, { ultimateAngle: next.ultimateAngle, bounty: bounty });
       // The plan just applied is the next tick's plan too (the memo key leaves timer facts out): keep it,
       // so a once-a-second bounty or ultimate step costs one plan per bar, not two.
-      try { var timed = plan(current, settings, { showBounds: showBounds }); apply(timed); cachedFacts = current; status.plansComputed++;
-        memo = { key: memoKey(current), value: timed }; return; }
+      try { memo = null; apply(memoisedPlan(current)); cachedFacts = current; return; }
       catch (error) { /* Pending leases retry through the normal guarded paint. */ }
     }
     invalidate("facts");
@@ -220,6 +213,7 @@
     if (!authority.epoch || authority.epoch === nextEpoch || retiredEpochs.indexOf(authority.epoch) >= 0) return;
     retiredEpochs.push(authority.epoch);
   }
+  // ====== PANEL HELPERS: runtime artwork / child snapshots / valid / class reads ======
   function ultimateArtwork(parts, prefix) {
     if (!valid(parts.ultBackground)) return;
     if (valid(parts.ultimateOverlay) && valid(parts.ultimateDark) && valid(parts.ultimateFill) && parts.ultimateOverlay.GetParent() === parts.ultBackground) return;
@@ -300,7 +294,6 @@
   // 14 delta 15 lines 16 outline 17 value 18 hpPercent 19 name 20 killMarker 21 level 22 levelLabel 23 ult 24 pulseOverlay 25 rejuvAnchor
   // 26 effects | 27 pipGrid 28..35 pipOutline..pipKillMarker | 36 ultBackground 37 ultReady | 38 ultimateOverlay.
   var ROW_COLUMNS = 9, CHAIN_END = 10, STOCK_END = 27, GRID_END = 36, ULT_END = 38;
-  var FIND_NAMES = ["child", "traverse", "class", "runtime", "native", "derived"];
   var PART_DATA = [
     "motion", "HPColorsV3MotionFrame", "root", "", 0, 3, "", "", "",
     "readout", "HPColorsV3Readout", "motion", "", 0, 39, "", "", "",
@@ -352,17 +345,14 @@
   // hp_colors_v3_status.css pairs with it is "ABCDEFGH"[index] (tests/status-effect-sizes.test.js pins the stylesheet to this table).
   var STATUS_SCALE_KEYS = ["statusScaleFixation", "statusScaleMalice", "statusScaleScrewjab", "statusScaleDjinnsMark", "statusScaleSerratedKnives",
     "statusScaleBarrage", "statusScalePulseGrenade", "statusScaleArcticBeam"];
-  var STATUS_SCALE_ICONS = ["fixated", "blood_shard", "modifier_viper_debuffdagger", "sand_phantom_passive_victim", "shiv_dagger", "pocket_damage_amp",
-    "chrono_pulse_grenade", "freezing_buildup"];
   // World pickups in bit order: the native class that marks the icon and the sample name the preview builds its ids and glyph from.
   var pickupClasses = ["gunpower_pickup", "movement_pickup", "casting_pickup", "survival_pickup"];
-  var PICKUP_NAMES = ["Gun", "Movement", "Spirit", "Survival"];
   var pickupColors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
   // ---- Menu-preview vocabulary, published on $.HPColorsV3Renderer behind getters: built on first read, so world bars never build it. ----
   var publishedParts = null, publishedScales = null, publishedPickups = null;
   function publishedPartTable() {
     if (publishedParts) return publishedParts;
-    var rows = [], i, o, k;
+    var rows = [], i, o, k, FIND_NAMES = ["child", "traverse", "class", "runtime", "native", "derived"];
     function full(fields) {
       return Object.assign({ key: "", id: "", suffix: "", parents: [], find: "child", at: 0, guarded: false, owned: false, preview: true,
         lineage: "", lin: 0, ready: 0, accessory: 0, held: false, reparent: "", cls: "", parentClass: "", orNull: false, local: false }, fields);
@@ -407,13 +397,14 @@
   }
   function publishedScaleTable() {
     if (publishedScales) return publishedScales;
-    var list = [];
+    var list = [], STATUS_SCALE_ICONS = ["fixated", "blood_shard", "modifier_viper_debuffdagger", "sand_phantom_passive_victim", "shiv_dagger", "pocket_damage_amp",
+      "chrono_pulse_grenade", "freezing_buildup"];
     for (var i = 0; i < STATUS_SCALE_KEYS.length; i++) list.push(Object.freeze({ key: STATUS_SCALE_KEYS[i], icon: STATUS_SCALE_ICONS[i], letter: "ABCDEFGH".charAt(i) }));
     return (publishedScales = Object.freeze(list));
   }
   function publishedPickupTable() {
     if (publishedPickups) return publishedPickups;
-    var list = [];
+    var list = [], PICKUP_NAMES = ["Gun", "Movement", "Spirit", "Survival"];
     for (var i = 0; i < PICKUP_NAMES.length; i++) list.push(Object.freeze({ cls: pickupClasses[i], name: PICKUP_NAMES[i], icon: PICKUP_NAMES[i].toLowerCase() }));
     return (publishedPickups = Object.freeze(list));
   }
@@ -463,18 +454,19 @@
     // A player's four nonneutral NPC tags never change its ownership (classify needs !player or a
     // boss tag for npc), and the root carrier is re-probed by any() each second anyway. Neutral and
     // boss facts stay in the wake list.
-    var activeWake = kind && kind.kind === "player" ? allClasses.filter(function (name) {
-      return npcClasses.slice(0, 4).indexOf(name) < 0;
-    }) : allClasses;
     // Every fifth dormant check probes kind tags on the existing ancestry,
     // replacing (not adding to) relation probes. Split late facts wake in <=5s;
     // closed gates pay no extra calls and the 1s player wake remains intact.
     if (status.state === "dormant" && openKinds.length) dormantChecks++;
     else dormantChecks = 0;
-    var unitWake = dormantChecks && dormantChecks % DORMANT_PROBE_EVERY === 0 ? openKinds
-      : openKinds.length ? ["enemy", "friend"].concat(neutralClasses.slice(0, 4)) : [];
-    var wake = eligible ? activeWake
-      : kind && kind.kind === "player" && kind.side === "unknown" ? playerClasses.concat(["enemy", "friend"]) : playerClasses.concat(unitWake);
+    var wake;
+    if (eligible) wake = kind && kind.kind === "player" ? allClasses.filter(function (name) {
+      var at = npcClasses.indexOf(name);
+      return at < 0 || at > 3;
+    }) : allClasses;
+    else if (kind && kind.kind === "player" && kind.side === "unknown") wake = playerClasses.concat(["enemy", "friend"]);
+    else wake = playerClasses.concat(dormantChecks && dormantChecks % DORMANT_PROBE_EVERY === 0 ? openKinds
+      : openKinds.length ? ["enemy", "friend"].concat(neutralClasses.slice(0, 4)) : []);
     if (!criticalOutline(settings, kind && kind.side)) wake = wake.filter(function (name) {
       return name !== "health_critical" && name !== "ShowCriticalState";
     });
@@ -487,7 +479,7 @@
   function classifyWith(anyOf, enabled, owned, config) {
     var player = anyOf(["player"]) || anyOf(["CLASS_PLAYER"]);
     // Closed gates with no inline restoration need only a cheap player wake-up probe.
-    if (!player && !owned && !anyOf(openUnitClasses(config))) return { signature: "nonplayer", kind: "unknown", relation: "unknown", eligible: false };
+    if (!player && !owned && !anyOf(openUnitClasses(config))) return { signature: "nonplayer", kind: "unknown", eligible: false };
     var neutral = anyOf(["team_neutral"]) || (enabled && anyOf(neutralClasses.slice(1)));
     var enemy = anyOf(["enemy"]), friend = anyOf(["friend"]);
     var local = player && enabled && anyOf(["LocalPlayer"]);
@@ -495,7 +487,7 @@
     // With no open gate for this relation, kind cannot change ownership.
     if (!player && config && (neutral ? !config.shared.neutralEnabled : !config.side[side] ||
         !config.side[side].objectiveEnabled))
-      return { signature: ["closed", neutral, enemy, friend].join("|"), kind: "unknown", side: side, relation: side, eligible: false };
+      return { signature: ["closed", neutral, enemy, friend].join("|"), kind: "unknown", side: side, eligible: false };
     var boss = enabled && anyOf(bossClasses);
     var objective = boss && anyOf(objectiveClasses);
     var npc = !objective && (!player || boss) && anyOf(npcClasses);
@@ -511,17 +503,16 @@
     // Closed unit gates need no team, spectator or critical-style probes. Relation
     // and kind still recheck each second so recycling into an open gate wakes.
     if (unitKind !== "player" && !eligible) return { signature: [unitKind, neutral, enemy, friend, local].join("|"),
-      kind: unitKind, side: side, relation: side, eligible: false };
+      kind: unitKind, side: side, eligible: false };
     var team1 = anyOf(["team1"]), team2 = anyOf(["team2"]), spectating = anyOf(["spectating"]);
     var team = team1 !== team2 ? team1 ? "team1" : "team2" : "unknown";
-    var relation = neutral ? "neutral" : spectating && (enemy || friend) && team !== "unknown" ? team : side !== "unknown" ? side : team;
     eligible = eligible && !(team1 && team2);
     var flags = {};
     if (enabled && eligible && criticalOutline(config, side)) stockClasses.forEach(function (name) { flags[name] = anyOf([name]); });
     var base = [unitKind, boss, neutral, enemy, friend, !!local, team1, team2, spectating, eligible].join("|");
     return { signature: base + "|" + JSON.stringify(flags), base: base, flags: flags,
-      enemy: enemy, friend: friend, spectating: spectating, team1: team1, team2: team2,
-      kind: unitKind, side: side, team: team, relation: relation,
+      enemy: enemy, friend: friend, spectating: spectating,
+      kind: unitKind, side: side, team: team,
       eligible: eligible };
   }
   function classify() {
@@ -849,8 +840,7 @@
   function signal(panel, layer) {
     // Live 6779 clips carry padding ("rect( 0.0%, 86.6%, 100.0%, 0.0%) "); trim like v2.
     var input = { clip: String(panel.style.clip || "").trim(), width: "", transform: "", preScale: "" };
-    var rect = edges(input);
-    var percentOnly = rect.length === 4 && rect.every(function (edge) { return /^[+-]?[\d.]+%$/.test(edge); });
+    var percentOnly = percentRect(input) !== null;
     if (!percentOnly) {
       input.width = String(panel.style.width || "").trim();
       input.transform = String(panel.style.transform || "").trim();
@@ -897,21 +887,20 @@
     if (!(width > 0 && x > 0)) count = x = width = 0;
     return { count: count, x: x, width: width, healing: layerSignal(parts.healing), delta: layerSignal(parts.delta) };
   }
-  function probeOf(parts, sampled, refreshVisibility, old) {
+  // The unsigned probe input; callers attach the old-bar sample and refresh layer visibility as they need, then signProbe it.
+  function probeInput(parts, sampled) {
     var input = { fill: signal(parts.fill), innerWidth: css(parts.inner, "actuallayoutwidth"),
       shield: layerSignal(parts.shield), armor: layerSignal(parts.armor), geometry: sampled, level: parts.levelNumber || 0, stamina: parts.staminaEmpty || [],
       pickups: parts.pickupKinds || [], ultimateAngle: parts.ultimateAngle === undefined ? null : parts.ultimateAngle,
       bounty: Number.isSafeInteger(parts.bounty) ? parts.bounty : null,
       row: laid(parts.row) };
-    if (old) input.old = oldSignal(parts);
-    if (refreshVisibility !== false) refreshLayerVisibility(input, parts);
-    return signProbe(input);
+    return input;
   }
   function oldWanted(config, carrier) {
     // BAR STYLE is hero-only (unit bars keep the stock bar), so unit bars never sample the line total.
     return !!(config && config.shared.enabled && config.shared.barStyle === "old" && carrier && carrier.eligible && carrier.kind === "player");
   }
-  function probe() { return probeOf(cache, geometry, false); }
+  function probe() { return signProbe(probeInput(cache, geometry)); }
   function length(value, width) {
     var match = /^([+-]?(?:\d+\.?\d*|\.\d+))(px|%)$/i.exec(value);
     if (!match) return null;
@@ -976,8 +965,7 @@
     var excluded = Math.max(0, Math.min(1, Math.max(layerRight(input.shield, input.innerWidth), layerRight(input.armor, input.innerWidth))) - fill);
     var health = fill / Math.max(fill, 1 - excluded);
     return Object.freeze({ signature: signature, eligible: carrier.eligible, kind: carrier.kind, side: carrier.side, team: carrier.team,
-      relation: carrier.relation, flags: carrier.flags, enemy: carrier.enemy, friend: carrier.friend, spectating: carrier.spectating,
-      team1: carrier.team1, team2: carrier.team2,
+      flags: carrier.flags, enemy: carrier.enemy, friend: carrier.friend, spectating: carrier.spectating,
       geometry: input.geometry, row: input.row, level: input.level, stamina: input.stamina, pickups: input.pickups,
       ultimateAngle: input.ultimateAngle, bounty: input.bounty === undefined ? null : input.bounty,
       fraction: Number.isFinite(health) ? Math.max(0, Math.min(1, health)) : 0, fillCoverage: fill, laid: input.innerWidth > 0, old: oldFacts(input) });
@@ -1055,9 +1043,9 @@
     // BAR STYLE: V2 restores the stock masks through one root class; OLD draws 100-HP boxes
     // once the line total is known (count capped like v2: 128 boxes cover the 50-line maximum).
     var style = player ? config.shared.barStyle : "none", old = style === "old", total = old && input.old ? input.old.total : 0;
-    var pipCount = total > 0 ? Math.max(0, Math.ceil(total / 100 - 0.05)) : 0;
+    var pipCount = total > 0 ? Math.max(0, Math.ceil(total / PIP_HP - 0.05)) : 0;
     if (pipCount > MAX_PIPS || !(g.primary.width > 0)) pipCount = 0;
-    var pipRows = pipCount ? Math.min(Math.ceil(pipCount / 10), 4) : 0;
+    var pipRows = pipCount ? Math.min(Math.ceil(pipCount / PIPS_PER_ROW), PIP_TALL_ROWS) : 0;
     // An unlaid inner under OLD boxes (opacity 0) still has the fill's percent clip.
     var healthKnown = input.laid || !!(pipCount && input.old.clipped);
     // v2's unit surface pulses the bar; only player surfaces pulse/resize HP text.
@@ -1103,7 +1091,7 @@
       if (statusScaleClasses.length > 0) classes.root.HPColorsV3FxOn = true;
     }
     // v2 oldGridLift: anchored level/ultimate badges follow the grid's vertical centre, not the hidden bar's.
-    var gridLift = pipRows && config.shared.accessoryAnchorEnabled ? (pipRows * 6 / 2 - g.primary.height / 2 + 2.5) * sy : 0;
+    var gridLift = pipRows && config.shared.accessoryAnchorEnabled ? (pipRows * PIP_ROW_PX / 2 - g.primary.height / 2 + 2.5) * sy : 0;
     var parents = player ? { status: "motion", name: "motion" } : {};
     if (colorsEnabled) {
       styles.fill = { washColor: neutral ? config.shared.neutralColor : color };
@@ -1171,7 +1159,7 @@
       classes.root.HPColorsV3Level = !!levelShown;
       if (levelShown) {
         var tierColor = input.level >= 35 ? "#8b0000" : input.level >= 27 ? "#e53935" : input.level >= 19 ? "#ff8c00" : input.level >= 11 ? "#f0d000"
-          : relationStock[input.team] || relationStock.team1;
+          : input.team === "team2" ? "#5B79E6" : "#E7B659";
         styles.level = { border: "2px solid " + tierColor };
         if (g.level) Object.assign(styles.level, accessoryPlacement(g.level, g, cy, side, config, "level", gridLift));
       }
@@ -1257,8 +1245,8 @@
         if (colored) styles.stamina.washColor = shaped ? chargeColor : "#FFFFFF";
         styles.staminaIcons = charges.map(function (empty) {
           var icon = {};
-          if (widthOwned || !shaped && heightOwned) icon.width = pixels(shaped ? side.staminaWidth : 8 * side.staminaWidth / 11);
-          if (heightOwned || !shaped && widthOwned) icon.height = pixels(shaped ? side.staminaHeight : 12 * side.staminaHeight / 4.48);
+          if (widthOwned || !shaped && heightOwned) icon.width = pixels(shaped ? side.staminaWidth : 8 * side.staminaWidth / DEFAULT_STAMINA_WIDTH);
+          if (heightOwned || !shaped && widthOwned) icon.height = pixels(shaped ? side.staminaHeight : 12 * side.staminaHeight / DEFAULT_STAMINA_HEIGHT);
           if (!shaped && (widthOwned || heightOwned)) icon.backgroundSize = "100% 100%";
           if (shaped) {
             // "" clears captured native inline colors while CSS owns state.
@@ -1342,7 +1330,7 @@
     var nameRoom = Math.max(2, Math.ceil(side.nameOutline)), nameAlign = side.nameAlign;
     var weight = nameAlign === "left" ? 1 : nameAlign === "center" ? 0.5 : 0;
     // OLD rows grow up from the bar; the first keeps the native name spot (v2 nameRiseWithPips).
-    var nameOffsetY = side.nameOffsetY - (player && config.shared.nameRiseWithPips && pipRows > 1 ? (pipRows - 1) * 6 * sy : 0);
+    var nameOffsetY = side.nameOffsetY - (player && config.shared.nameRiseWithPips && pipRows > 1 ? (pipRows - 1) * PIP_ROW_PX * sy : 0);
     var nameX = anchor(w / 2 + side.nameOffsetX + (2 * weight - 1) * nameRoom, w, g.name.width, weight, true);
     var nameY = clamp(45 + nameOffsetY, 0, Math.max(0, h - g.name.height)) - 45;
     // Customized names are level by CSS (v2 `.WindowRoot #name`); NAME TILT rotates after the offset.
@@ -1392,6 +1380,7 @@
     // (stamina icons keep their stylesheet artwork).
     backgroundImage: [],
   };
+  // Unit bars release to CSS with null; captured non-empty inline values are restored exactly.
   // v2 NAME_STOCK_ALIGN (live): a null alignment clear left a moved name aligned in game. Stock
   // #name has no inline alignment and centres both ways, so release writes that value instead.
   // Live 6782: horizontalAlign is a style alias; clearing it alone throws. The HP row releases to its
@@ -1432,7 +1421,6 @@
     return (index % PIPS_PER_ROW * 100 / PIPS_PER_ROW + PIP_WIDTH_PERCENT * hp / PIP_HP).toFixed(3) + "% " +
       ((rows - 1 - Math.floor(index / PIPS_PER_ROW)) * 100 / rows).toFixed(3) + "% 0px";
   }
-  function oldBoxHeight(rows) { return (80 / rows).toFixed(3) + "%"; }
   // Percent of a row's width at hp HP into that row: whole boxes plus the share of the next.
   function rowX(hp) {
     if (!(hp > 0)) return 0;
@@ -1551,7 +1539,7 @@
         var at = Math.max(0, Math.min(count - 1, Math.floor(mark.hp / PIP_HP)));
         var inside = Math.max(0, Math.min(Math.min(PIP_HP, old.max - at * PIP_HP), mark.hp - at * PIP_HP));
         put(marker, applied, "position", oldBoxPosition(at, rows, inside));
-        put(marker, applied, "height", oldBoxHeight(rows));
+        put(marker, applied, "height", (80 / rows).toFixed(3) + "%");
         put(marker, applied, "width", pixels(mark.width));
         put(marker, applied, "marginLeft", pixels(-mark.width / 2));
         put(marker, applied, "backgroundColor", mark.color);
@@ -1560,7 +1548,7 @@
     }
     return writes;
   }
-  // target = { root, parts, ledger, settle }: the world bar or the menu preview.
+  // target = { root, parts, ledger, settle, rediscover }: the world bar or the menu preview.
   function restore(owner) {
     if (owner.key === LEASE_PARENT) {
       if (!valid(owner.stockParent)) return false;
@@ -1573,7 +1561,7 @@
       }
     } else if (owner.key.indexOf(LEASE_CLASS) === 0) {
       if (owner.owned || owner.value !== owner.stockClass) {
-        owner.panel.SetHasClass(owner.key.slice(7), owner.stockClass); owner.value = owner.stockClass;
+        owner.panel.SetHasClass(owner.key.slice(LEASE_CLASS.length), owner.stockClass); owner.value = owner.stockClass;
       }
     } else {
       var value = owner.captured ? owner.stock : "";
@@ -1592,7 +1580,7 @@
     });
     // Existing leases are validated at the carrier check, not once per property per paint.
     function available(panel) { return !!panel && (index.has(panel) || valid(panel)); }
-    Object.keys(next.parents || {}).forEach(function (part) {
+    Object.keys(next.parents).forEach(function (part) {
       var placement = next.parents[part], panel = parts && parts[part];
       var parent = parts && parts[typeof placement === "string" ? placement : placement.parent];
       var before = typeof placement === "string" ? null : parts && parts[placement.before];
@@ -1608,7 +1596,7 @@
         });
       });
     });
-    Object.keys(next.classes || {}).forEach(function (part) {
+    Object.keys(next.classes).forEach(function (part) {
       var panel = part === "root" ? target.root : parts && parts[part];
       if (available(panel)) Object.keys(next.classes[part]).forEach(function (name) {
         wanted.push({ panel: panel, key: LEASE_CLASS + name, part: part, value: next.classes[part][name] });
@@ -1669,7 +1657,7 @@
           owner.stockNext = siblings[siblingIndex + 1] || null;
           owner.stockPrevious = siblings[siblingIndex - 1] || null;
         } else if (entry.key.indexOf(LEASE_CLASS) === 0) {
-          owner.stockClass = entry.panel.BHasClass(entry.key.slice(7));
+          owner.stockClass = entry.panel.BHasClass(entry.key.slice(LEASE_CLASS.length));
         } else {
           var captured = entry.panel.style[entry.key], explicit = EXPLICIT_STOCK[entry.part];
           // Live 6785: a panel with inline layer longhands reads backgroundImage back as the whole layer
@@ -1692,7 +1680,7 @@
           if (valid(entry.before)) entry.value.MoveChildBefore(entry.panel, entry.before);
           owner.before = entry.before;
         } else if (entry.key.indexOf(LEASE_CLASS) === 0) {
-          entry.panel.SetHasClass(entry.key.slice(7), entry.value);
+          entry.panel.SetHasClass(entry.key.slice(LEASE_CLASS.length), entry.value);
           if (entry.key === LEASE_CORE_CLASS) target.settle = true;
         } else {
           writeStyle(entry.panel, entry.key, entry.value);
@@ -1711,9 +1699,8 @@
     });
     return writes;
   }
-  function worldTarget() { return { root: root, parts: cache, ledger: ledger, settle: false }; }
   function apply(next) {
-    var target = worldTarget();
+    var target = { root: root, parts: cache, ledger: ledger, settle: false, rediscover: false };
     try { return applyTo(target, next); } finally {
       if (target.settle) settleGeometry = true;
       // A deleted leased panel may have a replacement: rediscover parts on the next tick.
@@ -1846,7 +1833,7 @@
       if (!running || token !== generation || revision >= 0 || !valid(root)) return;
       requestAttempt++;
       var bridge = $.HPColorsV3Bridge;
-      var sent = bridge && bridge.send({ magic: bridge.MAGICS.CONFIG_REQUEST.magic, epoch: epoch || "", revision: revision });
+      var sent = bridge && bridge.send({ magic: bridge.MAGICS.CONFIG_REQUEST, epoch: epoch || "", revision: revision });
       requestFailures = sent ? 0 : requestFailures + 1; requestConfig(token);
     });
   }
@@ -1886,8 +1873,8 @@
     // HPV3_DEBUG $.Msg("[HPV3] renderer boot " + $.HPColorsV3WorldSettings.version);
     tick(generation, true); requestConfig(generation);
   }
-  // Menu preview: the world's classify -> facts -> plan -> apply chain over a caller-owned part map
   // ====== PREVIEW: the menu painter over the same chain ======
+  // Menu preview: the world's classify -> facts -> plan -> apply chain over a caller-owned part map
   // and ledger. It reads no world state, schedules nothing and registers no listener.
   // parts: the part-table keys the caller's own tree supplies (plus pickupContainer / pickupSamples). sample: what a fixed sample
   // pretends, so the world rules carry no preview numbers: { idPrefix: id prefix of the runtime panels it creates, ultimateAngle:
@@ -1895,7 +1882,7 @@
   // paint() returns { facts, plan, writes, settle, painted, reason }: painted = the plan styled something; reason = off (master off
   // or no config) | unlaid (no layout yet) | painted | unstyled (laid, nothing to write).
   function createPainter(canvas, parts, sample) {
-    var target = { root: canvas, parts: parts, ledger: [], settle: false };
+    var target = { root: canvas, parts: parts, ledger: [], settle: false, rediscover: false };
     sample = sample || { idPrefix: "", ultimateAngle: null, bounty: null, mirror: "" };
     return {
       paint: function (classes, config, view) {
@@ -1920,7 +1907,10 @@
         if (parts.ultimateAngle !== null) ultimateArtwork(parts, sample.idPrefix);
         // Ticket 50: the sample's fixed bounty (a solo kill at 16:00 without comeback); enemy samples only (plan).
         parts.bounty = carrier.eligible && carrier.kind === "player" && config.shared.killBountyEnabled ? sample.bounty : null;
-        var input = probeOf(parts, geometryOf(canvas, parts), true, oldWanted(config, carrier));
+        var input = probeInput(parts, geometryOf(canvas, parts));
+        if (oldWanted(config, carrier)) input.old = oldSignal(parts);
+        refreshLayerVisibility(input, parts);
+        signProbe(input);
         var current = factsFrom(carrier, input, carrier.signature + "|" + input.signature);
         var next = plan(current, config, view);
         // Preview-only visual replica: clip remains the signal; the same ledger owns color/pulse and alias release.
@@ -1939,9 +1929,13 @@
     };
   }
   // Inclusion exports only. The separate world_boot include starts the world loop.
-  $.HPColorsV3Renderer = { facts: facts, plan: plan, apply: apply, start: start, stop: teardown, status: status, createPainter: createPainter,
+  $.HPColorsV3Renderer = { facts: facts, plan: plan, start: start, stop: teardown, status: status, createPainter: createPainter,
     onMessage: function (fn) { return $.HPColorsV3Bridge ? $.HPColorsV3Bridge.subscribe(fn) : function () {}; },
-    onState: function (fn) { var off = subscribeState(fn); fn(timerState()); return off; },
+    onState: function (fn) {
+      stateHooks.push(fn);
+      fn(timerState());
+      return function () { var i = stateHooks.indexOf(fn); if (i >= 0) stateHooks.splice(i, 1); };
+    },
     refreshPickups: reconcilePickups, barFacts: barFacts,
     setTimerFacts: setTimerFacts,
     // parts / statusScales / pickupKinds are built on first read (the menu preview); world bars never build them (see PART REGISTRY).

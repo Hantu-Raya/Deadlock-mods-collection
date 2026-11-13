@@ -565,7 +565,7 @@ test('live follow-up: 75% gradient honors the team-high setting independently of
   config.side.enemy.barColorMode = 'gradient'; config.side.enemy.barColorTeamHigh = true;
   m.h.$.HPColorsV3Preview.setSettings(config); m.slider(75);
   assert.equal(m.preview().facts.team, 'team2');
-  assert.equal(m.preview().facts.relation, 'enemy');
+  assert.equal(m.preview().facts.side, 'enemy');
   assert.equal(m.preview().facts.fraction, 0.75);
   assert.equal(m.fill().washColor.toUpperCase(), '#D07A42');
   config.side.enemy.barColorTeamHigh = false;

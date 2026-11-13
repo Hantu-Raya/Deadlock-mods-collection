@@ -459,13 +459,8 @@
             return callback(previousRecord);
           }
           if (currentRecord.kind === "absent" && previousRecord.kind === "absent") return loadLegacy(callback);
-          loaded = currentRecord.kind === "absent" && previousRecord.kind === "absent";
-          unreadable = !loaded;
-          callback({
-            kind: currentRecord.kind === "absent" && previousRecord.kind === "absent"
-              ? "absent"
-              : "corrupt",
-          });
+          loaded = false; unreadable = true;
+          callback({ kind: "corrupt" });
         });
       });
     }
@@ -510,10 +505,16 @@
   // ==== Section 2: persistence (draft, merge, conflicts) and the HPColorsV3Store menu facade ====
   // Reads deps (codec, settings, sharing) and drives the bridge through load/save only.
   // A converted v2 bundle must fit one v3 save: the converter never encodes, so it is fitted here.
+  // The encoded record of a bundle, thrown as SAVE_TOO_LARGE when it is over one save. Looks up the codec at call time.
+  function encodeWithinCap(bundle) {
+    var record = deps.codec.encodeRecord(bundle);
+    if (record.length > deps.codec.RECORD.maxChars) throw new Error(deps.codec.SAVE_TOO_LARGE);
+    return record;
+  }
   function fitLegacy(result) {
     if (result.kind !== "valid") return result;
     try {
-      if (deps.codec.encodeRecord(result.bundle).length > deps.codec.RECORD.maxChars) throw new Error(deps.codec.SAVE_TOO_LARGE);
+      encodeWithinCap(result.bundle);
       return result;
     } catch (error) {
       return { kind: "conversion_error", message: "V2 save could not be converted: " + deps.codec.errorMessage(error), source: result.source };
@@ -608,9 +609,7 @@
     var pendingRecord = "", pendingFor = null;
     function validBundle(bundle) {
       try {
-        var record = deps.codec.encodeRecord(bundle);
-        if (record.length > deps.codec.RECORD.maxChars) { status(deps.codec.SAVE_TOO_LARGE, "error"); return ""; }
-        return record;
+        return encodeWithinCap(bundle);
       } catch (error) { status(deps.codec.errorMessage(error), "error"); return ""; }
     }
     // validated: true when the caller already checked the size, or that check's encoded record.
@@ -827,10 +826,10 @@
   }
 
   // Menu/preset facade. Settings-only operations never discard bundle metadata.
-  var menuApi = null, menuRoot = null, controller = null, menuBundle = null;
-  var importMode = "";
   // The menu API attached by hp_colors_v3_menu.js always carries every member this store calls; menuApi is null
   // before attach and after retire, and the callers that can run then check it.
+  var menuApi = null, menuRoot = null, controller = null, menuBundle = null;
+  var importMode = "";
   // A session handed over by a retired store incarnation, kept until a menu attaches.
   var inheritedSession = null, retiredStore = false;
   function commitConfig(config) {
@@ -868,9 +867,8 @@
     var refusal = controller.presetEditError();
     if (refusal) throw new Error(refusal);
     var record;
-    try { record = deps.codec.encodeRecord(bundle); }
+    try { record = encodeWithinCap(bundle); }
     catch (error) { throw new Error(deps.codec.errorMessage(error)); }
-    if (record.length > deps.codec.RECORD.maxChars) throw new Error(deps.codec.SAVE_TOO_LARGE);
     if (!controller.change(bundle, "bundle", record)) throw new Error("That preset change could not be saved.");
     menuBundle = clone(bundle);
     if (apply !== false) menuApi.applySettings(bundle.settings, bundle.rules || {});

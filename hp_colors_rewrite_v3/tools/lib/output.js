@@ -2,6 +2,7 @@
 // Reading the generator's JSON inputs and writing (or, with --check, comparing) its outputs.
 const fs = require('node:fs');
 const path = require('node:path');
+const { lf } = require('./layout-compose');
 
 const json = value => JSON.stringify(value, null, 2) + '\n';
 
@@ -20,7 +21,6 @@ const isStale = text => STALE.test(text);
 
 // The files of `files` ({ relative: text }) whose copy under `root` is missing or differs (line endings ignored):
 // the one answer to "is this output current".
-const lf = text => text.replace(/\r\n/g, '\n');
 function staleFiles(files, root) {
   return Object.keys(files).filter(relative => {
     const target = path.join(root, relative);

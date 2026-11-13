@@ -3,7 +3,7 @@
 // accepts the same arguments and words its errors the same way; the loop, the `--flag=value` split and the
 // help printer live here once.
 const fs = require('node:fs');
-const { LANES, PROJECT_NAMES, isProject } = require('./projects');
+const { PROJECT_NAMES, isProject, expandProjects } = require('./projects');
 
 // The help flags nearly every tool takes; spread into a spec's `options`.
 const HELP = { '--help': { key: 'help' }, '-h': { key: 'help' } };
@@ -58,8 +58,7 @@ const projectChoices = ({ all = true } = {}) => PROJECT_NAMES.join('|') + (all ?
 
 // The lane keys a `--project` value stands for ('all' = every lane); null when it names none.
 function project(value, { all = true } = {}) {
-  if (!isProject(value, { all })) return null;
-  return value === 'all' ? Object.keys(LANES) : [value];
+  return isProject(value, { all }) ? expandProjects(value) : null;
 }
 
 // The tool's usage block: its header comment, lines first..last (1-based, inclusive) with the `// ` prefix removed.

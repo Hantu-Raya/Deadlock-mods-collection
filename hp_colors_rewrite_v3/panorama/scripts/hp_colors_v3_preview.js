@@ -2,7 +2,7 @@
   "use strict";
   // Menu preview bar (ticket 09). A fake unit-status tree under HPColorsPreview ids is painted by the
   // world renderer's own classify -> facts -> plan -> apply chain ($.HPColorsV3Renderer.createPainter).
-  // Carrier classes are data here, never classes on menu panels. Play, edit-shake and layout-settle
+  // Carrier classes are data here, except the sample marks writeSampleMarks puts on the pane and canvas. Play, edit-shake and layout-settle
   // work have separate generation tokens; unlaid geometry polls at 4 Hz only while the preview is open.
   // The renderer publishes the shared vocabulary (status labels, status scales, pickup kinds) and its part table once at load
   // ($.HPColorsV3Renderer.statusLabels / statusScales / pickupKinds / parts); only this sample tree's ids live here.
@@ -174,15 +174,16 @@
     return true;
   }
 
-  function classes() {
-    var list = KINDS[kind].classes.concat([side === "enemy" ? "enemy" : "friend", team,
-      side === "enemy" ? "ShowHealthValue" : "ShowAllyHealthValue"]);
+  function isCritical() {
     // client.dll RE, 2026-10-14, Deadlock 6779: IsHealthCritical uses
     // health/maxHealth <= RemapValClamped(maxHealth, 1000, 2750, .20, .10).
     // Hero VData constructor defaults; heroes.vdata does not override them.
     var maxHp = KINDS[kind].maxHp, threshold = 0.20 - Math.max(0, Math.min(1, (maxHp - 1000) / 1750)) * 0.10;
-    var critical = shown / 100 <= threshold;
-    setClass(pane, "health_critical", critical);
+    return shown / 100 <= threshold;
+  }
+  // Writes the sample-state classes on the menu pane and canvas (the only panel classes this file writes).
+  function writeSampleMarks() {
+    setClass(pane, "health_critical", isCritical());
     var statusLabels = $.HPColorsV3Renderer.statusLabels;
     statusLabels.forEach(function (key) {
       setClass(pane, "HPC3PreviewSample" + key, kind === "hero" && settings && settings.shared.enabled && sampleLabel === key);
@@ -195,8 +196,13 @@
     }
     // The engine's citadel_unit_status_show_critical_state defaults true on the descendant root.
     setClass(parts.canvas, "ShowCriticalState", true);
+  }
+  // The carrier-class list for painter.paint; pure data, no panel calls.
+  function classes() {
+    var list = KINDS[kind].classes.concat([side === "enemy" ? "enemy" : "friend", team,
+      side === "enemy" ? "ShowHealthValue" : "ShowAllyHealthValue"]);
     list.push("ShowCriticalState");
-    if (critical) list.push("health_critical");
+    if (isCritical()) list.push("health_critical");
     // Damage steps show the readout the way the stock bar does while the local player deals damage.
     if (feedback === "Damage") {
       list.push("active_damage");
@@ -214,6 +220,7 @@
       writeMotion();
       setText(parts.value, String(Math.round(KINDS[kind].maxHp * shown / 100)));
       setText(ui.health, shown + "%");
+      writeSampleMarks();
       last = painter.paint(classes(), settings, view);
       camera();
       // HPV3_DEBUG $.Msg("[HPV3] preview hpTextOffsetX=" + (settings && settings.side[side].hpTextOffsetX) + " hpTextAlign=" + (settings && settings.side[side].hpTextAlign) + " geometry=" + JSON.stringify(last.facts.geometry) + " row=" + JSON.stringify(last.facts.row) + " plannedRow=" + (last.plan.styles.row && last.plan.styles.row.transform));
