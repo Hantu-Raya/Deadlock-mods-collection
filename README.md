@@ -33,7 +33,7 @@ A stats board on the post-game scoreboard: exact numbers per player, souls by so
 
 Customize the minimap: rift and urn timers, mid boss timer, enemy markers and buff colors, with a settings panel at the bottom right.
 
-<img src=".github/readme/buff-timer.png" width="530" alt="Buff Timer: minimap timers and settings panel" />
+<img src=".github/readme/buff-timer.png" width="70%" alt="Buff Timer: minimap timers and settings panel" />
 
 ### Passive Items and Actives Icons
 
