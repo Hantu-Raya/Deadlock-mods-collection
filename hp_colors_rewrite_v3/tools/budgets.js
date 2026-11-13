@@ -377,7 +377,6 @@ async function main(argv = process.argv.slice(2)) {
   const audit = parseAuditLimits(fs.readFileSync(AUDIT, 'utf8'));
   const variantKeys = options.project === 'all' ? VARIANT_NAMES : options.project === 'v3' ? [] : [options.project];
   const variants = variantKeys.map(key => variantBudgetFiles(key));
-  // Variant files that do carry budgets: their own audit-style limits join the table.
   for (const variant of variants) for (const file of variant.files) {
     const parsed = parseAuditLimits(fs.readFileSync(path.join(REPO, file), 'utf8'), file);
     audit.limits.push(...parsed.limits.filter(limit => !audit.limits.some(entry => entry.scenario === limit.scenario && entry.metric === limit.metric)));

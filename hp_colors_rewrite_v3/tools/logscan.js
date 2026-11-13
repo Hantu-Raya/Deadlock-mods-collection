@@ -29,13 +29,15 @@ const childProcess = require('node:child_process');
 const cli = require('./lib/cli');
 const { REPO, LANES: PROJECT_LANES, PROJECT_NAMES, projectConfig, stagePaths, repoPaths } = require('./lib/projects');
 const { discoverDeadlock } = require('./lib/toolchain');
+const { readClientVersion, readPinVersion } = require('./lib/pin');
 
 const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/logscan.js [--file <console.log> | --installed-steam-inf <steam.inf>] [--since-boot] [--only errors|hpv3|timing] [--all-warnings] [--json] [--follow]';
 const ONLY = ['errors', 'hpv3', 'timing'];
 // Mapping roots in preference order; a pak02 identified as a variant build moves its lane first.
 const LANES = [
   ...PROJECT_NAMES.map(key => ({ key, dir: PROJECT_LANES[key].dir })),
-  { key: 'showrank-barebones', dir: 'showrank_barebones' },
+  // Upstream folders a lane reads (LANES.inputDirs): 'showrank_barebones' maps to the key 'showrank-barebones'.
+  ...PROJECT_NAMES.flatMap(key => PROJECT_LANES[key].inputDirs.map(dir => ({ key: dir.replace(/_/g, '-'), dir }))),
 ];
 const ERROR_KINDS = ['fatal', 'parse-error', 'js-exception', 'uncaught', 'panorama-error'];
 const WARNING_KINDS = ['parse-warning', 'layout-warning', 'vscript-error'];
@@ -516,7 +518,7 @@ function describePak02(pak) {
 }
 
 function readPin(root = REPO, fsx = fs) {
-  try { return JSON.parse(fsx.readFileSync(repoPaths(root).pin, 'utf8')).clientVersion; } catch { return null; }
+  return readPinVersion(repoPaths(root).pin, fsx);
 }
 
 // `addons`: the installed game's citadel/addons folder for the pak02 check (null: no install found).
@@ -556,7 +558,7 @@ function buildReport(parsed, { sinceBoot = false, file = null, root = REPO, fsx 
   const mounts = [...new Set(entries.filter(entry => entry.kind === 'mount' && /^GAME$/i.test(entry.pathId)).map(entry => entry.pak))].sort();
   let steamInfVersion = null;
   if (file) {
-    try { const match = /^ClientVersion=(\d+)/m.exec(fsx.readFileSync(path.join(path.dirname(file), 'steam.inf'), 'utf8')); if (match) steamInfVersion = Number(match[1]); } catch { /* not an install */ }
+    try { steamInfVersion = readClientVersion(fsx.readFileSync(path.join(path.dirname(file), 'steam.inf'), 'utf8')); } catch { /* not an install */ }
   }
   const spans = parsed.spans || {};
   const first = spans[sinceBoot ? lastSession : 1] || {}, last = spans[lastSession] || {};

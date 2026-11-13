@@ -19,7 +19,7 @@ const path = require('node:path');
 const cli = require('./lib/cli');
 const { REPO, LANES, V3_DIR, VARIANT_NAMES, PROJECT_NAMES } = require('./lib/projects');
 const { posix, listFiles, runNodeTest, gitChanged, normalizeFile } = require('./lib/run');
-const { parseTap, parseYamlBlock, tapUnescape, failureSite, formatSummary } = require('./lib/tap');
+const { parseTap, formatSummary } = require('./lib/tap');
 
 const PROJECTS = Object.fromEntries(PROJECT_NAMES.map(key => [key, { key, dir: LANES[key].dir, label: LANES[key].label }]));
 const V3 = V3_DIR;
@@ -294,8 +294,8 @@ async function main(argv = process.argv.slice(2)) {
 }
 
 module.exports = {
-  REPO, PROJECTS, RULES, NON_SOURCE_DIRS, BUILD_TOOL_LIBS, GENERATOR_MODULE, unmappedScripts, scanTests, localRequires, closure, dependents, mentions, cssTests, mapFile, selectTests, missingRuleTests,
-  parseTap, parseYamlBlock, tapUnescape, failureSite, formatSummary, runNodeTest, gitChanged, normalizeFile, parseArgs, main,
+  REPO, RULES, NON_SOURCE_DIRS, BUILD_TOOL_LIBS, GENERATOR_MODULE, unmappedScripts, scanTests, localRequires, closure, dependents, mentions, cssTests, mapFile, selectTests, missingRuleTests,
+  parseArgs, main,
 };
 
 if (require.main === module) main().then(code => { process.exitCode = code; }, error => { console.error(error); process.exitCode = 2; });

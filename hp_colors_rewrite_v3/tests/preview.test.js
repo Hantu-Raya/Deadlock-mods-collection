@@ -1401,6 +1401,19 @@ test('preview shake on edit: enabling runs native wiggle for exactly three secon
   assert.equal(m.preview().scheduled, false, 'preview leaves no timed work');
 });
 
+test('preview shake on edit: the shake still fires when the settings push throws, and the error reaches the caller', () => {
+  // The menu used to call setSettings and then shakeOnEdit as two calls; one call keeps that ordering under a throw.
+  const m = booted({ previewLayout: true }); m.open();
+  const api = m.h.$.HPColorsV3Preview, motion = m.find('HPColorsPreviewMotion');
+  const enabled = JSON.parse(JSON.stringify(m.settings()));
+  enabled.shared.damageShakeEnabled = true;
+  api.setSettings(enabled, { showBounds: false });
+  assert.equal(computed(motion, 'animationName'), 'none', 'a plain push starts no shake');
+  assert.throws(() => api.setSettings({ shared: null }, { showBounds: false, shake: true }), /Cannot read properties of null/);
+  assert.equal(computed(motion, 'animationName'), 'active_damage_wiggle', 'shake started although the push threw');
+  m.h.scheduler.runFor(3000);
+  assert.equal(computed(motion, 'animationName'), 'none');
+});
 test('preview shake on edit: strength changes use every existing animation and dragging extends from the last change', () => {
   const m = booted({ previewLayout: true }); m.open();
   const row = control(m, 'damageShakeStrength'), motion = m.find('HPColorsPreviewMotion');

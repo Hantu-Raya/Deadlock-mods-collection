@@ -72,7 +72,6 @@ function engineFindings(file, raw) {
       start = i + 1;
     }
   }
-  // Declarations: every innermost block body (rules and keyframe stops).
   for (const block of text.matchAll(/\{([^{}]*)\}/g)) {
     const bodyStart = block.index + 1;
     for (const declaration of block[1].matchAll(/(^|;)\s*([A-Za-z-][\w-]*)\s*:/g)) {

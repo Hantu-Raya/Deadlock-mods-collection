@@ -12,16 +12,46 @@ const V3_DIR = 'hp_colors_rewrite_v3';
 // One entry per lane. `dir`: the lane folder under the repo; `label`: short name in test output; `ticketLabel`: the
 // wording of tools/ticket.js; `sourceDirs`: the lane folders whose panorama/ files the lane ships (variants add
 // their own to the canonical v3 sources they package); `composer`: the variant's layout composer under `dir`;
-// `extraAssets`: compiled assets the lane ships beyond the canonical v3 contract (HPV3_ASSETS below);
-// `build`: the command that builds the lane's release pak.
-const lane = (key, dir, label, ticketLabel, sourceDirs, composer, extraAssets = []) => Object.freeze({
-  key, dir, label, ticketLabel, sourceDirs: Object.freeze(sourceDirs), composer, extraAssets: Object.freeze(extraAssets),
+// `build`: the command that builds the lane's release pak. `extra` (all optional): `extraAssets`: compiled assets the
+// lane ships beyond the canonical v3 contract (HPV3_ASSETS below); `forbidden`: names its pak02 must not contain
+// beyond BASE_FORBIDDEN; `inputDirs`: upstream folders beside the repo root the lane reads (not shipped);
+// `composerInputs`: repo-relative folders whose files the composer reads (tools/dev.js recomposes on a change);
+// `reviewing`: what to review before running a stale composer; `deployNote`: the build's "deployment skipped" line;
+// `dependencyScript`: the compiled script the lane's pak dependency must carry. `title` is the pak02 wording.
+const lane = (key, dir, label, ticketLabel, sourceDirs, composer, extra = {}) => Object.freeze({
+  key, dir, label, ticketLabel, sourceDirs: Object.freeze(sourceDirs), composer,
+  title: 'HPV3' + (composer ? ' ' + label : ''),
+  extraAssets: Object.freeze(extra.extraAssets || []),
+  forbidden: Object.freeze(extra.forbidden || []),
+  inputDirs: Object.freeze(extra.inputDirs || []),
+  composerInputs: Object.freeze(extra.composerInputs || []),
+  reviewing: extra.reviewing || null,
+  deployNote: extra.deployNote,
+  dependencyScript: extra.dependencyScript || null,
   build: `node ${V3_DIR}/tools/build.js --project ${key} --skip-deploy`
 });
+// ShowRank's upstream sources (read only): its pak89 script is named after the folder, its layouts feed the composer.
+const SHOWRANK_UPSTREAM = 'showrank_barebones';
 const LANES = Object.freeze({
-  v3: lane('v3', V3_DIR, 'v3', 'normal v3', [V3_DIR], null),
-  qollock: lane('qollock', V3_DIR + '_qollock', 'QOLLOCK', 'QOLLOCK variant', [V3_DIR, V3_DIR + '_qollock'], 'tools/qollock.js', ['panorama/scripts/hp_colors_v3_qollock_bridge.vjs_c']),
-  showrank: lane('showrank', V3_DIR + '_showrank', 'ShowRank', 'ShowRank variant', [V3_DIR, V3_DIR + '_showrank'], 'tools/showrank.js')
+  v3: lane('v3', V3_DIR, 'v3', 'normal v3', [V3_DIR], null, {
+    deployNote: 'Deployment skipped; this wrapper has no game-folder writes.'
+  }),
+  qollock: lane('qollock', V3_DIR + '_qollock', 'QOLLOCK', 'QOLLOCK variant', [V3_DIR, V3_DIR + '_qollock'], 'tools/qollock.js', {
+    extraAssets: ['panorama/scripts/hp_colors_v3_qollock_bridge.vjs_c'],
+    forbidden: ['panorama/layout/hud.vxml_c', 'ql_', 'qollock_hp_colors_bridge'],
+    composerInputs: [V3_DIR + '_qollock/vendor'],
+    reviewing: 'the v3 menu change',
+    deployNote: 'Deployment skipped; never install this pak02 over a non-QOLLOCK pak03.'
+  }),
+  // ShowRank adds no asset to pak02: its script, styles and other layouts stay in pak89.
+  showrank: lane('showrank', V3_DIR + '_showrank', 'ShowRank', 'ShowRank variant', [V3_DIR, V3_DIR + '_showrank'], 'tools/showrank.js', {
+    forbidden: [SHOWRANK_UPSTREAM],
+    inputDirs: [SHOWRANK_UPSTREAM],
+    composerInputs: [SHOWRANK_UPSTREAM + '/panorama/layout'],
+    reviewing: 'the v3 menu or ShowRank layout change',
+    deployNote: 'Deployment skipped; this wrapper has no game-folder writes. Install ShowRank barebones as pak89 and this build as pak02.',
+    dependencyScript: 'panorama/scripts/' + SHOWRANK_UPSTREAM + '.vjs_c'
+  })
 });
 const PROJECT_NAMES = Object.keys(LANES);
 const VARIANT_NAMES = PROJECT_NAMES.filter(name => name !== 'v3');
@@ -67,7 +97,7 @@ function repoPaths(root = REPO) {
     // Get-RepoToolPath candidates, in the wrappers' order.
     vpkToolCandidates: [path.join(root, 'vpk cli', 'vpkeditcli.exe'), path.join(root, 'passive_items_mod', 'compiler', 'vpkeditcli.exe')],
     viewerCandidates: [path.join(root, '.tmp', 'vrf-cli-19.2', 'Source2Viewer-CLI.exe'), path.join(root, '.tmp', 'source2viewer-cli', 'Source2Viewer-CLI.exe')],
-    showrankRepoVpk: path.join(root, 'showrank_barebones_dir.vpk'),
+    showrankRepoVpk: path.join(root, LANES.showrank.inputDirs[0] + '_dir.vpk'),
     tools: {
       gameData: path.join(v3, 'tools', 'game-data.js'),
       generate: path.join(v3, 'tools', 'generate.js'),
@@ -80,61 +110,33 @@ function repoPaths(root = REPO) {
   };
 }
 
-// One entry per lane. `wrapper` is the command that builds the lane's release pak (export name kept for vpk-check).
+// The build/doctor/vpk-check contract of one lane, built from its LANES row. `wrapper` is the command that builds the
+// lane's release pak (export name kept for vpk-check).
 function projectConfig(name, root = REPO) {
   const p = repoPaths(root);
   if (!isProject(name)) throw new Error(`Unknown project '${name}'; expected ${PROJECT_NAMES.join('|')}|all`);
   const L = LANES[name];
-  if (name === 'v3') {
-    return {
-      name, wrapper: L.build,
-      lane: null,
-      buildRoot: path.join(p.v3, '.build'),
-      assets: [...HPV3_ASSETS, ...L.extraAssets],
-      forbidden: [...BASE_FORBIDDEN],
-      label: 'HPV3 pak02',
-      generators: [{ script: p.tools.generate, args: ['--check'], error: 'V3 generation check failed; see pin mismatch/stale-file details above. Run tools/generate.js only after reviewing inputs.' }],
-      skipDeployError: 'V3 is build-only. Pass --skip-deploy; deployment is not implemented.',
-      complete: (mode, vpk) => `HPV3 ${mode} build complete: ${vpk}`,
-      deployMessage: 'Deployment skipped; this wrapper has no game-folder writes.'
-    };
-  }
+  const variant = L.composer !== null;
   const laneDir = path.join(root, L.dir);
-  const composer = path.join(laneDir, L.composer);
-  if (name === 'qollock') {
-    return {
-      name, wrapper: L.build,
-      lane: laneDir, composer, laneLeaf: L.dir,
-      buildRoot: path.join(laneDir, '.build'),
-      assets: [...HPV3_ASSETS, ...L.extraAssets],
-      forbidden: [...BASE_FORBIDDEN, 'panorama/layout/hud.vxml_c', 'ql_', 'qollock_hp_colors_bridge'],
-      label: 'HPV3 QOLLOCK pak02',
-      generators: [
-        { script: p.tools.generate, args: ['--check'], error: 'V3 generation check failed; run hp_colors_rewrite_v3/tools/generate.js after reviewing inputs.' },
-        { script: composer, args: ['--check'], error: 'QOLLOCK layouts are stale; run hp_colors_rewrite_v3_qollock/tools/qollock.js after reviewing the v3 menu change.' }
-      ],
-      skipDeployError: 'The v3 QOLLOCK variant is build-only. Pass --skip-deploy; deployment is not implemented.',
-      complete: (mode, vpk) => `HPV3 QOLLOCK ${mode} build complete: ${vpk}`,
-      deployMessage: 'Deployment skipped; never install this pak02 over a non-QOLLOCK pak03.'
-    };
-  }
-  return {
-    name, wrapper: L.build,
-    lane: laneDir, composer, laneLeaf: L.dir,
+  const composer = variant ? path.join(laneDir, L.composer) : null;
+  const generate = { script: p.tools.generate, args: ['--check'], error: variant
+    ? `V3 generation check failed; run ${V3_DIR}/tools/generate.js after reviewing inputs.`
+    : 'V3 generation check failed; see pin mismatch/stale-file details above. Run tools/generate.js only after reviewing inputs.' };
+  const config = { name, wrapper: L.build, lane: variant ? laneDir : null };
+  if (variant) Object.assign(config, { composer, laneLeaf: L.dir });
+  Object.assign(config, {
     buildRoot: path.join(laneDir, '.build'),
-    // ShowRank adds no asset to pak02: its script, styles and other layouts stay in pak89.
     assets: [...HPV3_ASSETS, ...L.extraAssets],
-    forbidden: [...BASE_FORBIDDEN, 'showrank_barebones'],
-    label: 'HPV3 ShowRank pak02',
-    generators: [
-      { script: p.tools.generate, args: ['--check'], error: 'V3 generation check failed; run hp_colors_rewrite_v3/tools/generate.js after reviewing inputs.' },
-      { script: composer, args: ['--check'], error: 'ShowRank layouts are stale; run hp_colors_rewrite_v3_showrank/tools/showrank.js after reviewing the v3 menu or ShowRank layout change.' }
-    ],
-    showrankScript: 'panorama/scripts/showrank_barebones.vjs_c',
-    skipDeployError: 'The v3 ShowRank variant is build-only. Pass --skip-deploy; deployment is not implemented.',
-    complete: (mode, vpk) => `HPV3 ShowRank ${mode} build complete: ${vpk}`,
-    deployMessage: 'Deployment skipped; this wrapper has no game-folder writes. Install ShowRank barebones as pak89 and this build as pak02.'
-  };
+    forbidden: [...BASE_FORBIDDEN, ...L.forbidden],
+    label: `${L.title} pak02`,
+    generators: variant ? [generate, { script: composer, args: ['--check'], error: `${L.label} layouts are stale; run ${L.dir}/${L.composer} after reviewing ${L.reviewing}.` }] : [generate]
+  });
+  if (L.dependencyScript) config.showrankScript = L.dependencyScript;
+  return Object.assign(config, {
+    skipDeployError: variant ? `The v3 ${L.label} variant is build-only. Pass --skip-deploy; deployment is not implemented.` : 'V3 is build-only. Pass --skip-deploy; deployment is not implemented.',
+    complete: (mode, vpk) => `${L.title} ${mode} build complete: ${vpk}`,
+    deployMessage: L.deployNote
+  });
 }
 
 // Stage layout for one project and mode (same paths as the wrappers).
@@ -145,7 +147,7 @@ function stagePaths(config, mode) {
     // The compile tree keeps the canonical name so the outputs match the v3 asset paths.
     stageSource: path.join(stage, V3_DIR),
     stageLane: config.laneLeaf ? path.join(stage, config.laneLeaf) : null,
-    compiled: path.join(stage, 'hp_colors_rewrite_v3_compiled'),
+    compiled: path.join(stage, V3_DIR + '_compiled'),
     vpk: path.join(stage, 'pak02_dir.vpk'),
     pinned: path.join(stage, 'pin'),
     packedCheck: path.join(stage, 'packed-check')

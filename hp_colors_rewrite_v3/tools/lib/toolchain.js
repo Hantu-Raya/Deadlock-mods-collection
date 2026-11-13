@@ -4,6 +4,7 @@
 // helpers (compiler run, VPK pack/listing, 7-Zip) used by tools/build.js and scripts/build-abilities.js.
 // Every probe takes injected fs/spawnSync/env so tests run without the real machine.
 const path = require('node:path');
+const { readClientVersion, pinMismatchMessage } = require('./pin');
 
 // Get-RepoToolPath: the first existing candidate, else the wrappers' exact error.
 function findTool(candidates, toolName, fs) {
@@ -79,7 +80,6 @@ function decideRuntime(config, runtimes, env = {}) {
   return { status: 'missing', env: {}, detail: `${config.name} ${config.major}.x or higher not installed (found: ${have})` };
 }
 
-// Full probe for the compiler: runtimeconfig + installed runtimes + decision.
 function probeCompilerRuntime(compilerPath, { fs, spawnSync, env }) {
   if (!fs.existsSync(compilerPath)) return { status: 'no-compiler', env: {}, detail: `${compilerPath} not found` };
   let config;
@@ -188,19 +188,6 @@ function discoverDeadlock({ flag = null, fs, env = {}, spawnSync, platform = pro
     }
   }
   return { steamInf: null, source: 'none', tried };
-}
-
-// ClientVersion=NNNN of a steam.inf, or null.
-function readClientVersion(text) {
-  const m = /^\s*ClientVersion\s*=\s*(\d+)\s*$/mi.exec(String(text || ''));
-  return m ? Number(m[1]) : null;
-}
-
-// The installed-vs-pin mismatch text shared by game-data.js --check-installed, build.js and doctor.js.
-function pinMismatchMessage({ installed, pinned, steamInf }) {
-  return `Installed game ClientVersion mismatch: installed=${installed} pinned=${pinned} (${steamInf}). ` +
-    'Ways forward: rebase the pin to the installed build (node hp_colors_rewrite_v3/tools/game-data.js --check-upstream to review drift, ' +
-    'then update vendor/ and game-data-pin.json), or pass --allow-pin-mismatch to build against the pinned data anyway.';
 }
 
 // ---- Source 2 packaging (ported from scripts/source2_package_pipeline.ps1) --------------------------

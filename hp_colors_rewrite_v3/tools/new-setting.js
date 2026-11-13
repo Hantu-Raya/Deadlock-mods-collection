@@ -19,16 +19,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const cli = require('./lib/cli');
-const { LANES } = require('./lib/projects');
+const { LANES, VARIANT_NAMES } = require('./lib/projects');
 const { PAGES } = require('./lib/menu-markup');
 const { COLUMNS, UNITS, sidesOf, slotOf, validate } = require('./lib/schema');
 const { nextSlot } = require('./lib/slot-contract');
 
 const V3_ROOT = path.resolve(__dirname, '..');
+// 'qollock.js and showrank.js': the variant composers the tool names in its messages.
+const COMPOSER_NAMES = VARIANT_NAMES.map(name => path.basename(LANES[name].composer)).join(' and ');
 const PAGE_NAMES = PAGES.filter(page => page.hasRows).map(page => page.name);
 // Every flag the tool reads: value flags, then switches. The same table drives the argument parser.
 const VALUE_FLAGS = ['key', 'name', 'type', 'side', 'page', 'group', 'after', 'default', 'bounds', 'step', 'options', 'level', 'unit',
-  'help-text', 'keywords', 'requires', 'news', 'news-id', 'date', 'root', 'qollock-root', 'showrank-root'];
+  'help-text', 'keywords', 'requires', 'news', 'news-id', 'date', 'root', ...VARIANT_NAMES.map(name => name + '-root')];
 const BOOL_FLAGS = ['dry-run', 'no-generate', 'same-version', 'help'];
 const ARG_SPEC = {
   options: Object.fromEntries([...VALUE_FLAGS.map(name => ['--' + name, { key: name, value: true }]), ...BOOL_FLAGS.map(name => ['--' + name, { key: name }])]),
@@ -45,7 +47,7 @@ const USAGE = `Usage: node tools/new-setting.js --key <camelKey> --name <label> 
   [--options value:Label,...] [--unit ${UNITS.filter(Boolean).join('|')}] [--keywords a,b,c]
   [--requires key|key=opt/opt|key>n, conditions joined by "," (all), alternatives by "|" (either), or raw JSON]
   [--news "title|description" [--news-id id] [--date YYYY-MM-DD]]
-  [--dry-run] [--no-generate] [--same-version] [--root <v3 tree>] [--qollock-root <dir>] [--showrank-root <dir>]
+  [--dry-run] [--no-generate] [--same-version] [--root <v3 tree>] ${VARIANT_NAMES.map(name => `[--${name}-root <dir>]`).join(' ')}
 --group defaults to the --after row's group (none = the page's lead card); --after defaults to the
 last row of that page and card. --default is required except for booleans (false).`;
 
@@ -149,7 +151,6 @@ function localDate() {
 // defaults, unique keys and slots, requirements) is the schema's: plan() runs schema.validate on the finished
 // table and its messages are the ones the tool prints. Each policy takes (opts, rows) and throws.
 const POLICY = [
-  // Flags the row cannot be built without.
   opts => {
     for (const flag of ['key', 'name', 'type', 'side', 'page', 'level', 'help-text'])
       if (opts[flag] === undefined || !String(opts[flag]).trim()) throw new Error('--' + flag + ' is required');
@@ -158,7 +159,6 @@ const POLICY = [
   opts => {
     if (!/^[a-z][A-Za-z0-9]*$/.test(opts.key.trim())) throw new Error('--key must be camelCase letters/digits, got ' + opts.key.trim());
   },
-  // --options belongs to enums, --bounds/--step to numbers, and each is required there.
   opts => {
     if (opts.type === 'enum') {
       if (opts.options === undefined) throw new Error('--options is required for enum settings');
@@ -167,7 +167,6 @@ const POLICY = [
       if (opts.bounds === undefined || opts.step === undefined) throw new Error('--bounds and --step are required for number settings');
     } else if (opts.bounds !== undefined || opts.step !== undefined) throw new Error('--bounds/--step only apply to number settings');
   },
-  // --after names an existing row on the same page.
   (opts, rows) => {
     if (opts.after === undefined) return;
     const after = rows.find(row => row.key === opts.after);
@@ -340,10 +339,7 @@ function diff(before, after, name) {
 }
 
 function laneRoots(opts, root) {
-  return {
-    qollock: path.resolve(opts['qollock-root'] || path.join(path.dirname(root), LANES.qollock.dir)),
-    showrank: path.resolve(opts['showrank-root'] || path.join(path.dirname(root), LANES.showrank.dir)),
-  };
+  return Object.fromEntries(VARIANT_NAMES.map(name => [name, path.resolve(opts[name + '-root'] || path.join(path.dirname(root), LANES[name].dir))]));
 }
 
 // Checklist: every test pin and doc the new setting touches, by file:line, from the three tests/ folders.
@@ -360,7 +356,7 @@ function checklist(result, root, lanes) {
   const items = [];
   const add = (file, line, text) => items.push({ where: file ? rel(file) + (line ? ':' + line : '') : '', text });
   const laneTests = lane => [lanes[lane], path.join(path.dirname(V3_ROOT), LANES[lane].dir)].map(dir => path.join(dir, 'tests')).find(dir => fs.existsSync(dir));
-  const folders = [path.join(testsRoot, 'tests'), laneTests('qollock'), laneTests('showrank')].filter(dir => dir && fs.existsSync(dir));
+  const folders = [path.join(testsRoot, 'tests'), ...VARIANT_NAMES.map(laneTests)].filter(dir => dir && fs.existsSync(dir));
   const files = folders.flatMap(dir => fs.readdirSync(dir).filter(name => name.endsWith('.js')).sort().map(name => path.join(dir, name)));
   const read = file => fs.readFileSync(file, 'utf8').split(/\r?\n/);
   const { row, oldVersion, version, slots } = result;
@@ -441,7 +437,7 @@ function checklist(result, root, lanes) {
   add(doc('MAP.md'), 0, 'changelog: **Added:** under the in-development section (slots ' + slots.join('/') + ', record v' + version + '); `node tools/ticket.js new --map`');
   add(doc('issues'), 0, 'ticket: `node tools/ticket.js new --title ...`; SPEC story via `--spec-after <story>`');
   add(doc('LIVE-VERIFIED.md'), 0, 'record the in-game check once done');
-  add(null, 0, 'run all suites: node --test hp_colors_rewrite_v3/tests/*.test.js, ' + LANES.qollock.dir + '/tests, ' + LANES.showrank.dir + '/tests');
+  add(null, 0, 'run all suites: node --test hp_colors_rewrite_v3/tests/*.test.js, ' + VARIANT_NAMES.map(name => LANES[name].dir + '/tests').join(', '));
   add(null, 0, 'release builds of all three lanes (node hp_colors_rewrite_v3/tools/build.js --project all --skip-deploy)');
   return items;
 }
@@ -453,10 +449,12 @@ function run(command, args, cwd) {
   return { ok: result.status === 0, output };
 }
 
-// ShowRank's composer also reads the ShowRank barebones sources (read only): beside the lane, else the checkout's.
-function showrankSource(laneRoot) {
-  const candidates = [path.join(path.dirname(laneRoot), 'showrank_barebones'), path.join(path.dirname(V3_ROOT), 'showrank_barebones')];
-  return candidates.find(dir => fs.existsSync(dir)) || candidates[0];
+// A composer may also read its lane's upstream sources (LANES.inputDirs, read only): beside the lane, else the checkout's.
+function upstreamSource(name, laneRoot) {
+  const dir = LANES[name].inputDirs[0];
+  if (!dir) return null;
+  const candidates = [path.join(path.dirname(laneRoot), dir), path.join(path.dirname(V3_ROOT), dir)];
+  return candidates.find(found => fs.existsSync(found)) || candidates[0];
 }
 
 // Regenerates v3 then recomposes QOLLOCK and ShowRank. A lane runs its own CLI (no flags = write) when both
@@ -471,13 +469,13 @@ function regenerate(root, lanes) {
   steps.push({ name: 'generate.js --check', ...checked });
   if (!checked.ok) return steps;
   const realV3 = path.resolve(root) === V3_ROOT;
-  for (const lane of ['qollock', 'showrank']) {
+  for (const lane of VARIANT_NAMES) {
     const tool = path.join(lanes[lane], LANES[lane].composer);
     if (!fs.existsSync(tool)) { steps.push({ name: path.basename(tool), ok: true, skipped: true, output: 'skipped: ' + tool + ' not found' }); continue; }
     const realLane = realV3 && path.resolve(lanes[lane]) === path.join(path.dirname(V3_ROOT), LANES[lane].dir);
     const result = realLane ? run(process.execPath, [tool], lanes[lane])
       : run(process.execPath, ['-e', 'const m=require(process.argv[1]);console.log("' + lane + ' layouts: "+m.writeOrCheck(false,process.argv[2],process.argv[3],process.argv[4])+" outputs written")',
-        tool, lanes[lane], path.resolve(root), showrankSource(lanes[lane])], lanes[lane]);
+        tool, lanes[lane], path.resolve(root), ...[upstreamSource(lane, lanes[lane])].filter(Boolean)], lanes[lane]);
     steps.push({ name: path.basename(tool), ...result });
     if (!result.ok) return steps;
   }
@@ -500,10 +498,10 @@ function main(argv, out = console.log) {
       const patch = diff(result.texts[path.basename(name)], text, path.relative(path.dirname(root), path.join(root, name)).replace(/\\/g, '/'));
       if (patch) out(patch.trimEnd());
     }
-    out('Dry run: nothing written' + (opts['no-generate'] ? '.' : '; a real run would then run tools/generate.js, qollock.js and showrank.js.'));
+    out('Dry run: nothing written' + (opts['no-generate'] ? '.' : '; a real run would then run tools/generate.js, ' + COMPOSER_NAMES + '.'));
   } else {
     for (const [name, text] of Object.entries(result.outputs)) if (text !== result.texts[path.basename(name)]) fs.writeFileSync(path.join(root, name), text, 'utf8');
-    if (opts['no-generate']) out('Settings written; generation skipped (--no-generate). Run tools/generate.js, then qollock.js and showrank.js.');
+    if (opts['no-generate']) out('Settings written; generation skipped (--no-generate). Run tools/generate.js, then ' + COMPOSER_NAMES + '.');
     else {
       const steps = regenerate(root, lanes);
       for (const step of steps) out((step.skipped ? '[skip] ' : step.ok ? '[ok]   ' : '[FAIL] ') + step.name + (step.output ? ': ' + step.output.replace(/\n/g, '\n       ') : ''));

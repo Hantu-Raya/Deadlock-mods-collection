@@ -471,7 +471,7 @@ test('storage chunk constants multiply to the codec record cap and equal the pin
   const codecSource = fs.readFileSync(path.join(scriptsDir, 'hp_colors_v3_codec.js'), 'utf8');
   const storage = chunkConstants(fs.readFileSync(path.join(scriptsDir, 'hp_colors_v3_storage.js'), 'utf8'));
   assert.equal(storage.chunk * storage.max, Number(/maxChars: (\d+)/.exec(codecSource)[1]));
-  assert.match(fs.readFileSync(path.join(scriptsDir, 'hp_colors_v3_storage.js'), 'utf8'), /Save exceeds 192,000 characters/);
+  assert.match(codecSource, /Save exceeds 192,000 characters/);
   // The pinned page cannot import the script, so its constants are compared here.
   assert.deepEqual(chunkConstants(pageSource), storage);
 });

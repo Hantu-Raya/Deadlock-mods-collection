@@ -11,6 +11,8 @@
     slotRange: Object.freeze([1, 4]), tierRange: Object.freeze([1, 3]),
     reservedPresetId: "baked_default", compactFromVersion: 6
   });
+  // The text for a save over RECORD.maxChars; storage reads it from here at call time.
+  var SAVE_TOO_LARGE = "Save exceeds 192,000 characters; remove some presets";
   var RESERVED_PRESET_ID = RECORD.reservedPresetId, importSerial = 0;
   // A default change increments the generated recordVersion and adds an
   // ordered step here: preserve the old value for each absent changed slot.
@@ -426,7 +428,7 @@
   }
   // A converted v2 bundle must still fit one save; every supported v2 setting has a v3 slot, so nothing is dropped to fit.
   function fitForSave(result) {
-    if (frame(bundleRecord(result.bundle), "HPV2S1").length > RECORD.maxChars) throw new Error("Save exceeds 192,000 characters; remove some presets");
+    if (frame(bundleRecord(result.bundle), "HPV2S1").length > RECORD.maxChars) throw new Error(SAVE_TOO_LARGE);
     return result;
   }
   function exportCode(record, cap, message) {
@@ -464,7 +466,7 @@
     return text.trim();
   }
   $.HPColorsV3Codec = Object.freeze({
-    RECORD: RECORD, valuesOf: values,
+    RECORD: RECORD, SAVE_TOO_LARGE: SAVE_TOO_LARGE, valuesOf: values,
     checksum: checksum, upgrade: upgrade,
     errorMessage: errorMessage,
     encodeRecord: function (bundle) { return frame(bundleRecord(bundle), "HPV2S1"); },

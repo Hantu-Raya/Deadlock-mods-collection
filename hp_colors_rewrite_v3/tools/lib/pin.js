@@ -28,4 +28,28 @@ function readPinnedTexts(root, entries, { sources, key, messages }) {
   return texts;
 }
 
-module.exports = { sha256, isHex64, readPinnedTexts };
+// ClientVersion=NNNN of a steam.inf, or null.
+function readClientVersion(text) {
+  const m = /^\s*ClientVersion\s*=\s*(\d+)\s*$/mi.exec(String(text || ''));
+  return m ? Number(m[1]) : null;
+}
+
+// The installed-vs-pin mismatch text shared by game-data.js --check-installed, build.js and doctor.js (lib/toolchain.js re-exports both).
+function pinMismatchMessage({ installed, pinned, steamInf }) {
+  return `Installed game ClientVersion mismatch: installed=${installed} pinned=${pinned} (${steamInf}). ` +
+    'Ways forward: rebase the pin to the installed build (node hp_colors_rewrite_v3/tools/game-data.js --check-upstream to review drift, ' +
+    'then update vendor/ and game-data-pin.json), or pass --allow-pin-mismatch to build against the pinned data anyway.';
+}
+
+// The pin file (game-data-pin.json) parsed, or null when it is missing or not JSON; `fsx` is the fs to read through.
+function readPin(file, fsx = fs) {
+  try { return JSON.parse(fsx.readFileSync(file, 'utf8')); } catch { return null; }
+}
+
+// Its clientVersion, or null when the file cannot be read.
+function readPinVersion(file, fsx = fs) {
+  const pin = readPin(file, fsx);
+  return pin ? pin.clientVersion : null;
+}
+
+module.exports = { sha256, isHex64, readPinnedTexts, readClientVersion, pinMismatchMessage, readPin, readPinVersion };

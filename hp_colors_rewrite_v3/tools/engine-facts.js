@@ -16,9 +16,10 @@ const { engineFindings } = require('./lib/stylesheets');
 const cli = require('./lib/cli');
 const { REPO, LANES } = require('./lib/projects');
 const { listFiles } = require('./lib/run');
+const { readClientVersion } = require('./lib/pin');
 
 const FACTS_FILE = path.join(__dirname, 'lib', 'engine-facts.json');
-const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/engine-facts.js --check [--project v3|qollock|showrank|all] | --refresh --from <Deadlock folder>';
+const USAGE = `Usage: node hp_colors_rewrite_v3/tools/engine-facts.js --check [--project ${cli.projectChoices()}] | --refresh --from <Deadlock folder>`;
 // Per project, the lane folders it scans: the canonical v3 sources plus the variant's own.
 const PROJECTS = Object.fromEntries(Object.values(LANES).map(lane => [lane.key, lane.sourceDirs]));
 // Names published on $ by mods, never engine functions: this mod's shared globals, and the QOLLOCK host's
@@ -125,7 +126,7 @@ function check({ project = 'all', root = REPO, factsFile = FACTS_FILE, log = con
 function refreshHelp(from, fsx = fs) {
   const steamInf = path.join(from, 'game', 'citadel', 'steam.inf');
   let version = 'unknown (steam.inf not found under ' + steamInf + ')';
-  try { version = (/^ClientVersion=(\d+)/m.exec(fsx.readFileSync(steamInf, 'utf8')) || [])[1] || version; } catch { /* reported */ }
+  try { version = readClientVersion(fsx.readFileSync(steamInf, 'utf8')) || version; } catch { /* reported */ }
   return [
     'engine-facts --refresh: the extractor needs a disassembler pass (pefile, numpy, capstone) and is not ported to Node.',
     'Installed ClientVersion: ' + version + '; facts file: ' + path.relative(REPO, FACTS_FILE).replace(/\\/g, '/') + ' (' + loadFacts().facts.build.clientVersion + ').',

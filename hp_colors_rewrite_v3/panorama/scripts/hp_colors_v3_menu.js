@@ -8,19 +8,16 @@
   var retryCount = 0;
   var config = null;
   var contractRef = null;
-  var heroKeys = Object.create(null);
+  // heroKeys: upper-case hero name or name token -> hero key (matched against the HUD name label); heroByKey: hero key -> contract hero record.
+  var heroKeys = Object.create(null), heroByKey = Object.create(null);
   var rowCells = new Map();
   var effectiveSettings = null, lastPublishedRevision = -1;
-  var ABILITY_SLOTS = 4, MAX_TIER = 3, SHARED_SIDES = ["enemy", "ally"], UNDO_LIMIT = 40, THRESHOLD_GAP = 1;
+  var ABILITY_SLOTS = 4, MAX_TIER = 3, SIDES = ["enemy", "ally"], UNDO_LIMIT = 40, THRESHOLD_GAP = 1;
   var GESTURE_PUBLISH_MS = 50, ANSWER_THROTTLE_MS = 500;
-  // One value per ability slot (a fresh array each call, as the literals were).
-  function slotsOf(value) {
-    var list = [];
-    for (var i = 0; i < ABILITY_SLOTS; i++) list.push(value);
-    return list;
-  }
-  var tiers = slotsOf(-1), requiredSlots = slotsOf(false), ruleRows = {};
-  var signature = null, abilityOwner = null, abilityPanels = slotsOf(null), matchedRules = "";
+  // One value per ability slot (menu.test.js pins ABILITY_SLOTS/MAX_TIER to the codec RECORD ranges).
+  function slotArray(value) { var slots = []; for (var i = 0; i < ABILITY_SLOTS; i++) slots.push(value); return slots; }
+  var tiers = slotArray(-1), requiredSlots = slotArray(false), ruleRows = {};
+  var signature = null, abilityOwner = null, abilityPanels = slotArray(null), matchedRules = "";
   var panels = Object.create(null);
   var hueThumbs = Object.create(null);
   var bound = Object.create(null);
@@ -75,7 +72,7 @@
   var BOUNDS_ATTR = "hpv3_show_bounds";
   var showBounds = false;
   // The side shown (JS mirror of the HPC3SideAlly class on the host; written beside the class in selectSide, read here).
-  var sideAlly = false;
+  var shownSide = "enemy";
   // COLORBLIND VIEW (2026-10-28): the game's full-screen color blindness convars, one weight per type, so
   // the types mix. The game state is kept on the top panel for this game: the convars are not archived,
   // start at 0 in every game and have no read-back. Since 2026-10-29 the choice is also saved in the
@@ -176,33 +173,33 @@
   // Every call is guarded and its failure swallowed as `false`: the preview is optional chrome.
   function previewApi() { return $.HPColorsV3Preview || null; }
   function previewAttach(root, initial) {
-    var api = previewApi();
-    try { return !!api && typeof api.attach === "function" && api.attach(root, initial); } catch (error) { return false; }
+    var target = previewApi();
+    try { return !!target && typeof target.attach === "function" && target.attach(root, initial); } catch (error) { return false; }
   }
   function previewOpen(open) {
-    var api = previewApi();
-    try { if (api) { if (open) api.open(); else api.close(); } } catch (error) { /* Optional chrome. */ }
+    var target = previewApi();
+    try { if (target) { if (open) target.open(); else target.close(); } } catch (error) { /* Optional chrome. */ }
   }
   function previewSetPage(name) {
-    var api = previewApi();
-    try { if (api) api.setPage(name); } catch (error) { /* Optional chrome. */ }
+    var target = previewApi();
+    try { if (target) target.setPage(name); } catch (error) { /* Optional chrome. */ }
   }
   function previewSetSide(name) {
-    var api = previewApi();
-    try { if (api) api.setSide(name); } catch (error) { /* Optional chrome. */ }
+    var target = previewApi();
+    try { if (target) target.setSide(name); } catch (error) { /* Optional chrome. */ }
   }
   // `shake` marks an explicit menu edit: the sample shakes after the repaint (see the preview's setSettings).
   function previewSetSettings(shake) {
-    var api = previewApi();
-    try { if (api) api.setSettings(effectiveSettings, { showBounds: showBounds, shake: shake }); } catch (error) { /* Optional chrome. */ }
+    var target = previewApi();
+    try { if (target) target.setSettings(effectiveSettings, { showBounds: showBounds, shake: shake }); } catch (error) { /* Optional chrome. */ }
   }
   // After attach the preview replays the menu's session state in one go (page, side, settings, open).
   function syncPreview() {
     if (!previewAttach(host(), effectiveSettings)) return;
     previewSetPage(contractRef.menu.pages[pageIndex].name);
-    previewSetSide(sideAlly ? "ally" : "enemy");
+    previewSetSide(shownSide);
     previewSetSettings(false);
-    if (host().BHasClass("HPC3Open")) previewOpen(true);
+    if (menuIsOpen()) previewOpen(true);
   }
 
   function publish(force) {
@@ -283,17 +280,17 @@
     config.settings = settings;
     if (rules !== undefined) config.rules = clone(rules);
     syncNavDots();
-    var required = slotsOf(false);
+    var required = slotArray(false);
     Object.keys(config.rules).forEach(function (cell) { required[config.rules[cell].slot - 1] = true; });
     required.forEach(function (needed, index) { if (!needed || !requiredSlots[index]) tiers[index] = -1; });
     requiredSlots = required;
     resolveEffective();
   }
   // The ability signature panels are gone or stale: forget them so the next sample looks them up again.
-  function deadSignature() { signature = null; abilityOwner = null; abilityPanels = slotsOf(null); }
+  function deadSignature() { signature = null; abilityOwner = null; abilityPanels = slotArray(null); }
   function clearTiers() {
     var changed = tiers.some(function (tier) { return tier !== -1; });
-    tiers = slotsOf(-1);
+    tiers = slotArray(-1);
     if (changed) {
       // HPV3_DEBUG $.Msg("[HPV3] tiers " + tiers.join(","));
     }
@@ -303,17 +300,17 @@
   }
   function sampleTiers() {
     // While the condition dialog is open, every slot is read so the HUD-style outlines show live tiers.
-    var wanted = conditionDraft ? slotsOf(true) : requiredSlots;
+    var wanted = conditionDraft ? slotArray(true) : requiredSlots;
     if (!wanted.some(Boolean)) return;
-    var next = slotsOf(-1);
+    var next = slotArray(-1);
     if (identity.phase === "active" && !identityClasses()("spec_mode")) {
       if (!valid(signature)) {
         signature = (valid(identity.hud) ? identity.hud : identity.root).FindChildTraverse("hud_signature");
-        abilityOwner = null; abilityPanels = slotsOf(null);
+        abilityOwner = null; abilityPanels = slotArray(null);
       }
       if (!valid(abilityOwner) || !valid(signature) || abilityOwner.GetParent() !== signature) {
         abilityOwner = valid(signature) ? signature.FindChildTraverse("abilities") : null;
-        abilityPanels = slotsOf(null);
+        abilityPanels = slotArray(null);
       }
       wanted.forEach(function (needed, index) {
         if (!needed) return;
@@ -340,16 +337,12 @@
   }
 
   // ---- SHOW BOUNDS: a view toggle, not a setting (no Undo entry, no store commit) ----
-  // Walks up from the menu root (at most 32 parents): the first panel whose id is stopId, else the top one.
-  function topChain(stopId) {
+  // Walks up from the menu root (at most 32 parents) to the top panel.
+  function topPanel() {
     var top = null;
-    for (var node = activeRoot, depth = 0; valid(node) && depth < 32; depth++) {
-      if (stopId && node.id === stopId) return node;
-      top = node; node = node.GetParent();
-    }
+    for (var node = activeRoot, depth = 0; valid(node) && depth < 32; depth++) { top = node; node = node.GetParent(); }
     return top;
   }
-  function topPanel() { return topChain(null); }
   function syncBounds() {
     if (panel("HPColorsShowBoundsToggle")) panel("HPColorsShowBoundsToggle").SetHasClass("Checked", showBounds);
   }
@@ -389,7 +382,7 @@
     return COLORBLIND_TYPES.filter(function (type) { return state[type] === true; }).map(function (type) { return type.toLowerCase(); });
   }
   function saveColorblind() {
-    var target = storeReady("replaceBundle");
+    var target = retired ? null : storeReady("replaceBundle");
     if (retired || !target || typeof target.canEditPresets === "function" && !target.canEditPresets()) return;
     var bundle = presetBundle(), list = colorblindList(colorblind);
     if (JSON.stringify(bundle.colorblind) === JSON.stringify(list.length ? list : undefined)) return;
@@ -444,7 +437,7 @@
   // ==== Identity: the game-HUD scraper (phase, local hero, ability tiers) ====
   // The three HUD sections (Identity, HudPainter, ShieldLane) touch no menu panel. The rest of the file sees them
   // through identity.phase / identity.hero, onHudSettings(shared) on each publish, and retireHud() on retire/boot.
-  // Cross-context ownership, recovery unchanged: the legacy shield lane marks its container with the
+  // Cross-context ownership and recovery: the legacy shield lane marks its container with the
   // hpc3_legacy_shield attribute ("1" owned, "2" released) so a reloaded menu can take over or clean up an earlier
   // context's inline styles; hud.stale lists replaced health bars whose release was refused (retried each second);
   // retire() cancels timers but does not release inline styles, the next context's paint does.
@@ -477,8 +470,8 @@
   }
   function identityClasses() {
     var root = valid(identity.root) ? identity.root : null;
-    var hud = identity.hud !== root && valid(identity.hud) ? identity.hud : null;
-    return function (name) { return !!(root && root.BHasClass(name) || hud && hud.BHasClass(name)); };
+    var second = identity.hud !== root && valid(identity.hud) ? identity.hud : null;
+    return function (name) { return !!(root && root.BHasClass(name) || second && second.BHasClass(name)); };
   }
   function identityPhase() {
     var identityClass = identityClasses();
@@ -518,15 +511,17 @@
   function renderIdentity() {
     var text = identity.phase === "hideout" ? "IN HIDEOUT" : identity.hero ? identity.hero : identity.candidate ? "DETECTING HERO" : "NO HERO DETECTED";
     if (identity.hero && identity.phase !== "hideout") {
-      contractRef.heroes.forEach(function (hero) { if (hero.key === identity.hero) text = hero.name.toUpperCase(); });
+      var known = heroByKey[identity.hero]; if (known) text = known.name.toUpperCase();
     }
     var label = panel("HPColorsHeroIdentityLabel");
     if (label && label.text !== text) label.text = text;
     syncAbilitySlots();
   }
+  // Routing waits while a gesture, the colour picker or the condition editor is open; each closer calls resumeHeroRoute().
+  function heroRouteBlocked() { return !!(gesture || picker || conditionDraft); }
   function applyHeroRoute(watch, epoch) {
     if (retired || watch !== identity.generation || epoch !== identity.epoch || !publicationResolved) return;
-    if (gesture || picker || conditionDraft) { routePending = true; return; }
+    if (heroRouteBlocked()) { routePending = true; return; }
     routePending = false;
     if (identity.phase !== "hideout" && (identity.phase !== "active" || !identity.hero)) return;
     var target = storeReady();
@@ -562,7 +557,7 @@
     }
   }
   function resumeHeroRoute() {
-    if (!routePending || gesture || picker || conditionDraft) return;
+    if (!routePending || heroRouteBlocked()) return;
     var watch = identity.generation, epoch = identity.epoch;
     routePending = false;
     $.Schedule(0, function () { applyHeroRoute(watch, epoch); });
@@ -643,7 +638,7 @@
     hud.job = null; legacy.job = null;
   }
   function hudRoot() {
-    // Not topChain: that would need an extra valid() call on the result, which the audit counts.
+    // Not topPanel: that would need an extra valid() call on the result, which the audit counts.
     var top = null;
     for (var node = activeRoot, depth = 0; valid(node) && depth < 32; depth++) {
       if (node.id === "Hud") return node;
@@ -717,8 +712,8 @@
     // replacement, team changes), 5 s while the HUD or its bar is missing or detached. While off
     // or loading it runs only until a refused release lands; then it costs nothing and the next
     // publication paints.
-    var pending = hud.stale.length > 0 || (!color && releasePending(hud.owner));
-    if (!live && !pending) return;
+    var refusedRelease = hud.stale.length > 0 || (!color && releasePending(hud.owner));
+    if (!live && !refusedRelease) return;
     var token = generation;
     hud.job = $.Schedule(live && !found ? 5 : 1, function hudWatch() {
       hud.job = null;
@@ -922,11 +917,13 @@
   }
   function legacyInt(text) { var match = /^\s*(?:\/\s*)?(\d+)\s*$/.exec(String(text)); return match ? Number(match[1]) : NaN; }
   // An owned label with a game class, laid over the game label it stands in for (out of the flow).
+  // A freshly created owned panel starts with none of its write-cache entries (see the style writer above).
+  function forgetLegacy(id) { delete legacy.styles[id + ".visibility"]; delete legacy.styles[id + ".color"]; delete legacy.styles[id + ".marginRight"]; }
   function legacyOwnLabel(parent, id, className, over, text) {
     var label = passive("Label", parent, id, className, text); label.style.visibility = "collapse";
     try { label.style.ignoreParentFlow = "true"; } catch (error) { /* Below it instead. */ }
     parent.MoveChildAfter(label, over);
-    delete legacy.styles[id + ".visibility"]; delete legacy.styles[id + ".color"];
+    forgetLegacy(id);
     return label;
   }
   // Ticks at max HP, rebuilt only when max HP changes.
@@ -935,7 +932,7 @@
     if (!legacy.lines) {
       legacy.lines = passive("Panel", game.GetParent(), "healthLines", LEGACY_OWN.lines);
       game.GetParent().MoveChildAfter(legacy.lines, game);
-      legacy.linesMax = NaN; delete legacy.styles["ownLines.visibility"];
+      legacy.linesMax = NaN; forgetLegacy("ownLines");
     }
     if (legacy.linesMax !== max) {
       legacy.linesMax = max;
@@ -1086,7 +1083,7 @@
       for (var property in LEGACY_BARRIER_STYLE) try { bar.style[property] = LEGACY_BARRIER_STYLE[property]; } catch (error) { /* Stock look otherwise. */ }
       bar.style.visibility = "collapse";
       legacy.barrierBar = bar; legacy.barrierFill = NaN;
-      delete legacy.styles["ownBarrier.visibility"]; delete legacy.styles["ownBarrier.marginRight"];
+      forgetLegacy("ownBarrier");
       legacyBarrierParts();
     }
     return legacy.barrierBar;
@@ -1189,7 +1186,7 @@
   }
   function syncAbilitySlots() {
     if (!conditionDraft) return;
-    var hero = contractRef.heroes.filter(function (entry) { return entry.key === identity.hero; })[0];
+    var hero = heroByKey[identity.hero];
     for (var slot = 1; slot <= ABILITY_SLOTS; slot++) {
       var prefix = "HPColorsConditionSlot" + slot, image = panel(prefix + "Image");
       var path = hero && hero.abilities && hero.abilities[slot - 1] || null;
@@ -1224,6 +1221,7 @@
     panel("HPColorsConditionBooleanToggle").SetHasClass("Checked", rule.value === true);
     if (row.type === "enum") panel("HPColorsConditionOptions").Children().forEach(function (button, index) {
       button.SetHasClass("Checked", row.options[index].value === rule.value);
+      // Lowercase "fill" is a stock selector (.SecondaryButton.light.fill); not proven unused, so kept.
       button.SetHasClass("fill", row.options[index].value === rule.value);
     });
     if (row.type === "color") panel("HPColorsConditionSwatch").style.backgroundColor = rule.value;
@@ -1245,7 +1243,7 @@
   }
   function closeCondition() {
     if (!conditionDraft) return;
-    if (picker && picker.condition) closePicker(true);
+    if (picker && picker.owner === CONDITION_PICKER) closePicker(true);
     var row = conditionDraft.row;
     conditionDraft = null;
     leaveDialog("HPColorsConditionDialog", row.conditionId, true);
@@ -1259,9 +1257,8 @@
       { slot: 1, minTier: 1, value: valuesFor(config.settings, row)[row.key] } };
     setLabel("HPColorsConditionTitle", "CONDITION");
     setLabel("HPColorsConditionSubtitle", ((row.name || row.key) + " · " + row.side).toUpperCase());
-    EDITOR_ORDER.forEach(function (name) {
-      panel("HPColorsCondition" + CONTROL_TYPES[name].editor).SetHasClass("HPC3Hidden", row.type !== name);
-    });
+    // The editors in CONTROL_TYPES order (boolean, enum, number, color); only the row's own type shows.
+    for (var name in CONTROL_TYPES) panel("HPColorsCondition" + CONTROL_TYPES[name].editor).SetHasClass("HPC3Hidden", row.type !== name);
     var options = panel("HPColorsConditionOptions"); options.RemoveAndDeleteChildren();
     if (row.type === "enum") row.options.forEach(function (option, index) {
       var button = $.CreatePanel("Button", options, "HPColorsConditionOption" + index);
@@ -1325,7 +1322,7 @@
     });
     on("HPColorsConditionSwatch", "onactivate", function () {
       readConditionEditor();
-      if (conditionDraft && conditionDraft.valid) openPicker(conditionDraft.row, true);
+      if (conditionDraft && conditionDraft.valid) openPicker(conditionDraft.row, CONDITION_PICKER);
     });
     on("HPColorsConditionApplyButton", "onactivate", function () { applyCondition(false); });
     on("HPColorsConditionRemoveButton", "onactivate", function () { applyCondition(true); });
@@ -1335,15 +1332,11 @@
   // ---- Model -> controls ----
   // One entry per control type, used by sync, binding, reset, the condition editor and the requirement
   // greying. editor = the condition dialog's editor panel suffix; field = the dialog entry a rejected
-  // value shakes; equal compares a rule value with the ordinary one. A type that is none of the first
-  // three is a number.
+  // value shakes; equal compares a rule value with the ordinary one.
   var CONTROL_TYPES = {
     boolean: {
-      editor: "BooleanToggle", field: "HPColorsConditionNumberEntry",
-      equal: function (a, b) { return a === b; },
-      resetValue: function (row) { return row.default; },
-      readEditor: function () { return undefined; },
-      seedEditor: function () {},
+      editor: "BooleanToggle",
+      ids: function (row) { return [row.toggleId, row.resetId, row.conditionId]; },
       sync: function (row, value) {
         var target = panel(row.toggleId); if (target) target.SetHasClass("Checked", value === true);
       },
@@ -1352,11 +1345,8 @@
       }
     },
     enum: {
-      editor: "Options", field: "HPColorsConditionNumberEntry",
-      equal: function (a, b) { return a === b; },
-      resetValue: function (row) { return row.default; },
-      readEditor: function () { return undefined; },
-      seedEditor: function () {},
+      editor: "Options",
+      ids: function (row) { return [row.resetId, row.conditionId].concat(row.options.map(function (option) { return option.id; })); },
       sync: function (row, value) {
         for (var i = 0; i < row.options.length; i++) {
           var target = panel(row.options[i].id); if (target) target.SetHasClass("Selected", row.options[i].value === value);
@@ -1369,8 +1359,8 @@
       }
     },
     number: {
-      editor: "Number", field: "HPColorsConditionNumberEntry",
-      equal: function (a, b) { return a === b; },
+      editor: "Number",
+      ids: function (row) { return [row.sliderId, row.entryId, row.resetId, row.conditionId]; },
       resetValue: function (row) { return normalizeNumber(row, row.default, config.settings); },
       readEditor: function (row) { return normalizeNumber(row, panel("HPColorsConditionNumberEntry").text, null); },
       seedEditor: function (row, value) {
@@ -1405,8 +1395,8 @@
     },
     color: {
       editor: "Color", field: "HPColorsConditionHex",
+      ids: function (row) { return [row.hexId, row.hueId, row.swatchId, row.resetId, row.conditionId]; },
       equal: function (a, b) { return normalizeColor(a) === normalizeColor(b); },
-      resetValue: function (row) { return row.default; },
       readEditor: function () { return normalizeColor(panel("HPColorsConditionHex").text); },
       seedEditor: function (row, value) { panel("HPColorsConditionHex").text = value; },
       sync: function (row, value, hueEdit) {
@@ -1436,7 +1426,7 @@
         };
         on(row.hexId, "ontextentrysubmit", hex);
         on(row.hexId, "onblur", hex);
-        on(row.swatchId, "onactivate", function () { openPicker(row); });
+        on(row.swatchId, "onactivate", function () { openPicker(row, ROW_PICKER); });
         var hue = panel(row.hueId);
         if (hue && bound[row.hueId + "\nrange"] !== hue) {
           bound[row.hueId + "\nrange"] = hue;
@@ -1449,9 +1439,19 @@
       }
     }
   };
-  // The condition dialog's editors, in the order the dialog hides and shows them.
-  var EDITOR_ORDER = ["boolean", "enum", "number", "color"];
-  function controlType(row) { return CONTROL_TYPES[row.type] || CONTROL_TYPES.number; }
+  // Members a type may leave out: boolean/enum have no editor to read or seed, compare plainly and reset to
+  // the default. Filled in once at boot; number and color override what differs.
+  var BASE_TYPE = {
+    field: "HPColorsConditionNumberEntry",
+    equal: function (a, b) { return a === b; },
+    resetValue: function (row) { return row.default; },
+    readEditor: function () { return undefined; },
+    seedEditor: function () {}
+  };
+  for (var typeName in CONTROL_TYPES) {
+    for (var member in BASE_TYPE) if (!CONTROL_TYPES[typeName][member]) CONTROL_TYPES[typeName][member] = BASE_TYPE[member];
+  }
+  function controlType(row) { return CONTROL_TYPES[row.type]; }
   function sync(row, hueEdit) {
     if (!config) return;
     var value = valuesFor(config.settings, row)[row.key], target;
@@ -1489,7 +1489,7 @@
   function missing(row) {
     if (!row.requires || !config) return [];
     var best = null;
-    (row.side === "shared" ? SHARED_SIDES : [row.side]).forEach(function (side) {
+    (row.side === "shared" ? SIDES : [row.side]).forEach(function (side) {
       var list = [];
       row.requires.forEach(function (condition) {
         conditionMissing(condition, side).forEach(function (text) { if (list.indexOf(text) < 0) list.push(text); });
@@ -1581,6 +1581,7 @@
     if (history.length > UNDO_LIMIT) history.shift();
     syncUndo();
   }
+  function gestureKey(row) { return row.side + ":" + row.key; }
   function beginGesture(key) {
     endGesture(false);
     gesture = { key: key, before: historySnapshot() };
@@ -1623,7 +1624,7 @@
     restoreColorblind();
     return true;
   }
-  // Only explicit menu edits request a sample; hydration, routing and Undo use applySettings directly.
+  // Only explicit menu edits shake the preview sample; hydration, routing and Undo use applySettings directly.
   function previewShakeEdit(previous) {
     var before = previous.shared, after = effectiveSettings.shared;
     if (before.damageShakeEnabled === after.damageShakeEnabled && before.damageShakeStrength === after.damageShakeStrength) return;
@@ -1663,7 +1664,7 @@
     if (!contractRef.validate(next)) { sync(row); return false; }
     var before = historySnapshot();
     var previousEffective = effectiveSettings;
-    if (gesture && gesture.key !== row.side + ":" + row.key) endGesture(false);
+    if (gesture && gesture.key !== gestureKey(row)) endGesture(false);
     replace(next);
     if (!gesture) record(before);
     sync(row, hueEdit);
@@ -1708,7 +1709,7 @@
     target.SetPanelEvent(eventName, handler);
   }
   function bindSliderGesture(row, id, change) {
-    var rowKey = row.side + ":" + row.key;
+    var rowKey = gestureKey(row);
     on(id, "onvaluechanged", function () {
       if (syncing || !panel(id)) return;
       if (!rowActive(row)) { sync(row); return; }
@@ -1742,9 +1743,18 @@
   }
 
   // ---- Pages, folds and search (menu-local: never touch config or the store) ----
+  // Page names the menu treats specially: Presets refreshes its library on show, New carries the news list.
+  var PAGE_PRESETS = "Presets", PAGE_NEW = "New";
+  function pageIndexOf(name) {
+    var pages = contractRef.menu.pages;
+    for (var i = 0; i < pages.length; i++) if (pages[i].name === name) return i;
+    return -1;
+  }
   function host() { return panel(contractRef.menu.rootId); }
+  // The open state is the class HPC3Open on the host; read live, never cached.
+  function menuIsOpen() { var root = host(); return !!root && root.BHasClass("HPC3Open"); }
   function syncFoldCounts() {
-    var root = host(), searching = root.BHasClass("Searching"), side = sideAlly ? "ally" : "enemy";
+    var root = host(), searching = root.BHasClass("Searching"), side = shownSide;
     contractRef.menu.folds.forEach(function (fold) {
       var count = fold.rows.filter(function (row) {
         var target = panel(row.id);
@@ -1759,7 +1769,7 @@
     if (!root || retired) return;
     closeFor(CLOSES_ON_OPEN.editor);
     root.SetHasClass("HPC3SideAlly", side === "ally");
-    sideAlly = side === "ally";
+    shownSide = side === "ally" ? "ally" : "enemy";
     contractRef.menu.groups.forEach(function (group) {
       (group.sides || []).forEach(function (tab) {
         var target = panel(tab.id);
@@ -1781,7 +1791,7 @@
     if (panel("HPColorsPageTitle")) panel("HPColorsPageTitle").text = pages[index].title;
     if (panel("HPColorsPageDescription")) panel("HPColorsPageDescription").text = pages[index].description;
     if (panel("HPColorsResetPageButton")) panel("HPColorsResetPageButton").enabled = contractRef.controls.some(function (row) { return row.page === pages[index].name; });
-    if (pages[index].name === "Presets") refreshPresets();
+    if (pages[index].name === PAGE_PRESETS) refreshPresets();
     if (ready) previewSetPage(pages[index].name);
   }
   function selectGroup(group) {
@@ -1794,7 +1804,7 @@
   function goToPage(index) { clearSearch(); selectGroup(null); showPage(index); }
   function activateGroup(group) {
     clearSearch();
-    showPage(contractRef.menu.pages.map(function (page) { return page.name; }).indexOf(group.page));
+    showPage(pageIndexOf(group.page));
     selectGroup(group);
     var card = panel(group.id);
     scrollTo(card);
@@ -1870,8 +1880,8 @@
     if (!strip) return;
     strip.RemoveClass("Open");
     if (open) {
-      if (retired || !host() || !host().BHasClass("HPC3Open")) return;
-      try { if (typeof strip.SetIgnoreCursor === "function") strip.SetIgnoreCursor(true); } catch (error) {}
+      if (retired || !menuIsOpen()) return;
+      try { if (typeof strip.SetIgnoreCursor === "function") strip.SetIgnoreCursor(true); } catch (error) { /* Optional: a throw here must not skip the SetURL below. */ }
     }
     try {
       if (typeof strip.SetURL !== "function") return;
@@ -1929,8 +1939,8 @@
       item.rowIds.forEach(function (id) { mark(id, "IsNew", rows[id] === true); });
     });
     contractRef.menu.pages.forEach(function (page) {
-      mark(page.navId, "HasNew", page.name === "New" ? showing.length > 0 : pages[page.name] === true);
-      if (page.name === "New") mark(page.id, "NoNews", !showing.length);
+      mark(page.navId, "HasNew", page.name === PAGE_NEW ? showing.length > 0 : pages[page.name] === true);
+      if (page.name === PAGE_NEW) mark(page.id, "NoNews", !showing.length);
     });
     // Sub-nav entries (groups) of showing items' targets, like stock's sub-section indicator; the generator
     // lists each item's entries.
@@ -1941,7 +1951,7 @@
   }
   function dismissNews(ids) {
     ids.forEach(function (id) { newsSession[id] = true; });
-    var target = storeReady("replaceBundle");
+    var target = retired ? null : storeReady("replaceBundle");
     if (!retired && target) {
       var gone = newsDismissed(), bundle = presetBundle();
       // Only ids still in the list are kept, so the saved list stays as short as the list itself.
@@ -1953,7 +1963,7 @@
     if (focus) focus.SetFocus();
   }
   function endNewsFlash() {
-    if (newsFlashJob) { try { $.CancelScheduled(newsFlashJob); } catch (error) { /* Already ran. */ } }
+    if (newsFlashJob) { try { $.CancelScheduled(newsFlashJob); } catch (error) { /* Engine: CancelScheduled throws for a handle that already fired. */ } }
     newsFlashJob = null;
     newsFlash.forEach(function (id) { if (panel(id)) panel(id).RemoveClass("NewFlash"); });
     newsFlash = [];
@@ -1968,24 +1978,23 @@
     // Closing the menu, another item, a page change or reinclusion drops the pending scroll.
     var token = generation, page = pageIndex, nav = newsNav, left = NEWS_SCROLL_FRAMES;
     $.Schedule(0, function newsScroll() {
-      if (retired || token !== generation || nav !== newsNav || page !== pageIndex || !valid(target) || !host() || !host().BHasClass("HPC3Open")) return;
+      if (retired || token !== generation || nav !== newsNav || page !== pageIndex || !valid(target) || !menuIsOpen()) return;
       if (target.actuallayoutheight > 0) scrollTo(target);
       if (--left > 0) $.Schedule(0, newsScroll);
       else scrollTo(target);
     });
   }
   function openNews(item) {
-    var pages = contractRef.menu.pages.map(function (page) { return page.name; });
     newsNav++;
     clearSearch(); endNewsFlash();
-    showPage(pages.indexOf(item.page));
+    showPage(pageIndexOf(item.page));
     if (!item.rowIds.length) { selectGroup(null); return; }
     var targets = contractRef.controls.filter(function (row) { return item.rowIds.indexOf(row.rowId) >= 0; });
     var sides = targets.map(function (row) { return row.side; });
     if (sides.length && sides.every(function (side) { return side === "ally"; })) selectSide("ally");
     else if (sides.length && sides.every(function (side) { return side === "enemy"; })) selectSide("enemy");
     // The other side's column is collapsed, so group and scroll follow a shared or current-side target.
-    var side = sideAlly ? "ally" : "enemy";
+    var side = shownSide;
     var shown = targets.filter(function (row) { return row.side === "shared" || row.side === side; })[0];
     var first = shown ? shown.rowId : item.rowIds[0];
     contractRef.menu.folds.forEach(function (fold) {
@@ -2028,11 +2037,12 @@
     if (wasOpen && panel(focusId)) panel(focusId).SetFocus();
   }
   // Escape closes the first open entry (fixed priority). `quiet` entries (the advisory update notice) do not
-  // count as busy: they wait for no one and never block another dialog.
+  // count as busy: they wait for no one and never block another dialog. `late` entries (the info dialogs) are
+  // skipped by dialogBusy's flag loop and checked last through infoOpen().
   var DIALOGS = [
     { id: "update", quiet: true, close: closeUpdate,
       isOpen: function () { var dialog = panel("HPColorsUpdateDialog"); return !!dialog && dialog.BHasClass("Open"); } },
-    { id: "info", isOpen: infoOpen, close: closeInfo },
+    { id: "info", late: true, isOpen: infoOpen, close: closeInfo },
     { id: "picker", isOpen: function () { return !!picker; }, close: function () { closePicker(true); } },
     { id: "condition", isOpen: function () { return !!conditionDraft; }, close: closeCondition },
     { id: "hero", isOpen: function () { return !!heroPicker; }, close: closeHeroPicker },
@@ -2040,18 +2050,16 @@
     { id: "delete", isOpen: function () { return !!deletePreset; }, close: cancelDelete },
     { id: "bundle", isOpen: function () { return !!bundleReplacement; }, close: cancelBundleReplacement },
   ];
-  // What each opener (or page/menu change) closes first, in the order it always has: the order is observable
+  // What each opener (or page/menu change) closes first. The order is observable
   // (the last close that has a focus target wins focus), so it is kept per entry, not normalised.
-  function closePickerKeep() { closePicker(false); }
-  function endGestureKeep() { endGesture(false); }
   var CLOSES_ON_OPEN = {
-    editor: [closePickerKeep, closeCondition, endGestureKeep],
-    page: [closePickerKeep, closeCondition, endGestureKeep, cancelReset, cancelDelete, cancelBundleReplacement, closeHeroPicker, closeInfo],
-    menuClose: [closePickerKeep, endGestureKeep, cancelReset, cancelDelete, closeCondition, cancelBundleReplacement, closeHeroPicker, closeInfo],
-    condition: [closeInfo, closeCondition, closePickerKeep, endGestureKeep],
-    reset: [closeInfo, closePickerKeep, endGestureKeep, closeCondition],
-    hero: [closeInfo, closePickerKeep, endGestureKeep],
-    picker: [closeInfo, closePickerKeep],
+    editor: [closePicker, closeCondition, endGesture],
+    page: [closePicker, closeCondition, endGesture, cancelReset, cancelDelete, cancelBundleReplacement, closeHeroPicker, closeInfo],
+    menuClose: [closePicker, endGesture, cancelReset, cancelDelete, closeCondition, cancelBundleReplacement, closeHeroPicker, closeInfo],
+    condition: [closeInfo, closeCondition, closePicker, endGesture],
+    reset: [closeInfo, closePicker, endGesture, closeCondition],
+    hero: [closeInfo, closePicker, endGesture],
+    picker: [closeInfo, closePicker],
   };
   function closeFor(steps) { for (var i = 0; i < steps.length; i++) steps[i](); }
 
@@ -2115,11 +2123,11 @@
     closeUpdate();
   }
   function startUpdateCheck() {
-    var open = ++updateOpen, store = $.HPColorsV3Store;
-    if (!store || typeof store.latestRelease !== "function") return;
+    var open = ++updateOpen, target = store();
+    if (!target || typeof target.latestRelease !== "function") return;
     updateLater(UPDATE_DELAY_SEC, function () { askLatest(open, 0); });
   }
-  function updateCurrent(open) { return !retired && open === updateOpen && !!host() && host().BHasClass("HPC3Open"); }
+  function updateCurrent(open) { return !retired && open === updateOpen && menuIsOpen(); }
   function askLatest(open, tries) {
     askLatestRelease(function () { return updateCurrent(open); }, tries,
       function (next) { updateLater(UPDATE_PENDING_RETRY_SEC, function () { askLatest(open, next); }); },
@@ -2131,8 +2139,8 @@
   }
   function dialogBusy() {
     if (gesture) return true;
-    for (var i = 0; i < DIALOGS.length; i++) if (!DIALOGS[i].quiet && DIALOGS[i].isOpen()) return true;
-    return false;
+    for (var i = 0; i < DIALOGS.length; i++) if (!DIALOGS[i].quiet && !DIALOGS[i].late && DIALOGS[i].isOpen()) return true;
+    return infoOpen(); // last: its panel lookups run only when no state flag already said busy
   }
   // Each build opens its own file: the composed QOLLOCK menu keeps QOLLOCK's pinned storage bridge
   // panel and the composed ShowRank menu ShowRank's party bridge. No link for this build: no DOWNLOAD.
@@ -2168,13 +2176,10 @@
     } catch (error) { /* The external browser is optional. */ }
     closeUpdate();
   }
-  function closeOthersForInfo() {
-    closeFor(CLOSES_ON_OPEN.page);
-  }
   function openCredits() {
-    closeOthersForInfo();
+    closeFor(CLOSES_ON_OPEN.page);
     [["Yesdaddy", "hero_chessmaster"], ["Razorrzr", "hero_lash"]].forEach(function (entry) {
-      var hero = contractRef.heroes.filter(function (hero) { return hero.key === entry[1]; })[0];
+      var hero = heroByKey[entry[1]];
       panel("HPColorsCredits" + entry[0] + "Portrait").SetImage(hero && hero.portrait || "s2r://panorama/images/control_icons/no_hero_png.vtex");
     });
     panel("HPColorsCreditsDialog").AddClass("Open");
@@ -2184,7 +2189,7 @@
   // the username; the status line reports the result, so the name stays readable when copying fails.
   var FEEDBACK_DISCORD = "hanturaya101";
   function openFeedback() {
-    closeOthersForInfo();
+    closeFor(CLOSES_ON_OPEN.page);
     setLabel("HPColorsFeedbackStatus", "Click the name to copy it.");
     panel("HPColorsFeedbackDialog").AddClass("Open");
     panel("HPColorsFeedbackCloseButton").SetFocus();
@@ -2264,20 +2269,27 @@
   function changePicker(color) {
     if (retired || pickerSeeding || !picker || color === null) return;
     picker.color = color;
-    if (picker.condition) {
-      changeCondition(color);
-      panel("HPColorsConditionHex").text = color;
-    } else commit(picker.row, color);
+    picker.owner.set(picker, color);
     if (panel("HPColorsPickerHex")) panel("HPColorsPickerHex").text = color;
   }
   function closePicker(cancel) {
     if (!picker) return;
     if (cancel !== true && panel("HPColorsPickerHex")) changePicker(normalizeColor(panel("HPColorsPickerHex").text));
-    var row = picker.row, openingColor = picker.openingColor, isCondition = picker.condition;
+    var closing = picker;
     picker = null;
-    if (isCondition) {
-      if (cancel === true) { changeCondition(openingColor); panel("HPColorsConditionHex").text = openingColor; }
-    } else if (cancel === true) {
+    if (cancel === true) closing.owner.cancel(closing, closing.openingColor); else closing.owner.done(closing);
+    leaveDialog("HPColorsPickerDialog", closing.owner.focusId(closing), true);
+    resumeHeroRoute();
+  }
+  // What opens the picker supplies these (the picker reads no other editor's state): allowed(row) gates the
+  // open, begin(row) runs after the other dialogs closed and returns the opening colour, set(p, color) applies
+  // a change, cancel(p, openingColor) restores without recording, done(p) accepts, focusId(p) gets the focus back.
+  var ROW_PICKER = {
+    allowed: function (row) { return rowActive(row); },
+    begin: function (row) { closeCondition(); beginGesture(gestureKey(row)); return valuesFor(config.settings, row)[row.key]; },
+    set: function (p, color) { commit(p.row, color); },
+    cancel: function (p, openingColor) {
+      var row = p.row;
       gesture = null;
       cancelGesturePublish();
       var next = clone(config.settings);
@@ -2285,16 +2297,24 @@
         valuesFor(next, row)[row.key] = openingColor;
         applySettings(next); notifyStore();
       }
-    } else endGesture(false);
-    leaveDialog("HPColorsPickerDialog", isCondition ? "HPColorsConditionSwatch" : row.swatchId, true);
-    resumeHeroRoute();
-  }
-  function openPicker(row, isCondition) {
-    if (!isCondition && !rowActive(row)) return;
+    },
+    done: function () { endGesture(false); },
+    focusId: function (p) { return p.row.swatchId; }
+  };
+  // The condition dialog's colour editor: it edits the draft rule value only and records no Undo entry.
+  var CONDITION_PICKER = {
+    allowed: function () { return true; },
+    begin: function () { return conditionDraft.rule.value; },
+    set: function (p, color) { changeCondition(color); panel("HPColorsConditionHex").text = color; },
+    cancel: function (p, openingColor) { changeCondition(openingColor); panel("HPColorsConditionHex").text = openingColor; },
+    done: function () {},
+    focusId: function () { return "HPColorsConditionSwatch"; }
+  };
+  function openPicker(row, owner) {
+    if (!owner.allowed(row)) return;
     closeFor(CLOSES_ON_OPEN.picker);
-    if (!isCondition) { closeCondition(); beginGesture(row.side + ":" + row.key); }
-    var color = isCondition ? conditionDraft.rule.value : valuesFor(config.settings, row)[row.key];
-    picker = { row: row, condition: isCondition === true, color: color, openingColor: color };
+    var color = owner.begin(row);
+    picker = { row: row, owner: owner, color: color, openingColor: color };
     setLabel("HPColorsPickerTitle", (row.name || row.key) + " · " + row.side);
     setLabel("HPColorsPickerStatus", valid(nativeHex) ? "Escape restores the opening color." : "Native picker unavailable; use hex entry. Escape restores the opening color.");
     panel("HPColorsPickerHex").text = picker.color;
@@ -2353,7 +2373,7 @@
   }
   function presetStatus(text, error) { setLabel("HPColorsPresetStatus", text, error ? "error" : "ok"); }
   function mutatePresets(change, withHistory) {
-    var target = storeReady("replaceBundle");
+    var target = retired ? null : storeReady("replaceBundle");
     if (retired || !target) {
       presetStatus("Wait for the preset library to load; saving may be unavailable.", true); return false;
     }
@@ -2616,10 +2636,10 @@
     setLabel("HPColorsPresetLibraryHeading", "LIBRARY · " + rows.length + "/" + limits().maxPresets);
     panel("HPColorsPresetRestoreButton").enabled = hidden;
     if (!selectedPreset(bundle) || selectedPresetId === DEFAULT_PRESET_ID && hidden) selectedPresetId = rows.length ? rows[0].id : hidden ? "" : DEFAULT_PRESET_ID;
-    var signature = JSON.stringify(rows.map(function (item) { return [item.id, item.name]; }));
-    var changed = signature !== librarySignature;
+    var libraryKey = JSON.stringify(rows.map(function (item) { return [item.id, item.name]; }));
+    var changed = libraryKey !== librarySignature;
     if (changed) {
-      librarySignature = signature;
+      librarySignature = libraryKey;
       // Reconcile by id, not index: rename/reorder preserves the scroll container, tile and focus.
       var list = panel("HPColorsPresetList");
       var previousTiles = presetTiles.length ? presetTiles.slice(1) : list.Children().filter(function (tile) {
@@ -2776,7 +2796,7 @@
     codeStatusText = String(text === undefined || text === null ? "" : text);
     setLabel("HPColorsCodeStatus", text, tone);
   }
-  var api = {
+  var menuApi = {
     getRoot: function () { return activeRoot; },
     getSettings: function () { return config ? clone(config.settings) : null; },
     getRules: function () { return config ? clone(config.rules) : {}; },
@@ -2898,7 +2918,7 @@
     });
     on("HPColorsNewClearAllButton", "onactivate", function () { dismissNews(newsShowing().map(function (item) { return item.id; })); });
     on("HPColorsShareButton", "onactivate", function () {
-      goToPage(menu.pages.map(function (page) { return page.name; }).indexOf("Presets"));
+      goToPage(pageIndexOf(PAGE_PRESETS));
     });
     menu.groups.forEach(function (group) {
       on(group.subNavId, "onactivate", function () { activateGroup(group); });
@@ -2912,7 +2932,7 @@
       on(fold.toggleId, "onactivate", function () { if (panel(fold.id)) panel(fold.id).ToggleClass("Open"); });
     });
     on("HPColorsSearchField", "ontextentrychange", function () {
-      if (host() && host().BHasClass("HPC3Open") && panel("HPColorsSearchField")) applySearch(panel("HPColorsSearchField").text);
+      if (menuIsOpen() && panel("HPColorsSearchField")) applySearch(panel("HPColorsSearchField").text);
     });
     on("HPColorsCloseButton", "onactivate", function () { setMenuOpen(false); });
     on("HPColorsResetSaveButton", "onactivate", function () { if (host() && saveResetAvailable) host().ToggleClass("SaveResetConfirming"); });
@@ -2977,8 +2997,9 @@
       if (inherited) { sourcePresetId = inherited.sourcePresetId || ""; sourceWasMapped = inherited.sourceWasMapped === true; routedKey = inherited.routedKey || ""; }
       config = { magic: contract.magic, epoch: publisherEpoch, revision: 0, settings: clone(initial), rules: clone(inherited && inherited.rules || config && config.rules || {}) };
       contractRef = contract;
-      heroKeys = Object.create(null);
+      heroKeys = Object.create(null); heroByKey = Object.create(null);
       contract.heroes.forEach(function (hero) {
+        heroByKey[hero.key] = hero;
         [hero.name, hero.nameToken].forEach(function (name) {
           var token = name.toUpperCase(); if (!heroKeys[token]) heroKeys[token] = hero.key;
         });
@@ -2986,24 +3007,19 @@
       ruleRows = {}; rowCells = new Map(); requirementRows = {};
       requirementList = []; requirementIds = [];
       requirementKeys = {};
-      // One pass over the controls: key|side -> row (the last wins for requirements, the first for rules).
-      var firstRows = {};
+      // One pass over the controls: key|side -> row (unique in the contract).
       contract.controls.forEach(function (row) {
-        var id = row.key + "|" + row.side;
-        requirementRows[id] = row;
-        if (!firstRows[id]) firstRows[id] = row;
+        requirementRows[row.key + "|" + row.side] = row;
         if (row.requires) {
           requirementList.push(row);
-          requirementIds.push([row.toggleId, row.hexId, row.hueId, row.swatchId, row.sliderId, row.entryId, row.resetId, row.conditionId]
-            .concat(row.kind === "segment" ? row.options.map(function (option) { return option.id; }) : [])
-            .filter(Boolean));
+          requirementIds.push(controlType(row).ids(row).filter(Boolean));
         }
         (row.requires || []).forEach(function readKeys(condition) {
           if (condition.any) condition.any.forEach(readKeys); else requirementKeys[condition.key] = true;
         });
       });
       contract.slots.forEach(function (slot) {
-        ruleRows[slot.slot] = firstRows[slot.setting + "|" + slot.side];
+        ruleRows[slot.slot] = requirementRows[slot.setting + "|" + slot.side];
         rowCells.set(ruleRows[slot.slot], slot.slot);
       });
       effectiveSettings = null; lastPublishedRevision = -1;
@@ -3021,15 +3037,15 @@
     }
     if (handlerId === null) handlerId = $.RegisterForUnhandledEvent("ClientUI_FireOutput", answer);
     if (ready) return;
-    var missing = [];
-    if (!contract) missing.push("HPColorsV3Settings");
+    var missingIds = [];
+    if (!contract) missingIds.push("HPColorsV3Settings");
     else {
       var found = Object.create(null);
       collect(root, found);
       panels = found; shownActive = {};
       // A reincluded menu inherits the side class of the old context: the mirror starts from it.
-      sideAlly = !!found[contract.menu.rootId] && found[contract.menu.rootId].BHasClass("HPC3SideAlly");
-      contract.ids.forEach(function (id) { if (id !== "HPColorsNativePicker" && !found[id]) missing.push(id); });
+      shownSide = found[contract.menu.rootId] && found[contract.menu.rootId].BHasClass("HPC3SideAlly") ? "ally" : "enemy";
+      contract.ids.forEach(function (id) { if (id !== "HPColorsNativePicker" && !found[id]) missingIds.push(id); });
       bindChrome();
       for (var i = 0; i < contract.controls.length; i++) {
         bindControl(contract.controls[i]);
@@ -3043,9 +3059,9 @@
       if (config) readNewsSaved(presetBundle());
       syncNews();
       syncNavDots();
-      selectSide(sideAlly ? "ally" : "enemy");
+      selectSide(shownSide);
     }
-    if (!missing.length) {
+    if (!missingIds.length) {
       ready = true;
       host().SetAttributeString("hpv3_boot", "ready");
       applySaveReset();
@@ -3053,13 +3069,13 @@
       refreshPresets();
       syncBounds(); syncColorblind();
       syncPreview();
-      if (host().BHasClass("HPC3Open")) setSupporterStripOpen(true);
+      if (menuIsOpen()) setSupporterStripOpen(true);
       // Releases a previous context's HUD wash while a cold load is still pending.
       paintHud();
       var target = store();
       if (target && typeof target.attach === "function" && storeRoot !== root) {
         storeRoot = root;
-        try { target.attach(api); } catch (error) {
+        try { target.attach(menuApi); } catch (error) {
           // HPV3_DEBUG $.Msg("[HPV3] store attach failed: " + error);
         }
       }
@@ -3068,10 +3084,10 @@
       // HPV3_DEBUG $.Msg("[HPV3] menu boot " + contractRef.version);
       return;
     }
-    var signature = missing.join(", ");
-    if (signature !== lastMissing) {
-      lastMissing = signature;
-      // HPV3_DEBUG $.Msg("[HPV3] menu missing controls: " + signature);
+    var missingKey = missingIds.join(", ");
+    if (missingKey !== lastMissing) {
+      lastMissing = missingKey;
+      // HPV3_DEBUG $.Msg("[HPV3] menu missing controls: " + missingKey);
     }
     if (!pending && retryCount < 6) {
       var token = generation;
@@ -3085,11 +3101,13 @@
   }
 
   $.HPColorsMenuBoot = boot;
+  // Read by the QOLLOCK bridge: false until the contract is loaded, then the live HPC3Open state.
+  $.HPColorsMenuIsOpen = function () { return !!contractRef && menuIsOpen(); };
   $.HPColorsMenuToggle = function () {
     if (!valid(activeRoot) || !contractRef || !host()) return;
-    setMenuOpen(!host().BHasClass("HPC3Open"));
+    setMenuOpen(!menuIsOpen());
   };
-  // ESC closes search first, then the editor; only a closed editor lets stock resume run.
+  // ESC closes the first open dialog, else clears the search, else closes the editor; only a closed editor returns false so stock resume runs.
   $.HPColorsMenuCancel = function () {
     if (!valid(activeRoot) || !contractRef || !host()) return false;
     var root = host();

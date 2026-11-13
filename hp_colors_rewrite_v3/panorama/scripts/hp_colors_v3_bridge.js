@@ -5,14 +5,15 @@
   var RELAY_ID = "HPColorsV3EventRelay";
   var RELAY_LAYOUT = "file://{resources}/layout/hp_colors_v3_relay.xml";
   var RELAY_ATTRIBUTE = "hpv3_config_request"; // historic name: it carries every relayed message, not only config requests
-  // ---- Message magics and the size caps their consumers enforce (menu: config request; hud: pickup snapshot; the
-  // world context: the three topbar snapshots). Each consumer keeps its own check; hud and menu keep their own copies.
+  // ---- Message magics (the wire strings). Size caps are enforced by each consumer with its own literals: the menu for
+  // the config request, the hud for the pickup snapshot, the world context for the three topbar snapshots (neither
+  // the hud nor the menu layout includes this script, so they cannot read a shared table).
   var MAGICS = {
-    CONFIG_REQUEST: { magic: "HPV3_CONFIG_REQUEST", cap: 512 },
-    PICKUP_SNAPSHOT: { magic: "HPV3_PICKUP_SNAPSHOT", cap: 64000 },
-    PICKUP_SCAN_GATE: { magic: "HPV3_PICKUP_SCAN_GATE", cap: 4096 },
-    ULTIMATE_SNAPSHOT: { magic: "HPV3_ULTIMATE_SNAPSHOT", cap: 4096 },
-    BOUNTY_SNAPSHOT: { magic: "HPV3_BOUNTY_SNAPSHOT", cap: 4096 }
+    CONFIG_REQUEST: { magic: "HPV3_CONFIG_REQUEST" },
+    PICKUP_SNAPSHOT: { magic: "HPV3_PICKUP_SNAPSHOT" },
+    PICKUP_SCAN_GATE: { magic: "HPV3_PICKUP_SCAN_GATE" },
+    ULTIMATE_SNAPSHOT: { magic: "HPV3_ULTIMATE_SNAPSHOT" },
+    BOUNTY_SNAPSHOT: { magic: "HPV3_BOUNTY_SNAPSHOT" }
   };
   var context = $.GetContextPanel();
   var relay = null;

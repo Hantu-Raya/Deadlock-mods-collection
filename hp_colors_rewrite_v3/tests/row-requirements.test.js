@@ -21,8 +21,8 @@ function choose(f, key, side, value) { find(f, row(f, key, side).options.find(o 
 function number(f, key, side, value) { const entry = find(f, row(f, key, side).entryId); entry.text = String(value); entry.events.ontextentrysubmit(); }
 function value(f, key, side) { const s = f.settings(); return side === 'shared' ? s.shared[key] : s.side[side][key]; }
 function controlPanels(f, r) {
-  return [r.toggleId, r.hexId, r.hueId, r.swatchId, r.sliderId, r.entryId, r.resetId, r.conditionId, r.kind === 'dropdown' ? r.id : null,
-    ...(r.kind === 'segment' ? r.options.map(o => o.id) : [])].filter(Boolean).map(id => find(f, id));
+  return [r.toggleId, r.hexId, r.hueId, r.swatchId, r.sliderId, r.entryId, r.resetId, r.conditionId,
+    ...(r.options ? r.options.map(o => o.id) : [])].filter(Boolean).map(id => find(f, id));
 }
 function tooltip(f, key, side) {
   find(f, row(f, key, side).rowId).events.onmouseover();

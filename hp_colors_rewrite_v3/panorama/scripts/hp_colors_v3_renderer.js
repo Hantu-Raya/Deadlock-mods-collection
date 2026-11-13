@@ -3,61 +3,50 @@
   // Reinclusion step 1: stop the previous instance (its teardown() runs before anything below is evaluated).
   if ($.HPColorsV3Renderer) $.HPColorsV3Renderer.stop();
   var MAGIC = "HP_COLORS_V3_CONFIG";
-  var HEADER_RE = new RegExp('^\\s*\\{\\s*"magic"\\s*:\\s*"' + MAGIC + '"\\s*[,}]');
+  var headerRe = null; // built on the first message: world bars that never receive one never compile it
   // One shared empty plan; callers only read it (apply never writes, the preview alias writes only when styles.fill/classes.fill exist).
   var EMPTY_PLAN = Object.freeze({ styles: Object.freeze({}), classes: Object.freeze({}), parents: Object.freeze({}) });
   function emptyPickups() { return { pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] }; }
   // A neutral camp uses the enemy side's config.
   function sideConfig(config, carrier) { return config.side[carrier.side === "neutral" ? "enemy" : carrier.side]; }
-  // TUNING: cadences and limits, each read once into a local here so the per-tick path keeps plain variable reads.
+  // TUNING: cadences and limits, plain locals so loading costs nothing (this file is evaluated once per health bar)
+  // and the per-tick path keeps plain variable reads.
   // The game has no change event for panel classes or layout, so polling stays; the numbers are the cost/latency trade.
-  var TUNING = {
-    tickActiveSeconds: 0.15,          // tick period while a bar is painted (health/layer signatures only)
-    tickDormantSeconds: 1,            // tick period while the bar is gated off (the 1 s player wake)
-    carrierCheckMs: 1000,             // carrier lineage / class re-check
-    geometryMs: 1500,                 // geometry refresh (plus one settling sample after a layout write)
-    fullPaintMs: 1500,                // idle repaint floor
-    pickupsMs: 3000,                  // pickup structure walk
-    staminaStructureMs: 3000,         // low-stamina structure walk
-    staminaIdleCharges: 3.5,          // idle stamina reads stretch by (charges + 1) / this beyond the six-charge rate
-    dormantProbeEvery: 5,             // every fifth dormant check probes kind tags on the existing ancestry
-    ancestryDepth: 12,                // carrier ancestry walk limit
-    maxPips: 128,                     // stamina pip cap
-    maxEnvelopeLength: 64000,         // config envelope size limit
-    maxEpochLength: 128,              // config epoch length limit
-    maxMeasurement: 1000000,          // layout reads beyond this are engine garbage
-    requestDelays: [0.5, 1, 2, 4, 8], // config request backoff
-    requestFailureLimit: 3            // unanswered config requests before giving up
-  };
-  var TICK_ACTIVE = TUNING.tickActiveSeconds, TICK_DORMANT = TUNING.tickDormantSeconds, CARRIER_CHECK_MS = TUNING.carrierCheckMs;
-  var GEOMETRY_MS = TUNING.geometryMs, FULL_PAINT_MS = TUNING.fullPaintMs, PICKUPS_MS = TUNING.pickupsMs;
-  var STAMINA_STRUCTURE_MS = TUNING.staminaStructureMs, STAMINA_IDLE_CHARGES = TUNING.staminaIdleCharges;
-  var DORMANT_PROBE_EVERY = TUNING.dormantProbeEvery, ANCESTRY_DEPTH = TUNING.ancestryDepth, MAX_PIPS = TUNING.maxPips;
-  var MAX_ENVELOPE = TUNING.maxEnvelopeLength, MAX_EPOCH = TUNING.maxEpochLength, MAX_MEASUREMENT = TUNING.maxMeasurement;
-  var REQUEST_DELAYS = TUNING.requestDelays, REQUEST_FAILURE_LIMIT = TUNING.requestFailureLimit;
+  var TICK_ACTIVE = 0.15;                 // tick period while a bar is painted (health/layer signatures only)
+  var TICK_DORMANT = 1;                   // tick period while the bar is gated off (the 1 s player wake)
+  var CARRIER_CHECK_MS = 1000;            // carrier lineage / class re-check
+  var GEOMETRY_MS = 1500;                 // geometry refresh (plus one settling sample after a layout write)
+  var FULL_PAINT_MS = 1500;               // idle repaint floor
+  var PICKUPS_MS = 3000;                  // pickup structure walk
+  var STAMINA_STRUCTURE_MS = 3000;        // low-stamina structure walk
+  var STAMINA_IDLE_CHARGES = 3.5;         // idle stamina reads stretch by (charges + 1) / this beyond the six-charge rate
+  var DORMANT_PROBE_EVERY = 5;            // every fifth dormant check probes kind tags on the existing ancestry
+  var ANCESTRY_DEPTH = 12;                // carrier ancestry walk limit
+  var MAX_PIPS = 128;                     // stamina pip cap
+  var MAX_ENVELOPE = 64000;               // config envelope size limit
+  var MAX_EPOCH = 128;                    // config epoch length limit
+  var MAX_MEASUREMENT = 1000000;          // layout reads beyond this are engine garbage
+  var REQUEST_DELAYS = [0.5, 1, 2, 4, 8]; // config request backoff
+  var REQUEST_FAILURE_LIMIT = 3;          // unanswered config requests before giving up
   // DEFAULTS: schema defaults (settings/schema.json) the planner compares against to decide a row is still stock.
-  // tests/renderer.test.js compares every entry to the schema. barOffsetY is the default bar offset (-3.8).
-  var DEFAULTS = { staminaWidth: 11, staminaHeight: 4.48, nameSize: 14, nameOutline: 5, hpTextOutline: 5, barOffsetY: -3.8,
-    damageShakeStrength: 3, lineOpacity: 100 };
-  var DEFAULT_STAMINA_WIDTH = DEFAULTS.staminaWidth, DEFAULT_STAMINA_HEIGHT = DEFAULTS.staminaHeight;
-  var DEFAULT_NAME_SIZE = DEFAULTS.nameSize, DEFAULT_NAME_OUTLINE = DEFAULTS.nameOutline, DEFAULT_HP_TEXT_OUTLINE = DEFAULTS.hpTextOutline;
-  var DEFAULT_BAR_OFFSET_Y = DEFAULTS.barOffsetY, DEFAULT_SHAKE_STRENGTH = DEFAULTS.damageShakeStrength, DEFAULT_LINE_OPACITY = DEFAULTS.lineOpacity;
+  // tests/renderer.test.js compares every entry to the schema through schemaDefaults(). The bar offset default is -3.8.
+  var DEFAULT_STAMINA_WIDTH = 11, DEFAULT_STAMINA_HEIGHT = 4.48, DEFAULT_NAME_SIZE = 14;
+  var DEFAULT_NAME_OUTLINE = 5, DEFAULT_HP_TEXT_OUTLINE = 5, DEFAULT_BAR_OFFSET_Y = -3.8;
+  var DEFAULT_SHAKE_STRENGTH = 3, DEFAULT_LINE_OPACITY = 100;
+  function schemaDefaults() {
+    return { staminaWidth: DEFAULT_STAMINA_WIDTH, staminaHeight: DEFAULT_STAMINA_HEIGHT, nameSize: DEFAULT_NAME_SIZE,
+      nameOutline: DEFAULT_NAME_OUTLINE, hpTextOutline: DEFAULT_HP_TEXT_OUTLINE, barOffsetY: DEFAULT_BAR_OFFSET_Y,
+      damageShakeStrength: DEFAULT_SHAKE_STRENGTH, lineOpacity: DEFAULT_LINE_OPACITY };
+  }
   // STOCK: sizes of the game's own unit-status panel (vendor/unit_status_v2.css) that the layout maths scales from.
-  var STOCK = {
-    barWidth: 79, barHeight: 18,         // stock #HealthBar fill extent the bar width/height settings scale from
-    canvasWidth: 200, canvasHeight: 210, // stock overlay canvas used when the live canvas reports 0
-    accessoryCenterY: 85, accessoryPad: 14, // level/ult accessory placement: centre line and padding of the stock layout
-    motionOrigin: 8500,                  // shake transform-origin numerator (percent of canvas height * 100)
-    nameMaxWidth: 170                    // stylesheet fallback for #name max-width
-  };
-  var STOCK_BAR_WIDTH = STOCK.barWidth, STOCK_BAR_HEIGHT = STOCK.barHeight;
-  var STOCK_CANVAS_WIDTH = STOCK.canvasWidth, STOCK_CANVAS_HEIGHT = STOCK.canvasHeight;
-  var STOCK_ACCESSORY_CENTER_Y = STOCK.accessoryCenterY, STOCK_ACCESSORY_PAD = STOCK.accessoryPad;
-  var STOCK_MOTION_ORIGIN = STOCK.motionOrigin, STOCK_NAME_MAX_WIDTH = STOCK.nameMaxWidth;
+  var STOCK_BAR_WIDTH = 79, STOCK_BAR_HEIGHT = 18;             // stock #HealthBar fill extent the bar width/height settings scale from
+  var STOCK_CANVAS_WIDTH = 200, STOCK_CANVAS_HEIGHT = 210;     // stock overlay canvas used when the live canvas reports 0
+  var STOCK_ACCESSORY_CENTER_Y = 85, STOCK_ACCESSORY_PAD = 14; // level/ult accessory placement: centre line and padding of the stock layout
+  var STOCK_MOTION_ORIGIN = 8500;                              // shake transform-origin numerator (percent of canvas height * 100)
+  var STOCK_NAME_MAX_WIDTH = 170;                              // stylesheet fallback for #name max-width
   // LEASE: ledger pseudo-keys. A stock lease on a style property keys by its property name; the reparent lease keys "@parent"
   // and a class toggle keys "@class:<name>" (restore, claim and apply branch on these).
-  var LEASE = { parent: "@parent", classPrefix: "@class:" };
-  var LEASE_PARENT = LEASE.parent, LEASE_CLASS = LEASE.classPrefix, LEASE_CORE_CLASS = LEASE_CLASS + "HPColorsV3Core";
+  var LEASE_PARENT = "@parent", LEASE_CLASS = "@class:", LEASE_CORE_CLASS = LEASE_CLASS + "HPColorsV3Core";
   // PAINTER-VISIBLE STATE: module state the painter-path helpers read or write besides their arguments. The menu preview shares
   // these helpers, so each is keyed by panel (WeakMap) or reset per painter, never by the world carrier:
   //   classReads / childKinds   per-panel class and child-kind memos (has, childrenOfKind); classReads resets only in checkCarriers
@@ -159,9 +148,9 @@
   function barFacts(state) { barParts = state.parts; return barView; }
   function bountyParts(parts) {
     if (valid(parts.bountyAnchor) && valid(parts.bountyPill) && valid(parts.bountyValue)) return;
-    parts.bountyAnchor = valid(root) ? root.FindChild(PART.bountyAnchor.id) : null;
-    parts.bountyPill = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChild(PART.bountyPill.id) : null;
-    parts.bountyValue = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChildTraverse(PART.bountyValue.id) : null;
+    parts.bountyAnchor = valid(root) ? root.FindChild(ID_BOUNTY_ANCHOR) : null;
+    parts.bountyPill = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChild(ID_BOUNTY_PILL) : null;
+    parts.bountyValue = valid(parts.bountyAnchor) ? parts.bountyAnchor.FindChildTraverse(ID_BOUNTY_VALUE) : null;
     parts.bountyLooked = true;
   }
   function setTimerFacts(next) {
@@ -234,7 +223,7 @@
   function ultimateArtwork(parts, prefix) {
     if (!valid(parts.ultBackground)) return;
     if (valid(parts.ultimateOverlay) && valid(parts.ultimateDark) && valid(parts.ultimateFill) && parts.ultimateOverlay.GetParent() === parts.ultBackground) return;
-    var overlayId = prefix + PART.ultimateOverlay.suffix, darkId = prefix + PART.ultimateDark.suffix, fillId = prefix + PART.ultimateFill.suffix;
+    var overlayId = prefix + SUFFIX_ULT_OVERLAY, darkId = prefix + SUFFIX_ULT_DARK, fillId = prefix + SUFFIX_ULT_FILL;
     parts.ultimateOverlay = parts.ultBackground.FindChild(overlayId) ||
       $.CreatePanel("Panel", parts.ultBackground, overlayId);
     parts.ultimateOverlay.AddClass("HPColorsV3UltimateOverlay");
@@ -289,107 +278,163 @@
   // owned    our own XML or runtime panel, never stock; preview:false = the menu sample tree does not supply it
   // lineage  chain | optional | valid: how lineageValid() checks it, in `lin` order; `ready` = order of the discover() validity check
   // accessory = reconcileAccessories() order (`held`: only once the panel exists, `reparent`: its parent there is not parents[0])
+  // Load cost is paid once per bar (every unit bar is its own script context, evaluated cold), and cold script code costs per bytecode, not
+  // per byte of data. So the world tables are flat constant arrays read in place (no row objects, no derived lists, no sorting) and the
+  // menu-only views are built on first read behind getters.
   var WORLD_PREFIX = "HPColorsV3";
   var PIP_PARTS = ["Outline", "Empty", "Shield", "Armor", "Fill", "Healing", "Delta", "KillMarker"];
-  var BAR_PARTS = [], PART = {};
-  function addPart(key, id, parents, flags) {
-    var def = Object.assign({ key: key, id: id, suffix: "", parents: parents, find: "child", at: 0, guarded: false, owned: false, preview: true,
-      lineage: "", lin: 0, ready: 0, accessory: 0, held: false, reparent: "", cls: "", parentClass: "", orNull: false, local: false }, flags);
-    if (def.suffix) def.id = WORLD_PREFIX + def.suffix;
-    PART[key] = def; BAR_PARTS.push(Object.freeze(def));
-  }
-  addPart("root", "", [], { find: "derived", preview: false });
-  addPart("motion", "HPColorsV3MotionFrame", ["root"], { at: 1, guarded: true, owned: true, lineage: "valid", lin: 11, ready: 7 });
-  addPart("readout", "HPColorsV3Readout", ["motion"], { at: 1, guarded: true, owned: true, local: true, preview: false });
-  addPart("anchor", "HPColorsV3ReadoutAnchor", ["readout"], { at: 1, guarded: true, owned: true, lineage: "valid", lin: 12, ready: 8 });
-  addPart("row", "HPColorsV3ReadoutRow", ["anchor"], { at: 1, guarded: true, owned: true, lineage: "valid", lin: 13, ready: 9 });
-  addPart("status", "UnitStatus", ["root", "motion"], { at: 1, guarded: true, lineage: "chain", lin: 1, ready: 1 });
-  addPart("info", "InfoHealthContainer", ["status"], { at: 1, guarded: true, lineage: "chain", lin: 2, ready: 2 });
-  addPart("stack", "UnitHealthbarsContainer", ["info"], { at: 1, guarded: true, lineage: "chain", lin: 3, ready: 3 });
-  addPart("primary", "UnitHealthbar", ["stack"], { at: 1, guarded: true, lineage: "chain", lin: 4, ready: 4 });
-  addPart("inner", "UnitHealthbarInner", ["primary"], { at: 1, guarded: true, parentClass: "UnitHealthbarContainer", lineage: "chain", lin: 5, ready: 5 });
-  addPart("fill", "unit_healthbar_lagging", ["inner"], { at: 1, guarded: true, lineage: "chain", lin: 6, ready: 6 });
-  addPart("shield", "unit_healthbar_bullet_shield", ["inner"], { at: 2, lineage: "valid", lin: 9 });
-  addPart("armor", "unit_healthbar_ratking_armor", ["inner"], { at: 2, lineage: "valid", lin: 10 });
-  addPart("deferred", "unit_healthbar_deferred", ["inner"], { at: 2, preview: false });
-  addPart("healing", "unit_healthbar_healing", ["inner"], { at: 2 });
-  addPart("delta", "unit_healthbar_delta", ["inner"], { at: 2 });
-  addPart("lines", "UnitHealthbarLines", ["primary"], { at: 2 });
-  addPart("outline", "HPColorsV3BarOutline", ["primary"], { at: 2, owned: true, lineage: "valid", lin: 14 });
-  addPart("value", "UnitHealthbarValue", ["info", "row"], { at: 2, lineage: "optional", lin: 7 });
-  addPart("hpPercent", "HPColorsV3HPPercent", ["row"], { at: 2, owned: true, preview: false });
-  addPart("name", "name", ["root", "motion"], { at: 2, lineage: "optional", lin: 8 });
-  addPart("killMarker", "HPColorsV3KillMarker", ["primary"], { at: 2, owned: true });
-  addPart("level", "HPColorsV3Level", ["info"], { at: 2, owned: true, accessory: 1 });
-  addPart("levelLabel", "unit_level_label", ["info"], { at: 2, find: "traverse", accessory: 2, reparent: "level" });
-  addPart("ult", "", ["info"], { at: 2, find: "class", cls: "unit_info_panel", orNull: true, accessory: 3 });
-  addPart("pulseOverlay", "HPColorsV3PulseOverlay", ["inner"], { at: 2, owned: true });
-  addPart("rejuvAnchor", "HPColorsV3RejuvenatorAnchor", ["root"], { at: 2, owned: true, accessory: 7 });
-  addPart("effects", "StatusEffects", ["root"], { at: 2, orNull: true });
-  addPart("pipGrid", "HPColorsV3PipGrid", ["primary"], { at: 3, owned: true });
-  PIP_PARTS.forEach(function (name) { addPart("pip" + name, "HPColorsV3Pip" + name, ["pipGrid"], { at: 3, guarded: true, owned: true }); });
-  addPart("ultBackground", "unit_info_bg", ["ult"], { at: 4, guarded: true, accessory: 4 });
-  addPart("ultReady", "unit_ult_ready_icon", ["ultBackground"], { at: 4, guarded: true, accessory: 5 });
-  addPart("stamina", "StaminaContainer", ["root"], { find: "native" });
-  addPart("pickupContainer", "StatusEffectContainer", ["effects"], { find: "traverse" });
-  addPart("killStreak", "KillStreakIndicator", ["ult"], { find: "native" });
-  addPart("rejuv", "RejuvenatorActive", ["rejuvAnchor"], { find: "native" });
-  ["critical", "assassinate", "unkillable"].forEach(function (key) {
-    var name = key.charAt(0).toUpperCase() + key.slice(1);
-    addPart(key, name + "Indicator", [key + "Anchor"], { find: "native" });
-    addPart(key + "Anchor", "", ["root"], { find: "runtime", owned: true, suffix: name + "Anchor" });
-  });
-  // Ticket 50: the kill bounty pill is owned XML (no stock state); its panels are looked up on first use.
-  addPart("bountyAnchor", "", ["root"], { find: "runtime", owned: true, suffix: "BountyAnchor" });
-  addPart("bountyPill", "", ["bountyAnchor"], { find: "runtime", owned: true, suffix: "Bounty" });
-  addPart("bountyValue", "", ["bountyAnchor"], { find: "runtime", owned: true, suffix: "BountyValue" });
-  // Created at runtime on the ult background; the painter names them with its own id prefix.
-  addPart("ultimateOverlay", "", ["ultBackground"], { find: "runtime", owned: true, preview: false, suffix: "UltimateOverlay", accessory: 6, held: true });
-  addPart("ultimateDark", "", ["ultimateOverlay"], { find: "runtime", owned: true, preview: false, suffix: "UltimateDark" });
-  addPart("ultimateFill", "", ["ultimateOverlay"], { find: "runtime", owned: true, preview: false, suffix: "UltimateFill" });
-  // Plan keys that name a derived list of panels rather than one panel (applyTo spreads them).
-  ["lineWash", "pickupIcons", "pickupInners", "pickupBorders", "pickupTracks", "pickupGlyphs", "pickupKinds", "staminaIcons", "staminaEmpty", "staminaPips"]
-    .forEach(function (key) { addPart(key, "", ["root"], { find: "derived", preview: false }); });
-  // Discover / lineage / reconcile read these ordered views of the table (built once).
-  function partsAt(step) { return BAR_PARTS.filter(function (def) { return def.at === step; }); }
-  function byOrder(list, field) { return list.sort(function (a, b) { return a[field] - b[field]; }); }
-  var DISCOVER_CHAIN = partsAt(1), DISCOVER_STOCK = partsAt(2), DISCOVER_GRID = partsAt(3), DISCOVER_ULT = partsAt(4);
-  var DISCOVER_READY = byOrder(BAR_PARTS.filter(function (def) { return def.ready; }), "ready");
-  var LINEAGE_ORDER = byOrder(BAR_PARTS.filter(function (def) { return def.lineage; }), "lin");
-  var LINEAGE_CHAIN = LINEAGE_ORDER.filter(function (def) { return def.lineage === "chain"; });
-  var LINEAGE_OPTIONAL = LINEAGE_ORDER.filter(function (def) { return def.lineage === "optional"; });
-  var LINEAGE_VALID = LINEAGE_ORDER.filter(function (def) { return def.lineage === "valid"; });
-  var ACCESSORIES = byOrder(BAR_PARTS.filter(function (def) { return def.accessory; }), "accessory");
-  // Shared vocabulary, published once on $.HPColorsV3Renderer for the menu preview.
   var STATUS_LABELS = Object.freeze(["critical", "assassinate", "unkillable"]);
-  // Ticket 52, in class-letter order A..H: the size setting, the game's icon class (abilities.vdata m_strSmallIconCssClass) and the
-  // letter hp_colors_v3_status.css pairs with it (tests/status-effect-sizes.test.js pins the stylesheet to this table).
-  var STATUS_SCALES = [["statusScaleFixation", "fixated"], ["statusScaleMalice", "blood_shard"], ["statusScaleScrewjab", "modifier_viper_debuffdagger"],
-    ["statusScaleDjinnsMark", "sand_phantom_passive_victim"], ["statusScaleSerratedKnives", "shiv_dagger"], ["statusScaleBarrage", "pocket_damage_amp"],
-    ["statusScalePulseGrenade", "chrono_pulse_grenade"], ["statusScaleArcticBeam", "freezing_buildup"]].map(function (entry, i) {
-    return Object.freeze({ key: entry[0], icon: entry[1], letter: "ABCDEFGH".charAt(i) });
-  });
+  // Ids/keys the world code reads by name, in STATUS_LABELS order for the three label arrays.
+  var LABEL_ANCHOR_KEY = ["criticalAnchor", "assassinateAnchor", "unkillableAnchor"];
+  var LABEL_ANCHOR_ID = ["HPColorsV3CriticalAnchor", "HPColorsV3AssassinateAnchor", "HPColorsV3UnkillableAnchor"];
+  var LABEL_NATIVE_ID = ["CriticalIndicator", "AssassinateIndicator", "UnkillableIndicator"];
+  var ID_KILLSTREAK = "KillStreakIndicator", ID_REJUV = "RejuvenatorActive";
+  var ID_BOUNTY_ANCHOR = "HPColorsV3BountyAnchor", ID_BOUNTY_PILL = "HPColorsV3Bounty", ID_BOUNTY_VALUE = "HPColorsV3BountyValue";
+  var SUFFIX_ULT_OVERLAY = "UltimateOverlay", SUFFIX_ULT_DARK = "UltimateDark", SUFFIX_ULT_FILL = "UltimateFill";
+  // PART_DATA: the rows the world bars use, a flat array of ROW_COLUMNS values per row, grouped by discovery step (rows 0..CHAIN_END-1 =
+  // step 1, up to STOCK_END = step 2, GRID_END = step 3, ULT_END = step 4, then rows that only reconcile touches), each group in table
+  // order. A row's number is its position here. Columns:
+  //   0 key   1 id   2,3 parents (second "" when there is one)   4 find (index into FIND_NAMES)
+  //   5 flags: 1 guarded, 2 owned, 4 no preview sample, 8 held, 16 orNull, 32 local   6 parentClass   7 cls   8 reparent
+  // Row numbers: 0 motion 1 readout 2 anchor 3 row 4 status 5 info 6 stack 7 primary 8 inner 9 fill | 10 shield 11 armor 12 deferred 13 healing
+  // 14 delta 15 lines 16 outline 17 value 18 hpPercent 19 name 20 killMarker 21 level 22 levelLabel 23 ult 24 pulseOverlay 25 rejuvAnchor
+  // 26 effects | 27 pipGrid 28..35 pipOutline..pipKillMarker | 36 ultBackground 37 ultReady | 38 ultimateOverlay.
+  var ROW_COLUMNS = 9, CHAIN_END = 10, STOCK_END = 27, GRID_END = 36, ULT_END = 38;
+  var FIND_NAMES = ["child", "traverse", "class", "runtime", "native", "derived"];
+  var PART_DATA = [
+    "motion", "HPColorsV3MotionFrame", "root", "", 0, 3, "", "", "",
+    "readout", "HPColorsV3Readout", "motion", "", 0, 39, "", "", "",
+    "anchor", "HPColorsV3ReadoutAnchor", "readout", "", 0, 3, "", "", "",
+    "row", "HPColorsV3ReadoutRow", "anchor", "", 0, 3, "", "", "",
+    "status", "UnitStatus", "root", "motion", 0, 1, "", "", "",
+    "info", "InfoHealthContainer", "status", "", 0, 1, "", "", "",
+    "stack", "UnitHealthbarsContainer", "info", "", 0, 1, "", "", "",
+    "primary", "UnitHealthbar", "stack", "", 0, 1, "", "", "",
+    "inner", "UnitHealthbarInner", "primary", "", 0, 1, "UnitHealthbarContainer", "", "",
+    "fill", "unit_healthbar_lagging", "inner", "", 0, 1, "", "", "",
+    "shield", "unit_healthbar_bullet_shield", "inner", "", 0, 0, "", "", "",
+    "armor", "unit_healthbar_ratking_armor", "inner", "", 0, 0, "", "", "",
+    "deferred", "unit_healthbar_deferred", "inner", "", 0, 4, "", "", "",
+    "healing", "unit_healthbar_healing", "inner", "", 0, 0, "", "", "",
+    "delta", "unit_healthbar_delta", "inner", "", 0, 0, "", "", "",
+    "lines", "UnitHealthbarLines", "primary", "", 0, 0, "", "", "",
+    "outline", "HPColorsV3BarOutline", "primary", "", 0, 2, "", "", "",
+    "value", "UnitHealthbarValue", "info", "row", 0, 0, "", "", "",
+    "hpPercent", "HPColorsV3HPPercent", "row", "", 0, 6, "", "", "",
+    "name", "name", "root", "motion", 0, 0, "", "", "",
+    "killMarker", "HPColorsV3KillMarker", "primary", "", 0, 2, "", "", "",
+    "level", "HPColorsV3Level", "info", "", 0, 2, "", "", "",
+    "levelLabel", "unit_level_label", "info", "", 1, 0, "", "", "level",
+    "ult", "", "info", "", 2, 16, "", "unit_info_panel", "",
+    "pulseOverlay", "HPColorsV3PulseOverlay", "inner", "", 0, 2, "", "", "",
+    "rejuvAnchor", "HPColorsV3RejuvenatorAnchor", "root", "", 0, 2, "", "", "",
+    "effects", "StatusEffects", "root", "", 0, 16, "", "", "",
+    "pipGrid", "HPColorsV3PipGrid", "primary", "", 0, 2, "", "", "",
+    "pipOutline", "HPColorsV3PipOutline", "pipGrid", "", 0, 3, "", "", "",
+    "pipEmpty", "HPColorsV3PipEmpty", "pipGrid", "", 0, 3, "", "", "",
+    "pipShield", "HPColorsV3PipShield", "pipGrid", "", 0, 3, "", "", "",
+    "pipArmor", "HPColorsV3PipArmor", "pipGrid", "", 0, 3, "", "", "",
+    "pipFill", "HPColorsV3PipFill", "pipGrid", "", 0, 3, "", "", "",
+    "pipHealing", "HPColorsV3PipHealing", "pipGrid", "", 0, 3, "", "", "",
+    "pipDelta", "HPColorsV3PipDelta", "pipGrid", "", 0, 3, "", "", "",
+    "pipKillMarker", "HPColorsV3PipKillMarker", "pipGrid", "", 0, 3, "", "", "",
+    "ultBackground", "unit_info_bg", "ult", "", 0, 1, "", "", "",
+    "ultReady", "unit_ult_ready_icon", "ultBackground", "", 0, 1, "", "", "",
+    "ultimateOverlay", "HPColorsV3UltimateOverlay", "ultBackground", "", 3, 14, "", "", ""
+  ];
+  // Row numbers, in the order each reader walks them. discover() checks DISCOVER_READY (in this order) before it builds the cache;
+  // lineageValid() walks the chain rows, then the optional rows, then the valid-guarded rows; reconcileAccessories() walks ACCESSORIES.
+  // (`lin`, `ready` and `accessory` of the published table are the positions in these lists.)
+  var DISCOVER_READY = [4, 5, 6, 7, 8, 9, 0, 2, 3];
+  var LINEAGE_CHAIN = [4, 5, 6, 7, 8, 9], LINEAGE_OPTIONAL = [17, 19], LINEAGE_VALID = [10, 11, 0, 2, 3, 16];
+  var ACCESSORIES = [21, 22, 23, 36, 37, 38, 25];
+  // Ticket 52, in class-letter order A..H: the size setting and the game's icon class (abilities.vdata m_strSmallIconCssClass); the letter
+  // hp_colors_v3_status.css pairs with it is "ABCDEFGH"[index] (tests/status-effect-sizes.test.js pins the stylesheet to this table).
+  var STATUS_SCALE_KEYS = ["statusScaleFixation", "statusScaleMalice", "statusScaleScrewjab", "statusScaleDjinnsMark", "statusScaleSerratedKnives",
+    "statusScaleBarrage", "statusScalePulseGrenade", "statusScaleArcticBeam"];
+  var STATUS_SCALE_ICONS = ["fixated", "blood_shard", "modifier_viper_debuffdagger", "sand_phantom_passive_victim", "shiv_dagger", "pocket_damage_amp",
+    "chrono_pulse_grenade", "freezing_buildup"];
   // World pickups in bit order: the native class that marks the icon and the sample name the preview builds its ids and glyph from.
-  var PICKUP_KINDS = [["gunpower_pickup", "Gun"], ["movement_pickup", "Movement"], ["casting_pickup", "Spirit"], ["survival_pickup", "Survival"]].map(function (entry) {
-    return Object.freeze({ cls: entry[0], name: entry[1], icon: entry[1].toLowerCase() });
-  });
+  var pickupClasses = ["gunpower_pickup", "movement_pickup", "casting_pickup", "survival_pickup"];
+  var PICKUP_NAMES = ["Gun", "Movement", "Spirit", "Survival"];
+  var pickupColors = ["pickupGunColor", "pickupMovementColor", "pickupSpiritColor", "pickupSurvivalColor"];
+  // ---- Menu-preview vocabulary, published on $.HPColorsV3Renderer behind getters: built on first read, so world bars never build it. ----
+  var publishedParts = null, publishedScales = null, publishedPickups = null;
+  function publishedPartTable() {
+    if (publishedParts) return publishedParts;
+    var rows = [], i, o, k;
+    function full(fields) {
+      return Object.assign({ key: "", id: "", suffix: "", parents: [], find: "child", at: 0, guarded: false, owned: false, preview: true,
+        lineage: "", lin: 0, ready: 0, accessory: 0, held: false, reparent: "", cls: "", parentClass: "", orNull: false, local: false }, fields);
+    }
+    var byRow = {};
+    for (i = 0; i * ROW_COLUMNS < PART_DATA.length; i++) {
+      o = i * ROW_COLUMNS;
+      var flags = PART_DATA[o + 5], find = FIND_NAMES[PART_DATA[o + 4]];
+      var def = full({ key: PART_DATA[o], id: PART_DATA[o + 1], suffix: find === "runtime" ? PART_DATA[o + 1].slice(WORLD_PREFIX.length) : "",
+        parents: PART_DATA[o + 3] ? [PART_DATA[o + 2], PART_DATA[o + 3]] : [PART_DATA[o + 2]], find: find,
+        at: i < CHAIN_END ? 1 : i < STOCK_END ? 2 : i < GRID_END ? 3 : i < ULT_END ? 4 : 0,
+        guarded: (flags & 1) !== 0, owned: (flags & 2) !== 0, preview: (flags & 4) === 0, held: (flags & 8) !== 0, orNull: (flags & 16) !== 0,
+        local: (flags & 32) !== 0, parentClass: PART_DATA[o + 6], cls: PART_DATA[o + 7], reparent: PART_DATA[o + 8] });
+      rows.push(def); byRow[i] = def;
+    }
+    for (k = 0; k < DISCOVER_READY.length; k++) byRow[DISCOVER_READY[k]].ready = k + 1;
+    var lin = 1, lineages = [LINEAGE_CHAIN, LINEAGE_OPTIONAL, LINEAGE_VALID], names = ["chain", "optional", "valid"];
+    for (k = 0; k < 3; k++) for (i = 0; i < lineages[k].length; i++) { byRow[lineages[k][i]].lineage = names[k]; byRow[lineages[k][i]].lin = lin++; }
+    for (k = 0; k < ACCESSORIES.length; k++) byRow[ACCESSORIES[k]].accessory = k + 1;
+    var extra = [
+      full({ key: "root", find: "derived", preview: false }),
+      full({ key: "stamina", id: "StaminaContainer", parents: ["root"], find: "native" }),
+      full({ key: "pickupContainer", id: "StatusEffectContainer", parents: ["effects"], find: "traverse" }),
+      full({ key: "killStreak", id: ID_KILLSTREAK, parents: ["ult"], find: "native" }),
+      full({ key: "rejuv", id: ID_REJUV, parents: ["rejuvAnchor"], find: "native" })];
+    for (i = 0; i < 3; i++) {
+      extra.push(full({ key: STATUS_LABELS[i], id: LABEL_NATIVE_ID[i], parents: [LABEL_ANCHOR_KEY[i]], find: "native" }),
+        full({ key: LABEL_ANCHOR_KEY[i], id: LABEL_ANCHOR_ID[i], parents: ["root"], find: "runtime", owned: true, suffix: LABEL_ANCHOR_ID[i].slice(WORLD_PREFIX.length) }));
+    }
+    extra.push(
+      full({ key: "bountyAnchor", id: ID_BOUNTY_ANCHOR, parents: ["root"], find: "runtime", owned: true, suffix: ID_BOUNTY_ANCHOR.slice(WORLD_PREFIX.length) }),
+      full({ key: "bountyPill", id: ID_BOUNTY_PILL, parents: ["bountyAnchor"], find: "runtime", owned: true, suffix: ID_BOUNTY_PILL.slice(WORLD_PREFIX.length) }),
+      full({ key: "bountyValue", id: ID_BOUNTY_VALUE, parents: ["bountyAnchor"], find: "runtime", owned: true, suffix: ID_BOUNTY_VALUE.slice(WORLD_PREFIX.length) }),
+      full({ key: "ultimateDark", id: WORLD_PREFIX + SUFFIX_ULT_DARK, parents: ["ultimateOverlay"], find: "runtime", owned: true, preview: false, suffix: SUFFIX_ULT_DARK }),
+      full({ key: "ultimateFill", id: WORLD_PREFIX + SUFFIX_ULT_FILL, parents: ["ultimateOverlay"], find: "runtime", owned: true, preview: false, suffix: SUFFIX_ULT_FILL }));
+    // Plan keys that name a derived list of panels rather than one panel (applyTo spreads them).
+    var derived = ["lineWash", "pickupIcons", "pickupInners", "pickupBorders", "pickupTracks", "pickupGlyphs", "pickupKinds", "staminaIcons", "staminaEmpty", "staminaPips"];
+    for (i = 0; i < derived.length; i++) extra.push(full({ key: derived[i], parents: ["root"], find: "derived", preview: false }));
+    rows = rows.concat(extra);
+    for (i = 0; i < rows.length; i++) Object.freeze(rows[i]);
+    return (publishedParts = Object.freeze(rows));
+  }
+  function publishedScaleTable() {
+    if (publishedScales) return publishedScales;
+    var list = [];
+    for (var i = 0; i < STATUS_SCALE_KEYS.length; i++) list.push(Object.freeze({ key: STATUS_SCALE_KEYS[i], icon: STATUS_SCALE_ICONS[i], letter: "ABCDEFGH".charAt(i) }));
+    return (publishedScales = Object.freeze(list));
+  }
+  function publishedPickupTable() {
+    if (publishedPickups) return publishedPickups;
+    var list = [];
+    for (var i = 0; i < PICKUP_NAMES.length; i++) list.push(Object.freeze({ cls: pickupClasses[i], name: PICKUP_NAMES[i], icon: PICKUP_NAMES[i].toLowerCase() }));
+    return (publishedPickups = Object.freeze(list));
+  }
   // A status label sits at its stock place while it is shown and not offset (no anchor panel is needed).
   function labelAtDefault(shared, key) { return shared[key + "IndicatorVisible"] && !shared[key + "OffsetX"] && !shared[key + "OffsetY"]; }
-  // One panel lookup shared by discover (raw or valid-guarded per table row); `held` supplies the parents found so far.
-  function findPart(def, held) {
+  // One panel lookup shared by discover (raw or valid-guarded per table row); `row` is the row's number in PART_DATA and `held` supplies the
+  // parents found so far.
+  function findPart(row, held) {
+    var o = row * ROW_COLUMNS, flags = PART_DATA[o + 5], parentClass = PART_DATA[o + 6], find = PART_DATA[o + 4], id = PART_DATA[o + 1];
     var panel = null;
-    for (var i = 0; i < def.parents.length && !panel; i++) {
-      var holder = def.parents[i] === "root" ? root : held[def.parents[i]];
-      if (def.guarded && def.parents[i] !== "root" && !valid(holder)) { panel = null; continue; }
-      if (def.parentClass && !holder.BHasClass(def.parentClass)) { panel = null; continue; }
-      panel = def.find === "class" ? holder.Children().filter(function (child) { return child.BHasClass(def.cls); })[0]
-        : def.find === "traverse" ? holder.FindChildTraverse(def.id) : holder.FindChild(def.id);
+    for (var i = 0; i < 2 && !panel; i++) {
+      var parent = PART_DATA[o + 2 + i];
+      if (parent === "") break;
+      var holder = parent === "root" ? root : held[parent];
+      if ((flags & 1) && parent !== "root" && !valid(holder)) { panel = null; continue; }
+      if (parentClass && !holder.BHasClass(parentClass)) { panel = null; continue; }
+      panel = find === 2 ? holder.Children().filter(function (child) { return child.BHasClass(PART_DATA[o + 7]); })[0]
+        : find === 1 ? holder.FindChildTraverse(id) : holder.FindChild(id);
     }
-    return def.orNull ? panel || null : panel;
+    return (flags & 16) ? panel || null : panel;
   }
-  var pickupClasses = PICKUP_KINDS.map(function (entry) { return entry.cls; });
-  var pickupColors = PICKUP_KINDS.map(function (entry) { return "pickup" + entry.name + "Color"; });
-  Object.freeze(BAR_PARTS); Object.freeze(STATUS_SCALES); Object.freeze(PICKUP_KINDS);
   // ====== DISCOVERY: carrier lineage and class classification ======
   function discoverCarriers() {
     carriers = []; ancestry = []; classSources = {};
@@ -482,44 +527,54 @@
   function classify() {
     return classifyWith(any, settings && settings.shared.enabled, ledger.some(function (owner) { return owner.owned; }), settings);
   }
-  function lineageParent(def) {
-    var parent = cache[def.key].GetParent();
-    for (var i = 0; i < def.parents.length; i++) if (parent === (def.parents[i] === "root" ? root : cache[def.parents[i]])) return true;
+  function lineageParent(row) {
+    var o = row * ROW_COLUMNS, parent = cache[PART_DATA[o]].GetParent();
+    for (var i = 0; i < 2 && PART_DATA[o + 2 + i] !== ""; i++) if (parent === (PART_DATA[o + 2 + i] === "root" ? root : cache[PART_DATA[o + 2 + i]])) return true;
     return false;
   }
   function lineageValid() {
     if (!cache) return false;
     var i, panel;
-    for (i = 0; i < LINEAGE_CHAIN.length; i++) if (!valid(cache[LINEAGE_CHAIN[i].key])) return false;
+    for (i = 0; i < LINEAGE_CHAIN.length; i++) if (!valid(cache[PART_DATA[LINEAGE_CHAIN[i] * ROW_COLUMNS]])) return false;
     for (i = 0; i < LINEAGE_CHAIN.length; i++) if (!lineageParent(LINEAGE_CHAIN[i])) return false;
     for (i = 0; i < LINEAGE_OPTIONAL.length; i++) {
-      if (!cache[LINEAGE_OPTIONAL[i].key]) continue;
-      if (!valid(cache[LINEAGE_OPTIONAL[i].key]) || !lineageParent(LINEAGE_OPTIONAL[i])) return false;
+      panel = cache[PART_DATA[LINEAGE_OPTIONAL[i] * ROW_COLUMNS]];
+      if (!panel) continue;
+      if (!valid(panel) || !lineageParent(LINEAGE_OPTIONAL[i])) return false;
     }
     for (i = 0; i < LINEAGE_VALID.length; i++) {
-      panel = cache[LINEAGE_VALID[i].key];
+      panel = cache[PART_DATA[LINEAGE_VALID[i] * ROW_COLUMNS]];
       if (panel && !valid(panel)) return false;
     }
     return true;
   }
   function discover() {
-    var found = {}, i;
-    for (i = 0; i < DISCOVER_CHAIN.length; i++) found[DISCOVER_CHAIN[i].key] = findPart(DISCOVER_CHAIN[i], found);
-    for (i = 0; i < DISCOVER_READY.length; i++) if (!valid(found[DISCOVER_READY[i].key])) return false;
+    var found = { motion: null, readout: null, anchor: null, row: null, status: null, info: null, stack: null, primary: null, inner: null, fill: null }, i;
+    for (i = 0; i < CHAIN_END; i++) found[PART_DATA[i * ROW_COLUMNS]] = findPart(i, found);
+    for (i = 0; i < DISCOVER_READY.length; i++) if (!valid(found[PART_DATA[DISCOVER_READY[i] * ROW_COLUMNS]])) return false;
     // Allocation and feedback belong to the PRIMARY inner; never UnitShieldbar.
-    var next = { lineChildren: [], levelNumber: 0,
-      stamina: null, staminaIcons: [], staminaEmpty: [], staminaPips: [], staminaShown: false, staminaGate: "", staminaLowOn: false, staminaChecked: -Infinity, staminaStale: false,
-      killStreak: null, rejuv: null,
-      pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [] };
-    for (i = 0; i < DISCOVER_CHAIN.length; i++) if (!DISCOVER_CHAIN[i].local) next[DISCOVER_CHAIN[i].key] = found[DISCOVER_CHAIN[i].key];
-    for (i = 0; i < DISCOVER_STOCK.length; i++) next[DISCOVER_STOCK[i].key] = findPart(DISCOVER_STOCK[i], next);
+    // One literal names every key the bar ever stores (baseline key order first), so the long-lived cache read on every tick keeps one
+    // fixed-shape object: the table loops below only ASSIGN to these keys, and later code only assigns too (never adds a key).
+    var next = { status: null, info: null, stack: null, primary: null, inner: null, fill: null, motion: null, anchor: null, row: null,
+      shield: null, armor: null, deferred: null, healing: null, delta: null, lines: null, outline: null, value: null, hpPercent: null,
+      name: null, killMarker: null, lineChildren: [], level: null, levelLabel: null, levelNumber: 0, ult: null,
+      stamina: null, staminaIcons: [], staminaEmpty: [], staminaPips: [], staminaShown: false, staminaGate: "", staminaLowOn: false, staminaChecked: -Infinity, staminaStale: false, pulseOverlay: null,
+      killStreak: null, rejuv: null, rejuvAnchor: null, effects: null,
+      pickupIcons: [], pickupInners: [], pickupBorders: [], pickupTracks: [], pickupGlyphs: [], pickupKinds: [],
+      pipGrid: null, pipOutline: null, pipEmpty: null, pipShield: null, pipArmor: null, pipFill: null, pipHealing: null, pipDelta: null, pipKillMarker: null,
+      ultBackground: null, ultReady: null,
+      critical: null, criticalAnchor: null, assassinate: null, assassinateAnchor: null, unkillable: null, unkillableAnchor: null,
+      nativeLineCount: null, ultimateAngle: null, bounty: null, bountyAnchor: null, bountyPill: null, bountyValue: null, bountyLooked: false,
+      ultimateOverlay: null, ultimateDark: null, ultimateFill: null };
+    for (i = 0; i < CHAIN_END; i++) if (!(PART_DATA[i * ROW_COLUMNS + 5] & 32)) next[PART_DATA[i * ROW_COLUMNS]] = found[PART_DATA[i * ROW_COLUMNS]];
+    for (i = CHAIN_END; i < STOCK_END; i++) next[PART_DATA[i * ROW_COLUMNS]] = findPart(i, next);
     cache = next;
     // BAR STYLE OLD grid of THIS primary only: a recycled primary keeps its own grid inactive.
-    for (i = 0; i < DISCOVER_GRID.length; i++) cache[DISCOVER_GRID[i].key] = findPart(DISCOVER_GRID[i], cache);
-    invalidate("geometry");
+    for (i = STOCK_END; i < GRID_END; i++) cache[PART_DATA[i * ROW_COLUMNS]] = findPart(i, cache);
+    cachedFacts = null; memo = null; geometry = null; lastGeometry = -Infinity;
     reconcileLines();
     reconcileLevel();
-    for (i = 0; i < DISCOVER_ULT.length; i++) cache[DISCOVER_ULT[i].key] = findPart(DISCOVER_ULT[i], cache);
+    for (i = GRID_END; i < ULT_END; i++) cache[PART_DATA[i * ROW_COLUMNS]] = findPart(i, cache);
     reconcileStamina();
     reconcileNativeIndicators();
     reconcilePickups();
@@ -556,30 +611,34 @@
   function reconcileAccessories() {
     if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player") return;
     var changed = false;
-    function part(def) {
-      var key = def.key, parent = def.parents[0] === "root" ? root : cache[def.reparent || def.parents[0]];
-      if (valid(cache[key]) && cache[key].GetParent() === parent) return;
-      var panel = !valid(parent) ? null : def.find !== "class" ? parent.FindChild(def.id)
-        : parent.Children().filter(function (panel) { return panel.BHasClass(def.cls); })[0] || null;
-      if (panel !== cache[key]) { cache[key] = panel; changed = true; }
+    for (var i = 0; i < ACCESSORIES.length; i++) {
+      var o = ACCESSORIES[i] * ROW_COLUMNS, key = PART_DATA[o], current = cache[key];
+      if ((PART_DATA[o + 5] & 8) && !current) continue;
+      var parentKey = PART_DATA[o + 8] || PART_DATA[o + 2], id = PART_DATA[o + 4] === 2 ? "" : PART_DATA[o + 1];
+      var parent = parentKey === "root" ? root : cache[parentKey];
+      if (valid(current) && current.GetParent() === parent) continue;
+      var panel = !valid(parent) ? null : id ? parent.FindChild(id)
+        : parent.Children().filter(function (child) { return child.BHasClass(PART_DATA[o + 7]); })[0] || null;
+      if (panel !== current) { cache[key] = panel; changed = true; }
     }
-    for (var i = 0; i < ACCESSORIES.length; i++) if (!ACCESSORIES[i].held || cache[ACCESSORIES[i].key]) part(ACCESSORIES[i]);
     if (changed) { geometry = null; invalidate("probe"); }
   }
   var statusScaleSource = null, statusScaleClasses = [];
   function reconcileNativeIndicators() {
     if (!cache || !settings || !settings.shared.enabled || !kind || !kind.eligible || kind.kind !== "player") return;
-    var entries = [["killStreak", PART.killStreak.id, cache[PART.killStreak.parents[0]]], ["rejuv", PART.rejuv.id, cache[PART.rejuv.parents[0]]]];
+    var entries = [["killStreak", ID_KILLSTREAK, cache.ult], ["rejuv", ID_REJUV, cache.rejuvAnchor]];
     var labelChildren = null;
-    STATUS_LABELS.forEach(function (key) {
-      if (!cache[key] && labelAtDefault(settings.shared, key)) return;
+    for (var labelIndex = 0; labelIndex < 3; labelIndex++) {
+      var key = STATUS_LABELS[labelIndex];
+      if (!cache[key] && labelAtDefault(settings.shared, key)) continue;
       // One native child snapshot resolves all three label/anchor pairs, including
       // newly created replacements; default settings do not take the snapshot.
       if (!labelChildren) labelChildren = root.Children();
-      cache[key + "Anchor"] = labelChildren.filter(function (panel) { return panel.id === PART[key + "Anchor"].id; })[0] || null;
-      var native = labelChildren.filter(function (panel) { return panel.id === PART[key].id; })[0] || null;
-      entries.push([key, PART[key].id, cache[key + "Anchor"], native]);
-    });
+      var anchorId = LABEL_ANCHOR_ID[labelIndex], nativeId = LABEL_NATIVE_ID[labelIndex], anchorKey = LABEL_ANCHOR_KEY[labelIndex];
+      cache[anchorKey] = labelChildren.filter(function (panel) { return panel.id === anchorId; })[0] || null;
+      var native = labelChildren.filter(function (panel) { return panel.id === nativeId; })[0] || null;
+      entries.push([key, nativeId, cache[anchorKey], native]);
+    }
     entries.forEach(function (entry) {
       var current = cache[entry[0]], native = entry.length > 3 ? entry[3] : root.FindChild(entry[1]);
       var parent = valid(current) ? current.GetParent() : null;
@@ -1035,9 +1094,9 @@
     if (player) {
       if (statusScaleSource !== config.shared) {
         statusScaleSource = config.shared; statusScaleClasses = [];
-        for (var fx = 0; fx < STATUS_SCALES.length; fx++) {
-          var fxScale = Math.round(config.shared[STATUS_SCALES[fx].key] / 10) * 10;
-          if (fxScale > 100 && fxScale <= 250) statusScaleClasses.push("HPColorsV3Fx" + STATUS_SCALES[fx].letter + fxScale);
+        for (var fx = 0; fx < STATUS_SCALE_KEYS.length; fx++) {
+          var fxScale = Math.round(config.shared[STATUS_SCALE_KEYS[fx]] / 10) * 10;
+          if (fxScale > 100 && fxScale <= 250) statusScaleClasses.push("HPColorsV3Fx" + "ABCDEFGH".charAt(fx) + fxScale);
         }
       }
       for (var fxClass = 0; fxClass < statusScaleClasses.length; fxClass++) classes.root[statusScaleClasses[fxClass]] = true;
@@ -1761,7 +1820,7 @@
     if (!running || !valid(root) || typeof raw !== "string") return;
     // The config publisher owns this canonical envelope header. Other modules
     // receive opaque messages, even when a player name contains the config magic.
-    if (!HEADER_RE.test(raw)) {
+    if (!(headerRe || (headerRe = new RegExp('^\\s*\\{\\s*"magic"\\s*:\\s*"' + MAGIC + '"\\s*[,}]'))).test(raw)) {
       if ($.HPColorsV3Bridge) $.HPColorsV3Bridge.emit(raw);
       return;
     }
@@ -1830,7 +1889,7 @@
   // Menu preview: the world's classify -> facts -> plan -> apply chain over a caller-owned part map
   // ====== PREVIEW: the menu painter over the same chain ======
   // and ledger. It reads no world state, schedules nothing and registers no listener.
-  // parts: the BAR_PARTS keys the caller's own tree supplies (plus pickupContainer / pickupSamples). sample: what a fixed sample
+  // parts: the part-table keys the caller's own tree supplies (plus pickupContainer / pickupSamples). sample: what a fixed sample
   // pretends, so the world rules carry no preview numbers: { idPrefix: id prefix of the runtime panels it creates, ultimateAngle:
   // angle of the ultimate timer, bounty: kill bounty shown, mirror: part key that copies the fill's plan }.
   // paint() returns { facts, plan, writes, settle, painted, reason }: painted = the plan styled something; reason = off (master off
@@ -1870,7 +1929,8 @@
           if (next.classes.fill) next.classes[sample.mirror] = next.classes.fill;
         }
         var writes = applyTo(target, next);
-        var painted = Object.keys(next.styles).length > 0;
+        var painted = false;
+        for (var styled in next.styles) { painted = true; break; }
         return { facts: current, plan: next, writes: writes, settle: target.settle, painted: painted,
           reason: !config || !config.shared.enabled ? "off" : !current.laid ? "unlaid" : painted ? "painted" : "unstyled" };
       },
@@ -1883,7 +1943,10 @@
     onMessage: function (fn) { return $.HPColorsV3Bridge ? $.HPColorsV3Bridge.subscribe(fn) : function () {}; },
     onState: function (fn) { var off = subscribeState(fn); fn(timerState()); return off; },
     refreshPickups: reconcilePickups, barFacts: barFacts,
-    setTimerFacts: setTimerFacts, defaults: DEFAULTS,
-    // Built once at load, read by the menu preview at attach (see PART REGISTRY).
-    parts: BAR_PARTS, statusLabels: STATUS_LABELS, statusScales: STATUS_SCALES, pickupKinds: PICKUP_KINDS, labelAtDefault: labelAtDefault };
+    setTimerFacts: setTimerFacts,
+    // parts / statusScales / pickupKinds are built on first read (the menu preview); world bars never build them (see PART REGISTRY).
+    // defaults is read by tests only.
+    statusLabels: STATUS_LABELS, labelAtDefault: labelAtDefault,
+    get parts() { return publishedPartTable(); }, get statusScales() { return publishedScaleTable(); }, get pickupKinds() { return publishedPickupTable(); },
+    get defaults() { return schemaDefaults(); } };
 })();

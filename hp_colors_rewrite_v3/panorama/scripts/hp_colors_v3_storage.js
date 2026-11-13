@@ -9,7 +9,6 @@
   var CHUNK_CHARS = 3000, MAX_CHUNKS = 64, TITLE_MAX_CHARS = 4096;
   // MAX_CHUNKS * CHUNK_CHARS must equal $.HPColorsV3Codec.RECORD.maxChars (tests/store-page.test.js pins both and the page copy).
   var UNAVAILABLE_RETRY_MS = 8000, UNAVAILABLE_POLL_SEC = 60;
-  var TOO_LARGE_TEXT = "Save exceeds 192,000 characters; remove some presets";
   var READY_TIMEOUT_SEC = 30, RENAVIGATE_SEC = 8, EXCHANGE_TIMEOUT_SEC = 5;
   // Request ids must never repeat across storage incarnations: a reincluded script hands its
   // generation on (see retire below) and every inclusion adds a fresh nonce, so a stale page read
@@ -37,31 +36,21 @@
   }
 
   // ==== Section 1: bridge (hosted page queue, create) ====
-  // Talks to the page only through the request queue; reads codec, from_v2 through deps and checksum through options.
+  // Talks to the page only through the request queue; reads codec and from_v2 through deps.
 
   function create(options) {
     var opts = options || {};
     var panel = opts.panel;
     var events = null;
-    var schedule =
-      opts.schedule ||
-      function (seconds, callback) {
-        return $.Schedule(seconds, callback);
-      };
-    var cancelScheduled =
-      opts.cancel ||
-      function (handle) {
-        try {
-          $.CancelScheduled(handle);
-        } catch {}
-      };
-    var log =
-      opts.log ||
-      function (message) {
-        // HPV3_DEBUG $.Msg("[HPV3] store " + message);
-      };
-
-    var checksum = opts.checksum || function (text) { return deps.codec.checksum(text); };
+    function schedule(seconds, callback) { return $.Schedule(seconds, callback); }
+    function cancelScheduled(handle) {
+      try {
+        $.CancelScheduled(handle);
+      } catch {}
+    }
+    function log(message) {
+      // HPV3_DEBUG $.Msg("[HPV3] store " + message);
+    }
     var started = false;
     var ready = false;
     // Hosted pages that list "latest" answer "lv" with the newest released version (latest.json).
@@ -242,7 +231,7 @@
       if (message.d === 1) {
         if (!last) return fail(request, "malformed");
         trustedSum = request.record.split(".")[1];
-        currentMatch = checksum(request.record);
+        currentMatch = deps.codec.checksum(request.record);
         unacked = [];
         return settle(request, { ok: true });
       }
@@ -446,7 +435,7 @@
       readKey(KEY_CURRENT, function (current) {
         if (!current.ok) return callback({ kind: "error", error: current.error });
         var currentRecord = deps.codec.classifyRecord(current.record);
-        currentMatch = current.record === null ? "none" : checksum(current.record);
+        currentMatch = current.record === null ? "none" : deps.codec.checksum(current.record);
         var commit = unacked.filter(function (candidate) { return candidate.record === current.record; }).pop();
         var own = !!commit && currentRecord.kind === "valid";
         if (own) currentRecord.ownToken = commit.token;
@@ -494,7 +483,7 @@
       }
       var total = Math.max(1, Math.ceil(record.length / CHUNK_CHARS));
       if (total > MAX_CHUNKS) {
-        if (isCallable(callback)) callback({ ok: false, error: "too_large", message: TOO_LARGE_TEXT });
+        if (isCallable(callback)) callback({ ok: false, error: "too_large", message: deps.codec.SAVE_TOO_LARGE });
         return;
       }
       dropQueuedWrites();
@@ -524,7 +513,7 @@
   function fitLegacy(result) {
     if (result.kind !== "valid") return result;
     try {
-      if (deps.codec.encodeRecord(result.bundle).length > deps.codec.RECORD.maxChars) throw new Error(TOO_LARGE_TEXT);
+      if (deps.codec.encodeRecord(result.bundle).length > deps.codec.RECORD.maxChars) throw new Error(deps.codec.SAVE_TOO_LARGE);
       return result;
     } catch (error) {
       return { kind: "conversion_error", message: "V2 save could not be converted: " + deps.codec.errorMessage(error), source: result.source };
@@ -533,7 +522,7 @@
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function persistence(options) {
     var opts = options || {}, session = opts.session || {};
-    var bridge = opts.bridge || create({ panel: opts.panel, state: session.bridge, checksum: deps.codec.checksum });
+    var bridge = opts.bridge || create({ panel: opts.panel, state: session.bridge });
     var started = false, stopped = false, loading = false, gate = false, readonly = false, corrupt = false;
     var pending = session.pending ? clone(session.pending) : null;
     var touched = clone(session.touched || {});
@@ -600,7 +589,7 @@
           return;
         }
         if (result.ok) {
-          acknowledge(bundle, token, isCallable(bridge.snapshot) ? bridge.snapshot().currentMatch : baseMatch);
+          acknowledge(bundle, token, bridge.snapshot().currentMatch);
           if (token !== serial) { schedule(0.25); return; }
           pending = null;
           status(migrationNotice || "Saved", "ok"); migrationNotice = ""; return;
@@ -620,7 +609,7 @@
     function validBundle(bundle) {
       try {
         var record = deps.codec.encodeRecord(bundle);
-        if (record.length > deps.codec.RECORD.maxChars) { status(TOO_LARGE_TEXT, "error"); return ""; }
+        if (record.length > deps.codec.RECORD.maxChars) { status(deps.codec.SAVE_TOO_LARGE, "error"); return ""; }
         return record;
       } catch (error) { status(deps.codec.errorMessage(error), "error"); return ""; }
     }
@@ -723,8 +712,8 @@
       cancel();
       if (renew) {
         var previousBridge = bridge;
-        if (isCallable(previousBridge.dispose)) previousBridge.dispose();
-        bridge = isCallable(previousBridge.recreate) ? previousBridge.recreate() : create({ panel: opts.panel });
+        previousBridge.dispose();
+        bridge = previousBridge.recreate();
       }
       loading = true; gate = false; resetAvailable(false);
       status("LOADING");
@@ -805,7 +794,7 @@
       change: change,
       isHydrated: function () { return hydrated; },
       latestRelease: function (callback) {
-        if (stopped || !isCallable(bridge.latest)) return callback({ ok: false, error: "unavailable" });
+        if (stopped) return callback({ ok: false, error: "unavailable" });
         bridge.latest("hpv3", function (result) { if (!stopped) callback(result); });
       },
       presetEditError: function () {
@@ -821,11 +810,11 @@
         return clone({ pending: pending, serial: serial, touched: touched, baseline: baseline,
           dirtyPresets: dirtyPresets, dirtyMetadata: dirtyMetadata, orderTouched: orderTouched,
           hydrated: hydrated, resetPending: resetPending, resetMatch: resetMatch, baseMatch: baseMatch, migrationNotice: migrationNotice,
-          conflicted: conflicted, conflicts: conflicts, bridge: isCallable(bridge.snapshot) ? bridge.snapshot() : null });
+          conflicted: conflicted, conflicts: conflicts, bridge: bridge.snapshot() });
       },
       dispose: function () {
         stopped = true; cancel();
-        if (isCallable(bridge.dispose)) bridge.dispose();
+        bridge.dispose();
       },
     });
   }
@@ -840,13 +829,8 @@
   // Menu/preset facade. Settings-only operations never discard bundle metadata.
   var menuApi = null, menuRoot = null, controller = null, menuBundle = null;
   var importMode = "";
-  // The menu API attached by hp_colors_v3_menu.js. Required members are called directly; optional members
-  // (older or partial menus, tests) are only called when present, through menuHas.
-  var MENU_API = {
-    required: ["getRoot", "getSettings", "applySettings", "applyPresetSettings", "setSaveStatus"],
-    optional: ["refreshPresets", "setCodeStatus", "hydrateSettings", "setSaveResetAvailable", "getRules", "editSettings"]
-  };
-  function menuHas(name) { return !!menuApi && isCallable(menuApi[name]); }
+  // The menu API attached by hp_colors_v3_menu.js always carries every member this store calls; menuApi is null
+  // before attach and after retire, and the callers that can run then check it.
   // A session handed over by a retired store incarnation, kept until a menu attaches.
   var inheritedSession = null, retiredStore = false;
   function commitConfig(config) {
@@ -871,11 +855,11 @@
     return bundle;
   }
   function refreshPresets() {
-    if (menuHas("refreshPresets") && isValid(menuRoot)) menuApi.refreshPresets();
+    if (menuApi && isValid(menuRoot)) menuApi.refreshPresets();
   }
   function unwrap(result) {
     if (!result.ok) throw new Error(result.message);
-    if (menuHas("setCodeStatus")) menuApi.setCodeStatus(result.message || "");
+    if (menuApi) menuApi.setCodeStatus(result.message || "");
     return result;
   }
   var presetSerial = 0;
@@ -886,7 +870,7 @@
     var record;
     try { record = deps.codec.encodeRecord(bundle); }
     catch (error) { throw new Error(deps.codec.errorMessage(error)); }
-    if (record.length > deps.codec.RECORD.maxChars) throw new Error(TOO_LARGE_TEXT);
+    if (record.length > deps.codec.RECORD.maxChars) throw new Error(deps.codec.SAVE_TOO_LARGE);
     if (!controller.change(bundle, "bundle", record)) throw new Error("That preset change could not be saved.");
     menuBundle = clone(bundle);
     if (apply !== false) menuApi.applySettings(bundle.settings, bundle.rules || {});
@@ -908,14 +892,13 @@
       onLoad: function (bundle) {
         if (!isValid(root) || root !== menuRoot) return;
         menuBundle = clone(bundle);
-        if (menuHas("hydrateSettings")) menuApi.hydrateSettings(bundle.settings);
-        else menuApi.applySettings(bundle.settings, bundle.rules || {});
+        menuApi.hydrateSettings(bundle.settings);
         refreshPresets();
       },
       // The menu may be reincluded onto the same root after this controller started.
       onStatus: function (text, tone) { if (isValid(root) && root === menuRoot) menuApi.setSaveStatus(text, tone); },
       onResetAvailable: function (available) {
-        if (isValid(root) && root === menuRoot && menuHas("setSaveResetAvailable")) menuApi.setSaveResetAvailable(available);
+        if (isValid(root) && root === menuRoot) menuApi.setSaveResetAvailable(available);
       },
     });
     controller.start();
@@ -983,7 +966,7 @@
     resetUnreadableSave: function (confirmed) {
       return !!controller && isValid(menuRoot) && controller.reset(confirmed, currentBundle(menuApi.getSettings()));
     },
-    exportSettingsCode: function (settings) { return unwrap(deps.sharing.exportSettingsCode(settings, menuHas("getRules") ? menuApi.getRules() : menuBundle && menuBundle.rules)).code; },
+    exportSettingsCode: function (settings) { return unwrap(deps.sharing.exportSettingsCode(settings, menuApi ? menuApi.getRules() : menuBundle && menuBundle.rules)).code; },
     decodeSettingsCode: function (code) {
       return unwrap(deps.sharing.importSettingsCode(code, currentBundle(menuApi ? menuApi.getSettings() : deps.settings.defaults))).settings;
     },
@@ -999,8 +982,7 @@
       // commit a second, identical time after a changed import).
       // Only when the menu already holds exactly this import: a refusing (retired) menu commits nothing.
       var rules = result.rules || {};
-      if (menuHas("editSettings") && !menuApi.editSettings(result.settings, rules) &&
-          menuHas("getSettings") && menuHas("getRules") &&
+      if (menuApi && !menuApi.editSettings(result.settings, rules) &&
           JSON.stringify(menuApi.getSettings()) === JSON.stringify(result.settings) && JSON.stringify(menuApi.getRules()) === JSON.stringify(rules))
         commitConfig({ settings: result.settings, rules: rules });
       return result.settings;
@@ -1021,7 +1003,7 @@
         ids[item.id] = true; bundle.presets.push(item);
       });
       commitBundle(bundle, false);
-      if (menuHas("setCodeStatus")) menuApi.setCodeStatus(
+      if (menuApi) menuApi.setCodeStatus(
         (result.message ? result.message + " " : "") + "Presets imported; active settings and metadata unchanged. Use REPLACE ALL for full bundle recovery.", "ok");
       return bundle.settings;
     },

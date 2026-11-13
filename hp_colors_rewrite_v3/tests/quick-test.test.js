@@ -7,6 +7,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const quick = require('../tools/test');
+const { parseTap, formatSummary } = require('../tools/lib/tap');
+const { runNodeTest, normalizeFile } = require('../tools/lib/run');
 
 const ctx = quick.scanTests();
 const V3 = 'hp_colors_rewrite_v3', QOL = 'hp_colors_rewrite_v3_qollock', SR = 'hp_colors_rewrite_v3_showrank';
@@ -55,7 +57,7 @@ test('variant, helper, script and tool files map to the suites that use them', (
   const adapter = map('scripts/hp-colors-panorama-test-adapter.js').tests;
   assert.ok(adapter.includes(suite('renderer')) && variantTests.every(variant => adapter.includes(variant)), 'the shared adapter reaches every lane');
   assert.deepEqual(map(V3 + '/tools/budgets.js').tests, [suite('budgets')]);
-  assert.deepEqual(map(V3 + '/tools/test.js').tests, [suite('quick-test'), suite('budgets')], 'budgets.js builds on the runner');
+  assert.deepEqual(map(V3 + '/tools/test.js').tests, [suite('quick-test')], 'budgets.js and its suite read the runner and TAP parser from tools/lib, not tools/test.js');
   assert.deepEqual(names(map(V3 + '/tools/suite-cache.js').tests), ['audit-tooling']);
   const generator = map(V3 + '/tools/generate.js').tests;
   for (const file of fs.readdirSync(path.join(__dirname, '../tools/lib')).filter(name => name.endsWith('.js') && name !== 'stylesheets.js' && !quick.BUILD_TOOL_LIBS.includes(name.replace(/\.js$/, ''))))
@@ -94,8 +96,8 @@ test('selection unions, orders and filters by project', () => {
   assert.ok(all.tests.indexOf(suite('renderer')) < all.tests.indexOf(variantTests[0]), 'v3 before variants');
   const v3Only = quick.selectTests(files, ctx, ['v3']);
   assert.ok(v3Only.tests.every(file => file.startsWith(V3 + '/tests/')));
-  assert.equal(quick.normalizeFile(path.join(quick.REPO, V3, 'SPEC.md')), V3 + '/SPEC.md');
-  assert.equal(quick.normalizeFile('tools/test.js', path.join(quick.REPO, V3)), V3 + '/tools/test.js');
+  assert.equal(normalizeFile(path.join(quick.REPO, V3, 'SPEC.md')), V3 + '/SPEC.md');
+  assert.equal(normalizeFile('tools/test.js', path.join(quick.REPO, V3)), V3 + '/tools/test.js');
 });
 
 test('require() scan resolves relative, ../tools and path.join(testsDir, name) helpers', () => {
@@ -227,7 +229,7 @@ not ok 6 - c.test.js
 `;
 
 test('TAP failures keep name, message, actual/expected and the assertion site; parents of failing subtests are not repeated', () => {
-  const tap = quick.parseTap(FAILING_TAP);
+  const tap = parseTap(FAILING_TAP);
   assert.deepEqual(tap.failures.map(failure => failure.name), ['eq fails', 'deep fails # with a hash', 'inner bad', 'c.test.js']);
   const [eq, deep, inner, crash] = tap.failures;
   assert.deepEqual([eq.actual, eq.expected, eq.operator, eq.message.split('\n')[0]], [2, 3, 'strictEqual', 'math is broken']);
@@ -241,7 +243,7 @@ test('TAP failures keep name, message, actual/expected and the assertion site; p
 });
 
 test('compact summary: totals, then each failure with message, truncated actual/expected and file:line', () => {
-  const summary = quick.formatSummary(quick.parseTap(FAILING_TAP), { code: 1, files: 2, seconds: 3.21, max: 80 });
+  const summary = formatSummary(parseTap(FAILING_TAP), { code: 1, files: 2, seconds: 3.21, max: 80 });
   const lines = summary.split('\n');
   assert.equal(lines[0], 'tests 7  pass 1  fail 4  skipped 1  (2 files, 3.2 s)');
   assert.ok(lines.includes('1) eq fails  [D:/repo/hp_colors_rewrite_v3/tests/a.test.js:7]') || lines.some(line => /^1\) eq fails {2}\[.*a\.test\.js:7\]$/.test(line)));
@@ -253,7 +255,7 @@ test('compact summary: totals, then each failure with message, truncated actual/
   assert.ok(lines.includes('   TypeError: boom'));
   assert.ok(lines.includes('   | Error: load crash'), 'file load crashes show the thrown error');
   assert.ok(!summary.includes('1 subtest failed'));
-  assert.equal(quick.formatSummary(quick.parseTap('ok 1 - fine\n1..1\n# tests 1\n# pass 1\n# fail 0\n')), 'tests 1  pass 1  fail 0');
+  assert.equal(formatSummary(parseTap('ok 1 - fine\n1..1\n# tests 1\n# pass 1\n# fail 0\n')), 'tests 1  pass 1  fail 0');
 });
 
 test('argument parsing', () => {
@@ -278,8 +280,8 @@ test('--grep is forwarded as --test-name-pattern', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hpv3-quick-'));
   try {
     fs.writeFileSync(path.join(dir, 'tiny.test.js'), "const test=require('node:test');test('picked one',()=>{});test('other one',()=>{throw new Error('should not run');});");
-    const run = await quick.runNodeTest(['tiny.test.js'], { grep: 'picked', cwd: dir });
-    const tap = quick.parseTap(run.stdout);
+    const run = await runNodeTest(['tiny.test.js'], { grep: 'picked', cwd: dir });
+    const tap = parseTap(run.stdout);
     assert.equal(run.code, 0, run.stdout + run.stderr);
     assert.deepEqual(tap.tests.filter(entry => !entry.directive).map(entry => entry.name), ['picked one']);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
@@ -310,4 +312,16 @@ test('--list-unmapped reports only scripts no RULES entry names', () => {
   const unmapped = quick.unmappedScripts();
   for (const file of unmapped) assert.ok(!quick.RULES.some(rule => rule.match.test(file)), file);
   assert.ok(!unmapped.includes(V3 + '/panorama/scripts/hp_colors_v3_menu.js'));
+});
+
+test('the --project lists in the tools\' header comments (their help text) equal the lane table', () => {
+  const { PROJECT_NAMES } = require('../tools/lib/projects');
+  const tools = ['budgets', 'build', 'dev', 'doctor', 'engine-facts', 'test', 'ticket', 'timing', 'vpk-check'];
+  for (const tool of tools) {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'tools', tool + '.js'), 'utf8');
+    const header = source.split('\n').filter(line => line.startsWith('//')).join('\n');
+    const lists = [...header.matchAll(/\bv3(?:\|[a-z0-9]+)+/g)].map(match => match[0].replace(/\|all$/, ''));
+    assert.ok(lists.length, tool + ' header lists the lanes');
+    for (const list of lists) assert.equal(list, PROJECT_NAMES.join('|'), tool + ' header lane list');
+  }
 });

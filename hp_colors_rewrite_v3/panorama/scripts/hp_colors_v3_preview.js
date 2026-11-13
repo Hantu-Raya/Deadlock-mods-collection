@@ -505,21 +505,25 @@
     // The optional options carry session-only SHOW BOUNDS (never part of the settings) and `shake`: a user edit, so the
     // sample shakes after the repaint (reads the new settings' damageShakeEnabled, hence set and paint first).
     setSettings: function (next, nextView) {
-      // A status is not normally active on this plain sample. Show only the label
-      // being edited; do not synthesize gameplay classes or change HP/critical flashing.
-      var shared = $.HPColorsV3Renderer;
-      if (settings && next && shared && shared.statusLabels) shared.statusLabels.forEach(function (key) {
-        if (["IndicatorVisible", "OffsetX", "OffsetY"].some(function (suffix) { return settings.shared[key + suffix] !== next.shared[key + suffix]; }))
-          sampleLabel = key;
-      });
-      if (settings && next && shared && shared.statusScales) shared.statusScales.forEach(function (entry) {
-        if (settings.shared[entry.key] !== next.shared[entry.key]) sampleFx = entry.key;
-      });
-      settings = next;
-      if (!settings || !settings.shared.damageShakeEnabled) cancelShake();
-      if (nextView && typeof nextView === "object") view = { showBounds: nextView.showBounds === true };
-      if (available && isOpen && !retired) paint();
-      if (nextView && nextView.shake === true) shakeOnEdit();
+      try {
+        // A status is not normally active on this plain sample. Show only the label
+        // being edited; do not synthesize gameplay classes or change HP/critical flashing.
+        var shared = $.HPColorsV3Renderer;
+        if (settings && next && shared && shared.statusLabels) shared.statusLabels.forEach(function (key) {
+          if (["IndicatorVisible", "OffsetX", "OffsetY"].some(function (suffix) { return settings.shared[key + suffix] !== next.shared[key + suffix]; }))
+            sampleLabel = key;
+        });
+        if (settings && next && shared && shared.statusScales) shared.statusScales.forEach(function (entry) {
+          if (settings.shared[entry.key] !== next.shared[entry.key]) sampleFx = entry.key;
+        });
+        settings = next;
+        if (!settings || !settings.shared.damageShakeEnabled) cancelShake();
+        if (nextView && typeof nextView === "object") view = { showBounds: nextView.showBounds === true };
+        if (available && isOpen && !retired) paint();
+      } finally {
+        // Fires even when paint threw, as when the menu made two separate calls (setSettings, then shakeOnEdit).
+        if (nextView && nextView.shake === true) shakeOnEdit();
+      }
     },
     retire: function () {
       cancel();

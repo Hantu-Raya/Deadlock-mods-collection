@@ -11,6 +11,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
+const cli = require('./lib/cli');
 const { REPO, repoPaths, projectConfig, stagePaths, expandProjects } = require('./lib/projects');
 const { findTool, findInstall, spawnNode, showrankCandidates, findShowrankCarrier, checkSpawn, outputLines, vpkPack, packedVpkTree, stripListing,
   assertPackedAssets, sameSet, listFilesRelative, runSource2Compiler } = require('./lib/toolchain');
@@ -19,7 +20,7 @@ const { cacheEnabled, passDir: suitePassDir, isoLocal, passLine } = require('./s
 // The one spelling of the stage mode folders (stagePaths names the folder after the mode).
 const modeOf = debug => (debug ? 'debug' : 'release');
 
-const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/build.js --project v3|qollock|showrank|all --skip-deploy [--debug] [--allow-pin-mismatch] [--installed-steam-inf <steam.inf>] [--check-upstream]';
+const USAGE = `Usage: node hp_colors_rewrite_v3/tools/build.js --project ${cli.projectChoices()} --skip-deploy [--debug] [--allow-pin-mismatch] [--installed-steam-inf <steam.inf>] [--check-upstream]`;
 
 function parseArgs(argv) {
   const opts = { project: null, debug: false, skipDeploy: false, allowPinMismatch: false, checkUpstream: false, installedSteamInf: null, help: false };

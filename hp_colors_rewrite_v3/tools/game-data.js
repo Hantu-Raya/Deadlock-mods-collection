@@ -2,9 +2,8 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const { pinMismatchMessage } = require('./lib/toolchain');
 const ROOT = path.resolve(__dirname, '..');
-const { sha256, readPinnedTexts } = require('./lib/pin');
+const { sha256, readPinnedTexts, pinMismatchMessage } = require('./lib/pin');
 const SOURCES = {
   'vendor/unit_status_v2.css': 'game/citadel/pak01_dir/panorama/styles/unit_status_v2.css',
   'vendor/heroes.vdata': 'game/citadel/pak01_dir/scripts/heroes.vdata',

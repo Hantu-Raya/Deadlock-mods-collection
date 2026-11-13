@@ -10,7 +10,6 @@
 //   stylesheets.js      the packed stylesheet contract (run by build() on the generated stock sheet and the folder)
 //   output.js           JSON inputs, writing and --check
 // and tools/menu-layout.js builds the menu itself.
-const fs = require('node:fs');
 const path = require('node:path');
 const { derive } = require('./game-data');
 const { buildMenu } = require('./menu-layout');
@@ -20,8 +19,7 @@ const { validateRelease, buildSlots, checkSlotContract } = require('./lib/slot-c
 const { stockLayouts, menuSteps, topbarSteps, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OWNED_STYLES } = require('./lib/stock-layouts');
 const { WIRE_VERSION, worldSettingsScript, settingsScript } = require('./lib/settings-scripts');
 const { checkStylesheets } = require('./lib/stylesheets');
-const { json, readJson, writeOrCheck } = require('./lib/output');
-const { lf } = require('./lib/layout-compose');
+const { json, readJson, staleFiles, writeOrCheck } = require('./lib/output');
 const ROOT = path.resolve(__dirname, '..');
 
 // The one list of generated outputs (relative to the lane), in write order: tools/dev.js, the variant lanes and the
@@ -70,15 +68,6 @@ function build(rows, gameData, metadata, news, { root = ROOT, stylesRoot } = {})
   return { files, menu, css };
 }
 
-// The generated outputs of `root` whose committed file is missing or differs from `files` (LF-normalised): the one
-// freshness answer for the lanes that consume v3's committed outputs (QOLLOCK, ShowRank).
-function staleOutputs(root, files) {
-  return Object.keys(files).filter(relative => {
-    const file = path.join(root, relative);
-    return !fs.existsSync(file) || lf(fs.readFileSync(file, 'utf8')) !== lf(files[relative]);
-  });
-}
-
 // Published for variant lanes (hp_colors_rewrite_v3_qollock, _showrank): the exact v3 Escape-menu and topbar
 // pieces and patch steps this generator injects, computed from the v3 sources, plus `stale` (the v3 outputs of
 // `root` that are out of date) with `assertFresh()` (a lane refuses a stale v3 checkout) and `generatedKeys`. `lane.profile`
@@ -88,7 +77,7 @@ function menuParts(root = ROOT, lane = {}) {
   const { profile = 'stock', topbarClasses = [] } = lane;
   const { files, menu } = build(readJson(path.join(root, 'settings/schema.json')), derive(root),
     readJson(path.join(root, 'settings/record.json')), readNews(root), { root });
-  const stale = staleOutputs(root, files);
+  const stale = staleFiles(files, root);
   const topbarClass = [TOPBAR_CLASS, ...topbarClasses].join(' ');
   return { resume: MENU_RESUME, styles: MENU_STYLES, scripts: MENU_SCRIPTS, button: menu.button, fragment: menu.fragment,
     ids: menu.ids, topbarScripts: TOPBAR_SCRIPTS, topbarClass, files, generatedKeys: Object.keys(OUTPUTS),
@@ -121,7 +110,7 @@ function main(args) {
   console.log('HPV3 stylesheets: ' + css.files + ' files, ' + css.rules + ' rules, max ' + css.widest + ' selectors per rule');
   console.log('HPV3 generator: ' + Object.keys(files).length + ' outputs ' + (check ? 'current' : 'written'));
 }
-module.exports = { OUTPUTS, generate, menuParts, staleOutputs };
+module.exports = { OUTPUTS, generate, menuParts };
 if (require.main === module) {
   try { main(process.argv.slice(2)); }
   catch (error) { console.error(error.message); process.exitCode = 1; }

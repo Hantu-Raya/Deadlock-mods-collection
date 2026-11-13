@@ -10,8 +10,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
+const cli = require('./lib/cli');
 const { REPO, repoPaths, projectConfig, expandProjects } = require('./lib/projects');
-const { probeCompilerRuntime, findInstall, spawnNode, showrankCandidates, findShowrankCarrier, readClientVersion, pinMismatchMessage } = require('./lib/toolchain');
+const { probeCompilerRuntime, findInstall, spawnNode, showrankCandidates, findShowrankCarrier } = require('./lib/toolchain');
+const { readClientVersion, pinMismatchMessage, readPin } = require('./lib/pin');
 
 const MIN_NODE_MAJOR = 18;
 
@@ -86,8 +88,7 @@ const checks = {
   steam(ctx) {
     const install = ctx.install;
     const where = install.steamInf ? `${install.steamInf} (${install.source})` : null;
-    let pin = null;
-    try { pin = JSON.parse(ctx.fs.readFileSync(ctx.paths.pin, 'utf8')); } catch { /* reported below */ }
+    const pin = readPin(ctx.paths.pin, ctx.fs); // null is reported below
     const pinText = pin ? `pin ClientVersion=${pin.clientVersion} (${String(pin.commit || '').slice(0, 12)})` : 'pin unreadable (game-data-pin.json)';
     const hint = 'Pass --installed-steam-inf <steam.inf> or set HPV3_STEAM_INF / HPV3_DEADLOCK_DIR (build.js uses the same discovery).';
     if (!install.steamInf) {
@@ -172,9 +173,8 @@ const checks = {
   }
 };
 
-// The ids (and their run order) are the keys of `checks`.
 const CHECK_IDS = Object.keys(checks);
-const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/doctor.js [--project v3|qollock|showrank|all] [--only <check,...>] [--json] [--fix-hints]\nChecks: ' + CHECK_IDS.join(', ');
+const USAGE = `Usage: node hp_colors_rewrite_v3/tools/doctor.js [--project ${cli.projectChoices()}] [--only <check,...>] [--json] [--fix-hints]\nChecks: ` + CHECK_IDS.join(', ');
 
 function toolCheck(ctx, id, toolName, candidates) {
   const found = candidates.find(f => ctx.fs.existsSync(f));

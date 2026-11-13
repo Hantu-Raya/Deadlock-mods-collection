@@ -213,3 +213,17 @@ test('hand-written layouts are not outputs; build-tool libs do not start the gen
   assert.ok(dev.isGeneratorInput(V3 + '/tools/lib/menu-a-b.js'));
   for (const name of ['cli', 'tap', 'run']) assert.ok(!dev.isGeneratorInput(V3 + '/tools/lib/' + name + '.js'), name);
 });
+
+test('the stale-output signal dev.js reads is the one writeOrCheck throws, for every lane label', () => {
+  const { isStale, writeOrCheck } = require('../tools/lib/output');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hpv3-stale-'));
+  try {
+    for (const label of [undefined, 'QOLLOCK layouts', 'ShowRank layouts', 'Some New Lane layouts']) {
+      let message = '';
+      try { writeOrCheck({ 'a.txt': 'x\n' }, dir, true, label ? { label } : {}); } catch (error) { message = error.message; }
+      assert.equal(message.split('\n')[0], 'Stale ' + (label || 'generated files') + ': a.txt');
+      assert.ok(isStale('\n' + message), label);
+    }
+    assert.ok(!isStale('V3 generation check failed'));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

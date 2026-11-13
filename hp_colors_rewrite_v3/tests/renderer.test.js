@@ -3178,3 +3178,24 @@ test('published vocabulary: labels, status scales with icon class and CSS letter
   assert.equal(!!api.labelAtDefault({ ...shared, criticalOffsetY: 3 }, 'critical'), false, 'offset');
   assert.equal(!!api.labelAtDefault({ ...shared, criticalIndicatorVisible: false }, 'critical'), false, 'hidden');
 });
+
+test('the per-bar cache is created with every key it will ever hold, and the published part table pins the world row ranks',()=>{
+  const fx=fixture(); fx.advance(600); fx.advance(1000);
+  let state=null; const off=fx.api.onState(next=>{state=next;}); off();
+  const cache=state.parts; assert.ok(cache,'a discovered cache');
+  const keys=Object.keys(cache).join();
+  // Every panel-valued part of the table has a key from the first discover on (assigned later, never added).
+  const published=fx.api.parts;
+  for (const def of published) if (def.find !== 'derived' && def.key !== 'readout' && def.key !== 'pickupContainer') assert.ok(Object.prototype.hasOwnProperty.call(cache,def.key),'cache key '+def.key);
+  for (const key of ['nativeLineCount','ultimateAngle','bounty','bountyLooked','bountyAnchor','bountyPill','bountyValue','ultimateOverlay','ultimateDark','ultimateFill','criticalAnchor','assassinateAnchor','unkillableAnchor']) assert.ok(Object.prototype.hasOwnProperty.call(cache,key),'cache key '+key);
+  fx.setHealth(0.5); fx.advance(1000); fx.edit('criticalOffsetX',5); fx.advance(1500); fx.edit('criticalOffsetX',0); fx.advance(1500);
+  let after=null; fx.api.onState(next=>{after=next;})();
+  assert.equal(after.parts,cache,'one cache object'); assert.equal(Object.keys(after.parts).join(),keys,'no key was added after the first discover');
+  // Rank columns the world loops rely on (discover ready order, lineage order, reconcile order), by key.
+  const rank=(field)=>published.filter(def=>def[field]).sort((a,b)=>a[field]-b[field]).map(def=>def.key).join();
+  assert.equal(rank('ready'),'status,info,stack,primary,inner,fill,motion,anchor,row');
+  assert.equal(rank('lin'),'status,info,stack,primary,inner,fill,value,name,shield,armor,motion,anchor,row,outline');
+  assert.equal(rank('accessory'),'level,levelLabel,ult,ultBackground,ultReady,ultimateOverlay,rejuvAnchor');
+  assert.equal(published.find(def=>def.key==='ultimateOverlay').suffix,'UltimateOverlay');
+  assert.deepEqual(published.filter(def=>def.lineage).map(def=>def.lineage+':'+def.key).filter(entry=>/^(chain|optional)/.test(entry)).join(),'chain:status,chain:info,chain:stack,chain:primary,chain:inner,chain:fill,optional:value,optional:name');
+});

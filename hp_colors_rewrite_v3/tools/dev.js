@@ -25,21 +25,21 @@ const vm = require('node:vm');
 const crypto = require('node:crypto');
 const childProcess = require('node:child_process');
 const { REPO, V3_DIR, LANES, VARIANT_NAMES, expandProjects } = require('./lib/projects');
+const cli = require('./lib/cli');
+const { isStale } = require('./lib/output');
 const { OUTPUTS } = require('./generate');
 const quick = require('./test');
+const { parseTap } = require('./lib/tap');
+const { runNodeTest, gitChanged, normalizeFile } = require('./lib/run');
 
-const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/dev.js [--project v3|qollock|showrank|all] [--once] [--files a,b] [--build] [--no-write] [--no-tests] [--debounce <ms>]';
+const USAGE = `Usage: node hp_colors_rewrite_v3/tools/dev.js [--project ${cli.projectChoices()}] [--once] [--files a,b] [--build] [--no-write] [--no-tests] [--debounce <ms>]`;
 const V3 = V3_DIR;
-const QOL = LANES.qollock.dir;
-const SR = LANES.showrank.dir;
 const LANE_DIRS = Object.values(LANES).map(lane => lane.dir);
-const SR_SOURCE = 'showrank_barebones';
 const TOOLS = {
   generate: V3 + '/tools/generate.js',
   stageScripts: V3 + '/tools/stage-scripts.js',
   build: V3 + '/tools/build.js',
-  qollock: QOL + '/' + LANES.qollock.composer,
-  showrank: SR + '/' + LANES.showrank.composer,
+  ...Object.fromEntries(VARIANT_NAMES.map(name => [name, LANES[name].dir + '/' + LANES[name].composer]))
 };
 // tools/generate.js outputs, and the layouts each variant composer writes (their OUTPUTS tables).
 const GENERATED = Object.keys(OUTPUTS).map(file => V3 + '/' + file);
@@ -56,6 +56,9 @@ const LANE_PREFIX = new RegExp('^(?:' + LANE_DIRS.join('|') + ')/');
 const LANE_SCRIPT = new RegExp('^(?:' + LANE_DIRS.join('|') + ')/panorama/scripts/[^/]+\\.js$');
 const LANE_TEST = new RegExp('^(?:' + LANE_DIRS.join('|') + ')/tests/');
 const GENERATOR_INPUT = new RegExp(quick.GENERATOR_MODULE);
+// The folders each variant composer reads (LANES.composerInputs): a change there recomposes that lane.
+const COMPOSER_INPUTS = Object.fromEntries(VARIANT_NAMES.map(name => [name, LANES[name].composerInputs.map(dir => dir + '/')]));
+const COMPOSER_INPUT_PREFIX = new RegExp('^(?:' + Object.values(COMPOSER_INPUTS).flat().join('|') + ')');
 
 // ---------------------------------------------------------------------------------------------------
 // Classifying changed files.
@@ -78,10 +81,9 @@ function isWatchIgnored(rel) {
   return !relevant(rel);
 }
 
-// Files a cycle cares about at all (the lanes, the ShowRank layouts ShowRank's composer reads, the shared
-// test adapter scripts).
+// Files a cycle cares about at all (the lanes, the folders the composers read, the shared test adapter scripts).
 function relevant(rel) {
-  return LANE_PREFIX.test(rel) || new RegExp('^' + SR_SOURCE + '/panorama/layout/').test(rel) || /^scripts\/hp-colors-[^/]+\.js$/.test(rel);
+  return LANE_PREFIX.test(rel) || COMPOSER_INPUT_PREFIX.test(rel) || /^scripts\/hp-colors-[^/]+\.js$/.test(rel);
 }
 
 function isGeneratorInput(rel) {
@@ -94,10 +96,7 @@ function isGeneratorInput(rel) {
 
 function composerInput(rel) {
   rel = posix(rel);
-  const out = [];
-  if (rel.startsWith(QOL + '/vendor/') || rel === TOOLS.qollock) out.push('qollock');
-  if (rel.startsWith(SR_SOURCE + '/panorama/layout/') || rel === TOOLS.showrank) out.push('showrank');
-  return out;
+  return VARIANT_NAMES.filter(name => rel === TOOLS[name] || COMPOSER_INPUTS[name].some(prefix => rel.startsWith(prefix)));
 }
 
 const isTestFile = rel => LANE_TEST.test(posix(rel));
@@ -147,14 +146,14 @@ async function generatorStep(plan, deps) {
   const check = await deps.runNode(TOOLS.generate, ['--check']);
   if (check.code === 0) return { name: 'generate', ok: true, note: 'current', changed: [] };
   const output = check.stderr + '\n' + check.stdout;
-  if (plan.generate && /Stale generated files/.test(output)) {
+  if (plan.generate && isStale(output)) {
     const before = deps.hash(GENERATED);
     const write = await deps.runNode(TOOLS.generate, []);
     if (write.code !== 0) return { name: 'generate', ok: false, failures: [{ what: 'generate', message: firstLine(write.stderr || write.stdout) }], changed: [] };
     const changed = changedBetween(before, deps.hash(GENERATED));
     return { name: 'generate', ok: true, note: 'regenerated ' + changed.length, changed };
   }
-  return { name: 'generate', ok: false, failures: [{ what: 'generate --check', message: firstLine(output) + (/Stale generated/.test(output) && !plan.generate ? ' (no generator input changed; run tools/generate.js after review)' : '') }], changed: [] };
+  return { name: 'generate', ok: false, failures: [{ what: 'generate --check', message: firstLine(output) + (isStale(output) && !plan.generate ? ' (no generator input changed; run tools/generate.js after review)' : '') }], changed: [] };
 }
 
 async function composerStep(name, plan, deps, generatorChanged) {
@@ -163,7 +162,7 @@ async function composerStep(name, plan, deps, generatorChanged) {
   if (check.code === 0) return { name, ok: true, note: 'current', changed: [] };
   const output = check.stderr + '\n' + check.stdout;
   const mayWrite = plan.compose.includes(name) || generatorChanged;
-  if (mayWrite && /^Stale (?:QOLLOCK|ShowRank) layouts/m.test(output)) {
+  if (mayWrite && isStale(output)) {
     const before = deps.hash(COMPOSED[name]);
     const write = await deps.runNode(script, []);
     if (write.code !== 0) return { name, ok: false, failures: [{ what: name + '.js', message: firstLine(write.stderr || write.stdout) }], changed: [] };
@@ -242,7 +241,7 @@ async function testStep(files, projects, deps) {
   const full = selection.mapped.some(entry => entry.full);
   if (!tests.length) return { name: 'tests', ok: true, note: 'none mapped', count: 0 };
   const run = await deps.runTests(tests);
-  const tap = quick.parseTap(run.stdout + '\n' + run.stderr);
+  const tap = parseTap(run.stdout + '\n' + run.stderr);
   const totals = tap.totals;
   const pass = totals.pass || 0, fail = totals.fail || 0;
   const failures = tap.failures.slice(0, 8).map(failure => ({
@@ -363,10 +362,10 @@ function defaultDeps() {
     exists: rel => fs.existsSync(path.join(REPO, rel)),
     hash: files => hashFiles(files),
     runNode: (script, args) => runProcess([path.join(REPO, script), ...args]),
-    runTests: tests => quick.runNodeTest(tests, { progress: false }),
+    runTests: tests => runNodeTest(tests, { progress: false }),
     stylesheets: () => stylesheetStep(),
     syntax: files => syntaxStep(files),
-    gitChanged: () => quick.gitChanged(),
+    gitChanged: () => gitChanged(),
   };
 }
 
@@ -394,8 +393,12 @@ function createDebouncer(ms, fire, { setTimer = setTimeout, clearTimer = clearTi
 
 function watchRoots(projects) {
   const roots = [{ dir: V3, recursive: true }];
-  if (projects.includes('qollock')) roots.push({ dir: QOL, recursive: true });
-  if (projects.includes('showrank')) roots.push({ dir: SR, recursive: true }, { dir: SR_SOURCE + '/panorama/layout', recursive: true });
+  for (const name of VARIANT_NAMES) {
+    if (!projects.includes(name)) continue;
+    const dir = LANES[name].dir;
+    roots.push({ dir, recursive: true });
+    for (const input of LANES[name].composerInputs) if (!input.startsWith(dir + '/')) roots.push({ dir: input, recursive: true });
+  }
   roots.push({ dir: 'scripts', recursive: false });
   return roots.filter(root => fs.existsSync(path.join(REPO, root.dir)));
 }
@@ -457,7 +460,7 @@ async function main(argv = process.argv.slice(2), deps = defaultDeps()) {
   if (opts.help) { deps.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 20).map(line => line.replace(/^\/\/ ?/, '')).join('\n')); return 0; }
   if (opts.once) {
     let files;
-    try { files = opts.files ? opts.files.map(file => quick.normalizeFile(file)) : deps.gitChanged(); } catch (error) { console.error('dev.js: git failed (' + error.message.split('\n')[0] + '); pass --files.'); return 2; }
+    try { files = opts.files ? opts.files.map(file => normalizeFile(file)) : deps.gitChanged(); } catch (error) { console.error('dev.js: git failed (' + error.message.split('\n')[0] + '); pass --files.'); return 2; }
     const result = await runCycle(files, opts, deps);
     deps.log(formatCycle(result, { index: 1 }));
     return result.ok ? 0 : 1;

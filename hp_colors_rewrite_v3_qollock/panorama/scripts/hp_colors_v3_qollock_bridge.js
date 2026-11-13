@@ -14,11 +14,7 @@
   var api = typeof QOL !== "undefined" && QOL && QOL.ui && QOL.ui.window ? QOL.ui.window : null;
   var global = typeof globalThis !== "undefined" ? globalThis : null;
   function valid(panel) { try { return !!panel && panel.IsValid(); } catch (error) { return false; } }
-  function v3Open() {
-    var settings = $.HPColorsV3Settings;
-    var host = settings && settings.menu && valid(context) ? context.FindChildTraverse(settings.menu.rootId) : null;
-    return valid(host) && host.BHasClass("HPC3Open");
-  }
+  function v3Open() { return typeof $.HPColorsMenuIsOpen === "function" && $.HPColorsMenuIsOpen() === true; }
   function qolOpen() {
     if (api && typeof api.isOpen === "function") return api.isOpen() === true;
     return typeof $.IsModSettingsOpen === "function" && $.IsModSettingsOpen() === true;

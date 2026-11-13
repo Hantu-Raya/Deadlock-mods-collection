@@ -40,7 +40,6 @@
 .HPC3Root.SaveResetConfirming .HPC3ResetSave { visibility: collapse; }
 .HPC3Root.SaveResetAvailable.SaveResetConfirming .HPC3ResetSaveConfirm { visibility: visible; }
 
-/* Body: percentage rail | flexible content | percentage preview. */
 .HPC3Body { width: 100%; height: fill-parent-flow(1); flow-children: right; }
 .HPC3Rail { width: 18%; min-width: 240px; max-width: 420px; height: 100%; padding: 100px 12px 0px 12px; flow-children: down; }
 .HPC3NavList { width: 100%; height: fill-parent-flow(1); margin-bottom: 96px; flow-children: down; overflow: squish scroll; }
@@ -219,7 +218,6 @@
 .HPC3Row:hover .HPC3Hex, .HPC3Row:hover .HPC3NumberEntry { color: #FFEFD7; }
 .HPC3EntryBox:descendantfocus { border: 2px solid #FFEFD711; background-color: #10130D66; }
 .HPC3Row.Changed .HPC3Hex, .HPC3Row.Changed .HPC3NumberEntry { color: #5FE69E; }
-/* Content-sized value; the unit follows it. */
 .HPC3NumberValue { width: fit-children; max-width: 122px; margin-left: 16px; vertical-align: center; flow-children: right; }
 .HPC3Unit { width: fit-children; margin-left: 4px; vertical-align: center; font-size: 18px; color: #FFEFD744; }
 .HPC3CodeEntry { width: 100%; height: 36px; margin-top: 8px; vertical-align: center; padding: 4px 8px; background-color: #10130D33; border: 2px solid #FFEFD711; border-radius: 4px; font-size: 16px; color: #FFEFD7CC; }
@@ -237,7 +235,6 @@
 .HPC3Hex { width: 88px; font-size: 16px; }
 .HPC3ColorGroup .HPC3EntryBox { margin-left: 8px; }
 .HPC3RowControls .HPC3SliderGroup, .HPC3RowControls .HPC3ColorGroup { max-width: 100%; }
-/* Presets: share codes */
 .HPC3Share { width: 100%; margin-top: 18px; flow-children: down; }
 .HPC3CodeRow { flow-children: down; }
 .HPC3CodeRow .HPC3Copy { width: 100%; }

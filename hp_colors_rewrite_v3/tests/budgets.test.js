@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const budgets = require('../tools/budgets');
-const { parseTap } = require('../tools/test');
+const { parseTap } = require('../tools/lib/tap');
 
 const near = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-6, (message || '') + ' ' + actual + ' != ' + expected);
 

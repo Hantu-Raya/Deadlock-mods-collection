@@ -19,7 +19,7 @@ const V3_ROOT = path.resolve(__dirname, '..');
 // Lane labels, folders and build commands come from the shared lane table.
 const PROJECTS = Object.fromEntries(Object.values(LANES).map(lane => [lane.key, { label: lane.ticketLabel, dir: lane.dir, build: lane.build }]));
 const USAGE = `Usage: node tools/ticket.js new --title "..." [--slug <kebab>] [--request "quote|who|date"]
-  [--project v3|qollock|showrank] [--map] [--spec-after <story number>] [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>]`;
+  [--project ${cli.projectChoices({ all: false })}] [--map] [--spec-after <story number>] [--date YYYY-MM-DD] [--dry-run] [--root <v3 tree>]`;
 const ARGS = {
   options: {
     '--title': { key: 'title', value: true }, '--slug': { key: 'slug', value: true }, '--request': { key: 'request', value: true },

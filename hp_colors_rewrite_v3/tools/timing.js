@@ -25,7 +25,7 @@ const { listTests } = require('./lib/run');
 const { parseTap } = require('./lib/tap');
 const { BUILD_DIR, parseIso, parsePass, passDir } = require('./suite-cache');
 
-const USAGE = 'Usage: node hp_colors_rewrite_v3/tools/timing.js [--project v3|qollock|showrank|all] [--mode debug|release|all] [--top <n>] [--tap <file.tap>] [--json]';
+const USAGE = `Usage: node hp_colors_rewrite_v3/tools/timing.js [--project ${cli.projectChoices()}] [--mode debug|release|all] [--top <n>] [--tap <file.tap>] [--json]`;
 const MODES = ['release', 'debug'];
 // A variant's staged tree sits under <lane folder>\.build (suite-pass markers store the staged path).
 const VARIANT_BUILDS = VARIANT_NAMES.map(name => [name, new RegExp(LANES[name].dir + '\\\\\\.build', 'i')]);

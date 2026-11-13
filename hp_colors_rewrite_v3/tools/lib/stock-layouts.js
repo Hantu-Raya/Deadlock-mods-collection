@@ -67,7 +67,6 @@ function worldMarkup(depth, nodes, first = true) {
   }).join('');
 }
 
-// Names the stock layout a failed patch came from.
 function inLayout(file, patch) {
   try { return patch(); }
   catch (error) { error.message = file + ': ' + error.message; throw error; }
