@@ -1,0 +1,56 @@
+<strong>[<a href="https://www.twitch.tv/hanturaya101" target="_blank">Twitch</a>]</strong> | <strong>[<a href="https://x.com/hanturaya" target="_blank">Twitter</a>]</strong> | <strong>[<a href="https://ko-fi.com/hantuaraya" target="_blank">Support</a>]</strong><br><br>
+Detailed Postgame turns the post-game Scoreboard screen into a stats board for all 12 players. It shows every stat of the match on one screen: exact numbers, where each player's souls came from, final items, and a soul lead graph with the objectives marked on it. It appears whenever the game opens a match on the post-game page.<br><br>
+
+<b>Exact numbers</b>
+<ul>
+<li>Full values, not rounded: souls, kills, deaths, assists, player damage, objective damage and healing for every player.</li>
+<li>The best value in the match for each stat is highlighted.</li>
+<li>MVP and Key Player slips sit on the hero portraits.</li>
+<li>Team net worth, kills, game time and match ID are in the header.</li>
+</ul>
+
+<b>Souls by source and final items</b>
+<ul>
+<li>Each player's souls split by source, with percentages: troopers, neutrals, breakables, team bonus, enemy kills, objectives, urn, assists and denies.</li>
+<li>Each player's final items sit below.</li>
+</ul>
+
+<b>Soul lead graph</b>
+<ul>
+<li>Shows which team was ahead, and by how much, over the whole match.</li>
+<li>Guardians, Walkers and base Guardians are marked on the timeline in the colour of the team that took them.</li>
+<li>Both teams' peak leads and the final lead are labelled.</li>
+</ul>
+
+<b>Other details</b>
+<ul>
+<li>Click the match ID in the header to copy it.</li>
+<li>Fits 4:3 screens: the board scales down so nothing is cut off.</li>
+<li>The board reads everything from the game's own post-game page. It makes no web requests.</li>
+</ul>
+
+<b>Install</b>
+<ol>
+<li>Put <code>pak11_dir.vpk</code> in <code>Deadlock\game\citadel\addons</code>. Create the <code>addons</code> folder if it is missing.</li>
+<li>If you have never used mods: open <code>game\citadel\gameinfo.gi</code> and add the line <code>Game citadel/addons</code> above <code>Game citadel</code> in <code>SearchPaths</code>.</li>
+<li>Restart Deadlock and open a match on the post-game page, for example from your match history. The board is on the Scoreboard screen of the post-game page.</li>
+</ol>
+If you already have a <code>pak11_dir.vpk</code> from another mod, rename this one to a free number.<br><br>
+
+<b>Works with other mods</b>
+<ul>
+<li>Only one mod can own the post-game page. Observer HUD and DLF ship their own version of this board, so with either installed, theirs shows instead of this one.</li>
+<li>Works alongside ShowRank.</li>
+</ul>
+
+<b>Known limits</b>
+<ul>
+<li>The graph, the objective markers and souls by source take a moment to appear after the board opens, because the board reads them from the game's Graphs screen.</li>
+<li>The mid boss, the shrines, the patron and one of the Walkers are not on the timeline. The game's post-game page does not list them.</li>
+<li>A player with more than 15 final items overlaps the top edge of the graph.</li>
+</ul>
+
+<b>Support</b><br>
+The mod is free. If you want to support my work, the DONATE button under the page buttons on the board opens <a href="https://ko-fi.com/hantuaraya" target="_blank">ko-fi.com/hantuaraya</a>.<br><br>
+
+Detailed Postgame v1 by hanturaya. Source: <a href="https://github.com/Hantu-Raya/Deadlock-mods-collection" target="_blank">github.com/Hantu-Raya/Deadlock-mods-collection</a>
