@@ -1,7 +1,7 @@
 {
   "repository": "SteamTracking/GameTracking-Deadlock",
-  "commit": "cc1878831d359fa8ed741db947835e331bbeec59",
-  "clientVersion": 6828,
+  "commit": "82735ebcc9c89d1b3f6b3262c23c9580798ad362",
+  "clientVersion": 6861,
   "files": [
     {
       "path": "vendor/unit_status_v2.css",
@@ -11,12 +11,12 @@
     {
       "path": "vendor/heroes.vdata",
       "upstream": "game/citadel/pak01_dir/scripts/heroes.vdata",
-      "sha256": "df1952701db64e1d7581d1ce47f165b3d0a285c9463011ce9b2b473b90903b0b"
+      "sha256": "96c1a86c247d9137a0031a9386a06c5edbdc9eedabc944afb8b86b47e04cad51"
     },
     {
       "path": "vendor/abilities.vdata",
       "upstream": "game/citadel/pak01_dir/scripts/abilities.vdata",
-      "sha256": "91e78632a310b2965cdb0094ff03aa1a006cd5404f44ae364a75832bb4157fb0"
+      "sha256": "5f1e89f5c7bcc91429a87f429910e3ddbaf3ddf2b56b0f6830ca7c2a3f026ffe"
     },
     {
       "path": "vendor/citadel_gc_hero_names_english.txt",
