@@ -669,7 +669,7 @@ test('cached idle facts pure/memoized and dead fill recovered at one-second line
   fx.advance(1100); assert.equal(replacement.style.washColor,'#00ff00');
 });
 
-test('debug timing/carrier lifecycle logs are observable and release remains silent', () => {
+test('debug timing/carrier lifecycle logs are observable and release remains silent', t => {
   const fx = fixture(); fx.advance(6000);
   fx.h.root.classes = ['player','friend']; fx.advance(1000);
   if (process.env.HPV3_DEBUG === '1') {
@@ -678,7 +678,10 @@ test('debug timing/carrier lifecycle logs are observable and release remains sil
     const depths=fx.h.logs.filter(line=>line.startsWith('[HPV3] renderer carrier depth='));
     assert.equal(depths.length,1,'one observation per carrier, not per role change/tick');
     assert.match(depths[0],/depth=2 ancestry=2 /);
-  } else assert.deepEqual(fx.h.logs,[]);
+  } else {
+    t.diagnostic('debug log assertions not run: HPV3_DEBUG is not 1 (release and staged runs strip the log lines); asserting silence instead');
+    assert.deepEqual(fx.h.logs,[]);
+  }
 });
 
 for (const [scenario,ceiling] of [['active',300],['idle',200],['dormant',30],['released',30],['releasedSplitStock',30],['shieldedActive',300],['pulseActive',300],['pulseIdle',200],['shieldedPulseActive',300],['arrowPulseIdle',200],['shieldedArrowPulseActive',300],['pickupArrowPulseIdle',200],['shieldedPickupArrowPulseActive',300],['ordinaryEffectsPickupArrowPulseIdle',200],['ordinaryEffectsShieldedPickupArrowPulseActive',300],['ultimateOrdinaryEffectsPickupArrowPulseIdle',200],['ultimateOrdinaryEffectsShieldedPickupArrowPulseActive',300],['ultimateOrdinaryEffectsShieldedPickupArrowPulseIdle',200],['ultimateChurn12PickupArrowPulseIdle',200],['ultimateChurn24PickupArrowPulseIdle',200],['ultimateManyEffectsPickupArrowPulseIdle',200],['ultimateChurn12ShieldedPickupArrowPulseIdle',200],['ultimateChurn24ShieldedPickupArrowPulseIdle',200],['ultimateManyEffectsShieldedPickupArrowPulseIdle',200],

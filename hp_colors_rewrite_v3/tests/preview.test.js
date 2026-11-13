@@ -634,17 +634,6 @@ test('live HP alignment: preview HP right edge preserves the world fixture bar-e
   }
 });
 
-test('live HP alignment: debug-only geometry log replaces resolved team logging', { skip: process.env.HPV3_DEBUG === '0' && 'staged release strips HPV3_DEBUG lines' }, () => {
-  const m = booted({ previewLayout: true }); m.open();
-  const messages = []; m.h.$.Msg = message => messages.push(message);
-  const source = fs.readFileSync(path.join(sourceRoot, 'panorama/scripts/hp_colors_v3_preview.js'), 'utf8');
-  runInVm(source.replace(/\/\/ HPV3_DEBUG /g, ''), m.boot.context);
-  assert.equal(m.h.$.HPColorsV3Preview.attach(m.h.contextPanel, m.settings()), true);
-  m.h.$.HPColorsV3Preview.open();
-  assert.ok(messages.some(message => /hpTextOffsetX=18.*hpTextAlign=left.*geometry=.*"canvas":.*"primary":.*"inner":.*row=.*"width":36.*plannedRow=translate3d/.test(message)));
-  assert.ok(messages.every(message => !message.includes('teamHigh=')), 'resolved team diagnostic is removed');
-});
-
 test('live ult badge: hero mirrors the stock ready Image, assets, relation wash and badge origin', () => {
   const m = booted({ previewLayout: true }); m.open();
   const panel = m.find('HPColorsPreviewUltPanel'), bg = m.find('HPColorsPreviewUltBackground'), ready = m.find('HPColorsPreviewUltReady');

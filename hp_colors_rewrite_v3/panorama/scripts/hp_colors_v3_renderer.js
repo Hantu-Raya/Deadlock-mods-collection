@@ -62,7 +62,7 @@
   // What outlives this IIFE (reinclusion), the four stores in one place:
   //   $.HPColorsV3RendererAuthority  config epoch / revision floor / retired epochs (below)
   //   root.HPColorsV3StockLedger     explicit stock writes, read in start() (dies with the root panel)
-  //   grid.HPColorsV3PipState        per-pip-grid paint state (applyPips)
+  //   grid.HPColorsV3PipState        per-pip-grid paint state (paintOld)
   //   $.HPColorsV3Renderer           the previous instance, stopped by the file's first statement
   // Authority outlives this IIFE: reinclusion must not let an old publisher regain control.
   // Opaque epochs require one retained string per replacement publisher (not per revision/paint).
@@ -354,8 +354,8 @@
     if (publishedParts) return publishedParts;
     var rows = [], i, o, k, FIND_NAMES = ["child", "traverse", "class", "runtime", "native", "derived"];
     function full(fields) {
-      return Object.assign({ key: "", id: "", suffix: "", parents: [], find: "child", at: 0, guarded: false, owned: false, preview: true,
-        lineage: "", lin: 0, ready: 0, accessory: 0, held: false, reparent: "", cls: "", parentClass: "", orNull: false, local: false }, fields);
+      return Object.assign({ key: "", id: "", suffix: "", parents: [], find: "child", at: 0, owned: false, preview: true,
+        lineage: "", lin: 0, ready: 0, accessory: 0, cls: "" }, fields);
     }
     var byRow = {};
     for (i = 0; i * ROW_COLUMNS < PART_DATA.length; i++) {
@@ -364,8 +364,7 @@
       var def = full({ key: PART_DATA[o], id: PART_DATA[o + 1], suffix: find === "runtime" ? PART_DATA[o + 1].slice(WORLD_PREFIX.length) : "",
         parents: PART_DATA[o + 3] ? [PART_DATA[o + 2], PART_DATA[o + 3]] : [PART_DATA[o + 2]], find: find,
         at: i < CHAIN_END ? 1 : i < STOCK_END ? 2 : i < GRID_END ? 3 : i < ULT_END ? 4 : 0,
-        guarded: (flags & 1) !== 0, owned: (flags & 2) !== 0, preview: (flags & 4) === 0, held: (flags & 8) !== 0, orNull: (flags & 16) !== 0,
-        local: (flags & 32) !== 0, parentClass: PART_DATA[o + 6], cls: PART_DATA[o + 7], reparent: PART_DATA[o + 8] });
+        owned: (flags & 2) !== 0, preview: (flags & 4) === 0, cls: PART_DATA[o + 7] });
       rows.push(def); byRow[i] = def;
     }
     for (k = 0; k < DISCOVER_READY.length; k++) byRow[DISCOVER_READY[k]].ready = k + 1;

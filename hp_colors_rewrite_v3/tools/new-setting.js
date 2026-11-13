@@ -141,11 +141,7 @@ function parseNumbers(text, label) {
   if (!values.length || values.some(value => !Number.isFinite(value))) throw new Error(label + ': expected numbers, got ' + text);
   return values;
 }
-const { kebab } = cli;
-function localDate() {
-  const now = new Date();
-  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-}
+const { kebab, localDate } = cli;
 
 // The tool's own refusals. Everything else about a row (types, sides, pages, levels, units, bounds, steps,
 // defaults, unique keys and slots, requirements) is the schema's: plan() runs schema.validate on the finished

@@ -16,7 +16,7 @@ const { buildMenu } = require('./menu-layout');
 const { sidesOf, validate } = require('./lib/schema');
 const { validateNews } = require('./lib/news');
 const { validateRelease, buildSlots, checkSlotContract } = require('./lib/slot-contract');
-const { stockLayouts, menuSteps, topbarSteps, MENU_RESUME, MENU_STYLES, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OWNED_STYLES } = require('./lib/stock-layouts');
+const { stockLayouts, menuSteps, topbarSteps, MENU_SCRIPTS, TOPBAR_SCRIPTS, TOPBAR_CLASS, OWNED_STYLES } = require('./lib/stock-layouts');
 const { WIRE_VERSION, worldSettingsScript, settingsScript } = require('./lib/settings-scripts');
 const { checkStylesheets } = require('./lib/stylesheets');
 const { json, readJson, staleFiles, writeOrCheck } = require('./lib/output');
@@ -69,8 +69,8 @@ function build(rows, gameData, metadata, news, { root = ROOT, stylesRoot } = {})
 }
 
 // Published for variant lanes (hp_colors_rewrite_v3_qollock, _showrank): the exact v3 Escape-menu and topbar
-// pieces and patch steps this generator injects, computed from the v3 sources, plus `stale` (the v3 outputs of
-// `root` that are out of date) with `assertFresh()` (a lane refuses a stale v3 checkout) and `generatedKeys`. `lane.profile`
+// pieces and patch steps this generator injects, computed from the v3 sources, plus the generated `files` and
+// `assertFresh()` (a lane refuses a checkout whose v3 outputs in `root` are out of date). `lane.profile`
 // ('stock' by default, or 'qollock') picks the base differences of the patch steps and `lane.topbarClasses`
 // adds the lane's own classes to the topbar root. The v3 lane itself knows nothing about variants.
 function menuParts(root = ROOT, lane = {}) {
@@ -79,9 +79,8 @@ function menuParts(root = ROOT, lane = {}) {
     readJson(path.join(root, 'settings/record.json')), readNews(root), { root });
   const stale = staleFiles(files, root);
   const topbarClass = [TOPBAR_CLASS, ...topbarClasses].join(' ');
-  return { resume: MENU_RESUME, styles: MENU_STYLES, scripts: MENU_SCRIPTS, button: menu.button, fragment: menu.fragment,
-    ids: menu.ids, topbarScripts: TOPBAR_SCRIPTS, topbarClass, files, generatedKeys: Object.keys(OUTPUTS),
-    menuPatches: menuSteps(profile, menu), topbarPatches: topbarSteps(profile, topbarClass), stale, assertFresh: () => {
+  return { scripts: MENU_SCRIPTS, ids: menu.ids, topbarScripts: TOPBAR_SCRIPTS, files,
+    menuPatches: menuSteps(profile, menu), topbarPatches: topbarSteps(profile, topbarClass), assertFresh: () => {
       if (stale.length) throw new Error('hp_colors_rewrite_v3 generated outputs are stale (' + stale.join(', ') + '); run hp_colors_rewrite_v3/tools/generate.js first.');
     } };
 }

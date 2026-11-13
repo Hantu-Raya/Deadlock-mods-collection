@@ -4,8 +4,8 @@
   // world renderer's own classify -> facts -> plan -> apply chain ($.HPColorsV3Renderer.createPainter).
   // Carrier classes are data here, except the sample marks writeSampleMarks puts on the pane and canvas. Play, edit-shake and layout-settle
   // work have separate generation tokens; unlaid geometry polls at 4 Hz only while the preview is open.
-  // The renderer publishes the shared vocabulary (status labels, status scales, pickup kinds) and its part table once at load
-  // ($.HPColorsV3Renderer.statusLabels / statusScales / pickupKinds / parts); only this sample tree's ids live here.
+  // The renderer publishes the shared vocabulary (status labels, status scales, pickup kinds, parts)
+  // as $.HPColorsV3Renderer.statusLabels / statusScales / pickupKinds / parts (all but statusLabels are built on first read); only this sample tree's ids live here.
   // Sample numbers handed to the shared painter: the ultimate timer angle, the fixed kill bounty and the part that mirrors the fill.
   var SAMPLE = { idPrefix: "HPColorsPreview", ultimateAngle: 180, bounty: 1250, mirror: "visualFill" };
   // Parts only the sample tree has (the painter's canvas, the effect-size sample, the fill mirror); every other key is a renderer part.

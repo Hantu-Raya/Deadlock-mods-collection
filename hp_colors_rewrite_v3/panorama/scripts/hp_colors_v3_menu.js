@@ -14,7 +14,7 @@
   var effectiveSettings = null, lastPublishedRevision = -1;
   var ABILITY_SLOTS = 4, MAX_TIER = 3, SIDES = ["enemy", "ally"], UNDO_LIMIT = 40, THRESHOLD_GAP = 1;
   var GESTURE_PUBLISH_MS = 50, ANSWER_THROTTLE_MS = 500;
-  // One value per ability slot (menu.test.js pins ABILITY_SLOTS/MAX_TIER to the codec RECORD ranges).
+  // One value per ability slot (ABILITY_SLOTS and MAX_TIER must equal the codec RECORD slotRange[1] and tierRange[1]; no test ties them).
   function slotArray(value) { var slots = []; for (var i = 0; i < ABILITY_SLOTS; i++) slots.push(value); return slots; }
   var tiers = slotArray(-1), requiredSlots = slotArray(false), ruleRows = {};
   var signature = null, abilityOwner = null, abilityPanels = slotArray(null), matchedRules = "";

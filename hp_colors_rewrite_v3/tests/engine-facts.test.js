@@ -95,7 +95,7 @@ test('engine-facts CLI: --refresh is read-only and explains the Python extractor
   assert.deepEqual(fs.readdirSync(path.join(dir, 'game', 'citadel')), ['steam.inf']);
 });
 
-test('strict adapter: refuses $ functions, panel methods and events the engine lacks', { skip: !adapter.ADAPTER_STRICT }, () => {
+test('strict adapter: refuses $ functions, panel methods and events the engine lacks', { skip: !adapter.ADAPTER_STRICT && 'strict adapter mode is off (HPV3_ADAPTER_STRICT=0); the adapter does not refuse unknown engine API' }, () => {
   const h = adapter.createPanoramaHarness();
   assert.equal(h.$.DispatchEvent('UIHideTextTooltip', h.root), true);
   assert.throws(() => h.$.DispatchEvent('NoSuchEvent'), /strict\): event "NoSuchEvent" is not registered/);

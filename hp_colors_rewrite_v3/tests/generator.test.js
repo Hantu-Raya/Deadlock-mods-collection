@@ -302,18 +302,26 @@ test('validationSource accepts and refuses exactly the values schema.js accepts 
 });
 
 // A6: values the generator prints into the menu that the menu script also owns.
-test('generated menu text agrees with the menu script (news days, credits, Discord name, colorblind types)', () => {
-  const script = fs.readFileSync(path.join(root, 'panorama/scripts/hp_colors_v3_menu.js'), 'utf8');
+test('generated menu text agrees with the menu script (news days, credits, colorblind types)', () => {
+  const { profile, launch } = require('./storage-fixture');
   const xml = fs.readFileSync(path.join(root, 'generated/menu-rows.xml'), 'utf8');
   const { PAGES } = require('../tools/lib/menu-markup');
-  const days = /NEWS_DAYS = (\d+)/.exec(script)[1];
-  assert.match(PAGES.find(page => page.name === 'New').description, new RegExp('after ' + days + ' days'));
-  const discord = /FEEDBACK_DISCORD = "([^"]+)"/.exec(script)[1];
-  assert.ok(xml.includes('<Label text="' + discord + '" hittest="false" />'), 'feedback dialog shows the Discord name the menu copies');
-  const credited = [...script.matchAll(/\["(\w+)", "hero_\w+"\]/g)].map(match => match[1]);
-  assert.deepEqual([...xml.matchAll(/id="HPColorsCredits(\w+)Portrait"/g)].map(match => match[1]), credited);
-  const types = /COLORBLIND_TYPES = \[([^\]]+)\]/.exec(script)[1].match(/\w+/g);
-  assert.deepEqual([...xml.matchAll(/id="HPColorsColorblind(\w+)Toggle"/g)].map(match => match[1]), types);
+  // The menu script's expiry is pinned by tests/news.test.js (ticket 36: items leave 30 days after their date).
+  assert.match(PAGES.find(page => page.name === 'New').description, /after 30 days/);
+  const f = launch(profile()); f.run(2000);
+  const find = id => { const panel = f.harness.contextPanel.FindChildTraverse(id); assert.ok(panel, id); return panel; };
+  const credited = [...xml.matchAll(/id="HPColorsCredits(\w+)Portrait"/g)].map(match => match[1]);
+  assert.ok(credited.length > 0, 'the generated credits dialog names its contributors');
+  find('HPColorsPreviewCreditsButton').events.onactivate();
+  for (const name of credited) assert.ok(find('HPColorsCredits' + name + 'Portrait').src, name + ' portrait is filled by the menu script');
+  const types = [...xml.matchAll(/id="HPColorsColorblind(\w+)Toggle"/g)].map(match => match[1]);
+  assert.ok(types.length > 0, 'the generated colorblind rows exist');
+  for (const type of types) {
+    const toggle = find('HPColorsColorblind' + type + 'Toggle');
+    toggle.events.onactivate();
+    assert.equal(toggle.BHasClass('Checked'), true, type + ' switch is bound by the menu script');
+    assert.ok(f.harness.dispatches.some(args => args[0] === 'CitadelConCommand' && args[1] === 'r_colorblindsim_fullscreen_weight_' + type.toLowerCase() + ' 1'), type + ' sends its game command');
+  }
 });
 
 test('PAGES is the one page table: schema rows, NEW targets and the empty-page label read it', () => {

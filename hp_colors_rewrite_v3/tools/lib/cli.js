@@ -67,4 +67,10 @@ const helpText = (file, first, last) => fs.readFileSync(file, 'utf8').split('\n'
 // camelCase -> kebab-case, acronym-aware: 'enemyHPBar' -> 'enemy-hp-bar'.
 const kebab = key => key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z])([A-Z][a-z])/g, '$1-$2').toLowerCase();
 
-module.exports = { HELP, parse, project, projectWords, projectChoices, helpText, kebab };
+// Today as local YYYY-MM-DD.
+function localDate() {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+}
+
+module.exports = { HELP, parse, project, projectWords, projectChoices, helpText, kebab, localDate };

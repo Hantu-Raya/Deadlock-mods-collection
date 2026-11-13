@@ -13,6 +13,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const cli = require('./lib/cli');
+const { localDate } = cli;
 const { LANES } = require('./lib/projects');
 
 const V3_ROOT = path.resolve(__dirname, '..');
@@ -55,10 +56,6 @@ function slugify(title) {
     slug = slug ? slug + '-' + word : word;
   }
   return slug.slice(0, 48);
-}
-function localDate() {
-  const now = new Date();
-  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 }
 const eolOf = text => (text.includes('\r\n') ? '\r\n' : '\n');
 

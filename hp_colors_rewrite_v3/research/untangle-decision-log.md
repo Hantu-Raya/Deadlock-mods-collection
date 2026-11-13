@@ -321,3 +321,44 @@ Each wave: fixes run in parallel; no file appears twice in a wave. `menu.js` and
 - B14 owns (menu.js): S:menu.js, QOL:panorama/scripts/hp_colors_v3_qollock_bridge.js, TT:row-requirements.test.js, TT:row-requirements-effect.test.js, TT:menu.test.js, QOL:tests/qollock.test.js (needs B11)
 - B15 owns (renderer.js): S:renderer.js, S:world_boot.js, TT:renderer.test.js, TT:timers.test.js, TT:boot-layout.js (needs B12)
 - A8 owns: T:new-setting.js, TT:codec.test.js, TT:legacy-shield.test.js, TT:preview-chrome.test.js, TT:migration.test.js, TT:logging.test.js, TT:nav.test.js, TT:news.test.js, TT:audit-performance.test.js (needs B10; runs last because it edits tests other fixes pin)
+
+## Outcome
+
+Baseline `d6b5e62`. Waves: W1 `76e8c4c`, W2 `f3a355c`, W3 `b0ef14d`, W4 `e3dc170`, W5 `1bdc09b`, W6 `130adbc`, W7 `624ac3e`. A tests pass and the round-3 fixes came after W7 and are in the final commit. After every wave: the three generator `--check`s, `doctor`, `engine-facts --check`, all suites, a budget comparison with the baseline (no counted scenario may rise) and a real release build of all three lanes.
+
+### Re-audit rounds
+
+- Round 1: 45 items fixed (tools 7, storage and timers 7, menu 17, renderer 14).
+- Round 2: 11 items fixed (menu and preview 5, storage and tools 6).
+- Round 3, all scripts: 9 small items (five false comments, three dead fields, one shared helper).
+- Reports: `.scratch/untangle/reaudit/*.md`; equivalence reviews: `.scratch/untangle/review/equiv-*.md`.
+
+### Load cost
+
+The world scripts are evaluated once per health-bar panel. Run-only load of the five world scripts (source form, node vm, median of 4000) went from 142 us to 162 us. That is about +20 us once per bar creation, +14%. The renderer alone went from 22.8 us to 36.5 us; it was 49.3 us before the tuning, defaults, stock-size and lease tables became plain locals and the menu-only tables became lazy. The rest is many small top-level statements (state objects and data tables the refactor added). The frozen shared `EMPTY_PLAN` costs about 2.8 us and stays because it guards a shared object. Per-tick and per-paint budgets (`tools/budgets.js`, 73 counted scenarios) show no increase.
+
+### Behaviour changes (dev tools, or states that cannot ship)
+
+- `dev.js` watch treats `relay.xml` as source. `test.js` has `--list-unmapped`; `menu.js` changes also select the legacy-shield suite.
+- `new-setting` defers to schema validation. The generator throws for an enum with more than 4 options (the menu has no dropdown control). `showrank --check` refuses a stale v3 stage.
+- The codec throws on a contradictory contract. `world_boot` reports a clear error when a required script is missing. An unknown menu control type throws at menu boot.
+- The preview API lost `setTeam`, `setUnitKind` and `shakeOnEdit` (internal callers only). Renderer facts lost `relation`, `team1` and `team2`.
+- Duplicate hero keys are last-wins (the contract has none). Storage no longer accepts a partial menu API or injected schedule or log options (nothing passed them).
+- `engine-facts` and `logscan` read `ClientVersion` with spaces around `=`.
+- `status.plansComputed` counts a plan whose apply threw on the timer fast path (debug and test counter only).
+- `generated/ids.json` and `generated/heroes.json` are no longer produced. `search-index.json` is still produced.
+- Correction: the log above lists the renderer `apply` export as a test seam. It had no reader, tests included, and was removed.
+
+### Deliberate leftovers
+
+- A3 identity `UPGRADE_STEPS`; A5 store-method guards; A6 `TYPES` flag and `_sidesOf`; A8 nav `STRUCTURE`: small gain, and each touches a pinned contract or a test pin.
+- B1 `plan()` split: the plan key order is the style write order, the risk is high, and it adds closures at load.
+- B2 jobs registry; B4 shared timers locals; B5 `readoutLayoutKey` and `barWidth`; B6 `LANE` object and `dialogTierSampling`; B7 `dev.js` `runProcess`; B8 doctor delegation and the `timing.json` pair; B10 flag spec; B11 `sampleFx` cache, `DEFAULT_PRESET_ID`, `WRONG_KIND` and `PERSONAL_KEYS`; B12 `tick` and `setTimerFacts` not merged; B13 doc header; B15 Timers not in the boot check: the gain did not cover the load cost or the risk.
+- Menu `presetCarryKeys`: needs codec and storage changes.
+- Renderer: `status.plansComputed` stays because a test reads it. Two bridge guards in `onConfig` and the config request stay because the menu context loads the renderer without the bridge.
+- Test harness merges (`problems/test-harness.md` fixes 1-5 and 7): left. Rewriting the shared harness right after a large refactor weakens the safety net for no product gain.
+
+### Possible bugs left for the owner
+
+- B14: resetting one row leaves that row's condition rule in place. A test pins this.
+- The preview stage is 284x278 in the script while the CSS says 286x280.

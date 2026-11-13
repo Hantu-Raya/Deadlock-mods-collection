@@ -15,7 +15,7 @@
   // snapshot or a late reply to a retired bridge cannot match new work.
   var bridgeGeneration = 0;
   var INSTANCE = Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36);
-  // requires: include order is settings, codec, from_v2, storage. Collaborators are read at call time through one
+  // requires: include order is settings, from_v2, codec, storage. Collaborators are read at call time through one
   // table (the codec and settings are replaced whole in tests and by a reincluded script).
   var deps = {
     get codec() { return $.HPColorsV3Codec; },
@@ -455,7 +455,6 @@
           if (previousRecord.kind === "valid" || previousRecord.kind === "newer") {
             loaded = true; newerSave = previousRecord.kind === "newer";
             previousRecord.source = "previous";
-            previousRecord.recoveredFrom = currentRecord.kind;
             return callback(previousRecord);
           }
           if (currentRecord.kind === "absent" && previousRecord.kind === "absent") return loadLegacy(callback);

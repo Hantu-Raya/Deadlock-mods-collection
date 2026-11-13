@@ -123,7 +123,7 @@
     return match && Number(match[3]) < 60 && (!match[1] || Number(match[2]) < 60) ? Number(match[1] || 0) * 3600 + Number(match[2]) * 60 + Number(match[3]) : null;
   }
   // Two callers, two conditions, each reading the match classes in the order and with the short-circuits it always had.
-  // Hero testing (Testing Tools, bots) pays hero kills by the same server rules, so bountyCounts counts it
+  // Hero testing (Testing Tools, bots) pays hero kills by the same server rules, so bountyMatch counts it
   // whatever its map class says (live 6839: no pill there before), while the pickup gate treats testing as a
   // scan-everything match. Tutorial, hideout and Street Brawl stay off for both.
   function bountyMatch() {

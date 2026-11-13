@@ -169,7 +169,7 @@ test('stylesheet needles find the selector or declaration a compiled sheet repor
   assert.ok(scan.cssNeedle('Invalid property name: hittest').test('  hittest: false;'));
 });
 
-test('console.log discovery: --file, else discoverDeadlock (flag, env, Steam libraries) and the log beside steam.inf', () => {
+test('console.log discovery: --file, else discoverDeadlock (flag, env, Steam libraries) and the log beside steam.inf', { skip: process.platform !== 'win32' && 'console.log paths use the native path module; the fixture uses Windows paths' }, () => {
   const W = path.win32;
   const steam = 'X:\\steam', library = 'Y:\\Lib';
   const citadel = W.join(library, 'steamapps', 'common', 'Deadlock', 'game', 'citadel');
@@ -185,7 +185,6 @@ test('console.log discovery: --file, else discoverDeadlock (flag, env, Steam lib
     platform: 'win32', env: {},
     spawnSync: (_cmd, args) => args[1].startsWith('HKCU') ? { status: 0, stdout: '\n    SteamPath    REG_SZ    ' + steam + '\n' } : { status: 1, stdout: '' },
   };
-  if (process.platform !== 'win32') return; // console.log paths use the native path module
   const found = scan.findConsoleLog({}, deps);
   assert.equal(found.file, path.resolve(W.join(citadel, 'console.log')));
   assert.match(found.how, /Steam library/);

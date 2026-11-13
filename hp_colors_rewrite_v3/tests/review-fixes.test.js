@@ -145,7 +145,7 @@ for (const [name, mutate] of Object.entries(badRows)) {
   });
 }
 
-test('release logging throwers cover every VM harness and scheduled callbacks, not only boot', { skip: process.env.HPV3_DEBUG === '1' }, () => {
+test('release logging throwers cover every VM harness and scheduled callbacks, not only boot', { skip: process.env.HPV3_DEBUG === '1' && 'debug build keeps its HPV3_DEBUG log lines; this guards the release (stripped) logging' }, () => {
   for (const call of ['$.Msg("late")', '$.Warning("late")', 'console.log("late")', 'console.warn("late")', 'console.error("late")']) {
     const harness = createPanoramaHarness();
     const context = createVmContext(harness);

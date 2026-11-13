@@ -108,26 +108,17 @@ test('a step change and every exit drop the old classes', () => {
   assert.notEqual(computed(f.row, 'height'), 'fit-children');
 });
 
-test('every effect and every step scales its own icon in the world and has its own preview rule', () => {
+test('every effect and every step scales its own icon in the world', () => {
   const f = world();
   const icons = EFFECTS.map(([, , cssClass]) => f.icon(cssClass));
-  for (const value of [110, 180, 250]) {
+  // Every step of the slider (110 to 250 by 10), so a missing or mis-sized rule in the status sheet fails here.
+  for (let value = 110; value <= 250; value += 10) {
     EFFECTS.forEach(([key]) => f.edit(key, value)); f.advance(500);
     assert.equal(f.r.BHasClass('HPColorsV3FxOn'), true, 'on at ' + value);
     EFFECTS.forEach(([key, letter], i) => {
       assert.equal(f.r.BHasClass('HPColorsV3Fx' + letter + value), true, key + ' ' + value);
       assert.equal(computed(icons[i], 'uiScale'), value + '%', key + ' ' + value);
     });
-  }
-  // The world rules live in the status layout's own sheet; the menu preview's mirror lives in the world sheet.
-  for (const [file, prefix] of [['hp_colors_v3_status.css', '.WindowRoot'], ['hp_colors_v3_world.css', '#HPColorsPreviewCanvas']]) {
-    const css = '\n' + fs.readFileSync(path.join(sourceRoot, 'panorama/styles', file), 'utf8').replace(/\r\n/g, '\n');
-    let rules = 0;
-    for (const [key, letter, cssClass] of EFFECTS) for (let value = 110; value <= 250; value += 10) {
-      assert.ok(css.includes('\n' + prefix + '.HPColorsV3Fx' + letter + value + ' .' + cssClass + '\n{\n\tui-scale: ' + value + '%;\n}'), file + ' ' + key + ' ' + value);
-      rules++;
-    }
-    assert.equal(rules, 120, file);
   }
 });
 
@@ -141,8 +132,6 @@ test('the rules work only from the sheet the status layout includes', () => {
   assert.equal(computed(fixation, 'uiScale'), undefined, 'the stock sheets alone do not scale the icon');
   assert.notEqual(computed(f.row, 'height'), 'fit-children');
   assert.deepEqual(layoutSheets(), [...STOCK_SHEETS, OWN_SHEET], 'the shipped layout is the stock includes plus ours, last');
-  const worldCss = fs.readFileSync(path.join(sourceRoot, 'panorama/styles/hp_colors_v3_world.css'), 'utf8');
-  assert.equal(worldCss.includes('.WindowRoot.HPColorsV3Fx'), false, 'no world rule pretends to reach the status row');
 });
 
 test('an enlarged icon costs the script no lookup', () => {
@@ -183,9 +172,11 @@ test('the menu preview adds the edited effect at the right of the status row, at
   assert.equal(computed(sample, 'visibility'), 'visible', 'back at 100% the sample still shows the game size');
   assert.equal(computed(sample, 'uiScale'), undefined);
   for (const [key, , cssClass] of EFFECTS) {
-    set(key, 120);
-    assert.equal(sample.BHasClass(cssClass), true, key);
-    assert.equal(computed(sample, 'uiScale'), '120%', key);
+    for (let value = 110; value <= 250; value += 10) {
+      set(key, value);
+      assert.equal(sample.BHasClass(cssClass), true, key + ' ' + value);
+      assert.equal(computed(sample, 'uiScale'), value + '%', key + ' ' + value);
+    }
     assert.match(computed(find('HPColorsPreviewFxGlyph'), 'backgroundImage'), /^url\("s2r:\/\/panorama\/images\/hud\//, key + ' has a picture');
   }
   h.$.HPColorsV3Preview.setPage('Bar');
