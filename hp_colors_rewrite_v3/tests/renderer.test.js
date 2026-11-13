@@ -3202,3 +3202,66 @@ test('the per-bar cache is created with every key it will ever hold, and the pub
   assert.equal(published.find(def=>def.key==='ultimateOverlay').suffix,'UltimateOverlay');
   assert.deepEqual(published.filter(def=>def.lineage).map(def=>def.lineage+':'+def.key).filter(entry=>/^(chain|optional)/.test(entry)).join(),'chain:status,chain:info,chain:stack,chain:primary,chain:inner,chain:fill,optional:value,optional:name');
 });
+
+// An idle full paint of a plan that was applied cleanly, with the same panels and ledger, does no ledger walk
+// (apply() skip, version counter listed at apply). Pinned through the owners' per-call `seen` stamp: a walk reads it.
+function countLedgerWalk(fx) {
+  const ledger = fx.root.HPColorsV3StockLedger; let reads = 0;
+  for (const owner of ledger) Object.defineProperty(owner, 'seen', { configurable: true, get() { reads++; return undefined; }, set() { reads++; } });
+  return { ledger, reads: () => reads };
+}
+test('idle full paint with nothing changed skips the ledger walk and makes no engine write', () => {
+  const fx = fixture(); fx.advance(600); fx.advance(1000); fx.advance(3000);
+  assert.equal(fx.api.status.state, 'idle');
+  const walk = countLedgerWalk(fx); assert.ok(walk.ledger.length > 0);
+  const paints = fx.api.status.fullPaints, writes = fx.fill.__styleWrites ? fx.fill.__styleWrites.length : 0;
+  fx.advance(4600);
+  assert.ok(fx.api.status.fullPaints >= paints + 2, 'idle full paints ran');
+  assert.equal(walk.reads(), 0, 'no ledger walk');
+  assert.equal(fx.fill.__styleWrites ? fx.fill.__styleWrites.length : 0, writes);
+});
+test('a lease the engine or stock scripts changed behind the renderer is not rewritten by an idle paint (as before the skip)', () => {
+  const fx = fixture(); fx.advance(600); fx.advance(1000); fx.advance(3000);
+  assert.equal(fx.root.BHasClass('HPColorsV3Core'), true);
+  const color = fx.fill.style.washColor; assert.ok(color);
+  fx.root.RemoveClass('HPColorsV3Core'); fx.fill.style.washColor = '#010203';
+  fx.advance(4600);
+  assert.equal(fx.root.BHasClass('HPColorsV3Core'), false); assert.equal(fx.fill.style.washColor, '#010203');
+});
+test('a plan change after an idle skip still paints, and a replaced part is claimed', () => {
+  const fx = fixture(); fx.advance(600); fx.advance(1000); fx.advance(3000);
+  fx.advance(3000); const before = fx.fill.style.washColor;
+  fx.setHealth ? fx.setHealth(10) : null; fx.advance(400);
+  assert.notEqual(fx.fill.style.washColor, before);
+});
+
+// F2: the stamp a paint compares owners with is taken after the ledger index (and the stamp base) exists, so
+// every owner the plan wants carries the paint's stamp and a second real paint restores nothing.
+test('apply stamps every wanted owner with the paint stamp and a repeated plan change restores nothing', () => {
+  const fx = fixture(); fx.advance(600); fx.advance(1000);
+  const ledger = fx.root.HPColorsV3StockLedger, owned = ledger.filter(owner => owner.owned);
+  assert.ok(owned.length > 0);
+  assert.ok(owned.every(owner => owner.seen === owned[0].seen), 'one stamp for every owned owner');
+  assert.ok(owned[0].seen > 1e6, 'stamp base is set before the first stamp is read');
+});
+// F1: a parent/before target nobody styles has no ledger owner; its death must still release the lease at the next
+// idle full paint, as at 8d8b20e, not wait for the 1 s accessory check.
+test('a lease-less before panel that dies releases the kill-streak parent lease at the next idle full paint', () => {
+  const net = network(); mountMenu(net);
+  editMenu(net.menu, 'barColorEnabled', false); editMenu(net.menu, 'ultimateTimerEnabled', false);
+  const fx = fixture({ network: net }); fx.advance(2500);
+  const ledger = fx.root.HPColorsV3StockLedger;
+  const lease = () => ledger.find(owner => owner.key === '@parent' && owner.part === 'killStreak');
+  assert.equal(ledger.filter(owner => owner.panel === fx.ultBackground).length, 0, 'ultBackground has no owner');
+  assert.ok(lease() && lease().owned);
+  // Carrier checks run 1.05 s apart and idle full paints 1.5 s apart: kill the panel 1.1 s after a full paint, so the next
+  // full paint (1.5 s) comes before the next accessory check (2.1 s).
+  let seen = fx.api.status.fullPaints, steps = 0;
+  while (fx.api.status.fullPaints === seen && steps++ < 60) fx.advance(50);
+  fx.advance(1100 - 50); seen = fx.api.status.fullPaints;
+  fx.ultBackground.valid = false;
+  steps = 0;
+  while (fx.api.status.fullPaints === seen && steps++ < 40) fx.advance(50);
+  assert.ok(fx.api.status.fullPaints > seen);
+  assert.equal(lease().owned, false, 'released by the full paint that saw the dead panel');
+});

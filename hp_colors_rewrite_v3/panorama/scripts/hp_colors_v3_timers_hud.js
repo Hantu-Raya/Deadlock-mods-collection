@@ -107,18 +107,20 @@
   // Card souls ({s:gold}) can run above net worth (live: local card 2.1k at server NW 1515), so a side's card
   // sum is kept inside its team label's rounding. Looked up once, revalidated before use.
   function scores() {
-    if (!scoreLabels || ![scoreLabels.friendly, scoreLabels.enemy, scoreLabels.kills].every(valid)) {
+    var live = !!scoreLabels && [scoreLabels.friendly, scoreLabels.enemy, scoreLabels.kills].every(valid);
+    if (!live) {
       var label = function (id) { var p = context.FindChildTraverse(id); return valid(p) ? p.FindChildrenWithClassTraverse("ScoreLabel")[0] || null : null; };
       scoreLabels = { friendly: label("TeamScoreFriendly"), enemy: label("TeamScoreEnemy"), kills: context.FindChildrenWithClassTraverse("FriendlyKills")[0] || null };
     }
-    return { friendly: valid(scoreLabels.friendly) ? parseRounded(scoreLabels.friendly.text) : null,
-      enemy: valid(scoreLabels.enemy) ? parseRounded(scoreLabels.enemy.text) : null,
-      kills: valid(scoreLabels.kills) ? parseSouls(scoreLabels.kills.text) : null };
+    return { friendly: live || valid(scoreLabels.friendly) ? parseRounded(scoreLabels.friendly.text) : null,
+      enemy: live || valid(scoreLabels.enemy) ? parseRounded(scoreLabels.enemy.text) : null,
+      kills: live || valid(scoreLabels.kills) ? parseSouls(scoreLabels.kills.text) : null };
   }
   function bounded(sum, label) { return label ? Math.max(label.value - label.tol, Math.min(label.value + label.tol, sum)) : sum; }
   function clockSeconds() {
-    if (!valid(clockLabel)) clockLabel = context.FindChildTraverse("GameTime");
-    var text = valid(clockLabel) ? String(clockLabel.text || "").replace(/<[^>]+>/g, "").trim() : "";
+    var clockOk = valid(clockLabel);
+    if (!clockOk) { clockLabel = context.FindChildTraverse("GameTime"); clockOk = valid(clockLabel); }
+    var text = clockOk ? String(clockLabel.text || "").replace(/<[^>]+>/g, "").trim() : "";
     var match = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(text);
     return match && Number(match[3]) < 60 && (!match[1] || Number(match[2]) < 60) ? Number(match[1] || 0) * 3600 + Number(match[2]) * 60 + Number(match[3]) : null;
   }
@@ -135,14 +137,14 @@
   }
   // A card's souls label and team panel are fixed for its lifetime; both are revalidated before use.
   function cardOf(owner) {
-    var parts = cardParts.get(owner);
-    if (!parts || !valid(parts.souls) || !valid(parts.team)) {
+    var parts = cardParts.get(owner), live = !!parts && valid(parts.souls);
+    if (!live || !valid(parts.team)) {
       var team = owner.GetParent();
       for (var i = 0; i < 8 && valid(team) && (team.paneltype || team.type) !== "CitadelHudTopBarTeam"; i++) team = team.GetParent();
       parts = { souls: owner.FindChildTraverse("SoulsValue"), team: valid(team) && (team.paneltype || team.type) === "CitadelHudTopBarTeam" ? team : null };
-      cardParts.set(owner, parts);
+      cardParts.set(owner, parts); live = valid(parts.souls);
     }
-    return valid(parts.souls) && parts.team ? { souls: parseSouls(parts.souls.text), team: parts.team } : null;
+    return live && parts.team ? { souls: parseSouls(parts.souls.text), team: parts.team } : null;
   }
   function bountyPlayers() {
     var seconds = clockSeconds();
@@ -165,12 +167,12 @@
     // The 125 first-kill bonus is the killer's own first kill. Live 6839 the team kills label stayed 0 for 22 s
     // after the first kill (second kill showed +125 too), so an enemy card seen Dead also ends it this match.
     if (bounty.deathSince !== since) { bounty.deathSince = since; bounty.enemyDied = false; }
-    if (known && !bounty.enemyDied) bounty.enemyDied = cards.some(function (c) { return c.row && !c.side.friendly && valid(c.owner) && c.owner.BHasClass("Dead"); });
+    if (known && !bounty.enemyDied) bounty.enemyDied = cards.some(function (c) { return c.row && !c.side.friendly && c.owner.BHasClass("Dead"); });
     var firstKill = self !== null && score.kills === 0 && !bounty.enemyDied;
     var scan = counts(), players = [];
     cards.forEach(function (card) {
       if (!card.row) return;
-      var player = name(card.row.label), hero = name(card.row.hero); player = scan.unique(player) ? player : ""; hero = scan.unique(hero) && hero !== player ? hero : "";
+      var player = card.row.observedName, hero = card.row.observedHero; player = scan.unique(player) ? player : ""; hero = scan.unique(hero) && hero !== player ? hero : "";
       if (!player && !hero) return;
       var killers = sides[0] === card.side ? sides[1] : sides[0], mine = known && !card.side.friendly;
       // The clock label trails server time by about a second: live 6839 kills at labels 3:40, 3:55 and 4:11
@@ -343,8 +345,8 @@
     });
     row.progressKey = key;
   }
-  function renderRows() {
-    var now = Date.now(), scan = counts(), units = Object.create(null);
+  function renderRows(known) {
+    var now = Date.now(), scan = known || counts(), units = Object.create(null);
     Object.keys(records).forEach(function (key) {
       var r = records[key]; if (!fresh(r.at, RECORD_TTL_MS + 1, now)) { delete records[key]; return; }
       if (r.name) units[r.name] = Object.prototype.hasOwnProperty.call(units, r.name) ? false : r;
@@ -362,12 +364,12 @@
     catch (error) { schedule("progress", PROGRESS_S, progressTick); }
   }
   // ======== Gate: scan gate publisher (state: gateState) ========
-  function publishGate() {
+  function publishGate(known) {
     var seconds = clockSeconds();
     if (seconds !== null && gateState.lastClock !== null && seconds < gateState.lastClock) { since = Date.now(); records = Object.create(null); ultimate.last = null; rows.forEach(function (r) { r.sample = null; }); }
     if (seconds !== null) gateState.lastClock = seconds;
     var normal = pickupNormal();
-    var scan = counts(), gate = { magic: "HPV3_PICKUP_SCAN_GATE", scan: !normal || seconds === null || seconds >= 300, localName: scan.local, since: since, at: Date.now() };
+    var scan = known || counts(), gate = { magic: "HPV3_PICKUP_SCAN_GATE", scan: !normal || seconds === null || seconds >= 300, localName: scan.local, since: since, at: Date.now() };
     if (heroNames) gate.localHero = scan.localHero;
     $.DispatchEvent("ClientUI_FireOutput", JSON.stringify(gate));
   }
@@ -377,9 +379,9 @@
     try {
       discoverRows();
       if (!valid(pausePanel)) pausePanel = topRoot().FindChildTraverse("PausedGameContainer");
-      updatePause(Date.now()); publishGate();
+      updatePause(Date.now()); var scan = counts(); publishGate(scan);
       // The bounty alone never writes topbar cards; it still restores artwork left by turned-off pickups.
-      if (enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || rows.some(function (r) { return r.container; })) renderRows();
+      if (enabled("pickupTimersEnabled") || enabled("ultimateTimerEnabled") || rows.some(function (r) { return r.container; })) renderRows(scan);
     } catch (error) { /* Discovery races retry on the same cadence. */ }
     schedule("discovery", DISCOVERY_S, discoveryTick);
   }
@@ -391,9 +393,9 @@
       updatePause(Date.now());
       var now = Date.now(), scan = counts(), players = [], states = [], correction = false;
       rows.forEach(function (r) {
-        var player = name(r.label), hero = name(r.hero); player = scan.unique(player) ? player : ""; hero = scan.unique(hero) && hero !== player ? hero : "";
+        var player = r.observedName, hero = r.observedHero; player = scan.unique(player) ? player : ""; hero = scan.unique(hero) && hero !== player ? hero : "";
         var n = player + "\u0001" + hero; if (!player && !hero || r.owner.BHasClass("Dead") || r.owner.BHasClass("Disconnected")) { r.sample = null; return; }
-        var unlocked = r.owner.BHasClass("UltimateUnlocked"), ready = r.owner.BHasClass("UltimateCooldownReady");
+        var unlocked = r.owner.BHasClass("UltimateUnlocked"), ready = unlocked && r.owner.BHasClass("UltimateCooldownReady");
         if (!valid(r.radial)) r.radial = r.ultimate.FindChildTraverse("UltimateStatusBG");
         var angle = !unlocked ? 0 : ready ? 360 : valid(r.radial) ? radial(r.radial.style.clip, 0, 360) : null;
         var p = r.sample, rate = !paused && unlocked && angle !== null && angle < 360 && p && p.name === n && p.since === since && p.unlocked && p.angle !== null && p.angle < 360 && angle >= p.angle && now > p.at ? Math.round(Math.min(360, (angle - p.angle) * 1000 / (now - p.at)) * 100) / 100 : 0;
@@ -432,8 +434,9 @@
     if (!config) schedule("request", REQUEST_LADDER_S[Math.min(follower.attempt++, REQUEST_LADDER_S.length - 1)], requestConfig);
   }
   function receive(raw) {
-    if (stopped || !valid(context) || typeof raw !== "string" || raw.length > 64000) return;
+    if (stopped || typeof raw !== "string" || raw.length > 64000) return;
     if (raw.indexOf("HPV3_PICKUP_SNAPSHOT") < 0 && raw.indexOf("HP_COLORS_V3_CONFIG") < 0) return;
+    if (!valid(context)) return;
     try {
       var m = JSON.parse(raw), now = Date.now();
       if (m.magic === "HP_COLORS_V3_CONFIG") {

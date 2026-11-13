@@ -129,10 +129,10 @@ test('audit: measured boundary budgets remain bounded',t=>{
   const ops=name=>results[name].operations;
   // Ticket 52: the preview's status effect sample is one more looked-up part; its inside-the-pane walk at each
   // attach adds 40 parent reads (1974 -> 2014 measured). Painting adds none.
-  assert.ok(ops('preview').boundaryValidityCalls<=11000);assert.ok(ops('preview').parentReads<=2020);
+  assert.ok(ops('preview').boundaryValidityCalls<=8792);assert.ok(ops('preview').parentReads<=2020);
   assert.ok(ops('ownHud').parentReads<=10,'unrelated gestures retain only the full topology watch');
   // +1 class read per identity sample since 2026-11-02: the ESC update badge reads #Hud.ShowEscapeMenu (70 -> 80, 80 measured).
-  assert.ok(ops('heroRoutingRootHud').classReads<=80);assert.ok(ops('heroRoutingRootHud').boundaryValidityCalls<=170);
+  assert.ok(ops('heroRoutingRootHud').classReads<=80);assert.ok(ops('heroRoutingRootHud').boundaryValidityCalls<=88);
   // bindChrome attribution reads the function name from stacks. Release staging runs Closure ADVANCED,
   // which renames it, so the attribution is checked on unminified (source/debug) scripts only.
   // Release staging (HPV3_DEBUG=0) is the minified run; there the attribution cannot see bindChrome.
@@ -147,7 +147,8 @@ test('audit: measured boundary budgets remain bounded',t=>{
     // status-effects item adds two (264 measured with 18), and the deferred damage color item two more (266 with 19).
     // Ticket 51 (3.7.0): the HP percent item adds two (268 measured with 20). Ticket 52: the Status effect sizes
     // card, the preview sample and its NEW item add six (274 measured with 21).
-    assert.ok(ops('bootChrome').boundaryValidityCalls<=274);
+    // Perf pass: boot's bind/sync pass trusts the panels it just collected (no IsValid per lookup): 274 -> 15 measured.
+    assert.ok(ops('bootChrome').boundaryValidityCalls<=15);
     assert.ok(ops('bootChrome').boundaryQueries>=1,'bindChrome attribution must observe its native query');
   }
   else t.diagnostic('bootChrome attribution not checked: release staging renames bindChrome');
@@ -157,7 +158,8 @@ test('audit: measured boundary budgets remain bounded',t=>{
   // the two deferred damage color rows (enemy, ally) make 209 (946 measured); kill bounty size and tilt make 211 (954 measured);
   // ticket 51's HP number format rows (enemy, ally) make 213 (964 measured); ticket 52's eight status effect size
   // rows make 221 (997 measured).
-  assert.ok(ops('syncAll').boundaryValidityCalls<=1000);assert.ok(ops('syncAll').boundaryQueries<=1);
+  // Perf pass: same-value class writes are cached, so syncAll no longer re-validates a panel to rewrite its class (997 -> 392 measured).
+  assert.ok(ops('syncAll').boundaryValidityCalls<=392);assert.ok(ops('syncAll').boundaryQueries<=1);
   assert.equal(ops('syncAll').jsCellVisits||0,0);assert.ok(ops('heroRouting').jsHeroNameReads<=10);
   assert.ok(ops('heroSearch').classWrites<=55);
   const panelCalls=['boundaryQueries','boundaryValidityCalls','parentReads','parentWrites','classReads','classWrites','styleReads','styleWrites','textReads','textWrites','layoutWidthReads','moveChildCalls'];

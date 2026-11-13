@@ -698,6 +698,47 @@ test('audit F2: our own unacknowledged commit is not reported as a change saved 
 
 // Fix audit m3: these use the actual menu/layout, storage script and pinned page.
 const copy = value => JSON.parse(JSON.stringify(value));
+// Perf pass: a save of a 30-preset library used to deep-copy and stringify the whole bundle ~185 times (1.48 M characters
+// of JSON for a 2.6 KB record: per-preset compares, bundle clones, per-preset sparse clones). Bundle copies and compares are
+// now structural; only the encode itself, the publish and the size check still stringify.
+test('saving a 30-preset library keeps JSON text work bounded and writes the same decodable record', t => {
+  const p = profile(), f = launch(p); f.run(5000);
+  const defaults = copy(f.harness.$.HPColorsV3Settings.defaults);
+  const presets = Array.from({ length: 30 }, (_, i) => {
+    const settings = copy(defaults);
+    settings.side.enemy.barColorLow = '#' + (0x100000 + i * 4099).toString(16).slice(0, 6).padStart(6, '0');
+    settings.shared.lowThreshold = 10 + (i % 30); settings.side.ally.barWidth = 100 + (i % 40);
+    return { id: 'P' + i, name: 'Preset ' + i, settings };
+  });
+  f.harness.$.HPColorsV3Store.replaceBundle({ settings: defaults, presets, heroPresets: { hero_inferno: 'P1' }, heroDefault: 'P2' });
+  f.run(8000);
+  const stringify = JSON.stringify, parse = JSON.parse; let calls = 0, chars = 0, parses = 0, parsed = 0;
+  JSON.stringify = function (...args) { const out = stringify.apply(this, args); calls++; chars += typeof out === 'string' ? out.length : 0; return out; };
+  JSON.parse = function (text, ...rest) { parses++; parsed += String(text).length; return parse.call(this, text, ...rest); };
+  try { f.edit('#123456'); f.run(8000); } finally { JSON.stringify = stringify; JSON.parse = parse; }
+  t.diagnostic('save of 30 presets: stringify ' + calls + ' calls / ' + chars + ' chars, parse ' + parses + ' calls / ' + parsed + ' chars');
+  assert.ok(calls <= 9, 'stringify calls per save: ' + calls);
+  assert.ok(chars <= 31000, 'stringified characters per save: ' + chars);
+  assert.ok(parses <= 5 && parsed <= 5700, 'parse calls / characters per save: ' + parses + ' / ' + parsed);
+  const saved = savedBundle(f, p);
+  assert.equal(saved.presets.length, 30);
+  assert.equal(saved.presets[7].settings.side.enemy.barColorLow, presets[7].settings.side.enemy.barColorLow);
+  assert.equal(saved.settings.side.enemy.barColorLow, '#123456');
+  assert.deepEqual(saved.heroPresets, { hero_inferno: 'P1' });
+});
+
+// Perf pass: the codec's structural copy recurses; very deep metadata must behave as the JSON text round trip did at
+// 8d8b20e (encodes up to about 3600 levels, then throws RangeError from the stringify that follows), never a new error.
+test('deeply nested unknown bundle metadata behaves as the JSON round trip did', () => {
+  const f = launch(profile()); f.run(2000);
+  const codec = f.harness.$.HPColorsV3Codec, settings = copy(f.harness.$.HPColorsV3Settings.defaults);
+  const nest = n => { let d = null; for (let i = 0; i < n; i++) d = { a: d }; return d; };
+  const record = n => codec.encodeRecord({ settings, presets: [], zzDeep: nest(n) });
+  assert.ok(record(2000).length > 1000, 'moderate depth encodes');
+  assert.equal(codec.classifyRecord(record(2000)).bundle.zzDeep.a.a.a !== undefined, true);
+  for (const n of [4000, 50000]) assert.throws(() => record(n), RangeError, 'depth ' + n);
+});
+
 const savedBundle = (f, p) => f.codec.classifyRecord(p.disk.get(CURRENT)).bundle;
 // An ally setting the player can always edit (ally bar colors grey out while Player bar colors is off).
 // An ally row that is usable with the default ally settings (ally colors are off, so the ally feedback colors

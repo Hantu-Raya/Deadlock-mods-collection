@@ -519,7 +519,65 @@
       return { kind: "conversion_error", message: "V2 save could not be converted: " + deps.codec.errorMessage(error), source: result.source };
     }
   }
-  function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  // JSON-equivalent copy and compare without the text round trip: the result is what JSON.parse(JSON.stringify(x))
+  // gives (undefined/function/symbol keys dropped, in arrays null; non-finite numbers null; -0 as 0; an own
+  // "__proto__" key stays an own key), and sameJson(a, b) is true exactly when JSON.stringify(a) === JSON.stringify(b).
+  // The prototypes JSON.parse hands out (they differ from this script's own only when JSON is another realm's).
+  var OBJECT_PROTO = Object.getPrototypeOf(JSON.parse("{}")), ARRAY_PROTO = Object.getPrototypeOf(JSON.parse("[]"));
+  var LITERAL_OBJECT = Object.getPrototypeOf({}), LITERAL_ARRAY = Object.getPrototypeOf([]);
+  function jsonSkipped(item) { var kind = typeof item; return kind === "undefined" || kind === "function" || kind === "symbol"; }
+  function copyJson(value) {
+    if (value === null || typeof value !== "object") return typeof value === "number" ? (isFinite(value) ? value || 0 : null) : value;
+    var out, item, key, i;
+    if (Array.isArray(value)) {
+      out = [];
+      if (ARRAY_PROTO !== LITERAL_ARRAY) Object.setPrototypeOf(out, ARRAY_PROTO);
+      for (i = 0; i < value.length; i++) out[i] = jsonSkipped(value[i]) ? null : copyJson(value[i]);
+      return out;
+    }
+    out = OBJECT_PROTO === LITERAL_OBJECT ? {} : Object.create(OBJECT_PROTO);
+    var keys = Object.keys(value);
+    for (i = 0; i < keys.length; i++) {
+      key = keys[i]; item = value[key];
+      if (jsonSkipped(item)) continue;
+      if (key === "__proto__") Object.defineProperty(out, key, { value: copyJson(item), writable: true, enumerable: true, configurable: true });
+      else out[key] = copyJson(item);
+    }
+    return out;
+  }
+  function sameJson(a, b) {
+    if (a === b) return true;
+    var aObject = a !== null && typeof a === "object", bObject = b !== null && typeof b === "object";
+    if (!aObject || !bObject) {
+      if (aObject || bObject) return false;
+      return (typeof a === "number" && !isFinite(a) ? null : a) === (typeof b === "number" && !isFinite(b) ? null : b);
+    }
+    var aArray = Array.isArray(a);
+    if (aArray !== Array.isArray(b)) return false;
+    var i, j, aKeys, bKeys;
+    if (aArray) {
+      if (a.length !== b.length) return false;
+      for (i = 0; i < a.length; i++) if (!sameJson(jsonSkipped(a[i]) ? null : a[i], jsonSkipped(b[i]) ? null : b[i])) return false;
+      return true;
+    }
+    aKeys = Object.keys(a); bKeys = Object.keys(b); j = 0;
+    for (i = 0; i < aKeys.length; i++) {
+      if (jsonSkipped(a[aKeys[i]])) continue;
+      while (j < bKeys.length && jsonSkipped(b[bKeys[j]])) j++;
+      if (j >= bKeys.length || bKeys[j] !== aKeys[i] || !sameJson(a[aKeys[i]], b[bKeys[j]])) return false;
+      j++;
+    }
+    while (j < bKeys.length && jsonSkipped(b[bKeys[j]])) j++;
+    return j === bKeys.length;
+  }
+  // The deep copies of bundles and sessions: a saved bundle is plain JSON data, so they no longer round-trip
+  // through text (a bundle with 30 presets is 160 K characters). A value JSON cannot hold at top level (undefined,
+  // a function) still takes the text path, which throws as before.
+  function clone(value) {
+    if (jsonSkipped(value)) return JSON.parse(JSON.stringify(value));
+    // Data nested deeper than the recursion allows: the text round trip decides, exactly as before this copy existed.
+    try { return copyJson(value); } catch (error) { if (error instanceof RangeError) return JSON.parse(JSON.stringify(value)); throw error; }
+  }
   function persistence(options) {
     var opts = options || {}, session = opts.session || {};
     var bridge = opts.bridge || create({ panel: opts.panel, state: session.bridge });
@@ -649,7 +707,9 @@
       }
       return true;
     }
-    function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+    function same(a, b) {
+      try { return sameJson(a, b); } catch (error) { if (error instanceof RangeError) return JSON.stringify(a) === JSON.stringify(b); throw error; }
+    }
     // Old keys in order, then new keys the old map lacks (own keys, so imported ids like "__proto__" count):
     // a plain concat compared every kept preset twice, four serializations each per commit.
     function keyUnion(before, after) {

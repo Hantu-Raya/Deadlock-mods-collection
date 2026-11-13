@@ -301,6 +301,71 @@ test('validationSource accepts and refuses exactly the values schema.js accepts 
   assert.ok(checked > table.length * 8);
 });
 
+// The world script validates only the fields that differ from the last accepted message and reads its rows from a
+// flat table. Every verdict must equal the full object-row validator (validationSource) on every message of long
+// random sequences: edits, corruptions, missing/extra keys, reused mutated objects, section loss, thresholds.
+test('world settings validator (flat table, incremental) agrees with the full validator on random message sequences', () => {
+  const vm = require('node:vm');
+  const { validationSource } = require('../tools/lib/settings-scripts');
+  const loadContract = file => { const $ = {}; vm.runInNewContext(fs.readFileSync(path.join(root, 'panorama/scripts', file), 'utf8'), { $ }); return $; };
+  const contract = loadContract('hp_colors_v3_settings.js').HPColorsV3Settings;
+  const worldSource = fs.readFileSync(path.join(root, 'panorama/scripts/hp_colors_v3_world_settings.js'), 'utf8');
+  const worldOf = () => { const $ = {}; new Function('$', worldSource)($); return $.HPColorsV3WorldSettings; };
+  const fields = contract.controls.map(c => ({ key: c.key, side: c.side, type: c.type, bounds: c.bounds, step: c.step, ...(c.options ? { options: c.options.map(({ value }) => ({ value })) } : {}) }));
+  const full = new Function('fields', validationSource + '\nreturn validate;')(fields);
+  const defaults = contract.defaults, controls = contract.controls;
+  let seed = 20240607;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const pick = list => list[Math.floor(rnd() * list.length)];
+  const junk = [undefined, null, NaN, Infinity, -0, '', 'x', '#12345', '#ABCDEF', 0, 1, -1, 1e9, 0.5, '5', true, false, {}, [1], 'a|b', 5n, 0n, Symbol('s'), { valueOf() { throw new Error('valueOf'); } }];
+  const dc = x => Array.isArray(x) ? x.map(dc) : x && Object.getPrototypeOf(x)?.constructor?.name === 'Object' ? Object.fromEntries(Reflect.ownKeys(x).map(k => [k, dc(x[k])])) : x;
+  const areaOf = (s, side) => side === 'shared' ? s.shared : s.side[side];
+  assert.equal(worldOf().validate(dc(defaults)), true);
+  assert.equal(full(dc(defaults)), true);
+  let accepted = 0, refused = 0, world = worldOf(), reused = dc(defaults);
+  for (let n = 0; n < 6000; n++) {
+    if (n % 400 === 0) world = worldOf();
+    let msg = rnd() < 0.5 ? dc(defaults) : reused;
+    for (let edits = Math.floor(rnd() * 4); edits > 0; edits--) {
+      const c = pick(controls), side = c.side === 'shared' ? 'shared' : pick(['enemy', 'ally']), r = rnd();
+      let area; try { area = areaOf(msg, side); } catch (e) { area = null; }
+      if (!area || typeof area !== 'object') { msg = dc(defaults); area = areaOf(msg, side); }
+      if (r < 0.35) {
+        if (c.type === 'boolean') area[c.key] = !area[c.key];
+        else if (c.type === 'enum') area[c.key] = pick(c.options).value;
+        else if (c.type === 'color') area[c.key] = '#' + Math.floor(rnd() * 0xffffff).toString(16).padStart(6, '0');
+        else area[c.key] = c.bounds[0] + Math.floor(rnd() * (Math.round((c.bounds[1] - c.bounds[0]) / c.step) + 1)) * c.step;
+      } else if (r < 0.7) area[c.key] = pick(junk);
+      else if (r < 0.8) delete area[c.key];
+      else if (r < 0.85) area['extra' + Math.floor(rnd() * 5)] = pick(junk);
+      else if (r < 0.9) { if (c.bounds) area[c.key] = c.bounds[0] + c.step * (rnd() * 3 - 1); }
+      else if (r < 0.93) { if (!msg.side) msg.side = dc(defaults.side); const s = pick(['shared', 'enemy', 'ally']); if (s === 'shared') msg.shared = pick([undefined, null, dc(defaults.shared)]); else msg.side[s] = pick([undefined, null, dc(defaults.side[s])]); }
+      else if (r < 0.96) { if (!msg.shared) msg.shared = dc(defaults.shared); msg.shared.lowThreshold = Math.floor(rnd() * 100); msg.shared.highThreshold = 1 + Math.floor(rnd() * 100); }
+      else msg = dc(defaults);
+    }
+    const expected = full(dc(msg));
+    assert.equal(world.validate(msg), expected, 'message ' + n);
+    expected ? accepted++ : refused++;
+    if (msg !== reused && rnd() < 0.3) reused = dc(msg);
+  }
+  assert.ok(accepted > 300 && refused > 300, 'the sequence exercises both verdicts: ' + accepted + '/' + refused);
+  // Single-field corruption of every row, on a warm validator that just accepted the defaults.
+  for (const c of controls) for (const side of c.side === 'shared' ? ['shared'] : ['enemy', 'ally']) for (const value of junk) {
+    const msg = dc(defaults); areaOf(msg, side)[c.key] = value;
+    const warm = worldOf(); warm.validate(dc(defaults));
+    assert.equal(warm.validate(msg), full(dc(msg)), side + '.' + c.key + '=' + String(value));
+  }
+  // Enums with no options or an empty option value cannot be encoded (they would accept the empty string).
+  const { worldRows } = require('../tools/lib/settings-scripts');
+  const base = { key: 'k', side: 'shared', type: 'enum', bounds: null, step: null };
+  assert.throws(() => worldRows([{ ...base, options: [] }]), /no options/);
+  assert.throws(() => worldRows([{ ...base }]), /no options/);
+  assert.throws(() => worldRows([{ ...base, options: [{ value: '' }] }]), /non-empty/);
+  // The published members stay.
+  const published = worldOf();
+  assert.deepEqual(Object.keys(published).sort(), ['validate', 'validateValue', 'version']);
+});
+
 // A6: values the generator prints into the menu that the menu script also owns.
 test('generated menu text agrees with the menu script (news days, credits, colorblind types)', () => {
   const { profile, launch } = require('./storage-fixture');

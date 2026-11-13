@@ -710,6 +710,81 @@ test('ticket 29: native numeric and hue drags each undo once after SliderRelease
   }
 });
 
+// Perf pass: a drag step inside an open gesture builds no undo snapshot of its own; the stack must come out exactly as
+// when every step took one (the gesture's own opening snapshot is the one record).
+test('Undo stack after drag steps, a cancelled gesture and a single edit: depth and restored settings', () => {
+  const depth = m => { let n = 0; while (m.find('HPColorsUndoButton').enabled && n < 50) { m.activate('HPColorsUndoButton'); n++; } return n; };
+  const row = { id: 'HPColorsLowThresholdSlider', key: 'lowThreshold' };
+  // One earlier edit, then a drag of many steps: two records, the drag's restores the pre-drag settings.
+  let m = menu(), original = m.settings();
+  m.submit('HPColorsBarColorLowEnemyHex', '#123456'); const afterEdit = m.settings();
+  let slider = m.find(row.id);
+  for (const value of [10, 12, 14, 16, 18, 20, 22, 24]) slider.value = value;
+  assert.equal(m.settings().shared[row.key], 24);
+  m.h.releaseSlider(slider);
+  m.activate('HPColorsUndoButton'); assert.deepEqual(m.settings(), afterEdit, 'one Undo undoes the whole drag');
+  assert.equal(depth(m), 1, 'the earlier edit is the only record left'); assert.deepEqual(m.settings(), original);
+  // A gesture that returns to its opening value records nothing (and publishes its final value).
+  m = menu(); slider = m.find(row.id); const opening = slider.value;
+  for (const value of [10, 14, 18, opening]) slider.value = value;
+  m.h.releaseSlider(slider); assert.equal(m.find('HPColorsUndoButton').enabled, false);
+  // A gesture cut short by another row: both are separate records, each restoring what it opened with.
+  m = menu(); original = m.settings(); slider = m.find(row.id);
+  slider.value = 10; slider.value = 12; const afterFirst = m.settings();
+  const other = m.find('HPColorsBarWidthEnemySlider'); other.value = 150; other.value = 175; m.h.releaseSlider(other);
+  m.activate('HPColorsUndoButton'); assert.deepEqual(m.settings(), afterFirst);
+  assert.equal(depth(m), 1); assert.deepEqual(m.settings(), original);
+  // A single non-gesture edit is exactly one record.
+  m = menu(); original = m.settings(); m.submit('HPColorsBarColorLowEnemyHex', '#654321');
+  assert.equal(depth(m), 1); assert.deepEqual(m.settings(), original);
+});
+
+// Perf pass: syncAll skips same-value class writes but never a row: the hue slider is put back to the colour's own
+// hue after Undo / a re-apply, not left at the dragged ramp position (680.078 instead of 680 when rows were skipped).
+test('syncAll rewrites hue slider values even when the model row did not change; classes are cached, not rows', () => {
+  const m = menu(), id = 'HPColorsBarColorLowEnemyHueSlider', slider = m.find(id), canonical = slider.value;
+  slider.value = 300.4; m.h.releaseSlider(slider);
+  assert.equal(slider.value, 300.4, 'a hue drag keeps its own ramp position');
+  m.activate('HPColorsUndoButton');
+  assert.equal(slider.value, canonical, 'Undo returns the slider to the colour hue exactly');
+  slider.value = 300.4; m.h.releaseSlider(slider);
+  const settled = slider.value; m.api().applySettings(copy(m.settings()));
+  assert.notEqual(slider.value, settled, 'a re-apply of unchanged settings still rewrites the row value');
+  // Changed class: written when it changes, not repeated for an unchanged row.
+  const row = m.h.$.HPColorsV3Settings.controls.find(r => r.hueId === id), host = m.find(row.rowId);
+  assert.equal(host.BHasClass('Changed'), true);
+  m.activate('HPColorsUndoButton'); assert.equal(host.BHasClass('Changed'), false);
+  m.activate('HPColorsUndoButton'); assert.equal(host.BHasClass('Changed'), false);
+});
+
+// Perf pass: syncNavDots remembers the last state written to each nav dot, so an edit that leaves a dot as it is
+// makes no engine call on it; a dot that must change still changes, and a freshly booted menu starts from nothing.
+test('nav dots are written only when their state changes and a fresh boot marks them from empty memory', () => {
+  const m = menu(), contract = m.h.$.HPColorsV3Settings;
+  const row = contract.controls.find(r => r.key === 'barColorLow' && r.side === 'enemy');
+  const page = contract.menu.pages.find(p => p.name === row.page), group = contract.menu.groups.find(g => g.page === row.page && g.name === row.group);
+  const nav = m.find(page.navId), sub = m.find(group.subNavId), counts = { writes: 0, reads: 0 };
+  for (const panel of [nav, sub]) {
+    const set = panel.SetHasClass.bind(panel), has = panel.BHasClass.bind(panel);
+    panel.SetHasClass = (...args) => { counts.writes++; return set(...args); };
+    panel.BHasClass = (...args) => { counts.reads++; return has(...args); };
+  }
+  assert.equal(nav.BHasClass('Changed'), false); counts.reads = 0;
+  m.submit('HPColorsBarColorLowEnemyHex', '#123456');
+  assert.equal(nav.BHasClass('Changed'), true); assert.equal(sub.BHasClass('Changed'), true);
+  counts.writes = 0; counts.reads = 0;
+  m.submit('HPColorsBarColorLowEnemyHex', '#234567');
+  assert.deepEqual(counts, { writes: 0, reads: 0 }, 'an edit that keeps the dots as they are touches neither');
+  m.activate('HPColorsUndoButton'); m.activate('HPColorsUndoButton');
+  assert.equal(nav.BHasClass('Changed'), false, 'the dot clears once every setting of its page is default again');
+  assert.equal(sub.BHasClass('Changed'), false);
+  // A new boot (fresh script instance and panels) carries no memory: the dots follow the hydrated settings.
+  const settings = copy(m.h.$.HPColorsV3Settings.defaults); settings.side.enemy.barColorLow = '#654321';
+  const fresh = menu({ bundle: { settings } });
+  assert.equal(fresh.find(page.navId).BHasClass('Changed'), true);
+  assert.equal(fresh.find(group.subNavId).BHasClass('Changed'), true);
+});
+
 test('ticket 29: keyboard values without SliderReleased finish at blur before a later same-row or different-row drag', () => {
   for (const [id, values] of [['HPColorsLowThresholdSlider', [26, 40, 64]],
     ['HPColorsBarColorLowEnemyHueSlider', [100, 300, 600]]]) {

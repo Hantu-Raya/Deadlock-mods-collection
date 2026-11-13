@@ -268,7 +268,7 @@ test('--follow prints errors and [HPV3] lines appended after the summary', async
   try {
     await until(/following /);
     fs.appendFileSync(log, '11/12 14:00:02 [PanoramaScript] [HPV3] save Saved\n11/12 14:00:03 [PanoramaScript] JS Exception! *** Skipping rest of script *** \n\n' +
-      'panorama/scripts/hp_colors_v3_menu.vjs_c\nline:114, col:42\n\n>>   function panel(id) { var found = panels[id]; return valid(found) ? found : null; }\n\nUncaught ReferenceError: panels is not defined\n');
+      'panorama/scripts/hp_colors_v3_menu.vjs_c\nline:114, col:42\n\n>>   function panel(id) { var found = panels[id]; return booting ? found || null : valid(found) ? found : null; }\n\nUncaught ReferenceError: panels is not defined\n');
     await until(/\[HPV3\] save Saved/);
     await until(/JS exception hp_colors_rewrite_v3\/panorama\/scripts\/hp_colors_v3_menu\.js:\d+ ReferenceError: panels is not defined/);
   } finally {

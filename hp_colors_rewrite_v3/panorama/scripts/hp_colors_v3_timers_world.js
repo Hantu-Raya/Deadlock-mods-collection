@@ -70,7 +70,10 @@
   function publish(record) {
     if (!source) return;
     var now = Date.now(), previous = lastSent, same = previous && previous.record && record && previous.record.name === record.name && previous.record.mask === record.mask;
-    if (!record && previous && !previous.record && now - previous.at < PICKUP_REPUBLISH_MS) return;
+    // null -> null repeat: only the receiver's pickup path uses it (name ambiguity, Dead/Disconnected recheck), and the
+    // topbar returns before storing or rendering when pickup timers are off, so the repeat is dropped only then. A later
+    // switch-on takes the 6 s path with the old previous.at, so the first null after it is sent at once.
+    if (!record && previous && !previous.record && (now - previous.at < PICKUP_REPUBLISH_MS || !enabled("pickupTimersEnabled"))) return;
     if (same && now >= previous.at && now - previous.at < PICKUP_REPUBLISH_MS && record.progress.every(function (next, bit) {
       var before = previous.record.progress[bit];
       return !next || !before ? next === before : (next.rate === 0) === (before.rate === 0) &&
@@ -140,12 +143,13 @@
   // ======== Endpoint: lifecycle and untrusted snapshots from the topbar ========
   function key(text) { return typeof text === "string" && text.length <= 256 && text === text.trim().toUpperCase(); }
   function receive(raw) {
-    if (stopped || !valid(context) || typeof raw !== "string" || raw.length > MESSAGE_CAP) return;
+    if (stopped || typeof raw !== "string" || raw.length > MESSAGE_CAP) return;
     var gateMessage = raw.indexOf(GATE_MAGIC) >= 0;
     if (!gateMessage && raw.indexOf(ULTIMATE_MAGIC) < 0 && raw.indexOf(BOUNTY_MAGIC) < 0) return;
     // Only the scan gate is kept while inactive; every other bar (troopers, camps, allies off) would parse the
     // topbar's one-second snapshots just to drop them below.
     if (!gateMessage && !active) return;
+    if (!valid(context)) return;
     try {
       var m = JSON.parse(raw), now = Date.now();
       var localHero = m.localHero === undefined ? "" : m.localHero;

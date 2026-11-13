@@ -68,7 +68,7 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'get')
 file:///panorama/scripts/hp_colors_v3_menu.js
 line:114, col:42
 
->>   function panel(id) { var found = panels[id]; return valid(found) ? found : null; }
+>>   function panel(id) { var found = panels[id]; return booting ? found || null : valid(found) ? found : null; }
 
 Uncaught ReferenceError: panels is not defined
    at panel

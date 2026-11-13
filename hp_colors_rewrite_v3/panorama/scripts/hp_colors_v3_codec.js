@@ -27,7 +27,37 @@
     if (!contract().defaultChanges.some(function (defaults) { return defaults.version === change.version; }))
       UPGRADE_STEPS[change.version] = function (record) { return record; };
   });
-  function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  // Deep copy of plain JSON data without the text round trip (what JSON.parse(JSON.stringify(x)) gives: undefined/
+  // function keys dropped, non-finite numbers null, -0 as 0, an own "__proto__" key kept as an own key).
+  // The prototypes JSON.parse hands out (they differ from this script's own only when JSON is another realm's).
+  var OBJECT_PROTO = Object.getPrototypeOf(JSON.parse("{}")), ARRAY_PROTO = Object.getPrototypeOf(JSON.parse("[]"));
+  var LITERAL_OBJECT = Object.getPrototypeOf({}), LITERAL_ARRAY = Object.getPrototypeOf([]);
+  function jsonSkipped(item) { var kind = typeof item; return kind === "undefined" || kind === "function" || kind === "symbol"; }
+  function copyJson(value) {
+    if (value === null || typeof value !== "object") return typeof value === "number" ? (isFinite(value) ? value || 0 : null) : value;
+    var out, item, key, i;
+    if (Array.isArray(value)) {
+      out = [];
+      if (ARRAY_PROTO !== LITERAL_ARRAY) Object.setPrototypeOf(out, ARRAY_PROTO);
+      for (i = 0; i < value.length; i++) out[i] = jsonSkipped(value[i]) ? null : copyJson(value[i]);
+      return out;
+    }
+    out = OBJECT_PROTO === LITERAL_OBJECT ? {} : Object.create(OBJECT_PROTO);
+    var keys = Object.keys(value);
+    for (i = 0; i < keys.length; i++) {
+      key = keys[i]; item = value[key];
+      if (jsonSkipped(item)) continue;
+      if (key === "__proto__") Object.defineProperty(out, key, { value: copyJson(item), writable: true, enumerable: true, configurable: true });
+      else out[key] = copyJson(item);
+    }
+    return out;
+  }
+  // A top-level value JSON cannot hold (undefined, a function) still takes the text path, which throws as before.
+  function clone(value) {
+    if (jsonSkipped(value)) return JSON.parse(JSON.stringify(value));
+    // Data nested deeper than the recursion allows: the text round trip decides, exactly as before this copy existed.
+    try { return copyJson(value); } catch (error) { if (error instanceof RangeError) return JSON.parse(JSON.stringify(value)); throw error; }
+  }
   function contract() { return $.HPColorsV3Settings; }
   // undefined when the script is absent: callers keep the baseline outcome (v2 codes throw, pending upgrade throws, conditions skip).
   function fromV2() { return $.HPColorsV3FromV2; }
@@ -112,14 +142,19 @@
     return { record: record, sum: parts[1] };
   }
   function sparse(settings) {
-    if (!contract().validate(settings)) throw new Error("Invalid settings");
-    settings = clone(settings);
+    var c = contract();
+    if (!c.validate(settings)) throw new Error("Invalid settings");
+    // A scratch copy only so the rounded values below do not write into the caller's settings. Valid settings
+    // hold primitives under every slot, and only the slot values are read or written, so the three maps are
+    // copied one level deep (no JSON round trip per preset).
+    settings = { side: { enemy: Object.assign({}, settings.side.enemy), ally: Object.assign({}, settings.side.ally) }, shared: Object.assign({}, settings.shared) };
     var result = [];
     var explicit = Object.create(null);
-    (contract().defaultChanges || []).forEach(function (change) {
-      if (change.version <= version()) change.slots.forEach(function (slot) { explicit[slot] = true; });
+    var recordVersion = version(), defaults = c.defaults;
+    (c.defaultChanges || []).forEach(function (change) {
+      if (change.version <= recordVersion) change.slots.forEach(function (slot) { explicit[slot] = true; });
     });
-    contract().slots.forEach(function (slot) {
+    c.slots.forEach(function (slot) {
       var value = values(settings, slot)[slot.setting];
       if (slot.type === "number") {
         var row = controlOf(slot);
@@ -127,9 +162,9 @@
         value = Number((row.bounds[0] + Math.round((value - row.bounds[0]) / row.step) * row.step).toFixed(decimals));
         values(settings, slot)[slot.setting] = value;
       }
-      if (explicit[slot.slot] || value !== values(contract().defaults, slot)[slot.setting]) result.push([slot.slot, value]);
+      if (explicit[slot.slot] || value !== values(defaults, slot)[slot.setting]) result.push([slot.slot, value]);
     });
-    if (!contract().validate(settings)) throw new Error("Invalid settings");
+    if (!c.validate(settings)) throw new Error("Invalid settings");
     return result.sort(function (a, b) { return a[0] - b[0]; });
   }
   function upgrade(record, target, steps) {

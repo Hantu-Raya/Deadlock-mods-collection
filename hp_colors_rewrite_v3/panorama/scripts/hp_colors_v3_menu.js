@@ -124,9 +124,73 @@
   function valid(panel) {
     try { return !!panel && panel.IsValid(); } catch (error) { return false; }
   }
-  function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  function clone(value) {
+    if (jsonSkipped(value)) return JSON.parse(JSON.stringify(value));
+    // Data nested deeper than the recursion allows: the text round trip decides, exactly as before this copy existed.
+    try { return copyJson(value); } catch (error) { if (error instanceof RangeError) return JSON.parse(JSON.stringify(value)); throw error; }
+  }
+  // JSON-equivalent copy and compare without the text round trip. Validated settings are three flat maps of
+  // primitives (the generated defaults hold no object or array value), so each map copies key by key; a value
+  // that is not a primitive (a stray key a record may carry) takes the recursive path. The copy is what
+  // JSON.parse(JSON.stringify(x)) gives (undefined/function/symbol keys dropped, in arrays null; non-finite numbers null; -0 as 0; an own
+  // "__proto__" key stays an own key), and sameJson(a, b) is true exactly when JSON.stringify(a) === JSON.stringify(b).
+  // The prototypes JSON.parse hands out (they differ from this script's own only when JSON is another realm's).
+  var OBJECT_PROTO = Object.getPrototypeOf(JSON.parse("{}")), ARRAY_PROTO = Object.getPrototypeOf(JSON.parse("[]"));
+  var LITERAL_OBJECT = Object.getPrototypeOf({}), LITERAL_ARRAY = Object.getPrototypeOf([]);
+  function jsonSkipped(item) { var kind = typeof item; return kind === "undefined" || kind === "function" || kind === "symbol"; }
+  function copyJson(value) {
+    if (value === null || typeof value !== "object") return typeof value === "number" ? (isFinite(value) ? value || 0 : null) : value;
+    var out, item, key, i;
+    if (Array.isArray(value)) {
+      out = [];
+      if (ARRAY_PROTO !== LITERAL_ARRAY) Object.setPrototypeOf(out, ARRAY_PROTO);
+      for (i = 0; i < value.length; i++) out[i] = jsonSkipped(value[i]) ? null : copyJson(value[i]);
+      return out;
+    }
+    out = OBJECT_PROTO === LITERAL_OBJECT ? {} : Object.create(OBJECT_PROTO);
+    var keys = Object.keys(value);
+    for (i = 0; i < keys.length; i++) {
+      key = keys[i]; item = value[key];
+      if (jsonSkipped(item)) continue;
+      if (key === "__proto__") Object.defineProperty(out, key, { value: copyJson(item), writable: true, enumerable: true, configurable: true });
+      else out[key] = copyJson(item);
+    }
+    return out;
+  }
+  function sameJson(a, b) {
+    if (a === b) return true;
+    var aObject = a !== null && typeof a === "object", bObject = b !== null && typeof b === "object";
+    if (!aObject || !bObject) {
+      if (aObject || bObject) return false;
+      return (typeof a === "number" && !isFinite(a) ? null : a) === (typeof b === "number" && !isFinite(b) ? null : b);
+    }
+    var aArray = Array.isArray(a);
+    if (aArray !== Array.isArray(b)) return false;
+    var i, j, aKeys, bKeys;
+    if (aArray) {
+      if (a.length !== b.length) return false;
+      for (i = 0; i < a.length; i++) if (!sameJson(jsonSkipped(a[i]) ? null : a[i], jsonSkipped(b[i]) ? null : b[i])) return false;
+      return true;
+    }
+    aKeys = Object.keys(a); bKeys = Object.keys(b); j = 0;
+    for (i = 0; i < aKeys.length; i++) {
+      if (jsonSkipped(a[aKeys[i]])) continue;
+      while (j < bKeys.length && jsonSkipped(b[bKeys[j]])) j++;
+      if (j >= bKeys.length || bKeys[j] !== aKeys[i] || !sameJson(a[aKeys[i]], b[bKeys[j]])) return false;
+      j++;
+    }
+    while (j < bKeys.length && jsonSkipped(b[bKeys[j]])) j++;
+    return j === bKeys.length;
+  }
+  function sameJsonSafe(a, b) {
+    try { return sameJson(a, b); } catch (error) { if (error instanceof RangeError) return JSON.stringify(a) === JSON.stringify(b); throw error; }
+  }
   function valuesFor(settings, row) { return row.side === "shared" ? settings.shared : settings.side[row.side]; }
-  function panel(id) { var found = panels[id]; return valid(found) ? found : null; }
+  // `booting` is true only inside boot's single synchronous bind/sync pass, over panels that the same boot call
+  // just collected from the live tree with nothing in the pass able to delete one: validity is not asked again
+  // there. Every other lookup (events, timers, polls, anything that holds a panel beyond the pass) keeps the check.
+  var booting = false;
+  function panel(id) { var found = panels[id]; return booting ? found || null : valid(found) ? found : null; }
   function store() { var value = $.HPColorsV3Store; return value && typeof value === "object" ? value : null; }
   // The store when it is present, hydrated and (when named) has `method`; partial fake stores in tests rely on the guards.
   function storeReady(method) {
@@ -257,7 +321,7 @@
     } catch (error) { /* Unrelated or malformed world event. */ }
   }
   function resolveEffective() {
-    var next = clone(config.settings), matched = [], unmatched = [];
+    var next = copyJson(config.settings), matched = [], unmatched = [];
     Object.keys(config.rules).forEach(function (cell) {
       var row = ruleRows[cell], rule = config.rules[cell];
       if (!row) return;
@@ -271,7 +335,7 @@
       matchedRules = observation;
       // HPV3_DEBUG $.Msg("[HPV3] rules matched " + matched.join(",") + " unmatched " + unmatched.join(","));
     }
-    if (JSON.stringify(next) === JSON.stringify(effectiveSettings)) return false;
+    if (sameJsonSafe(next, effectiveSettings)) return false;
     if (effectiveSettings !== null) config.revision++;
     effectiveSettings = next;
     return true;
@@ -305,7 +369,7 @@
     var next = slotArray(-1);
     if (identity.phase === "active" && !identityClasses()("spec_mode")) {
       if (!valid(signature)) {
-        signature = (valid(identity.hud) ? identity.hud : identity.root).FindChildTraverse("hud_signature");
+        signature = (validOnce(identity.hud) ? identity.hud : identity.root).FindChildTraverse("hud_signature");
         abilityOwner = null; abilityPanels = slotArray(null);
       }
       if (!valid(abilityOwner) || !valid(signature) || abilityOwner.GetParent() !== signature) {
@@ -454,14 +518,26 @@
     identity.discoverAt = 0;
     deadSignature();
   }
+  // Inside one identity poll (one synchronous pass: nothing in it deletes a panel) a panel proven valid is not
+  // asked again; outside a poll every call goes to the engine. The memo is emptied when the poll ends, so no
+  // panel is trusted across polls, retries or contexts.
+  var inPoll = false, vSeen = [];
+  function validOnce(candidate) {
+    if (!inPoll) return valid(candidate);
+    if (!candidate) return false;
+    for (var i = 0; i < vSeen.length; i++) if (vSeen[i] === candidate) return true;
+    if (!valid(candidate)) return false;
+    vSeen.push(candidate);
+    return true;
+  }
   function identityRefs() {
     var root = topPanel();
     if (identity.root !== root) { identity.root = root; clearIdentityRefs(); }
-    if (!valid(root)) return false;
-    if ((!valid(identity.hud) || !valid(identity.topBar)) && Date.now() >= identity.discoverAt) {
-      if (!valid(identity.hud)) identity.hud = root.id === "Hud" ? root : root.FindChildTraverse("Hud");
-      if (!valid(identity.topBar)) {
-        identity.topBar = (valid(identity.hud) ? identity.hud : root).FindChildTraverse("TopBar");
+    if (!validOnce(root)) return false;
+    if ((!validOnce(identity.hud) || !validOnce(identity.topBar)) && Date.now() >= identity.discoverAt) {
+      if (!validOnce(identity.hud)) identity.hud = root.id === "Hud" ? root : root.FindChildTraverse("Hud");
+      if (!validOnce(identity.topBar)) {
+        identity.topBar = (validOnce(identity.hud) ? identity.hud : root).FindChildTraverse("TopBar");
         identity.clock = null; identity.card = null; identity.label = null;
       }
       identity.discoverAt = Date.now() + 5000;
@@ -469,8 +545,8 @@
     return true;
   }
   function identityClasses() {
-    var root = valid(identity.root) ? identity.root : null;
-    var second = identity.hud !== root && valid(identity.hud) ? identity.hud : null;
+    var root = validOnce(identity.root) ? identity.root : null;
+    var second = identity.hud !== root && validOnce(identity.hud) ? identity.hud : null;
     return function (name) { return !!(root && root.BHasClass(name) || second && second.BHasClass(name)); };
   }
   function identityPhase() {
@@ -478,11 +554,11 @@
     if (identityClass("connectedToHideout")) return "hideout";
     if (identityClass("GameStatePostGame") || identityClass("GameStatePostGamePlayOfTheGame")) return "postgame";
     if (identityClass("GameStatePreGame") || identityClass("GameStatePreGameWait") || identityClass("GameStatePreGameHeroDraft")) return "lobby";
-    if (valid(identity.topBar) && !valid(identity.clock)) {
+    if (validOnce(identity.topBar) && !validOnce(identity.clock)) {
       identity.clock = identity.topBar.FindChildTraverse("GameTime");
-      if (!valid(identity.clock)) identity.clock = identity.topBar.FindChildrenWithClassTraverse("GameTime")[0];
+      if (!validOnce(identity.clock)) identity.clock = identity.topBar.FindChildrenWithClassTraverse("GameTime")[0];
     }
-    var text = valid(identity.clock) ? String(identity.clock.text || "").trim() : "";
+    var text = validOnce(identity.clock) ? String(identity.clock.text || "").trim() : "";
     var negative = text.charAt(0) === "-";
     if (negative) text = text.slice(1);
     var parts = text.split(":"), seconds = 0;
@@ -494,8 +570,8 @@
     return !negative || seconds === 0 ? "active" : "transitioning";
   }
   function localHero() {
-    if (!valid(identity.topBar)) return "";
-    if (!valid(identity.card) || !identity.card.BHasClass("LocalPlayer") || !valid(identity.label)) {
+    if (!validOnce(identity.topBar)) return "";
+    if (!validOnce(identity.card) || !identity.card.BHasClass("LocalPlayer") || !validOnce(identity.label)) {
       identity.card = null; identity.label = null;
       var cards = identity.topBar.FindChildrenWithClassTraverse("LocalPlayer");
       for (var i = 0; i < cards.length; i++) {
@@ -505,16 +581,22 @@
         identity.card = cards[i]; identity.label = labels[0]; break;
       }
     }
-    var text = valid(identity.label) ? String(identity.label.text || "").trim().replace(/\s+/g, " ").toUpperCase() : "";
+    var text = validOnce(identity.label) ? String(identity.label.text || "").trim().replace(/\s+/g, " ").toUpperCase() : "";
     return heroKeys[text] || "";
   }
+  var shownIdentity = null, shownIdentityPanels = null;
   function renderIdentity() {
     var text = identity.phase === "hideout" ? "IN HIDEOUT" : identity.hero ? identity.hero : identity.candidate ? "DETECTING HERO" : "NO HERO DETECTED";
     if (identity.hero && identity.phase !== "hideout") {
       var known = heroByKey[identity.hero]; if (known) text = known.name.toUpperCase();
     }
-    var label = panel("HPColorsHeroIdentityLabel");
-    if (label && label.text !== text) label.text = text;
+    // The text last written to the label (nothing else writes it); the label is looked up again when the panels
+    // are collected anew (`panels` is replaced then).
+    if (shownIdentity !== text || shownIdentityPanels !== panels) {
+      var label = panel("HPColorsHeroIdentityLabel");
+      if (label && label.text !== text) label.text = text;
+      if (label) { shownIdentity = text; shownIdentityPanels = panels; }
+    }
     syncAbilitySlots();
   }
   // Routing waits while a gesture, the colour picker or the condition editor is open; each closer calls resumeHeroRoute().
@@ -569,6 +651,7 @@
   function pollIdentity(watch, epoch) {
     if (retired || watch !== identity.generation || epoch !== identity.epoch || !valid(activeRoot)) return;
     identity.job = null;
+    inPoll = true; vSeen.length = 0;
     try {
       identityRefs();
       watchEscape();
@@ -604,7 +687,7 @@
     } catch (error) {
       clearIdentityRefs();
       // HPV3_DEBUG $.Msg("[HPV3] identity unavailable: " + error);
-    }
+    } finally { inPoll = false; vSeen.length = 0; }
     scheduleIdentity(watch, epoch, identity.phase === "active" || identity.phase === "transitioning" ? 1 : 5);
   }
   function startIdentityWatch() {
@@ -647,7 +730,7 @@
     return valid(top) ? top.FindChildTraverse("Hud") : null;
   }
   function writeHud(owner, property, value) {
-    if (!owner || !valid(owner.panel) || owner.styles[property] === value) return;
+    if (!owner || owner.styles[property] === value || !valid(owner.panel)) return; // The cache test is free; a gone panel also writes nothing.
     try { owner.panel.style[property] = value; owner.styles[property] = value; }
     catch (error) {
       delete owner.styles[property]; // Still owned: retried on the next check.
@@ -863,8 +946,14 @@
   }
   // Hands everything back, also what an earlier menu context left (marked on the container: "1", or "2"
   // under a QOLLOCK theme, whose layout this lane never wrote and so never clears).
+  // The container last released with nothing owned and no mark on it. While it stays the same container and no
+  // panels are owned, the 1 s HUD watch skips the attribute read and the state reset. Only syncLegacy sets the
+  // mark and takes panels (legacyReset with panels, which clears this); a new container, a retired context or
+  // a fresh script instance starts without it.
+  var legacyIdleFor = null;
   function releaseLegacy(container) {
     if (legacy.job) { $.CancelScheduled(legacy.job); legacy.job = null; }
+    if (container !== null && legacyIdleFor === container && !legacy.p) return;
     var mark = valid(container) ? container.GetAttributeString(LEGACY_ATTR, "") : "";
     var p = legacy.p && legacy.container === container ? legacy.p : null;
     if (!p && mark !== "") p = legacyPanels(container);
@@ -888,6 +977,7 @@
       if (valid(container)) container.SetAttributeString(LEGACY_ATTR, "");
     }
     legacyReset(null, null);
+    legacyIdleFor = !p && mark === "" && valid(container) ? container : null;
   }
   // QOLLOCK: its pak03 adds #currentHealthOverHearts to every healthbar type (looked up once per container).
   // The theme class on an ancestor is read on each 1 s HUD watch: "" (none), a theme, or the hidden one.
@@ -909,6 +999,7 @@
       var p = legacyPanels(container);
       if (!p) return;
       legacyReset(container, p);
+      legacyIdleFor = null;
       legacy.themed = theme !== "";
       container.SetAttributeString(LEGACY_ATTR, legacy.themed ? "2" : "1");
       if (!legacy.themed) LEGACY_LAYOUT.forEach(function (entry) { for (var property in entry[1]) writeLegacy(entry[0], property, entry[1][property]); });
@@ -1333,12 +1424,28 @@
   // One entry per control type, used by sync, binding, reset, the condition editor and the requirement
   // greying. editor = the condition dialog's editor panel suffix; field = the dialog entry a rejected
   // value shakes; equal compares a rule value with the ordinary one.
+  // The last Changed/Marked/Checked/Selected/Active value written to each row, page and group panel (id ->
+  // {class -> boolean}), so syncAll (Undo, preset apply, hero routing) and showPage/selectGroup skip
+  // same-value class writes. Rows themselves are never skipped: text, value and hue ramp writes still run.
+  // Only sync(), showPage and selectGroup write these classes on these ids (the editor, tab and tile code use
+  // other ids; the search only reads a group's Active class). Cleared wherever `panels` is replaced (new context root,
+  // every collection pass); a panel that is missing is not remembered. A fresh script instance starts empty.
+  var shownRow = {};
+  function rowClass(id, name, on) {
+    var shown = shownRow[id];
+    if (shown && shown[name] === on) return;
+    var target = panel(id);
+    if (!target) return;
+    target.SetHasClass(name, on);
+    if (!shown) shown = shownRow[id] = {};
+    shown[name] = on;
+  }
   var CONTROL_TYPES = {
     boolean: {
       editor: "BooleanToggle",
       ids: function (row) { return [row.toggleId, row.resetId, row.conditionId]; },
       sync: function (row, value) {
-        var target = panel(row.toggleId); if (target) target.SetHasClass("Checked", value === true);
+        rowClass(row.toggleId, "Checked", value === true);
       },
       bind: function (row) {
         on(row.toggleId, "onactivate", function () { commit(row, valuesFor(config.settings, row)[row.key] !== true); });
@@ -1349,7 +1456,7 @@
       ids: function (row) { return [row.resetId, row.conditionId].concat(row.options.map(function (option) { return option.id; })); },
       sync: function (row, value) {
         for (var i = 0; i < row.options.length; i++) {
-          var target = panel(row.options[i].id); if (target) target.SetHasClass("Selected", row.options[i].value === value);
+          rowClass(row.options[i].id, "Selected", row.options[i].value === value);
         }
       },
       bind: function (row) {
@@ -1458,8 +1565,8 @@
     syncing = true;
     try {
       controlType(row).sync(row, value, hueEdit);
-      target = panel(row.rowId); if (target) target.SetHasClass("Changed", value !== row.default);
-      target = panel(row.conditionId); if (target) target.SetHasClass("Marked", !!config.rules[cellFor(row)]);
+      rowClass(row.rowId, "Changed", value !== row.default);
+      rowClass(row.conditionId, "Marked", !!config.rules[cellFor(row)]);
     } finally { syncing = false; }
   }
   function syncAll() {
@@ -1519,6 +1626,21 @@
       for (var j = 0; j < ids.length; j++) { var control = panel(ids[j]); if (control) control.enabled = active; }
     }
   }
+  // The last HasCond/Changed state written to each nav dot ("id\nclass" -> boolean), so an edit only touches
+  // the dots whose state changed. Only syncNavDots writes these two classes on these ids (syncNews owns
+  // HasNew). Cleared wherever `panels` is replaced: a new context root (boot, activeRoot change) and every
+  // collection pass (boot retry or reinclusion), because the dots may then be different panel objects. A dot
+  // whose panel is missing is not remembered, so it is written when it appears. A fresh script instance starts
+  // empty (module state).
+  var shownNav = {};
+  function markNav(id, name, value) {
+    var key = id + "\n" + name;
+    if (shownNav[key] === value) return;
+    var target = panel(id);
+    if (!target) return;
+    if (target.BHasClass(name) !== value) target.SetHasClass(name, value);
+    shownNav[key] = value;
+  }
   function syncNavDots() {
     if (!contractRef || !config) return;
     var pages = {}, changedPages = {}, changedGroups = {};
@@ -1532,11 +1654,11 @@
       changedGroups[row.page + "\n" + row.group] = true;
     });
     contractRef.menu.pages.forEach(function (page) {
-      mark(page.navId, "HasCond", pages[page.name] === true);
-      mark(page.navId, "Changed", changedPages[page.name] === true);
+      markNav(page.navId, "HasCond", pages[page.name] === true);
+      markNav(page.navId, "Changed", changedPages[page.name] === true);
     });
     contractRef.menu.groups.forEach(function (group) {
-      mark(group.subNavId, "Changed", changedGroups[group.page + "\n" + group.name] === true);
+      markNav(group.subNavId, "Changed", changedGroups[group.page + "\n" + group.name] === true);
     });
   }
 
@@ -1656,12 +1778,15 @@
     if (!config || value === null || value === undefined) { sync(row); return false; }
     // A greyed row keeps its value: whatever its controls received is put back.
     if (!rowActive(row)) { sync(row, hueEdit); return false; }
-    var next = clone(config.settings);
+    var next = copyJson(config.settings);
     var values = valuesFor(next, row);
     if (values[row.key] === value) { sync(row, hueEdit); return false; }
     values[row.key] = value;
     if (!contractRef.validate(next)) { sync(row); return false; }
-    var before = historySnapshot();
+    // The pre-edit snapshot is only used when this edit is recorded as its own undo step. A step inside the
+    // open gesture of the same row is covered by the gesture's own `before` (recorded by endGesture), so the
+    // snapshot (a deep copy of the whole preset bundle) is not built for it.
+    var before = gesture && gesture.key === gestureKey(row) ? null : historySnapshot();
     var previousEffective = effectiveSettings;
     if (gesture && gesture.key !== gestureKey(row)) endGesture();
     replace(next);
@@ -1783,20 +1908,21 @@
     pageIndex = index;
     closeFor(CLOSES_ON_OPEN.page);
     for (var i = 0; i < pages.length; i++) {
-      if (panel(pages[i].id)) panel(pages[i].id).SetHasClass("Active", i === index);
-      if (panel(pages[i].navId)) panel(pages[i].navId).SetHasClass("Selected", i === index);
-      if (panel(pages[i].subNavId)) panel(pages[i].subNavId).SetHasClass("Selected", i === index);
+      rowClass(pages[i].id, "Active", i === index);
+      rowClass(pages[i].navId, "Selected", i === index);
+      rowClass(pages[i].subNavId, "Selected", i === index);
     }
-    if (panel("HPColorsPageTitle")) panel("HPColorsPageTitle").text = pages[index].title;
-    if (panel("HPColorsPageDescription")) panel("HPColorsPageDescription").text = pages[index].description;
-    if (panel("HPColorsResetPageButton")) panel("HPColorsResetPageButton").enabled = contractRef.controls.some(function (row) { return row.page === pages[index].name; });
+    var title = panel("HPColorsPageTitle"), description = panel("HPColorsPageDescription"), resetButton = panel("HPColorsResetPageButton");
+    if (title) title.text = pages[index].title;
+    if (description) description.text = pages[index].description;
+    if (resetButton) resetButton.enabled = contractRef.controls.some(function (row) { return row.page === pages[index].name; });
     if (pages[index].name === PAGE_PRESETS) refreshPresets();
     if (ready) previewSetPage(pages[index].name);
   }
   function selectGroup(group) {
     contractRef.menu.groups.forEach(function (entry) {
-      if (panel(entry.id)) panel(entry.id).SetHasClass("Active", entry === group);
-      if (panel(entry.subNavId)) panel(entry.subNavId).SetHasClass("Selected", entry === group);
+      rowClass(entry.id, "Active", entry === group);
+      rowClass(entry.subNavId, "Selected", entry === group);
     });
   }
   // Nav tab and SHARE: a plain page change that clears search and the highlighted group first.
@@ -2088,7 +2214,7 @@
   var badge = { shown: false, ask: 0 };
   function resetEscapeWatch() { badge.ask++; badge.shown = false; }
   function watchEscape() {
-    var shown = valid(identity.hud) && identity.hud.BHasClass("ShowEscapeMenu");
+    var shown = validOnce(identity.hud) && identity.hud.BHasClass("ShowEscapeMenu");
     if (shown && !badge.shown) askBadge(++badge.ask, 0);
     badge.shown = shown;
   }
@@ -2946,6 +3072,8 @@
   // One walk per boot attempt instead of a FindChildTraverse per id.
   function collect(parent, found) {
     var children = parent.Children();
+    // The one validity check per panel: a panel that passes is `found` and, inside boot's single synchronous pass,
+    // is trusted by panel() without asking again.
     for (var i = 0; i < children.length; i++) {
       if (!valid(children[i])) continue;
       if (children[i].id) found[children[i].id] = children[i];
@@ -2964,7 +3092,7 @@
       pending = null;
       generation++;
       retryCount = 0;
-      panels = Object.create(null);
+      panels = Object.create(null); shownNav = {}; shownRow = {};
       hueThumbs = Object.create(null);
       conditionImages = [];
       presetTiles = []; heroTiles = []; librarySignature = ""; selectedName = "";
@@ -3042,16 +3170,19 @@
     else {
       var found = Object.create(null);
       collect(root, found);
-      panels = found; shownActive = {};
+      panels = found; shownActive = {}; shownNav = {}; shownRow = {};
       // A reincluded menu inherits the side class of the old context: the mirror starts from it.
       shownSide = found[contract.menu.rootId] && found[contract.menu.rootId].BHasClass("HPC3SideAlly") ? "ally" : "enemy";
       contract.ids.forEach(function (id) { if (id !== "HPColorsNativePicker" && !found[id]) missingIds.push(id); });
-      bindChrome();
-      for (var i = 0; i < contract.controls.length; i++) {
-        bindControl(contract.controls[i]);
-        sync(contract.controls[i]);
-      }
-      syncRequirements();
+      booting = true;
+      try {
+        bindChrome();
+        for (var i = 0; i < contract.controls.length; i++) {
+          bindControl(contract.controls[i]);
+          sync(contract.controls[i]);
+        }
+        syncRequirements();
+      } finally { booting = false; }
       if (pageIndex < 0) pageIndex = contract.menu.startPage || 0;
       showPage(pageIndex);
       // refreshPresets (which keeps the saved list) waits for a complete boot; a boot that is still retrying
