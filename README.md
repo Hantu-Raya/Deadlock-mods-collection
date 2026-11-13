@@ -31,9 +31,15 @@ A stats board on the post-game scoreboard: exact numbers per player, souls by so
 
 ### Buff Timer
 
-Timers for rejuvenator, urn and other buffs beside the minimap.
+Customize the minimap: rift and urn timers, mid boss timer, enemy markers and buff colors, with a settings panel at the bottom right.
 
-<img width="530" height="280" alt="Buff Timer" src="https://github.com/user-attachments/assets/8dae2040-129b-4af3-9c08-dde441d0ba22" />
+<img src=".github/readme/buff-timer.png" width="530" alt="Buff Timer: minimap timers and settings panel" />
+
+### Passive Items and Actives Icons
+
+Always shows passive items and active icons on the HUD. [Download on GameBanana](https://gamebanana.com/mods/601444).
+
+<img width="530" height="280" alt="Passive Items and Actives Icons" src="https://github.com/user-attachments/assets/8dae2040-129b-4af3-9c08-dde441d0ba22" />
 
 ## Mods
 
@@ -45,7 +51,7 @@ Timers for rejuvenator, urn and other buffs beside the minimap.
 | Observer HUD | [`observer_hud`](observer_hud) | Tournament spectator HUD with an Escape-menu editor and lobby setup. |
 | DLF Observer | [`dlf`](dlf) | Spectator HUD and broadcast banner for the DLF league. |
 | Detailed Postgame | [`detailed_postgame`](detailed_postgame) | Post-game stats board. |
-| Buff Timer | [`buff_timer_virgin`](buff_timer_virgin) | Buff timers beside the minimap, with a settings page. |
+| Buff Timer | [`buff_timer_virgin`](buff_timer_virgin) | Minimap timers (rift, urn, mid boss), enemy markers and buff colors, with a settings panel. |
 | ShowRank Barebones | [`showrank_barebones`](showrank_barebones) | Predicted rank on profile cards, the top bar and Escape player rows. |
 | Show Rank Merger | [`Show-rank-merger`](Show-rank-merger) | Browser app that merges two GameBanana downloads into one VPK. |
 | Feeder Feed | [`feeder_feed`](feeder_feed) | A tab in the damage report that ranks who fed souls to the other team. |
