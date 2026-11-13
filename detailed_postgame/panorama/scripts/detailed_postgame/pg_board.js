@@ -73,6 +73,10 @@
   // (layoutScoreboard) = .NSHeadSide/.NSTeam and .NSHeadCentre/.NSLabels/.NSProgress. Change both.
   const GRAPH_H = 112; // the plot; the canvas fills it (1600 x 112)
   const CHART_W = 1512; // the lead's x range; the right gutter holds the final-lead pill
+  // Width the board needs: 1600 plus the final-lead pill's overhang (16 px, estimated) and an 8 px margin on both
+  // sides (the frame is centred). A narrower screen (4:3, 5:4) scales the frame and the stock scoreboard down to fit (fitWrite).
+  const FIT_NEED = 1648;
+  const FIT_FROM = 22; // the frame's margin-top (px, not scaled by the frame's own ui-scale)
   const HAIR = 2; // the thinnest canvas stroke: at least one full screen pixel down to 720p (UI scale 0.67)
   // Objective drop lines are panels in #NSGraphStems, outside the paper's mask, from just under the dot past
   // the time ticks to the icons: one piece, so no seam where the paper ends (user 2026-10-29: a canvas part
@@ -130,6 +134,9 @@
     burstUntil: 0, // Date.now() until which the board checks at BURST_S
     scanning: 0, // gen of the scan in progress (0: none); the tooltip stays muted while it runs
     graphScale: 0, // the lead graph's scale (0: no graph drawn)
+    fitScale: 1, // the factor on the frame and the scoreboard (1: nothing written)
+    fitOn: false, // a factor below 1 was written and is still on the panels
+    fitLogged: 1, // the last factor logged (a rebuild writes it again without a new line)
     revealToken: 0, // the running graph wipe; a new one supersedes it
     graphDraws: [], // the lead graph's canvas strokes, painted by paint()
     matchId: "", // the shown match's id (copied by a click on #NSMatch)
@@ -420,9 +427,40 @@
   // (items went missing).
   const STOCK_SHIFT = 80;
   const ROWS_TOP = 49 + STOCK_SHIFT;
+  // Rows' top under the fit. The panel's own margin is not scaled by its own ui-scale, so the scoreboard's margin-top
+  // is written by hand: the frame's 22 px stays, the rest (ROWS_TOP - FIT_FROM) shrinks with s. At s = 1 this is ROWS_TOP.
+  const fitTop = (s) => Number((FIT_FROM + (ROWS_TOP - FIT_FROM) * s).toFixed(2));
+  const fitUi = (s) => (s < 1 ? `${(s * 100).toFixed(1)}%` : "100%");
+  // Virtual width: the page's laid-out width over its ui scale (0 until the layout is ready).
+  function fitWidth() {
+    const w = Number(ctx.actuallayoutwidth);
+    const k = Number(ctx.actualuiscale_x);
+    return w > 0 && k > 0 ? w / k : 0;
+  }
+  // ui-scale is a layout scale: the 1600 px panels become 1600 * s and fit the page. pre-transform-scale2d was tried
+  // first and clipped both panels at the page width before the transform (live 2026-11-13, build 6861), so the outer
+  // columns and graph ends were cut. Written on the frame and the scoreboard; factor 1 after a scale writes 100%.
+  function fitWrite(s) {
+    if (s < 1) S.fitOn = true; else if (!S.fitOn) return;
+    for (const p of [UI.frame, UI.scoreboard]) css(p, { uiScale: fitUi(s) });
+    css(UI.scoreboard, { marginTop: `${fitTop(s)}px` });
+    if (s >= 1) S.fitOn = false;
+  }
+  // From the 1 s check and the build: nothing is written while the width is unknown or the factor is unchanged.
+  function fitBoard() {
+    const w = fitWidth();
+    if (!(w > 0)) return;
+    const s = Math.min(1, Math.floor((w / FIT_NEED) * 1000) / 1000);
+    if (s === S.fitScale) return;
+    S.fitScale = s;
+    fitWrite(s);
+    if (s === S.fitLogged) return;
+    S.fitLogged = s;
+    log(`fit: width ${Math.round(w)}, scale ${s}`);
+  }
   function layoutScoreboard() {
     const sb = UI.scoreboard;
-    css(sb, { width: "1600px", height: "fit-children", horizontalAlign: "center", verticalAlign: "top", marginTop: `${ROWS_TOP}px`, marginBottom: "0px", padding: "0px", uiScale: "100%", overflow: "noclip" });
+    css(sb, { width: "1600px", height: "fit-children", horizontalAlign: "center", verticalAlign: "top", marginTop: `${fitTop(S.fitScale)}px`, marginBottom: "0px", padding: "0px", uiScale: fitUi(S.fitScale), overflow: "noclip" });
     const inner = sb.GetChild(0);
     css(inner, { width: "1600px", height: "fit-children", flowChildren: "right", padding: "0px", margin: "0px", overflow: "noclip", transform: "none" });
     hide(sb.FindChildTraverse("MatchInfoContainer"));
@@ -924,6 +962,8 @@
     if (ok(UI.graph)) { UI.graph.RemoveClass("NSOn"); UI.graph.RemoveClass("NSShow"); }
     css(UI.graph, { marginTop: `${GRAPH_GAP_PX}px` });
     S.graphScale = 0;
+    S.fitScale = 1;
+    fitWrite(1);
     S.revealToken++;
     S.graphDraws = [];
     if (ok(UI.canvas)) UI.canvas.ClearJS("#00000000");
@@ -934,6 +974,7 @@
     teardown();
     renderHeader(m);
     layoutScoreboard();
+    fitBoard();
     const anyWin = m.teams[0].win || m.teams[1].win;
     m.teams.forEach((t, i) => {
       t.rows.forEach((r, index) => decorateRow(r, i, index, anyWin && !t.win));
@@ -1341,6 +1382,7 @@
     }
     if (!ok(UI.scoreboard) || !ok(UI.graphs) || !ok(UI.screen)) return false;
     if (!UI.page.BHasClass("PageVisible")) { if (S.loadingSince) { S.loadingSince = 0; progressHide(); } return false; }
+    fitBoard();
     // The board builds while the page opens on the Team1 screen; the entrance plays when the Scoreboard
     // screen comes into focus and is re-armed once that screen has been away a while (playIntro).
     const focused = UI.screen.BHasClass("Focused");

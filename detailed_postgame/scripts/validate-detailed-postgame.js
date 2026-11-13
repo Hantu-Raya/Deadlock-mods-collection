@@ -50,7 +50,7 @@ const WEIGHT_NS = {
 const RAW_EXCLUDED = new Set(["childWrappers", "nodeVisits"]);
 // The post-game board (plan phase 2): at most 11 native calls per second while its page shows and
 // nothing changes; while hidden one visibility check a second (a reopen can bring no event, live).
-const BUDGET_BOARD = { calls: 11, us: 3, hiddenUs: 2 };
+const BUDGET_BOARD = { calls: 12, us: 3, hiddenUs: 2 }; // 12: the fit check reads the page width once per 1 s check while shown
 const ATTRIB = { on: !!process.env.DPS_ATTRIB, map: new Map() };
 
 let lastLogs = null;
@@ -449,6 +449,7 @@ function boardWorld({ visible = true, graph = null, names = true } = {}) {
   MockPanel.prototype.BLoadLayout = function (file) {
     if (file === "file://{resources}/layout/detailed_postgame/pg_board.xml") {
       loadInto(this, PG.board);
+      Object.assign(this, { actuallayoutwidth: 1920, actualuiscale_x: 1 }); // a 16:9 page, as the engine reports it (the fit check sets others)
       runIn(this, [["pg_board.js", script("pg_board.js")]]);
       return true;
     }
@@ -1277,6 +1278,80 @@ check("board: more than 12 final items push the lead graph down (capped), and te
   const js = read("panorama/scripts/detailed_postgame/pg_board.js");
   assert.match(js, /function stockRestore\(\)[^]*?opacity: "1"[^]*?stockHit\(panel, true\)/, "teardown restores opacity and hit testing");
   assert.ok(/S\.cols = \[\];\s*stockRestore\(\);/.test(js) && /marginTop: `\$\{GRAPH_GAP_PX\}px`/.test(js), "teardown restores the labels and the graph margin");
+  assert.ok(noBoardErrors(w));
+});
+
+check("board: a screen narrower than 1648 px sets one ui-scale on the frame and the stock scoreboard (never a transform); 16:9, 16:10 and 21:9 write nothing; width 0 retries; teardown resets", () => {
+  // How it could fail: a wide screen gets a ui-scale or a transform (the board moves); the transform approach comes back (it clips at the page width); 4:3 or 5:4 scales only one of the two subtrees
+  // (rows and header drift apart); the factor is read before the layout exists and sticks; a resize is never seen;
+  // the scale outlives teardown; a rebuild (next match) drops the ui-scale; the log line repeats on every 1 s check.
+  const fits = (w) => w.harness.logs.filter((l) => /fit: width/.test(l));
+  const subjects = (w) => [w.boardHost().FindChildTraverse("NSFrame"), w.scoreboard];
+  const size = (w, virtual, uiScale = 1) => Object.assign(w.boardHost(), { actuallayoutwidth: virtual * uiScale, actualuiscale_x: uiScale });
+  const noTransform = (p) => ["preTransformScale2d", "transformOrigin"].forEach((k) => assert.equal(p.style[k], undefined, `no ${k} on ${p.id || p.type}`));
+  const untouched = (w) => subjects(w).forEach((p) => {
+    assert.ok([undefined, "", "100%"].includes(p.style.uiScale), `no ui-scale on ${p.id || p.type}: ${p.style.uiScale}`);
+    noTransform(p);
+  });
+  for (const width of [1920, 1728, 2560]) {
+    const w = boardWorld();
+    w.boot();
+    size(w, width, 1);
+    present(w, pgMatch(121685912));
+    w.advance(5000);
+    assert.equal(w.shown(), 1, "built");
+    untouched(w);
+    assert.equal(String(w.scoreboard.style.marginTop), "129px", `${width}: the rows stay where they were`);
+    assert.equal(fits(w).length, 0, `${width}: no fit line`);
+  }
+  for (const [width, factor, top, uiScale] of [[1440, "0.873", "115.41px", 1], [1350, "0.819", "109.63px", 1], [1440, "0.873", "115.41px", 2]]) {
+    const w = boardWorld();
+    w.boot();
+    size(w, width, uiScale);
+    present(w, pgMatch(121685912));
+    w.advance(5000);
+    const pct = `${(Number(factor) * 100).toFixed(1)}%`;
+    subjects(w).forEach((p) => {
+      assert.equal(p.style.uiScale, pct, `${width}: one ui-scale on ${p.id || p.type}`);
+      noTransform(p);
+    });
+    assert.equal(String(w.scoreboard.style.marginTop), top, `${width}: the scoreboard starts where the scaled frame's rows start`);
+    deq(fits(w).map((l) => l.replace(/^\[\w+\] /, "")), [`fit: width ${width}, scale ${factor}`], "one line, not one per check");
+    w.advance(5000);
+    assert.equal(fits(w).length, 1, "an unchanged factor logs and writes nothing again");
+    // The next match rebuilds the board: layoutScoreboard and the teardown reset must not leave 100% behind.
+    present(w, pgMatch(121685913));
+    w.advance(5000);
+    subjects(w).forEach((p) => {
+      assert.equal(p.style.uiScale, pct, `${width}: a rebuild keeps the ui-scale on ${p.id || p.type}`);
+      noTransform(p);
+    });
+    assert.equal(String(w.scoreboard.style.marginTop), top, `${width}: a rebuild keeps the margin`);
+    assert.equal(fits(w).length, 1, "a rebuild logs no second line");
+  }
+  const w = boardWorld();
+  w.boot();
+  size(w, 0, 1);
+  present(w, pgMatch(121685912));
+  w.advance(5000);
+  untouched(w);
+  assert.equal(fits(w).length, 0, "width 0 writes nothing");
+  size(w, 1440, 1);
+  w.advance(1100);
+  subjects(w).forEach((p) => assert.equal(p.style.uiScale, "87.3%", "the 1 s check retried"));
+  size(w, 1920, 1);
+  w.advance(1100);
+  untouched(w);
+  assert.equal(String(w.scoreboard.style.marginTop), "129px", "a resize back to 16:9 restores the margin");
+  size(w, 1350, 1);
+  w.advance(1100);
+  subjects(w).forEach((p) => assert.equal(p.style.uiScale, "81.9%", "a resize is seen"));
+  assert.equal(fits(w).length, 3, "one line per change");
+  w.boardHost().NSStop();
+  untouched(w);
+  assert.equal(String(w.scoreboard.style.marginTop), "129px", "teardown resets the margin");
+  const js = read("panorama/scripts/detailed_postgame/pg_board.js");
+  assert.ok(/S\.fitScale = 1;\s*fitWrite\(1\);/.test(js), "teardown resets the factor");
   assert.ok(noBoardErrors(w));
 });
 

@@ -17,6 +17,7 @@
 	color: #FFEFD7;
 }
 
+/* JS (fitBoard) scales this frame and the stock scoreboard by one factor on a screen narrower than 1648 px. */
 .NSFrame
 {
 	width: 1600px;
