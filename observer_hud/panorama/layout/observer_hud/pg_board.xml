@@ -91,13 +91,14 @@
 						<Label id="NSGraphBottom" class="NSGraphCaption NSGraphBottom" text="" />
 						<Label id="NSGraphBottomScale" class="NSGraphScale NSGraphBottom" text="" />
 					</Panel>
-					<Panel id="NSGraphDraw" class="NSGraphDraw" hittest="false">
-						<UICanvas id="NSGraphCanvas" class="NSGraphCanvas" hittest="false" />
-						<Panel id="NSGraphMarks" class="NSGraphMarks" hittest="false" />
-						<Label id="NSGraphPeak1" class="NSGraphPeak" text="" />
-						<Label id="NSGraphPeak2" class="NSGraphPeak NSPeakTeam2" text="" />
-						<Label id="NSGraphEnd" class="NSGraphEnd" text="" />
-					</Panel>
+					<UICanvas id="NSGraphCanvas" class="NSGraphCanvas" hittest="false" />
+				</Panel>
+				<!-- Dots, peak labels and the final-lead pill: a sibling of the plot, not a child, so the plot's torn opacity-mask and clip cannot cut what reaches past the paper. -->
+				<Panel id="NSGraphDraw" class="NSGraphDraw" hittest="false">
+					<Panel id="NSGraphMarks" class="NSGraphMarks" hittest="false" />
+					<Label id="NSGraphPeak1" class="NSGraphPeak" text="" />
+					<Label id="NSGraphPeak2" class="NSGraphPeak NSPeakTeam2" text="" />
+					<Label id="NSGraphEnd" class="NSGraphEnd" text="" />
 				</Panel>
 				<!-- Objective drop lines, one panel each from under the dot to the icon (pg_board.js STEM_END): over the torn edge, under the tick labels and the icons. -->
 				<Panel id="NSGraphStems" class="NSGraphStems" hittest="false" />

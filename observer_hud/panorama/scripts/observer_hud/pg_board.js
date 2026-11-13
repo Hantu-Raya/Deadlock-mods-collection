@@ -118,6 +118,7 @@
     key: "",
     gen: 0,
     rescan: null, // a scan to run again (retryScan): { m, gen, attempt, at }
+    stockHidden: [], // stock labels hidden by show(): opacity 0 and no hit testing until teardown
     cols: [], // per player row: { hero, column, souls, plate, nameBlock, account, alias, items, delay }
     focused: false, // the Scoreboard screen was focused at the last check
     blurAt: 0, // Date.now() when it lost focus
@@ -208,6 +209,7 @@
   }
 
   function progressDone() {
+    if (!ok(UI.progress)) return;
     progress(1, "MATCH READ", "");
     UI.progress.AddClass("NSDone");
     const gen = S.progressGen;
@@ -356,6 +358,55 @@
     for (const key of Object.keys(styles)) panel.style[key] = styles[key];
   }
   const hide = (panel) => css(panel, { visibility: "collapse" });
+  // Stock labels the board hides with opacity 0 (#MatchID, .MatchMode) would still take hover and click and show
+  // their stock "Copy match ID" tooltip over empty space: hit testing goes off with them and teardown restores both.
+  // The board's own #NSMatch copies the id (copyMatchId) and does not depend on the stock label.
+  function stockHit(panel, on) {
+    if (!ok(panel)) return;
+    try { panel.hittest = on; panel.hittestchildren = on; } catch (e) { /* property missing: opacity alone */ }
+  }
+  function stockHide(panel) {
+    css(panel, { opacity: "0" });
+    stockHit(panel, false);
+    if (!S.stockHidden.includes(panel)) S.stockHidden.push(panel);
+  }
+  function stockRestore() {
+    for (const panel of S.stockHidden) {
+      css(panel, { opacity: "1" });
+      stockHit(panel, true);
+    }
+    S.stockHidden = [];
+  }
+
+  // The 700 px body (and the graph 8 px under it) fits 4 rows of final items; each further row of 3 icons runs
+  // into the soul lead graph. The graph moves down by the missing height, capped so its objective icons stay
+  // above the stock bottom controls (Back / page dots / Watch Replay).
+  const ITEM_ROW_PX = 34.75; // 45 px icon at 75% + 1 px margin
+  const ITEM_PER_ROW = 3;
+  const ITEMS_ROOM_PX = 164; // item grid top (y 674) to the graph's top (y 838)
+  const ITEMS_CLEAR_PX = 6;
+  const GRAPH_GAP_PX = 8; // the stylesheet's .NSGraph margin-top
+  const GRAPH_PUSH_MAX_PX = 26;
+  // Item icons per column. The stock rows may get icons after the board is built, so step() looks at one
+  // column per check (the steady-state call budget) and fits the graph again when its count changed.
+  const itemCounts = () => S.cols.map((c) => (ok(c.items) ? c.items.GetChildCount() : 0));
+  function recountItems() {
+    if (!S.itemCounts || !S.cols.length) return;
+    S.itemAt = ((S.itemAt || 0) + 1) % S.cols.length;
+    let n = -1;
+    try { n = S.cols[S.itemAt].items.GetChildCount(); } catch (e) { return; }
+    if (n !== S.itemCounts[S.itemAt]) fitGraph();
+  }
+  function fitGraph() {
+    if (!ok(UI.graph)) return;
+    const counts = itemCounts();
+    S.itemCounts = counts;
+    const most = Math.max(0, ...counts);
+    const rows = Math.ceil(most / ITEM_PER_ROW);
+    const push = Math.min(GRAPH_PUSH_MAX_PX, Math.max(0, Math.ceil(rows * ITEM_ROW_PX + ITEMS_CLEAR_PX - ITEMS_ROOM_PX)));
+    css(UI.graph, { marginTop: `${GRAPH_GAP_PX + push}px` });
+    log(`items: ${most} max, ${rows} rows, graph pushed ${push}px, per column ${counts.join(",")}`);
+  }
 
   function labelText(panel) {
     if (!ok(panel)) return "";
@@ -781,8 +832,10 @@
     const lastSide = last.l < 0 ? 1 : 0;
     dot(`NSGraphEndDot NSPeakDotTeam${lastSide + 1}`, endX, lastY, 10);
     const pillY = Math.max(11, Math.min(GRAPH_H - 11, lastY));
-    stroke([endX + 5, lastY, CHART_W + 8, pillY], HAIR, 0.5, `#${TEAM_RGB[lastSide]}70`);
+    const tied = fmtK(Math.abs(last.l)) === "0.0K"; // a dead heat (under 50 souls apart, exactly 0 included): no leader, no end pill
+    if (!tied) stroke([endX + 5, lastY, CHART_W + 8, pillY], HAIR, 0.5, `#${TEAM_RGB[lastSide]}70`);
     if (ok(UI.end)) {
+      UI.end.style.visibility = tied ? "collapse" : "visible";
       setText(UI.end, `+${fmtK(Math.abs(last.l))}`);
       UI.end.SetHasClass("NSEndTeam1", lastSide === 0);
       UI.end.SetHasClass("NSEndTeam2", lastSide === 1);
@@ -832,7 +885,7 @@
     setText(UI.bottomScale, `+${scale}`);
   }
   // Draw the graph in from the left: the canvas strokes are repainted up to a growing x (a panel clip does
-  // not reach a UICanvas, live 2026-10-26) and the dots and labels are wiped in with a stepped clip.
+  // not reach a UICanvas, live 2026-10-26) and the dots and labels (#NSGraphDraw, over the plot, outside its torn mask) are wiped in with a stepped clip.
   function reveal() {
     if (!ok(UI.draw)) return;
     const token = ++S.revealToken;
@@ -842,7 +895,8 @@
       const f = Math.min(1, (Date.now() - t0) / REVEAL_MS);
       const e = 1 - Math.pow(1 - f, 3);
       paint(f >= 1 ? Infinity : e * (CHART_W + 96));
-      UI.draw.style.clip = f >= 1 ? "rect( 0%, 100%, 100%, 0% )" : `rect( 0%, ${(e * 100).toFixed(2)}%, 100%, 0% )`;
+      // Done: no clip at all. rect( 0%, 100%, 100%, 0% ) is the panel's own box and cut off the pill past the paper.
+      UI.draw.style.clip = f >= 1 ? "none" : `rect( 0%, ${(e * 100).toFixed(2)}%, 100%, 0% )`;
       if (f < 1) $.Schedule(1 / 60, step);
     };
     paint(0);
@@ -1077,6 +1131,7 @@
   // No answer: reads are dropped (the next match asks again); a write stays for one more try.
   function storeGiveUp() {
     log("store: no answer, gave up");
+    aliasKey = ""; // the saved-setup read was dropped: the next build of this match asks again
     const keep = [];
     if (ST.cur && ST.cur.o === "u") keep.push(ST.cur);
     for (const op of ST.queue) if (op.o === "u") keep.push(op);
@@ -1163,7 +1218,7 @@
     S.introShown = false;
     if (UI.screen.BHasClass("Focused")) playIntro();
     for (const kid of UI.screen.Children()) {
-      if (kid.id === "MatchID" || kid.BHasClass("MatchMode")) css(kid, { opacity: "0" });
+      if (kid.id === "MatchID" || kid.BHasClass("MatchMode")) stockHide(kid);
     }
     log(`board shown: match ${m.id}, ${m.teams[0].rows.length}v${m.teams[1].rows.length}, ${clock(m.duration)}`);
   }
@@ -1172,6 +1227,7 @@
   // stale board), so the board deletes its own columns; the rows' inline styles stay valid.
   function teardown() {
     S.gen++;
+    S.scanning = 0; // a scan of the old match never reports back, so it must not hold the retry
     if (S.hovered) unhover(); // a scan cut short leaves its hover open
     unhoverItems(HOVER.items);
     if (ok(UI.frame)) { UI.frame.RemoveClass("NSOn"); UI.frame.RemoveClass("NSIntro"); }
@@ -1182,7 +1238,9 @@
     S.introShown = false;
     S.introToken++;
     S.cols = [];
+    stockRestore();
     if (ok(UI.graph)) { UI.graph.RemoveClass("NSOn"); UI.graph.RemoveClass("NSShow"); }
+    css(UI.graph, { marginTop: `${GRAPH_GAP_PX}px` });
     S.graphScale = 0;
     S.revealToken++;
     S.graphDraws = [];
@@ -1200,6 +1258,8 @@
       t.rows.forEach((r, index) => decorateRow(r, i, index, anyWin && !t.win));
       hide(t.totals.row);
     });
+    renderAliases(); // the columns exist now: apply the cached aliases to them
+    fitGraph();
     progress(SCAN_FROM, "BUILDING BOARD", "");
     renderSouls(new Map());
     show(m);
@@ -1336,6 +1396,56 @@
     return found;
   }
 
+  // The stock Graphs page is viewer-relative, not team-number-ordered: left is the viewer's side (seen
+  // 2026-11-13, client 6861: #TeamCtnLeft / #LeftPlayers held team 2 while the board's columns keep team 1
+  // left). Heroes under a panel: every panel exposing a numeric heroid, same walk as heroOfButton.
+  function heroesUnder(root) {
+    const found = [];
+    const walk = (p, depth) => {
+      if (!ok(p) || depth > 6) return;
+      let h = 0;
+      try { h = Number(p.heroid) || 0; } catch (e) { h = 0; }
+      if (h > 0) { found.push(h); return; }
+      for (const kid of p.Children()) walk(kid, depth + 1);
+    };
+    walk(root, 0);
+    return found;
+  }
+
+  // The one team (0/1) every hero belongs to in the match rows, else -1.
+  function teamOfHeroes(m, heroes) {
+    let team = -1;
+    for (const h of heroes) {
+      const of = [0, 1].filter((i) => m.teams[i].rows.some((r) => r.hero === h));
+      if (of.length !== 1 || (team >= 0 && team !== of[0])) return -1;
+      team = of[0];
+    }
+    return team;
+  }
+
+  // Which team is on the left of the Graphs page for the lane shown now (the picked button n):
+  // (a) the lane's #LeftPlayers / #RightPlayers hero images, (b) else the picked button under
+  // #TeamCtnLeft / #TeamCtnRight and its hero's team, (c) else -1: never a guess.
+  function graphLeftTeam(m, n, buttonHero) {
+    const lh = heroesUnder(UI.graphs.FindChildTraverse("LeftPlayers"));
+    const rh = heroesUnder(UI.graphs.FindChildTraverse("RightPlayers"));
+    const lt = teamOfHeroes(m, lh);
+    const rt = teamOfHeroes(m, rh);
+    if (lt >= 0 && (rt < 0 ? !rh.length : rt !== lt)) return { team: lt, how: "lane heroes", heroes: lh };
+    if (lt < 0 && rt >= 0 && !lh.length) return { team: 1 - rt, how: "lane heroes", heroes: m.teams[1 - rt].rows.map((r) => r.hero) };
+    let side = "";
+    for (let p = UI.graphs.FindChildTraverse(`PlayerButton${n}`), d = 0; ok(p) && !side && d < 8; p = p.GetParent(), d++) {
+      if (p.id === "TeamCtnLeft") side = "left";
+      else if (p.id === "TeamCtnRight") side = "right";
+    }
+    const bt = teamOfHeroes(m, buttonHero[n] ? [buttonHero[n]] : []);
+    if (side && bt >= 0) {
+      const team = side === "left" ? bt : 1 - bt;
+      return { team, how: "picked button", heroes: m.teams[team].rows.map((r) => r.hero) };
+    }
+    return { team: -1, how: `none (lane heroes ${lh.join(",") || "-"}|${rh.join(",") || "-"}, button ${n} hero ${buttonHero[n] || 0} ${side || "in no team container"})`, heroes: lh };
+  }
+
   function laneSig() {
     const parts = [];
     for (const [id] of LANE_TIERS.concat([["LaneStatKills"], ["LaneStatNetWorth"]])) {
@@ -1424,6 +1534,7 @@
     const lastTime = () => (lastPoint ? lastPoint.t : m.duration);
     const buttonHero = Array.from({ length: 13 }, (_, n) => (n ? heroOfButton(n) : 0));
     const rows = m.teams[0].rows.concat(m.teams[1].rows);
+    const buttons = Math.min(12, rows.length); // graph buttons that exist: one per player
     const playerTip = (tries, wantTeamRows) => {
       const tip = readTip();
       if (!tip || tip.time !== lastTime()) return null;
@@ -1431,9 +1542,9 @@
       if (tip.sig === prevSig && tries < 4) return null;
       return tip;
     };
-    if (buttonHero.slice(1).some((h) => !h)) {
+    if (buttonHero.slice(1, buttons + 1).some((h) => !h)) {
       jobs.push(setup(() => { graphType(0); asTeam(false); }));
-      for (let n = 1; n <= 12; n++) {
+      for (let n = 1; n <= buttons; n++) {
         jobs.push({
           skip: () => buttonHero[n] > 0,
           act: () => { pick(n); hover(-1); },
@@ -1453,7 +1564,7 @@
 
     // 3. Souls by source per player, at the last column.
     jobs.push(setup(() => { graphType(4); asTeam(false); }));
-    for (let n = 1; n <= 12; n++) {
+    for (let n = 1; n <= buttons; n++) {
       jobs.push({
         skip: () => !buttonHero[n],
         act: () => { pick(n); hover(-1); },
@@ -1467,7 +1578,7 @@
     //    panel is read a frame after the pick so a stale lane is never taken for a new one.
     let prevLane = "";
     jobs.push(setup(() => graphType(12)));
-    for (let n = 1; n <= 12; n++) {
+    for (let n = 1; n <= buttons; n++) {
       jobs.push({
         skip: () => lanes.length >= 3,
         act: () => pick(n),
@@ -1481,7 +1592,7 @@
         },
         take: ({ sig, flat }) => {
           prevLane = flat;
-          if (!lanes.some((l) => l.flat === flat)) lanes.push({ flat, sig, button: n });
+          if (!lanes.some((l) => l.flat === flat)) lanes.push({ flat, sig, button: n, side: graphLeftTeam(m, n, buttonHero) });
         }
       });
     }
@@ -1501,14 +1612,24 @@
         souls.clear();
       }
       for (const lane of lanes) {
+        const side = lane.side;
+        if (side.team < 0) {
+          log(`scan: lane ${lane.button}: left team unknown, objectives dropped: ${side.how}`);
+          continue;
+        }
+        log(`scan: lane ${lane.button}: left team ${side.team + 1} by ${side.how}, left heroes ${side.heroes.join(",")}`);
         LANE_TIERS.forEach(([, tier], i) => {
           const labels = lane.sig[i];
-          // [team 1's structure, tier name, team 2's structure]: a time on the left is team 1's
-          // structure falling, so team 2 took it (verified against the metadata).
+          // [left team's structure, tier name, right team's structure]: a time on the left is the LEFT
+          // team's structure falling, so the right team took it. Which team is left is read per lane
+          // (graphLeftTeam): the page is viewer-relative, not team 1 left (seen 2026-11-13, client 6861;
+          // the same scan order gave the mirror of the 2026-10-29 log).
+          const owner = side.team + 1;
+          const killer = 3 - owner;
           const left = secs(labels[0]);
           const right = secs(labels[labels.length - 1]);
-          if (left >= 0) events.push({ t: left, tier, owner: 1, killer: 2 });
-          if (right >= 0) events.push({ t: right, tier, owner: 2, killer: 1 });
+          if (left >= 0) events.push({ t: left, tier, owner, killer });
+          if (right >= 0) events.push({ t: right, tier, owner: killer, killer: owner });
         });
       }
       events.sort((a, b) => a.t - b.t);
@@ -1560,6 +1681,8 @@
       S.rescan = null;
       if (again.gen === S.gen) scan(again.m, again.attempt);
     }
+    // Item icons can arrive after the build: one column is recounted per check.
+    if (S.key) recountItems();
     // Steady state: the first row's bound label still reads what the board was built from.
     // Rows are reused across matches, so panel identity is not enough.
     if (S.key && ok(S.bound) && String(S.bound.text) === S.sig) return true;
@@ -1577,6 +1700,10 @@
 
   function tick() {
     if (stopped) return;
+    if (!ok(ctx)) { // the page panel is gone: stop for good
+      try { ctx.NSStop(); } catch (e) { stopped = true; }
+      return;
+    }
     try {
       step();
     } catch (e) {

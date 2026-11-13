@@ -81,6 +81,13 @@ Live checks first (they need the user's consent to launch Deadlock); the full li
 
 ## Changelog
 
+### 2026-11-13: board sync with `detailed_postgame` (pak11), not built or released
+
+- User decision: the Observer HUD board and the standalone board in `detailed_postgame/` are kept in sync both ways.
+- Observer to standalone: the Play Again flame comes back even when the board cannot load, the next game in a private lobby retries its scan until the graph is its own (`SCAN_RETRIES`, `S.rescan`), and the unused `NSTeam1`, `NSTeam2` and `NSPeakTeam1` classes and the undeclared `UI` fields are gone.
+- Standalone to observer: only a comment in `pg_board.css` (the spacer rule). The team identity code stays here only.
+- The standalone validator now asserts the flame and the two lobby retry checks. Not live-verified.
+
 ### 2026-11-10, 0.3.2: audit, bug fixes, cleanup (released on GameBanana 2026-11-10, file 1883703, MD5 matches the local archive; pak10 SHA-256 `697cefb9`, 52 assets; archive `dist/Observer_HUD_0.3.2_26.11.10.7z` = `dist/observer_hud_032_261110.7z`, SHA-256 `ab7f5d39`, MD5 `e578881b`)
 
 - User request: an untangle pass over `observer_hud/` with live profiling, then the bugs it found. Everything is in [decisions/untangle-2026-11-10.md](decisions/untangle-2026-11-10.md).

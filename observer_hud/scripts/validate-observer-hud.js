@@ -943,6 +943,31 @@ check("board: torn paper surfaces use their own full-strength mask at their own 
     assert.equal(px(".NSGraphStems", "height"), end, ".NSGraphStems is STEM_END tall");
     assert.equal(end, px(".NSGraphPlot", "height") + px(".NSGraphTicks", "height") + 4, "the stems reach 4 px into the icons");
   }
+  // Nothing that reaches past the paper may be cut (user 2026-11-13: drop lines below the paper and the final-lead
+  // pill past its right edge were missing): the plot's opacity-mask cuts all its children to the torn paper, and a
+  // panel's own box clips (rect( 0%, 100%, 100%, 0% ) is that box), so the marks are a noclip sibling of the plot
+  // and the wipe ends with no clip.
+  {
+    const xml = read("panorama/layout/observer_hud/pg_board.xml");
+    const js = read("panorama/scripts/observer_hud/pg_board.js");
+    const plotAt = xml.indexOf('<Panel id="NSGraphPlot"');
+    const drawAt = xml.indexOf('<Panel id="NSGraphDraw"');
+    assert.ok(plotAt >= 0 && drawAt > plotAt, "NSGraphDraw follows NSGraphPlot in the layout");
+    const plotXml = xml.slice(plotAt, drawAt);
+    const opens = (plotXml.match(/<Panel\b(?:[^>]*[^\/>])?>/g) || []).length;
+    assert.equal(opens, (plotXml.match(/<\/Panel>/g) || []).length, "NSGraphPlot is closed before NSGraphDraw: the marks are not inside the masked paper");
+    assert.ok(plotXml.includes('id="NSGraphCanvas"'), "the line canvas stays on the masked paper");
+    const drawXml = xml.slice(drawAt, xml.indexOf("</Panel>\n\t\t\t\t<!--", drawAt));
+    for (const id of ["NSGraphMarks", "NSGraphPeak1", "NSGraphPeak2", "NSGraphEnd"]) assert.ok(drawXml.includes(`id="${id}"`), `${id} is in NSGraphDraw`);
+    assert.ok(/opacity-mask:/.test(body(".NSGraphPlot")), "(the plot is the masked panel)");
+    assert.ok(!/opacity-mask:/.test(body(".NSGraphDraw")), "NSGraphDraw has no mask");
+    for (const sel of [".NSGraph", ".NSGraphDraw", ".NSGraphStems"]) assert.match(body(sel), /overflow:\s*noclip;/, `${sel} does not clip what passes its box`);
+    assert.match(body(".NSGraphDraw"), /ignore-parent-flow:\s*true;/, "NSGraphDraw lies over the plot");
+    assert.equal(px(".NSGraphDraw", "width"), px(".NSGraphPlot", "width"), "NSGraphDraw is as wide as the plot");
+    assert.equal(px(".NSGraphDraw", "height"), px(".NSGraphPlot", "height"), "NSGraphDraw is as tall as the plot");
+    assert.ok(/style\.clip = f >= 1 \? "none" :/.test(js), "the wipe ends with clip none");
+    assert.ok(!/f >= 1 \? "rect/.test(js), "no full-box clip is left after the wipe");
+  }
   for (const mask of ["torn_head_l", "torn_head_r", "torn_graph", "torn_track", "torn_award"]) {
     // The mask is in alpha as well as grey (live: a mask with alpha 255 everywhere masked nothing).
     const m = pixels(mask);
@@ -4577,16 +4602,58 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
   };
   // Lane Stats (graph type 12): picking a player shows that player's lane (three lanes, by button);
   // graph.lanes[lane] = [[team 1 tier 1 falls, team 2 tier 1 falls], [tier 2], [barracks]] in seconds, -1 = stands.
+  // The stock page is viewer-relative (seen 2026-11-13, client 6861): graph.left = the team number on the left
+  // (default 1; 2 = team 2 left, the labels mirror with it). graph.sides = what tells the script which side
+  // that is: "lane" (default; hero images in #LeftPlayers / #RightPlayers), "button" (only the PlayerButton<n>
+  // heroids under #TeamCtnLeft / #TeamCtnRight) or "none" (no hero ids anywhere).
+  let shownMatch = null;
+  const showSides = (graphs, n, li) => {
+    const left = graph.left || 1;
+    const sides = graph.sides || "lane";
+    for (const id of ["LeftPlayers", "RightPlayers"]) {
+      const old = graphs.FindChildTraverse(id);
+      if (old) old.DeleteAsync();
+    }
+    const lp = new MockPanel("Panel", graphs, "LeftPlayers");
+    const rp = new MockPanel("Panel", graphs, "RightPlayers");
+    if (!shownMatch || sides !== "lane") return;
+    [[lp, left - 1], [rp, 2 - left]].forEach(([ctn, t]) => {
+      for (const k of [li % 3, li % 3 + 3]) {
+        const snippet = new MockPanel("Panel", ctn, "");
+        const image = new MockPanel("CitadelHeroImage", snippet, "HeroImage");
+        image.heroid = shownMatch.teams[t][k].hero;
+      }
+    });
+  };
+  // "button": the stock graph buttons sit under #TeamCtnLeft / #TeamCtnRight with their hero ids, from the fill on.
+  const showButtons = (graphs, m) => {
+    if ((graph.sides || "lane") !== "button") return;
+    for (const id of ["TeamCtnLeft", "TeamCtnRight"]) {
+      const old = graphs.FindChildTraverse(id);
+      if (old) old.DeleteAsync();
+    }
+    const cl = new MockPanel("Panel", graphs, "TeamCtnLeft");
+    const cr = new MockPanel("Panel", graphs, "TeamCtnRight");
+    m.teams.flat().forEach((p, k) => {
+      const team = Math.floor(k / m.teams[0].length) + 1;
+      const wrap = new MockPanel("Panel", team === (graph.left || 1) ? cl : cr, "");
+      const button = new MockPanel("Button", wrap, `PlayerButton${k + 1}`);
+      new MockPanel("CitadelHeroImage", button, "HeroImage").heroid = p.hero;
+    });
+  };
   const showLane = (graphs, n) => {
-    const lane = graph.lanes[(Number(n) - 1) % graph.lanes.length];
+    const li = (Number(n) - 1) % graph.lanes.length;
+    const lane = graph.lanes[li];
     const mmss = (t) => (t < 0 ? "-" : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`);
     for (const id of ["LaneStatTier1", "LaneStatTier2", "LaneStatBarracks", "LaneStatKills", "LaneStatNetWorth"]) {
       const old = graphs.FindChildTraverse(id);
       if (old) old.DeleteAsync();
     }
+    showSides(graphs, n, li);
+    const [lt, rt] = graph.left === 2 ? [1, 0] : [0, 1];
     ["LaneStatTier1", "LaneStatTier2", "LaneStatBarracks"].forEach((id, i) => {
       const panel = new MockPanel("Panel", graphs, id);
-      for (const text of [mmss(lane[i][0]), id, mmss(lane[i][1])]) { const l = new MockPanel("Label", panel, ""); l.text = text; }
+      for (const text of [mmss(lane[i][lt]), id, mmss(lane[i][rt])]) { const l = new MockPanel("Label", panel, ""); l.text = text; }
     });
     for (const id of ["LaneStatKills", "LaneStatNetWorth"]) { const l = new MockPanel("Label", new MockPanel("Panel", graphs, id), ""); l.text = `${id} ${n}`; }
   };
@@ -4606,6 +4673,8 @@ function boardWorld({ visible = true, disk = null, offline = false, graph = null
   }
   // The stock rows, cloned once by C++ and reused for the next match.
   const fill = (m) => {
+    shownMatch = m;
+    if (graph) showButtons(page.FindChildTraverse("Graphs"), m);
     page.__dialog = { match_id: m.id, match_minutes: m.minutes, match_seconds: String(m.seconds).padStart(2, "0") };
     if (!scoreboard.children.length) {
       // Stock CSS (6819): .ScoreboardScrollContainer { overflow: scroll squish; transform: translateY(80px); }
@@ -4834,6 +4903,63 @@ check("board: a graph that never becomes this match's gives no lead, no objectiv
   w.advance(120000);
   assert.equal(done().length, 2, "the retries ran out and the scan settled");
   assert.match(done()[1], /: 0 lead points, 0 souls, 0 lanes, 0 objectives$/, `nothing of game 1 is shown for game 2: ${done()[1]}`);
+});
+
+check("board: a scan cut short by the next match does not block the graph retry (fix 1)", () => {
+  const a = pgMatch(121917141);
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  const sum = (m) => m.teams.map((team) => team.reduce((s, p) => s + p.net_worth, 0));
+  let stall = true; // the tooltip shows the wrong totals: game 1's first scan step waits for a frame
+  const graph = { duration: a.minutes * 60 + a.seconds, souls: sum(a), lanes: [[[300, -1], [-1, -1], [-1, -1]]],
+    values: (f) => (stall ? [1, 1] : [Math.round(graph.souls[0] * f), Math.round(graph.souls[1] * f)]) };
+  const w = boardWorld({ graph });
+  const done = () => w.harness.logs.filter((l) => l.startsWith("[NS] scan done"));
+  w.boot();
+  w.fill(a);
+  w.fire("CitadelMatchDetailsUpdated", a.id);
+  assert.equal(done().length, 0, "game 1's scan is still running");
+  // Game 2 opens while the Graphs page has no columns yet: its scan finds none and waits to retry.
+  const canvas = w.page.FindChildTraverse("Graph");
+  const kids = canvas.children.slice();
+  canvas.children.length = 0;
+  w.fill(b);
+  w.fire("CitadelMatchDetailsUpdated", b.id);
+  w.advance(500);
+  canvas.children.push(...kids);
+  stall = false;
+  graph.duration = b.minutes * 60 + b.seconds;
+  graph.souls = sum(b);
+  w.advance(30000);
+  assert.equal(done().length, 1, "the retry ran once the columns came: game 2's scan settled");
+});
+
+check("board: the scan only steps through the graph buttons that exist, and a tied end shows no lead pill (fixes 3, 9)", () => {
+  const steps = (m) => {
+    const souls = m.teams.map((t) => t.reduce((s, p) => s + p.net_worth, 0));
+    const w = boardWorld({ graph: { duration: m.minutes * 60 + m.seconds, souls, lanes: [[[300, -1], [-1, -1], [-1, -1]]] } });
+    w.boot();
+    w.fill(m);
+    // A smaller game: the stock page has only as many player rows as players.
+    for (const t of [1, 2]) w.scoreboard.FindChildTraverse(`Team${t}`).FindChildTraverse("TeamPlayers").children.splice(m.teams[t - 1].length, 6 - m.teams[t - 1].length);
+    w.fire("CitadelMatchDetailsUpdated", m.id);
+    w.advance(60000);
+    const line = w.harness.logs.find((l) => /scan: \d+ steps/.test(l));
+    assert.ok(line, "the scan ran");
+    return { n: Number(/scan: (\d+) steps/.exec(line)[1]), w };
+  };
+  const full = pgMatch(121917141);
+  const small = pgMatch(121917141);
+  small.teams = small.teams.map((t) => t.slice(0, 3));
+  const nFull = steps(full).n;
+  const nSmall = steps(small).n;
+  assert.ok(nFull - nSmall >= 12, `6 players take fewer steps than 12 (${nSmall} against ${nFull})`);
+  const pill = (w) => w.boardHost().FindChildTraverse("NSGraphEnd");
+  assert.equal(String(pill(steps(full).w).style.visibility), "visible", "a lead shows the pill");
+  const tied = pgMatch(121917141);
+  tied.teams[1].forEach((p, k) => { p.net_worth = tied.teams[0][k].net_worth; });
+  tied.teams[1][5].net_worth += 30; // 30 souls apart at the end (the pairing needs a difference): it prints +0.0K
+  const even = steps(tied);
+  assert.equal(String(pill(even.w).style.visibility), "collapse", "a tied end hides the pill");
 });
 
 check("board: cheap while hidden, little while shown; a reopen without events, an early event and a screen pick are found", () => {
@@ -5482,7 +5608,7 @@ check("board: the soul lead is one smooth line over a soft area on a canvas, col
   w.advance(500);
   assert.ok(text(host.FindChildTraverse("NSGraphTop")).includes("NIGHT OWLS") && text(host.FindChildTraverse("NSGraphBottom")).includes("BRASS SAINTS"), "captions follow the card");
   // The reveal finishes.
-  assert.equal(String(host.FindChildTraverse("NSGraphDraw").style.clip), "rect( 0%, 100%, 100%, 0% )", "fully revealed");
+  assert.equal(String(host.FindChildTraverse("NSGraphDraw").style.clip), "none", "fully revealed: no clip, so the pill may pass the paper");
   // How it failed live (2026-10-29, 1600x900, detailed_postgame): 1 px strokes are 0.83 screen px at UI scale
   // 0.83 and drop out by sub-pixel position (the 5:00 guide and most objective drop lines). Nothing under 2 px.
   const painted = host.FindChildTraverse("NSGraphCanvas").__draws || [];
@@ -5549,6 +5675,110 @@ check("copy: a click on the header match id copies it the stock way, says so, an
   deq(w.copy.entry, [{ text: "121917141", selected: true, focused: true }], "fallback copies the bare id");
   assert.equal(w.text("NSMatch"), "MATCH ID COPIED");
   assert.ok(w.harness.logs.some((l) => l === "[NS] match id copied (entry)"));
+  assert.ok(noBoardErrors(w));
+});
+
+check("board: objective owners follow the page's own left team (viewer-relative, seen 2026-11-13 on 6861); no side information drops the lanes", () => {
+  // How it could fail: the left label is taken for team 1 again (every owner mirrored when team 2 is on the left),
+  // or sides are guessed when neither the lane heroes nor the picked button say which team is on the left.
+  const run = (extra) => {
+    const a = pgMatch(121685912);
+    const souls = a.teams.map((team) => team.reduce((s, p) => s + p.net_worth, 0));
+    const graph = Object.assign({ duration: a.minutes * 60 + a.seconds, souls, lanes: [[[478, 700], [-1, -1], [-1, -1]]] }, extra);
+    const w = boardWorld({ graph });
+    w.boot();
+    w.fill(a);
+    w.fire("CitadelMatchDetailsUpdated", a.id);
+    w.advance(30000);
+    const tag = "[NS] data events + ";
+    const events = w.harness.logs.filter((l) => l.startsWith(tag)).map((l) => JSON.parse(l.slice(tag.length)));
+    return { events, logs: w.harness.logs.filter((l) => l.startsWith("[NS] scan: lane ")) };
+  };
+  // The mock lane says team 1's structure falls at 478 and team 2's at 700, whichever side the page shows team 1 on.
+  const right = [{ t: 478, tier: "Tier 1", owner: 1, killer: 2 }, { t: 700, tier: "Tier 1", owner: 2, killer: 1 }];
+  // The mock repeats one lane for every pick, so each event comes once per lane read.
+  const same = (events) => assert.deepEqual([...new Set(events.map((e) => `${e.t}:${e.owner}:${e.killer}`))], right.map((e) => `${e.t}:${e.owner}:${e.killer}`));
+  const t1 = run({ left: 1 });
+  same(t1.events);
+  assert.match(t1.logs[0], /left team 1 by lane heroes, left heroes \d+,\d+$/, t1.logs.join("|"));
+  const t2 = run({ left: 2 });
+  same(t2.events);
+  assert.match(t2.logs[0], /left team 2 by lane heroes, left heroes \d+,\d+$/, t2.logs.join("|"));
+  const b2 = run({ left: 2, sides: "button" });
+  same(b2.events);
+  assert.match(b2.logs[0], /left team 2 by picked button, left heroes (\d+,){5}\d+$/, b2.logs.join("|"));
+  same(run({ left: 1, sides: "button" }).events);
+  const none = run({ left: 2, sides: "none" });
+  assert.equal(none.events.length, 0, "no side information: no objectives drawn");
+  assert.match(none.logs[0], /left team unknown, objectives dropped: none \(/, none.logs.join("|"));
+});
+
+check("board: the item count is taken again when icons arrive after the build, once per change, with the per-column counts", () => {
+  // How it could fail: fitGraph counts at build time only, so icons the stock rows get later never push the graph;
+  // or it runs on every safety check and floods the log.
+  const w = boardWorld({ graph: { duration: 31 * 60 + 7, souls: [140000, 150000] } });
+  w.boot();
+  const first = () => w.scoreboard.FindChildTraverse("Team1").FindChildTraverse("TeamPlayers").children[0].FindChildTraverse("ItemsContainer");
+  const margin = () => String(w.boardHost().FindChildTraverse("NSGraph").style.marginTop);
+  const fits = () => w.harness.logs.filter((l) => l.startsWith("[NS] items: "));
+  present(w, pgMatch(121685912));
+  w.advance(5000);
+  assert.equal(margin(), "8px");
+  const n = fits().length;
+  assert.match(fits()[n - 1], /^\[NS\] items: 9 max, 3 rows, graph pushed 0px, per column (\d+,){11}\d+$/, fits()[n - 1]);
+  w.advance(5000);
+  assert.equal(fits().length, n, "an unchanged count logs nothing more");
+  for (let i = 0; i < 6; i++) new MockPanel("CitadelModIcon", first(), ""); // 15 items: 5 rows, no new match
+  w.advance(15000); // one column per check
+  assert.equal(margin(), "24px", "the late icons pushed the graph");
+  assert.equal(fits().length, n + 1, "one line for the change");
+  assert.match(fits()[n], /items: 15 max, 5 rows, graph pushed 16px, per column 15,/, fits()[n]);
+  w.advance(5000);
+  assert.equal(fits().length, n + 1, "and no more until it changes again");
+});
+
+check("board: more than 12 final items push the lead graph down (capped), and teardown resets it; stock match id labels lose hit testing and get it back", () => {
+  // How it could fail: a 5th or 6th item row runs into the graph; the push stays after a smaller match; the hidden
+  // stock #MatchID still takes hover (tooltip over empty space) or is never restored; the header copy needs it.
+  const w = boardWorld({ graph: { duration: 31 * 60 + 7, souls: [140000, 150000] } });
+  w.boot();
+  const graph = () => w.boardHost().FindChildTraverse("NSGraph");
+  const stock = () => w.page.FindChildTraverse("ScoreboardScreen").Children().filter((k) => k.id === "MatchID" || k.BHasClass("MatchMode"));
+  const items = () => w.scoreboard.FindChildTraverse("Team1").FindChildTraverse("TeamPlayers").children[0].FindChildTraverse("ItemsContainer");
+  const margin = () => String(graph().style.marginTop);
+  present(w, pgMatch(121685912));
+  w.advance(20000);
+  assert.equal(margin(), "8px", "9 items (3 rows): the graph keeps its 8 px margin");
+  const labels = stock();
+  assert.ok(labels.length > 0, "the stock page has match id labels to hide");
+  const hits = labels.map(() => []);
+  labels.forEach((k, i) => {
+    let value = k.hittest;
+    Object.defineProperty(k, "hittest", { get: () => value, set: (v) => { value = v; hits[i].push(v); }, configurable: true });
+  });
+  for (let i = 0; i < 3; i++) new MockPanel("CitadelModIcon", items(), ""); // 12 items: 4 rows still fit
+  present(w, pgMatch(121917141, { swap: true, win: 2 }));
+  w.advance(3000);
+  assert.equal(margin(), "8px", "12 items (4 rows) fit above the graph");
+  for (let i = 0; i < 3; i++) new MockPanel("CitadelModIcon", items(), ""); // 15 items: 5 rows
+  present(w, pgMatch(121685912));
+  w.advance(3000);
+  assert.equal(margin(), "24px", "15 items (5 rows): 8 px + 16 px");
+  for (let i = 0; i < 3; i++) new MockPanel("CitadelModIcon", items(), ""); // 18 items: 6 rows
+  present(w, pgMatch(121917141, { swap: true, win: 2 }));
+  w.advance(3000);
+  assert.equal(margin(), "34px", "18 items (6 rows): 8 px + the 26 px cap");
+  labels.forEach((k, i) => {
+    assert.equal(String(k.style.opacity), "0", "a stock label is invisible");
+    assert.equal(k.hittest, false, "and takes no hover or click");
+    assert.ok(hits[i].includes(true) && hits[i][hits[i].length - 1] === false, "teardown gave hit testing back before show() took it again");
+  });
+  const label = w.boardHost().FindChildTraverse("NSMatch");
+  label.events.onactivate();
+  deq(w.copy.stock.map((p) => p === label), [true], "the header copy does not depend on the stock label");
+  const js = read("panorama/scripts/observer_hud/pg_board.js");
+  assert.match(js, /function stockRestore\(\)[^]*?opacity: "1"[^]*?stockHit\(panel, true\)/, "teardown restores opacity and hit testing");
+  assert.ok(/S\.cols = \[\];\s*stockRestore\(\);/.test(js) && /marginTop: `\$\{GRAPH_GAP_PX\}px`/.test(js), "teardown restores the labels and the graph margin");
   assert.ok(noBoardErrors(w));
 });
 
@@ -5764,6 +5994,32 @@ check("board: the match's card is tied to its match id in the store and kept thr
   deq(names(off), ["Owl Squad", "Saint Squad"]);
   assert.ok(off.web.urls.length <= 14, `${off.web.urls.length} requests offline`);
   assert.ok(noBoardErrors(off) && noBoardErrors(again) && noBoardErrors(late) && noBoardErrors(w));
+});
+
+check("board: a new match's columns take the cached aliases at once, even when the store read fails (fix 2)", () => {
+  const S = stateApiOf();
+  const a = pgMatch(121917141);
+  const b = pgMatch(121880956, { swap: true, win: 2 });
+  const state = S.defaults();
+  state.players[String(a.teams[0][0].account)] = { a: "Alias Amber", n: "x" };
+  const body = JSON.stringify({ s: 1, state });
+  const w = boardWorld({ disk: { [`${V2}state`]: `OHS1.${S.checksum(body)}.${body}` } });
+  w.boot();
+  w.advance(1000);
+  present(w, a);
+  w.advance(6000);
+  const alias = () => {
+    const plate = w.scoreboard.FindChildTraverse("Team1").FindChildTraverse("TeamPlayers").children[0].FindChildTraverse("NSPlate");
+    return plate && plate.BHasClass("NSAliased") ? plate.FindChildTraverse("NSAlias").text : "";
+  };
+  assert.equal(alias(), "Alias Amber", "the read alias is shown");
+  w.web.offline = true; // the store no longer answers
+  present(w, b);
+  w.advance(100);
+  w.web.disk = {};
+  present(w, a); // game 1 again: its columns are new, the cache still has its alias
+  w.advance(100);
+  assert.equal(alias(), "Alias Amber", "the cached alias is on the new columns before any store reply");
 });
 
 check("board: player names follow the editor's aliases by Steam account (the saved setup, read in pieces); no alias keeps the account name", () => {

@@ -29,6 +29,7 @@ Status: **phases 1-5 built** (2026-10-25); phase 5 is VM-verified only. This pla
 
 1. **One source lane, one output** (amended 2026-10-25 by the user: "only observer hud" with the board merged in).
    - The board's sources moved into `observer_hud/panorama/**/pg_*`, and pak10 includes the board. The first draft also kept building a standalone pak11 from the same files; that was dropped, and `build_postgame_stats.ps1` and `postgame_stats/` were removed.
+   - Update 2026-11-13: the standalone board in `detailed_postgame/` (pak11, forked 2026-10-29) is a separate lane again and is kept in sync with this board both ways; only the team identity code differs.
    - With no match card the board shows stock names; it needs no store.
    - [ADR 0009](../docs/adr/0009-post-game-board-in-observer-hud.md) amends the override rule for `post_game/citadel_db_page_post_game_new.xml`. ShowRank overrides `citadel_db_post_game_scoreboard_new.xml`, a different file, so they do not clash. The stock page is pinned in `stock-pin.json`.
 2. **Identity in the HUD** (revised after P1).
